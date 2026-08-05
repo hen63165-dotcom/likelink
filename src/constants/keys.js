@@ -11,5 +11,6 @@ export const K = {
   introSeen: "ui:sellIntroSeen",
   collections: "marketplace:collections",
   following: "ui:following",
+  notifications: "marketplace:notifications",
   theme: "ui:theme",
 };
