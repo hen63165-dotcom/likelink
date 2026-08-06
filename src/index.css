@@ -32,6 +32,20 @@
   --radius-full: 9999px;
   --header-blur: rgba(250, 250, 250, 0.85);
   --overlay: rgba(0, 0, 0, 0.4);
+  --flip: 1; /* flipped to -1 in RTL to mirror directional icons */
+  --font-sans: 'Inter', 'Heebo', system-ui, sans-serif;
+  --font-disp: 'Space Grotesk', 'Heebo', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Heebo', monospace;
+}
+
+/* RTL: mirror directional icons that opt-in via scaleX(var(--flip)) */
+[dir="rtl"] {
+  --flip: -1;
+}
+
+/* Explicit helper for icon mirroring in RTL */
+.mirror-rtl {
+  transform: scaleX(var(--flip));
 }
 
 [data-theme="dark"] {
@@ -80,7 +94,7 @@ body {
 }
 
 .mono {
-  font-family: 'JetBrains Mono', 'Heebo', monospace;
+  font-family: var(--font-mono);
 }
 
 .tap {
@@ -179,4 +193,52 @@ body {
 
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Range slider (admin fee control) */
+input[type="range"].accent-primary {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"].accent-primary::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--bg-elevated);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+input[type="range"].accent-primary::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--bg-elevated);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Images: never let a broken image collapse layout */
+img {
+  background: var(--bg-subtle);
+}
+
+/* Performance: promote fixed/composited layers */
+.fixed, .sticky {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.glass-header {
+  transform: translateZ(0);
+}
+
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
 }

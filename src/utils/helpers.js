@@ -56,3 +56,35 @@ export function groupByDay(sales, valueKey, days = 14) {
   });
   return buckets;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(value) {
+  return EMAIL_RE.test(String(value || "").trim());
+}
+
+/** True only for absolute http(s) URLs (blocks javascript:, data:, etc.). */
+export function isSafeHttpUrl(value) {
+  const v = String(value || "").trim();
+  if (!v) return false;
+  try {
+    const u = new URL(v, window.location.origin);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Empty is allowed (no image); otherwise only http(s) or inline data: images. */
+export function isSafeImageUrl(value) {
+  const v = String(value || "").trim();
+  if (!v) return true;
+  if (v.startsWith("data:image/")) return true;
+  return isSafeHttpUrl(v);
+}
+
+export function clampNumber(n, min = 0, max = 1e9) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return 0;
+  return Math.min(max, Math.max(min, num));
+}

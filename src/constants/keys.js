@@ -1,4 +1,6 @@
-export const ADMIN_CODE = "hub-admin";
+// Admin access code is read from the environment so it is never baked into
+// the shipped bundle. If it is unset, the admin panel stays locked.
+export const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE || "";
 
 export const K = {
   marketers: "marketplace:marketers",

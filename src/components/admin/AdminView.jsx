@@ -3,9 +3,7 @@ import { Lock, Users, ShoppingBag, MousePointerClick, DollarSign, Check, Flag, T
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
-import {
-  StatChip, EmptyState, StatChip as StatChipUI, Button, LabeledInput, IconButton
-} from "../ui";
+import { StatChip, EmptyState, Button } from "../ui";
 import { EarningsChart } from "../charts/EarningsChart";
 import { ProductThumb } from "../product/ProductComponents";
 import { ADMIN_CODE } from "../../constants/keys";
@@ -39,11 +37,13 @@ export default function AdminView() {
             className="input-field w-full rounded-xl px-4 py-3 text-sm text-center font-mono tracking-widest" 
           />
           {err && <p className="text-xs flex items-center justify-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
-          <Button onClick={() => (code === ADMIN_CODE ? setUnlocked(true) : setErr(t("admin.incorrect")))}>
+          <Button onClick={() => (ADMIN_CODE && code === ADMIN_CODE ? setUnlocked(true) : setErr(t("admin.incorrect")))}>
             {t("admin.unlock")}
           </Button>
         </div>
-        <p className="text-[11px] text-faint mt-4">{t("admin.hint")} <code className="bg-surface px-1.5 py-0.5 rounded">{ADMIN_CODE}</code></p>
+        {!ADMIN_CODE ? (
+          <p className="text-[11px] text-faint mt-4 leading-relaxed max-w-[280px]">{t("admin.notConfigured")}</p>
+        ) : null}
       </div>
     );
   }
@@ -112,7 +112,7 @@ export default function AdminView() {
       {section === "listings" && (
         <div className="flex flex-col gap-3">
           {products.length === 0 && <EmptyState icon={ShoppingBag} title={t("admin.emptyListings")} body={t("admin.emptyListingsBody")} />}
-          {products.sort((a, b) => b.createdAt - a.createdAt).map((p) => (
+          {[...products].sort((a, b) => b.createdAt - a.createdAt).map((p) => (
             <AdminListingRow key={p.id} p={p} onSetStatus={onSetStatus} onRemove={onRemove} />
           ))}
         </div>
@@ -134,7 +134,7 @@ export default function AdminView() {
                   <p className="text-sm font-semibold truncate flex items-center gap-1.5">{m.name} {topIds.has(m.id) && <TopBadge />}</p>
                   <p className="text-xs text-muted truncate">{m.email}</p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-end shrink-0">
                   <p className="mono text-sm font-bold">{theirs.length} <span className="text-[10px] text-muted font-normal uppercase tracking-tighter">{t("admin.listingsWord")}</span></p>
                   <p className="mono text-[10px] text-muted mt-0.5">{theirClicks} {t("admin.clicksFeesWord")} · {money(theirFees, lang)}</p>
                 </div>

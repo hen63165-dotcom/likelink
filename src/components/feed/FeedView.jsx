@@ -141,7 +141,7 @@ export default function FeedView() {
               <button
                 key={`t-${p.id}`}
                 onClick={() => setActive(p)}
-                className="tap shrink-0 w-28 text-left"
+                className="tap shrink-0 w-28 text-start"
               >
                 <div className="w-28 h-36 rounded-xl overflow-hidden surface mb-2">
                   {p.image ? (

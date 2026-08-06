@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { storage } from "../lib/storage";
 import { K } from "../constants/keys";
-import { uid, slugify, uniqueSlug } from "../utils/helpers";
+import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber } from "../utils/helpers";
+import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
 
 const MarketplaceContext = createContext(null);
@@ -171,7 +172,10 @@ export function MarketplaceProvider({ children }) {
       recordClick,
       onLogin: async (m) => persistSession(m.id),
       onSignup: async (name, email) => {
-        const existing = marketers.find((m) => m.email.toLowerCase() === email.toLowerCase());
+        const cleanName = String(name || "").trim().slice(0, 60);
+        const cleanEmail = String(email || "").trim().toLowerCase();
+        if (!cleanName || !isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        const existing = marketers.find((m) => m.email.toLowerCase() === cleanEmail);
         if (existing) {
           await persistSession(existing.id);
           showToast(`${t("sell.welcomeBack")} ${existing.name.split(" ")[0]}`);
@@ -179,9 +183,9 @@ export function MarketplaceProvider({ children }) {
         }
         const m = {
           id: uid(),
-          name,
-          email,
-          slug: uniqueSlug(slugify(name), marketers.map((x) => x.slug).filter(Boolean)),
+          name: cleanName,
+          email: cleanEmail,
+          slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)),
           createdAt: Date.now(),
         };
         await persistMarketers([...marketers, m]);
@@ -191,16 +195,23 @@ export function MarketplaceProvider({ children }) {
       onLogout: async () => persistSession(null),
       onAddProduct: async (draft) => {
         if (!currentMarketer) return;
+        const title = String(draft.title || "").trim().slice(0, 120);
+        const description = String(draft.description || "").trim().slice(0, 600);
+        const affiliateUrl = String(draft.affiliateUrl || "").trim().slice(0, 2000);
+        const image = String(draft.image || "").trim().slice(0, 4000);
+        if (!title) return showToast(t("form.errTitle"));
+        if (!isSafeHttpUrl(affiliateUrl)) return showToast(t("form.errLink"));
+        if (!isSafeImageUrl(image)) return showToast(t("form.errImage"));
         const p = {
           id: uid(),
           marketerId: currentMarketer.id,
-          title: draft.title,
-          description: draft.description,
-          image: draft.image,
-          affiliateUrl: draft.affiliateUrl,
-          category: draft.category,
-          price: Number(draft.price) || 0,
-          commission: Number(draft.commission) || 0,
+          title,
+          description,
+          image,
+          affiliateUrl,
+          category: CATEGORY_KEYS.includes(draft.category) ? draft.category : "Other",
+          price: clampNumber(draft.price),
+          commission: clampNumber(draft.commission),
           status: "approved",
           clicks: 0,
           createdAt: Date.now(),
@@ -230,7 +241,9 @@ export function MarketplaceProvider({ children }) {
       },
       onAddCollection: async (title) => {
         if (!currentMarketer) return;
-        const col = { id: uid(), marketerId: currentMarketer.id, title, productIds: [], createdAt: Date.now() };
+        const clean = String(title || "").trim().slice(0, 60);
+        if (!clean) return;
+        const col = { id: uid(), marketerId: currentMarketer.id, title: clean, productIds: [], createdAt: Date.now() };
         await persistCollections([...collections, col]);
       },
       onUpdateCollection: async (id, productIds) => {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
 import { parsePath } from "./utils/routing";
 
@@ -8,11 +8,11 @@ import { parsePath } from "./utils/routing";
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
 import { Toast, LoadingScreen } from "./components/ui";
 
-// View Components
-import FeedView from "./components/feed/FeedView";
-import SellView from "./components/sell/SellView";
-import AdminView from "./components/admin/AdminView";
-import CreatorProfilePage from "./PAGES/CreatorProfilePage"; // We'll redesign this soon
+// View Components — lazy-loaded for faster first paint (code-splitting)
+const FeedView = lazy(() => import("./components/feed/FeedView"));
+const SellView = lazy(() => import("./components/sell/SellView"));
+const AdminView = lazy(() => import("./components/admin/AdminView"));
+const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
 export default function AppRoot() {
   return (
@@ -49,15 +49,15 @@ function App() {
   if (route.type === "creator") {
     return (
       <AppShell>
-        <CreatorProfilePage
-          slug={route.slug}
-          // Note: CreatorProfilePage still uses props for now, 
-          // we will refactor it to use useMarketplace internal hooks in Sprint 1.
-          {...useMarketplace()} 
-          navigate={navigate}
-          lang={lang}
-          setLang={setLang}
-        />
+        <Suspense fallback={<LoadingScreen />}>
+          <CreatorProfilePage
+            slug={route.slug}
+            {...useMarketplace()}
+            navigate={navigate}
+            lang={lang}
+            setLang={setLang}
+          />
+        </Suspense>
         <Toast message={toast?.msg} />
       </AppShell>
     );
@@ -72,9 +72,11 @@ function App() {
       />
 
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
-        {tab === "feed" && <FeedView />}
-        {tab === "sell" && <SellView navigate={navigate} />}
-        {tab === "admin" && <AdminView />}
+        <Suspense fallback={<LoadingScreen />}>
+          {tab === "feed" && <FeedView />}
+          {tab === "sell" && <SellView navigate={navigate} />}
+          {tab === "admin" && <AdminView />}
+        </Suspense>
       </main>
 
       <BottomNav tab={tab} setTab={setTab} />

@@ -7,7 +7,7 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { money, groupByDay } from "../../utils/helpers";
+import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { uploadProductImage } from "../../lib/uploadImage";
 import {
@@ -329,7 +329,8 @@ function ProductForm({ onClose, onSubmit }) {
 
   function submit() {
     if (!d.title.trim()) return setErr(t("form.errTitle"));
-    if (!d.affiliateUrl.trim().startsWith("http")) return setErr(t("form.errLink"));
+    if (!isSafeHttpUrl(d.affiliateUrl)) return setErr(t("form.errLink"));
+    if (!isSafeImageUrl(d.image)) return setErr(t("form.errImage"));
     onSubmit(d);
   }
 

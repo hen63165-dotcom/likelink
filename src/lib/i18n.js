@@ -6,6 +6,9 @@ export const translations = {
     topbar: { feed: "Likelink", sell: "סטודיו", admin: "ניהול", fee: "עמלת פלטפורמה" },
     nav: { feed: "פיד", sell: "מכירה", admin: "ניהול" },
     feed: {
+      heroTitle: "בדיוק מה שחיפשת",
+      heroSub: "ההמלצות הכי טובות — ישר מהיוצרות, בלי אלגוריתם ובלי רעש.",
+      trending: "עכשיו לוהט",
       searchPlaceholder: "חיפוש לפי שם מוצר…",
       sortNewest: "הכי חדש",
       sortPopular: "הכי פופולרי",
@@ -93,6 +96,7 @@ export const translations = {
       commission: "העמלה שלך למכירה",
       errTitle: "תני כותרת",
       errLink: "הדביקי קישור שותפות תקין (https://...)",
+      errImage: "קישור התמונה צריך להיות קישור תקין (https://...)",
       publish: "פרסום לפיד",
     },
     admin: {
@@ -102,6 +106,7 @@ export const translations = {
       incorrect: "קוד שגוי",
       unlock: "כניסה",
       hint: "רמז (דמו):",
+      notConfigured: "כניסת מנהל לא הוגדרה עדיין. צרי קשר עם בעלת הפלטפורמה.",
       overview: "סקירה",
       listings: "מוצרים",
       creators: "יוצרות",
@@ -153,6 +158,9 @@ export const translations = {
     topbar: { feed: "Likelink", sell: "Creator Studio", admin: "Admin", fee: "platform fee" },
     nav: { feed: "Feed", sell: "Sell", admin: "Admin" },
     feed: {
+      heroTitle: "Find what you love",
+      heroSub: "The best picks — straight from creators, no algorithm, no noise.",
+      trending: "Trending now",
       searchPlaceholder: "Search product name…",
       sortNewest: "Newest",
       sortPopular: "Most popular",
@@ -240,6 +248,7 @@ export const translations = {
       commission: "Your commission/sale",
       errTitle: "Give it a title",
       errLink: "Paste a valid affiliate link (https://...)",
+      errImage: "Image link must be a valid https:// URL",
       publish: "Publish to feed",
     },
     admin: {
@@ -249,6 +258,7 @@ export const translations = {
       incorrect: "Incorrect code",
       unlock: "Unlock",
       hint: "Hint (demo):",
+      notConfigured: "Admin access isn't configured yet. Contact the platform owner.",
       overview: "Overview",
       listings: "Listings",
       creators: "Creators",

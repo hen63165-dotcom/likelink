@@ -72,7 +72,7 @@ export const ProductCard = memo(function ProductCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.35 }}
       onClick={onOpen}
-      className="tap text-left w-full group"
+      className="tap text-start w-full group"
     >
       <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
         <div className="w-full aspect-[4/5] overflow-hidden relative">
@@ -112,7 +112,7 @@ export const StreamCard = memo(function StreamCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.35 }}
       onClick={onOpen}
-      className="tap text-left w-full group"
+      className="tap text-start w-full group"
     >
       <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card">
         <div className="w-full aspect-[16/10] overflow-hidden relative">
