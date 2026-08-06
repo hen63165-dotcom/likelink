@@ -20,8 +20,8 @@ export function TopBar({ tab, feeRate, showBack, onBack }) {
             </IconButton>
           )}
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: "var(--accent)" }}
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 brand-gradient"
+            style={{ boxShadow: "0 4px 12px rgba(193,53,108,0.30)" }}
           >
             <Sparkles size={16} color="#fff" />
           </div>

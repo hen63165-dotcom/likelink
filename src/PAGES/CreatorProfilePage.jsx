@@ -63,7 +63,7 @@ export default function CreatorProfilePage({
           <ProductCard
             key={p.id}
             p={p}
-            creator={marketer.name}
+            marketer={marketer}
             isTop={false}
             lang={lang}
             isFav={favorites.includes(p.id)}
@@ -100,7 +100,10 @@ export default function CreatorProfilePage({
             {marketer.name.charAt(0).toUpperCase()}
           </div>
           <p className="disp text-[19px] font-semibold mt-3 flex items-center gap-1.5">{marketer.name} {topIds.has(marketer.id) && <TopBadge />}</p>
-          <p className="text-[12.5px] mt-1" style={{ color: "var(--text-muted)" }}>{mine.length} {t("creatorPage.listingsCount")}</p>
+          <p className="text-[12.5px] mt-0.5" style={{ color: "var(--text-muted)" }}>{mine.length} {t("creatorPage.listingsCount")}</p>
+          {marketer.bio && (
+            <p className="text-[13px] leading-relaxed mt-2.5 max-w-[320px]" style={{ color: "var(--text-secondary)" }}>{marketer.bio}</p>
+          )}
           <button
             onClick={() => onToggleFollow(marketer.id)}
             className="tap mt-3 rounded-full px-5 py-2 text-[13px] font-semibold flex items-center gap-1.5"
@@ -140,7 +143,7 @@ export default function CreatorProfilePage({
       {active && (
         <ProductModal
           product={active}
-          creator={marketer.name}
+          marketer={marketer}
           isTop={topIds.has(marketer.id)}
           lang={lang}
           isFav={favorites.includes(active.id)}

@@ -6,7 +6,7 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { getTopCreatorIds } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
-import { ProductCard, StreamCard, ProductModal } from "../product/ProductComponents";
+import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
 
 export default function FeedView() {
   const { t, lang, categoryLabel } = useI18n();
@@ -20,7 +20,7 @@ export default function FeedView() {
   const [followOnly, setFollowOnly] = useState(false);
   const [active, setActive] = useState(null);
 
-  const marketerName = (id) => marketers.find((m) => m.id === id)?.name || "—";
+  const getMarketer = (id) => marketers.find((m) => m.id === id) || null;
   const topIds = useMemo(() => getTopCreatorIds(products), [products]);
 
   const q = query.trim().toLowerCase();
@@ -58,11 +58,33 @@ export default function FeedView() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl p-4 mb-5 relative overflow-hidden"
-        style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)" }}
+        style={{
+          background: "linear-gradient(135deg, var(--accent-subtle) 0%, var(--accent-2-subtle) 100%)",
+          border: "1px solid var(--border)",
+        }}
       >
         <p className="disp text-base font-semibold">{t("feed.heroTitle")}</p>
         <p className="text-xs text-muted mt-1">{t("feed.heroSub")}</p>
       </motion.div>
+
+      {/* Creators rail */}
+      {marketers.length > 0 && (
+        <section className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2.5" style={{ color: "var(--accent)" }}>
+            {t("feed.creators")}
+          </p>
+          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {marketers.map((m) => (
+              <button key={m.id} onClick={() => (window.location.href = `/u/${m.slug || m.id}`)} className="tap flex flex-col items-center gap-1.5 shrink-0 w-16">
+                <span className="rounded-full" style={{ boxShadow: "0 0 0 2px var(--border), 0 4px 10px rgba(60,20,40,0.12)" }}>
+                  <CreatorAvatar marketer={m} size={44} />
+                </span>
+                <span className="text-[10.5px] font-medium truncate w-full text-center" style={{ color: "var(--text-secondary)" }}>{m.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Search */}
       <div className="relative mb-4">
@@ -170,7 +192,7 @@ export default function FeedView() {
             <ProductCard
               key={p.id}
               p={p}
-              creator={marketerName(p.marketerId)}
+              marketer={getMarketer(p.marketerId)}
               isTop={topIds.has(p.marketerId)}
               lang={lang}
               isFav={favorites.includes(p.id)}
@@ -186,7 +208,7 @@ export default function FeedView() {
             <StreamCard
               key={p.id}
               p={p}
-              creator={marketerName(p.marketerId)}
+              marketer={getMarketer(p.marketerId)}
               isTop={topIds.has(p.marketerId)}
               lang={lang}
               isFav={favorites.includes(p.id)}
@@ -202,7 +224,7 @@ export default function FeedView() {
         {active && (
           <ProductModal
             product={active}
-            creator={marketerName(active.marketerId)}
+            marketer={getMarketer(active.marketerId)}
             isTop={topIds.has(active.marketerId)}
             lang={lang}
             isFav={favorites.includes(active.id)}

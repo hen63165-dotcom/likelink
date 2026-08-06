@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "../../lib/LangContext";
 
 export function Toast({ message }) {
   return (
@@ -20,6 +21,7 @@ export function Toast({ message }) {
 }
 
 export function LoadingScreen() {
+  const { t } = useI18n();
   return (
     <div className="w-full h-full min-h-screen flex items-center justify-center" style={{ background: "var(--bg)" }}>
       <div className="flex flex-col items-center gap-4">
@@ -27,7 +29,7 @@ export function LoadingScreen() {
           className="w-10 h-10 rounded-full border-2 animate-spin"
           style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
         />
-        <span className="disp text-sm text-muted">Loading…</span>
+        <span className="disp text-sm text-muted">{t("common.loading")}</span>
       </div>
     </div>
   );

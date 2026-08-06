@@ -165,7 +165,7 @@ function AdminListingRow({ p, onSetStatus, onRemove }) {
         <div className="flex items-center justify-between gap-2 mb-1">
           <p className="text-sm font-semibold truncate">{p.title}</p>
           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0" style={{ background: style.bg, color: style.fg }}>
-            {p.status}
+            {t(`status.${p.status}`)}
           </span>
         </div>
         <p className="text-xs text-muted mb-3 flex items-center gap-1.5">

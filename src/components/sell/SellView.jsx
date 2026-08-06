@@ -393,7 +393,7 @@ function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-semibold truncate">{p.title}</p>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor }} title={p.status} />
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor }} title={t(`status.${p.status}`)} />
         </div>
         <div className="flex items-center gap-3 mt-1 text-[11px] text-muted">
           <span className="flex items-center gap-1"><MousePointerClick size={12} /> {p.clicks || 0}</span>

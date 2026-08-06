@@ -4,6 +4,7 @@ import { K } from "../constants/keys";
 import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber } from "../utils/helpers";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
+import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
 
 const MarketplaceContext = createContext(null);
 
@@ -38,8 +39,8 @@ export function MarketplaceProvider({ children }) {
   useEffect(() => {
     (async () => {
       const [m, p, c, s, st, sess, fav, intro, cols, follow] = await Promise.all([
-        getJSON(K.marketers, true, []),
-        getJSON(K.products, true, []),
+        getJSON(K.marketers, true, SEED_MARKETERS),
+        getJSON(K.products, true, SEED_PRODUCTS),
         getJSON(K.clicks, true, []),
         getJSON(K.sales, true, []),
         getJSON(K.settings, true, { platformFeePercent: 15 }),

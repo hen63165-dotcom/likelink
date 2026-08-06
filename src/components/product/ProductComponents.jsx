@@ -21,6 +21,48 @@ export function ProductThumb({ p, className = "" }) {
   );
 }
 
+/** Small circular avatar from the creator: initials chip, or photo when provided. */
+export function CreatorAvatar({ marketer, size = 20 }) {
+  const name = marketer?.name || "";
+  const letter = (name.trim().charAt(0) || "?").toLocaleUpperCase("he");
+  const bg = marketer?.color || "var(--accent)";
+  return (
+    <span
+      className="rounded-full flex items-center justify-center shrink-0 select-none"
+      style={{
+        width: size,
+        height: size,
+        background: bg,
+        color: "#fff",
+        fontSize: Math.max(10, size * 0.42),
+        fontWeight: 700,
+      }}
+      aria-hidden="true"
+    >
+      {letter}
+    </span>
+  );
+}
+
+/** Creator identity row: avatar + name (+ optional one-line bio). */
+export function CreatorRow({ marketer, showBio = false, size = 20, align = "center" }) {
+  return (
+    <span className="flex items-center gap-2 min-w-0" style={{ alignItems: align }}>
+      <CreatorAvatar marketer={marketer} size={size} />
+      <span className="flex flex-col min-w-0 leading-tight">
+        <span className="truncate font-semibold" style={{ color: "var(--text)" }}>
+          {marketer?.name || "—"}
+        </span>
+        {showBio && marketer?.bio && (
+          <span className="truncate text-default" style={{ color: "var(--text-muted)", fontSize: 11 }}>
+            {marketer.bio}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
 export function FavButton({ isFav, onToggle, floating }) {
   return (
     <motion.button
@@ -58,7 +100,7 @@ export function TopBadge() {
 
 export const ProductCard = memo(function ProductCard({
   p,
-  creator,
+  marketer,
   isTop,
   lang,
   isFav,
@@ -81,13 +123,14 @@ export const ProductCard = memo(function ProductCard({
         </div>
         <div className="p-3">
           <p className="text-[13px] font-semibold leading-snug line-clamp-2">{p.title}</p>
-          <div className="flex items-center justify-between mt-2 gap-1">
-            <span className="text-[11px] text-muted truncate flex items-center gap-1">
-              {creator} {isTop && <TopBadge />}
-            </span>
-            {p.price > 0 && (
-              <span className="mono text-xs font-medium shrink-0">{money(p.price, lang)}</span>
-            )}
+          {p.price > 0 && (
+            <p className="mono text-xs font-semibold mt-1.5" style={{ color: "var(--accent)" }}>
+              {money(p.price, lang)}
+            </p>
+          )}
+          <div className="flex items-center mt-2 gap-1">
+            <CreatorRow marketer={marketer} size={18} />
+            {isTop && <TopBadge />}
           </div>
         </div>
       </div>
@@ -97,7 +140,7 @@ export const ProductCard = memo(function ProductCard({
 
 export const StreamCard = memo(function StreamCard({
   p,
-  creator,
+  marketer,
   isTop,
   lang,
   isFav,
@@ -114,24 +157,25 @@ export const StreamCard = memo(function StreamCard({
       onClick={onOpen}
       className="tap text-start w-full group"
     >
-      <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card">
+      <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
         <div className="w-full aspect-[16/10] overflow-hidden relative">
           <ProductThumb p={p} />
           <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
         </div>
         <div className="p-4">
-          <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--accent)" }}>
-            {categoryLabel(p.category)}
-          </span>
-          <p className="text-[15px] font-semibold leading-snug mt-1">{p.title}</p>
-          <p className="text-[13px] text-muted mt-1.5 line-clamp-2">{p.description}</p>
-          <div className="flex items-center justify-between mt-3 gap-1">
-            <span className="text-xs text-muted flex items-center gap-1">
-              {creator} {isTop && <TopBadge />}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--accent)" }}>
+              {categoryLabel(p.category)}
             </span>
             {p.price > 0 && (
-              <span className="mono text-sm font-semibold shrink-0">{money(p.price, lang)}</span>
+              <span className="mono text-sm font-bold shrink-0" style={{ color: "var(--accent)" }}>{money(p.price, lang)}</span>
             )}
+          </div>
+          <p className="text-[15px] font-semibold leading-snug mt-1">{p.title}</p>
+          <p className="text-[13px] text-muted mt-1.5 line-clamp-2">{p.description}</p>
+          <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
+            <CreatorRow marketer={marketer} size={28} showBio />
+            {isTop && <TopBadge />}
           </div>
         </div>
       </div>
@@ -139,7 +183,7 @@ export const StreamCard = memo(function StreamCard({
   );
 });
 
-export function ProductModal({ product, creator, isTop, lang, isFav, onToggleFavorite, onClose, onGetDeal }) {
+export function ProductModal({ product, marketer, isTop, lang, isFav, onToggleFavorite, onClose, onGetDeal }) {
   const { t, categoryLabel } = useI18n();
   return (
     <motion.div
@@ -165,7 +209,7 @@ export function ProductModal({ product, creator, isTop, lang, isFav, onToggleFav
             onClick={onClose}
             className="tap absolute top-3 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm"
             style={{ insetInlineEnd: 12, background: "rgba(0,0,0,0.5)" }}
-            aria-label="Close"
+            aria-label={t("common.close")}
           >
             <span className="text-white text-lg leading-none">×</span>
           </button>
@@ -178,16 +222,28 @@ export function ProductModal({ product, creator, isTop, lang, isFav, onToggleFav
             {categoryLabel(product.category)}
           </span>
           <h2 className="disp text-xl font-semibold mt-1 leading-tight">{product.title}</h2>
-          <p className="text-sm text-muted mt-1 flex items-center gap-1">
-            {t("feed.by")} {creator} {isTop && <TopBadge />}
-          </p>
+
+          <div className="flex items-center gap-2.5 mt-3 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
+            <CreatorAvatar marketer={marketer} size={36} />
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="flex items-center gap-1.5">
+                <span className="text-[13px] font-semibold truncate">{marketer?.name || "—"}</span>
+                {isTop && <TopBadge />}
+              </span>
+              {marketer?.bio && (
+                <span className="text-[11.5px] truncate" style={{ color: "var(--text-muted)" }}>{marketer.bio}</span>
+              )}
+            </div>
+          </div>
+
           <p className="text-sm leading-relaxed mt-3 text-secondary">{product.description}</p>
+
           {product.price > 0 && (
-            <p className="mono text-xl font-semibold mt-4">{money(product.price, lang)}</p>
+            <p className="mono text-xl font-bold mt-4" style={{ color: "var(--accent)" }}>{money(product.price, lang)}</p>
           )}
           <button
             onClick={onGetDeal}
-            className="tap btn-primary w-full mt-5 rounded-xl py-3.5 flex items-center justify-center gap-2 font-semibold text-[15px]"
+            className="tap btn-primary w-full mt-4 rounded-xl py-3.5 flex items-center justify-center gap-2 font-semibold text-[15px]"
           >
             {t("feed.getDeal")}
           </button>
