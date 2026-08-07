@@ -30,7 +30,7 @@ export default function FeedView({ navigate }) {
       .filter((p) => cat === "All" || p.category === cat)
       .filter((p) => !favOnly || favorites.includes(p.id))
       .filter((p) => !followOnly || following.includes(p.marketerId))
-      .filter((p) => !q || p.title.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q));
+      .filter((p) => !q || (p.title || "").toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q));
     return list.sort((a, b) =>
       sort === "popular" ? (b.clicks || 0) - (a.clicks || 0) : b.createdAt - a.createdAt
     );

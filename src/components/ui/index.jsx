@@ -124,7 +124,7 @@ export function Button({ children, onClick, variant = "primary", className = "",
   );
 }
 
-export function LabeledInput({ label, value, onChange, placeholder, type = "text" }) {
+export function LabeledInput({ label, value, onChange, placeholder, type = "text", onBlur }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-secondary">{label}</span>
@@ -132,6 +132,7 @@ export function LabeledInput({ label, value, onChange, placeholder, type = "text
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         className="input-field w-full px-3.5 py-2.5 text-sm"
       />

@@ -7,11 +7,12 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl } from "../../utils/helpers";
+import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
-import { PLATFORM_FEE_PERCENT_DEFAULT } from "../../constants/keys";
+import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD } from "../../constants/keys";
 import { uploadProductImage } from "../../lib/uploadImage";
 import { getSellerPayoutSummary } from "../../lib/payments";
+import { fetchProductInfo } from "../../lib/productInfo";
 import {
   EmptyState, StatChip, Button, LabeledInput, LabeledTextarea, SheetModal,
 } from "../ui";
@@ -25,10 +26,10 @@ export default function SellView({ navigate }) {
   const { t, lang } = useI18n();
   const mp = useMarketplace();
   const {
-    currentMarketer: marketer, marketers, products, sales, settings,
+    currentMarketer: marketer, marketers, products, sales, payouts, settings,
     introSeen, dismissIntro, collections, showToast,
     onLogin, onSignup, onLogout, onAddProduct, onDeleteProduct, onLogSale,
-    onAddCollection, onUpdateCollection, onDeleteCollection,
+    onAddCollection, onUpdateCollection, onDeleteCollection, onUpdateMarketer,
   } = mp;
 
   const [showForm, setShowForm] = useState(false);
@@ -48,7 +49,11 @@ export default function SellView({ navigate }) {
   const myLink = `${window.location.origin}/u/${marketer.slug || marketer.id}`;
   const myCollections = collections.filter((c) => c.marketerId === marketer.id);
   const chartData = groupByDay(mySales, "marketerNet");
-  const payout = getSellerPayoutSummary(sales, marketer.id);
+  const payout = getSellerPayoutSummary(sales, payouts, marketer.id);
+  const myPayouts = [...payouts].filter((p) => p.marketerId === marketer.id).sort((a, b) => b.ts - a.ts);
+  const nextPayout = nextPayoutDate();
+  const thresholdMet = payout.pendingPayout >= MIN_PAYOUT_THRESHOLD;
+  const thresholdLeft = Math.max(0, MIN_PAYOUT_THRESHOLD - payout.pendingPayout);
 
   async function handleShare() {
     if (navigator.share) {
@@ -80,6 +85,19 @@ export default function SellView({ navigate }) {
           <LogOut size={15} />
         </button>
       </div>
+
+      <LabeledInput
+        label={t("sell.trackingIdLabel")}
+        value={marketer.trackingId || ""}
+        onChange={(v) => onUpdateMarketer(marketer.id, { trackingId: String(v).trim() })}
+        placeholder={t("sell.trackingIdPh")}
+      />
+      <LabeledInput
+        label={t("sell.payPalEmail")}
+        value={marketer.payPalEmail || ""}
+        onChange={(v) => onUpdateMarketer(marketer.id, { payPalEmail: String(v).trim() })}
+        placeholder={t("sell.payPalPh")}
+      />
 
       <button
         onClick={handleShare}
@@ -153,6 +171,41 @@ export default function SellView({ navigate }) {
         </div>
       </div>
       <p className="text-[11px] -mt-3 mb-4" style={{ color: "var(--text-muted)" }}>{t("sell.payoutNote")}</p>
+
+      <div className="surface rounded-2xl p-4 mb-5 shadow-sm">
+        <div className="flex items-center justify-between gap-2 pb-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] font-semibold" style={{ color: "var(--accent)" }}>{t("sell.payoutBalance")}</span>
+          <span className="mono text-lg font-bold" style={{ color: "var(--accent)" }}>{money(payout.pendingPayout, lang)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 py-2">
+          <span className="text-[11px] text-muted">{t("sell.payoutNext")}</span>
+          <span className="mono text-xs font-semibold">{formatDate(nextPayout.getTime())}</span>
+        </div>
+        <div className="rounded-xl px-3 py-2 text-[11px] font-medium" style={{ background: thresholdMet ? "var(--success-subtle)" : "var(--bg-subtle)", color: thresholdMet ? "var(--success)" : "var(--text-muted)" }}>
+          {thresholdMet ? t("sell.payoutMet") : t("sell.payoutLeft", { left: thresholdLeft.toFixed(0) })}
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <p className="text-xs font-semibold mb-2">{t("sell.payoutHistory")}</p>
+        {myPayouts.length === 0 ? (
+          <p className="text-xs text-muted">{t("sell.payoutNone")}</p>
+        ) : (
+          <div className="surface rounded-2xl overflow-hidden">
+            {myPayouts.map((pay, i) => (
+              <div key={pay.id} className={`flex items-center justify-between gap-2 px-3.5 py-2.5 ${i !== 0 ? "border-t" : ""}`} style={{ borderColor: "var(--border)" }}>
+                <div>
+                  <p className="mono text-xs font-semibold">{money(pay.amount, lang)}</p>
+                  <p className="text-[10px] text-muted">{formatDate(pay.ts)}</p>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: pay.status === "paid" ? "var(--success-subtle)" : "var(--accent-subtle)", color: pay.status === "paid" ? "var(--success)" : "var(--accent)" }}>
+                  {pay.status === "paid" ? t("sell.payoutPaid") : t("sell.payoutPending")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Suspense fallback={null}>
         <EarningsChart title={t("sell.earningsChart")} data={chartData} lang={lang} />
@@ -381,6 +434,7 @@ function ProductForm({ onClose, onSubmit }) {
   const youKeep = Math.round((commNum - platformFee) * 100) / 100;
   const [err, setErr] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [infoLoading, setInfoLoading] = useState(false);
   const set = (k) => (v) => setD((s) => ({ ...s, [k]: v }));
 
   async function handleFile(e) {
@@ -393,6 +447,25 @@ function ProductForm({ onClose, onSubmit }) {
       console.error(e2);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function autoFetchLink() {
+    const u = d.affiliateUrl.trim();
+    if (!isSafeHttpUrl(u)) return;
+    setInfoLoading(true);
+    try {
+      const info = await fetchProductInfo(u);
+      setD((s) => ({
+        ...s,
+        title: s.title.trim() ? s.title : info.title || s.title,
+        image: s.image.trim() ? s.image : info.image || s.image,
+        price: s.price ? s.price : info.price || s.price,
+      }));
+    } catch {
+      /* never block saving — leave fields for manual entry */
+    } finally {
+      setInfoLoading(false);
     }
   }
 
@@ -424,7 +497,12 @@ function ProductForm({ onClose, onSubmit }) {
           </div>
           <input value={d.image} onChange={(e) => set("image")(e.target.value)} placeholder={t("form.orPasteUrl")} className="input-field w-full px-3.5 py-2.5 text-xs mt-1" />
         </div>
-        <LabeledInput label={t("form.link")} value={d.affiliateUrl} onChange={set("affiliateUrl")} placeholder={t("form.linkPh")} />
+        <LabeledInput label={t("form.link")} value={d.affiliateUrl} onChange={set("affiliateUrl")} onBlur={autoFetchLink} placeholder={t("form.linkPh")} />
+        {infoLoading && (
+          <p className="text-[11px] flex items-center gap-1" style={{ color: "var(--accent)" }}>
+            <Loader2 size={12} className="animate-spin" /> {t("form.fetching")}
+          </p>
+        )}
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-secondary">{t("form.category")}</span>
           <select value={d.category} onChange={(e) => set("category")(e.target.value)} className="input-field w-full px-3.5 py-2.5 text-sm">

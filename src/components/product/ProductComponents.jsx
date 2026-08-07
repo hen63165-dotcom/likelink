@@ -6,18 +6,23 @@ import { useI18n } from "../../lib/LangContext";
 import { Badge } from "../ui";
 
 export function ProductThumb({ p, className = "" }) {
-  return p.image ? (
+  const [failed, setFailed] = React.useState(false);
+  if (!p.image || failed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--accent-subtle)" }}>
+        <ImageOff size={24} style={{ color: "var(--accent)", opacity: 0.5 }} />
+      </div>
+    );
+  }
+  return (
     <img
       src={p.image}
       alt={p.title}
+      onError={() => setFailed(true)}
       loading="lazy"
       decoding="async"
       className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${className}`}
     />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--accent-subtle)" }}>
-      <ImageOff size={24} style={{ color: "var(--accent)", opacity: 0.5 }} />
-    </div>
   );
 }
 

@@ -12,6 +12,11 @@ export const PLATFORM_FEE_PERCENT_DEFAULT = 15; // 15% platform, 85% creator
 export const PLATFORM_FEE_MIN = 0;
 export const PLATFORM_FEE_MAX = 40;
 
+// ─── Payout model (LTK-style: the platform is the affiliate; creators get paid) ──
+export const MIN_PAYOUT_THRESHOLD = 100; // ₪ minimum pending balance to be eligible
+export const PAYOUT_INTERVAL_DAYS = 14; // biweekly payout schedule
+export const PAYOUT_METHOD = "paypal"; // manual PayPal for now (not automated)
+
 export const K = {
   marketers: "marketplace:marketers",
   products: "marketplace:products",
@@ -24,5 +29,6 @@ export const K = {
   collections: "marketplace:collections",
   following: "ui:following",
   notifications: "marketplace:notifications",
+  payouts: "marketplace:payouts",
   theme: "ui:theme",
 };

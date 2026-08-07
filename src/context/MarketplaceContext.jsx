@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { storage } from "../lib/storage";
 import { supabase } from "../lib/supabaseClient";
 import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth";
-import { K, PLATFORM_FEE_PERCENT_DEFAULT } from "../constants/keys";
-import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber } from "../utils/helpers";
+import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD } from "../constants/keys";
+import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
 import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
+import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
 
 const MarketplaceContext = createContext(null);
 
@@ -30,6 +31,7 @@ export function MarketplaceProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [clicks, setClicks] = useState([]);
   const [sales, setSales] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [settings, setSettings] = useState({ platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT });
   const [sessionMarketerId, setSessionMarketerId] = useState(null);
   const [favorites, setFavorites] = useState([]);
@@ -40,7 +42,7 @@ export function MarketplaceProvider({ children }) {
 
   useEffect(() => {
     (async () => {
-      const [m, p, c, s, st, sess, fav, intro, cols, follow] = await Promise.all([
+      const [m, p, c, s, st, sess, fav, intro, cols, follow, po] = await Promise.all([
         getJSON(K.marketers, true, SEED_MARKETERS),
         getJSON(K.products, true, SEED_PRODUCTS),
         getJSON(K.clicks, true, []),
@@ -51,6 +53,7 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.introSeen, false, false),
         getJSON(K.collections, true, []),
         getJSON(K.following, false, []),
+        getJSON(K.payouts, true, []),
       ]);
       setMarketers(m);
       setProducts(p);
@@ -62,9 +65,20 @@ export function MarketplaceProvider({ children }) {
       setIntroSeen(Boolean(intro));
       setCollections(cols);
       setFollowing(follow);
+      setPayouts(po);
       setLoading(false);
     })();
   }, []);
+
+  // Retroactive audit: flag saved products whose affiliateUrl is a placeholder
+  // or lacks an AliExpress tracking ID, so the owner can fix them manually.
+  useEffect(() => {
+    if (loading) return;
+    const flagged = findProductsNeedingTracking(products, marketers);
+    if (flagged.length) {
+      console.warn("[Likelink] Products needing a manual tracking-ID fix:", flagged);
+    }
+  }, [loading, products, marketers]);
 
   const showToast = useCallback((msg) => {
     setToast({ msg });
@@ -90,6 +104,11 @@ export function MarketplaceProvider({ children }) {
   const persistSales = useCallback(async (next) => {
     setSales(next);
     await setJSON(K.sales, next, true);
+  }, []);
+
+  const persistPayouts = useCallback(async (next) => {
+    setPayouts(next);
+    await setJSON(K.payouts, next, true);
   }, []);
 
   const persistSettings = useCallback(async (next) => {
@@ -153,6 +172,7 @@ export function MarketplaceProvider({ children }) {
       products,
       clicks,
       sales,
+      payouts,
       settings,
       sessionMarketerId,
       favorites,
@@ -209,6 +229,7 @@ export function MarketplaceProvider({ children }) {
           id: uid(),
           name: cleanName,
           email: cleanEmail,
+          trackingId: "",
           slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)),
           createdAt: Date.now(),
         };
@@ -224,7 +245,7 @@ export function MarketplaceProvider({ children }) {
         if (!currentMarketer) return;
         const title = String(draft.title || "").trim().slice(0, 120);
         const description = String(draft.description || "").trim().slice(0, 600);
-        const affiliateUrl = String(draft.affiliateUrl || "").trim().slice(0, 2000);
+        const affiliateUrl = injectAliExpressTracking(String(draft.affiliateUrl || "").trim().slice(0, 2000), currentMarketer?.trackingId);
         const image = String(draft.image || "").trim().slice(0, 4000);
         if (!title) return showToast(t("form.errTitle"));
         if (!isSafeHttpUrl(affiliateUrl)) return showToast(t("form.errLink"));
@@ -244,6 +265,20 @@ export function MarketplaceProvider({ children }) {
           createdAt: Date.now(),
         };
         await persistProducts([...products, p]);
+
+        // Convenience (best-effort, never blocks save): if no manual image was
+        // provided, try to auto-pull an Open Graph preview image from the link.
+        // On failure the product simply keeps the manual Image URL field.
+        if (!image) {
+          fetchOgImage(affiliateUrl)
+            .then((og) => {
+              if (og) {
+                persistProducts([...products.filter((x) => x.id !== p.id), { ...p, image: og }]);
+              }
+            })
+            .catch(() => {});
+        }
+
         showToast(t("sell.published"));
       },
       onDeleteProduct: async (id) => {
@@ -290,11 +325,37 @@ export function MarketplaceProvider({ children }) {
       onSetFee: async (val) => {
         await persistSettings({ ...settings, platformFeePercent: val });
       },
+      onUpdateMarketer: async (id, patch) => {
+        await persistMarketers(marketers.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+      },
+      onCreatePayout: async (marketerId) => {
+        const summary = getSellerPayoutSummary(sales, payouts, marketerId);
+        const open = payouts.some((p) => p.marketerId === marketerId && p.status === PAYOUT_STATUS.PENDING);
+        if (summary.pendingPayout < MIN_PAYOUT_THRESHOLD || open) return;
+        const payout = {
+          id: uid(),
+          marketerId,
+          amount: Math.round(summary.pendingPayout * 100) / 100,
+          status: PAYOUT_STATUS.PENDING,
+          method: PAYOUT_METHOD,
+          ts: Date.now(),
+          paidAt: null,
+          note: "",
+        };
+        await persistPayouts([...payouts, payout]);
+        showToast(t("sell.payoutCreated"));
+      },
+      onMarkPayoutPaid: async (payoutId) => {
+        await persistPayouts(
+          payouts.map((p) => (p.id === payoutId ? { ...p, status: PAYOUT_STATUS.PAID, paidAt: Date.now() } : p))
+        );
+        showToast(t("sell.payoutPaid2"));
+      },
     }),
     [
-      loading, marketers, products, clicks, sales, settings, sessionMarketerId,
+      loading, marketers, products, clicks, sales, payouts, settings, sessionMarketerId,
       favorites, collections, following, introSeen, toast, currentMarketer,
-      showToast, persistMarketers, persistProducts, persistClicks, persistSales,
+      showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections,
       toggleFollow, recordClick, t,
     ]

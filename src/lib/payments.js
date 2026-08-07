@@ -57,17 +57,15 @@ export const PAYOUT_STATUS = { PENDING: "pending", PAID: "paid", FAILED: "failed
  *   platformFees  total platformFee across those sales (platform's ~15%)
  *   pendingPayout netEarned minus whatever has already been paid out
  */
-export function getSellerPayoutSummary(sales, marketerId) {
+export function getSellerPayoutSummary(sales, payouts, marketerId) {
   const mine = (sales || []).filter((s) => s.marketerId === marketerId);
   const netEarned = mine.reduce((sum, s) => sum + (s.marketerNet || 0), 0);
   const platformFees = mine.reduce((sum, s) => sum + (s.platformFee || 0), 0);
-  const paidOut = mine.reduce((sum, s) => sum + (s._paidOut || 0), 0);
-  return {
-    netEarned,
-    platformFees,
-    paidOut,
-    pendingPayout: Math.max(0, netEarned - paidOut),
-  };
+  const paid = (payouts || [])
+    .filter((p) => p.marketerId === marketerId && p.status === "paid")
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const pendingPayout = Math.max(0, netEarned - paid);
+  return { netEarned, platformFees, paid, pendingPayout };
 }
 
 /**
