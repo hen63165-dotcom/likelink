@@ -7,6 +7,7 @@ import { parsePath } from "./utils/routing";
 // Modern Layout & UI
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
 import { Toast, LoadingScreen } from "./components/ui";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -19,7 +20,9 @@ export default function AppRoot() {
     <LangProvider>
       <ThemeProvider>
         <MarketplaceProvider>
-          <App />
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
         </MarketplaceProvider>
       </ThemeProvider>
     </LangProvider>
@@ -28,7 +31,7 @@ export default function AppRoot() {
 
 function App() {
   const { lang, setLang } = useI18n();
-  const { loading, settings, toast, showToast } = useMarketplace();
+  const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
   const [tab, setTab] = useState("feed");
   const [route, setRoute] = useState(() => parsePath(window.location.pathname));
 
@@ -37,6 +40,12 @@ function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Reset scroll to top on navigation (tab switch or creator route) for a clean
+  // premium feel — never leave the user halfway down a long feed.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [tab, route]);
 
   function navigate(path) {
     window.history.pushState({}, "", path);
@@ -52,7 +61,15 @@ function App() {
         <Suspense fallback={<LoadingScreen />}>
           <CreatorProfilePage
             slug={route.slug}
-            {...useMarketplace()}
+            marketers={marketers}
+            products={products}
+            collections={collections}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            following={following}
+            onToggleFollow={toggleFollow}
+            recordClick={recordClick}
+            showToast={showToast}
             navigate={navigate}
             lang={lang}
             setLang={setLang}
@@ -73,7 +90,7 @@ function App() {
 
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
         <Suspense fallback={<LoadingScreen />}>
-          {tab === "feed" && <FeedView />}
+          {tab === "feed" && <FeedView navigate={navigate} />}
           {tab === "sell" && <SellView navigate={navigate} />}
           {tab === "admin" && <AdminView />}
         </Suspense>

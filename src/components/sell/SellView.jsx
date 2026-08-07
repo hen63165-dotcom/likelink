@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import {
   TrendingUp, Plus, X, LogOut, Share2, ArrowLeft, ShoppingBag, MousePointerClick,
   DollarSign, Layers, Pencil, Trash2, Check, Rocket, CircleAlert, ImageOff,
@@ -9,12 +9,17 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
+import { PLATFORM_FEE_PERCENT_DEFAULT } from "../../constants/keys";
 import { uploadProductImage } from "../../lib/uploadImage";
+import { getSellerPayoutSummary } from "../../lib/payments";
 import {
   EmptyState, StatChip, Button, LabeledInput, LabeledTextarea, SheetModal,
 } from "../ui";
-import { EarningsChart } from "../charts/EarningsChart";
 import { ProductThumb } from "../product/ProductComponents";
+
+// Loaded on demand so the heavy charting library stays out of the main bundle
+// and doesn't load for shoppers just browsing the public feed.
+const EarningsChart = lazy(() => import("../charts/EarningsChart"));
 
 export default function SellView({ navigate }) {
   const { t, lang } = useI18n();
@@ -37,9 +42,13 @@ export default function SellView({ navigate }) {
   const myClicks = mine.reduce((s, p) => s + (p.clicks || 0), 0);
   const mySales = sales.filter((s) => s.marketerId === marketer.id);
   const myNet = mySales.reduce((s, x) => s + x.marketerNet, 0);
+  const myGross = mySales.reduce((s, x) => s + (x.commissionAmount || 0), 0);
+  const myFees = mySales.reduce((s, x) => s + (x.platformFee || 0), 0);
+  const feeRate = settings?.platformFeePercent || PLATFORM_FEE_PERCENT_DEFAULT;
   const myLink = `${window.location.origin}/u/${marketer.slug || marketer.id}`;
   const myCollections = collections.filter((c) => c.marketerId === marketer.id);
   const chartData = groupByDay(mySales, "marketerNet");
+  const payout = getSellerPayoutSummary(sales, marketer.id);
 
   async function handleShare() {
     if (navigator.share) {
@@ -66,7 +75,7 @@ export default function SellView({ navigate }) {
         <button
           onClick={onLogout}
           className="tap w-9 h-9 rounded-xl flex items-center justify-center surface"
-          aria-label="Log out"
+          aria-label={t("common.logOut")}
         >
           <LogOut size={15} />
         </button>
@@ -87,13 +96,67 @@ export default function SellView({ navigate }) {
         <ArrowLeft size={15} className="shrink-0 opacity-40 text-white" style={{ transform: "scaleX(var(--flip,1))" }} />
       </button>
 
+      {/* Why sell here — persuasive pitch, low commission, built for a quick yes */}
+      <div className="rounded-2xl p-4 mb-5 brand-gradient text-white">
+        <p className="disp text-[15px] font-bold">{t("sell.whyTitle")}</p>
+        <p className="text-[12.5px] mt-1 opacity-90 leading-relaxed">{t("sell.whySub")}</p>
+        <ul className="mt-3 flex flex-col gap-2">
+          <li className="flex items-start gap-2 text-[12.5px] leading-snug">
+            <Check size={14} className="mt-0.5 shrink-0" />
+            {t("sell.whyPoint1", { fee: feeRate, keep: 100 - feeRate })}
+          </li>
+          <li className="flex items-start gap-2 text-[12.5px] leading-snug">
+            <Check size={14} className="mt-0.5 shrink-0" />
+            {t("sell.whyPoint2")}
+          </li>
+          <li className="flex items-start gap-2 text-[12.5px] leading-snug">
+            <Check size={14} className="mt-0.5 shrink-0" />
+            {t("sell.whyPoint3")}
+          </li>
+          <li className="flex items-start gap-2 text-[12.5px] leading-snug">
+            <Check size={14} className="mt-0.5 shrink-0" />
+            {t("sell.whyPoint4")}
+          </li>
+        </ul>
+      </div>
+
       <div className="grid grid-cols-3 gap-2.5 mb-5">
         <StatChip icon={ShoppingBag} label={t("sell.statListings")} value={mine.length} />
         <StatChip icon={MousePointerClick} label={t("sell.statClicks")} value={myClicks} />
         <StatChip icon={DollarSign} label={t("sell.statNet")} value={money(myNet, lang)} accent />
       </div>
 
-      <EarningsChart title={t("sell.earningsChart")} data={chartData} lang={lang} />
+      {/* Earnings dashboard: total sales, commission paid, net, pending payout */}
+      <div className="surface rounded-2xl p-4 mb-5 shadow-sm">
+        <div className="flex items-center justify-between gap-2 pb-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>{t("sell.statSales")}</span>
+          <div className="flex items-center gap-3">
+            <span className="mono text-sm font-bold">{mySales.length}</span>
+            <span className="mono text-sm font-bold">{money(mySales.reduce((s, x) => s + (x.saleAmount || 0), 0), lang)}</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>{t("form.fromYourCommission")}</span>
+          <span className="mono text-sm font-medium">{money(myGross, lang)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>{t("sell.statCommissionPaid")} ({feeRate}%)</span>
+          <span className="mono text-sm font-medium" style={{ color: "var(--danger)" }}>− {money(myFees, lang)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>{t("sell.statNet")}</span>
+          <span className="mono text-sm font-bold" style={{ color: "var(--success)" }}>{money(myNet, lang)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 pt-2">
+          <span className="text-[11px] font-semibold" style={{ color: "var(--accent)" }}>{t("sell.pendingPayouts")}</span>
+          <span className="mono text-base font-bold" style={{ color: "var(--accent)" }}>{money(payout.pendingPayout, lang)}</span>
+        </div>
+      </div>
+      <p className="text-[11px] -mt-3 mb-4" style={{ color: "var(--text-muted)" }}>{t("sell.payoutNote")}</p>
+
+      <Suspense fallback={null}>
+        <EarningsChart title={t("sell.earningsChart")} data={chartData} lang={lang} />
+      </Suspense>
 
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -206,17 +269,17 @@ function AuthGate({ marketers, onLogin, onSignup }) {
   const [mode, setMode] = useState("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
 
   function submit() {
     if (!email.trim() || !email.includes("@")) return setErr(t("auth.errEmail"));
+    if (password.trim().length < 6) return setErr(t("auth.errPassword"));
     if (mode === "signup") {
       if (!name.trim()) return setErr(t("auth.errName"));
-      onSignup(name.trim(), email.trim());
+      onSignup(name.trim(), email.trim(), password.trim());
     } else {
-      const m = marketers.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
-      if (!m) return setErr(t("auth.errNoStudio"));
-      onLogin(m);
+      onLogin(email.trim(), password.trim());
     }
   }
 
@@ -245,6 +308,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       <div className="w-full mt-5 flex flex-col gap-3 text-left">
         {mode === "signup" && <LabeledInput label={t("auth.yourName")} value={name} onChange={setName} placeholder={t("auth.yourNamePh")} />}
         <LabeledInput label={t("auth.email")} value={email} onChange={setEmail} placeholder={t("auth.emailPh")} />
+        <LabeledInput label={t("auth.password")} value={password} onChange={setPassword} placeholder={t("auth.passwordPh")} type="password" />
         {err && <p className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
         <Button onClick={submit}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
       </div>
@@ -307,9 +371,14 @@ function CollectionEditorModal({ collection, myProducts, onClose, onSave }) {
 }
 
 function ProductForm({ onClose, onSubmit }) {
-  const { t } = useI18n();
-  const { categoryLabel } = useI18n();
+  const { t, lang } = useI18n();
+  const { settings } = useMarketplace();
   const [d, setD] = useState({ title: "", description: "", image: "", affiliateUrl: "", category: CATEGORY_KEYS[0], price: "", commission: "" });
+  const feeRate = settings?.platformFeePercent || PLATFORM_FEE_PERCENT_DEFAULT;
+  const commNum = Math.max(0, Number(d?.commission) || 0);
+  const priceNum = Math.max(0, Number(d?.price) || 0);
+  const platformFee = Math.round(commNum * (feeRate / 100) * 100) / 100;
+  const youKeep = Math.round((commNum - platformFee) * 100) / 100;
   const [err, setErr] = useState("");
   const [uploading, setUploading] = useState(false);
   const set = (k) => (v) => setD((s) => ({ ...s, [k]: v }));
@@ -366,6 +435,40 @@ function ProductForm({ onClose, onSubmit }) {
           <LabeledInput label={t("form.price")} value={d.price} onChange={set("price")} placeholder="24.99" type="number" />
           <LabeledInput label={t("form.commission")} value={d.commission} onChange={set("commission")} placeholder="3.50" type="number" />
         </div>
+
+        {(commNum > 0 || priceNum > 0) && (
+          <div className="rounded-xl p-3.5 surface-subtle flex flex-col gap-2">
+            <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{t("form.earningsTitle")}</p>
+            {priceNum > 0 && (
+              <div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="font-medium">{t("form.buyerPays")}</span>
+                  <span className="mono font-bold">{money(priceNum, lang)}</span>
+                </div>
+                <p className="text-[10.5px] mt-0.5" style={{ color: "var(--text-muted)" }}>{t("form.buyerPaysNote")}</p>
+              </div>
+            )}
+            {commNum > 0 ? (
+              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="font-medium">{t("form.fromYourCommission")}</span>
+                  <span className="mono font-medium">{money(commNum, lang)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[12px]" style={{ color: "var(--text-muted)" }}>
+                  <span>{t("form.platformFeeOut")} ({feeRate}%)</span>
+                  <span className="mono">− {money(platformFee, lang)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[14px] font-semibold pt-1">
+                  <span style={{ color: "var(--success)" }}>{t("form.youKeepOut")}</span>
+                  <span className="mono" style={{ color: "var(--success)" }}>{money(youKeep, lang)}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("form.enterCommissionHint")}</p>
+            )}
+          </div>
+        )}
+
         {err && <p className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
         <Button onClick={submit}>{t("form.publish")}</Button>
       </div>

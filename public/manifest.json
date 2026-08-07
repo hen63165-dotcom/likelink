@@ -4,8 +4,8 @@
   "description": "Centralized affiliate marketplace feed",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAFAF8",
-  "theme_color": "#6C4CF1",
+  "background_color": "#FBF6F0",
+  "theme_color": "#C1356C",
   "icons": [
     { "src": "/icons/icon-48.webp", "sizes": "48x48", "type": "image/webp" },
     { "src": "/icons/icon-72.webp", "sizes": "72x72", "type": "image/webp" },

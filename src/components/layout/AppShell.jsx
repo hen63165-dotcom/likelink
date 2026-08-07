@@ -15,7 +15,7 @@ export function TopBar({ tab, feeRate, showBack, onBack }) {
       <div className="max-w-app mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           {showBack && onBack && (
-            <IconButton onClick={onBack} label="Back">
+            <IconButton onClick={onBack} label={t("common.back")}>
               <ArrowLeft size={16} />
             </IconButton>
           )}
@@ -30,16 +30,16 @@ export function TopBar({ tab, feeRate, showBack, onBack }) {
         <div className="flex items-center gap-1.5">
           {tab === "feed" && (
             <span
-              className="mono text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap hidden xs:inline"
+              className="mono text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap hidden sm:inline"
               style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
             >
               {feeRate}% {t("topbar.fee")}
             </span>
           )}
-          <IconButton onClick={toggleTheme} label="Toggle theme">
+          <IconButton onClick={toggleTheme} label={t("common.theme")}>
             {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </IconButton>
-          <IconButton onClick={() => setLang(lang === "he" ? "en" : "he")} label="Switch language">
+          <IconButton onClick={() => setLang(lang === "he" ? "en" : "he")} label={t("common.language")}>
             <Languages size={15} style={{ color: "var(--accent)" }} />
           </IconButton>
         </div>

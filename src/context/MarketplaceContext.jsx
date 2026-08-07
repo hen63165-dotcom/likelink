@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { storage } from "../lib/storage";
-import { K } from "../constants/keys";
+import { supabase } from "../lib/supabaseClient";
+import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth";
+import { K, PLATFORM_FEE_PERCENT_DEFAULT } from "../constants/keys";
 import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber } from "../utils/helpers";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
@@ -28,7 +30,7 @@ export function MarketplaceProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [clicks, setClicks] = useState([]);
   const [sales, setSales] = useState([]);
-  const [settings, setSettings] = useState({ platformFeePercent: 15 });
+  const [settings, setSettings] = useState({ platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT });
   const [sessionMarketerId, setSessionMarketerId] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [collections, setCollections] = useState([]);
@@ -43,7 +45,7 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.products, true, SEED_PRODUCTS),
         getJSON(K.clicks, true, []),
         getJSON(K.sales, true, []),
-        getJSON(K.settings, true, { platformFeePercent: 15 }),
+        getJSON(K.settings, true, { platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT }),
         getJSON(K.session, false, { marketerId: null }),
         getJSON(K.favorites, false, []),
         getJSON(K.introSeen, false, false),
@@ -171,11 +173,32 @@ export function MarketplaceProvider({ children }) {
       persistCollections,
       toggleFollow,
       recordClick,
-      onLogin: async (m) => persistSession(m.id),
-      onSignup: async (name, email) => {
+      onLogin: async (email, password) => {
+        const cleanEmail = String(email || "").trim().toLowerCase();
+        if (!isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        const marketer = marketers.find((m) => m.email.toLowerCase() === cleanEmail) || null;
+        if (authConfigured) {
+          const res = await signInSeller({ email: cleanEmail, password });
+          if (!res.ok) return showToast(res.error || t("auth.errLogin"));
+        }
+        if (!marketer) return showToast(t("auth.errNoStudio"));
+        await persistSession(marketer.id);
+      },
+      onSignup: async (name, email, password) => {
         const cleanName = String(name || "").trim().slice(0, 60);
         const cleanEmail = String(email || "").trim().toLowerCase();
         if (!cleanName || !isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        if (authConfigured) {
+          const res = await signUpSeller({ email: cleanEmail, password });
+          if (!res.ok) return showToast(res.error || t("auth.errPassword"));
+          // Ensure a profiles row exists so RLS + isAdmin() (src/lib/auth.js) have a record.
+          if (supabase && res.data?.user?.id) {
+            await supabase
+              .from("profiles")
+              .upsert({ id: res.data.user.id, is_admin: false }, { onConflict: "id" })
+              .catch(() => {});
+          }
+        }
         const existing = marketers.find((m) => m.email.toLowerCase() === cleanEmail);
         if (existing) {
           await persistSession(existing.id);
@@ -193,7 +216,10 @@ export function MarketplaceProvider({ children }) {
         await persistSession(m.id);
         showToast(t("sell.studioCreated"));
       },
-      onLogout: async () => persistSession(null),
+      onLogout: async () => {
+        if (authConfigured) await signOutSeller();
+        await persistSession(null);
+      },
       onAddProduct: async (draft) => {
         if (!currentMarketer) return;
         const title = String(draft.title || "").trim().slice(0, 120);

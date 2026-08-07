@@ -84,10 +84,10 @@ export default function CreatorProfilePage({
             <ArrowLeft size={15} className="mirror-rtl" />
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={handleShare} className="tap shrink-0 w-8 h-8 rounded-full flex items-center justify-center surface" aria-label="Share">
+            <button onClick={handleShare} className="tap shrink-0 w-8 h-8 rounded-full flex items-center justify-center surface" aria-label={t("common.share")}>
               <Share2 size={13} style={{ color: "var(--accent)" }} className="mirror-rtl" />
             </button>
-            <button onClick={() => setLang(lang === "he" ? "en" : "he")} className="tap shrink-0 w-8 h-8 rounded-full flex items-center justify-center surface" aria-label="Language">
+            <button onClick={() => setLang(lang === "he" ? "en" : "he")} className="tap shrink-0 w-8 h-8 rounded-full flex items-center justify-center surface" aria-label={t("common.language")}>
               <Languages size={14} style={{ color: "var(--accent)" }} />
             </button>
           </div>

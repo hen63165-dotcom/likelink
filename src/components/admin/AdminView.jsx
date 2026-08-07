@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, lazy, Suspense } from "react";
 import { Lock, Users, ShoppingBag, MousePointerClick, DollarSign, Check, Flag, Trash2, CircleAlert } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
 import { StatChip, EmptyState, Button } from "../ui";
-import { EarningsChart } from "../charts/EarningsChart";
 import { ProductThumb } from "../product/ProductComponents";
 import { ADMIN_CODE } from "../../constants/keys";
+
+// Loaded on demand so the heavy charting library stays out of the main bundle.
+const EarningsChart = lazy(() => import("../charts/EarningsChart"));
 
 export default function AdminView() {
   const { t, lang } = useI18n();
@@ -88,7 +90,9 @@ export default function AdminView() {
             <p className="text-xs text-muted mt-1.5">{t("admin.gmvSub")} {sales.length} {t("admin.gmvSalesWord")}</p>
           </div>
 
-          <EarningsChart title={t("admin.earningsChart")} data={groupByDay(sales, "platformFee")} lang={lang} />
+          <Suspense fallback={null}>
+            <EarningsChart title={t("admin.earningsChart")} data={groupByDay(sales, "platformFee")} lang={lang} />
+          </Suspense>
 
           <div className="surface rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">

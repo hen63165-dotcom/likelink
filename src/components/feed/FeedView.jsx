@@ -8,7 +8,7 @@ import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
 
-export default function FeedView() {
+export default function FeedView({ navigate }) {
   const { t, lang, categoryLabel } = useI18n();
   const { products, marketers, favorites, following, toggleFavorite, recordClick, showToast } = useMarketplace();
 
@@ -75,7 +75,7 @@ export default function FeedView() {
           </p>
           <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
             {marketers.map((m) => (
-              <button key={m.id} onClick={() => (window.location.href = `/u/${m.slug || m.id}`)} className="tap flex flex-col items-center gap-1.5 shrink-0 w-16">
+              <button key={m.id} onClick={() => navigate(`/u/${m.slug || m.id}`)} className="tap flex flex-col items-center gap-1.5 shrink-0 w-16">
                 <span className="rounded-full" style={{ boxShadow: "0 0 0 2px var(--border), 0 4px 10px rgba(60,20,40,0.12)" }}>
                   <CreatorAvatar marketer={m} size={44} />
                 </span>
@@ -128,7 +128,7 @@ export default function FeedView() {
         <IconButton onClick={() => setFollowOnly((v) => !v)} label={t("feed.followingOnly")} active={followOnly}>
           <UserCheck size={15} />
         </IconButton>
-        <IconButton onClick={() => setView(view === "grid" ? "stream" : "grid")} label="Toggle view">
+        <IconButton onClick={() => setView(view === "grid" ? "stream" : "grid")} label={t("common.toggleView")}>
           {view === "grid" ? <Rows3 size={15} /> : <LayoutGrid size={15} />}
         </IconButton>
       </div>

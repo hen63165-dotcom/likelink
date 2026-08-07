@@ -64,6 +64,7 @@ export function CreatorRow({ marketer, showBio = false, size = 20, align = "cent
 }
 
 export function FavButton({ isFav, onToggle, floating }) {
+  const { t } = useI18n();
   return (
     <motion.button
       whileTap={{ scale: 0.85 }}
@@ -78,7 +79,7 @@ export function FavButton({ isFav, onToggle, floating }) {
         insetInlineEnd: floating ? 10 : undefined,
         background: floating ? "rgba(255,255,255,0.92)" : "transparent",
       }}
-      aria-label={isFav ? "Remove from wishlist" : "Add to wishlist"}
+      aria-label={isFav ? t("common.wishlistRemove") : t("common.wishlistAdd")}
     >
       <Heart
         size={16}

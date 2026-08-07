@@ -28,11 +28,17 @@ export function LangProvider({ children }) {
   const dict = translations[lang];
 
   const t = useCallback(
-    (key) => {
+    (key, vars) => {
       const parts = key.split(".");
       let node = dict;
       for (const p of parts) node = node?.[p];
-      return node ?? key;
+      if (typeof node !== "string") return node ?? key;
+      if (vars) {
+        let out = node;
+        for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
+        return out;
+      }
+      return node;
     },
     [dict]
   );
