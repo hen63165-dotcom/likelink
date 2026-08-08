@@ -9,7 +9,7 @@ import { fetchOgImage } from "../utils/helpers";
  * failure returns null fields so the creator can fill them manually.
  */
 export async function fetchProductInfo(url) {
-  const info = { image: null, title: null, price: null };
+  const info = { image: null, title: null, price: null, currency: null };
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);
@@ -22,13 +22,16 @@ export async function fetchProductInfo(url) {
       info.image = data.data.image ? String(data.data.image) : null;
       info.title = data.data.title ? String(data.data.title) : null;
       info.price = data.data.price != null ? String(data.data.price) : null;
+      info.currency = data.data.currency ? String(data.data.currency) : null;
       return info;
     }
   } catch {
     /* edge function unavailable (e.g. plain `npm run dev`) — fall through */
   }
+  // Fallback: client-side og:image preview (same-origin / CORS-friendly sites only).
   try {
-    info.image = await fetchOgImage(url);
+    const img = await fetchOgImage(url);
+    if (img) info.image = img;
   } catch {
     /* ignore */
   }

@@ -1,23 +1,18 @@
 import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { ImageOff, Heart, Star } from "lucide-react";
-import { money } from "../../utils/helpers";
+import { money, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers";
 import { useI18n } from "../../lib/LangContext";
 import { Badge } from "../ui";
 
 export function ProductThumb({ p, className = "" }) {
   const [failed, setFailed] = React.useState(false);
-  if (!p.image || failed) {
-    return (
-      <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--accent-subtle)" }}>
-        <ImageOff size={24} style={{ color: "var(--accent)", opacity: 0.5 }} />
-      </div>
-    );
-  }
+  const src = p && p.image ? p.image : DEFAULT_PRODUCT_IMAGE;
+  const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
   return (
     <img
-      src={p.image}
-      alt={p.title}
+      src={finalSrc}
+      alt={p?.title || "product image"}
       onError={() => setFailed(true)}
       loading="lazy"
       decoding="async"

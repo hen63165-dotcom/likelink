@@ -85,6 +85,68 @@ export function isSafeImageUrl(value) {
   return isSafeHttpUrl(v);
 }
 
+/**
+ * Resolve a possibly-relative / protocol-relative URL against a base into an
+ * absolute http(s) URL, an inline `data:image/...` URL, or null when unsafe.
+ * (og:image values are frequently relative or protocol-relative.)
+ */
+export function resolveUrl(raw, base) {
+  const v = String(raw || "").trim();
+  if (!v) return null;
+  if (/^data:image\//i.test(v)) return v;
+  try {
+    const u = new URL(v, base);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Normalize an image URL to an absolute, safe value (or null). */
+export function normalizeImageUrl(raw, base) {
+  const url = resolveUrl(raw, base);
+  if (!url) return null;
+  return /^data:image\//i.test(url) ? url : url;
+}
+
+/**
+ * Lightweight, dependency-free placeholder shown whenever a product has no
+ * usable image, so the UI never renders a broken/empty image slot.
+ */
+export const DEFAULT_PRODUCT_IMAGE =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0%200%20600%20800'%3E%3Crect width='600' height='800' fill='%23f1effb'/%3E%3Cpath fill='%23c1356c' d='M160%20520%20L280%20360%20L400%20520%20Z'/%3E%3Ccircle cx='300' cy='280' r='40' fill='%236c4cf1'/%3E%3C/svg%3E";
+
+/**
+ * Wrap ANY retailer product URL into a platform tracking link that carries the
+ * creator's tracking id, so every click is attributed and every commission can
+ * be paid out — for AliExpress, SHEIN, ASOS, Zara, Amazon, local stores, etc.
+ *
+ * Result:  <origin>/r?u=<encoded destination>&ref=<trackingId>
+ *  - Universal: works for every retailer (no longer AliExpress-only).
+ *  - Idempotent: a URL that is already a platform /r link is not re-wrapped —
+ *    its `ref` is simply refreshed with the supplied tracking id.
+ *  - Safe: only absolute http(s) destinations are wrapped; anything else passes
+ *    through unchanged so it can never become an open-redirect.
+ */
+export function buildAffiliateUrl(destinationUrl, trackingId) {
+  const dest = String(destinationUrl || "").trim();
+  if (!isSafeHttpUrl(dest)) return dest || "";
+  try {
+    const u = new URL(dest);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    if (u.origin === origin && u.pathname.replace(/\/$/, "") === "/r") {
+      if (trackingId) u.searchParams.set("ref", trackingId);
+      return u.toString();
+    }
+    const link = new URL("/r", origin);
+    link.searchParams.set("u", u.toString());
+    if (trackingId) link.searchParams.set("ref", trackingId);
+    return link.toString();
+  } catch {
+    return dest;
+  }
+}
+
 export function clampNumber(n, min = 0, max = 1e9) {
   const num = Number(n);
   if (!Number.isFinite(num)) return 0;
@@ -92,69 +154,98 @@ export function clampNumber(n, min = 0, max = 1e9) {
 }
 
 /**
- * Inject a creator's AliExpress tracking ID into an affiliate URL.
- * - Only touches aliexpress.com / *.aliexpress.com product URLs.
- * - Leaves click-through track links (s.click.aliexpress.com, ali.pub) untouched.
- * - Never overwrites a URL that already has tracking params (aff_trace_key / aff_platform / aff_short_key).
+ * Inject a creator's tracking id into an affiliate URL.
+ *
+ * Previously this only handled AliExpress (`aff_trace_key`). It now wraps ANY
+ * retailer link (AliExpress, SHEIN, ASOS, Zara, Amazon, local stores, etc.)
+ * into a platform tracking link that carries the creator's id, so every click
+ * is attributed regardless of the destination store — see `buildAffiliateUrl`.
+ * The function name is kept for backwards compatibility with existing callers.
  */
 export function injectAliExpressTracking(url, trackingId) {
-  const v = String(url || "").trim();
-  if (!v || !trackingId) return v;
+  return buildAffiliateUrl(url, trackingId);
+}
+
+/**
+ * Alias for injectAliExpressTracking — works for ANY retailer (not just
+ * AliExpress). Kept for a one-word rename so callers read naturally.
+ */
+export const injectAffiliateTracking = injectAliExpressTracking;
+
+/**
+ * Extract the *real destination URL* from an affiliate link.
+ *
+ * If the link is already a platform `/r?u=<dest>&ref=<id>` tracking link, the
+ * destination is pulled from the `u` query-param. If it's a raw retailer URL
+ * (AliExpress, SHEIN, Amazon, local store, etc.) it is returned as-is.
+ *
+ * This is critical for the Capacitor / installed-PWA case where there is no
+ * server-side `/r` redirect handler — we resolve to the retailer's real product
+ * page and open it directly in the external browser, so clicks always land
+ * correctly regardless of the store.
+ *
+ * @param {string} affiliateUrl  — the stored affiliateUrl (raw or `/r` wrapped)
+ * @returns {string} the destination URL (safe to pass to window.open)
+ */
+export function resolveDestinationUrl(affiliateUrl) {
+  const raw = String(affiliateUrl || "").trim();
+  if (!raw) return "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   try {
-    const u = new URL(v);
-    const host = u.hostname.toLowerCase();
-    if (host === "s.click.aliexpress.com" || host === "ali.pub") return v;
-    if (host !== "aliexpress.com" && !host.endsWith(".aliexpress.com")) return v;
-    if (
-      u.searchParams.has("aff_trace_key") ||
-      u.searchParams.has("aff_platform") ||
-      u.searchParams.has("aff_short_key")
-    ) {
-      return v; // already tracked — don't overwrite
+    const u = new URL(raw, origin);
+    // Platform /r tracking link → extract the destination from `u`.
+    if (u.origin === origin && u.pathname.replace(/\/$/, "") === "/r") {
+      const dest = u.searchParams.get("u");
+      if (dest && isSafeHttpUrl(dest)) return dest;
+      // No destination param — return empty so caller knows nothing to open.
+      return "";
     }
-    u.searchParams.set("aff_trace_key", trackingId);
-    return u.toString();
+    // Raw retailer URL → open directly.
+    return raw;
   } catch {
-    return v;
+    // Not a parseable URL (data:, relative, etc.) — pass through.
+    return raw;
   }
 }
 
 /**
- * Audit helper: list saved products that need a manual tracking-ID fix —
- * those using the placeholder link, belonging to a creator with no tracking ID,
- * or an AliExpress product URL lacking tracking params.
+ * Audit helper: list saved products whose affiliate URL is missing, a
+ * placeholder, or not yet a platform tracking link — i.e. clicks won't be
+ * attributed to the creator through the `/r` forwarder.
+ *
+ * `handleGetDeal` rebuilds the tracking link on every click as a safety-net, so
+ * these products are still tracked at click time; this list just tells the
+ * creator which products to re-save so the stored link is clean.
  */
 export function findProductsNeedingTracking(products, marketers) {
   const byId = Object.fromEntries((marketers || []).map((m) => [m.id, m]));
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   return (products || [])
     .filter((p) => {
-      if (!p.affiliateUrl) return true;
-      if (/^https:\/\/example\.com\/aff\//.test(p.affiliateUrl)) return true;
-      const m = byId[p.marketerId];
-      if (!m || !m.trackingId) return true;
+      const url = String(p.affiliateUrl || "").trim();
+      if (!url || /^https?:\/\/example\.com\/aff\//i.test(url)) return true;
+      if (!byId[p.marketerId]) return true;
       try {
-        const u = new URL(p.affiliateUrl);
-        const host = u.hostname.toLowerCase();
-        if (
-          (host === "aliexpress.com" || host.endsWith(".aliexpress.com")) &&
-          !u.searchParams.has("aff_trace_key") &&
-          !u.searchParams.has("aff_platform")
-        ) {
-          return true;
-        }
-      } catch { /* leave URL untouched in audit */ }
-      return false;
+        const u = new URL(url);
+        if (u.origin === origin && u.pathname.replace(/\/$/, "") === "/r") return false;
+        return true; // raw retailer URL — wrapped at click time, flagged for cleanliness
+      } catch {
+        return true;
+      }
     })
     .map((p) => ({ id: p.id, title: p.title, url: p.affiliateUrl, marketerId: p.marketerId }));
 }
 
 /**
  * Best-effort: fetch an Open Graph preview image from a product link.
- * Follows redirects and parses `og:image`. Returns null on any failure/timeout
+ * Follows redirects and parses `og:image` (plus `og:image:url`,
+ * `og:image:secure_url` and `twitter:image`). Relative / protocol-relative
+ * image URLs are resolved against the final (post-redirect) page URL so they
+ * are always usable by an <img>. Returns null on any failure/timeout
  * (cross-origin sites often block browser fetches — callers must treat the
- * result as optional and fall back to the manual Image URL field).
+ * result as optional and fall back to the manual Image URL field / placeholder).
  */
-export async function fetchOgImage(url, { timeoutMs = 4000 } = {}) {
+export async function fetchOgImage(url, { timeoutMs = 8000 } = {}) {
   const v = String(url || "").trim();
   if (!isSafeHttpUrl(v)) return null;
   const controller = new AbortController();
@@ -163,10 +254,14 @@ export async function fetchOgImage(url, { timeoutMs = 4000 } = {}) {
     const res = await fetch(v, { signal: controller.signal, redirect: "follow" });
     if (!res.ok) return null;
     const text = await res.text();
+    const base = res.url || v;
     const m =
       text.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-      text.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-    const img = m ? m[1].trim() : "";
+      text.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i) ||
+      text.match(/<meta[^>]+property=["']og:image:url["'][^>]+content=["']([^"']+)["']/i) ||
+      text.match(/<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i) ||
+      text.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+    const img = resolveUrl(m ? m[1] : null, base);
     return img && isSafeImageUrl(img) ? img : null;
   } catch {
     return null;
