@@ -55,7 +55,15 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.following, false, []),
         getJSON(K.payouts, true, []),
       ]);
-      setMarketers(m);
+      // Self-heal corrupt legacy records: name/email must be plain strings so
+      // string coercion (render, navigator.share title, login lookup) never crashes.
+      setMarketers(
+        (m || []).map((x) => ({
+          ...x,
+          name: typeof x?.name === "string" ? x.name : String(x?.name ?? x?.email ?? ""),
+          email: typeof x?.email === "string" ? x.email : String(x?.email ?? ""),
+        }))
+      );
       setProducts(p);
       setClicks(c);
       setSales(s);

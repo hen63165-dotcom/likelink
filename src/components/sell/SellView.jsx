@@ -58,7 +58,7 @@ export default function SellView({ navigate }) {
   async function handleShare() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: marketer.name, url: myLink });
+        await navigator.share({ title: typeof marketer.name === "string" ? marketer.name : String(marketer.name ?? marketer.email ?? ""), url: myLink });
         return;
       } catch { /* cancelled */ }
     }
