@@ -24,6 +24,19 @@ async function setJSON(key, value, shared) {
   await storage.set(key, JSON.stringify(value), shared);
 }
 
+// Safe coercion helpers — never throw "Cannot convert object to primitive value",
+// even when a legacy record holds a non-primitive field.
+const toStr = (v, fb = "") => {
+  if (typeof v === "string") return v;
+  try { return String(v ?? fb); } catch { return fb; }
+};
+const toNum = (v, fb = 0) => {
+  try {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : fb;
+  } catch { return fb; }
+};
+
 export function MarketplaceProvider({ children }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
@@ -76,16 +89,51 @@ export function MarketplaceProvider({ children }) {
           };
         })
       );
-      setProducts(p);
+      // Sanitize the other stores so numeric/string conversions never crash:
+      // product price/commission, sale/payout numerics (+ts), settings fee, collections.
+      setProducts(
+        (p || []).map((x) => ({
+          ...x,
+          price: toNum(x?.price, 0),
+          commission: toNum(x?.commission, 0),
+        }))
+      );
       setClicks(c);
-      setSales(s);
-      setSettings(st);
+      setSales(
+        (s || []).map((x) => ({
+          ...x,
+          saleAmount: toNum(x?.saleAmount, 0),
+          commissionAmount: toNum(x?.commissionAmount, 0),
+          platformFee: toNum(x?.platformFee, 0),
+          marketerNet: toNum(x?.marketerNet, 0),
+          ts: toNum(x?.ts, 0),
+        }))
+      );
+      setSettings({
+        ...(st && typeof st === "object" ? st : {}),
+        platformFeePercent: toNum(st?.platformFeePercent, PLATFORM_FEE_PERCENT_DEFAULT),
+      });
       setSessionMarketerId(sess?.marketerId || null);
       setFavorites(fav);
       setIntroSeen(Boolean(intro));
-      setCollections(cols);
+      setCollections(
+        (cols || []).map((x) => ({
+          ...x,
+          id: toStr(x?.id),
+          marketerId: toStr(x?.marketerId),
+          title: toStr(x?.title),
+          productIds: Array.isArray(x?.productIds) ? x.productIds : [],
+        }))
+      );
       setFollowing(follow);
-      setPayouts(po);
+      setPayouts(
+        (po || []).map((x) => ({
+          ...x,
+          amount: toNum(x?.amount, 0),
+          ts: toNum(x?.ts, 0),
+          paidAt: x?.paidAt == null ? null : toNum(x?.paidAt, 0),
+        }))
+      );
       setLoading(false);
     })();
   }, []);

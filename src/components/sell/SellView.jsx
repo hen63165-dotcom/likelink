@@ -195,8 +195,8 @@ export default function SellView({ navigate }) {
             {myPayouts.map((pay, i) => (
               <div key={pay.id} className={`flex items-center justify-between gap-2 px-3.5 py-2.5 ${i !== 0 ? "border-t" : ""}`} style={{ borderColor: "var(--border)" }}>
                 <div>
-                  <p className="mono text-xs font-semibold">{money(pay.amount, lang)}</p>
-                  <p className="text-[10px] text-muted">{formatDate(pay.ts)}</p>
+                  <p className="mono text-xs font-semibold">{money(typeof pay.amount === "number" && Number.isFinite(pay.amount) ? pay.amount : 0, lang)}</p>
+                  <p className="text-[10px] text-muted">{formatDate(typeof pay.ts === "number" ? pay.ts : null)}</p>
                 </div>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: pay.status === "paid" ? "var(--success-subtle)" : "var(--accent-subtle)", color: pay.status === "paid" ? "var(--success)" : "var(--accent)" }}>
                   {pay.status === "paid" ? t("sell.payoutPaid") : t("sell.payoutPending")}
@@ -557,8 +557,8 @@ function ProductForm({ onClose, onSubmit }) {
 function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
   const { t, categoryLabel } = useI18n();
   const [logging, setLogging] = useState(false);
-  const [amount, setAmount] = useState(p.price ? String(p.price) : "");
-  const [comm, setComm] = useState(p.commission ? String(p.commission) : "");
+  const [amount, setAmount] = useState(typeof p.price === "number" && Number.isFinite(p.price) ? String(p.price) : "");
+  const [comm, setComm] = useState(typeof p.commission === "number" && Number.isFinite(p.commission) ? String(p.commission) : "");
   const [receipt, setReceipt] = useState(null);
   const statusColor = { approved: "var(--success)", pending: "var(--warning)", flagged: "var(--danger)" }[p.status] || "var(--text-muted)";
 
