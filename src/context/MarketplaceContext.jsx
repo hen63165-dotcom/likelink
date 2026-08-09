@@ -55,14 +55,26 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.following, false, []),
         getJSON(K.payouts, true, []),
       ]);
-      // Self-heal corrupt legacy records: name/email must be plain strings so
-      // string coercion (render, navigator.share title, login lookup) never crashes.
+      // Self-heal corrupt legacy records: every string field must be a plain
+      // string so any string coercion (render, template literals, navigator.share,
+      // URLSearchParams, login lookup) never crashes. slug falls back to slugify(name).
       setMarketers(
-        (m || []).map((x) => ({
-          ...x,
-          name: typeof x?.name === "string" ? x.name : String(x?.name ?? x?.email ?? ""),
-          email: typeof x?.email === "string" ? x.email : String(x?.email ?? ""),
-        }))
+        (m || []).map((x) => {
+          const name = typeof x?.name === "string" ? x.name : String(x?.name ?? x?.email ?? "");
+          const email = typeof x?.email === "string" ? x.email : String(x?.email ?? "");
+          const slug =
+            typeof x?.slug === "string" && x.slug.trim() ? x.slug : slugify(name);
+          return {
+            ...x,
+            id: typeof x?.id === "string" ? x.id : String(x?.id ?? ""),
+            name,
+            email,
+            slug,
+            trackingId: typeof x?.trackingId === "string" ? x.trackingId : String(x?.trackingId ?? ""),
+            payPalEmail: typeof x?.payPalEmail === "string" ? x.payPalEmail : String(x?.payPalEmail ?? ""),
+            bio: typeof x?.bio === "string" ? x.bio : String(x?.bio ?? ""),
+          };
+        })
       );
       setProducts(p);
       setClicks(c);

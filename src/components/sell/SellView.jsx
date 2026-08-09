@@ -46,7 +46,7 @@ export default function SellView({ navigate }) {
   const myGross = mySales.reduce((s, x) => s + (x.commissionAmount || 0), 0);
   const myFees = mySales.reduce((s, x) => s + (x.platformFee || 0), 0);
   const feeRate = settings?.platformFeePercent || PLATFORM_FEE_PERCENT_DEFAULT;
-  const myLink = `${window.location.origin}/u/${marketer.slug || marketer.id}`;
+  const myLink = `${window.location.origin}/u/${typeof marketer.slug === "string" && marketer.slug ? marketer.slug : typeof marketer.id === "string" ? marketer.id : ""}`;
   const myCollections = collections.filter((c) => c.marketerId === marketer.id);
   const chartData = groupByDay(mySales, "marketerNet");
   const payout = getSellerPayoutSummary(sales, payouts, marketer.id);
