@@ -1,20 +1,25 @@
 import React, { useState, useMemo } from "react";
-import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp } from "lucide-react";
+import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp, Camera } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
+import { useCart } from "../../context/CartContext";
 import { getTopCreatorIds } from "../../utils/helpers";
+import { trackClick, trackView } from "../../lib/analytics";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
+import { ScreenshotSearchModal } from "../search/ScreenshotSearchModal";
 
 export default function FeedView({ navigate }) {
   const { t, lang, categoryLabel } = useI18n();
   const { products, marketers, favorites, following, toggleFavorite, recordClick, showToast } = useMarketplace();
+  const { addItem: addToCart } = useCart();
 
   const [view, setView] = useState("grid");
   const [cat, setCat] = useState("All");
   const [query, setQuery] = useState("");
+  const [showScreenshotSearch, setShowScreenshotSearch] = useState(false);
   const [sort, setSort] = useState("newest");
   const [favOnly, setFavOnly] = useState(false);
   const [followOnly, setFollowOnly] = useState(false);
@@ -47,8 +52,14 @@ export default function FeedView({ navigate }) {
 
   async function handleGetDeal(p) {
     await recordClick(p);
+    trackClick(p.id, p.marketerId, "feed");
     window.open(p.affiliateUrl, "_blank", "noopener,noreferrer");
     showToast(t("toast.openingDeal"));
+  }
+
+  function handleAddToCart(p, marketer) {
+    trackClick(p.id, p.marketerId, "feed");
+    addToCart(p, marketer);
   }
 
   return (
@@ -87,19 +98,29 @@ export default function FeedView({ navigate }) {
       )}
 
       {/* Search */}
-      <div className="relative mb-4">
-        <Search
-          size={16}
-          className="absolute top-1/2 -translate-y-1/2 pointer-events-none text-muted"
-          style={{ insetInlineStart: 14 }}
-        />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("feed.searchPlaceholder")}
-          className="input-field w-full rounded-full py-2.5 text-sm"
-          style={{ paddingInlineStart: 40, paddingInlineEnd: 16 }}
-        />
+      <div className="relative mb-4 flex gap-2">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            className="absolute top-1/2 -translate-y-1/2 pointer-events-none text-muted"
+            style={{ insetInlineStart: 14 }}
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("feed.searchPlaceholder")}
+            className="input-field w-full rounded-full py-2.5 text-sm"
+            style={{ paddingInlineStart: 40, paddingInlineEnd: 16 }}
+          />
+        </div>
+        <button
+          onClick={() => setShowScreenshotSearch(true)}
+          className="tap p-2.5 rounded-full bg-white border-2 hover:border-accent transition-colors"
+          style={{ borderColor: "var(--border)" }}
+          title={t("search.screenshotSearch", "חיפוש בתמונה")}
+        >
+          <Camera size={20} style={{ color: "var(--accent)" }} />
+        </button>
       </div>
 
       {/* Controls */}
@@ -198,6 +219,7 @@ export default function FeedView({ navigate }) {
               isFav={favorites.includes(p.id)}
               onToggleFavorite={() => toggleFavorite(p.id)}
               onOpen={() => setActive(p)}
+              onAddToCart={handleAddToCart}
               index={i}
             />
           ))}
@@ -234,6 +256,12 @@ export default function FeedView({ navigate }) {
           />
         )}
       </AnimatePresence>
+
+      {/* Screenshot Search Modal */}
+      <ScreenshotSearchModal
+        isOpen={showScreenshotSearch}
+        onClose={() => setShowScreenshotSearch(false)}
+      />
     </div>
   );
 }

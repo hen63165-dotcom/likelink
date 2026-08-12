@@ -3,6 +3,7 @@ import { Sparkles, Languages, Moon, Sun, ArrowLeft, ShoppingBag, TrendingUp, Shi
 import { motion } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useCart } from "../../context/CartContext";
 import { IconButton } from "../ui";
 
 export function TopBar({ tab, feeRate, showBack, onBack }) {
@@ -50,6 +51,7 @@ export function TopBar({ tab, feeRate, showBack, onBack }) {
 
 export function BottomNav({ tab, setTab }) {
   const { t } = useI18n();
+  const { cartCount, setIsOpen: openCart } = useCart();
   const items = [
     { id: "feed", label: t("nav.feed"), icon: ShoppingBag },
     { id: "sell", label: t("nav.sell"), icon: TrendingUp },
@@ -89,6 +91,25 @@ export function BottomNav({ tab, setTab }) {
             </button>
           );
         })}
+        {/* Cart Button */}
+        <button
+          onClick={() => openCart(true)}
+          className="tap flex flex-col items-center gap-0.5 py-2 relative"
+        >
+          {cartCount > 0 && (
+            <motion.div
+              layoutId="cart-badge"
+              className="absolute -top-0.5 right-2 min-w-5 h-5 rounded-full flex items-center justify-center px-1.5"
+              style={{ background: "var(--accent)", color: "#fff" }}
+            >
+              <span className="text-[10px] font-bold">{cartCount}</span>
+            </motion.div>
+          )}
+          <ShoppingBag size={20} color="var(--text-muted)" strokeWidth={2} />
+          <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+            {t("cart.title", "עגלה")}
+          </span>
+        </button>
       </div>
     </nav>
   );

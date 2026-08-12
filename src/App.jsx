@@ -2,12 +2,15 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
+import { CartProvider } from "./context/CartContext";
+import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys";
 import { parsePath } from "./utils/routing";
 
 // Modern Layout & UI
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
 import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Cart } from "./components/cart/Cart";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -15,14 +18,20 @@ const SellView = lazy(() => import("./components/sell/SellView"));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
 const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
+// TEMPORARY diagnostic page (raw data dump) — remove together with RawDataDump.jsx
+const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
+
 export default function AppRoot() {
   return (
     <LangProvider>
       <ThemeProvider>
         <MarketplaceProvider>
-          <ErrorBoundary>
-            <App />
-          </ErrorBoundary>
+          <CartProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+            <Cart />
+          </CartProvider>
         </MarketplaceProvider>
       </ThemeProvider>
     </LangProvider>
@@ -50,6 +59,15 @@ function App() {
   function navigate(path) {
     window.history.pushState({}, "", path);
     setRoute(parsePath(path));
+  }
+
+  // TEMPORARY: raw-storage diagnostic page (/#dbg). Remove with RawDataDump.jsx
+  if (window.location.hash === "#dbg") {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <RawDataDump />
+      </Suspense>
+    );
   }
 
   if (loading) return <LoadingScreen />;
@@ -85,7 +103,7 @@ function App() {
     <AppShell>
       <TopBar 
         tab={tab} 
-        feeRate={settings.platformFeePercent} 
+        feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT} 
       />
 
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">

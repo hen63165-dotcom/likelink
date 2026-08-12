@@ -8,7 +8,7 @@ import { ProductThumb } from "../product/ProductComponents";
 import { ADMIN_CODE } from "../../constants/keys";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
-const EarningsChart = lazy(() => import("../charts/EarningsChart"));
+const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
 
 export default function AdminView() {
   const { t, lang } = useI18n();

@@ -1,8 +1,9 @@
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { ImageOff, Heart, Star } from "lucide-react";
+import { ImageOff, Heart, Star, ShoppingBag } from "lucide-react";
 import { money, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers";
 import { useI18n } from "../../lib/LangContext";
+import { useCart } from "../../context/CartContext";
 import { Badge } from "../ui";
 
 export function ProductThumb({ p, className = "" }) {
@@ -107,21 +108,55 @@ export const ProductCard = memo(function ProductCard({
   isFav,
   onToggleFavorite,
   onOpen,
+  onAddToCart,
   index = 0,
 }) {
+  const { t } = useI18n();
+  const { setIsOpen: openCart } = useCart();
+
+  const handleAddToCart = (e) => {
+    e.stopPropagation();
+    if (onAddToCart) {
+      onAddToCart(p, marketer);
+    }
+    // Open cart as visual feedback
+    openCart(true);
+  };
+
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.35 }}
-      onClick={onOpen}
       className="tap text-start w-full group"
     >
-      <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
-        <div className="w-full aspect-[4/5] overflow-hidden relative">
-          <ProductThumb p={p} />
-          <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
-        </div>
+      <div
+        onClick={onOpen}
+        className="w-full text-start cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+      >
+        <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
+          <div className="w-full aspect-[4/5] overflow-hidden relative">
+            <ProductThumb p={p} />
+            <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+            {p.price > 0 && (
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleAddToCart}
+                className="absolute bottom-2 left-2 w-9 h-9 rounded-full flex items-center justify-center shadow-lg"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                <ShoppingBag size={16} />
+              </motion.button>
+            )}
+          </div>
         <div className="p-3">
           <p className="text-[13px] font-semibold leading-snug line-clamp-2">{p.title}</p>
           {p.price > 0 && (
@@ -135,7 +170,8 @@ export const ProductCard = memo(function ProductCard({
           </div>
         </div>
       </div>
-    </motion.button>
+      </div>
+    </motion.div>
   );
 });
 
@@ -151,18 +187,29 @@ export const StreamCard = memo(function StreamCard({
 }) {
   const { categoryLabel } = useI18n();
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.35 }}
-      onClick={onOpen}
       className="tap text-start w-full group"
     >
-      <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
-        <div className="w-full aspect-[16/10] overflow-hidden relative">
-          <ProductThumb p={p} />
-          <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
-        </div>
+      <div
+        onClick={onOpen}
+        className="w-full text-start cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
+      >
+        <div className="surface rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-card hover:-translate-y-0.5">
+          <div className="w-full aspect-[16/10] overflow-hidden relative">
+            <ProductThumb p={p} />
+            <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+          </div>
         <div className="p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--accent)" }}>
@@ -180,7 +227,8 @@ export const StreamCard = memo(function StreamCard({
           </div>
         </div>
       </div>
-    </motion.button>
+      </div>
+    </motion.div>
   );
 });
 

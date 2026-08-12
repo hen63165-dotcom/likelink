@@ -2,6 +2,9 @@
 // the shipped bundle. If it is unset, the admin panel stays locked.
 export const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE || "";
 
+// ─── Platform URL ──────────────────────────────────────────────────────────
+export const PLATFORM_URL = window.location.origin;
+
 // ─── Platform revenue model ────────────────────────────────────────────────
 // Likelink takes a flat % cut of each creator's affiliate commission. The
 // seller keeps the rest. This is the industry-standard creator-marketplace

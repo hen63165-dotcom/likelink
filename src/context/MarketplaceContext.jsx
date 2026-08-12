@@ -13,8 +13,10 @@ const MarketplaceContext = createContext(null);
 
 async function getJSON(key, shared, fallback) {
   const res = await storage.get(key, shared);
+  if (res == null || res.value == null) return fallback;
   try {
-    return res ? JSON.parse(res.value) : fallback;
+    const parsed = JSON.parse(res.value);
+    return parsed ?? fallback;
   } catch {
     return fallback;
   }
@@ -98,7 +100,7 @@ export function MarketplaceProvider({ children }) {
           commission: toNum(x?.commission, 0),
         }))
       );
-      setClicks(c);
+      setClicks(c || []);
       setSales(
         (s || []).map((x) => ({
           ...x,
@@ -114,7 +116,7 @@ export function MarketplaceProvider({ children }) {
         platformFeePercent: toNum(st?.platformFeePercent, PLATFORM_FEE_PERCENT_DEFAULT),
       });
       setSessionMarketerId(sess?.marketerId || null);
-      setFavorites(fav);
+      setFavorites(fav || []);
       setIntroSeen(Boolean(intro));
       setCollections(
         (cols || []).map((x) => ({
@@ -125,7 +127,7 @@ export function MarketplaceProvider({ children }) {
           productIds: Array.isArray(x?.productIds) ? x.productIds : [],
         }))
       );
-      setFollowing(follow);
+      setFollowing(follow || []);
       setPayouts(
         (po || []).map((x) => ({
           ...x,

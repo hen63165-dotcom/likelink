@@ -17,10 +17,11 @@ import {
   EmptyState, StatChip, Button, LabeledInput, LabeledTextarea, SheetModal,
 } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
-const EarningsChart = lazy(() => import("../charts/EarningsChart"));
+const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
 
 export default function SellView({ navigate }) {
   const { t, lang } = useI18n();
@@ -39,18 +40,18 @@ export default function SellView({ navigate }) {
   if (!introSeen) return <OnboardingIntro onDismiss={dismissIntro} />;
   if (!marketer) return <AuthGate marketers={marketers} onLogin={onLogin} onSignup={onSignup} />;
 
-  const mine = products.filter((p) => p.marketerId === marketer.id).sort((a, b) => b.createdAt - a.createdAt);
+  const mine = (products || []).filter((p) => p.marketerId === marketer.id).sort((a, b) => b.createdAt - a.createdAt);
   const myClicks = mine.reduce((s, p) => s + (p.clicks || 0), 0);
-  const mySales = sales.filter((s) => s.marketerId === marketer.id);
-  const myNet = mySales.reduce((s, x) => s + x.marketerNet, 0);
+  const mySales = (sales || []).filter((s) => s.marketerId === marketer.id);
+  const myNet = mySales.reduce((s, x) => s + (x.marketerNet || 0), 0);
   const myGross = mySales.reduce((s, x) => s + (x.commissionAmount || 0), 0);
   const myFees = mySales.reduce((s, x) => s + (x.platformFee || 0), 0);
-  const feeRate = settings?.platformFeePercent || PLATFORM_FEE_PERCENT_DEFAULT;
+  const feeRate = settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT;
   const myLink = `${window.location.origin}/u/${typeof marketer.slug === "string" && marketer.slug ? marketer.slug : typeof marketer.id === "string" ? marketer.id : ""}`;
-  const myCollections = collections.filter((c) => c.marketerId === marketer.id);
+  const myCollections = (collections || []).filter((c) => c.marketerId === marketer.id);
   const chartData = groupByDay(mySales, "marketerNet");
-  const payout = getSellerPayoutSummary(sales, payouts, marketer.id);
-  const myPayouts = [...payouts].filter((p) => p.marketerId === marketer.id).sort((a, b) => b.ts - a.ts);
+  const payout = getSellerPayoutSummary(sales || [], payouts || [], marketer.id);
+  const myPayouts = [...(payouts || [])].filter((p) => p.marketerId === marketer.id).sort((a, b) => b.ts - a.ts);
   const nextPayout = nextPayoutDate();
   const thresholdMet = payout.pendingPayout >= MIN_PAYOUT_THRESHOLD;
   const thresholdLeft = Math.max(0, MIN_PAYOUT_THRESHOLD - payout.pendingPayout);
@@ -207,6 +208,9 @@ export default function SellView({ navigate }) {
         )}
       </div>
 
+      {/* Analytics Dashboard */}
+      <AnalyticsDashboard marketerId={marketer?.id} products={mine} />
+
       <Suspense fallback={null}>
         <EarningsChart title={t("sell.earningsChart")} data={chartData} lang={lang} />
       </Suspense>
@@ -261,7 +265,7 @@ export default function SellView({ navigate }) {
               key={p.id}
               p={p}
               lang={lang}
-              feeRate={settings.platformFeePercent}
+              feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
               onDelete={() => onDeleteProduct(p.id)}
               onLogSale={(amt, comm) => onLogSale(p, amt, comm)}
             />
@@ -424,10 +428,10 @@ function CollectionEditorModal({ collection, myProducts, onClose, onSave }) {
 }
 
 function ProductForm({ onClose, onSubmit }) {
-  const { t, lang } = useI18n();
+  const { t, lang, categoryLabel } = useI18n();
   const { settings } = useMarketplace();
   const [d, setD] = useState({ title: "", description: "", image: "", affiliateUrl: "", category: CATEGORY_KEYS[0], price: "", commission: "" });
-  const feeRate = settings?.platformFeePercent || PLATFORM_FEE_PERCENT_DEFAULT;
+  const feeRate = settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT;
   const commNum = Math.max(0, Number(d?.commission) || 0);
   const priceNum = Math.max(0, Number(d?.price) || 0);
   const platformFee = Math.round(commNum * (feeRate / 100) * 100) / 100;
