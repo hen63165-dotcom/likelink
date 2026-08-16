@@ -2,14 +2,14 @@ import React, { useState, lazy, Suspense } from "react";
 import {
   TrendingUp, Plus, X, LogOut, Share2, ArrowLeft, ShoppingBag, MousePointerClick,
   DollarSign, Layers, Pencil, Trash2, Check, Rocket, CircleAlert, ImageOff,
-  Upload, Loader2, Receipt,
+  Upload, Loader2, Receipt, Megaphone,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
-import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD } from "../../constants/keys";
+import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE } from "../../constants/keys";
 import { uploadProductImage } from "../../lib/uploadImage";
 import { getSellerPayoutSummary } from "../../lib/payments";
 import { fetchProductInfo } from "../../lib/productInfo";
@@ -18,6 +18,7 @@ import {
 } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import CampaignBuilder from "./CampaignBuilder";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -27,13 +28,14 @@ export default function SellView({ navigate }) {
   const { t, lang } = useI18n();
   const mp = useMarketplace();
   const {
-    currentMarketer: marketer, marketers, products, sales, payouts, settings,
+    currentMarketer: marketer, marketers, products, sales, payouts, settings, charges, notifications,
     introSeen, dismissIntro, collections, showToast,
     onLogin, onSignup, onLogout, onAddProduct, onDeleteProduct, onLogSale,
-    onAddCollection, onUpdateCollection, onDeleteCollection, onUpdateMarketer,
+    onAddCollection, onUpdateCollection, onDeleteCollection, onUpdateMarketer, onBuyBoost,
   } = mp;
 
   const [showForm, setShowForm] = useState(false);
+  const [showCampaign, setShowCampaign] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
 
@@ -50,7 +52,9 @@ export default function SellView({ navigate }) {
   const myLink = `${window.location.origin}/u/${typeof marketer.slug === "string" && marketer.slug ? marketer.slug : typeof marketer.id === "string" ? marketer.id : ""}`;
   const myCollections = (collections || []).filter((c) => c.marketerId === marketer.id);
   const chartData = groupByDay(mySales, "marketerNet");
-  const payout = getSellerPayoutSummary(sales || [], payouts || [], marketer.id);
+  const payout = getSellerPayoutSummary(sales || [], payouts || [], marketer.id, charges);
+  const isBoosted = (p) => ((p && p.boostedUntil) || 0) > Date.now();
+  const myNotifs = (notifications || []).filter((n) => n.marketerId === marketer.id).slice(0, 5);
   const myPayouts = [...(payouts || [])].filter((p) => p.marketerId === marketer.id).sort((a, b) => b.ts - a.ts);
   const nextPayout = nextPayoutDate();
   const thresholdMet = payout.pendingPayout >= MIN_PAYOUT_THRESHOLD;
@@ -114,6 +118,45 @@ export default function SellView({ navigate }) {
         </div>
         <ArrowLeft size={15} className="shrink-0 opacity-40 text-white" style={{ transform: "scaleX(var(--flip,1))" }} />
       </button>
+
+      <button
+        onClick={() => setShowCampaign(true)}
+        className="tap w-full rounded-2xl p-4 flex items-center gap-3 mb-5 transition-shadow hover:shadow-card"
+        style={{ background: "linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%)" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.18)" }}>
+          <Megaphone size={16} color="#fff" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-semibold text-white">{t("sell.campaignTitle")}</p>
+          <p className="text-[11px] truncate opacity-70 text-white">{t("sell.campaignTagline")}</p>
+        </div>
+        <ArrowLeft size={15} className="shrink-0 opacity-40 text-white" style={{ transform: "scaleX(var(--flip,1))" }} />
+      </button>
+
+      {/* Real-time buyer activity — who just clicked my deals */}
+      {myNotifs.length > 0 && (
+        <div className="surface rounded-2xl p-4 mb-5 shadow-sm">
+          <p className="text-xs font-semibold flex items-center gap-1.5 mb-3" style={{ color: "var(--accent)" }}>
+            <MousePointerClick size={14} /> {lang === "he" ? "פעילות בזמן אמת" : "Real-time activity"}
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {myNotifs.map((n) => {
+              const target = products.find((p) => p.id === n.productId);
+              return (
+                <div key={n.id} className="flex items-start gap-2.5">
+                  <span className="w-1.5 h-1.5 mt-1.5 rounded-full shrink-0" style={{ background: "var(--accent)" }} />
+                  <p className="text-[12px] leading-snug">
+                    {lang === "he" ? "קליק חדש" : "New click"}
+                    {target?.title ? <> — <span className="font-medium">{target.title}</span></> : null}
+                    <span className="text-muted"> • {formatDate(n.ts)}</span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Why sell here — persuasive pitch, low commission, built for a quick yes */}
       <div className="rounded-2xl p-4 mb-5 brand-gradient text-white">
@@ -261,14 +304,32 @@ export default function SellView({ navigate }) {
       ) : (
         <div className="flex flex-col gap-3">
           {mine.map((p) => (
-            <CreatorProductRow
-              key={p.id}
-              p={p}
-              lang={lang}
-              feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
-              onDelete={() => onDeleteProduct(p.id)}
-              onLogSale={(amt, comm) => onLogSale(p, amt, comm)}
-            />
+            <div key={p.id} className="mb-2">
+              <CreatorProductRow
+                p={p}
+                lang={lang}
+                feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
+                onDelete={() => onDeleteProduct(p.id)}
+                onLogSale={(amt, comm) => onLogSale(p, amt, comm)}
+              />
+              {isBoosted(p) ? (
+                <p className="text-[10px] font-semibold mt-1.5 px-1 flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                  <Megaphone size={11} /> {t("sell.boostedUntil", { time: formatDate(p.boostedUntil) })}
+                </p>
+              ) : (
+                <button
+                  onClick={() => onBuyBoost(p.id)}
+                  disabled={payout.pendingPayout < BOOST_PRICE}
+                  className="tap w-full mt-1.5 py-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5"
+                  style={{
+                    background: payout.pendingPayout >= BOOST_PRICE ? "var(--accent-subtle)" : "var(--bg-subtle)",
+                    color: payout.pendingPayout >= BOOST_PRICE ? "var(--accent)" : "var(--text-faint)",
+                  }}
+                >
+                  <Megaphone size={12} /> {t("sell.boostBtn", { price: BOOST_PRICE })}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -281,6 +342,16 @@ export default function SellView({ navigate }) {
           <NewCollectionModal
             onClose={() => setShowNewCollection(false)}
             onCreate={(title) => { onAddCollection(title); setShowNewCollection(false); }}
+          />
+        )}
+        {showCampaign && (
+          <CampaignBuilder
+            marketer={marketer}
+            products={mine}
+            link={myLink}
+            lang={lang}
+            onClose={() => setShowCampaign(false)}
+            showToast={showToast}
           />
         )}
         {editingCollection && (

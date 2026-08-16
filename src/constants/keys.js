@@ -20,6 +20,11 @@ export const MIN_PAYOUT_THRESHOLD = 100; // ₪ minimum pending balance to be el
 export const PAYOUT_INTERVAL_DAYS = 14; // biweekly payout schedule
 export const PAYOUT_METHOD = "paypal"; // manual PayPal for now (not automated)
 
+// ─── Boost feature (direct revenue WITHOUT a payment gateway) ───────────
+// Sellers pay from their own pending balance, so nobody needs a card.
+export const BOOST_PRICE = 25;            // ₪ — deducted from the seller's balance
+export const BOOST_DURATION_HOURS = 24;   // product stays pinned at the top of the feed
+
 export const K = {
   marketers: "marketplace:marketers",
   products: "marketplace:products",
@@ -33,5 +38,6 @@ export const K = {
   following: "ui:following",
   notifications: "marketplace:notifications",
   payouts: "marketplace:payouts",
+  charges: "marketplace:charges",
   theme: "ui:theme",
 };

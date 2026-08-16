@@ -1,42 +1,77 @@
 import React from "react";
-import { Sparkles, Languages, Moon, Sun, ArrowLeft, ShoppingBag, TrendingUp, Shield } from "lucide-react";
+import { Sparkles, Languages, Moon, Sun, ArrowLeft, ShoppingBag, TrendingUp, Shield, Search, Camera } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useCart } from "../../context/CartContext";
 import { IconButton } from "../ui";
 
-export function TopBar({ tab, feeRate, showBack, onBack }) {
+export function TopBar({
+  tab,
+  showBack,
+  onBack,
+  searchQuery = "",
+  onSearchChange,
+  onScreenshotSearch,
+  activeNav = "discover",
+  onNavChange,
+}) {
   const { t, lang, setLang } = useI18n();
   const { theme, toggleTheme } = useTheme();
-  const titles = { feed: t("topbar.feed"), sell: t("topbar.sell"), admin: t("topbar.admin") };
+
+  const navItems = [
+    { id: "discover", label: t("navTop.discover") },
+    { id: "shop", label: t("navTop.shop") },
+    { id: "deals", label: t("navTop.deals") },
+  ];
 
   return (
-    <header className="w-full sticky top-0 z-40 glass-header safe-top">
-      <div className="max-w-app mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          {showBack && onBack && (
-            <IconButton onClick={onBack} label={t("common.back")}>
-              <ArrowLeft size={16} />
-            </IconButton>
-          )}
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 brand-gradient"
+    <header className="w-full sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 safe-top">
+      {/* Row 1: Brand + Smart Search + Actions */}
+      <div className="max-w-app mx-auto px-4 h-16 flex items-center gap-3">
+        {showBack && onBack && (
+          <IconButton onClick={onBack} label={t("common.back")}>
+            <ArrowLeft size={16} />
+          </IconButton>
+        )}
+
+        {/* Brand */}
+        <div className="flex items-center gap-2 shrink-0">
+          <motion.div
+            whileTap={{ scale: 0.9 }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center brand-gradient"
             style={{ boxShadow: "0 4px 12px rgba(193,53,108,0.30)" }}
           >
-            <Sparkles size={16} color="#fff" />
-          </div>
-          <span className="disp text-[17px] font-semibold tracking-tight">{titles[tab]}</span>
+            <Sparkles size={17} color="#fff" />
+          </motion.div>
         </div>
-        <div className="flex items-center gap-1.5">
-          {tab === "feed" && (
-            <span
-              className="mono text-[10px] px-2.5 py-1 rounded-full whitespace-nowrap hidden sm:inline"
-              style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
-            >
-              {feeRate}% {t("topbar.fee")}
-            </span>
-          )}
+
+        {/* Smart search (hidden on very small screens when back shown) */}
+        <div
+          className={`relative flex-1 ${showBack ? "max-w-[160px] sm:max-w-xs" : "max-w-xs"} mx-auto`}
+        >
+          <Search
+            size={15}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+          />
+          <input
+            value={searchQuery}
+            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+            placeholder={t("feed.searchPlaceholder")}
+            className="w-full rounded-full border border-gray-200 bg-gray-50/70 py-2.5 pl-9 pr-10 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-transparent transition-all"
+          />
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={onScreenshotSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-pink-50 hover:bg-pink-100 transition-colors"
+            title={t("search.screenshotSearch", "חיפוש בתמונה")}
+          >
+            <Camera size={16} style={{ color: "var(--accent)" }} />
+          </motion.button>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
           <IconButton onClick={toggleTheme} label={t("common.theme")}>
             {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </IconButton>
@@ -45,6 +80,31 @@ export function TopBar({ tab, feeRate, showBack, onBack }) {
           </IconButton>
         </div>
       </div>
+
+      {/* Row 2: Top Nav Pills */}
+      {tab === "feed" && (
+        <div className="max-w-app mx-auto px-4 pb-2.5">
+          <div className="flex justify-center gap-1.5">
+            {navItems.map((item) => {
+              const active = activeNav === item.id;
+              return (
+                <motion.button
+                  key={item.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onNavChange && onNavChange(item.id)}
+                  className="tap px-4 py-1.5 rounded-full text-sm font-bold transition-colors"
+                  style={{
+                    background: active ? "#111" : "transparent",
+                    color: active ? "#fff" : "#6b7280",
+                  }}
+                >
+                  {item.label}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

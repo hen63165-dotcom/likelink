@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { storage } from "../lib/storage";
 import { supabase } from "../lib/supabaseClient";
 import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth";
-import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD } from "../constants/keys";
+import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys";
 import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
@@ -47,6 +47,8 @@ export function MarketplaceProvider({ children }) {
   const [clicks, setClicks] = useState([]);
   const [sales, setSales] = useState([]);
   const [payouts, setPayouts] = useState([]);
+  const [charges, setCharges] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState({ platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT });
   const [sessionMarketerId, setSessionMarketerId] = useState(null);
   const [favorites, setFavorites] = useState([]);
@@ -57,7 +59,7 @@ export function MarketplaceProvider({ children }) {
 
   useEffect(() => {
     (async () => {
-      const [m, p, c, s, st, sess, fav, intro, cols, follow, po] = await Promise.all([
+      const [m, p, c, s, st, sess, fav, intro, cols, follow, po, ch, nt] = await Promise.all([
         getJSON(K.marketers, true, SEED_MARKETERS),
         getJSON(K.products, true, SEED_PRODUCTS),
         getJSON(K.clicks, true, []),
@@ -69,6 +71,8 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.collections, true, []),
         getJSON(K.following, false, []),
         getJSON(K.payouts, true, []),
+        getJSON(K.charges, true, []),
+        getJSON(K.notifications, true, []),
       ]);
       // Self-heal corrupt legacy records: every string field must be a plain
       // string so any string coercion (render, template literals, navigator.share,
@@ -136,6 +140,15 @@ export function MarketplaceProvider({ children }) {
           paidAt: x?.paidAt == null ? null : toNum(x?.paidAt, 0),
         }))
       );
+      setCharges(
+        (ch || []).map((x) => ({
+          ...x,
+          marketerId: toStr(x?.marketerId),
+          amount: toNum(x?.amount, 0),
+          ts: toNum(x?.ts, 0),
+        }))
+      );
+      setNotifications(Array.isArray(nt) ? nt.slice(0, 60) : []);
       setLoading(false);
     })();
   }, []);
@@ -179,6 +192,16 @@ export function MarketplaceProvider({ children }) {
   const persistPayouts = useCallback(async (next) => {
     setPayouts(next);
     await setJSON(K.payouts, next, true);
+  }, []);
+
+  const persistCharges = useCallback(async (next) => {
+    setCharges(next);
+    await setJSON(K.charges, next, true);
+  }, []);
+
+  const persistNotifications = useCallback(async (next) => {
+    setNotifications(next);
+    await setJSON(K.notifications, next, true);
   }, []);
 
   const persistSettings = useCallback(async (next) => {
@@ -231,8 +254,19 @@ export function MarketplaceProvider({ children }) {
       );
       await persistClicks(nextClicks);
       await persistProducts(nextProducts);
+      // Real-time buyer activity → seller notification (click = someone tapped their deal)
+      await persistNotifications([
+        {
+          id: uid(),
+          marketerId: product.marketerId,
+          kind: "click",
+          productId: product.id,
+          ts: Date.now(),
+        },
+        ...(notifications || []),
+      ].slice(0, 60));
     },
-    [clicks, products, persistClicks, persistProducts]
+    [clicks, products, notifications, persistClicks, persistProducts, persistNotifications]
   );
 
   const value = useMemo(
@@ -243,6 +277,8 @@ export function MarketplaceProvider({ children }) {
       clicks,
       sales,
       payouts,
+      charges,
+      notifications,
       settings,
       sessionMarketerId,
       favorites,
@@ -421,11 +457,31 @@ export function MarketplaceProvider({ children }) {
         );
         showToast(t("sell.payoutPaid2"));
       },
+      onBuyBoost: async (productId) => {
+        if (!currentMarketer) return showToast(t("auth.login"));
+        const product = products.find((p) => p.id === productId);
+        if (!product || product.marketerId !== currentMarketer.id) return;
+        const summary = getSellerPayoutSummary(sales, payouts, currentMarketer.id, charges);
+        if (summary.pendingPayout < BOOST_PRICE) return showToast(t("sell.boostNoBalance"));
+        const now = Date.now();
+        const charge = {
+          id: uid(),
+          marketerId: currentMarketer.id,
+          productId,
+          amount: BOOST_PRICE,
+          reason: "boost",
+          ts: now,
+        };
+        const boostedUntil = now + BOOST_DURATION_HOURS * 60 * 60 * 1000;
+        await persistCharges([...charges, charge]);
+        await persistProducts(products.map((p) => (p.id === productId ? { ...p, boostedUntil } : p)));
+        showToast(t("sell.boostActive"));
+      },
     }),
     [
-      loading, marketers, products, clicks, sales, payouts, settings, sessionMarketerId,
+      loading, marketers, products, clicks, sales, payouts, charges, notifications, settings, sessionMarketerId,
       favorites, collections, following, introSeen, toast, currentMarketer,
-      showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts,
+      showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections,
       toggleFollow, recordClick, t,
     ]

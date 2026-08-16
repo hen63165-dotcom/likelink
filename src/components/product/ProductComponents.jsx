@@ -1,14 +1,19 @@
 import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { ImageOff, Heart, Star, ShoppingBag } from "lucide-react";
-import { money, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers";
+import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers";
 import { useI18n } from "../../lib/LangContext";
 import { useCart } from "../../context/CartContext";
 import { Badge } from "../ui";
 
 export function ProductThumb({ p, className = "" }) {
   const [failed, setFailed] = React.useState(false);
-  const src = p && p.image ? p.image : DEFAULT_PRODUCT_IMAGE;
+  // Resolve relative / protocol-relative image URLs against the app origin
+  // so they load on the live web app — not just on localhost.
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const rawSrc = p && p.image ? p.image : "";
+  const normalized = normalizeImageUrl(rawSrc, origin);
+  const src = normalized || DEFAULT_PRODUCT_IMAGE;
   const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
   return (
     <img
@@ -27,6 +32,26 @@ export function CreatorAvatar({ marketer, size = 20 }) {
   const name = marketer?.name || "";
   const letter = (name.trim().charAt(0) || "?").toLocaleUpperCase("he");
   const bg = marketer?.color || "var(--accent)";
+  const [imgFailed, setImgFailed] = React.useState(false);
+  // Render the creator's photo when a usable URL is available. Relative /
+  // protocol-relative URLs are resolved against the app origin so they load
+  // on the live web app. Falls back to the initials chip below when there
+  // is no image or the image fails to load.
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const imgSrc = normalizeImageUrl(marketer?.image, origin);
+  if (imgSrc && !imgFailed) {
+    return (
+      <img
+        src={imgSrc}
+        alt={name || "creator avatar"}
+        loading="lazy"
+        decoding="async"
+        onError={() => setImgFailed(true)}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: size, height: size, background: bg }}
+      />
+    );
+  }
   return (
     <span
       className="rounded-full flex items-center justify-center shrink-0 select-none"
@@ -100,6 +125,19 @@ export function TopBadge() {
   );
 }
 
+/** "Sponsored" chip shown on boosted products (top of feed for 24h). */
+export function SponsoredChip() {
+  const { t } = useI18n();
+  return (
+    <span
+      className="absolute top-2 start-2 z-10 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+      style={{ background: "rgba(27, 23, 18, 0.86)", color: "#F3ECDD" }}
+    >
+      {t("sell.sponsored")}
+    </span>
+  );
+}
+
 export const ProductCard = memo(function ProductCard({
   p,
   marketer,
@@ -146,6 +184,7 @@ export const ProductCard = memo(function ProductCard({
           <div className="w-full aspect-[4/5] overflow-hidden relative">
             <ProductThumb p={p} />
             <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+            {((p.boostedUntil || 0) > Date.now()) && <SponsoredChip />}
             {p.price > 0 && (
               <motion.button
                 whileTap={{ scale: 0.9 }}
@@ -158,7 +197,7 @@ export const ProductCard = memo(function ProductCard({
             )}
           </div>
         <div className="p-3">
-          <p className="text-[13px] font-semibold leading-snug line-clamp-2">{p.title}</p>
+          <p className="text-[13px] font-semibold leading-snug line-clamp-2">{p.title || ""}</p>
           {p.price > 0 && (
             <p className="mono text-xs font-semibold mt-1.5" style={{ color: "var(--accent)" }}>
               {money(p.price, lang)}
@@ -209,6 +248,7 @@ export const StreamCard = memo(function StreamCard({
           <div className="w-full aspect-[16/10] overflow-hidden relative">
             <ProductThumb p={p} />
             <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+            {((p.boostedUntil || 0) > Date.now()) && <SponsoredChip />}
           </div>
         <div className="p-4">
           <div className="flex items-center justify-between gap-2">
@@ -219,8 +259,8 @@ export const StreamCard = memo(function StreamCard({
               <span className="mono text-sm font-bold shrink-0" style={{ color: "var(--accent)" }}>{money(p.price, lang)}</span>
             )}
           </div>
-          <p className="text-[15px] font-semibold leading-snug mt-1">{p.title}</p>
-          <p className="text-[13px] text-muted mt-1.5 line-clamp-2">{p.description}</p>
+          <p className="text-[15px] font-semibold leading-snug mt-1">{p.title || ""}</p>
+          <p className="text-[13px] text-muted mt-1.5 line-clamp-2">{p.description || ""}</p>
           <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
             <CreatorRow marketer={marketer} size={28} showBio />
             {isTop && <TopBadge />}
@@ -270,7 +310,7 @@ export function ProductModal({ product, marketer, isTop, lang, isFav, onToggleFa
           <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--accent)" }}>
             {categoryLabel(product.category)}
           </span>
-          <h2 className="disp text-xl font-semibold mt-1 leading-tight">{product.title}</h2>
+          {product.title ? <h2 className="disp text-xl font-semibold mt-1 leading-tight">{product.title}</h2> : null}
 
           <div className="flex items-center gap-2.5 mt-3 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
             <CreatorAvatar marketer={marketer} size={36} />
@@ -285,7 +325,7 @@ export function ProductModal({ product, marketer, isTop, lang, isFav, onToggleFa
             </div>
           </div>
 
-          <p className="text-sm leading-relaxed mt-3 text-secondary">{product.description}</p>
+          {product.description ? <p className="text-sm leading-relaxed mt-3 text-secondary">{product.description}</p> : null}
 
           {product.price > 0 && (
             <p className="mono text-xl font-bold mt-4" style={{ color: "var(--accent)" }}>{money(product.price, lang)}</p>

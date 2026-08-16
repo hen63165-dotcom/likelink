@@ -6,6 +6,7 @@ import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
 import { StatChip, EmptyState, Button } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
 import { ADMIN_CODE } from "../../constants/keys";
+import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
 const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
@@ -20,6 +21,27 @@ export default function AdminView() {
   const [section, setSection] = useState("overview");
   
   const topIds = useMemo(() => getTopCreatorIds(products), [products]);
+
+  const approvedCount = products.filter((p) => p.status === "approved").length;
+
+  function downloadGoogleFeed() {
+    const xml = buildGoogleFeed({
+      products,
+      marketers,
+      baseUrl: window.location.origin,
+    });
+    const blob = new Blob([xml], { type: "application/xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = FEED_FILE_NAME;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  const feedEndpoint = `${window.location.origin}/api/google-feed`;
 
   if (!unlocked) {
     return (
@@ -109,6 +131,37 @@ export default function AdminView() {
               className="w-full h-1.5 bg-surface-subtle rounded-lg appearance-none cursor-pointer accent-primary" 
             />
             <p className="text-[11px] text-faint mt-3 leading-relaxed">{t("admin.feeNote")}</p>
+          </div>
+
+          <div className="surface rounded-2xl p-5 shadow-sm">
+            <p className="text-sm font-semibold flex items-center justify-between">
+              Google Merchant Feed
+              <span className="mono text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+                {approvedCount} products
+              </span>
+            </p>
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">
+              Generates a valid RSS XML feed (g:id, g:title, g:description, g:link,
+              g:image_link, g:price, g:availability, g:brand) uploadable to Google
+              Merchant Center.
+            </p>
+            <div className="flex flex-col gap-2.5 mt-4">
+              <Button variant="primary" onClick={() => { downloadGoogleFeed(); }}>
+                Download {FEED_FILE_NAME}
+              </Button>
+              <p className="text-[10.5px] text-faint leading-relaxed">
+                {"Deployed endpoint (scheduled fetch URL):"}
+              </p>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(feedEndpoint); }}
+                className="tap text-left mono text-[11px] px-3 py-2 rounded-lg truncate"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}
+                title={feedEndpoint}
+              >
+                {feedEndpoint}
+              </button>
+            </div>
           </div>
         </div>
       )}

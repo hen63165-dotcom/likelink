@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>Likelink - Google Merchant Feed</title>
+    <link>https://www.likelink.com</link>
+    <description>Likelink curated product picks from independent creators.</description>
+  <item>
+    <g:id>msd6o730x773mf</g:id>
+    <g:title>השעון הכי חם ברשת נקודה</g:title>
+    <g:description></g:description>
+    <g:link>https://www.likelink.com/?product=msd6o730x773mf</g:link>
+    <g:price>0.00 ILS</g:price>
+    <g:availability>in stock</g:availability>
+    <g:brand>Likelink</g:brand>
+    <g:condition>new</g:condition>
+    <g:product_type>Fashion &gt; ALYOSTYLE</g:product_type>
+  </item>
+  </channel>
+</rss>

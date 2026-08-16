@@ -1,0 +1,85 @@
+# ============================================================
+# Likelink — robots.txt
+# ------------------------------------------------------------
+# IMPORTANT: This file must remain fully permissive. It deliberately
+# contains NO "Disallow" and NO "noai"/"noimageai" directives, so that
+# Google AI Search / Search Console, Bing, and all major AI engines can
+# crawl, index, and cite Likelink for AI Overviews and answer engines.
+# (The absence of blocking directives is what allows AI indexing.)
+#
+# Sitemap domain: https://www.likelink.com
+# ============================================================
+
+# Allow everything (default), including non-matching agents.
+User-agent: *
+Allow: /
+
+# --- Standard search engines ---
+User-agent: Googlebot
+Allow: /
+User-agent: Googlebot-Image
+Allow: /
+User-agent: Googlebot-News
+Allow: /
+User-agent: Googlebot-Video
+Allow: /
+
+# Google AI services & AI Overviews / AI Search (MUST stay allowed)
+User-agent: Google-Extended
+Allow: /
+User-agent: GoogleOther
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+User-agent: Bangbot
+Allow: /
+User-agent: Applebot
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: DuckDuckBot
+Allow: /
+User-agent: Yandex
+Allow: /
+User-agent: Baiduspider
+Allow: /
+User-agent: Sogou web spider
+Allow: /
+User-agent: NAVER
+Allow: /
+
+# --- AI assistant / LLM engine crawlers (explicitly allowed to opt in) ---
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: Bytespider
+Allow: /
+User-agent: Amazonbot
+Allow: /
+User-agent: cohere-ai
+Allow: /
+User-agent: meta-externalagent
+Allow: /
+User-agent: FacebookBot
+Allow: /
+User-agent: omgili
+Allow: /
+User-agent: omgilibot
+Allow: /
+
+# The sitemap must be an absolute URL.
+Sitemap: https://www.likelink.com/sitemap.xml

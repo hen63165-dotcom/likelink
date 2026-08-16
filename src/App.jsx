@@ -11,6 +11,7 @@ import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
 import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
+import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -20,7 +21,6 @@ const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
 // TEMPORARY diagnostic page (raw data dump) — remove together with RawDataDump.jsx
 const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
-
 export default function AppRoot() {
   return (
     <LangProvider>
@@ -43,6 +43,9 @@ function App() {
   const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
   const [tab, setTab] = useState("feed");
   const [route, setRoute] = useState(() => parsePath(window.location.pathname));
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeNav, setActiveNav] = useState("discover");
+  const [screenshotOpen, setScreenshotOpen] = useState(false);
 
   useEffect(() => {
     const onPop = () => setRoute(parsePath(window.location.pathname));
@@ -101,14 +104,28 @@ function App() {
   // Main App Tabs
   return (
     <AppShell>
-      <TopBar 
-        tab={tab} 
-        feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT} 
+      <TopBar
+        tab={tab}
+        feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onScreenshotSearch={() => setScreenshotOpen(true)}
+        activeNav={activeNav}
+        onNavChange={setActiveNav}
       />
 
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
         <Suspense fallback={<LoadingScreen />}>
-          {tab === "feed" && <FeedView navigate={navigate} />}
+          {tab === "feed" && (
+            <FeedView
+              navigate={navigate}
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              activeNav={activeNav}
+              setActiveNav={setActiveNav}
+              onScreenshotSearch={() => setScreenshotOpen(true)}
+            />
+          )}
           {tab === "sell" && <SellView navigate={navigate} />}
           {tab === "admin" && <AdminView />}
         </Suspense>
@@ -116,6 +133,10 @@ function App() {
 
       <BottomNav tab={tab} setTab={setTab} />
       <Toast message={toast?.msg} />
+      <ScreenshotSearchModal
+        isOpen={screenshotOpen}
+        onClose={() => setScreenshotOpen(false)}
+      />
     </AppShell>
   );
 }

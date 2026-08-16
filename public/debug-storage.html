@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Likelink — RAW Storage Dump (one-time diagnostic)</title>
+<style>
+  body { font-family: 'JetBrains Mono', monospace; background:#0f1115; color:#e5e7eb; margin:0; padding:12px; font-size:12px; }
+  h1 { font-size:15px; color:#6C4CF1; margin:4px 0 12px; }
+  h2 { font-size:13px; color:#fbbf24; margin:20px 0 6px; border-bottom:1px solid #2a2e38; padding-bottom:3px; }
+  pre { white-space:pre-wrap; word-break:break-all; background:#181b22; border:1px solid #2a2e38; border-radius:6px; padding:8px; margin:4px 0; }
+  .raw { color:#7dd3fc; }
+  .parsed { color:#a7f3d0; }
+  .bad { background:#7f1d1d; border:1px solid #f87171; color:#fecaca; font-weight:bold; }
+  .flag { color:#fb7185; font-weight:bold; }
+  .key { color:#fbbf24; font-weight:bold; }
+  .muted { color:#6b7280; }
+</style>
+</head>
+<body>
+<h1>Likelink — RAW Storage Dump</h1>
+<div id="out"><p class="muted">Loading…</p></div>
+<script>
+(function () {
+  var De = {
+    marketers: "marketplace:marketers",
+    products:  "marketplace:products",
+    clicks:    "marketplace:clicks",
+    sales:     "marketplace:sales",
+    settings:  "marketplace:settings",
+    session:   "session:marketerId",
+    favorites: "ui:favorites",
+    introSeen: "ui:sellIntroSeen",
+    collections: "marketplace:collections",
+    following: "ui:following"
+  };
+
+  var out = document.getElementById('out');
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function block(label, html) { out.innerHTML += '<h2>'+esc(label)+'</h2>'+html; }
+  function readRaw(key) {
+    try { return localStorage.getItem(key); } catch (e) { return '<ERR '+esc(e.message)+'>'; }
+  }
+// ---- 1. Dump EVERY localStorage entry, exactly as stored (no sanitizing) ----
+  var allKeys = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) allKeys.push(localStorage.key(i));
+  } catch (e) { allKeys = []; }
+  allKeys.sort();
+
+  var html = '<p class="muted">Total localStorage entries: '+allKeys.length+' (keys below are the literal strings as stored)</p>';
+  allKeys.forEach(function (k) {
+    var v = readRaw(k);
+    html += '<h2>KEY: <span class="key">'+esc(k)+'</span></h2>';
+    html += '<pre><span class="muted">RAW (exactly as stored):</span>\n<span class="raw">'+esc(v)+'</span></pre>';
+    var parsed = null, parseErr = null;
+    try { parsed = JSON.parse(v); } catch (e) { parseErr = e.message; }
+    if (parseErr) html += '<pre class="bad">JSON.parse ERROR: '+esc(parseErr)+'</pre>';
+    else if (parsed !== null) html += '<pre><span class="muted">PARSED:</span>\n<span class="parsed">'+esc(JSON.stringify(parsed, null, 2))+'</span></pre>';
+});
+  block('1) ALL localStorage entries (raw)', html);
+// ---- 2. Known keys directly ----
+  var html2 = '<p class="muted">Direct reads of the app&#39;s known storage keys:</p>';
+  Object.keys(De).forEach(function (name) {
+    var k = De[name];
+    var v = readRaw(k);
+    var exists = (v !== null && v !== undefined) ? 'YES' : 'NO';
+    html2 += '<h2>'+esc(name)+' &rarr; <span class="key">'+esc(k)+'</span> <span class="'+(exists==='YES'?'muted':'bad')+'">['+exists+']</span></h2>';
+    if (v !== null && v !== undefined) {
+      html2 += '<pre><span class="raw">'+esc(v)+'</span></pre>';
+      try {
+        var p = JSON.parse(v);
+        html2 += '<pre><span class="parsed">'+esc(JSON.stringify(p, null, 2))+'</span></pre>';
+      } catch (e) { html2 += '<pre class="bad">PARSE ERROR: '+esc(e.message)+'</pre>'; }
+    }
+  });
+  block('2) Known keys (direct)', html2);
+// ---- 3. Current marketer + products + sales + settings ----
+  var session = null, marketerId = null;
+  try { session = JSON.parse(readRaw(De.session)); } catch (e) {}
+  if (session && session.marketerId !== undefined && session.marketerId !== null) marketerId = session.marketerId;
+
+  var html3 = '';
+  html3 += '<h2>Session (current marketerId)</h2>';
+  html3 += '<pre>'+(session ? esc(JSON.stringify(session, null, 2)) : '<span class="bad">NO SESSION / marketerId = null</span>')+'</pre>';
+
+  var marketers = [], products = [], sales = [], settings = null;
+  try { marketers = JSON.parse(readRaw(De.marketers)) || []; } catch (e) {}
+  try { products  = JSON.parse(readRaw(De.products))  || []; } catch (e) {}
+  try { sales     = JSON.parse(readRaw(De.sales))     || []; } catch (e) {}
+  try { settings  = JSON.parse(readRaw(De.settings))  || null; } catch (e) {}
+
+  html3 += '<h2>Current marketer/studio record (marketerId = '+esc(marketerId)+')</h2>';
+  if (marketerId === null || marketerId === undefined) {
+    html3 += '<pre class="bad">Cannot resolve current marketer - session has no marketerId.</pre>';
+  }
+  var me = null;
+  if (!Array.isArray(marketers)) {
+    html3 += '<pre class="bad">marketplace:marketers is NOT AN ARRAY - raw type: '+esc(typeof marketers)+'</pre>';
+  } else {
+    marketers.forEach(function (m) {
+      if (m && (m.id === marketerId || (marketerId && m.id && String(m.id) === String(marketerId)))) me = m;
+    });
+    html3 += '<pre>'+(me ? esc(JSON.stringify(me, null, 2)) : '<span class="bad">marketer id '+esc(marketerId)+' NOT FOUND. All marketers:</span>\n'+esc(JSON.stringify(marketers, null, 2)))+'</pre>';
+  }
+
+  html3 += '<h2>Products for current marketer (RAW from marketplace:products)</h2>';
+  if (!Array.isArray(products)) {
+    html3 += '<pre class="bad">marketplace:products is NOT AN ARRAY - raw type: '+esc(typeof products)+'</pre>';
+  } else {
+    var mine = products.filter(function (p) { return p && (p.marketerId === marketerId || (marketerId && p.marketerId && String(p.marketerId) === String(marketerId))); });
+    if (mine.length === 0) {
+      html3 += '<pre class="muted">None found for marketerId '+esc(marketerId)+'. Showing ALL raw products:</pre>';
+      html3 += '<pre>'+esc(JSON.stringify(products, null, 2))+'</pre>';
+    }
+    mine.forEach(function (p) { html3 += '<pre>'+esc(JSON.stringify(p, null, 2))+'</pre>'; });
+  }
+  html3 += '<h2>Sales / payouts for current marketer (RAW from marketplace:sales)</h2>';
+  if (!Array.isArray(sales)) {
+    html3 += '<pre class="bad">marketplace:sales is NOT AN ARRAY - raw type: '+esc(typeof sales)+'</pre>';
+  } else {
+    var mySales = sales.filter(function (s) { return s && (s.marketerId === marketerId || (marketerId && s.marketerId && String(s.marketerId) === String(marketerId))); });
+    if (mySales.length === 0) {
+      html3 += '<pre class="muted">None found for marketerId '+esc(marketerId)+'. Showing ALL raw sales:</pre>';
+      html3 += '<pre>'+esc(JSON.stringify(sales, null, 2))+'</pre>';
+    }
+    mySales.forEach(function (s) { html3 += '<pre>'+esc(JSON.stringify(s, null, 2))+'</pre>'; });
+  }
+
+  html3 += '<h2>Settings (RAW from marketplace:settings)</h2>';
+  html3 += '<pre>'+esc(JSON.stringify(settings, null, 2))+'</pre>';
+  block('3) Current studio / products / sales / settings', html3);
+  // ---- END section 3 ----
+// ---- 4. Corruption scan: object where string/number expected ----
+  var rules = [
+    { key:'marketers', arr:true, label:'marketplace:marketers', fields:{ id:'string', name:'string', email:'string', slug:'string', createdAt:'number' } },
+    { key:'products', arr:true, label:'marketplace:products', fields:{ id:'string', marketerId:'string', title:'string', category:'string', image:'string', affiliateUrl:'string', price:'number', commission:'number', clicks:'number', status:'string', createdAt:'number' } },
+    { key:'sales', arr:true, label:'marketplace:sales', fields:{ id:'string', productId:'string', marketerId:'string', saleAmount:'number', commissionAmount:'number', platformFee:'number', marketerNet:'number', ts:'number' } },
+    { key:'settings', arr:false, label:'marketplace:settings', fields:{ platformFeePercent:'number' } }
+  ];
+  var flags = [];
+  rules.forEach(function (rule) {
+    var data;
+    try { data = JSON.parse(readRaw(De[rule.key])); } catch (e) { flags.push('CANNOT PARSE '+rule.label); return; }
+    var items = rule.arr ? (Array.isArray(data) ? data : (data===null?[]:[data])) : [data];
+    items.forEach(function (item, i) {
+      if (!item || typeof item !== 'object') { flags.push(rule.label+(rule.arr?'['+i+']':'')+' is NOT an object - typeof='+esc(typeof item)); return; }
+      Object.keys(rule.fields).forEach(function (f) {
+        var expected = rule.fields[f];
+        var v = item[f];
+        if (v === undefined || v === null) return;
+        var t = Array.isArray(v) ? 'array' : typeof v;
+        if (t === 'object') {
+          flags.push('OBJECT FIELD >>> '+rule.label+(rule.arr?'['+i+']':'')+'.'+f+' expected '+expected+' but is OBJECT: '+esc(JSON.stringify(v)));
+        } else if (t !== expected) {
+          flags.push(rule.label+(rule.arr?'['+i+']':'')+'.'+f+' expected '+expected+' got '+t+': '+esc(String(v)));
+        }
+      });
+    });
+  });
+  var html4 = flags.length ? '<pre class="bad">'+flags.join('\n\n')+'</pre>' : '<p class="muted">No type mismatches detected (fields are correct type or absent).</p>';
+  block('4) Corruption scan (object where string/number expected)', html4);
+})();
+</script>
+</body>
+</html>

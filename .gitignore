@@ -6,3 +6,5 @@ dist
 likelink2/
 
 likelink2/
+.vercel
+.env*

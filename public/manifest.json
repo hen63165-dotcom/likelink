@@ -1,11 +1,13 @@
 {
-  "name": "Likelink",
-  "short_name": "Hub",
-  "description": "Centralized affiliate marketplace feed",
+  "name": "Likelink — Curated Picks by Independent Creators",
+  "short_name": "Likelink",
+  "description": "Shop curated product picks from top creators, sales-ranked and influencer-verified with transparent store sources.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#FBF6F0",
-  "theme_color": "#C1356C",
+  "background_color": "#F7F3EA",
+  "theme_color": "#F7F3EA",
   "icons": [
     { "src": "/icons/icon-48.webp", "sizes": "48x48", "type": "image/webp" },
     { "src": "/icons/icon-72.webp", "sizes": "72x72", "type": "image/webp" },

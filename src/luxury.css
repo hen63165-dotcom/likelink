@@ -1,0 +1,278 @@
+/* ============================================================
+   LIKELINK — Ultra-Luxury Minimalist Theme (2026)
+   ------------------------------------------------------------
+   NOTE: This file is imported by src/main.jsx so the theme ships
+   inside the compiled CSS bundle. It mirrors /public/luxury.css
+   (which index.html & login.html also load via <link>). Keep the
+   two files in sync — src/luxury.css is the bundled copy.
+   ============================================================ */
+
+:root {
+  --ll-canvas:        #F7F3EA;
+  --ll-canvas-2:      #FBF8F1;
+  --ll-surface:       #FFFFFF;
+  --ll-ink:           #1B1712;
+  --ll-ink-soft:      #3B342B;
+  --ll-muted:         #8A8071;
+  --ll-faint:         #B4AA99;
+  --ll-hairline:      rgba(27, 23, 18, 0.10);
+  --ll-hairline-soft: rgba(27, 23, 18, 0.06);
+  --ll-champagne:     #B78F4F;
+  --ll-champagne-soft:#EDE3CE;
+  --ll-champagne-ink: #6E5423;
+  --ll-charcoal:      #211C16;
+  --ll-shadow:        0 18px 44px -22px rgba(27, 23, 18, 0.28);
+  --ll-shadow-soft:   0 10px 28px -18px rgba(27, 23, 18, 0.22);
+  --ll-radius:        20px;
+  --ll-ease:          cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Canvas & base typography ---------- */
+html, body, #root { background: var(--ll-canvas) !important; }
+
+body {
+  font-family: "Inter", "Space Grotesk", system-ui, sans-serif !important;
+  color: var(--ll-ink) !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: 0.002em;
+}
+
+.disp, .disp * {
+  font-family: "Fraunces", "Cormorant Garamond", "Space Grotesk", serif !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.01em !important;
+  font-optical-sizing: auto;
+}
+
+/* ---------- Top bar: refined, frosted, hairline ---------- */
+header, header[class*="sticky"] {
+  background: rgba(247, 243, 234, 0.82) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  border-bottom: 1px solid var(--ll-hairline) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 24px -18px rgba(27,23,18,0.35);
+}
+
+header .rounded-lg {
+  background: linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 6px 14px -6px rgba(183, 143, 79, 0.7) !important;
+}
+
+header .mono,
+header span[class*="rounded-full"] {
+  background: var(--ll-champagne-soft) !important;
+  color: var(--ll-champagne-ink) !important;
+  border: 1px solid rgba(183, 143, 79, 0.22) !important;
+  font-weight: 500 !important;
+}
+
+/* ---------- Bottom navigation: glassmorphism ---------- */
+[class~="fixed"][class~="bottom-0"],
+nav[class*="fixed"],
+[class*="fixed"][class*="bottom-0"] {
+  background: rgba(251, 248, 241, 0.66) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%) !important;
+  backdrop-filter: blur(22px) saturate(170%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.55) !important;
+  box-shadow: 0 -18px 44px -24px rgba(27, 23, 18, 0.28), 0 0 0 1px var(--ll-hairline-soft) !important;
+}
+
+[class~="fixed"][class~="bottom-0"] span,
+[class~="fixed"][class~="bottom-0"] [class*="text-"] {
+  letter-spacing: 0.02em !important;
+}
+
+/* ---------- Buttons: refined, tactile ---------- */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--ll-ease) 0.12s, box-shadow var(--ll-ease) 0.12s,
+              background-color var(--ll-ease) 0.12s, color var(--ll-ease) 0.12s,
+              border-color var(--ll-ease) 0.12s !important;
+}
+
+button[style*="6C4CF1"],
+button[style*="14121F"] {
+  background: var(--ll-charcoal) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 12px 26px -14px rgba(27, 23, 18, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+button[style*="F1EFFB"] {
+  background: var(--ll-champagne-soft) !important;
+  color: var(--ll-champagne-ink) !important;
+}
+
+button[style*="ECEAF3"],
+header button {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid var(--ll-hairline) !important;
+  color: var(--ll-ink) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* ---------- Micro-interactions: invisible, haptic-like ---------- */
+.tap {
+  transition: transform 140ms var(--ll-ease), opacity 140ms ease, box-shadow 140ms var(--ll-ease) !important;
+}
+.tap:active,
+button:active,
+[role="button"]:active {
+  transform: scale(0.965) !important;
+  opacity: 0.9 !important;
+  box-shadow: 0 4px 14px -8px rgba(27, 23, 18, 0.35) !important;
+}
+
+.grid > div:active {
+  transform: scale(0.975) !important;
+  transition: transform 120ms var(--ll-ease) !important;
+}
+
+/* ---------- Product feed & cards ---------- */
+.grid.grid-cols-2 { gap: 14px 12px !important; }
+
+.grid.grid-cols-2 > * {
+  background: var(--ll-surface) !important;
+  border-radius: var(--ll-radius) !important;
+  border: 1px solid var(--ll-hairline-soft) !important;
+  box-shadow: var(--ll-shadow-soft) !important;
+  overflow: hidden !important;
+  transition: transform var(--ll-ease) 0.18s, box-shadow var(--ll-ease) 0.18s !important;
+}
+
+/* Imagery: consistent editorial 4:5 crop, grounded, never stretched */
+.grid img, main img, img {
+  width: 100% !important;
+  aspect-ratio: 4 / 5 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block !important;
+  background: var(--ll-canvas-2) !important;
+  border-radius: 0 !important;
+}
+
+/* ---------- Section headers: quiet uppercase ---------- */
+main [class*="uppercase"],
+.text-\[\#8B879C\] {
+  color: var(--ll-muted) !important;
+  letter-spacing: 0.12em !important;
+}
+.text-\[\#4A4658\] { color: var(--ll-ink-soft) !important; }
+.text-\[\#B4AFC0\] { color: var(--ll-faint) !important; }
+.text-\[\#E1483B\] { color: #A24C33 !important; }
+
+/* ---------- Toasts ---------- */
+[class*="fixed"][class*="bottom-24"] {
+  background: var(--ll-charcoal) !important;
+  color: var(--ll-canvas) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: var(--ll-shadow) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ---------- Forms / sell inputs: refined ---------- */
+input, textarea, select {
+  border-radius: 14px !important;
+  border: 1px solid var(--ll-hairline) !important;
+  background: var(--ll-surface) !important;
+  box-shadow: inset 0 1px 2px rgba(27, 23, 18, 0.04) !important;
+  transition: border-color var(--ll-ease) 0.15s, box-shadow var(--ll-ease) 0.15s !important;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  border-color: var(--ll-champagne) !important;
+  box-shadow: 0 0 0 3px rgba(183, 143, 79, 0.18) !important;
+}
+
+/* ---------- Avatars ---------- */
+.w-16.h-16, .w-7.h-7, .w-8.h-8,
+div[class*="rounded-full"][style*="F1EFFB"] {
+  border-radius: 50% !important;
+  background: var(--ll-champagne-soft) !important;
+  color: var(--ll-champagne-ink) !important;
+  box-shadow: inset 0 0 0 1px rgba(183, 143, 79, 0.22) !important;
+}
+
+/* ---------- Scrollbars: discreet ---------- */
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ---------- Reduced motion accessibility ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Store-source transparency chip & verified pick ----------
+   Rendered dynamically by luxury.js as `.ll-badge` / `.ll-store`.   */
+.ll-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(27, 23, 18, 0.86) !important;
+  color: #F3ECDD !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 999px !important;
+  font-size: 9.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 6px 16px -8px rgba(27,23,18,0.55) !important;
+  pointer-events: none !important;
+}
+.ll-store {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px !important;
+  color: var(--ll-muted) !important;
+  letter-spacing: 0.02em !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   LEGACY THEME VARIABLES — remap the whole UI to the luxury
+   palette. The app's components read --bg / --text / --accent /
+   --border / --font-* directly, so overriding these :root custom
+   properties here (declared after index.css) shifts the ENTIRE
+   interface to the warm editorial look, not just the shell/nav/
+   buttons. --flip (RTL) and the --radius tokens are intentionally
+   left untouched.
+   ============================================================ */
+
+:root {
+  --bg:              #F7F3EA;
+  --bg-elevated:     #FFFFFF;
+  --bg-subtle:       #FBF8F1;
+  --bg-muted:        #EDE3CE;
+  --text:            #211C16;
+  --text-secondary:  #3B342B;
+  --text-muted:      #8A8071;
+  --text-faint:      #B4AA99;
+  --border:          rgba(27, 23, 18, 0.10);
+  --border-subtle:   rgba(27, 23, 18, 0.06);
+  --accent:          #B78F4F;
+  --accent-hover:    #9C7437;
+  --accent-subtle:   rgba(183, 143, 79, 0.10);
+  --accent-2:        #6E5423;
+  --accent-2-subtle: rgba(110, 84, 35, 0.14);
+  --success:         #4F7A5E;
+  --success-subtle:  rgba(79, 122, 94, 0.14);
+  --danger:          #B3541E;
+  --danger-subtle:   rgba(179, 84, 30, 0.14);
+  --warning:         #B78F4F;
+  --warning-subtle:  rgba(183, 143, 79, 0.16);
+  --header-blur:     rgba(247, 243, 234, 0.82);
+  --overlay:         rgba(27, 23, 18, 0.45);
+  --gradient-brand:  linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%);
+  --font-sans:       "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-disp:       "Fraunces", "Cormorant Garamond", "Space Grotesk", serif;
+  --font-mono:       "JetBrains Mono", monospace;
+}

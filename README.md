@@ -33,6 +33,86 @@ open it on your phone via your computer's local IP, to test the mobile UI.
 
 Every push to `main` auto-redeploys.
 
+## Google Merchant Center product feed
+
+Likelink ships a ready-to-upload **RSS 2.0** product feed
+(`google-feed.xml`) that uses Google's Shopping namespace (`xmlns:g`) with
+`g:id`, `g:title`, `g:description`, `g:link`, `g:image_link`, `g:price`,
+`g:availability`, `g:brand` (plus `g:condition` and `g:product_type`) — the
+exact attributes Google Merchant Center requires, with no crawlable-validation
+errors. Only **approved** products with a title and image are emitted.
+
+There are three ways to get the feed:
+
+### 1. Dedicated endpoint (recommended for scheduled updates)
+
+Once deployed, hit:
+
+```
+https://<your-domain>/api/google-feed
+```
+
+Vercel turns `api/google-feed.mjs` into a serverless function; Netlify uses
+`netlify/functions/google-feed.js`. Both read the live product/marketer feed
+straight from the Supabase `kv` table and return the XML with
+`Content-Type: application/xml` and `Content-Disposition: attachment`,
+so you can paste the URL into Google Merchant Center as a **Scheduled fetch**.
+
+Required env vars (the same ones the app uses):
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+Optional overrides:
+
+```
+LIKELINK_BASE_URL  (g:link origin, default https://www.likelink.com)
+LIKELINK_CURRENCY  (default ILS)
+LIKELINK_BRAND     (default Likelink)
+```
+
+Add them in Vercel → Settings → Environment Variables (and re-deploy), or
+Netlify → Site settings → Environment variables.
+
+### 2. One click from the admin panel
+
+Open the app, unlock the **Admin** tab, and click **"Download google-feed.xml"**
+on the "Google Merchant Feed" card in the Overview section. This builds the
+exact same XML from the live in-app data and downloads it straight away.
+
+### 3. Locally with the CLI
+
+```bash
+# From Supabase (needs VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env)
+npm run feed:google
+
+# …or from a JSON export: { "marketers": [], "products": [...] }
+npm run feed:google -- --input feed-input/products.json --base https://www.likelink.com
+```
+
+The output path defaults to `./google-feed.xml` — override with `--output`.
+
+### Where does each feed value come from?
+
+| Feed field | Source (Likelink product) |
+| --- | --- |
+| `g:id` | `product.id` |
+| `g:title` | `product.title` |
+| `g:description` | `product.description` |
+| `g:link` | `https://www.likelink.com/?product=<id>` (deep-links to the product in the app) |
+| `g:image_link` | `product.image` (absolute http(s) URL only) |
+| `g:price` | `product.price` formatted as `<amount> ILS`, e.g. `249.00 ILS` |
+| `g:availability` | `in stock` when `status === "approved"`, else `out of stock` |
+| `g:brand` | `Likelink` (override with `LIKELINK_BRAND`) |
+| `g:condition` | `new` |
+| `g:product_type` | `product.category > <creator name>` |
+
+A sample generated feed is committed at `google-feed.xml` (built from the seed
+products in `feed-input/products.json`) so you can validate the structure before
+pointing Merchant Center at your live endpoint.
+
 ## Backend: Supabase (shared, live feed across every visitor)
 
 This project is already wired up to use Supabase for all shared marketplace

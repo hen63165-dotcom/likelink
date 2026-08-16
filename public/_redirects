@@ -1,1 +1,13 @@
-/*    /index.html   200
+# ============================================================
+# Likelink — Netlify redirects / SPA fallback
+# ------------------------------------------------------------
+# Static files (robots.txt, sitemap.xml, manifest.json, icons/*, /.well-known/*)
+# take precedence over the SPA fallback on Netlify, so they are always served
+# literally. The rules below are defensive fallbacks only.
+# ============================================================
+
+# Site-verification / security metadata must never be rewritten to the SPA shell.
+/.well-known/*   /.well-known/:splat   200
+
+# Classic SPA fallback: every other route returns the app shell (index.html).
+/*               /index.html            200

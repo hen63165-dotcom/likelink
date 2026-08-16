@@ -1,0 +1,26 @@
+{
+  "marketers": [
+    { "id": "cr-maya", "name": "מיה כהן", "slug": "maya" },
+    { "id": "cr-noa", "name": "נועה לוי", "slug": "noa" },
+    { "id": "cr-dana", "name": "דנה אברהם", "slug": "dana" },
+    { "id": "cr-shira", "name": "שירה מזרחי", "slug": "shira" }
+  ],
+  "products": [
+    { "id": "p-01", "marketerId": "cr-maya", "title": "שמלת קיץ מקסי מאריג משי", "description": "שמלה קלילה וזורמת שמתאימה גם ליום על החוף וגם לערב בגינה. בד נושם ונימוח.", "image": "https://picsum.photos/seed/lk-dress/600/800", "category": "Fashion", "price": 249, "commission": 35, "status": "approved", "clicks": 342 },
+    { "id": "p-02", "marketerId": "cr-maya", "title": "מעיל פסים קשמיר רך", "description": "מעיל שמחמם בלי להכביד — צמר מעורבב בקשמיר, גזרה נקייה שמתכתבת עם הכל.", "image": "https://picsum.photos/seed/lk-coat/600/800", "category": "Fashion", "price": 689, "commission": 80, "status": "approved", "clicks": 215 },
+    { "id": "p-03", "marketerId": "cr-maya", "title": "תיק עור אמיתי בסגנון בלגי", "description": "התיק שמחזיק שנים: עור רך, תאים חכמים ורצועה שמתאימה לכתף או לצלב.", "image": "https://picsum.photos/seed/lk-bag/600/800", "category": "Accessories", "price": 429, "commission": 55, "status": "approved", "clicks": 187 },
+    { "id": "p-04", "marketerId": "cr-maya", "title": "עגילי כסף מינימליסטיים", "description": "זוג עגילים עדין שגורם לכל לוק להיראות מחושב — גם עם ג'ינס פשוט.", "image": "https://picsum.photos/seed/lk-earrings/600/800", "category": "Accessories", "price": 149, "commission": 22, "status": "approved", "clicks": 96 },
+    { "id": "p-05", "marketerId": "cr-noa", "title": "סרום ויטמין C להבהרה", "description": "הסרום שאני חוזרת אליו שלוש שנים — מהדק, מבהיר וגורם לעור לזרוח.", "image": "https://picsum.photos/seed/lk-serum/600/800", "category": "Beauty", "price": 189, "commission": 28, "status": "approved", "clicks": 421 },
+    { "id": "p-06", "marketerId": "cr-noa", "title": "מברשת בישום מבריקה", "description": "מברישה את הסומק באלגנטיות בלי פסים — סיבים טבעיים על גב ידית כבדה.", "image": "https://picsum.photos/seed/lk-brush/600/800", "category": "Beauty", "price": 119, "commission": 18, "status": "approved", "clicks": 158 },
+    { "id": "p-07", "marketerId": "cr-noa", "title": "קרם לחות ל־24 שעות", "description": "לחות חזקה ורכה בלי שומניות. עובד נהדר מתחת למייק־אפ.", "image": "https://picsum.photos/seed/lk-cream/600/800", "category": "Beauty", "price": 139, "commission": 20, "status": "approved", "clicks": 233 },
+    { "id": "p-08", "marketerId": "cr-noa", "title": "מסכת בוץ ירוק טיהור", "description": "אחת לשבוע, עשר דקות, והעור נושם. מרגישה את התוצאה מיד.", "image": "https://picsum.photos/seed/lk-mask/600/800", "category": "Beauty", "price": 99, "commission": 15, "status": "approved", "clicks": 131 },
+    { "id": "p-09", "marketerId": "cr-noa", "title": "סט בנייה מעץ לילדים", "description": "משחק פתוח שמפתח דמיון — עץ טבעי, פינות מעוגלות, שעות של כיף.", "image": "https://picsum.photos/seed/lk-blocks/600/800", "category": "Kids", "price": 199, "commission": 30, "status": "approved", "clicks": 88 },
+    { "id": "p-10", "marketerId": "cr-dana", "title": "מנורת שולחן חכמה עם טעינה אלחוטית", "description": "תאורה חמה וטעינה אלחוטית למכשיר — השולחן שלי כבר לא מסתבך בכבלים.", "image": "https://picsum.photos/seed/lk-lamp/600/800", "category": "Tech", "price": 329, "commission": 48, "status": "approved", "clicks": 263 },
+    { "id": "p-11", "marketerId": "cr-dana", "title": "אוזניות אלחוטיות עם ביטול רעשים", "description": "ביטול הרעשים משתיק את כל ההמולה — חיי סוללה של יום עבודה שלם.", "image": "https://picsum.photos/seed/lk-buds/600/800", "category": "Tech", "price": 399, "commission": 55, "status": "approved", "clicks": 385 },
+    { "id": "p-12", "marketerId": "cr-dana", "title": "ערכת סירים מנירוסטה", "description": "סירים כבדים שמחממים אחיד — מושקעים, אבל מחזיקים לכם עשור.", "image": "https://picsum.photos/seed/lk-pots/600/800", "category": "Home", "price": 549, "commission": 70, "status": "approved", "clicks": 146 },
+    { "id": "p-13", "marketerId": "cr-dana", "title": "מדפי קיר מודולריים", "description": "מערכת מדפים שאפשר לסדר ולהזיז — פתרון אלגנטי לאחסון פתוח.", "image": "https://picsum.photos/seed/lk-shelf/600/800", "category": "Home", "price": 219, "commission": 32, "status": "approved", "clicks": 112 },
+    { "id": "p-14", "marketerId": "cr-shira", "title": "אביזרי התנגדות לסט כושר ביתי", "description": "חמש רמות התנגדות שמחליפות חצי חדר כושר — קל לאחסון ונוח לנסיעות.", "image": "https://picsum.photos/seed/lk-bands/600/800", "category": "Fitness", "price": 89, "commission": 14, "status": "approved", "clicks": 202 },
+    { "id": "p-15", "marketerId": "cr-shira", "title": "שטיח יוגה אקולוגי", "description": "אחיזה מעולה גם בידיים מזיעות, ובא מחומרים ממוחזרים. הגב שלי אסיר תודה.", "image": "https://picsum.photos/seed/lk-mat/600/800", "category": "Fitness", "price": 159, "commission": 24, "status": "approved", "clicks": 176 },
+    { "id": "p-draft", "marketerId": "cr-shira", "title": "דוגמה שנדחית (לא מאושרת)", "description": "פריט זה לא צריך להופיע בפיד כי הסטטוס שלו אינו approved.", "image": "https://picsum.photos/seed/lk-draft/600/800", "category": "Fitness", "price": 59, "commission": 9, "status": "pending", "clicks": 0 }
+  ]
+}

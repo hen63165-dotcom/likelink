@@ -57,15 +57,21 @@ export const PAYOUT_STATUS = { PENDING: "pending", PAID: "paid", FAILED: "failed
  *   platformFees  total platformFee across those sales (platform's ~15%)
  *   pendingPayout netEarned minus whatever has already been paid out
  */
-export function getSellerPayoutSummary(sales, payouts, marketerId) {
+export function getSellerPayoutSummary(sales, payouts, marketerId, charges = []) {
   const mine = (sales || []).filter((s) => s.marketerId === marketerId);
   const netEarned = mine.reduce((sum, s) => sum + (s.marketerNet || 0), 0);
   const platformFees = mine.reduce((sum, s) => sum + (s.platformFee || 0), 0);
   const paid = (payouts || [])
     .filter((p) => p.marketerId === marketerId && p.status === "paid")
     .reduce((sum, p) => sum + (p.amount || 0), 0);
-  const pendingPayout = Math.max(0, netEarned - paid);
-  return { netEarned, platformFees, paid, pendingPayout };
+  // Charged / spent = what the seller bought from their own balance
+  // (e.g. "boost" promotions). Zero payment gateway needed — the money is
+  // simply deducted from what the platform would otherwise pay out.
+  const spent = (charges || [])
+    .filter((c) => c.marketerId === marketerId)
+    .reduce((sum, c) => sum + (c.amount || 0), 0);
+  const pendingPayout = Math.max(0, netEarned - paid - spent);
+  return { netEarned, platformFees, paid, spent, pendingPayout };
 }
 
 /**
