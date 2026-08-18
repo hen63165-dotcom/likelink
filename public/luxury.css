@@ -1,10 +1,10 @@
 /* ============================================================
    LIKELINK — Ultra-Luxury Minimalist Theme (2026)
    ------------------------------------------------------------
-   Loaded AFTER the app's compiled Tailwind bundle so these rules
-   win the cascade. `!important` is used where the app renders
-   hard-coded inline styles, so the redesign reliably overrides
-   the shipped look without touching the minified React bundle.
+   NOTE: This file is imported by src/main.jsx so the theme ships
+   inside the compiled CSS bundle. It mirrors /public/luxury.css
+   (which index.html & login.html also load via <link>). Keep the
+   two files in sync — src/luxury.css is the bundled copy.
    ============================================================ */
 
 :root {
