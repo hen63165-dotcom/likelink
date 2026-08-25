@@ -32,6 +32,15 @@ export async function signInSeller({ email, password }) {
   return error ? { ok: false, error: error.message } : { ok: true, data };
 }
 
+/** Send a password reset email (Supabase). Returns { ok, error }. */
+export async function resetPassword(email) {
+  if (!authConfigured) return { ok: false, error: "Supabase Auth not configured (missing .env)." };
+  const { error } = await supabase.auth.resetPasswordForEmail(String(email || "").trim(), {
+    redirectTo: window.location.origin,
+  });
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
 /** Sign out the current seller. */
 export async function signOutSeller() {
   if (!authConfigured) return;

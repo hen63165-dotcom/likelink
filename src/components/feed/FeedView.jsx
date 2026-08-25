@@ -6,6 +6,7 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { useCart } from "../../context/CartContext";
 import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers";
 import { trackClick } from "../../lib/analytics";
+import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations } from "../../lib/recommendations";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
@@ -18,7 +19,7 @@ const safeImgSrc = (raw) =>
 
 export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const { t, lang, categoryLabel } = useI18n();
-  const { products, marketers, favorites, following, toggleFavorite, recordClick, showToast, sales } = useMarketplace();
+  const { products, marketers, favorites, following, toggleFavorite, recordClick, showToast, sales, clicks } = useMarketplace();
   const { addItem: addToCart } = useCart();
 
   const [view, setView] = useState("grid");
@@ -148,6 +149,26 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
     [products]
   );
 
+  const userProfile = useMemo(
+    () => buildUserProfile({ id: "guest-user" }, favorites, following, clicks || [], []),
+    [favorites, following, clicks]
+  );
+
+  const aiDiscovery = useMemo(
+    () => getPersonalizedFeed(products.filter((p) => p.status === "approved"), userProfile, 6),
+    [products, userProfile]
+  );
+
+  const liveTrendPicks = useMemo(
+    () => getTrendingProducts(products.filter((p) => p.status === "approved"), clicks || [], sales || [], 7).slice(0, 4),
+    [products, clicks, sales]
+  );
+
+  const creatorMatches = useMemo(
+    () => getCreatorRecommendations(marketers, userProfile, products.filter((p) => p.status === "approved"), 4),
+    [marketers, userProfile, products]
+  );
+
   const findsUnder100 = useMemo(
     () =>
       [...products]
@@ -190,6 +211,38 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         <p className="disp text-base font-semibold">{t("feed.heroTitle")}</p>
         <p className="text-xs text-muted mt-1">{t("feed.heroSub")}</p>
       </motion.div>
+
+      {aiDiscovery.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: "var(--accent)" }} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">AI Discovery</p>
+            </div>
+            <span className="text-[10px] font-semibold" style={{ color: "var(--accent)" }}>personalized</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {aiDiscovery.map((p) => (
+              <button key={p.id} onClick={() => setActive(p)} className="tap surface rounded-2xl overflow-hidden shadow-sm text-left">
+                <div className="relative">
+                  <div className="aspect-[4/5] overflow-hidden">
+                    {safeImgSrc(p.image) ? (
+                      <img src={safeImgSrc(p.image)} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full" style={{ background: "var(--accent-subtle)" }} />
+                    )}
+                  </div>
+                  <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[10px] font-bold text-white" style={{ background: "rgba(24,24,24,0.7)" }}>AI</span>
+                </div>
+                <div className="p-2.5">
+                  <p className="text-[12px] font-semibold line-clamp-2">{p.title}</p>
+                  <p className="mono text-[11px] font-bold mt-1" style={{ color: "var(--accent)" }}>{money(p.price || 0, lang)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Creators rail */}
       {marketers.length > 0 && (
@@ -377,6 +430,45 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
           </button>
         ))}
       </div>
+
+      {liveTrendPicks.length > 0 && (
+        <section className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={15} style={{ color: "var(--accent)" }} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">Live Momentum</p>
+            </div>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {liveTrendPicks.map((p) => (
+              <button key={p.id} onClick={() => setActive(p)} className="tap shrink-0 w-28 text-start">
+                <div className="w-28 h-36 rounded-xl overflow-hidden surface mb-2">
+                  {safeImgSrc(p.image) ? (
+                    <img src={safeImgSrc(p.image)} alt={p.title} className="w-full h-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-full" style={{ background: "var(--accent-subtle)" }} />
+                  )}
+                </div>
+                <p className="text-[11px] font-medium line-clamp-2">{p.title || ""}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {creatorMatches.length > 0 && (
+        <section className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">Creator Matches</p>
+          <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {creatorMatches.map((creator) => (
+              <button key={creator.id} onClick={() => navigate(`/u/${creator.slug || creator.id}`)} className="tap flex flex-col items-center gap-1.5 shrink-0 w-16">
+                <CreatorAvatar marketer={creator} size={46} />
+                <span className="text-[10.5px] font-medium truncate w-full text-center">{creator.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Trending rail */}
       {!q && !favOnly && !followOnly && cat === "All" && trending.length > 0 && (

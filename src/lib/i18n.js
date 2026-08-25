@@ -2,8 +2,8 @@ export const CATEGORY_KEYS = ["Fashion", "Beauty", "Home", "Tech", "Fitness", "K
 
 export const translations = {
   he: {
-    app: { title: "Likelink" },
-    topbar: { feed: "Likelink", sell: "סטודיו", admin: "ניהול", fee: "עמלת פלטפורמה" },
+    app: { title: "Likelink2" },
+    topbar: { feed: "Likelink2", sell: "סטודיו", admin: "ניהול", fee: "עמלת פלטפורמה" },
     nav: { feed: "פיד", sell: "מכירה", admin: "ניהול" },
     navTop: {
       discover: "גילוי",
@@ -11,10 +11,10 @@ export const translations = {
       deals: "מציאות ודילים",
     },
     feed: {
-      heroTitle: "בדיוק מה שחיפשת",
-      heroSub: "ההמלצות הכי טובות — ישר מהיוצרות, בלי אלגוריתם ובלי רעש.",
+      heroTitle: "ממצאים שמרגישים יוקרתיים",
+      heroSub: "עיצוב יוקרתי, אביזרים מחממים ופריטים שגורמים ללוק להיראות מושלם — בלי רעש, רק בחירה טובה.",
       trending: "עכשיו לוהט",
-      searchPlaceholder: "חפשי שמלות לערב, לוקים לטיסה, או יוצרות...",
+      searchPlaceholder: "חפשי תיקים, משקפיים, צמידים, או פריטי אופנה...",
       sortNewest: "הכי חדש",
       sortPopular: "הכי פופולרי",
       favoritesOnly: "מועדפים",
@@ -242,14 +242,14 @@ export const translations = {
     },
   },
   en: {
-    app: { title: "Likelink" },
-    topbar: { feed: "Likelink", sell: "Creator Studio", admin: "Admin", fee: "platform fee" },
+    app: { title: "Likelink2" },
+    topbar: { feed: "Likelink2", sell: "Creator Studio", admin: "Admin", fee: "platform fee" },
     nav: { feed: "Feed", sell: "Sell", admin: "Admin" },
     feed: {
-      heroTitle: "Find what you love",
-      heroSub: "The best picks — straight from creators, no algorithm, no noise.",
+      heroTitle: "Luxury finds, expertly styled",
+      heroSub: "Premium essentials and statement pieces curated by creators who know what really works.",
       trending: "Trending now",
-      searchPlaceholder: "Search product name…",
+      searchPlaceholder: "Search handbags, sunglasses, bracelets, dresses…",
       sortNewest: "Newest",
       sortPopular: "Most popular",
       favoritesOnly: "Favorites",

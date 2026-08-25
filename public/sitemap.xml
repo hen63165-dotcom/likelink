@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Likelink sitemap.
-  Domain: https://www.likelink.com
+  Domain: https://likelink.com
   TODO(you): extend with per-creator (/u/<slug>) and per-product URLs as
   the SPA's real routes become known.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
-    <loc>https://www.likelink.com/</loc>
+    <loc>https://likelink.com/</loc>
     <lastmod>2026-08-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://www.likelink.com/icons/icon-512.webp</image:loc>
+      <image:loc>https://likelink.com/icons/icon-512.webp</image:loc>
       <image:title>Likelink — curated picks by independent creators</image:title>
     </image:image>
   </url>

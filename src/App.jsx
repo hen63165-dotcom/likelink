@@ -12,6 +12,8 @@ import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
 import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
+import { installGlobalErrorHealing } from "./lib/autoHeal";
+import FloatingAIHelper from "./components/FloatingAIHelper";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -22,6 +24,10 @@ const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 // TEMPORARY diagnostic page (raw data dump) — remove together with RawDataDump.jsx
 const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
 export default function AppRoot() {
+  useEffect(() => {
+    installGlobalErrorHealing();
+  }, []);
+
   return (
     <LangProvider>
       <ThemeProvider>
@@ -137,6 +143,7 @@ function App() {
         isOpen={screenshotOpen}
         onClose={() => setScreenshotOpen(false)}
       />
+      <FloatingAIHelper />
     </AppShell>
   );
 }

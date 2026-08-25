@@ -10,15 +10,26 @@ import React from "react";
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, recovered: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { error };
+    return { error, recovered: true };
   }
 
   componentDidCatch(error, info) {
     console.error("Likelink error boundary caught:", error, info);
+    try {
+      if (typeof window !== "undefined") {
+        window.__LIKELINK_HEAL__ = {
+          error: String(error?.message || error || "Unknown error"),
+          stack: String(info?.componentStack || ""),
+          ts: Date.now(),
+        };
+      }
+    } catch {
+      /* no-op */
+    }
   }
 
   render() {
@@ -30,6 +41,7 @@ export class ErrorBoundary extends React.Component {
         : "משהו השתבש בדף הזה. אפשר לרענן או לנסות שוב בעוד רגע.";
       const cta = en ? "Refresh" : "רענון";
       const dir = en ? "ltr" : "rtl";
+      const recovery = en ? "Auto-recovery mode enabled" : "מצב תיקון אוטומטי פעיל";
       return (
         <div
           dir={dir}
@@ -61,7 +73,8 @@ export class ErrorBoundary extends React.Component {
               😅
             </div>
             <p style={{ fontWeight: 700, fontSize: 18, margin: "0 0 6px" }}>{title}</p>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 18px" }}>{body}</p>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)", margin: "0 0 10px" }}>{body}</p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 18px" }}>{recovery}</p>
             <button
               onClick={() => window.location.reload()}
               style={{

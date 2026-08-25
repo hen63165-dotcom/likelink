@@ -22,6 +22,12 @@ import { supabase, supabaseConfigured } from "./supabaseClient";
 const PREFIX = "sch:";
 const scoped = (key, shared) => PREFIX + (shared ? "shared:" : "local:") + key;
 
+function isLocalRuntime() {
+  if (typeof window === "undefined") return true;
+  const host = window.location.hostname || "";
+  return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local") || host === "0.0.0.0";
+}
+
 async function localGet(key, shared) {
   try {
     const raw = localStorage.getItem(scoped(key, shared));
@@ -46,8 +52,13 @@ export const storage = {
     if (!shared) return localGet(key, shared);
 
     if (!supabaseConfigured) {
-      console.warn(`[storage] Supabase not configured — "${key}" falling back to localStorage. See README.md.`);
-      return localGet(key, shared);
+      if (isLocalRuntime()) {
+        console.warn(`[storage] Supabase not configured — "${key}" falling back to localStorage only in local dev.`);
+        return localGet(key, shared);
+      }
+
+      console.warn(`[storage] Production-safe mode: refusing browser localStorage fallback for shared key "${key}" because Supabase is not configured.`);
+      return null;
     }
 
     try {
@@ -55,8 +66,11 @@ export const storage = {
       if (error) throw error;
       return data ? { key, value: data.value, shared: true } : null;
     } catch (e) {
-      console.error("storage.get (supabase) failed, falling back to localStorage", key, e);
-      return localGet(key, shared);
+      console.error("storage.get (supabase) failed; refusing stale localStorage fallback in production", key, e);
+      if (isLocalRuntime()) {
+        return localGet(key, shared);
+      }
+      return null;
     }
   },
 
@@ -64,8 +78,13 @@ export const storage = {
     if (!shared) return localSet(key, value, shared);
 
     if (!supabaseConfigured) {
-      console.warn(`[storage] Supabase not configured — "${key}" falling back to localStorage. See README.md.`);
-      return localSet(key, value, shared);
+      if (isLocalRuntime()) {
+        console.warn(`[storage] Supabase not configured — "${key}" falling back to localStorage only in local dev.`);
+        return localSet(key, value, shared);
+      }
+
+      console.warn(`[storage] Production-safe mode: refusing to write shared key "${key}" to browser localStorage because Supabase is not configured.`);
+      return { key, value, shared: true };
     }
 
     try {
@@ -73,8 +92,11 @@ export const storage = {
       if (error) throw error;
       return { key, value, shared: true };
     } catch (e) {
-      console.error("storage.set (supabase) failed, falling back to localStorage", key, e);
-      return localSet(key, value, shared);
+      console.error("storage.set (supabase) failed; refusing stale localStorage fallback in production", key, e);
+      if (isLocalRuntime()) {
+        return localSet(key, value, shared);
+      }
+      return { key, value, shared: true };
     }
   },
 };

@@ -11,6 +11,65 @@ import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
 
 const MarketplaceContext = createContext(null);
 
+function isLegacyDemoSeed(products = [], marketers = []) {
+  const legacyProductTitles = new Set([
+    "שמלת קיץ מקסי מאריג משי",
+    "מעיל פסים קשמיר רך",
+    "תיק עור אמיתי בסגנון בלגי",
+    "עגילי כסף מינימליסטיים",
+    "סרום ויטמין C להבהרה",
+    "מברשת בישום מבריקה",
+    "קרם לחות ל־24 שעות",
+    "מסכת בוץ ירוק טיהור",
+    "סט בנייה מעץ לילדים",
+    "מנורת שולחן חכמה עם טעינה אלחוטית",
+    "אוזניות אלחוטיות עם ביטול רעשים",
+    "ערכת סירים מנירוסטה",
+    "מדפי קיר מודולריים",
+    "אביזרי התנגדות לסט כושר ביתי",
+    "שטיח יוגה אקולוגי",
+  ]);
+
+  const legacyMarketerNames = new Set([
+    "מיה כהן",
+    "נועה לוי",
+    "דנה אברהם",
+    "שירה מזרחי",
+  ]);
+
+  return (
+    Array.isArray(products) && products.some((p) => legacyProductTitles.has(String(p?.title || ""))) ||
+    Array.isArray(marketers) && marketers.some((m) => legacyMarketerNames.has(String(m?.name || "")))
+  );
+}
+
+function resetLegacyMarketplaceStorage() {
+  try {
+    const keysToClear = [
+      K.marketers,
+      K.products,
+      "sch:shared:marketplace:marketers",
+      "sch:shared:marketplace:products",
+      "sch:shared:marketplace:sales",
+      "sch:shared:marketplace:settings",
+      "sch:shared:marketplace:clicks",
+      "sch:shared:marketplace:notifications",
+      "sch:shared:marketplace:collections",
+      "sch:shared:marketplace:payouts",
+      "sch:shared:marketplace:charges",
+    ];
+    keysToClear.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // noop
+      }
+    });
+  } catch {
+    // noop
+  }
+}
+
 async function getJSON(key, shared, fallback) {
   const res = await storage.get(key, shared);
   if (res == null || res.value == null) return fallback;
@@ -74,11 +133,22 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.charges, true, []),
         getJSON(K.notifications, true, []),
       ]);
+
+      const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
+      const safeMarketers = legacySeedDetected ? SEED_MARKETERS : (m || []);
+      const safeProducts = legacySeedDetected ? SEED_PRODUCTS : (p || []);
+
+      if (legacySeedDetected) {
+        resetLegacyMarketplaceStorage();
+        await setJSON(K.marketers, SEED_MARKETERS, true);
+        await setJSON(K.products, SEED_PRODUCTS, true);
+      }
+
       // Self-heal corrupt legacy records: every string field must be a plain
       // string so any string coercion (render, template literals, navigator.share,
       // URLSearchParams, login lookup) never crashes. slug falls back to slugify(name).
       setMarketers(
-        (m || []).map((x) => {
+        (safeMarketers || []).map((x) => {
           const name = typeof x?.name === "string" ? x.name : String(x?.name ?? x?.email ?? "");
           const email = typeof x?.email === "string" ? x.email : String(x?.email ?? "");
           const slug =
@@ -98,7 +168,7 @@ export function MarketplaceProvider({ children }) {
       // Sanitize the other stores so numeric/string conversions never crash:
       // product price/commission, sale/payout numerics (+ts), settings fee, collections.
       setProducts(
-        (p || []).map((x) => ({
+        (safeProducts || []).map((x) => ({
           ...x,
           price: toNum(x?.price, 0),
           commission: toNum(x?.commission, 0),

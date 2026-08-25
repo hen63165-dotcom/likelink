@@ -6,6 +6,11 @@ import './index.css'
 // redesign ships with every production build. Keep in sync with the
 // /public/luxury.css copy that index.html & login.html also load via <link>.
 import './luxury.css'
+// Auto-Heal runtime — catches errors, repairs corrupt storage, and keeps
+// the app booting cleanly on every visit (self-updating, self-repairing).
+import { installGlobalErrorHealing } from './lib/autoHeal.js'
+
+installGlobalErrorHealing();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

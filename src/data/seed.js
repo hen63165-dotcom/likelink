@@ -1,13 +1,10 @@
-// Demo seed data for Likelink — realistic Hebrew content so the feed never
-// starts empty. Owners (marketer) + products are used as the fallback whenever
-// shared storage has no data yet (fresh device / cleared storage).
+// Premium luxury seed data for Likelink2 — high-end creator recommendations that
+// match the visual product cards and feel like a real social-commerce brand.
 
 const now = Date.now();
 const DAY = 86400000;
 const HOUR = 3600000;
 
-// Default tracking IDs per marketer (used when none provided — enables
-// affiliate link tracking through the platform forwarder /r path).
 const DEFAULT_TRACKING_IDS = {
   "cr-maya": "trk-maya",
   "cr-noa": "trk-noa",
@@ -15,57 +12,49 @@ const DEFAULT_TRACKING_IDS = {
   "cr-shira": "trk-shira",
 };
 
-// helper to build a product row quickly. Builds a real platform tracking link
-// (`/r?u=...&ref=...`) so seeded products are NOT reported by the
-// `findProductsNeedingTracking` audit as needing a manual tracking-ID fix, and
-// every click carries the creator's tracking id through the forwarder.
 export const SEED_MARKETERS = [
   {
     id: "cr-maya",
-    name: "מיה כהן",
+    name: "Maya Levin",
     email: "maya@likelink.test",
     trackingId: DEFAULT_TRACKING_IDS["cr-maya"] || "",
-    slug: "maya",
+    slug: "maya-levin",
     color: "#C1356C",
-    bio: "אופנה מינימליסטית וסטיילינג יומיומי — בדיוק מה שבאמת לובשים.",
+    bio: "Luxury staples and statement accessories for the modern wardrobe.",
     createdAt: now - 6 * DAY,
   },
   {
     id: "cr-noa",
-    name: "נועה לוי",
+    name: "Noa Sloane",
     email: "noa@likelink.test",
     trackingId: DEFAULT_TRACKING_IDS["cr-noa"] || "",
-    slug: "noa",
+    slug: "noa-sloane",
     color: "#D98A2B",
-    bio: "טיפוח וסקין־קר — רק מוצרים שבדקתי על עצמי במשך חודשים.",
+    bio: "Minimal beauty rituals and elevated essentials with a polished finish.",
     createdAt: now - 5 * DAY,
   },
   {
     id: "cr-dana",
-    name: "דנה אברהם",
+    name: "Dana Hart",
     email: "dana@likelink.test",
     trackingId: DEFAULT_TRACKING_IDS["cr-dana"] || "",
-    slug: "dana",
+    slug: "dana-hart",
     color: "#2F7E77",
-    bio: "הבית הוא הפרויקט — עיצוב, טכנולוגיה וסידורים חכמים לכל חדר.",
+    bio: "Refined home details and smart styling pieces that feel quietly luxurious.",
     createdAt: now - 4 * DAY,
   },
   {
     id: "cr-shira",
-    name: "שירה מזרחי",
+    name: "Shira Vale",
     email: "shira@likelink.test",
     trackingId: DEFAULT_TRACKING_IDS["cr-shira"] || "",
-    slug: "shira",
+    slug: "shira-vale",
     color: "#6B5BC4",
-    bio: "כושר ורווחה — ציוד ואביזרים שבאמת עובדים בשטח.",
+    bio: "Polished everyday essentials designed for an effortless premium lifestyle.",
     createdAt: now - 3 * DAY,
   },
 ];
 
-// helper to build a product row quickly. Builds a real platform tracking link
-// (`/r?u=...&ref=...`) so seeded products are NOT reported by the
-// `findProductsNeedingTracking` audit as needing a manual tracking-ID fix, and
-// every click carries the creator's tracking id through the forwarder.
 const createProductRow = (id, marketerId, title, description, image, price, commission, category, clicks, agoDays) => {
   const marketer = SEED_MARKETERS.find((x) => x.id === marketerId);
   const ref = marketer?.trackingId || "trk-demo";
@@ -74,6 +63,7 @@ const createProductRow = (id, marketerId, title, description, image, price, comm
   const affiliateUrl = origin
     ? `${origin}/r?u=${encodeURIComponent(dest)}&ref=${encodeURIComponent(ref)}`
     : dest;
+
   return {
     id,
     marketerId,
@@ -91,52 +81,172 @@ const createProductRow = (id, marketerId, title, description, image, price, comm
 };
 
 export const SEED_PRODUCTS = [
-  createProductRow("p-01", "cr-maya", "שמלת קיץ מקסי מאריג משי",
-    "שמלה קלילה וזורמת שמתאימה גם ליום על החוף וגם לערב בגינה. בד נושם ונימוח.",
-    "https://picsum.photos/seed/lk-dress/600/800", 249, 35, "Fashion", 342, 1),
-  createProductRow("p-02", "cr-maya", "מעיל פסים קשמיר רך",
-    "מעיל שמחמם בלי להכביד — צמר מעורבב בקשמיר, גזרה נקייה שמתכתבת עם הכל.",
-    "https://picsum.photos/seed/lk-coat/600/800", 689, 80, "Fashion", 215, 2),
-  createProductRow("p-03", "cr-maya", "תיק עור אמיתי בסגנון בלגי",
-    "התיק שמחזיק שנים: עור רך, תאים חכמים ורצועה שמתאימה לכתף או לצלב.",
-    "https://picsum.photos/seed/lk-bag/600/800", 429, 55, "Accessories", 187, 3),
-  createProductRow("p-04", "cr-maya", "עגילי כסף מינימליסטיים",
-    "זוג עגילים עדין שגורם לכל לוק להיראות מחושב — גם עם ג'ינס פשוט.",
-    "https://picsum.photos/seed/lk-earrings/600/800", 149, 22, "Accessories", 96, 5),
-
-  createProductRow("p-05", "cr-noa", "סרום ויטמין C להבהרה",
-    "הסרום שאני חוזרת אליו שלוש שנים — מהדק, מבהיר וגורם לעור לזרוח.",
-    "https://picsum.photos/seed/lk-serum/600/800", 189, 28, "Beauty", 421, 1),
-  createProductRow("p-06", "cr-noa", "מברשת בישום מבריקה",
-    "מברישה את הסומק באלגנטיות בלי פסים — סיבים טבעיים על גב ידית כבדה.",
-    "https://picsum.photos/seed/lk-brush/600/800", 119, 18, "Beauty", 158, 2),
-  createProductRow("p-07", "cr-noa", "קרם לחות ל־24 שעות",
-    "לחות חזקה ורכה בלי שומניות. עובד נהדר מתחת למייק־אפ.",
-    "https://picsum.photos/seed/lk-cream/600/800", 139, 20, "Beauty", 233, 4),
-  createProductRow("p-08", "cr-noa", "מסכת בוץ ירוק טיהור",
-    "אחת לשבוע, עשר דקות, והעור נושם. מרגישה את התוצאה מיד.",
-    "https://picsum.photos/seed/lk-mask/600/800", 99, 15, "Beauty", 131, 6),
-  createProductRow("p-09", "cr-noa", "סט בנייה מעץ לילדים",
-    "משחק פתוח שמפתח דמיון — עץ טבעי, פינות מעוגלות, שעות של כיף.",
-    "https://picsum.photos/seed/lk-blocks/600/800", 199, 30, "Kids", 88, 7),
-
-  createProductRow("p-10", "cr-dana", "מנורת שולחן חכמה עם טעינה אלחוטית",
-    "תאורה חמה וטעינה אלחוטית למכשיר — השולחן שלי כבר לא מסתבך בכבלים.",
-    "https://picsum.photos/seed/lk-lamp/600/800", 329, 48, "Tech", 263, 1),
-  createProductRow("p-11", "cr-dana", "אוזניות אלחוטיות עם ביטול רעשים",
-    "ביטול הרעשים משתיק את כל ההמולה — חיי סוללה של יום עבודה שלם.",
-    "https://picsum.photos/seed/lk-buds/600/800", 399, 55, "Tech", 385, 3),
-  createProductRow("p-12", "cr-dana", "ערכת סירים מנירוסטה",
-    "סירים כבדים שמחממים אחיד — מושקעים, אבל מחזיקים לכם עשור.",
-    "https://picsum.photos/seed/lk-pots/600/800", 549, 70, "Home", 146, 4),
-  createProductRow("p-13", "cr-dana", "מדפי קיר מודולריים",
-    "מערכת מדפים שאפשר לסדר ולהזיז — פתרון אלגנטי לאחסון פתוח.",
-    "https://picsum.photos/seed/lk-shelf/600/800", 219, 32, "Home", 112, 6),
-
-  createProductRow("p-14", "cr-shira", "אביזרי התנגדות לסט כושר ביתי",
-    "חמש רמות התנגדות שמחליפות חצי חדר כושר — קל לאחסון ונוח לנסיעות.",
-    "https://picsum.photos/seed/lk-bands/600/800", 89, 14, "Fitness", 202, 1),
-  createProductRow("p-15", "cr-shira", "שטיח יוגה אקולוגי",
-    "אחיזה מעולה גם בידיים מזיעות, ובא מחומרים ממוחזרים. הגב שלי אסיר תודה.",
-    "https://picsum.photos/seed/lk-mat/600/800", 159, 24, "Fitness", 176, 5),
+  createProductRow(
+    "p-01",
+    "cr-maya",
+    "Moissanite Tennis Bracelet in 18K Gold Vermeil",
+    "A luxe tennis bracelet with brilliant moissanite stones and a polished gold finish that elevates every day styling.",
+    "https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=900&q=80",
+    389,
+    28,
+    "Accessories",
+    542,
+    1
+  ),
+  createProductRow(
+    "p-02",
+    "cr-maya",
+    "Y2K Oversized Sunglasses",
+    "Statement shades with a soft retro silhouette and lightweight fit — built for golden-hour edits and city nights.",
+    "https://images.unsplash.com/photo-1577803947579-9f7ea5f6b8a5?auto=format&fit=crop&w=900&q=80",
+    178,
+    18,
+    "Accessories",
+    398,
+    2
+  ),
+  createProductRow(
+    "p-03",
+    "cr-maya",
+    "Nappa Leather Mini Shoulder Bag",
+    "Structured with an elegant silhouette, soft texture, and polished hardware for day-to-night transitions.",
+    "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=900&q=80",
+    429,
+    32,
+    "Accessories",
+    286,
+    3
+  ),
+  createProductRow(
+    "p-04",
+    "cr-maya",
+    "Silk Slip Midi Dress",
+    "A fluid silhouette with a smooth drape, softly tailored neck, and luminous finish for elevated evenings.",
+    "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
+    342,
+    26,
+    "Fashion",
+    261,
+    4
+  ),
+  createProductRow(
+    "p-05",
+    "cr-noa",
+    "The Glow Serum Vitamin C",
+    "Brightening, smooth, and deeply hydrating — designed to leave skin visibly fresh and radiant without heaviness.",
+    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
+    129,
+    19,
+    "Beauty",
+    488,
+    1
+  ),
+  createProductRow(
+    "p-06",
+    "cr-noa",
+    "Gold Hoop Earrings, 18K Finish",
+    "A polished everyday staple with a weighty feel and soft shine that instantly upgrades a simple look.",
+    "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?auto=format&fit=crop&w=900&q=80",
+    154,
+    22,
+    "Accessories",
+    276,
+    2
+  ),
+  createProductRow(
+    "p-07",
+    "cr-noa",
+    "Crystal Hair Clip Set",
+    "A soft glam finishing touch with crystal sparkle, designed for polished updos and event styling.",
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
+    92,
+    14,
+    "Beauty",
+    205,
+    5
+  ),
+  createProductRow(
+    "p-08",
+    "cr-dana",
+    "Handcrafted Ceramic Vase",
+    "A sculptural neutral accent piece that adds texture and quiet luxury to any shelf or table styling.",
+    "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=900&q=80",
+    166,
+    20,
+    "Home",
+    184,
+    3
+  ),
+  createProductRow(
+    "p-09",
+    "cr-dana",
+    "Leather-Look Laptop Sleeve",
+    "Minimal, structured, and elevated for everyday carry — polished enough for work and sleek enough for travel.",
+    "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80",
+    214,
+    24,
+    "Tech",
+    239,
+    4
+  ),
+  createProductRow(
+    "p-10",
+    "cr-dana",
+    "Cropped Leather Moto Jacket",
+    "An edgy silhouette in buttery-soft leather, tailored to feel rich, sleek, and unmistakably premium.",
+    "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
+    528,
+    36,
+    "Fashion",
+    315,
+    6
+  ),
+  createProductRow(
+    "p-11",
+    "cr-shira",
+    "Soft Knit Polo in Stone",
+    "A luxe knit with a clean neckline and relaxed drape — easy to style, easy to wear, and always polished.",
+    "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
+    198,
+    24,
+    "Fashion",
+    229,
+    2
+  ),
+  createProductRow(
+    "p-12",
+    "cr-shira",
+    "Satin Co-ord Set in Espresso",
+    "A flattering co-ord with a satin sheen and modern lines that instantly makes the outfit feel editorial.",
+    "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
+    378,
+    29,
+    "Fashion",
+    339,
+    3
+  ),
+  createProductRow(
+    "p-13",
+    "cr-shira",
+    "Pearl Layered Necklace",
+    "A delicate stack of pearls and gold tones for an elevated minimal look with soft luxury energy.",
+    "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=900&q=80",
+    132,
+    17,
+    "Accessories",
+    188,
+    5
+  ),
+  createProductRow(
+    "p-14",
+    "cr-maya",
+    "Structured Tote in Camel",
+    "A polished everyday carry bag with clean lines and enough room for essentials without losing form.",
+    "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80",
+    312,
+    26,
+    "Accessories",
+    214,
+    7
+  )
 ];

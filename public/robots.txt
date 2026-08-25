@@ -7,7 +7,7 @@
 # crawl, index, and cite Likelink for AI Overviews and answer engines.
 # (The absence of blocking directives is what allows AI indexing.)
 #
-# Sitemap domain: https://www.likelink.com
+# Sitemap domain: https://likelink.com
 # ============================================================
 
 # Allow everything (default), including non-matching agents.
@@ -82,4 +82,4 @@ User-agent: omgilibot
 Allow: /
 
 # The sitemap must be an absolute URL.
-Sitemap: https://www.likelink.com/sitemap.xml
+Sitemap: https://likelink.com/sitemap.xml
