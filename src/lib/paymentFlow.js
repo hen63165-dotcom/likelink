@@ -47,3 +47,59 @@ export function getPaymentReadiness({ marketer, hasGateway = false }) {
     recommended: "Business PayPal account for Israeli commerce + manual payout fallback until gateway integration.",
   };
 }
+
+/**
+ * Builds a real PayPal Standard checkout URL (_xclick).
+ * The buyer is redirected to PayPal and pays directly into the seller's
+ * Business PayPal account. No server or API secrets required, which makes it
+ * suitable for static deployments (Vercel) and supports ILS.
+ */
+export function buildPayPalStandardCheckoutUrl({
+  payPalEmail,
+  itemName,
+  amount,
+  currency = "ILS",
+  quantity = 1,
+  custom = "",
+  returnUrl,
+  cancelReturnUrl,
+}) {
+  const email = String(payPalEmail || "").trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "";
+  const safeAmount = Number(amount || 0);
+  if (!Number.isFinite(safeAmount) || safeAmount <= 0) return "";
+
+  const params = new URLSearchParams({
+    cmd: "_xclick",
+    business: email,
+    item_name: String(itemName || "Order").slice(0, 127),
+    amount: safeAmount.toFixed(2),
+    currency_code: currency,
+    quantity: String(Math.max(1, Number(quantity) || 1)),
+    no_shipping: "0",
+    no_note: "0",
+  });
+  if (custom) params.set("custom", String(custom).slice(0, 255));
+  if (returnUrl) params.set("return", returnUrl);
+  if (cancelReturnUrl) params.set("cancel_return", cancelReturnUrl);
+
+  return `https://www.paypal.com/cgi-bin/webscr?${params.toString()}`;
+}
+
+/**
+ * Groups cart items by their seller so each seller gets paid into their own
+ * Business PayPal account.
+ */
+export function groupCartItemsBySeller(cartItems = []) {
+  const groups = new Map();
+  for (const item of cartItems) {
+    const sellerId = item?.marketer?.id || "guest";
+    if (!groups.has(sellerId)) {
+      groups.set(sellerId, { seller: item?.marketer || null, items: [], total: 0 });
+    }
+    const group = groups.get(sellerId);
+    group.items.push(item);
+    group.total += Number(item?.product?.price || 0) * Number(item?.quantity || 1);
+  }
+  return Array.from(groups.values());
+}

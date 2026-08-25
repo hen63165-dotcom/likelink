@@ -478,6 +478,8 @@ export const translations = {
       creators: "יוצרים",
       added: "הוסף לעגלה ✓",
       addedTitle: "מוצר נשמר",
+      paypalMissing: "חלק מהיוצרים בעגלה עוד לא חיברו PayPal — ניתן לשלם רק עבור היוצרים שחיברו",
+      paypalNote: "התשלום מבוצע דרך PayPal — הכסף נכנס ישירות לחשבון ה-PayPal של היוצר",
     },
     analytics: {
       views: "צפיות",

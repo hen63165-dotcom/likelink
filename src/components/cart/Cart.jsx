@@ -4,10 +4,60 @@ import { X, ShoppingBag, Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
+import {
+  buildPayPalStandardCheckoutUrl,
+  groupCartItemsBySeller,
+} from "../../lib/paymentFlow";
 
 export function Cart() {
-  const { items, isOpen, setIsOpen, removeItem, updateQuantity, cartTotal, cartCount } = useCart();
+  const { items, isOpen, setIsOpen, removeItem, updateQuantity, clearCart, cartTotal, cartCount } = useCart();
+
   const { t } = useI18n();
+
+  function handleCheckout() {
+    const groups = groupCartItemsBySeller(items);
+    if (groups.length === 0) return;
+
+    const origin = window.location.origin;
+    let opened = 0;
+    let missing = 0;
+
+    for (const group of groups) {
+      const url = buildPayPalStandardCheckoutUrl({
+        payPalEmail: group.seller?.payPalEmail,
+        itemName:
+          group.items.length > 1
+            ? `${group.seller?.name || "Store"} × ${group.items.length}`
+            : group.items[0]?.product?.title || "Order",
+        amount: group.total,
+        currency: "ILS",
+        custom: `seller:${group.seller?.id || "guest"}`,
+        returnUrl: origin + "/",
+        cancelReturnUrl: origin + "/",
+      });
+
+      if (!url) {
+        missing += 1;
+        continue;
+      }
+      window.open(url, "_blank", "noopener");
+      opened += 1;
+    }
+
+    if (missing > 0) {
+      alert(
+        t(
+          "cart.paypalMissing",
+          "חלק מהיוצרים בעגלה עוד לא חיברו PayPal — ניתן לשלם רק עבור היוצרים שחיברו"
+        )
+      );
+    }
+
+    if (opened > 0) {
+      clearCart();
+      setIsOpen(false);
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -102,7 +152,10 @@ export function Cart() {
                     {money(cartTotal, "he")}
                   </span>
                 </div>
-                <button className="tap w-full btn-primary py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold">
+                <button
+                  onClick={handleCheckout}
+                  className="tap w-full btn-primary py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold"
+                >
                   {t("cart.checkout", "לתשלום")} <ArrowRight size={18} />
                 </button>
               </div>

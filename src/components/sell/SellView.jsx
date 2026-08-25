@@ -16,6 +16,7 @@ import { resetPassword } from "../../lib/auth";
 import { fetchProductInfo } from "../../lib/productInfo";
 import { buildSellerAIInsights } from "../../lib/aiAssistant";
 import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow";
+import { suggestPrice, generateHebrewDescription, scoreStoreHealth } from "../../lib/aiStudio";
 import { checkSecurityBaseline } from "../../lib/security";
 import { calculateMonetizationPotential, checkMonetizationEligibility } from "../../lib/monetization";
 import {
@@ -73,6 +74,7 @@ export default function SellView({ navigate }) {
   const paymentReadiness = getPaymentReadiness({ marketer, hasGateway: false });
   const securityBaseline = checkSecurityBaseline();
   const paypalFlow = buildBusinessPayPalFlow({ sellerName: marketer?.name || "Seller", email: marketer?.payPalEmail || "", amount: payout.pendingPayout || 0 });
+  const storeHealth = scoreStoreHealth({ marketer, products, sales, paypalConnected: Boolean(marketer?.payPalEmail) });
 
   async function handleShare() {
     if (navigator.share) {
@@ -188,8 +190,17 @@ export default function SellView({ navigate }) {
             <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>Payments</p>
             <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: "var(--success-subtle)", color: "var(--success)" }}>{paymentReadiness.mode}</span>
           </div>
-          <p className="text-sm font-semibold mb-2">Business PayPal-ready</p>
+          <p className="text-sm font-semibold mb-2">Business PayPal-ready · ✨ ציון חנות {storeHealth.score}/100 ({storeHealth.grade})</p>
           <p className="text-[12px] text-muted mb-2">{paymentReadiness.recommended}</p>
+          {storeHealth.todos.length > 0 && (
+            <ul className="mb-2 flex flex-col gap-1">
+              {storeHealth.todos.map((tip) => (
+                <li key={tip} className="text-[11.5px] flex items-start gap-1.5" style={{ color: "var(--accent)" }}>
+                  <span className="shrink-0">✨</span> {tip}
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="rounded-xl p-3 text-[11px]" style={{ background: "var(--bg-subtle)" }}>
             <div className="flex items-center justify-between"><span>Seller</span><strong>{paypalFlow.sellerName}</strong></div>
             <div className="flex items-center justify-between mt-1"><span>PayPal</span><strong>{paypalFlow.email || "pending setup"}</strong></div>
@@ -698,6 +709,19 @@ function ProductForm({ onClose, onSubmit }) {
       <div className="flex flex-col gap-3 p-5 pt-2 overflow-y-auto">
         <LabeledInput label={t("form.title")} value={d.title} onChange={set("title")} placeholder={t("form.titlePh")} />
         <LabeledTextarea label={t("form.description")} value={d.description} onChange={set("description")} placeholder={t("form.descriptionPh")} />
+        <button
+          type="button"
+          onClick={() =>
+            set("description")(
+              generateHebrewDescription({ title: d.title.trim() || "המוצר שלי", category: categoryLabel(d.category), price: priceNum })
+            )
+          }
+          disabled={!d.title.trim()}
+          className="tap self-start text-[11px] font-semibold rounded-lg px-2.5 py-1.5"
+          style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+        >
+          ✨ כתיבת תיאור בלחיצה
+        </button>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-secondary">{t("form.imageSection")}</span>
           <div className="flex items-center gap-3">
@@ -731,6 +755,20 @@ function ProductForm({ onClose, onSubmit }) {
           <LabeledInput label={t("form.commission")} value={d.commission} onChange={set("commission")} placeholder="3.50" type="number" />
         </div>
 
+        {priceNum > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const s = suggestPrice({ price: priceNum });
+              if (s.direction !== "hold") set("price")(String(s.suggested));
+            }}
+            title={(() => { try { return suggestPrice({ price: priceNum }).reason; } catch { return ""; } })()}
+            className="tap self-start text-[11px] font-semibold rounded-lg px-2.5 py-1.5"
+            style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+          >
+            ✨ הצעת מחיר חכמה
+          </button>
+        )}
         {(commNum > 0 || priceNum > 0) && (
           <div className="rounded-xl p-3.5 surface-subtle flex flex-col gap-2">
             <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{t("form.earningsTitle")}</p>

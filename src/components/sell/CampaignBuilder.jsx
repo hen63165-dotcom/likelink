@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from "react";
 import {
   Check, Copy, Share2, MessageCircle, Send, Globe, Mail,
-  Link2, ShoppingBag, Sparkles, X,
+  Link2, ShoppingBag, Sparkles, X, Camera, Music2,
 } from "lucide-react";
+import { runStoryShare } from "../../lib/storyKit";
+import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
 import { SheetModal, Button, LabeledInput } from "../ui";
@@ -70,6 +72,38 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
 
   function openTarget(url) {
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleStory(network) {
+    const star = chosen[0];
+    if (!star) return showToast(t("sell.campaignNoProducts"));
+    const res = await runStoryShare({
+      network,
+      product: star,
+      storeName: marketer?.name || "",
+      caption: message,
+      link,
+    });
+    showToast(
+      res.ok
+        ? "💜 התמונה הורדה והטקסט הועתק — פרסמי בסטורי!"
+        : "אופס, משהו נתקע — נסי שוב"
+    );
+  }
+
+  const [plan] = useState(() =>
+    buildWeeklyPlan({ storeName: marketer?.name || "", products: products || [], link })
+  );
+  const [executedIds, setExecutedIds] = useState(() => new Set());
+
+  async function runPlanItem(item) {
+    if (!item || executedIds.has(item.id)) return;
+    setExecutedIds((s) => new Set([...s, item.id]));
+    if (item.mode === "instagram" || item.mode === "tiktok") {
+      await handleStory(item.mode);
+      return;
+    }
+    if (item.url) openTarget(item.url);
   }
 
   const targets = [
@@ -182,9 +216,71 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
               </button>
             ))}
           </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <button
+              onClick={() => handleStory("instagram")}
+              className="tap flex flex-col items-center gap-1.5 py-3 rounded-xl text-white"
+              style={{ background: "linear-gradient(45deg,#F58529,#DD2A7B,#8134AF)" }}
+            >
+              <Camera size={16} />
+              <span className="text-[10.5px] font-semibold">Instagram Story ✨</span>
+            </button>
+            <button
+              onClick={() => handleStory("tiktok")}
+              className="tap flex flex-col items-center gap-1.5 py-3 rounded-xl text-white"
+              style={{ background: "#010101" }}
+            >
+              <Music2 size={16} />
+              <span className="text-[10.5px] font-semibold">TikTok Story ✨</span>
+            </button>
+          </div>
           <Button onClick={nativeShare} variant="dark" className="mt-2">
             <Share2 size={15} /> {t("sell.campaignNativeShare")}
           </Button>
+        </div>
+
+        <div className="rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+          <p className="text-xs font-semibold mb-1 flex items-center gap-1.5">
+            <Sparkles size={14} style={{ color: "var(--accent)" }} /> אוטו-פיילוט · שבוע שלם של קמפיינים מוכן ✨
+          </p>
+          <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+            האתר בנה לך תוכנית פרסום לשבוע — ערוץ אחר, זווית אחרת, בשעות השיא של הקהל.
+            לוחצת <b>הרצה</b> בכל יום וזהו 💜
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {plan.map((item) => {
+              const done = executedIds.has(item.id);
+              const isToday = item.id === `day-${todayHebrewIndex()}`;
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-2 rounded-xl p-2"
+                  style={{
+                    background: done ? "var(--success-subtle)" : "var(--bg)",
+                    border: `1px solid ${isToday && !done ? "var(--accent)" : "var(--border)"}`,
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold truncate">
+                      {done ? "✅" : isToday ? "📍" : "•"} {item.dayLabel} · {item.channelLabel}
+                    </p>
+                    <p className="text-[10.5px] truncate" style={{ color: "var(--text-muted)" }}>
+                      {item.timeLabel} · {item.caption}
+                    </p>
+                  </div>
+                  {!done && (
+                    <button
+                      onClick={() => runPlanItem(item)}
+                      className="tap shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold"
+                      style={{ background: "var(--accent)", color: "#fff" }}
+                    >
+                      הרצה ▶
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <button onClick={onClose} className="tap w-full py-3 rounded-xl text-sm font-medium text-muted flex items-center justify-center gap-2" style={{ background: "var(--bg-subtle)" }}>
