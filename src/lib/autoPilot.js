@@ -101,3 +101,48 @@ export function summarizePlan(plan = [], executedIds = new Set()) {
     channelsCovered: new Set(plan.map((p) => p.channelLabel)).size,
   };
 }
+
+// ─── AutoPilot Cloud — פרסום אוטומטי אמיתי מהשרת (api/autopilot.mjs) ────────
+//
+// בניגוד ל-buildWeeklyPlan (שמכין תוכנית והמוכרת לוחצת), השכבה הזו מפרסמת
+// לבד: Cron שרץ כל 30 דקות בודק מי "חייב" פוסט, מייצר טקסט (עם AI אופציונלי)
+// ושולח ישר ל-Telegram / Facebook Page / Webhook גנרי (Make/Zapier/n8n).
+
+async function call(mode, marketerId, config) {
+  const res = await fetch("/api/autopilot", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode, marketerId, config }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) throw new Error(data.error || `http_${res.status}`);
+  return data;
+}
+
+export const getAutoPilotConfig = (marketerId) => call("get", marketerId);
+export const saveAutoPilotConfig = (marketerId, config) => call("save", marketerId, config);
+export const runAutoPilotNow = (marketerId) => call("run", marketerId);
+
+export const AUTOPILOT_INTERVALS = [
+  { minutes: 30, label: "כל חצי שעה" },
+  { minutes: 60, label: "כל שעה" },
+  { minutes: 180, label: "כל 3 שעות" },
+  { minutes: 720, label: "פעמיים ביום" },
+  { minutes: 1440, label: "פעם ביום" },
+];
+
+export const TEMPLATE_VARS = ["{name}", "{price}", "{category}", "{description}", "{link}"];
+
+export function defaultTemplate() {
+  return "🔥 {name}\nבמחיר מיוחד: {price} ₪\n{description}\nלרכישה 👉 {link}";
+}
+
+// Premium gating — חבילת "הכל כלול": מנוי פרימיום, או סטודיו פעיל (5+ מוצרים
+// מאושרים). אדמין יכול להעניק plan === "premium" ידנית.
+export function checkAutoPilotAccess(marketer, myProducts = []) {
+  if (marketer?.plan === "premium") return { allowed: true, reason: "plan" };
+  const approved = myProducts.filter((p) => p.status === "approved").length;
+  if (approved >= 5) return { allowed: true, reason: "active_studio" };
+  return { allowed: false, reason: "needs_premium_or_5_products", approved };
+}
+

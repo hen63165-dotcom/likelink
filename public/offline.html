@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Likelink — אין חיבור לאינטרנט</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #F7F3EA; color: #1c1a17; padding: 24px;
+  }
+  .icon { width: 72px; height: 72px; border-radius: 22px; object-fit: cover;
+          box-shadow: 0 10px 30px rgba(108,76,241,.18); }
+  h1 { font-size: 20px; margin: 20px 0 8px; }
+  p { font-size: 13.5px; color: #8b879c; max-width: 300px; line-height: 1.7; margin: 0 0 24px; }
+  button { border: 0; border-radius: 999px; padding: 12px 28px; font-size: 14px;
+           font-weight: 700; cursor: pointer; background: #6C4CF1; color: #fff; }
+  button:active { transform: scale(.97); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+         background: #ef4444; margin-inline-start: 6px; vertical-align: middle; }
+  .online .dot { background: #10b981; }
+</style>
+</head>
+<body>
+<img class="icon" src="/icons/icon-192.webp" alt="Likelink">
+<h1>אין חיבור לאינטרנט <span class="dot"></span></h1>
+<p>אל דאגה — המוצרים שכבר ראית שמורים אצלך. ברגע שהחיבור יחזור, הכל יתעדכן אוטומטית.</p>
+<button onclick="location.reload()">נסה שוב</button>
+<script>
+  addEventListener("online", () => location.reload());
+  if (navigator.onLine) document.body.classList.add("online");
+</script>
+</body>
+</html>

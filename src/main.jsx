@@ -9,6 +9,9 @@ import './luxury.css'
 // Auto-Heal runtime — catches errors, repairs corrupt storage, and keeps
 // the app booting cleanly on every visit (self-updating, self-repairing).
 import { installGlobalErrorHealing } from './lib/autoHeal.js'
+// PWA layer — Service Worker (offline-first), install prompt,
+// share-target capture and push subscription plumbing.
+import './lib/pwa.js'
 
 installGlobalErrorHealing();
 

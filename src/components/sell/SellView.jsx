@@ -26,6 +26,7 @@ import { ProductThumb } from "../product/ProductComponents";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import CampaignBuilder from "./CampaignBuilder";
 import SellerEngagement from "./SellerEngagement";
+import AutoPilot from "./AutoPilot";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -460,6 +461,9 @@ export default function SellView({ navigate }) {
           marketers={marketers}
         />
       </div>
+
+      {/* AutoPilot — built-in self-publishing automation (premium) */ }
+      <AutoPilot marketer={marketer} products={mine} showToast={showToast} />
 
       <AnimatePresence>
         {showForm && (

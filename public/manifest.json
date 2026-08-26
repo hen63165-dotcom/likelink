@@ -6,8 +6,15 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#F7F3EA",
   "theme_color": "#F7F3EA",
+  "lang": "he",
+  "dir": "rtl",
+  "categories": ["shopping", "lifestyle", "social"],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "icons": [
     { "src": "/icons/icon-48.webp", "sizes": "48x48", "type": "image/webp" },
     { "src": "/icons/icon-72.webp", "sizes": "72x72", "type": "image/webp" },
@@ -16,5 +23,30 @@
     { "src": "/icons/icon-192.webp", "sizes": "192x192", "type": "image/webp", "purpose": "any maskable" },
     { "src": "/icons/icon-256.webp", "sizes": "256x256", "type": "image/webp" },
     { "src": "/icons/icon-512.webp", "sizes": "512x512", "type": "image/webp", "purpose": "any maskable" }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "הסטודיו שלי",
+      "short_name": "סטודיו",
+      "url": "/studio",
+      "icons": [{ "src": "/icons/icon-96.webp", "sizes": "96x96" }]
+    },
+    {
+      "name": "המוצרים שאהבתי",
+      "short_name": "מועדפים",
+      "url": "/feed",
+      "icons": [{ "src": "/icons/icon-96.webp", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
+
