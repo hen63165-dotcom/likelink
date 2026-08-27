@@ -59,6 +59,12 @@ function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // Support deep links to an app tab (e.g. /admin, /studio, /feed) even though
+  // the tabs themselves are switched through the hidden nav.
+  useEffect(() => {
+    if (route.type === "app" && route.tab) setTab(route.tab);
+  }, [route]);
+
   // Reset scroll to top on navigation (tab switch or creator route) for a clean
   // premium feel — never leave the user halfway down a long feed.
   useEffect(() => {

@@ -112,10 +112,12 @@ export function TopBar({
 export function BottomNav({ tab, setTab }) {
   const { t } = useI18n();
   const { cartCount, setIsOpen: openCart } = useCart();
+  // Public visitors only see Feed + Sell. Admin ("ניהול") is hidden from the
+  // shared nav — it is reachable only via the /admin URL which shows the owner
+  // lock screen (see constants/keys.js ADMIN_CODE).
   const items = [
     { id: "feed", label: t("nav.feed"), icon: ShoppingBag },
     { id: "sell", label: t("nav.sell"), icon: TrendingUp },
-    { id: "admin", label: t("nav.admin"), icon: Shield },
   ];
 
   return (
