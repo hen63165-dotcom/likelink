@@ -18,7 +18,7 @@
     }
   },
   "crons": [
-    { "path": "/api/autopilot", "schedule": "*/30 * * * *" },
+    { "path": "/api/autopilot", "schedule": "0 6 * * *" },
     { "path": "/api/price-watch", "schedule": "0 3 * * *" }
   ],
   "rewrites": [
