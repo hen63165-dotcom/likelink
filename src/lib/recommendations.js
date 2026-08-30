@@ -6,22 +6,22 @@
  * - Smart feed ranking
  */
 
-export function buildUserProfile(user, favorites, following, clicks, views) {
+export function buildUserProfile(products, user, favorites, following, clicks, views) {
   // Build interest vector from user's interactions
   const categoryPrefs = {};
   const creatorPrefs = {};
   
-  clicks?.forEach(c => {
+  (clicks || []).forEach(c => {
     if (c.productId) {
-      const product = products?.find(p => p.id === c.productId);
+      const product = (products || []).find(p => p.id === c.productId);
       if (product) {
         categoryPrefs[product.category] = (categoryPrefs[product.category] || 0) + 3;
       }
     }
   });
   
-  favorites?.forEach(fav => {
-    const product = products?.find(p => p.id === fav);
+  (favorites || []).forEach(fav => {
+    const product = (products || []).find(p => p.id === fav);
     if (product) {
       categoryPrefs[product.category] = (categoryPrefs[product.category] || 0) + 2;
       creatorPrefs[product.marketerId] = (creatorPrefs[product.marketerId] || 0) + 1.5;

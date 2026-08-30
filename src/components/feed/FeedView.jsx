@@ -150,8 +150,8 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   );
 
   const userProfile = useMemo(
-    () => buildUserProfile({ id: "guest-user" }, favorites, following, clicks || [], []),
-    [favorites, following, clicks]
+    () => buildUserProfile(products, { id: "guest-user" }, favorites, following, clicks || [], []),
+    [products, favorites, following, clicks]
   );
 
   const aiDiscovery = useMemo(
