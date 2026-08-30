@@ -7,16 +7,6 @@
   "installCommand": "npm install",
   "cleanUrls": true,
   "trailingSlash": false,
-  "functions": {
-    "api/**/*.mjs": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "api/autopilot.mjs": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "crons": [
     { "path": "/api/autopilot", "schedule": "0 6 * * *" },
     { "path": "/api/price-watch", "schedule": "0 3 * * *" }
