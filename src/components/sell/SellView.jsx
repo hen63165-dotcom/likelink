@@ -18,7 +18,9 @@ import { buildSellerAIInsights } from "../../lib/aiAssistant";
 import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow";
 import { suggestPrice, generateHebrewDescription, scoreStoreHealth } from "../../lib/aiStudio";
 import { checkSecurityBaseline } from "../../lib/security";
-import { calculateMonetizationPotential, checkMonetizationEligibility } from "../../lib/monetization";
+import AutoSetupWizard from "../AutoSetupWizard";
+import AuthGate from "../AuthGate";
+import { isSetupComplete } from "../../lib/autoSetup";
 import {
   EmptyState, StatChip, Button, LabeledInput, LabeledTextarea, SheetModal,
 } from "../ui";
@@ -48,6 +50,20 @@ export default function SellView({ navigate }) {
   const [showMarketingHub, setShowMarketingHub] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
+  const handleSetupComplete = (configured) => {
+    onUpdateMarketer(configured);
+    setShowSetupWizard(false);
+    showToast?.("ההגדרה הושלמה בהצלחה! 🎉");
+  };
+
+  // Show setup wizard for new sellers
+  if (showSetupWizard && marketer) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <AutoSetupWizard profile={marketer} onComplete={handleSetupComplete} />
+      </div>
+    );
+  }
   const [showReports, setShowReports] = useState(false);
   const [showCopyGen, setShowCopyGen] = useState(false);
 
