@@ -48,6 +48,7 @@ export default function SellView({ navigate }) {
   const [showForm, setShowForm] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [showMarketingHub, setShowMarketingHub] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
   const handleSetupComplete = (configured) => {

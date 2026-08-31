@@ -124,3 +124,51 @@ export function getLeaderboard() {
     .sort((a, b) => b.conversions - a.conversions)
     .slice(0, 10);
 }
+
+// Auto-convert buyer to seller after purchase
+export function autoConvertBuyer(buyerData) {
+  const offer = generateViralOffer(buyerData);
+  
+  const offers = JSON.parse(localStorage.getItem('viral_offers') || '[]');
+  offers.push({
+    id: `offer_${Date.now()}`,
+    buyerId: buyerData.id,
+    buyerEmail: buyerData.email,
+    offer,
+    status: 'pending',
+    createdAt: Date.now(),
+  });
+  localStorage.setItem('viral_offers', JSON.stringify(offers));
+  
+  return offer;
+}
+
+// Generate viral offer for new buyers
+export function generateViralOffer(buyerData) {
+  const referralCode = generateReferralCode(buyerData?.id || 'new');
+  
+  return {
+    title: '🎉 מזל טוב! קנית בהצלחה!',
+    subtitle: 'רוצה להרוויח כסף בעצמך?',
+    description: 'פתחי סטודיו משלך בחינם ותתחילי להרוויח 15% מכל מכירה!',
+    benefits: [
+      '✅ ללא עלות — פתיחה חינמית לחלוטין',
+      '✅ כלים מקצועיים לשיווק בקליק',
+      '✅ מערכת אוטומטית שעובדת בשבילך',
+      '✅ תשלומים מהירים ישירות ל-PayPal',
+    ],
+    cta: 'פתחי סטודיו עכשיו',
+    referralCode,
+    bonus: '15%',
+  };
+}
+
+// Generate unique referral code
+function generateReferralCode(sellerId) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
