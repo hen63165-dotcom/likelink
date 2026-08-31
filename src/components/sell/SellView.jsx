@@ -27,6 +27,7 @@ import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import CampaignBuilder from "./CampaignBuilder";
 import SellerEngagement from "./SellerEngagement";
 import AutoPilot from "./AutoPilot";
+import MarketingHub from "../MarketingHub";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -42,8 +43,9 @@ export default function SellView({ navigate }) {
     onAddCollection, onUpdateCollection, onDeleteCollection, onUpdateMarketer, onBuyBoost,
   } = mp;
 
-    const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
+  const [showMarketingHub, setShowMarketingHub] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [showReports, setShowReports] = useState(false);
