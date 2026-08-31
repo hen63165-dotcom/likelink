@@ -77,18 +77,6 @@ export function isSafeHttpUrl(value) {
   }
 }
 
-/** Check if URL is safe (http/https only) */
-export function isSafeHttpUrl(value) {
-  const v = String(value || "").trim();
-  if (!v) return false;
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 /** Empty is allowed (no image); otherwise only http(s) or inline data: images. */
 export function isSafeImageUrl(value) {
   const v = String(value || "").trim();

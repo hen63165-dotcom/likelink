@@ -33,29 +33,7 @@ export function getTier(conversions) {
   return { name: '⭐ חדש', bonus: 0.05, perks: [] };
 }
 
-// Auto-convert buyer to seller
-export function autoConvertBuyer(buyerData) {
-  const offer = {
-    headline: '💰 רווחת? עכשיו תרוויח גם!',
-    subtext: 'שתף את המוצר עם חברים וקבל 15% עמלה מכל מכירה',
-    cta: 'פתח סטודיו בחינם',
-    commission: 15,
-    bonus: getTier(0).bonus,
-  };
-  
-  return offer;
-}
 
-// Generate viral offer for post-purchase screen
-export function generateViralOffer(product, buyer) {
-  return {
-    title: `מצאת ${product.name}? גם חברים שלך יאהבו!`,
-    description: `שתף את המוצר עם חברים וקבל ${15}% עמלה מכל מכירה`,
-    shareText: `מצאתי את ${product.name} במחיר מגניב! 🔥\nאפשר להזמין כאן: ${product.url}`,
-    commission: 15,
-    autoEnroll: true,
-  };
-}
 
 // Track referral chain
 export function trackReferralChain(referrerId, buyerId, productId) {
