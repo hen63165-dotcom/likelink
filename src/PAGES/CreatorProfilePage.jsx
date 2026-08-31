@@ -1,19 +1,54 @@
-import React, { useState, useMemo } from "react";
-import { Users, ShoppingBag, ArrowLeft, Share2, Languages, UserCheck, UserPlus, Layers } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Users, ShoppingBag, ArrowLeft, Share2, Languages, UserCheck, UserPlus, Layers, Copy, Sparkles, TrendingUp } from "lucide-react";
 import { useI18n } from "../lib/LangContext";
 import { getTopCreatorIds } from "../utils/helpers";
 import { ProductCard, ProductModal, TopBadge } from "../components/product/ProductComponents";
 import { EmptyState } from "../components/ui";
+import { updatePageSEO, getCreatorSEO } from "../lib/seo";
+import { getReferralStats, trackReferralClick, getPendingReferral, getReferralTier } from "../lib/referrals";
 
 export default function CreatorProfilePage({
   slug, marketers, products, collections, favorites, onToggleFavorite,
-  following, onToggleFollow, recordClick, showToast, navigate, lang, setLang
+  following, onToggleFollow, recordClick, showToast, navigate, lang, setLang,
+  currentSellerId
 }) {
   const { t, categoryLabel } = useI18n();
   const [active, setActive] = useState(null);
+  const [showReferralBanner, setShowReferralBanner] = useState(false);
 
   const marketer = marketers.find((m) => m.slug === slug || m.id === slug);
   const topIds = useMemo(() => getTopCreatorIds(products), [products]);
+  
+  // SEO: Update page meta tags for this creator
+  useEffect(() => {
+    if (marketer) {
+      const seo = getCreatorSEO(marketer, products.filter(p => p.marketerId === marketer.id));
+      updatePageSEO(seo);
+    }
+    return () => updatePageSEO({ title: 'לייקלינק — קניות מהיוצרות המובילות בישראל' });
+  }, [marketer, products]);
+  
+  // Track referral clicks
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      trackReferralClick(ref);
+    }
+  }, []);
+  
+  // Show referral banner for logged-in sellers
+  useEffect(() => {
+    if (currentSellerId && marketer && marketer.id === currentSellerId) {
+      setShowReferralBanner(true);
+    }
+  }, [currentSellerId, marketer]);
+
+  const referralStats = useMemo(() => {
+    if (!marketer || !currentSellerId) return null;
+    if (marketer.id !== currentSellerId) return null;
+    return getReferralStats(marketer.id);
+  }, [marketer, currentSellerId]);
 
   async function handleShare() {
     const url = window.location.href;
@@ -30,6 +65,16 @@ export default function CreatorProfilePage({
       showToast(t("sell.linkCopied"));
     } catch {
       showToast(url);
+    }
+  }
+  
+  async function handleCopyReferralLink() {
+    if (!referralStats) return;
+    try {
+      await navigator.clipboard.writeText(referralStats.referralLink);
+      showToast('🔗 קישור ההזמנה הועתק!');
+    } catch {
+      showToast(referralStats.referralLink);
     }
   }
 
@@ -76,6 +121,8 @@ export default function CreatorProfilePage({
     );
   }
 
+  const referralTier = referralStats ? getReferralTier(referralStats.conversions) : null;
+  
   return (
     <>
       <header className="w-full sticky top-0 z-40 glass-header safe-top">
@@ -93,6 +140,43 @@ export default function CreatorProfilePage({
           </div>
         </div>
       </header>
+
+      {/* Viral Referral Banner - shows for the seller themselves */}
+      {showReferralBanner && referralStats && (
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-3">
+          <div className="max-w-app mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} />
+                <span className="text-sm font-medium">הזמינו יוצרים נוספים וקבלו בונוס!</span>
+              </div>
+              <button 
+                onClick={handleCopyReferralLink}
+                className="flex items-center gap-1 bg-white/20 hover:bg-white/30 rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              >
+                <Copy size={12} />
+                העתק קישור
+              </button>
+            </div>
+            <div className="flex items-center gap-4 mt-2 text-xs opacity-90">
+              <span className="flex items-center gap-1">
+                <TrendingUp size={12} />
+                {referralStats.totalClicks} לחיצות
+              </span>
+              <span>{referralStats.conversions} הרשמות</span>
+              <span>{referralStats.conversionRate}% המרה</span>
+              {referralTier && referralTier !== 'new' && (
+                <span className="bg-white/20 rounded-full px-2 py-0.5">
+                  {referralTier === 'legend' ? '🌟 לגנדה' : 
+                   referralTier === 'expert' ? '⭐ מומחה' :
+                   referralTier === 'advanced' ? '🚀 מתקדם' :
+                   referralTier === 'starter' ? '⭐ מתחיל' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 w-full max-w-app mx-auto pb-10 px-4">
         <div className="pt-6 flex flex-col items-center text-center">
@@ -138,6 +222,27 @@ export default function CreatorProfilePage({
             renderGrid(myCollections.length === 0 ? mine : ungrouped)
           ) : null}
         </div>
+
+        {/* Viral CTA: Turn visitors into sellers */}
+        {(!currentSellerId || marketer?.id !== currentSellerId) && (
+          <div className="mt-8 mb-4 p-4 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 text-center">
+            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2">
+              <Sparkles size={18} className="text-purple-600" />
+            </div>
+            <p className="text-sm font-semibold text-gray-800">
+              גם אתם יכולים למכור כמו {marketer.name.split(' ')[0]}!
+            </p>
+            <p className="text-xs text-gray-600 mt-1 mb-3">
+              פתחו סטודיו מכירה בחינן והתחילו להרוויח — בלי צורך בטכנולוגיה
+            </p>
+            <button
+              onClick={() => navigate('/studio')}
+              className="tap rounded-full px-5 py-2 text-xs font-semibold bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md hover:shadow-lg transition-shadow"
+            >
+              🚀 פתחו סטודיו משלכם
+            </button>
+          </div>
+        )}
       </main>
 
       {active && (

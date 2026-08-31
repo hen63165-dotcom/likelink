@@ -106,6 +106,7 @@ function App() {
             navigate={navigate}
             lang={lang}
             setLang={setLang}
+            currentSellerId={settings?.currentSellerId || null}
           />
         </Suspense>
         <Toast message={toast?.msg} />
