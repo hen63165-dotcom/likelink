@@ -28,14 +28,20 @@ export function LangProvider({ children }) {
   const dict = translations[lang];
 
   const t = useCallback(
-    (key, vars) => {
+    (key, varsOrFallback) => {
       const parts = key.split(".");
       let node = dict;
       for (const p of parts) node = node?.[p];
-      if (typeof node !== "string") return node ?? key;
-      if (vars) {
+      // Second string argument = default value: t("cart.title", "עגלה")
+      const fallback =
+        typeof varsOrFallback === "string" ? varsOrFallback : undefined;
+      if (typeof node !== "string") {
+        return fallback ?? node ?? key;
+      }
+      if (varsOrFallback && typeof varsOrFallback === "object") {
         let out = node;
-        for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
+        for (const [k, v] of Object.entries(varsOrFallback))
+          out = out.replaceAll(`{${k}}`, String(v));
         return out;
       }
       return node;

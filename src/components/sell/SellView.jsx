@@ -12,7 +12,7 @@ import { CATEGORY_KEYS } from "../../lib/i18n";
 import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE } from "../../constants/keys";
 import { uploadProductImage } from "../../lib/uploadImage";
 import { getSellerPayoutSummary } from "../../lib/payments";
-import { resetPassword } from "../../lib/auth";
+import { resetPassword, authConfigured } from "../../lib/auth";
 import { fetchProductInfo } from "../../lib/productInfo";
 import { buildSellerAIInsights } from "../../lib/aiAssistant";
 import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow";
@@ -542,6 +542,17 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       onLogin(email.trim(), password.trim());
     }
   }
+
+  const handleForgot = async () => {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) return setErr(t("auth.errEmail"));
+    if (authConfigured) {
+      const res = await resetPassword(cleanEmail);
+      if (!res.ok) return setErr(res.error || "Reset failed");
+      return setErr("✓ Password reset email sent");
+    }
+    setErr("No account found for this email");
+  };
 
   return (
     <div className="pt-8 flex flex-col items-center text-center px-2">
