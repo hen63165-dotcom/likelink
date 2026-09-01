@@ -662,7 +662,7 @@ function sanitizeConfig(prev, c) {
     template: String(c.template || "").slice(0, 800),
     storeUrl: String(c.storeUrl || "").slice(0, 300),
     productIds: Array.isArray(c.productIds) ? c.productIds.slice(0, 200).map(String) : [],
-    channels: (Array.isArray(c.channels) ? c.channels : []).slice(0, 10).map((ch) => {
+    channels: (Array.isArray(c.channels) ? c.channels : []).slice(0, 14).map((ch) => {
       const prevCh = (prev.channels || []).find((p) => p.type === ch.type) || {};
       // If a secret comes back masked (••••) or empty, preserve the previously
       // saved real value so the creator doesn't have to re-enter tokens on
@@ -726,6 +726,7 @@ function stripRuntime(store) {
   for (const [k, v] of Object.entries(store)) if (!k.startsWith("__")) out[k] = v;
   return out;
 }
+
 
 
 
