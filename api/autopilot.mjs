@@ -87,6 +87,90 @@ const FALLBACK_TEMPLATES_HE = [
   "💥 לא לפספס: {name}\nמומלץ בחום, {price} ₪ בלבד\n👉 {link}",
 ];
 
+// ─── smart marketing engine: angles, hashtags, tracking, timing ─────────────
+
+// Rotating marketing angles — every post a different hook so the feed never
+// gets boring (runCount drives the rotation).
+const ANGLES_HE = [
+  (n) => `🔥 הפריט שכולן שואלות עליו: ${n}`,
+  (n) => `💜 הממלצת האישית שלי השבוע: ${n}`,
+  (n) => `✨ פינוק קטן שעושה את היום: ${n}`,
+  (n) => `🎁 רעיון מושלם למתנה — ${n}`,
+  (n) => `⭐ הפריט שהכי נמכר אצלי: ${n}`,
+  (n) => `🛍️ הלוק שהעלתי וכולן ביקשו: ${n}`,
+  (n) => `💥 רגע לפני שהמלאי נגמר: ${n}`,
+  (n) => `🌙 סוף שבוע בסטייל — ${n}`,
+  (n) => `🤍 קלאסיקה שמתאימה להכל: ${n}`,
+  (n) => `📸 חזר למלאי לפי בקשות: ${n}`,
+];
+
+const CATEGORY_TAGS = {
+  fashion: ["#סטייל", "#אופנה", "#לוק_היום"],
+  beauty: ["#ביוטי", "#טיפוח", "#קוסמטיקה"],
+  home: ["#עיצוב_הבית", "#לבית", "#דקורציה"],
+  kids: ["#ילדים", "#מתנות"],
+  jewelry: ["#תכשיטים", "#אקססורייז"],
+  fitness: ["#כושר", "#ספורט"],
+  tech: ["#גאדג'טים", "#טכנולוגיה"],
+  food: ["#אוכל", "#קולינריה"],
+  art: ["#אמנות", "#יצירה"],
+  pets: ["#חיות_מחמד", "#פטים"],
+};
+const DEFAULT_TAGS = ["#קניות_אונליין", "#המלצה_אישית"];
+
+function pickTags(product) {
+  const cat = String(product?.category || "").toLowerCase();
+  const specific = CATEGORY_TAGS[cat] || [];
+  return [...specific, ...DEFAULT_TAGS].slice(0, 5);
+}
+
+// Per-channel tracked link — lets the creator see exactly which channel
+// brings the traffic (utm_medium = telegram / facebook / webhook…).
+function trackLink(base, channel, productId) {
+  try {
+    const u = new URL(base);
+    u.searchParams.set("utm_source", "autopilot");
+    u.searchParams.set("utm_medium", channel);
+    u.searchParams.set("utm_campaign", productId);
+    return u.href;
+  } catch {
+    return base;
+  }
+}
+
+// Next run that respects the interval but never lands at night (23:00–09:00
+// Israel time) — posts go out when the audience is actually awake.
+function nextSmartRun(intervalMinutes) {
+  const iv = Math.max(30, Number(intervalMinutes) || 180) * 60000;
+  let t = Date.now() + iv;
+  const ilHour = (ts) =>
+    Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jerusalem",
+        hour: "2-digit",
+        hour12: false,
+      }).format(new Date(ts))
+    );
+  for (let i = 0; i < 48; i++) {
+    const h = ilHour(t);
+    if (h >= 9 && h <= 22) return t;
+    t += 30 * 60000; // scan forward until a daylight slot
+  }
+  return Date.now() + iv; // safety net
+}
+
+// The smart caption engine — angle + price + short description + link + tags
+function smartCaption(product, link, tags, runCount) {
+  const name = product.title || product.name || "הקולקציה החדשה";
+  const price =
+    product.price != null && product.price !== "" ? `💰 ${product.price} ₪` : "";
+  const angle = ANGLES_HE[Math.abs(Number(runCount) || 0) % ANGLES_HE.length];
+  const desc = String(product.description || "").trim().slice(0, 120);
+  return [angle(name), price, desc, `👉 ${link}`, tags.join(" ")]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function aiPolish(text, product) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return text;
@@ -101,7 +185,7 @@ async function aiPolish(text, product) {
           {
             role: "system",
             content:
-              "את עוזרת שיווקית של יוצרות תוכן בישראל. שפררי את טקסט הפרסום: עברית קליטה, אנרגטית, עם 2–3 אימוג'ים. אל תמציאה מחירים או פרטים. החזירי רק את הטקסט.",
+              "את עוזרת שיווקית של יוצרות תוכן בישראל. שפרי את טקסט הפרסום: עברית קליטה ואנרגטית, 2–3 אימוג'ים, וסיימי בקריאה לפעולה לכניסה לחנות. אל תשני ואל תמחקי קישורים, מחירים והאשטגים קיימים. אל תמציאי מחירים או פרטים. החזירי רק את הטקסט.",
           },
           { role: "user", content: `מוצר: ${product.title || product.name || ""}\nטיוטה:\n${text}` },
         ],
@@ -157,8 +241,13 @@ function pickProduct(cfg, pool) {
   const ids = cfg.productIds?.length ? cfg.productIds : pool.map((p) => p.id);
   const items = ids.map((id) => pool.find((p) => p.id === id)).filter(Boolean);
   if (!items.length) return null;
-  const idx = Math.abs(Number(cfg.lastRunAt) || 0) % items.length; // round-robin
-  return items[idx];
+  // "no product left behind": always pick the one posted longest ago (or never)
+  const lastPost = {};
+  for (const h of cfg.history || []) {
+    if (!lastPost[h.productId] || h.ts > lastPost[h.productId]) lastPost[h.productId] = h.ts;
+  }
+  items.sort((a, b) => (lastPost[a.id] || 0) - (lastPost[b.id] || 0));
+  return items[0];
 }
 
 async function runOne(store, marketerId, cfg, origin) {
@@ -176,20 +265,28 @@ async function runOne(store, marketerId, cfg, origin) {
   }
 
   const slug = marketer?.slug || marketerId;
-  const link = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
-  const tpl =
-    cfg.template?.trim() ||
-    FALLBACK_TEMPLATES_HE[Math.floor(Date.now() / 60000) % FALLBACK_TEMPLATES_HE.length];
-  let text = renderTemplate(tpl, product, link);
+  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+  const tags = pickTags(product);
+
+  // Custom template wins if the creator wrote one; otherwise the smart
+  // rotating-caption engine writes the post (angle + price + desc + tags).
+  let text = cfg.template?.trim()
+    ? renderTemplate(cfg.template, product, baseLink)
+    : smartCaption(product, baseLink, tags, cfg.runCount);
   if (cfg.aiPolish) text = await aiPolish(text, product);
 
   const results = [];
   for (const ch of cfg.channels || []) {
+    // Per-channel UTM link so the creator can see exactly which channel
+    // brings the traffic. Links are swapped in AFTER AI polish (the polish
+    // prompt forbids touching links, and this keeps them intact anyway).
+    const link = trackLink(baseLink, ch.type, product.id);
+    const chText = link === baseLink ? text : text.split(baseLink).join(link);
     try {
-      if (ch.type === "telegram") await sendTelegram(ch, text);
+      if (ch.type === "telegram") await sendTelegram(ch, chText);
       else if (ch.type === "webhook")
-        await sendWebhook(ch, { text, product, marketerId, link, source: "likelink-autopilot" });
-      else if (ch.type === "facebook") await sendFacebook(ch, text, link);
+        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-autopilot" });
+      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
       else results.push({ channel: ch.type, ok: false, detail: "unknown_channel" });
       results.push({ channel: ch.type, ok: true });
     } catch (e) {
@@ -199,8 +296,12 @@ async function runOne(store, marketerId, cfg, origin) {
 
   const anyOk = results.some((r) => r.ok);
   cfg.lastRunAt = Date.now();
-  cfg.nextRunAt = Date.now() + (Number(cfg.intervalMinutes) || 180) * 60000;
+  // Smart scheduling: respect the interval but never post at night (IL time).
+  cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
   cfg.runCount = (cfg.runCount || 0) + 1;
+  // "No product left behind" memory — pickProduct() picks the item whose
+  // most recent post is oldest (or that was never posted).
+  cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
   cfg.logs = [
     {
       ts: Date.now(),
@@ -214,6 +315,33 @@ async function runOne(store, marketerId, cfg, origin) {
   ].slice(0, MAX_LOGS_PER_CREATOR);
 
   return { ok: true, text, results };
+}
+
+// Runs every enabled automation whose slot is due. Shared by the Vercel cron
+// and the "tick" mode (browsers ping it on visits, so scheduled posts go out
+// on time even on the Hobby plan, where crons fire only once a day).
+async function runDue(origin) {
+  if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
+  const [store, marketersRow, productsRow] = await Promise.all([
+    kvGet(KV_KEY),
+    kvGet("marketplace:marketers"),
+    kvGet("marketplace:products"),
+  ]);
+  store.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
+  store.__products = Array.isArray(productsRow) ? productsRow : [];
+
+  const ran = [];
+  for (const [marketerId, cfg] of Object.entries(store)) {
+    if (marketerId.startsWith("__")) continue;
+    if (!cfg?.enabled) continue;
+    if ((cfg.nextRunAt || 0) > Date.now()) continue;
+    const r = await runOne(store, marketerId, cfg, origin);
+    ran.push({ marketerId, ok: r.ok });
+  }
+  try {
+    await kvSet(KV_KEY, stripRuntime(store));
+  } catch { /* best-effort */ }
+  return { ok: true, ran };
 }
 
 export default async function handler(req) {
@@ -232,29 +360,7 @@ export default async function handler(req) {
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === (process.env.AUTOPILOT_SECRET || ""));
 
-  if (isCron) {
-    if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
-    const [store, marketersRow, productsRow] = await Promise.all([
-      kvGet(KV_KEY),
-      kvGet("marketplace:marketers"),
-      kvGet("marketplace:products"),
-    ]);
-    store.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
-    store.__products = Array.isArray(productsRow) ? productsRow : [];
-
-    const ran = [];
-    for (const [marketerId, cfg] of Object.entries(store)) {
-      if (marketerId.startsWith("__")) continue;
-      if (!cfg?.enabled) continue;
-      if ((cfg.nextRunAt || 0) > Date.now()) continue;
-      const r = await runOne(store, marketerId, cfg, origin);
-      ran.push({ marketerId, ok: r.ok });
-    }
-    try {
-      await kvSet(KV_KEY, stripRuntime(store));
-    } catch { /* best-effort */ }
-    return json({ ok: true, ran });
-  }
+  if (isCron) return json(await runDue(origin));
 
   // ── Studio API ──
   if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
@@ -267,6 +373,15 @@ export default async function handler(req) {
   }
 
   const { mode, marketerId } = body || {};
+
+  // Browser tick — any visitor (throttled client-side) nudges due posts out.
+  // Needs no secrets and no marketerId: it only publishes what creators
+  // already scheduled. Must run BEFORE the marketerId check (tick sends none).
+  if (mode === "tick") {
+    if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+    return json(await runDue(origin));
+  }
+
   if (!marketerId) return json({ ok: false, error: "missing_marketerId" }, 400);
   if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
 
@@ -329,6 +444,7 @@ function sanitizeConfig(prev, c) {
     lastRunAt: prev.lastRunAt || 0,
     nextRunAt: prev.nextRunAt || 0,
     runCount: prev.runCount || 0,
+    history: Array.isArray(prev.history) ? prev.history.slice(0, 500) : [],
     logs: prev.logs || [],
   };
 }

@@ -24,7 +24,7 @@ echo === Step 3: Adding files ===
 git add -A
 echo.
 echo === Step 4: Committing ===
-git commit -m "fix: remove duplicate AuthGate declaration in SellView"
+git commit -m "feat: AutoPilot smart marketing engine - rotating angles, hashtags, UTM tracking, smart scheduling + browser tick for Hobby plan"
 echo.
 echo === Step 5: Pushing to main ===
 git push origin main

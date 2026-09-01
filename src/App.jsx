@@ -13,6 +13,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
 import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
 import { installGlobalErrorHealing } from "./lib/autoHeal";
+import { autopilotTick } from "./lib/autopilotTick";
 import FloatingAIHelper from "./components/FloatingAIHelper";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
@@ -26,6 +27,7 @@ const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
 export default function AppRoot() {
   useEffect(() => {
     installGlobalErrorHealing();
+    autopilotTick(); // nudge due AutoPilot posts (throttled, silent)
   }, []);
 
   return (
