@@ -9,7 +9,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers";
 import { CATEGORY_KEYS } from "../../lib/i18n";
-import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE } from "../../constants/keys";
+import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys";
 import { uploadProductImage } from "../../lib/uploadImage";
 import { getSellerPayoutSummary } from "../../lib/payments";
 import { resetPassword, authConfigured } from "../../lib/auth";
@@ -133,12 +133,94 @@ export default function SellView({ navigate }) {
         onChange={(v) => onUpdateMarketer(marketer.id, { trackingId: String(v).trim() })}
         placeholder={t("sell.trackingIdPh")}
       />
-      <LabeledInput
-        label={t("sell.payPalEmail")}
-        value={marketer.payPalEmail || ""}
-        onChange={(v) => onUpdateMarketer(marketer.id, { payPalEmail: String(v).trim() })}
-        placeholder={t("sell.payPalPh")}
-      />
+      <div className="mb-5">
+        <span className="block text-xs font-medium text-secondary mb-2">
+          {lang === "he" ? "איך תרצה לקבל את הכסף?" : "How do you want to get paid?"}
+        </span>
+        <div className="grid grid-cols-3 gap-2">
+          {PAYOUT_METHODS.map((m) => (
+            <button
+              key={m}
+              onClick={() => onUpdateMarketer(marketer.id, { paymentMethod: m })}
+              className={`tap rounded-xl px-2 py-2.5 text-[11px] font-semibold transition-colors ${
+                (marketer.paymentMethod || PAYOUT_DEFAULT) === m ? "ring-2" : ""
+              }`}
+              style={{
+                background: (marketer.paymentMethod || PAYOUT_DEFAULT) === m ? "var(--accent-subtle)" : "var(--bg-subtle)",
+                color: (marketer.paymentMethod || PAYOUT_DEFAULT) === m ? "var(--accent)" : "var(--text-muted)",
+                boxShadow: (marketer.paymentMethod || PAYOUT_DEFAULT) === m ? `0 0 0 1.5px var(--accent)` : "none",
+              }}
+            >
+              {PAYOUT_LABELS[m] || m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(marketer.paymentMethod || PAYOUT_DEFAULT) === "paypal" && (
+        <>
+          <LabeledInput
+            label={t("sell.payPalEmail")}
+            value={marketer.payPalEmail || ""}
+            onChange={(v) => onUpdateMarketer(marketer.id, { payPalEmail: String(v).trim() })}
+            placeholder={t("sell.payPalPh")}
+          />
+          <button
+            onClick={() => {
+              const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || "";
+              if (!clientId) return showToast(t("sell.payPalNotConfigured"));
+              const redirect = encodeURIComponent(window.location.href);
+              window.open(
+                `https://www.paypal.com/connect/?flowEntry=static&client_id=${clientId}&scope=email&redirect_uri=${redirect}`,
+                "_blank"
+              );
+            }}
+            className="tap w-full mt-2 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
+            style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
+            {t("sell.payPalConnect")}
+          </button>
+        </>
+      )}
+
+      {(marketer.paymentMethod || PAYOUT_DEFAULT) === "bank" && (
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <LabeledInput
+            label="Bank"
+            value={marketer.bankDetails?.bankName || ""}
+            onChange={(v) => onUpdateMarketer(marketer.id, { bankDetails: { ...marketer.bankDetails, bankName: String(v).trim() } })}
+            placeholder="e.g. Leumi"
+          />
+          <LabeledInput
+            label="Branch"
+            value={marketer.bankDetails?.branch || ""}
+            onChange={(v) => onUpdateMarketer(marketer.id, { bankDetails: { ...marketer.bankDetails, branch: String(v).trim() } })}
+            placeholder="Branch #"
+          />
+          <LabeledInput
+            label="Account #"
+            value={marketer.bankDetails?.account || ""}
+            onChange={(v) => onUpdateMarketer(marketer.id, { bankDetails: { ...marketer.bankDetails, account: String(v).trim() } })}
+            placeholder="Account #"
+          />
+          <LabeledInput
+            label="Account holder"
+            value={marketer.bankDetails?.holder || ""}
+            onChange={(v) => onUpdateMarketer(marketer.id, { bankDetails: { ...marketer.bankDetails, holder: String(v).trim() } })}
+            placeholder="Full name"
+          />
+        </div>
+      )}
+
+      {(marketer.paymentMethod || PAYOUT_DEFAULT) === "other" && (
+        <LabeledInput
+          label={lang === "he" ? "פרטי תשלום (ארנק / IBAN / Wise / Payoneer...)" : "Payment details (wallet / IBAN / Wise / Payoneer...)"}
+          value={marketer.paymentNote || ""}
+          onChange={(v) => onUpdateMarketer(marketer.id, { paymentNote: String(v).trim() })}
+          placeholder="e.g. Wise / Payoneer / IBAN"
+        />
+      )}
 
       <button
         onClick={handleShare}
@@ -318,6 +400,33 @@ export default function SellView({ navigate }) {
         </div>
       </div>
       <p className="text-[11px] -mt-3 mb-4" style={{ color: "var(--text-muted)" }}>{t("sell.payoutNote")}</p>
+
+      {/* Payout history */}
+      <div className="surface rounded-2xl p-4 mb-5 shadow-sm">
+        <p className="text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>
+          {t("sell.payoutHistory")}
+        </p>
+        {myPayouts.length === 0 ? (
+          <p className="text-xs text-muted">{t("sell.payoutNone")}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {myPayouts.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl surface-subtle">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.status === "paid" ? "var(--success)" : "var(--warning)" }} />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate">{money(p.amount, lang)}</p>
+                    <p className="text-[10px] text-faint">{formatDate(p.ts)}</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider shrink-0" style={{ color: p.status === "paid" ? "var(--success)" : "var(--warning)" }}>
+                  {p.status === "paid" ? t("sell.payoutPaid") : t("sell.payoutPending")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="surface rounded-2xl p-4 mb-5 shadow-sm">
         <div className="flex items-center justify-between gap-2 pb-2 border-b" style={{ borderColor: "var(--border)" }}>

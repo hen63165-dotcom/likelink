@@ -2,12 +2,12 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { storage } from "../lib/storage";
 import { supabase } from "../lib/supabaseClient";
 import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth";
-import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys";
+import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, PAYOUT_DEFAULT, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys";
 import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
 import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
-import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
+import { getSellerPayoutSummary, processPayout, PAYOUT_STATUS } from "../lib/payments";
 
 const MarketplaceContext = createContext(null);
 
@@ -161,6 +161,21 @@ export function MarketplaceProvider({ children }) {
             slug,
             trackingId: typeof x?.trackingId === "string" ? x.trackingId : String(x?.trackingId ?? ""),
             payPalEmail: typeof x?.payPalEmail === "string" ? x.payPalEmail : String(x?.payPalEmail ?? ""),
+            paymentMethod: PAYOUT_DEFAULT,
+            bankDetails: (() => {
+              try {
+                const b = x?.bankDetails || {};
+                return {
+                  bankName: String(b?.bankName ?? ""),
+                  branch: String(b?.branch ?? ""),
+                  account: String(b?.account ?? ""),
+                  holder: String(b?.holder ?? ""),
+                };
+              } catch {
+                return { bankName: "", branch: "", account: "", holder: "" };
+              }
+            })(),
+            paymentNote: typeof x?.paymentNote === "string" ? x.paymentNote : String(x?.paymentNote ?? ""),
             bio: typeof x?.bio === "string" ? x.bio : String(x?.bio ?? ""),
           };
         })
@@ -508,18 +523,36 @@ export function MarketplaceProvider({ children }) {
         const summary = getSellerPayoutSummary(sales, payouts, marketerId);
         const open = payouts.some((p) => p.marketerId === marketerId && p.status === PAYOUT_STATUS.PENDING);
         if (summary.pendingPayout < MIN_PAYOUT_THRESHOLD || open) return;
+        const marketer = marketers.find((m) => m.id === marketerId);
+        const method = marketer?.paymentMethod || PAYOUT_DEFAULT;
         const payout = {
           id: uid(),
           marketerId,
           amount: Math.round(summary.pendingPayout * 100) / 100,
           status: PAYOUT_STATUS.PENDING,
-          method: PAYOUT_METHOD,
+          method,
+          recipient: {
+            payPalEmail: marketer?.payPalEmail || "",
+            bank: marketer?.bankDetails || {},
+          },
           ts: Date.now(),
           paidAt: null,
           note: "",
         };
         await persistPayouts([...payouts, payout]);
         showToast(t("sell.payoutCreated"));
+        // Fire-and-forget: the provider worker actually pays the seller.
+        processPayout(payout)
+          .then(async (updated) => {
+            await persistPayouts(
+              (payouts || []).map((p) => (p.id === updated.id ? updated : p)).concat(
+                payouts.some((p) => p.id === updated.id) ? [] : [updated]
+              )
+            );
+          })
+          .catch(() => {
+            /* keep pending; admin can retry */
+          });
       },
       onMarkPayoutPaid: async (payoutId) => {
         await persistPayouts(

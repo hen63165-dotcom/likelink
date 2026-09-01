@@ -20,6 +20,18 @@ export const MIN_PAYOUT_THRESHOLD = 100; // ₪ minimum pending balance to be el
 export const PAYOUT_INTERVAL_DAYS = 14; // biweekly payout schedule
 export const PAYOUT_METHOD = "paypal"; // manual PayPal for now (not automated)
 
+// ─── Flexible per-seller payout options ────────────────────────────────────
+// Each creator picks their favourite destination: PayPal (default) or a direct
+// local/global payout. `PAYOUT_METHODS` and `PAYOUT_LABELS` keep the UI and
+// the worker in sync.
+export const PAYOUT_METHODS = ["paypal", "bank", "other"];
+export const PAYOUT_LABELS = {
+  paypal: "PayPal",
+  bank: "Bank transfer",
+  other: "Other / Global",
+};
+export const PAYOUT_DEFAULT = "paypal";
+
 // ─── Boost feature (direct revenue WITHOUT a payment gateway) ───────────
 // Sellers pay from their own pending balance, so nobody needs a card.
 export const BOOST_PRICE = 25;            // ₪ — deducted from the seller's balance

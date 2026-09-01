@@ -5,14 +5,16 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
 import { StatChip, EmptyState, Button } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
-import { ADMIN_CODE } from "../../constants/keys";
+import { ADMIN_CODE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys";
 import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
+import PayoutsSection from "./PayoutsSection";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
 const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
 
 export default function AdminView() {
   const { t, lang } = useI18n();
+  const L = (he, en) => (lang === "he" ? he : en);
   const { marketers, products, clicks, sales, settings, onSetStatus, onRemove, onSetFee } = useMarketplace();
   
   const [unlocked, setUnlocked] = useState(false);
@@ -81,7 +83,8 @@ export default function AdminView() {
         {[
           { id: "overview", l: t("admin.overview") }, 
           { id: "listings", l: t("admin.listings") }, 
-          { id: "creators", l: t("admin.creators") }
+          { id: "creators", l: t("admin.creators") },
+          { id: "payouts", l: L("תשלומים", "Payouts") }
         ].map((s) => (
           <button 
             key={s.id} 
@@ -199,6 +202,9 @@ export default function AdminView() {
             );
           })}
         </div>
+      )}
+      {section === "payouts" && (
+        <PayoutsSection />
       )}
     </div>
   );
