@@ -235,6 +235,224 @@ async function sendFacebook(ch, text, link) {
   if (!res.ok) throw new Error(`facebook_${res.status}`);
 }
 
+async function sendDiscord(ch, text) {
+  const res = await fetch(ch.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ content: text }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`discord_${res.status}`);
+}
+
+async function sendSlack(ch, text) {
+  const res = await fetch(ch.url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`slack_${res.status}`);
+}
+
+// WhatsApp Cloud API (Meta business) — posts to a channel/catalog broadcast list
+async function sendWhatsApp(ch, text, link) {
+  const res = await fetch(
+    `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.phoneNumberId)}/messages`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ch.token}` },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: ch.chatId,
+        type: "text",
+        text: { preview_url: true, body: `${text}\n${link}` },
+      }),
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+  if (!res.ok) throw new Error(`whatsapp_${res.status}`);
+}
+
+// Instagram Graph API — 2-step publish (container → publish). Requires an
+// image, so it's skipped gracefully when the product has none.
+async function sendInstagram(ch, text, link, product) {
+  const imageUrl = product?.image
+    ? String(product.image).startsWith("http")
+      ? product.image
+      : null
+    : null;
+  if (!imageUrl) throw new Error("instagram_no_image");
+  const container = await fetch(
+    `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.igUserId)}/media`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ image_url: imageUrl, caption: `${text}\n${link}`, access_token: ch.token }),
+      signal: AbortSignal.timeout(15000),
+    }
+  );
+  if (!container.ok) throw new Error(`instagram_container_${container.status}`);
+  const { id } = await container.json();
+  const publish = await fetch(
+    `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.igUserId)}/media_publish`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ creation_id: id, access_token: ch.token }),
+      signal: AbortSignal.timeout(15000),
+    }
+  );
+  if (!publish.ok) throw new Error(`instagram_publish_${publish.status}`);
+}
+
+// X (Twitter) API v2 — Bearer token with user context from the X developer portal
+async function sendX(ch, text, link) {
+  const room = 280 - link.length - 1;
+  const txt = text.length > room ? `${text.slice(0, Math.max(room - 1, 0))}…\n${link}` : `${text}\n${link}`;
+  const res = await fetch("https://api.twitter.com/2/tweets", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ch.bearer}` },
+    body: JSON.stringify({ text: txt }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`x_${res.status}`);
+}
+
+// LinkedIn — post an article share as a member/company via UGC Posts API
+async function sendLinkedIn(ch, text, link) {
+  const author = ch.personUrn.startsWith("urn:") ? ch.personUrn : `urn:li:person:${ch.personUrn}`;
+  const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${ch.token}`,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+    body: JSON.stringify({
+      author,
+      lifecycleState: "PUBLISHED",
+      specificContent: {
+        "com.linkedin.ugc.ShareContent": {
+          shareCommentary: { text: `${text}\n${link}`.slice(0, 3000) },
+          shareMediaCategory: "ARTICLE",
+          media: [{ status: "READY", originalUrl: link }],
+        },
+      },
+      visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`linkedin_${res.status}`);
+}
+
+// Mastodon — one call, any instance (default mastodon.social)
+async function sendMastodon(ch, text, link) {
+  const base = (ch.instance || "https://mastodon.social").replace(/\/+$/, "");
+  const res = await fetch(`${base}/api/v1/statuses`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ch.token}` },
+    body: JSON.stringify({ status: `${text}\n${link}`.slice(0, 500) }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`mastodon_${res.status}`);
+}
+
+// Bluesky (AT Protocol) — app-password login then post
+async function sendBluesky(ch, text, link) {
+  const base = (ch.instance || "https://bsky.social").replace(/\/+$/, "");
+  const login = await fetch(`${base}/xrpc/com.atproto.server.createSession`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ identifier: ch.handle, password: ch.token }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!login.ok) throw new Error(`bluesky_login_${login.status}`);
+  const { accessJwt, did } = await login.json();
+  const post = await fetch(`${base}/xrpc/com.atproto.repo.createRecord`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${accessJwt}` },
+    body: JSON.stringify({
+      repo: did,
+      collection: "app.bsky.feed.post",
+      record: {
+        text: `${text}\n${link}`.slice(0, 300),
+        createdAt: new Date().toISOString(),
+      },
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!post.ok) throw new Error(`bluesky_post_${post.status}`);
+}
+
+// Reddit — OAuth2 refresh-token flow then submit a link post
+async function sendReddit(ch, text, link) {
+  const tokenRes = await fetch("https://www.reddit.com/api/v1/access_token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      authorization: `Basic ${Buffer.from(`${ch.clientId}:${ch.clientSecret}`).toString("base64")}`,
+    },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: ch.token }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!tokenRes.ok) throw new Error(`reddit_token_${tokenRes.status}`);
+  const { access_token } = await tokenRes.json();
+  const res = await fetch(`https://oauth.reddit.com/r/${encodeURIComponent(ch.subreddit)}/api/submit`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      authorization: `Bearer ${access_token}`,
+    },
+    body: new URLSearchParams({
+      sr: ch.subreddit,
+      kind: "link",
+      title: text.split("\n")[0].slice(0, 300),
+      url: link,
+      resubmit: "true",
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`reddit_${res.status}`);
+}
+
+// Pinterest — pin the product image with title + link (needs an image)
+async function sendPinterest(ch, text, link, product) {
+  const imageUrl = product?.image && String(product.image).startsWith("http") ? product.image : null;
+  if (!imageUrl) throw new Error("pinterest_no_image");
+  const res = await fetch("https://api.pinterest.com/v5/pins", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ch.token}` },
+    body: JSON.stringify({
+      board_id: ch.boardId,
+      title: text.split("\n")[0].slice(0, 100),
+      description: text.slice(0, 500),
+      link,
+      media_source: { source_type: "image_url", url: imageUrl },
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`pinterest_${res.status}`);
+}
+
+// WordPress — publish a post via the REST API (application password auth)
+async function sendWordPress(ch, text, link) {
+  const base = ch.wpUrl.replace(/\/+$/, "");
+  const auth = `Basic ${Buffer.from(`${ch.wpUser}:${ch.wpPass}`).toString("base64")}`;
+  const res = await fetch(`${base}/wp-json/wp/v2/posts`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: auth },
+    body: JSON.stringify({
+      title: text.split("\n")[0].slice(0, 80),
+      content: `<p>${text.replace(/\n/g, "<br>")}</p><p><a href="${link}">${link}</a></p>`,
+      status: "publish",
+    }),
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!res.ok) throw new Error(`wordpress_${res.status}`);
+}
+
+// ─── core runner ────────────────────────────────────────────────────────────
 // ─── core runner ────────────────────────────────────────────────────────────
 
 function pickProduct(cfg, pool) {
@@ -287,6 +505,17 @@ async function runOne(store, marketerId, cfg, origin) {
       else if (ch.type === "webhook")
         await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-autopilot" });
       else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
+      else if (ch.type === "discord") await sendDiscord(ch, chText);
+      else if (ch.type === "slack") await sendSlack(ch, chText);
+      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
+      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
+      else if (ch.type === "x") await sendX(ch, chText, link);
+      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
+      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
+      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
+      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
+      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
+      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
       else results.push({ channel: ch.type, ok: false, detail: "unknown_channel" });
       results.push({ channel: ch.type, ok: true });
     } catch (e) {
@@ -433,14 +662,39 @@ function sanitizeConfig(prev, c) {
     template: String(c.template || "").slice(0, 800),
     storeUrl: String(c.storeUrl || "").slice(0, 300),
     productIds: Array.isArray(c.productIds) ? c.productIds.slice(0, 200).map(String) : [],
-    channels: (Array.isArray(c.channels) ? c.channels : []).slice(0, 6).map((ch) => ({
-      type: String(ch.type || "").slice(0, 20),
-      botToken: String(ch.botToken || "").slice(0, 200),
-      chatId: String(ch.chatId || "").slice(0, 100),
-      url: String(ch.url || "").slice(0, 500),
-      pageId: String(ch.pageId || "").slice(0, 100),
-      pageToken: String(ch.pageToken || "").slice(0, 300),
-    })),
+    channels: (Array.isArray(c.channels) ? c.channels : []).slice(0, 10).map((ch) => {
+      const prevCh = (prev.channels || []).find((p) => p.type === ch.type) || {};
+      // If a secret comes back masked (••••) or empty, preserve the previously
+      // saved real value so the creator doesn't have to re-enter tokens on
+      // every save — and a masked echo never overwrites the real secret.
+      const keep = (v, prevVal, max) => {
+        const s = String(v || "").slice(0, max);
+        return s && !s.includes("••••") ? s : String(prevVal || "");
+      };
+      return {
+        type: String(ch.type || "").slice(0, 20),
+        botToken: keep(ch.botToken, prevCh.botToken, 200),
+        chatId: String(ch.chatId || "").slice(0, 100),
+        url: keep(ch.url, prevCh.url, 500),
+        pageId: String(ch.pageId || "").slice(0, 100),
+        pageToken: keep(ch.pageToken, prevCh.pageToken, 300),
+        phoneNumberId: String(ch.phoneNumberId || "").slice(0, 100),
+        igUserId: String(ch.igUserId || "").slice(0, 100),
+        token: keep(ch.token, prevCh.token, 300),
+        // X / LinkedIn / Mastodon / Bluesky / Reddit / Pinterest / WordPress
+        bearer: keep(ch.bearer, prevCh.bearer, 300),
+        clientSecret: keep(ch.clientSecret, prevCh.clientSecret, 200),
+        wpPass: keep(ch.wpPass, prevCh.wpPass, 200),
+        personUrn: String(ch.personUrn || "").slice(0, 100),
+        instance: String(ch.instance || "").slice(0, 120),
+        handle: String(ch.handle || "").slice(0, 120),
+        subreddit: String(ch.subreddit || "").slice(0, 100),
+        clientId: String(ch.clientId || "").slice(0, 100),
+        boardId: String(ch.boardId || "").slice(0, 100),
+        wpUrl: String(ch.wpUrl || "").slice(0, 200),
+        wpUser: String(ch.wpUser || "").slice(0, 100),
+      };
+    }),
     lastRunAt: prev.lastRunAt || 0,
     nextRunAt: prev.nextRunAt || 0,
     runCount: prev.runCount || 0,
@@ -458,7 +712,11 @@ function publicCfg(cfg) {
       ...ch,
       botToken: ch.botToken ? mask(ch.botToken) : "",
       pageToken: ch.pageToken ? mask(ch.pageToken) : "",
+      token: ch.token ? mask(ch.token) : "",
       url: ch.url ? mask(ch.url) : "",
+      bearer: ch.bearer ? mask(ch.bearer) : "",
+      clientSecret: ch.clientSecret ? mask(ch.clientSecret) : "",
+      wpPass: ch.wpPass ? mask(ch.wpPass) : "",
     })),
   };
 }

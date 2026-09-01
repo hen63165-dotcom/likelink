@@ -1,13 +1,15 @@
 // AutoPilot — מנוע האוטומציה המובנה של הסטודיו 🚀
 //
 // "כל מה ש-Make/Zapier עושות — בתוך לייקלינק": המוכרת מחברת ערוצים
-// (Telegram / Facebook Page / Webhook), בוחרה תדירות ותבנית טקסט,
-// והאתר מפרסם לבד — גם כשהיא לא מחוברת. Premium bundle.
+// (Telegram / Facebook / Instagram / Discord / Slack / WhatsApp / Webhook),
+// בוחרה תדירות ותבנית טקסט, והאתר מפרסם לבד — גם כשהיא לא מחוברת. Premium bundle.
 
 import { useState, useEffect, useCallback } from "react";
 import {
   Bot, Send, Globe, Facebook, Play, Pause, Save, Zap,
   CheckCircle2, XCircle, Sparkles, Lock, Radio,
+  MessageCircle, Hash, Phone, Instagram,
+  Twitter, Linkedin, AtSign, Cloud, Pin, MessageSquare, FileText,
 } from "lucide-react";
 import {
   getAutoPilotConfig,
@@ -47,6 +49,112 @@ const CHANNELS = [
       { key: "pageToken", label: "Page Access Token" },
     ],
   },
+  {
+    type: "instagram",
+    name: "Instagram",
+    icon: Instagram,
+    hint: "פרסום אוטומטי לאינסטגרם — נדרש חשבון Business/Creator מקושר לפייסבוק, IG User ID וטוקן. המוצר חייב תמונה עם קישור http",
+    fields: [
+      { key: "igUserId", label: "IG User ID" },
+      { key: "token", label: "Access Token" },
+    ],
+  },
+  {
+    type: "discord",
+    name: "Discord",
+    icon: MessageCircle,
+    hint: "פרסום לערוץ דיסקורד — בהגדרות הערוץ: Integrations → Webhooks → New Webhook → Copy URL, והדביקי כאן",
+    fields: [{ key: "url", label: "Webhook URL" }],
+  },
+  {
+    type: "slack",
+    name: "Slack",
+    icon: Hash,
+    hint: "פרסום לערוץ סלאק — יוצרים Incoming Webhook ב-apps.slack.com ומדביקים כאן את הכתובת",
+    fields: [{ key: "url", label: "Webhook URL" }],
+  },
+  {
+    type: "whatsapp",
+    name: "WhatsApp (Cloud API)",
+    icon: Phone,
+    hint: "שליחה דרך WhatsApp Cloud API של מטא — נדרש Phone Number ID, טוקן, ומספר נמען בפורמט בינלאומי (למשל 972501234567)",
+    fields: [
+      { key: "phoneNumberId", label: "Phone Number ID" },
+      { key: "token", label: "Access Token" },
+      { key: "chatId", label: "Recipient Number" },
+    ],
+  },
+  {
+    type: "x",
+    name: "X (Twitter)",
+    icon: Twitter,
+    hint: "פרסום ציוץ אוטומטי — ב-X Developer Portal יוצרים App ומייצרות Bearer Token עם הרשאת tweet.write, ומדביקות כאן",
+    fields: [{ key: "bearer", label: "Bearer Token" }],
+  },
+  {
+    type: "linkedin",
+    name: "LinkedIn",
+    icon: Linkedin,
+    hint: "פרסום לפיד הלינקדאין — נדרש Access Token ומזהה אישי (Person URN, למשל urn:li:person:XXXX או רק ה-XXXX)",
+    fields: [
+      { key: "personUrn", label: "Person URN / ID" },
+      { key: "token", label: "Access Token" },
+    ],
+  },
+  {
+    type: "mastodon",
+    name: "Mastodon",
+    icon: AtSign,
+    hint: "פרסום טוט אוטומטי — יוצרות אפליקציה בהגדרות המופע שלך (Preferences → Development) ומדביקות את הטוקן. אפשר להשאיר את השדה Instance ריק ל-mastodon.social",
+    fields: [
+      { key: "token", label: "Access Token" },
+      { key: "instance", label: "Instance URL (אופציונלי)" },
+    ],
+  },
+  {
+    type: "bluesky",
+    name: "Bluesky",
+    icon: Cloud,
+    hint: "פרסום פוסט אוטומטי — נדרש המזהה שלך (למשל store.bsky.social) ו-App Password (נוצר ב-Settings → App Passwords)",
+    fields: [
+      { key: "handle", label: "Handle" },
+      { key: "token", label: "App Password" },
+      { key: "instance", label: "Instance URL (אופציונלי)" },
+    ],
+  },
+  {
+    type: "reddit",
+    name: "Reddit",
+    icon: MessageSquare,
+    hint: "פרסום קישור לסאברדיט — דורש Reddit App (Client ID + Secret) ו-Refresh Token עם הרשאת submit. מתקדם אבל שווה!",
+    fields: [
+      { key: "subreddit", label: "Subreddit (בלי r/)" },
+      { key: "clientId", label: "Client ID" },
+      { key: "clientSecret", label: "Client Secret" },
+      { key: "token", label: "Refresh Token" },
+    ],
+  },
+  {
+    type: "pinterest",
+    name: "Pinterest",
+    icon: Pin,
+    hint: "יצירת Pin אוטומטי עם תמונת המוצר — נדרש Access Token ומזהה לוח (Board ID). המוצר חייב תמונה עם קישור http",
+    fields: [
+      { key: "boardId", label: "Board ID" },
+      { key: "token", label: "Access Token" },
+    ],
+  },
+  {
+    type: "wordpress",
+    name: "WordPress",
+    icon: FileText,
+    hint: "פרסום פוסט אוטומטי באתר וורדפרס — נדרש כתובת האתר, שם משתמש ו-Application Password (נוצר ב-Users → Profile)",
+    fields: [
+      { key: "wpUrl", label: "Site URL (https://…)" },
+      { key: "wpUser", label: "Username" },
+      { key: "wpPass", label: "Application Password" },
+    ],
+  },
 ];
 
 const EMPTY = {
@@ -82,9 +190,29 @@ export default function AutoPilot({ marketer, products, showToast }) {
             type: ch.type,
             ...(ch.type === "telegram"
               ? { botToken: ch.botToken || "", chatId: ch.chatId || "" }
-              : ch.type === "webhook"
-                ? { url: "" } // masked server-side — must be re-entered to change
-                : { pageId: ch.pageId || "", pageToken: ch.pageToken || "" }),
+              : ch.type === "webhook" || ch.type === "discord" || ch.type === "slack"
+                ? { url: ch.url || "" } // masked preview — server preserves the real value
+                : ch.type === "whatsapp"
+                  ? { phoneNumberId: ch.phoneNumberId || "", chatId: ch.chatId || "", token: ch.token || "" }
+                  : ch.type === "instagram"
+                    ? { igUserId: ch.igUserId || "", token: ch.token || "" }
+                    : ch.type === "facebook"
+                      ? { pageId: ch.pageId || "", pageToken: ch.pageToken || "" }
+                      : ch.type === "x"
+                        ? { bearer: ch.bearer || "" }
+                        : ch.type === "linkedin"
+                          ? { personUrn: ch.personUrn || "", token: ch.token || "" }
+                          : ch.type === "mastodon"
+                            ? { token: ch.token || "", instance: ch.instance || "" }
+                            : ch.type === "bluesky"
+                              ? { handle: ch.handle || "", token: ch.token || "", instance: ch.instance || "" }
+                              : ch.type === "reddit"
+                                ? { subreddit: ch.subreddit || "", clientId: ch.clientId || "", clientSecret: ch.clientSecret || "", token: ch.token || "" }
+                                : ch.type === "pinterest"
+                                  ? { boardId: ch.boardId || "", token: ch.token || "" }
+                                  : ch.type === "wordpress"
+                                    ? { wpUrl: ch.wpUrl || "", wpUser: ch.wpUser || "", wpPass: ch.wpPass || "" }
+                                    : {}),
           })),
         });
         setLogs(c.logs || []);
@@ -109,12 +237,26 @@ export default function AutoPilot({ marketer, products, showToast }) {
     setSaving(true);
     try {
       // keep only channels that have their required fields filled
+      const REQUIRED = {
+        telegram: (ch) => ch.botToken && ch.chatId,
+        webhook: (ch) => ch.url,
+        discord: (ch) => ch.url,
+        slack: (ch) => ch.url,
+        facebook: (ch) => ch.pageId && ch.pageToken,
+        instagram: (ch) => ch.igUserId && ch.token,
+        whatsapp: (ch) => ch.phoneNumberId && ch.token && ch.chatId,
+        x: (ch) => ch.bearer,
+        linkedin: (ch) => ch.personUrn && ch.token,
+        mastodon: (ch) => ch.token,
+        bluesky: (ch) => ch.handle && ch.token,
+        reddit: (ch) => ch.subreddit && ch.clientId && ch.clientSecret && ch.token,
+        pinterest: (ch) => ch.boardId && ch.token,
+        wordpress: (ch) => ch.wpUrl && ch.wpUser && ch.wpPass,
+      };
       const clean = {
         ...cfg,
         template: cfg.template || defaultTemplate(),
-        channels: cfg.channels.filter((ch) =>
-          ch.type === "telegram" ? ch.botToken && ch.chatId : ch.type === "webhook" ? ch.url : ch.pageId && ch.pageToken
-        ),
+        channels: cfg.channels.filter((ch) => REQUIRED[ch.type]?.(ch)),
       };
       const d = await saveAutoPilotConfig(marketer.id, clean);
       setLogs(d.config?.logs || []);
