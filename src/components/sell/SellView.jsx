@@ -53,6 +53,10 @@ export default function SellView({ navigate }) {
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [showCopyGen, setShowCopyGen] = useState(false);
+  const [showPayoutHistory, setShowPayoutHistory] = useState(false);
+  const [paypalModal, setPaypalModal] = useState(false);
+  const [paypalVerifyEmail, setPaypalVerifyEmail] = useState("");
+  const [paypalVerifying, setPaypalVerifying] = useState(false);
   const handleSetupComplete = (configured) => {
     onUpdateMarketer(configured);
     setShowSetupWizard(false);
@@ -84,7 +88,10 @@ export default function SellView({ navigate }) {
   const payout = getSellerPayoutSummary(sales || [], payouts || [], marketer.id, charges);
   const isBoosted = (p) => ((p && p.boostedUntil) || 0) > Date.now();
   const myNotifs = (notifications || []).filter((n) => n.marketerId === marketer.id).slice(0, 5);
-  const myPayouts = [...(payouts || [])].filter((p) => p.marketerId === marketer.id).sort((a, b) => b.ts - a.ts);
+  const myPayouts = [...(payouts || [])]
+    .filter((p) => p.marketerId === marketer.id)
+    .map((p) => ({ ...p, ts: p.ts || p.paidAt || p.createdAt || 0 }))
+    .sort((a, b) => b.ts - a.ts);
   const nextPayout = nextPayoutDate();
   const thresholdMet = payout.pendingPayout >= MIN_PAYOUT_THRESHOLD;
   const thresholdLeft = Math.max(0, MIN_PAYOUT_THRESHOLD - payout.pendingPayout);
@@ -108,6 +115,31 @@ export default function SellView({ navigate }) {
       showToast(t("sell.linkCopied"));
     } catch {
       showToast(myLink);
+    }
+  }
+
+  async function handlePayPalVerify() {
+    const email = paypalVerifyEmail.trim();
+    if (!email || !email.includes("@")) return showToast(t("sell.payPalInvalidEmail"));
+    setPaypalVerifying(true);
+    try {
+      const res = await fetch("/api/paypal/connect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ marketerId: marketer.id, email }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        onUpdateMarketer(marketer.id, { payPalEmail: email, paypalConnected: true });
+        setPaypalModal(false);
+        showToast(t("sell.payPalConnected"));
+      } else {
+        showToast(data.error || t("sell.payPalConnectFailed"));
+      }
+    } catch {
+      showToast(t("sell.payPalConnectFailed"));
+    } finally {
+      setPaypalVerifying(false);
     }
   }
 
@@ -167,19 +199,17 @@ export default function SellView({ navigate }) {
           />
           <button
             onClick={() => {
-              const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || "";
-              if (!clientId) return showToast(t("sell.payPalNotConfigured"));
-              const redirect = encodeURIComponent(window.location.href);
-              window.open(
-                `https://www.paypal.com/connect/?flowEntry=static&client_id=${clientId}&scope=email&redirect_uri=${redirect}`,
-                "_blank"
-              );
+              setPaypalVerifyEmail(marketer.payPalEmail || "");
+              setPaypalModal(true);
             }}
             className="tap w-full mt-2 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-            style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+            style={{ background: marketer.paypalConnected ? "var(--success-subtle)" : "var(--accent-subtle)", color: marketer.paypalConnected ? "var(--success)" : "var(--accent)" }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg>
-            {t("sell.payPalConnect")}
+            {marketer.paypalConnected ? (
+              <><Check size={14} /> {t("sell.payPalConnected")}</>
+            ) : (
+              <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/></svg> {t("sell.payPalConnect")}</>
+            )}
           </button>
         </>
       )}
@@ -342,6 +372,45 @@ export default function SellView({ navigate }) {
           </div>
         </div>
       )}
+
+      {/* Payout history */}
+      <div className="mb-5">
+        <button
+          onClick={() => setShowPayoutHistory((v) => !v)}
+          className="tap w-full text-left text-sm font-medium px-4 py-3 rounded-xl surface"
+          style={{ color: "var(--text)" }}
+        >
+          <div className="flex items-center justify-between">
+            <span>💸 {lang === "he" ? "היסטוריית תשלומים" : "Payout history"}</span>
+            <span style={{ color: "var(--text-muted)" }}>{showPayoutHistory ? "−" : "+"}</span>
+          </div>
+        </button>
+        {showPayoutHistory && (
+          <div className="mt-3 surface rounded-2xl p-4">
+            <p className="text-sm font-semibold mb-3">{lang === "he" ? "תשלומים אחרונים" : "Recent payouts"}</p>
+            {myPayouts.length === 0 ? (
+              <p className="text-xs text-muted">{lang === "he" ? "אין תשלומים עדיין" : "No payouts yet"}</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {myPayouts.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl surface-subtle">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: p.status === "paid" ? "var(--success-subtle)" : p.status === "failed" ? "var(--danger-subtle)" : "var(--warning-subtle)" }}>
+                      <span className="text-xs">{p.status === "paid" ? "✓" : p.status === "failed" ? "✗" : "…"}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{money(p.amount, lang)}</p>
+                      <p className="text-[10px] text-faint">{formatDate(p.ts)} · {p.method}</p>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: p.status === "paid" ? "var(--success)" : p.status === "failed" ? "var(--danger)" : "var(--warning)" }}>
+                      {p.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Why sell here — persuasive pitch, low commission, built for a quick yes */}
       <div className="rounded-2xl p-4 mb-5 brand-gradient text-white">
@@ -620,6 +689,40 @@ export default function SellView({ navigate }) {
             onClose={() => setEditingCollection(null)}
             onSave={(productIds) => { onUpdateCollection(editingCollection.id, productIds); setEditingCollection(null); }}
           />
+        )}
+        {paypalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+            <div className="surface rounded-2xl p-5 w-full max-w-sm shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold">{lang === "he" ? "חיבור PayPal" : "Connect PayPal"}</p>
+                <button onClick={() => setPaypalModal(false)} className="tap w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-muted mb-3">
+                {lang === "he"
+                  ? "הזינו את כתובת האימייל של חשבון הפייפאל שלכם. הכסף יישלח ישירות אליו כל לילה."
+                  : "Enter your PayPal account email. Money will be sent directly to it every night."}
+              </p>
+              <LabeledInput
+                label={lang === "he" ? "אימייל PayPal" : "PayPal email"}
+                value={paypalVerifyEmail}
+                onChange={(v) => setPaypalVerifyEmail(String(v).trim())}
+                placeholder="you@email.com"
+              />
+              <button
+                onClick={handlePayPalVerify}
+                disabled={paypalVerifying}
+                className="tap w-full mt-3 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 text-white"
+                style={{ background: "var(--text)" }}
+              >
+                {paypalVerifying ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                {paypalVerifying
+                  ? (lang === "he" ? "מתחבר..." : "Connecting...")
+                  : (lang === "he" ? "אשר וחבר" : "Verify & connect")}
+              </button>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </div>
