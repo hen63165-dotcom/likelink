@@ -54,63 +54,39 @@ async function fetchKv(supabaseUrl, supabaseKey, key) {
   }
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(
-      JSON.stringify({
-        error: "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-      }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json; charset=utf-8" },
-      }
-    );
+    res.status(500);
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY." }));
+    return;
   }
 
-    try {
+  try {
     const host = req.headers && (req.headers.host || req.headers["x-forwarded-host"]);
     const inferred = host ? `https://${String(host).replace(/:\d+$/, "")}` : "https://www.likelink.com";
     const origin = process.env.LIKELINK_BASE_URL || inferred;
-
     const [products, marketers] = await Promise.all([
-
       fetchKv(supabaseUrl, supabaseKey, SUPABASE_KEY),
       fetchKv(supabaseUrl, supabaseKey, MARKETERS_KEY),
     ]);
-
-    const xml = buildGoogleFeed({
-      products,
-      marketers,
-      baseUrl: origin,
-      currency: process.env.LIKELINK_CURRENCY,
-      brand: process.env.LIKELINK_BRAND,
-    });
-
-    // Careful: we compute the byte length AFTER UTF-8 encoding so Hebrew titles
-    // don't produce a wrong Content-Length (breaking the fetch in Merchant Ctr).
+    const xml = buildGoogleFeed({ products, marketers, baseUrl: origin, currency: process.env.LIKELINK_CURRENCY, brand: process.env.LIKELINK_BRAND });
     const body = toUtf8(xml);
-
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "content-type": "application/xml; charset=utf-8",
-        "content-disposition": `attachment; filename="${FEED_FILE_NAME}"`,
-        "content-length": String(body.byteLength),
-        "cache-control": "no-store",
-        "access-control-allow-origin": "*",
-      },
-    });
+    res.status(200);
+    res.setHeader("content-type", "application/xml; charset=utf-8");
+    res.setHeader("content-disposition", `attachment; filename="${FEED_FILE_NAME}"`);
+    res.setHeader("content-length", String(body.byteLength));
+    res.setHeader("cache-control", "no-store");
+    res.setHeader("access-control-allow-origin", "*");
+    res.end(body);
   } catch (error) {
     console.error("[google-feed] generation failed", error);
-    return new Response(
-      JSON.stringify({ error: `Failed to build the feed: ${error.message}` }),
-      {
-        status: 500,
-        headers: { "content-type": "application/json; charset=utf-8" },
-      }
-    );
+    res.status(500);
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: `Failed to build the feed: ${error.message}` }));
   }
+}
 }

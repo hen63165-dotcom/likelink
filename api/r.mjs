@@ -14,31 +14,27 @@
 //
 // Ported from netlify/edge-functions/r.js.
 
-function redirect(target, status = 302) {
-  return new Response(null, {
-    status,
-    headers: { Location: target, "cache-control": "no-store, max-age=0" },
-  });
+function redirect(res, target, status = 302) {
+  res.status(status);
+  res.setHeader("Location", target);
+  res.setHeader("cache-control", "no-store, max-age=0");
+  res.end();
 }
 
-export default async function handler(req) {
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(obj));
+}
+
+export default async function handler(req, res) {
   const self = new URL(req.url);
   const target = self.searchParams.get("u") || "";
-  void self.searchParams.get("ref"); // creator id — consumed for future analytics/logging
-  if (!target) return new Response("Missing destination (u).", { status: 400 });
-
+  void self.searchParams.get("ref");
+  if (!target) { res.status(400); res.end("Missing destination (u)."); return; }
   let dest;
-  try {
-    dest = new URL(target);
-  } catch {
-    return new Response("Invalid destination (u).", { status: 400 });
-  }
-  if (dest.protocol !== "http:" && dest.protocol !== "https:") {
-    return new Response("Invalid destination protocol.", { status: 400 });
-  }
-  // Prevent redirect loops back to the platform itself.
-  if (dest.origin === self.origin && dest.pathname.replace(/\/$/, "") === "/r") {
-    return new Response("Redirect loop.", { status: 400 });
-  }
-  return redirect(dest.toString(), 302);
+  try { dest = new URL(target); } catch { res.status(400); res.end("Invalid destination (u)."); return; }
+  if (dest.protocol !== "http:" && dest.protocol !== "https:") { res.status(400); res.end("Invalid destination protocol."); return; }
+  if (dest.origin === self.origin && dest.pathname.replace(/\/$/, "") === "/r") { res.status(400); res.end("Redirect loop."); return; }
+  redirect(res, dest.toString(), 302);
 }

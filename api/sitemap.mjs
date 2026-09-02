@@ -43,59 +43,24 @@ async function getProducts() {
   }
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
   const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
   const host = getH("x-forwarded-host") || getH("host") || "likelink.app";
   const origin = `${proto}://${host}`;
-
   const marketers = await getMarketers();
   const products = await getProducts();
   const now = new Date().toISOString();
-
   const urls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },
-    ...marketers
-      .filter((m) => m?.slug)
-      .map((m) => ({
-        loc: `${origin}/u/${encodeURIComponent(m.slug)}`,
-        lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now,
-        priority: "0.8",
-        changefreq: "weekly",
-      })),
-    // Public product showcase pages — every approved product is crawlable
-    // and acts as a viral entry point back to the platform.
-    ...products
-      .filter((p) => p?.id && p?.status === "approved")
-      .map((p) => ({
-        loc: `${origin}/p/${encodeURIComponent(p.id)}`,
-        lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now,
-        priority: "0.6",
-        changefreq: "daily",
-      })),
+    ...marketers.filter((m) => m?.slug).map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
+    ...products.filter((p) => p?.id && p?.status === "approved").map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
   ];
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls
-  .map(
-    (u) => `  <url>
-    <loc>${xmlEscape(u.loc)}</loc>${
-      u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ""
-    }
-    <changefreq>${u.changefreq}</changefreq>
-    <priority>${u.priority}</priority>
-  </url>`
-  )
-  .join("\n")}
-</urlset>`;
-
-  return new Response(xml, {
-    status: 200,
-    headers: {
-      "content-type": "application/xml; charset=utf-8",
-      "cache-control": "public, max-age=3600, s-maxage=3600",
-    },
-  });
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url>\n    <loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</mod>` : ""}\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join("\n")}\n</urlset>`;
+  res.status(200);
+  res.setHeader("content-type", "application/xml; charset=utf-8");
+  res.setHeader("cache-control", "public, max-age=3600, s-maxage=3600");
+  res.end(xml);
+}
 }

@@ -87,19 +87,56 @@ export function buildPayPalStandardCheckoutUrl({
 }
 
 /**
- * Groups cart items by their seller so each seller gets paid into their own
- * Business PayPal account.
+ * Creates a real PayPal checkout order server-side and returns the approval URL.
+ * The buyer is redirected to PayPal to approve, then PayPal redirects back to
+ * /api/checkout/capture-order which captures the payment and records the sale.
+ *
+ * @param {Array}  items   cart items: { title, price, quantity, productId, marketerId }
+ * @param {string} returnUrl  where PayPal redirects after approval
+ * @param {string} cancelUrl  where PayPal redirects on cancel
+ * @returns {Promise<{ ok: boolean, orderId?: string, approvalUrl?: string, mock?: boolean, error?: string }>}
  */
-export function groupCartItemsBySeller(cartItems = []) {
-  const groups = new Map();
-  for (const item of cartItems) {
-    const sellerId = item?.marketer?.id || "guest";
-    if (!groups.has(sellerId)) {
-      groups.set(sellerId, { seller: item?.marketer || null, items: [], total: 0 });
-    }
-    const group = groups.get(sellerId);
-    group.items.push(item);
-    group.total += Number(item?.product?.price || 0) * Number(item?.quantity || 1);
-  }
-  return Array.from(groups.values());
+export function createPayPalCheckout({ items = [], returnUrl = "/", cancelUrl = "/" }) {
+  return fetch("/api/checkout/create-order", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      items: items.map((it) => ({
+        title: it.product?.title || it.title || "Product",
+        price: Number(it.product?.price || it.price || 0),
+        quantity: Math.max(1, Number(it.quantity || 1)),
+        productId: it.product?.id || null,
+        marketerId: it.marketer?.id || null,
+        sellerName: it.marketer?.name || "",
+      })),
+      returnUrl,
+      cancelUrl,
+      custom: items.map((it) => `${it.marketer?.id || "guest"}:${it.product?.id || "x"}`).join(","),
+    }),
+  }).then((r) => r.json());
+}
+
+/**
+ * Captures a PayPal order after buyer approval. Server records the sale
+ * and creates pending payouts for each seller automatically.
+ *
+ * @param {string} orderId  the PayPal order ID
+ * @param {Array}  items    cart items for sale recording
+ * @returns {Promise<{ ok: boolean, captureId?: string, sales?: [], total?: string, error?: string }>}
+ */
+export function capturePayPalCheckout({ orderId, items = [] }) {
+  return fetch("/api/checkout/capture-order", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      orderId,
+      items: items.map((it) => ({
+        productId: it.product?.id || null,
+        marketerId: it.marketer?.id || null,
+        title: it.product?.title || it.title || "Product",
+        price: Number(it.product?.price || it.price || 0),
+        quantity: Math.max(1, Number(it.quantity || 1)),
+      })),
+    }),
+  }).then((r) => r.json());
 }

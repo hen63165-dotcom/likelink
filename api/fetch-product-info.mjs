@@ -11,11 +11,11 @@
 // Ported from netlify/edge-functions/fetch-product-info.js so the same
 // endpoint works on Vercel deployments too.
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.json(obj);
 }
 
 function decodeEntities(s) {
@@ -79,34 +79,33 @@ function extractPrice(html) {
   return null;
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const url = new URL(req.url);
   const target = url.searchParams.get("url") || "";
-  if (!target) return json({ ok: false, error: "missing url" });
+  if (!target) { json(res, { ok: false, error: "missing url" }); return; }
 
   let t;
-  try { t = new URL(target); } catch { return json({ ok: false, error: "invalid url" }); }
+  try { t = new URL(target); } catch { json(res, { ok: false, error: "invalid url" }); return; }
   if (t.protocol !== "http:" && t.protocol !== "https:") {
-    return json({ ok: false, error: "invalid url protocol" });
+    json(res, { ok: false, error: "invalid url protocol" }); return;
   }
 
   try {
-    const res = await fetch(t.href, {
+    const fetchRes = await fetch(t.href, {
       redirect: "follow",
       signal: AbortSignal.timeout(10000),
       headers: {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36 LikelinkBot/1.0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36 LikelinkBot/1.0",
         "accept-language": "en,he;q=0.8",
       },
     });
-    if (!res.ok) return json({ ok: false, error: `fetch failed: ${res.status}` });
-    const html = await res.text();
+    if (!fetchRes.ok) { json(res, { ok: false, error: `fetch failed: ${fetchRes.status}` }); return; }
+    const html = await fetchRes.text();
     const image = getMeta(html, "og:image") || getMeta(html, "twitter:image");
     const title = getMeta(html, "og:title") || getMeta(html, "twitter:title") || getTitleTag(html);
     const price = extractPrice(html);
-    return json({ ok: true, data: { image, title, price } });
+    json(res, { ok: true, data: { image, title, price } });
   } catch {
-    return json({ ok: false, error: "fetch or parse error" });
+    json(res, { ok: false, error: "fetch or parse error" });
   }
 }

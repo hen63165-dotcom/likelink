@@ -19,14 +19,11 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABAS
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-    },
-  });
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.json(obj);
 }
 
 async function kvGet(key, fallback = null) {
@@ -194,8 +191,8 @@ export async function processPendingPayouts() {
 
 // ─── handler ───────────────────────────────────────────────────────────────
 
-export default async function handler(req) {
-  if (req.method === "OPTIONS") return json({ ok: true });
+export default async function handler(req, res) {
+  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
 
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
@@ -207,12 +204,14 @@ export default async function handler(req) {
       url.searchParams.get("secret") === (process.env.PAYOUTS_SECRET || ""));
 
   if (isCron) {
-    if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
     try {
-      return json(await processPendingPayouts());
+      const _r = await processPendingPayouts();
+      json(res, _r);
     } catch (e) {
-      return json({ ok: false, error: String(e.message || e) }, 500);
+      json(res, { ok: false, error: String(e.message || e) }, 500);
     }
+    return;
   }
 
   if (req.method === "POST") {
@@ -220,19 +219,23 @@ export default async function handler(req) {
     try {
       body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
     } catch {
-      return json({ ok: false, error: "bad_json" }, 400);
+      json(res, { ok: false, error: "bad_json" }, 400);
+      return;
     }
     if (body?.secret !== process.env.PAYOUTS_SECRET) {
-      return json({ ok: false, error: "unauthorized" }, 401);
+      json(res, { ok: false, error: "unauthorized" }, 401);
+      return;
     }
-    if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
     try {
-      return json(await processPendingPayouts());
+      const _r = await processPendingPayouts();
+      json(res, _r);
     } catch (e) {
-      return json({ ok: false, error: String(e.message || e) }, 500);
+      json(res, { ok: false, error: String(e.message || e) }, 500);
     }
+    return;
   }
 
-  return json({ ok: false, error: "method_not_allowed" }, 405);
+  json(res, { ok: false, error: "method_not_allowed" }, 405);
 }
 

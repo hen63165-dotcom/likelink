@@ -32,7 +32,7 @@ function requestOrigin(req) {
   return `${proto}://${host}`;
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const origin = requestOrigin(req);
   const url = new URL(req.url, origin);
   const slug = url.searchParams.get("slug") || "";
@@ -43,12 +43,15 @@ export default async function handler(req) {
     try {
       const app = await fetch(`${origin}/index.html`, { redirect: "follow" });
       const html = await app.text();
-      return new Response(html, {
-        status: 200,
-        headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=0, must-revalidate" },
-      });
+      res.status(200);
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.setHeader("cache-control", "public, max-age=0, must-revalidate");
+      res.end(html);
+      return;
     } catch {
-      return new Response(null, { status: 302, headers: { Location: "/" } });
+      res.writeHead(302, { Location: "/" });
+      res.end();
+      return;
     }
   }
 
@@ -109,5 +112,7 @@ export default async function handler(req) {
 <body></body>
 </html>`;
 
-  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  res.status(200);
+  res.setHeader("content-type", "text/html; charset=utf-8");
+  res.end(html);
 }

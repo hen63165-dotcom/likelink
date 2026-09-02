@@ -84,59 +84,60 @@ export async function sendPushToMarketer(marketerId, payload) {
   }
 }
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
-    },
-  });
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-allow-methods", "POST, OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type");
+  res.json(obj);
 }
 
-export default async function handler(req) {
-  if (req.method === "OPTIONS") return json({ ok: true });
+export default async function handler(req, res) {
+  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
 
   if (req.method === "GET") {
     const url = new URL(req.url, "https://x");
     if (url.searchParams.get("publicKey")) {
-      if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+      if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
       const keys = await ensureVapidKeys();
-      return json({ ok: true, publicKey: keys.publicKey });
+      json(res, { ok: true, publicKey: keys.publicKey });
+      return;
     }
-    return json({ ok: false, error: "bad_request" }, 400);
+    json(res, { ok: false, error: "bad_request" }, 400);
+    return;
   }
 
-  if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
 
   let body;
   try {
     body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
   } catch {
-    return json({ ok: false, error: "bad_json" }, 400);
+    json(res, { ok: false, error: "bad_json" }, 400);
+    return;
   }
 
   const { mode, marketerId, subscription } = body || {};
   if (!marketerId || !subscription?.endpoint) {
-    return json({ ok: false, error: "missing_fields" }, 400);
+    json(res, { ok: false, error: "missing_fields" }, 400);
+    return;
   }
-  if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
 
   if (mode === "subscribe") {
     const subs = await kvGet(SUBS_KEY, {});
     const list = Array.isArray(subs[marketerId]) ? subs[marketerId] : [];
-    // dedupe by endpoint
     subs[marketerId] = [...list.filter((s) => s.endpoint !== subscription.endpoint), subscription].slice(-5);
     try {
       await kvSet(SUBS_KEY, subs);
-      return json({ ok: true });
+      json(res, { ok: true });
     } catch (e) {
-      return json({ ok: false, error: String(e.message || e) }, 500);
+      json(res, { ok: false, error: String(e.message || e) }, 500);
     }
+    return;
   }
 
-  return json({ ok: false, error: "unknown_mode" }, 400);
+  json(res, { ok: false, error: "unknown_mode" }, 400);
 }

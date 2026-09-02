@@ -5,8 +5,7 @@ import { useCart } from "../../context/CartContext";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
 import {
-  buildPayPalStandardCheckoutUrl,
-  groupCartItemsBySeller,
+  createPayPalCheckout,
 } from "../../lib/paymentFlow";
 
 export function Cart() {
@@ -14,48 +13,42 @@ export function Cart() {
 
   const { t } = useI18n();
 
-  function handleCheckout() {
-    const groups = groupCartItemsBySeller(items);
-    if (groups.length === 0) return;
-
+  async function handleCheckout() {
+    if (items.length === 0) return;
     const origin = window.location.origin;
-    let opened = 0;
-    let missing = 0;
+    const returnUrl = `${origin}/api/checkout/capture-order`;
+    const cancelUrl = `${origin}/`;
 
-    for (const group of groups) {
-      const url = buildPayPalStandardCheckoutUrl({
-        payPalEmail: group.seller?.payPalEmail,
-        itemName:
-          group.items.length > 1
-            ? `${group.seller?.name || "Store"} × ${group.items.length}`
-            : group.items[0]?.product?.title || "Order",
-        amount: group.total,
-        currency: "ILS",
-        custom: `seller:${group.seller?.id || "guest"}`,
-        returnUrl: origin + "/",
-        cancelReturnUrl: origin + "/",
-      });
-
-      if (!url) {
-        missing += 1;
-        continue;
+    try {
+      const result = await createPayPalCheckout({ items, returnUrl, cancelUrl });
+      if (result.ok && result.approvalUrl) {
+        // Redirect buyer to PayPal for approval
+        window.location.href = result.approvalUrl;
+      } else if (result.mock) {
+        // Development mode — no PayPal credentials configured
+        alert(
+          t(
+            "cart.mockCheckout",
+            `Mock checkout (no PayPal credentials): Total ${result.total} ILS for ${items.length} items. In production, buyer would be redirected to PayPal.`
+          )
+        );
+        clearCart();
+        setIsOpen(false);
+      } else {
+        alert(
+          t(
+            "cart.checkoutError",
+            `Checkout initialization failed: ${result.error || "unknown error"}`
+          )
+        );
       }
-      window.open(url, "_blank", "noopener");
-      opened += 1;
-    }
-
-    if (missing > 0) {
+    } catch (e) {
       alert(
         t(
-          "cart.paypalMissing",
-          "חלק מהיוצרים בעגלה עוד לא חיברו PayPal — ניתן לשלם רק עבור היוצרים שחיברו"
+          "cart.networkError",
+          "Network error connecting to payment service. Please try again."
         )
       );
-    }
-
-    if (opened > 0) {
-      clearCart();
-      setIsOpen(false);
     }
   }
 
