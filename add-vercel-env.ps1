@@ -1,5 +1,9 @@
-# Adds the required client env vars to the linked Vercel project ("likelink2").
+# Adds the required environment variables to the linked Vercel project.
 # Values are read automatically from the local .env file - nothing to paste.
+#
+# SECURITY: ADMIN_CODE + ADMIN_SESSION_SECRET are SERVER-ONLY (used by
+# /api/admin/auth). They must NOT be VITE_-prefixed. If an old VITE_ADMIN_CODE
+# still exists in .env or in Vercel, remove it.
 #
 # Run from the project root:
 #   powershell -ExecutionPolicy Bypass -File .\add-vercel-env.ps1
@@ -18,8 +22,18 @@ Get-Content -Path (Join-Path $PSScriptRoot ".env") | ForEach-Object {
     }
 }
 
-$wanted  = @('VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_ADMIN_CODE')
+# Client (public by design) + server-only admin secrets.
+$wanted  = @('VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'ADMIN_CODE', 'ADMIN_SESSION_SECRET')
 $targets = @('production', 'preview')
+
+# SECURITY CHECK: never push a VITE_-prefixed admin code (it is public).
+if ($vars['VITE_ADMIN_CODE']) {
+    Write-Host "`nSECURITY WARNING: VITE_ADMIN_CODE exists in .env. It is PUBLIC (baked into JS) and will NOT be added." -ForegroundColor Red
+    Write-Host "Remove it from .env and from Vercel, and use ADMIN_CODE instead: it is checked server-side by /api/admin/auth." -ForegroundColor Yellow
+}
+if (-not $vars['ADMIN_CODE']) {
+    Write-Host "`nNOTE: ADMIN_CODE is not defined in .env. The admin panel will stay locked (server returns 503) until it is set in Vercel." -ForegroundColor Yellow
+}
 
 # 2. Push each variable to Vercel
 $failed = 0

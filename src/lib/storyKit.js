@@ -278,10 +278,13 @@ export async function buildStoryImage({ title, price = 0, image, storeName = "",
     ctx.fillText(`₪${price}`, W / 2, ty + Math.round(H * 0.02));
   }
 
-  // CTA + מיתוג
+  // CTA + מיתוג ויראלי (כל סטורי שנשמר מחותם במותג — מי שרואה, רוצה את זה)
   ctx.font = `600 ${Math.round(W * 0.043)}px 'Heebo', sans-serif`;
   ctx.fillStyle = pal.cta;
-  ctx.fillText("קנייה בטוחה בקליק · Likelink 💜", W / 2, H - Math.round(H * 0.073));
+  ctx.fillText("קנייה בטוחה בקליק · Likelink 💜", W / 2, H - Math.round(H * 0.09));
+  ctx.font = `500 ${Math.round(W * 0.029)}px 'Heebo', sans-serif`;
+  ctx.fillStyle = pal.price;
+  ctx.fillText("נוצר בסטודיו של Likelink · likelink2.app", W / 2, H - Math.round(H * 0.038));
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }

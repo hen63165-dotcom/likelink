@@ -20,6 +20,7 @@ import FloatingAIHelper from "./components/FloatingAIHelper";
 const FeedView = lazy(() => import("./components/feed/FeedView"));
 const SellView = lazy(() => import("./components/sell/SellView"));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
+const ProductShowcase = lazy(() => import("./components/public/ProductShowcase"));
 const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
 // TEMPORARY diagnostic page (raw data dump) — remove together with RawDataDump.jsx
@@ -113,6 +114,20 @@ function App() {
             setLang={setLang}
             currentSellerId={settings?.currentSellerId || null}
           />
+        </Suspense>
+        <Toast message={toast?.msg} />
+      </AppShell>
+    );
+  }
+
+  // Product Showcase Route — every shared product gets a public, viral page
+  if (route.type === "product") {
+    const product = products.find((p) => p.id === route.id);
+    const owner = product ? marketers.find((m) => m.id === product.marketerId) : null;
+    return (
+      <AppShell>
+        <Suspense fallback={<LoadingScreen />}>
+          <ProductShowcase product={product} owner={owner} navigate={navigate} />
         </Suspense>
         <Toast message={toast?.msg} />
       </AppShell>

@@ -1,13 +1,15 @@
-import React, { useState, useMemo, lazy, Suspense } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { Lock, Users, ShoppingBag, MousePointerClick, DollarSign, Check, Flag, Trash2, CircleAlert } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
 import { StatChip, EmptyState, Button } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
-import { ADMIN_CODE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys";
+
 import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
 import PayoutsSection from "./PayoutsSection";
+import GrowthEnginePanel from "./GrowthEnginePanel";
+import { adminLogin, verifyAdminToken, adminLogout } from "../../lib/adminAuth";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
 const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
@@ -20,7 +22,39 @@ export default function AdminView() {
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [section, setSection] = useState("overview");
+
+  // Restore a valid server-issued admin session on mount (8h TTL token).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const t = sessionStorage.getItem("ll_admin_token");
+        if (t && (await verifyAdminToken(t))) {
+          if (alive) setUnlocked(true);
+        }
+      } catch { /* noop */ }
+      if (alive) setChecking(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function submitCode() {
+    if (busy) return;
+    setBusy(true);
+    setErr("");
+    const res = await adminLogin(code);
+    setBusy(false);
+    if (res.ok) {
+      try { sessionStorage.setItem("ll_admin_token", res.token); } catch { /* noop */ }
+      setUnlocked(true);
+      setCode("");
+    } else {
+      setErr(res.reason === "server_not_configured" ? t("admin.notConfigured") : t("admin.incorrect"));
+    }
+  }
   
   const topIds = useMemo(() => getTopCreatorIds(products), [products]);
 
@@ -45,6 +79,17 @@ export default function AdminView() {
 
   const feedEndpoint = `${window.location.origin}/api/google-feed`;
 
+  if (checking) {
+    return (
+      <div className="pt-10 flex flex-col items-center text-center px-4">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 surface shadow-sm">
+          <Lock size={24} style={{ color: "var(--text)" }} />
+        </div>
+        <p className="text-sm text-muted mt-2">{t("admin.accessTitle")}…</p>
+      </div>
+    );
+  }
+
   if (!unlocked) {
     return (
       <div className="pt-10 flex flex-col items-center text-center px-4">
@@ -54,22 +99,23 @@ export default function AdminView() {
         <p className="disp text-xl font-semibold">{t("admin.accessTitle")}</p>
         <p className="text-sm text-muted mt-2 max-w-[280px]">{t("admin.accessSubtitle")}</p>
         
-        <div className="w-full mt-6 flex flex-col gap-3">
+        <form className="w-full mt-6 flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); submitCode(); }}>
           <input 
             value={code} 
             onChange={(e) => { setCode(e.target.value); setErr(""); }} 
             type="password" 
             placeholder={t("admin.accessCodePh")} 
+            autoComplete="current-password"
             className="input-field w-full rounded-xl px-4 py-3 text-sm text-center font-mono tracking-widest" 
           />
           {err && <p className="text-xs flex items-center justify-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
-          <Button onClick={() => (ADMIN_CODE && code === ADMIN_CODE ? setUnlocked(true) : setErr(t("admin.incorrect")))}>
-            {t("admin.unlock")}
+          <Button type="submit" disabled={busy || !code.trim()}>
+            {busy ? "…" : t("admin.unlock")}
           </Button>
-        </div>
-        {!ADMIN_CODE ? (
-          <p className="text-[11px] text-faint mt-4 leading-relaxed max-w-[280px]">{t("admin.notConfigured")}</p>
-        ) : null}
+        </form>
+        <p className="text-[11px] text-faint mt-4 leading-relaxed max-w-[300px]">
+          {L("הקוד מאומת מול השרת בלבד (לעולם לא נשלח לדפדפן).", "Verified server-side only (never shipped to the browser).")}
+        </p>
       </div>
     );
   }
@@ -84,7 +130,8 @@ export default function AdminView() {
           { id: "overview", l: t("admin.overview") }, 
           { id: "listings", l: t("admin.listings") }, 
           { id: "creators", l: t("admin.creators") },
-          { id: "payouts", l: L("תשלומים", "Payouts") }
+          { id: "payouts", l: L("תשלומים", "Payouts") },
+          { id: "growth", l: L("🚀 גיוס", "Growth") }
         ].map((s) => (
           <button 
             key={s.id} 
@@ -206,6 +253,19 @@ export default function AdminView() {
       {section === "payouts" && (
         <PayoutsSection />
       )}
+      {section === "growth" && (
+        <GrowthEnginePanel />
+      )}
+
+      <div className="mt-8 flex justify-center">
+        <button 
+          type="button"
+          onClick={() => { adminLogout(); setUnlocked(false); }}
+          className="tap text-[11px] font-semibold text-faint hover:opacity-70 transition-opacity"
+        >
+          {L("יציאה מפאנל הניהול", "Sign out")}
+        </button>
+      </div>
     </div>
   );
 }

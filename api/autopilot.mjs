@@ -607,6 +607,8 @@ function priceDropCaption(product, listed, live, pct, link) {
     `ככה זה כשקונים חכם 😌`,
     `לפני שהמחיר חוזר 👉 ${link}`,
     tags,
+    ``,
+    `המחיר ירד לבד · הפוסט יצא לבד · נוצר בתוך Likelink 💜`,
   ].join("\n");
 }
 
@@ -683,6 +685,81 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
   return { ok: results.some((r) => r.ok), results };
 }
 
+// ─── ✨ Brand Pulse — הפרסום העצמי של הפלטפורמה ────────────────────────────
+// כשהקרון/ה-Swarm רצים, גם בלי יוצרת ספציפית, המערכת מפרסמת מדי 24 שעות
+// את "סיפור המערכת" של Likelink לערוצי המותג שהבעלים הגדיר (Telegram/Webhook):
+//   BRAND_TELEGRAM_BOT = bot token   ·   BRAND_TELEGRAM_CHAT = chat/id
+//   BRAND_WEBHOOK_URL  = Make/Zapier/n8n webhook (אופציונלי)
+// הטקסט תמיד בעברית, תמיד עם לינק חזרה ל-likelink2.app (כולל UTM), וכל פוסט
+// מספר את אותו סיפור: "החנות מפרסמת לבד — וזה קורה בתוך Likelink". זהו מעגל
+// שיווקי עצמי שנמשך בלי שאף אחד יגע בדבר.
+
+const BRAND_PULSE_KEY = "brand_pulse:meta";
+const BRAND_PULSE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // פעם ביום
+
+const BRAND_PULSE_STORIES_HE = [
+  [
+    "🤖 אפס עבודה, חנות מלאה.",
+    "מוכרת אחת עלתה ל-Likelink אתמול: הדביקה לינק אחד, בחרה סגנון, ולחצה 'פרסם'.",
+    "היום המערכת שלחה לבד את הפוסט לערוצים שלה, תייגה את ההאשטגים הנכונים, וספרה לה את הקליקים.",
+    "בלי CapCut. בלי צילומי וידאו. בלי ידע טכני.",
+  ].join("\n"),
+  [
+    "💜 מה הופך חנות סטודיו לחנות 'שרצה לבד'?",
+    "ב-Likelink כל מוצר מקבל עמוד ציבורי יפה, כל קליק נספר, כל מכירה מתועדת.",
+    "הפרסום יוצא אוטומטית בעברית לכל הרשתות, וירידת מחיר? המערכת מפרסמת עליה ברק.",
+    "היצירה עושה את שלה — הפלטפורמה עושה את כל השאר.",
+  ].join("\n"),
+  [
+    "🚀 אזהרה: התחרות בפתיחת סטודיו רק הולכת לגדול.",
+    "מי שכבר בתוך Likelink מתעוררת לחנות שיודעת לפרסם, לעקוב ולשלם לבד.",
+    "הסטודיו שלך יכול להיות הבא — חמש דקות, לינק אחד, והמכונה עובדת.",
+  ].join("\n"),
+];
+
+async function publishBrandPulse(origin) {
+  if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
+  const store = await kvGet(KV_KEY);
+  const meta = store[BRAND_PULSE_KEY] || {};
+  if (Date.now() - (meta.ts || 0) < BRAND_PULSE_COOLDOWN_MS) return { ok: false, skipped: "cooldown" };
+
+  const channels = [];
+  if (process.env.BRAND_TELEGRAM_BOT && process.env.BRAND_TELEGRAM_CHAT) {
+    channels.push({ type: "telegram", botToken: process.env.BRAND_TELEGRAM_BOT, chatId: process.env.BRAND_TELEGRAM_CHAT });
+  }
+  if (process.env.BRAND_WEBHOOK_URL) {
+    channels.push({ type: "webhook", url: process.env.BRAND_WEBHOOK_URL });
+  }
+  if (!channels.length) return { ok: false, skipped: "no_brand_channels" };
+
+  const story = BRAND_PULSE_STORIES_HE[(meta.run || 0) % BRAND_PULSE_STORIES_HE.length];
+  const link = `${origin}/?utm_source=brandpulse&utm_medium=autopilot&utm_campaign=self_marketing`;
+  const text = `${story}\n\n💜 פותחים סטודיו חינם · ${link}`;
+
+  const results = [];
+  for (const ch of channels) {
+    try {
+      if (ch.type === "telegram") {
+        await sendTelegram(ch, text);
+      } else if (ch.type === "webhook") {
+        await sendWebhook(ch, { text, source: "likelink-brand-pulse", link });
+      }
+      results.push({ channel: ch.type, ok: true });
+    } catch (e) {
+      results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+    }
+  }
+
+  const anyOk = results.some((r) => r.ok);
+  if (anyOk) {
+    try {
+      store[BRAND_PULSE_KEY] = { ts: Date.now(), run: (meta.run || 0) + 1 };
+      await kvSet(KV_KEY, stripRuntime(store));
+    } catch { /* best-effort */ }
+  }
+  return { ok: anyOk, results };
+}
+
 // Runs every enabled automation whose slot is due. Shared by the Vercel cron
 // and the "tick" mode (browsers ping it on visits, so scheduled posts go out
 // on time even on the Hobby plan, where crons fire only once a day).
@@ -707,6 +784,14 @@ async function runDue(origin) {
   try {
     await kvSet(KV_KEY, stripRuntime(store));
   } catch { /* best-effort */ }
+
+  // Self-marketing engine: once a day, tell the world the platform story.
+  // Runs even when no creator is due — so the site markets itself in the
+  // background, through the same channels the owner configured for the brand.
+  try {
+    await publishBrandPulse(origin);
+  } catch { /* never let brand pulse break the main run */ }
+
   return { ok: true, ran };
 }
 

@@ -1,6 +1,7 @@
-// Admin access code is read from the environment so it is never baked into
-// the shipped bundle. If it is unset, the admin panel stays locked.
-export const ADMIN_CODE = import.meta.env.VITE_ADMIN_CODE || "";
+// SECURITY: the admin passcode intentionally does NOT live here. It is read
+// server-side only (ADMIN_CODE env var → POST /api/admin/auth), so it can
+// never be bundled into the public JS that ships to browsers. Since the
+// VITE_ prefix is public, an old VITE_ADMIN_CODE must NOT be added to Vercel.
 
 // ─── Platform URL ──────────────────────────────────────────────────────────
 export const PLATFORM_URL = window.location.origin;
