@@ -713,6 +713,12 @@ const BRAND_PULSE_STORIES_HE = [
     "מי שכבר בתוך Likelink מתעוררת לחנות שיודעת לפרסם, לעקוב ולשלם לבד.",
     "הסטודיו שלך יכול להיות הבא — חמש דקות, לינק אחד, והמכונה עובדת.",
   ].join("\n"),
+  [
+    "🎬 הייתי בטוחה שצריך שעות וימים ומדריכי עריכה כדי להרים עסק ברשת...",
+    "עד שגיליתי שזה רץ לבד 💜",
+    "לוחצים כפתור אחד — והמערכת בונה סטורי, מפרסמת לערוצים, סופרת קליקים ומעבירה ל-PayPal.",
+    "בלי CapCut. בלי לערוך. בלי לגעת. זה הסרטון שהייתי צריכה לראות לפני שנה.",
+  ].join("\n"),
 ];
 
 async function publishBrandPulse(origin) {
@@ -829,6 +835,40 @@ export default async function handler(req) {
   if (mode === "tick") {
     if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
     return json(await runDue(origin));
+  }
+
+  // Public social-proof feed — no secret, no marketerId. Returns the latest
+  // auto-published activity (product title + channels + event) so the site
+  // can show a live "everything runs by itself" ticker to every visitor.
+  // This is the on-site viral loop: real activity, happening visibly.
+  if (mode === "public-feed") {
+    let events = [];
+    try {
+      if (SB_URL && SB_KEY) {
+        const [store, productsRow] = await Promise.all([
+          kvGet(KV_KEY),
+          kvGet("marketplace:products"),
+        ]);
+        const productsList = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
+        const titleOf = (id) => (productsList.find((p) => p.id === id) || {}).title || null;
+        for (const cfg of Object.values(store || {})) {
+          if (!cfg || typeof cfg !== "object" || !Array.isArray(cfg.logs)) continue;
+          for (const log of cfg.logs) {
+            if (!log || typeof log !== "object" || !log.ts) continue;
+            events.push({
+              ts: log.ts,
+              ok: Boolean(log.ok),
+              channels: String(log.channel || ""),
+              event: log.event === "price_drop" ? "price_drop" : "autopost",
+              product: titleOf(log.productId) || null,
+            });
+          }
+        }
+        events.sort((a, b) => b.ts - a.ts);
+        events = events.slice(0, 12);
+      }
+    } catch { /* best-effort */ }
+    return json({ ok: true, events });
   }
 
   if (!marketerId) return json({ ok: false, error: "missing_marketerId" }, 400);

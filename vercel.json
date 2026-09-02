@@ -22,6 +22,7 @@
     { "source": "/google-feed.xml", "destination": "/api/google-feed" },
     { "source": "/r", "destination": "/api/r" },
     { "source": "/u/:slug", "destination": "/api/creator-og?slug=:slug" },
+    { "source": "/p/:id", "destination": "/api/product-og?id=:id" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

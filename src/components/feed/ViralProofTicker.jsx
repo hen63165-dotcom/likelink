@@ -1,0 +1,86 @@
+import { useEffect, useState } from "react";
+import { useI18n } from "../../lib/LangContext";
+
+const FALLBACK_LINES = [
+  { icon: "🤖", text: "הקמפיינים רצים לבד — אפס עבודה, אפס קליקים ידניים" },
+  { icon: "⚡", text: "ירידת מחיר? הפוסט יוצא מיד. לבד." },
+  { icon: "💜", text: "הסטודיו הזה מתנהל לבד — גם שלך יכול" },
+  { icon: "🏆", text: "תחרות ה-XP מניעה את כל הסטודיו" },
+  { icon: "🛍️", text: "הכל בקליק אחד: פוסט, מעקב, PayPal" },
+];
+
+/**
+ * ViralProofTicker — live social-proof strip on the feed.
+ * Polls POST /api/autopilot {mode:"public-feed"} and shows the platform's
+ * real automatic activity ("Likelink just auto-posted X to Telegram ✦").
+ * When nothing real yet, falls back to evergreen hooks that scream
+ * "everything runs by itself". Every visitor sees the machine working.
+ */
+export default function ViralProofTicker() {
+  const { lang } = useI18n();
+  const [lines, setLines] = useState(FALLBACK_LINES);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch("/api/autopilot", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode: "public-feed" }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!alive || !Array.isArray(data.events)) return;
+        const items = data.events
+          .filter((e) => e.ok && e.product)
+          .slice(0, 6)
+          .map((e) => ({
+            icon: e.event === "price_drop" ? "⚡" : "🤖",
+            text:
+              e.event === "price_drop"
+                ? `פרסום רשף על ${e.product} נשלח לבד · ${e.channels}`
+                : `המערכת פרסמה את ${e.product} אוטומטית · ${e.channels}`,
+          }));
+        if (items.length) setLines([...items, ...FALLBACK_LINES.slice(0, 2)]);
+      } catch { /* offline-safe */ }
+    }
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  const row = [...lines, ...lines]; // duplicate for a seamless loop
+
+  return (
+    <div
+      className="mb-5 rounded-xl overflow-hidden"
+      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+    >
+      <div className="flex items-center gap-1.5 px-3 pt-2">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--success)" }} />
+          <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "var(--success)" }} />
+        </span>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted">
+          {lang === "he" ? "חי · פעילות אוטומטית בפלטפורמה" : "LIVE · automatic platform activity"}
+        </p>
+      </div>
+      <div className="overflow-hidden py-2">
+        <div className="ll-marquee flex gap-8 whitespace-nowrap ps-4">
+          {row.map((l, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+              <span>{l.icon}</span> {l.text} <span className="text-faint">✦</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        .ll-marquee { animation: ll-marquee 34s linear infinite; width: max-content; }
+        @keyframes ll-marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+      `}</style>
+    </div>
+  );
+}

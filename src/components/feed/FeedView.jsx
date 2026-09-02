@@ -11,6 +11,7 @@ import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
 import { ScreenshotSearchModal } from "../search/ScreenshotSearchModal";
+import ViralProofTicker from "./ViralProofTicker";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -211,6 +212,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         <p className="disp text-base font-semibold">{t("feed.heroTitle")}</p>
         <p className="text-xs text-muted mt-1">{t("feed.heroSub")}</p>
       </motion.div>
+
+      {/* Live social proof — the platform broadcasting "it runs itself" */}
+      <ViralProofTicker />
 
       {aiDiscovery.length > 0 && (
         <section className="mb-6">
