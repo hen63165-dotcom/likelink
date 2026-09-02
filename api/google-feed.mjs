@@ -89,4 +89,3 @@ export default async function handler(req, res) {
     res.end(JSON.stringify({ error: `Failed to build the feed: ${error.message}` }));
   }
 }
-}

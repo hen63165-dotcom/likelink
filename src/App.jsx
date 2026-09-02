@@ -23,8 +23,6 @@ const AdminView = lazy(() => import("./components/admin/AdminView"));
 const ProductShowcase = lazy(() => import("./components/public/ProductShowcase"));
 const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
-// TEMPORARY diagnostic page (raw data dump) — remove together with RawDataDump.jsx
-const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
 export default function AppRoot() {
   useEffect(() => {
     installGlobalErrorHealing();
@@ -80,15 +78,6 @@ function App() {
   function navigate(path) {
     window.history.pushState({}, "", path);
     setRoute(parsePath(path));
-  }
-
-  // TEMPORARY: raw-storage diagnostic page (/#dbg). Remove with RawDataDump.jsx
-  if (window.location.hash === "#dbg") {
-    return (
-      <Suspense fallback={<LoadingScreen />}>
-        <RawDataDump />
-      </Suspense>
-    );
   }
 
   if (loading) return <LoadingScreen />;

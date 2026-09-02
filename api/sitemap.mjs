@@ -63,4 +63,3 @@ export default async function handler(req, res) {
   res.setHeader("cache-control", "public, max-age=3600, s-maxage=3600");
   res.end(xml);
 }
-}
