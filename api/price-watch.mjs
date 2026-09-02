@@ -51,11 +51,11 @@ async function kvSet(key, value) {
   if (!res.ok) throw new Error(`kv_upsert_failed_${res.status}`);
 }
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.json(obj);
 }
 
 // ─── price extraction (same logic as api/fetch-product-info.mjs) ────────────
@@ -136,7 +136,7 @@ async function fetchLivePrice(url) {
   }
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
   const url = new URL(req.url, "https://x");
@@ -145,8 +145,8 @@ export default async function handler(req) {
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === (process.env.PRICE_WATCH_SECRET || ""));
 
-  if (!isCron) return json({ ok: false, error: "unauthorized" }, 401);
-  if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+  if (!isCron) { json(res, { ok: false, error: "unauthorized" }, 401); return; }
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
 
   const [productsRow, history, notifsRow, announcedRow] = await Promise.all([
     kvGet("marketplace:products", []),
@@ -232,7 +232,7 @@ export default async function handler(req) {
     }
   } catch { /* web-push not installed yet — notifications still saved in-app */ }
 
-  return json({
+  json(res, {
     ok: true,
     checked: checked.length,
     results: checked,

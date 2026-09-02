@@ -22,17 +22,14 @@ const MAX_LOGS_PER_CREATOR = 40;
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "POST, OPTIONS",
-      "access-control-allow-headers": "content-type",
-    },
-  });
+function json(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-allow-methods", "POST, OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type");
+  res.json(obj);
 }
 
 // ─── kv storage (same conventions as src/lib/storage.js) ───────────────────
@@ -800,8 +797,8 @@ async function runDue(origin) {
   return { ok: true, ran };
 }
 
-export default async function handler(req) {
-  if (req.method === "OPTIONS") return json({ ok: true });
+export default async function handler(req, res) {
+  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
 
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
@@ -816,16 +813,17 @@ export default async function handler(req) {
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === (process.env.AUTOPILOT_SECRET || ""));
 
-  if (isCron) return json(await runDue(origin));
+  if (isCron) { const _r = await runDue(origin); json(res, _r); return; }
 
   // ── Studio API ──
-  if (req.method !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
 
   let body;
   try {
     body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
   } catch {
-    return json({ ok: false, error: "bad_json" }, 400);
+    json(res, { ok: false, error: "bad_json" }, 400);
+    return;
   }
 
   const { mode, marketerId } = body || {};
@@ -834,8 +832,10 @@ export default async function handler(req) {
   // Needs no secrets and no marketerId: it only publishes what creators
   // already scheduled. Must run BEFORE the marketerId check (tick sends none).
   if (mode === "tick") {
-    if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
-    return json(await runDue(origin));
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
+    const _r2 = await runDue(origin);
+    json(res, _r2);
+    return;
   }
 
   // Public social-proof feed — no secret, no marketerId. Returns the latest
@@ -869,17 +869,19 @@ export default async function handler(req) {
         events = events.slice(0, 12);
       }
     } catch { /* best-effort */ }
-    return json({ ok: true, events });
+    json(res, { ok: true, events });
+    return;
   }
 
-  if (!marketerId) return json({ ok: false, error: "missing_marketerId" }, 400);
-  if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
+  if (!marketerId) { json(res, { ok: false, error: "missing_marketerId" }, 400); return; }
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
 
   const store = await kvGet(KV_KEY);
 
   if (mode === "get") {
     const cfg = store[marketerId] || null;
-    return json({ ok: true, config: cfg ? publicCfg(cfg) : null });
+    json(res, { ok: true, config: cfg ? publicCfg(cfg) : null });
+    return;
   }
 
   if (mode === "save") {
@@ -887,15 +889,16 @@ export default async function handler(req) {
     store[marketerId] = sanitizeConfig(prev, body.config || {});
     try {
       await kvSet(KV_KEY, stripRuntime(store));
-      return json({ ok: true, config: publicCfg(store[marketerId]) });
+      json(res, { ok: true, config: publicCfg(store[marketerId]) });
     } catch (e) {
-      return json({ ok: false, error: String(e.message || e) }, 500);
+      json(res, { ok: false, error: String(e.message || e) }, 500);
     }
+    return;
   }
 
   if (mode === "run") {
     const cfg = store[marketerId];
-    if (!cfg) return json({ ok: false, error: "not_configured" }, 404);
+    if (!cfg) { json(res, { ok: false, error: "not_configured" }, 404); return; }
     const [marketersRow, productsRow] = await Promise.all([
       kvGet("marketplace:marketers"),
       kvGet("marketplace:products"),
@@ -906,10 +909,11 @@ export default async function handler(req) {
     try {
       await kvSet(KV_KEY, stripRuntime(store));
     } catch { /* log persistence best-effort */ }
-    return json({ ...r, config: publicCfg(cfg) });
+    json(res, { ...r, config: publicCfg(cfg) });
+    return;
   }
 
-  return json({ ok: false, error: "unknown_mode" }, 400);
+  json(res, { ok: false, error: "unknown_mode" }, 400);
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
