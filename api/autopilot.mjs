@@ -103,8 +103,6 @@ const ANGLES_HE = [
   (n) => `🤍 קלאסיקה שמתאימה להכל: ${n}`,
   (n) => `📸 חזר למלאי לפי בקשות: ${n}`,
 ];
-  (n) => `📸 חזר למלאי לפי בקשות: ${n}`,
-];
 
 // ─── 2026 hook upgrade: curiosity-gap + urgency + social-proof angles ──────
 // מבוסס דפוסי שיווק עדכניים: FOMO, סקרנות (curiosity gap), הוכחה חברתית,

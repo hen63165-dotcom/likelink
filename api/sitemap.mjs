@@ -28,6 +28,21 @@ async function getMarketers() {
   }
 }
 
+async function getProducts() {
+  if (!SB_URL || !SB_KEY) return [];
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:products")}&select=value`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    const rows = await res.json();
+    const v = rows?.[0]?.value ? JSON.parse(rows[0].value) : [];
+    return Array.isArray(v) ? v : Object.values(v || {});
+  } catch {
+    return [];
+  }
+}
+
 export default async function handler(req) {
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
@@ -36,6 +51,7 @@ export default async function handler(req) {
   const origin = `${proto}://${host}`;
 
   const marketers = await getMarketers();
+  const products = await getProducts();
   const now = new Date().toISOString();
 
   const urls = [
@@ -47,6 +63,16 @@ export default async function handler(req) {
         lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now,
         priority: "0.8",
         changefreq: "weekly",
+      })),
+    // Public product showcase pages — every approved product is crawlable
+    // and acts as a viral entry point back to the platform.
+    ...products
+      .filter((p) => p?.id && p?.status === "approved")
+      .map((p) => ({
+        loc: `${origin}/p/${encodeURIComponent(p.id)}`,
+        lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now,
+        priority: "0.6",
+        changefreq: "daily",
       })),
   ];
 
