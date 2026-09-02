@@ -64,7 +64,14 @@ async function getPayPalAccessToken() {
   const id = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_CLIENT_SECRET;
   if (!id || !secret) return null;
-  const base = String(secret).includes("sandbox") ? SANDBOX_API : PAYPAL_API;
+  // Endpoint selection: PAYPAL_ENV=live forces production. Otherwise the
+  // credential is auto-detected — PayPal sandbox secrets contain "sandbox".
+  const base =
+    String(process.env.PAYPAL_ENV || "").trim().toLowerCase() === "live"
+      ? PAYPAL_API
+      : String(secret).includes("sandbox")
+        ? SANDBOX_API
+        : PAYPAL_API;
   const res = await fetch(`${base}/v1/oauth2/token`, {
     method: "POST",
     headers: {
@@ -229,4 +236,3 @@ export default async function handler(req) {
   return json({ ok: false, error: "method_not_allowed" }, 405);
 }
 
-}

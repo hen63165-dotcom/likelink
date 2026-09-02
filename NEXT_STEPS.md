@@ -103,10 +103,12 @@ curl -X POST "https://<הדומיין שלך>.vercel.app/api/payouts/process?sec
 ```
 
 ### מה צריך להיות מוגדר ב-Vercel
+רשימה מלאה עם הסברים: `.env.example`. המשתנים הרלוונטיים ל-worker:
 | משתנה | למה |
 |---|---|
-| `VITE_PAYPAL_CLIENT_ID` | מזהה הלקוח של PayPal (ממשק החיבור + ה-worker) |
-| `PAYPAL_CLIENT_SECRET` | סוד PayPal — אם מתחיל ב-"sandbox" ישלח לסנדבוקס, אחרת לפרודקשן |
+| `PAYPAL_CLIENT_ID` | מזהה הלקוח של PayPal (fallback: `VITE_PAYPAL_CLIENT_ID`) |
+| `PAYPAL_CLIENT_SECRET` | סוד PayPal — זיהוי Sandbox/פרודקשן אוטומטי לפי שם הסוד |
+| `PAYPAL_ENV=live` | אופציונלי — כופה פרודקשן גם אם הסוד מכיל "sandbox" |
 | `PAYOUTS_SECRET` | סוד לאימות קריאות ידניות ל-worker (?secret=...) |
 
 ### איך זה עובד
@@ -119,6 +121,7 @@ curl -X POST "https://<הדומיין שלך>.vercel.app/api/payouts/process?sec
 ### הערות
 - **Sandbox vs Production:** אם `PAYPAL_CLIENT_SECRET` מכיל "sandbox" — התשלומים
   נשלחים לסביבת הבדיקה של PayPal (לא כסף אמיתי). אחרת — פרודקשן.
+  אפשר לכפות פרודקשן עם `PAYPAL_ENV=live`.
 - ה-worker מאובטח: הוא מקבל בקשות רק מ-Vercel Cron (header `x-vercel-cron`)
   או עם הסוד הנכון בפרמטר `secret`.
 - אם אין תשלומים ממתינים, התשובה תהיה `{ "ok": true, "processed": 0 }`.
