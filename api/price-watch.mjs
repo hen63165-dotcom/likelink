@@ -27,7 +27,7 @@ async function kvGet(key, fallback) {
   try {
     const res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
-      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
     const rows = await res.json();
     return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
@@ -46,6 +46,7 @@ async function kvSet(key, value) {
       Prefer: "resolution=merge-duplicates",
     },
     body: JSON.stringify({ key, value: JSON.stringify(value) }),
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`kv_upsert_failed_${res.status}`);
 }
