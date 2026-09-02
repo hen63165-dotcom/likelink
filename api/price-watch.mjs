@@ -169,6 +169,7 @@ export default async function handler(req) {
 
   const checked = [];
   let newNotifications = 0;
+  let flashPosted = 0; // ⚡ price-drop flash posts actually sent via AutoPilot
 
   for (const p of pool) {
     const live = await fetchLivePrice(p.affiliateUrl);
@@ -230,6 +231,12 @@ export default async function handler(req) {
     }
   } catch { /* web-push not installed yet — notifications still saved in-app */ }
 
-  return json({ ok: true, checked: checked.length, results: checked, newNotifications });
+  return json({
+    ok: true,
+    checked: checked.length,
+    results: checked,
+    newNotifications,
+    flashPosted,
+  });
 }
 
