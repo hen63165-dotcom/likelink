@@ -137,6 +137,46 @@ export function defaultTemplate() {
   return "🔥 {name}\nבמחיר מיוחד: {price} ₪\n{description}\nלרכישה 👉 {link}";
 }
 
+// ─── Browser tick — Hobby-plan cron compensation ────────────────────────────
+// Vercel's Hobby plan only allows daily crons, but the autopilot API exposes
+// a `tick` mode (POST, no secrets, no marketerId) that publishes whatever is
+// due. Every open browser nudges it — so posts still go out at each creator's
+// chosen interval, even though the server cron only runs once a day.
+const TICK_MIN_INTERVAL_MS = 10 * 60 * 1000; // at most once per 10 minutes per device
+const TICK_STORAGE_KEY = "sch:local:autopilot:lastTick";
+
+export function startAutoPilotTick() {
+  if (typeof window === "undefined") return;
+
+  const tick = () => {
+    // Only tick while the tab is actually open and visible.
+    if (document.visibilityState !== "visible") return;
+    // Local throttle — the endpoint itself is safe to call, but there is no
+    // reason to hammer it from every open tab.
+    try {
+      const last = Number(sessionStorage.getItem(TICK_STORAGE_KEY) || 0);
+      if (Date.now() - last < TICK_MIN_INTERVAL_MS) return;
+      sessionStorage.setItem(TICK_STORAGE_KEY, String(Date.now()));
+    } catch {
+      /* private mode — proceed anyway */
+    }
+    fetch("/api/autopilot", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "tick" }),
+      keepalive: true,
+    }).catch(() => {
+      /* best-effort: cron will catch it tomorrow */
+    });
+  };
+
+  // Nudge shortly after the first visitor lands, then on every re-focus.
+  setTimeout(tick, 3000);
+  window.addEventListener("focus", tick);
+  document.addEventListener("visibilitychange", tick);
+}
+
+
 // Premium gating — חבילת "הכל כלול": מנוי פרימיום, או סטודיו פעיל (5+ מוצרים
 // מאושרים). אדמין יכול להעניק plan === "premium" ידנית.
 export function checkAutoPilotAccess(marketer, myProducts = []) {

@@ -12,8 +12,12 @@ import { installGlobalErrorHealing } from './lib/autoHeal.js'
 // PWA layer — Service Worker (offline-first), install prompt,
 // share-target capture and push subscription plumbing.
 import './lib/pwa.js'
+// AutoPilot browser tick — every open tab nudges the automation engine so
+// scheduled posts go out on time even though the Hobby-plan cron runs daily.
+import { startAutoPilotTick } from './lib/autoPilot.js'
 
 installGlobalErrorHealing();
+startAutoPilotTick();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
