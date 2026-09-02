@@ -103,6 +103,39 @@ const ANGLES_HE = [
   (n) => `🤍 קלאסיקה שמתאימה להכל: ${n}`,
   (n) => `📸 חזר למלאי לפי בקשות: ${n}`,
 ];
+  (n) => `📸 חזר למלאי לפי בקשות: ${n}`,
+];
+
+// ─── 2026 hook upgrade: curiosity-gap + urgency + social-proof angles ──────
+// מבוסס דפוסי שיווק עדכניים: FOMO, סקרנות (curiosity gap), הוכחה חברתית,
+// סיפור אישי והזדמנות-לתת. כל הוק נכתב כך שיעבוד בכל רשת — טקסט קצר,
+// אימוג'י אחד חזק, והמוצר בסוף.
+const ANGLES_2026_HE = [
+  (n) => `🤫 שום אחת לא סיפרה לך על זה: ${n}`,
+  (n) => `👀 עצרו הכל — זה חזר למלאי: ${n}`,
+  (n) => `😭 קיבלתי 14 הודעות על זה ביום אחד: ${n}`,
+  (n) => `⚡ יש לי רק 3 — מי מהן תספיק? ${n}`,
+  (n) => `🧸 הדבר הכי חמוד שיצא לי להביא: ${n}`,
+  (n) => `🫶 הפריט שלקחתי לעצמי אבל משאירה לך: ${n}`,
+  (n) => `🔥 נשרף תוך 48 שעות פעם קודמת — חזר: ${n}`,
+  (n) => `💬 "מאיפה הבאת את זה?!" — התשובה: ${n}`,
+  (n) => `🌱 הבחירה שכולן עוברות אליה השנה: ${n}`,
+  (n) => `🎀 לחברה הכי טובה שלך (או לעצמך, אני לא שופטת): ${n}`,
+  (n) => `📦 החבילה שתרצי לפתוח שוב ושוב: ${n}`,
+  (n) => `🤯 לא תאמיני כמה זה עולה: ${n}`,
+];
+
+// סגנון סיפורי "פיקסאר" — מיני-סיפור 3 שורות שמחבר רגשית לפני שמציג מחיר.
+// משמש כל 6–7 פוסטים (postCount % 6 === 4) כדי לגוון את הפיד.
+const STORY_ARCS_2026_HE = [
+  (n, price) => `היא חיפשה משהו שיזכיר לה את הבית.\nמצאה את זה — וכל החברות שאלו איפה.\n${n} · ${price} ₪`,
+  (n, price) => `היום זה יום ההולדת של אמא שלי.\nקניתי לה את זה — והיא בכתה (מהטוב).\n${n} · ${price} ₪`,
+  (n, price) => `הניחתי את זה על השולחן וזה שינה את הכל.\nהאורחות, האווירה, התמונות.\n${n} · ${price} ₪`,
+  (n, price) => `פעם חשבתי שקנייה כזו היא בזבוז.\nאחרי שקיבלתי 12 מחמאות בשבוע — שיניתי דעה.\n${n} · ${price} ₪`,
+  (n, price) => `יש פריטים שקונים, ויש פריטים שזוכרים.\nזה מהסוג השני.\n${n} · ${price} ₪`,
+  (n, price) => `החברה שלי גנבה לי את זה.\nפעמיים.\nלכן עכשיו יש לי שלושה. ${n} · ${price} ₪`,
+];
+
 
 const CATEGORY_TAGS = {
   fashion: ["#סטייל", "#אופנה", "#לוק_היום"],
@@ -162,10 +195,24 @@ function nextSmartRun(intervalMinutes) {
 // The smart caption engine — angle + price + short description + link + tags
 function smartCaption(product, link, tags, runCount) {
   const name = product.title || product.name || "הקולקציה החדשה";
-  const price =
-    product.price != null && product.price !== "" ? `💰 ${product.price} ₪` : "";
-  const angle = ANGLES_HE[Math.abs(Number(runCount) || 0) % ANGLES_HE.length];
+  const priceNum = product.price != null && product.price !== "" ? product.price : null;
+  const price = priceNum != null ? `💰 ${priceNum} ₪` : "";
   const desc = String(product.description || "").trim().slice(0, 120);
+  const n = Math.abs(Number(runCount) || 0);
+
+  // Every 6th post (offset 4) is a "Pixar-style" 3-line mini-story — the feed
+  // alternates between punchy hooks and emotional micro-narratives.
+  if (n % 6 === 4 && STORY_ARCS_2026_HE.length && priceNum != null) {
+    const arc = STORY_ARCS_2026_HE[n % STORY_ARCS_2026_HE.length];
+    return [arc(name, String(priceNum)), `👉 ${link}`, tags.join(" ")]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  // Pool = classic 10 angles + 12 fresh 2026 hooks, interleaved so no two
+  // consecutive posts share a pool half.
+  const pool = n % 2 === 0 ? ANGLES_HE : ANGLES_2026_HE;
+  const angle = pool[n % pool.length];
   return [angle(name), price, desc, `👉 ${link}`, tags.join(" ")]
     .filter(Boolean)
     .join("\n");
@@ -544,6 +591,96 @@ async function runOne(store, marketerId, cfg, origin) {
   ].slice(0, MAX_LOGS_PER_CREATOR);
 
   return { ok: true, text, results };
+}
+
+// ─── 🚨 Price-Drop Flash — פוסט מיידי כשהקמעונאי מוריד מחיר ────────────────
+// נקרא מ-api/price-watch.mjs ברגע זיהוי הירידה. מפרסם עכשיו (בלי לחכות לתור)
+// לכל הערוצים המחוברים, צורך את הסלוט המתוכנן ומתעד בלוגים של היוצרת.
+
+function priceDropCaption(product, listed, live, pct, link) {
+  const name = product.title || product.name || "פריט שאהבת";
+  const tags = pickTags(product).join(" ");
+  return [
+    `🚨 ירידת מחיר ${pct}%!`,
+    `${name}`,
+    `היה ${listed} ₪ — עכשיו רק ${live} ₪`,
+    `ככה זה כשקונים חכם 😌`,
+    `לפני שהמחיר חוזר 👉 ${link}`,
+    tags,
+  ].join("\n");
+}
+
+export async function announcePriceDrop(marketerId, product, listed, live, origin) {
+  if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
+  const listedN = Number(listed);
+  const liveN = Number(live);
+  if (!Number.isFinite(listedN) || listedN <= 0 || !Number.isFinite(liveN) || liveN <= 0) {
+    return { ok: false, error: "bad_prices" };
+  }
+  const pct = Math.max(1, Math.round(((listedN - liveN) / listedN) * 100));
+
+  const [store, marketersRow] = await Promise.all([
+    kvGet(KV_KEY),
+    kvGet("marketplace:marketers"),
+  ]);
+  const cfg = store?.[marketerId];
+  if (!cfg?.enabled || !Array.isArray(cfg.channels) || !cfg.channels.length) {
+    return { ok: false, error: "autopilot_not_configured" };
+  }
+  const marketer = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => m.id === marketerId);
+  const slug = marketer?.slug || marketerId;
+  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+
+  const results = [];
+  for (const ch of cfg.channels) {
+    const link = trackLink(baseLink, ch.type, `drop_${product.id}`);
+    const chText = priceDropCaption(product, listedN, liveN, pct, link);
+    try {
+      if (ch.type === "telegram") await sendTelegram(ch, chText);
+      else if (ch.type === "webhook")
+        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-pricedrop", event: "price_drop", listed: listedN, live: liveN, pct });
+      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
+      else if (ch.type === "discord") await sendDiscord(ch, chText);
+      else if (ch.type === "slack") await sendSlack(ch, chText);
+      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
+      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
+      else if (ch.type === "x") await sendX(ch, chText, link);
+      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
+      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
+      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
+      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
+      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
+      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
+      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
+      results.push({ channel: ch.type, ok: true });
+    } catch (e) {
+      results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+    }
+  }
+
+  // צורך את הסלוט המתוכנן + לוג — הפוסט המיידי נחשב כפרסום, לא כפילות
+  try {
+    const anyOk = results.some((r) => r.ok);
+    cfg.lastRunAt = Date.now();
+    cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
+    cfg.runCount = (cfg.runCount || 0) + 1;
+    cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
+    cfg.logs = [
+      {
+        ts: Date.now(),
+        ok: anyOk,
+        channel: results.map((r) => r.channel).join(","),
+        detail: results.map((r) => (r.ok ? "sent" : r.detail)).join(", "),
+        text: priceDropCaption(product, listedN, liveN, pct, baseLink),
+        productId: product.id,
+        event: "price_drop",
+      },
+      ...(cfg.logs || []),
+    ].slice(0, MAX_LOGS_PER_CREATOR);
+    await kvSet(KV_KEY, stripRuntime(store));
+  } catch { /* best-effort */ }
+
+  return { ok: results.some((r) => r.ok), results };
 }
 
 // Runs every enabled automation whose slot is due. Shared by the Vercel cron

@@ -19,105 +19,11 @@
 
 export const PAYOUT_STATUS = { PENDING: "pending", PAID: "paid", FAILED: "failed" };
 
-// ─── PayPal Payouts (real provider) ────────────────────────────────────────
-// If the site owner has pasted a PayPal REST API client ID + secret into the
-// Vercel environment (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET), the worker
-// will actually create a payout item in the PayPal "Mass Payouts" batch API
-// and mark it paid with PayPal's batch id. Until then we keep the existing
-// mock so the whole flow can still be tested end-to-end (the batch id is
-// "MOCK-batch-<id>" and the status flips to paid after ~600ms).
-const PAYPAL_API = "https://api-m.paypal.com";
-const SANDBOX_API = "https://api-m.sandbox.paypal.com";
-const isPayPalConfigured = () => Boolean(import.meta.env.VITE_PAYPAL_CLIENT_ID || import.meta.env.PAYPAL_CLIENT_SECRET);
-
-async function getPayPalAccessToken() {
-  const id = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-  const secret = import.meta.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_CLIENT_SECRET;
-  if (!id || !secret) return null;
-  const base = String(secret).startsWith("sandbox") ? SANDBOX_API : PAYPAL_API;
-  const res = await fetch(`${base}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + btoa(`${id}:${secret}`),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.access_token || null;
-}
-
-/**
- * Actually pay a seller. When PayPal credentials are present it creates a real
- * "Mass Payouts" batch item in the seller's chosen method (paypal → their
- * PayPal email; bank/other → we still record the payout and let the owner
- * finalise via the payment provider of their choice). When credentials are
- * missing it falls back to the mock "paid" response so the UI and worker stay
- * testable.
- *
- * @param {object} payout payout record (has .id, .marketerId, .amount, .method,
- *   .recipient — the seller's destination details from their profile)
- * @returns {Promise<object>} updated payout ({status, reference, paidAt, note})
- */
-export async function processPayout(payout) {
-  const method = String(payout?.method || PAYOUT_METHOD).toLowerCase();
-
-  if (isPayPalConfigured() && method === "paypal") {
-    const token = await getPayPalAccessToken();
-    if (token) {
-      try {
-        const base = PAYPAL_API;
-        const res = await fetch(`${base}/v1/payments/payouts`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sender_batch_header: {
-              sender_batch_id: `lk_${payout.id}`,
-              email_subject: "Likelink payout",
-              email_message: "You received a payout from Likelink.",
-            },
-            items: [
-              {
-                recipient_type: "EMAIL",
-                amount: { value: (Number(payout.amount) || 0).toFixed(2), currency: "ILS" },
-                receiver: payout.recipient?.payPalEmail || payout.email || "",
-                note: "Likelink creator payout",
-                sender_item_id: payout.id,
-              },
-            ],
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          return {
-            ...payout,
-            status: PAYOUT_STATUS.PAID,
-            reference: data?.batch_header?.payout_batch_id || `PP-${payout.id}`,
-            paidAt: Date.now(),
-            note: "PayPal Mass Payouts batch submitted.",
-          };
-        }
-        return { ...payout, status: PAYOUT_STATUS.FAILED, note: `PayPal rejected (${res.status})` };
-      } catch (e) {
-        return { ...payout, status: PAYOUT_STATUS.FAILED, note: `PayPal error: ${e?.message || e}` };
-      }
-    }
-  }
-
- // ─── Mock fallback: pretend the provider approved after ~600ms ─────────────
-  await new Promise((r) => setTimeout(r, 600));
-  return {
-    ...payout,
-    status: PAYOUT_STATUS.PAID,
-    reference: `MOCK-${payout.id}`,
-    paidAt: Date.now(),
-    note: "MOCK — add PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET to enable reality payouts.",
-  };
-}
+// ─── Payment provider (SERVER-SIDE ONLY) ───────────────────────────────────
+// Real money moves ONLY inside api/payouts/process.mjs (PayPal Mass Payouts,
+// server credentials). This client module is the payout DATA MODEL + math:
+// it must never call a payment provider and never mark a payout as paid.
+// Payouts stay "pending" until the server worker pays them for real.
 
 /**
  * Mark a payout as paid after the provider returns success and you persist it.

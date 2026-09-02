@@ -125,7 +125,7 @@ async function sendPayPalPayout(payout, recipientEmail) {
 
 // ─── main processor ────────────────────────────────────────────────────────
 
-async function processPendingPayouts() {
+export async function processPendingPayouts() {
   const [payouts, marketers] = await Promise.all([
     kvGet(PAYOUTS_KEY, []),
     kvGet(MARKETERS_KEY, []),

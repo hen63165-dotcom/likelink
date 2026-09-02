@@ -13,7 +13,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
 import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
 import { installGlobalErrorHealing } from "./lib/autoHeal";
-import { autopilotTick } from "./lib/autopilotTick";
+import { startAutoPilotSwarm } from "./lib/autopilotTick";
 import FloatingAIHelper from "./components/FloatingAIHelper";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
@@ -27,7 +27,10 @@ const RawDataDump = lazy(() => import("./components/debug/RawDataDump"));
 export default function AppRoot() {
   useEffect(() => {
     installGlobalErrorHealing();
-    autopilotTick(); // nudge due AutoPilot posts (throttled, silent)
+    // Swarm scheduler: fires now + on every tab wake-up ("returning visitor"
+    // is the strongest "a scheduled post is due now" signal). Throttled 5min
+    // per device + jittered — hundreds of visitors = precise, distributed wakes.
+    startAutoPilotSwarm();
   }, []);
 
   return (

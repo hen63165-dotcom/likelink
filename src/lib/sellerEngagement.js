@@ -196,3 +196,111 @@ export function getLastPing(storageKey = "ui:sellerStreakPing") {
     return JSON.parse(raw);
   } catch { return null; }
 }
+
+/* ============================================================
+   2026 UPGRADE — XP · Levels · Daily Missions · Weekly Goals
+   ------------------------------------------------------------
+   Turns the studio into a game the seller WANTS to come back to:
+     7) XP + Levels   — every action earns XP; levels unlock
+                        visible status ("Gold Creator" …)
+     8) Daily missions — 3 small quests refreshed daily; each
+                        completed mission = XP + momentum
+     9) Weekly goal    — one clear target with a progress bar
+   Pure functions, guarded, no side effects.
+   ============================================================ */
+
+/* ---------- 7) XP + Levels ---------- */
+
+const LEVELS = [
+  { min: 0,    he: "🌱 נבט חדש",       en: "🌱 New Sprout" },
+  { min: 100,  he: "🌿 יוצרת צומחת",    en: "🌿 Growing Creator" },
+  { min: 300,  he: "🍃 יוצרת פעילה",    en: "🍃 Active Creator" },
+  { min: 700,  he: "⭐ כוכבת עולה",      en: "⭐ Rising Star" },
+  { min: 1500, he: "🥈 יוצרת כסף",      en: "🥈 Silver Creator" },
+  { min: 3000, he: "🥇 יוצרת זהב",      en: "🥇 Gold Creator" },
+  { min: 6000, he: "💎 אייקון יהלום",   en: "💎 Diamond Icon" },
+  { min: 12000,he: "👑 אגדה של לייקלינק", en: "👑 Likelink Legend" },
+];
+
+/**
+ * Computes XP from seller activity + level info.
+ * XP formula: 1₪ earned = 2 XP · 1 sale = 15 XP · 10 clicks = 5 XP · product = 8 XP · streak day = 6 XP
+ * @returns {{ xp, level, levelIndex, nextLevel, progressPct, title }}
+ */
+export function computeLevel(stats = {}) {
+  const xp = Math.max(0, Math.round(
+    (stats.earnings || 0) * 2 +
+    (stats.salesCount || 0) * 15 +
+    (Math.floor((stats.clicks || 0) / 10)) * 5 +
+    (stats.productCount || 0) * 8 +
+    (stats.streak || 0) * 6
+  ));
+  let levelIndex = 0;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (xp >= LEVELS[i].min) levelIndex = i;
+  }
+  const level = LEVELS[levelIndex];
+  const nextLevel = LEVELS[levelIndex + 1] || null;
+  const span = nextLevel ? nextLevel.min - level.min : 1;
+  const progressPct = nextLevel
+    ? Math.min(100, Math.round(((xp - level.min) / span) * 100))
+    : 100; // max level
+  return {
+    xp,
+    level,
+    levelIndex,
+    nextLevel,
+    progressPct,
+    title: level,
+  };
+}
+
+/* ---------- 8) Daily missions ---------- */
+
+/**
+ * Builds today's 3 missions with live progress. Missions are deterministic
+ * per day (same for everyone that day) — like a "quest board".
+ * @param {Object} activity - { productCount, salesCount, clicks, sharedToday, streak }
+ * @returns {Array<{ id, he, en, goal, current, done, xp }>}
+ */
+export function buildDailyMissions(activity = {}) {
+  const day = new Date();
+  const seed = Number(`${day.getFullYear()}${day.getMonth() + 1}${day.getDate()}`) % 3;
+  const catalog = [
+    { id: "add_product", he: "העלי לפחות מוצר אחד חדש", en: "Add at least 1 new product", goal: 1, key: "addedToday", xp: 30 },
+    { id: "share", he: "שתפי מוצר ברשת אחת לפחות", en: "Share a product on any network", goal: 1, key: "sharedToday", xp: 20 },
+    { id: "clicks", he: "השיגי 5 קליקים חדשים", en: "Get 5 new clicks", goal: 5, key: "clicks", xp: 25 },
+    { id: "boost", he: "פרסמי מוצר ישן מחדש (רענון)", en: "Refresh an old listing", goal: 1, key: "refreshedToday", xp: 20 },
+    { id: "sale", he: "עשי מכירה אחת", en: "Make 1 sale", goal: 1, key: "salesCount", xp: 50 },
+  ];
+  // Pick 3 missions: seeded rotation keeps it fresh but stable during the day
+  const picked = [
+    catalog[seed],
+    catalog[(seed + 1) % catalog.length],
+    catalog[(seed + 3) % catalog.length],
+  ];
+  return picked.map((m) => {
+    const current = Math.min(m.goal, Number(activity[m.key] || 0));
+    return { ...m, current, done: current >= m.goal };
+  });
+}
+
+/* ---------- 9) Weekly goal ---------- */
+
+/**
+ * One clear weekly target with progress. Goal adapts to history:
+ * beginners get an easy goal; veterans get a stretched one.
+ * @returns {{ goal, current, pct, he, en }}
+ */
+export function weeklyGoalProgress(weekSales = [], pastAvgSales = 0) {
+  const current = (Array.isArray(weekSales) ? weekSales : []).length;
+  // Adaptive: max(2, past average rounded up, +1 stretch)
+  const goal = Math.max(2, Math.ceil(pastAvgSales) + (pastAvgSales > 0 ? 1 : 0));
+  return {
+    goal,
+    current,
+    pct: Math.min(100, Math.round((current / goal) * 100)),
+    he: `היעד השבועי: ${goal} מכירות`,
+    en: `Weekly goal: ${goal} sales`,
+  };
+}

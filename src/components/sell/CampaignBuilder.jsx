@@ -3,7 +3,7 @@ import {
   Check, Copy, Share2, MessageCircle, Send, Globe, Mail,
   Link2, ShoppingBag, Sparkles, X, Camera, Music2,
 } from "lucide-react";
-import { runStoryShare } from "../../lib/storyKit";
+import { runStoryShare, STORY_STYLES, STORY_FORMATS } from "../../lib/storyKit";
 import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
@@ -21,6 +21,8 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
 
   const [title, setTitle] = useState(t("sell.campaignDefaultTitle"));
   const [promo, setPromo] = useState("");
+  const [style, setStyle] = useState("pixar");
+  const [format, setFormat] = useState("story");
   const [selected, setSelected] = useState(() =>
     (products || []).map((p) => p.id)
   );
@@ -83,10 +85,14 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
       storeName: marketer?.name || "",
       caption: message,
       link,
+      style,
+      format,
     });
     showToast(
       res.ok
-        ? "💜 התמונה הורדה והטקסט הועתק — פרסמי בסטורי!"
+        ? res.imgCopied
+          ? "💜 התמונה הורדה וגם הועתקה ללוח — פשוט הדביקי בסטורי!"
+          : "💜 התמונה הורדה והטקסט הועתק — פרסמי בסטורי!"
         : "אופס, משהו נתקע — נסי שוב"
     );
   }
@@ -196,6 +202,54 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
           >
             <Copy size={14} /> {t("sell.campaignCopy")}
           </button>
+        </div>
+
+        {/* Creative engine — סגנון + פורמט */}
+        <div className="rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+          <p className="text-xs font-semibold mb-1 flex items-center gap-1.5">
+            <Camera size={14} style={{ color: "var(--accent)" }} /> מנוע הקריאייטיב · תמונה מעוצבת בקליק
+          </p>
+          <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+            בחרי סגנון ופורמט — התמונה נוצרת אצלך במכשיר תוך שנייה, עם המוצר, המחיר והמיתוג שלך.
+          </p>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            {STORY_STYLES.map((s) => {
+              const on = style === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setStyle(s.id)}
+                  className="tap rounded-xl px-3 py-2.5 text-right transition-colors"
+                  style={{
+                    background: on ? "var(--accent-subtle)" : "var(--bg)",
+                    border: `1.5px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                  }}
+                >
+                  <p className="text-[12.5px] font-bold">{s.label}</p>
+                  <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>{s.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            {STORY_FORMATS.map((f) => {
+              const on = format === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setFormat(f.id)}
+                  className="tap flex-1 rounded-lg py-2 text-[11px] font-semibold transition-colors"
+                  style={{
+                    background: on ? "var(--accent)" : "var(--bg)",
+                    color: on ? "#fff" : "var(--text-muted)",
+                    border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Share targets */}

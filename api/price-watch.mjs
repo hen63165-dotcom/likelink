@@ -13,9 +13,11 @@
 
 const HISTORY_KEY = "marketplace:pricehistory";
 const NOTIFS_KEY = "marketplace:notifications";
+const ANNOUNCED_KEY = "marketplace:pricedrop_announced"; // { [productId]: livePrice } — anti-spam
 const MAX_PRODUCTS_PER_RUN = 50;
 const MAX_HISTORY_PER_PRODUCT = 30;
 const DROP_ALERT_PERCENT = 5; // alert when live price is ≥5% below seller's listed price
+
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -145,13 +147,21 @@ export default async function handler(req) {
   if (!isCron) return json({ ok: false, error: "unauthorized" }, 401);
   if (!SB_URL || !SB_KEY) return json({ ok: false, error: "supabase_not_configured" }, 500);
 
-  const [productsRow, history, notifsRow] = await Promise.all([
+  const [productsRow, history, notifsRow, announcedRow] = await Promise.all([
     kvGet("marketplace:products", []),
     kvGet(HISTORY_KEY, {}),
     kvGet(NOTIFS_KEY, []),
+    kvGet(ANNOUNCED_KEY, {}),
   ]);
   const products = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
   const notifications = Array.isArray(notifsRow) ? notifsRow : [];
+  const announced = announcedRow && typeof announcedRow === "object" ? announcedRow : {};
+
+  // Real deployment origin (same derivation as api/autopilot.mjs) so flash
+  // posts carry correct store links.
+  const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
+  const host = getH("x-forwarded-host") || getH("host") || "likelink.app";
+  const origin = `${proto}://${host}`;
 
   const pool = products
     .filter((p) => p?.status === "approved" && /^https?:\/\//i.test(p.affiliateUrl || ""))
@@ -176,16 +186,28 @@ export default async function handler(req) {
     const listed = Number(p.price);
     if (Number.isFinite(listed) && listed > 0 && live <= listed * (1 - DROP_ALERT_PERCENT / 100)) {
       const pct = Math.round(((listed - live) / listed) * 100);
-      notifications.push({
-        id: `pricedrop_${p.id}_${Date.now()}`,
-        marketerId: p.marketerId,
-        type: "price_drop",
-        title: `📉 ירידת מחיר ${pct}%`,
-        body: `${p.title}: המחיר בחנות ירד ל־${live} ₪ (רשמת ${listed} ₪). כדאי לפרסם עכשיו!`,
-        ts: Date.now(),
-        read: false,
-      });
-      newNotifications++;
+      // 🚨 Price-Drop Flash — announce each distinct dropped price exactly once
+      // (the daily cron re-finds the same drop otherwise → notification spam).
+      if (announced[p.id] !== live) {
+        announced[p.id] = live;
+        notifications.push({
+          id: `pricedrop_${p.id}_${Date.now()}`,
+          marketerId: p.marketerId,
+          type: "price_drop",
+          title: `📉 ירידת מחיר ${pct}%`,
+          body: `${p.title}: המחיר בחנות ירד ל־${live} ₪ (רשמת ${listed} ₪). כדאי לפרסם עכשיו!`,
+          ts: Date.now(),
+          read: false,
+        });
+        newNotifications++;
+        // ⚡ Instant AutoPilot post — the flash goes out NOW to every connected
+        // channel (not waiting for the creator's next scheduled slot).
+        try {
+          const { announcePriceDrop } = await import("./autopilot.mjs");
+          const flash = await announcePriceDrop(p.marketerId, p, listed, live, origin);
+          if (flash?.ok) flashPosted++;
+        } catch { /* best-effort — in-app notification already saved */ }
+      }
     }
 
     checked.push({ productId: p.id, ok: true, live, last: last ?? null });

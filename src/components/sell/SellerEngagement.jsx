@@ -8,6 +8,9 @@ import {
   awardBadges,
   rivalNudge,
   buildWeeklyDigest,
+  computeLevel,
+  buildDailyMissions,
+  weeklyGoalProgress,
 } from "../../lib/sellerEngagement";
 
 const BADGE_LABELS = {
@@ -58,8 +61,90 @@ export default function SellerEngagement({ marketer, sales, products, marketers 
   const topFive = board.slice(0, 5);
   const label = (key) => BADGE_LABELS[key]?.[he ? "he" : "en"] || key;
 
+  // ─── 2026 gamification: level, missions, weekly goal ───
+  const levelInfo = useMemo(() => computeLevel({
+    earnings: mySales.reduce((s, x) => s + (x.marketerNet || 0), 0),
+    salesCount: mySales.length,
+    clicks: myProducts.reduce((s, p) => s + (p.clicks || 0), 0),
+    productCount: myProducts.length,
+    streak: streak.days,
+  }), [mySales, myProducts, streak.days]);
+
+  const todayKey = "likelink_daily_activity";
+  const activity = useMemo(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = JSON.parse(localStorage.getItem(todayKey) || "{}");
+      const clicksToday = (mySales || []).filter((s) => new Date(s.ts).toISOString().slice(0, 10) === today).length;
+      return {
+        addedToday: raw.addedToday === today ? (raw.addedTodayCount || 0) : 0,
+        sharedToday: raw.sharedToday === today ? 1 : 0,
+        refreshedToday: raw.refreshedToday === today ? 1 : 0,
+        clicks: clicksToday,
+        salesCount: mySales.filter((s) => new Date(s.ts).toISOString().slice(0, 10) === today).length,
+      };
+    } catch { return {}; }
+  }, [mySales]);
+
+  const missions = useMemo(() => buildDailyMissions(activity), [activity]);
+  const weekSales = useMemo(
+    () => mySales.filter((s) => s.ts >= Date.now() - 7 * 24 * 60 * 60 * 1000),
+    [mySales]
+  );
+  const pastAvg = useMemo(() => {
+    const older = mySales.filter((s) => s.ts < Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return older.length / 4; // rough weekly average over the previous month
+  }, [mySales]);
+  const weekGoal = useMemo(() => weeklyGoalProgress(weekSales, pastAvg), [weekSales, pastAvg]);
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Level + XP (2026) */}
+      <div className="surface rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{levelInfo.level[he ? "he" : "en"].split(" ")[0]}</span>
+            <p className="text-sm font-semibold">{levelInfo.level[he ? "he" : "en"].split(" ").slice(1).join(" ")}</p>
+          </div>
+          <span className="mono text-[11px]" style={{ color: "var(--text-muted)" }}>
+            {levelInfo.xp} XP
+          </span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--accent-subtle)" }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${levelInfo.progressPct}%`, background: "var(--accent)" }} />
+        </div>
+        <p className="text-[10px] mt-1.5" style={{ color: "var(--text-faint)" }}>
+          {levelInfo.nextLevel
+            ? (he ? `עוד ${levelInfo.nextLevel.min - levelInfo.xp} XP עד ${levelInfo.nextLevel[he ? "he" : "en"]}` : `${levelInfo.nextLevel.min - levelInfo.xp} XP to ${levelInfo.nextLevel[he ? "he" : "en"]}`)
+            : (he ? "הגעת לשלב המקסימלי! 👑" : "Max level reached! 👑")}
+        </p>
+
+        {/* Daily missions */}
+        <p className="text-[11px] font-semibold mt-3 mb-1.5">{he ? "🎯 משימות היום" : "🎯 Today's Missions"}</p>
+        <div className="flex flex-col gap-1.5">
+          {missions.map((m) => (
+            <div key={m.id} className="flex items-center gap-2 text-[11px]">
+              <span>{m.done ? "✅" : "⬜"}</span>
+              <span className="flex-1" style={{ color: m.done ? "var(--success)" : "var(--text)" }}>
+                {he ? m.he : m.en}
+              </span>
+              <span className="mono text-[10px]" style={{ color: "var(--text-faint)" }}>
+                +{m.xp} XP
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Weekly goal */}
+        <p className="text-[11px] font-semibold mt-3 mb-1.5">{he ? weekGoal.he : weekGoal.en}</p>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--accent-subtle)" }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${weekGoal.pct}%`, background: weekGoal.pct >= 100 ? "var(--success)" : "var(--warning)" }} />
+        </div>
+        <p className="text-[10px] mt-1" style={{ color: "var(--text-faint)" }}>
+          {weekGoal.current}/{weekGoal.goal} · {weekGoal.pct}%
+        </p>
+      </div>
+
       {/* Rank + nudge */}
       <div className="surface rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-3">

@@ -7,7 +7,7 @@ import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, 
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
 import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
-import { getSellerPayoutSummary, processPayout, PAYOUT_STATUS } from "../lib/payments";
+import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
 
 const MarketplaceContext = createContext(null);
 
@@ -541,18 +541,10 @@ export function MarketplaceProvider({ children }) {
         };
         await persistPayouts([...payouts, payout]);
         showToast(t("sell.payoutCreated"));
-        // Fire-and-forget: the provider worker actually pays the seller.
-        processPayout(payout)
-          .then(async (updated) => {
-            await persistPayouts(
-              (payouts || []).map((p) => (p.id === updated.id ? updated : p)).concat(
-                payouts.some((p) => p.id === updated.id) ? [] : [updated]
-              )
-            );
-          })
-          .catch(() => {
-            /* keep pending; admin can retry */
-          });
+        // NOTE: no client-side payment here — the browser has no PayPal
+        // credentials. The payout stays PENDING and the server-side worker
+        // (/api/payouts/process — daily cron) pays it via PayPal Payouts API
+        // and marks it paid. Admin sees it in PayoutsSection until then.
       },
       onMarkPayoutPaid: async (payoutId) => {
         await persistPayouts(
