@@ -775,11 +775,15 @@ async function runDue(origin) {
   store.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
   store.__products = Array.isArray(productsRow) ? productsRow : [];
 
+  const startTime = Date.now();
+  const MAX_RUN_MS = 50000;
+
   const ran = [];
   for (const [marketerId, cfg] of Object.entries(store)) {
     if (marketerId.startsWith("__")) continue;
     if (!cfg?.enabled) continue;
     if ((cfg.nextRunAt || 0) > Date.now()) continue;
+    if (Date.now() - startTime > MAX_RUN_MS) break;
     const r = await runOne(store, marketerId, cfg, origin);
     ran.push({ marketerId, ok: r.ok });
   }

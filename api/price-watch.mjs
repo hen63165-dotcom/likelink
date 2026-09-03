@@ -172,7 +172,11 @@ export default async function handler(req, res) {
   let newNotifications = 0;
   let flashPosted = 0; // ⚡ price-drop flash posts actually sent via AutoPilot
 
+  const startTime = Date.now();
+  const MAX_RUN_MS = 50000;
+
   for (const p of pool) {
+    if (Date.now() - startTime > MAX_RUN_MS) break;
     const live = await fetchLivePrice(p.affiliateUrl);
     if (live == null) {
       checked.push({ productId: p.id, ok: false });
@@ -222,6 +226,7 @@ export default async function handler(req, res) {
     const { sendPushToMarketer } = await import("./push.mjs");
     const drops = notifications.slice(-newNotifications);
     for (const n of drops) {
+      if (Date.now() - startTime > MAX_RUN_MS) break;
       if (n.type !== "price_drop") continue;
       await sendPushToMarketer(n.marketerId, {
         title: n.title,
