@@ -130,9 +130,9 @@ export default function SellView({ navigate }) {
       });
       const data = await res.json();
       if (data.ok) {
-        onUpdateMarketer(marketer.id, { payPalEmail: email, paypalConnected: true });
+        onUpdateMarketer(marketer.id, { payPalEmail: email, paypalConnected: Boolean(data.verified) });
         setPaypalModal(false);
-        showToast(t("sell.payPalConnected"));
+        showToast(data.verified ? t("sell.payPalConnected") : "האימייל נשמר; חשבון PayPal עדיין לא אומת");
       } else {
         showToast(data.error || t("sell.payPalConnectFailed"));
       }

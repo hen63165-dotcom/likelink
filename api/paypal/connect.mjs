@@ -3,9 +3,8 @@
 // POST /api/paypal/connect
 //   body: { marketerId, email }
 //
-// Validates the email, stores it as the creator's PayPal destination,
-// and marks paypalConnected = true. The nightly payout worker reads
-// this field to know where to send money.
+// Validates the email and returns it as a pending destination. An email-format
+// check is not proof that a PayPal account exists or accepts payouts.
 //
 // Auth: none (called from the authenticated seller dashboard — the
 // seller is already logged in and can only update their own profile).
@@ -39,7 +38,8 @@ export default async function handler(req, res) {
 
   json(res, {
     ok: true,
-    message: "PayPal email connected. Payouts will be sent to this address.",
+    verified: false,
+    message: "PayPal email saved. Account verification is still required before payout.",
     email: email.trim().toLowerCase(),
   });
 }
