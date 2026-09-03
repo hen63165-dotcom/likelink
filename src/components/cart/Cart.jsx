@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingBag, Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../../context/CartContext";
@@ -12,15 +12,21 @@ export function Cart() {
   const { items, isOpen, setIsOpen, removeItem, updateQuantity, clearCart, cartTotal, cartCount } = useCart();
 
   const { t } = useI18n();
+  const [buyerEmail, setBuyerEmail] = useState("");
 
   async function handleCheckout() {
     if (items.length === 0) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail.trim())) {
+      alert(t("cart.emailRequired", "נא להזין אימייל לקבלת הקבלה"));
+      return;
+    }
     const origin = window.location.origin;
-    const returnUrl = `${origin}/api/checkout/capture-order`;
+    const returnUrl = `${origin}/?paypal_return=1`;
     const cancelUrl = `${origin}/`;
 
     try {
-      const result = await createPayPalCheckout({ items, returnUrl, cancelUrl });
+      sessionStorage.setItem("likelink_pending_checkout", JSON.stringify({ items, buyerEmail: buyerEmail.trim() }));
+      const result = await createPayPalCheckout({ items, buyerEmail: buyerEmail.trim(), returnUrl, cancelUrl });
       if (result.ok && result.approvalUrl) {
         // Redirect buyer to PayPal for approval
         window.location.href = result.approvalUrl;
@@ -33,6 +39,7 @@ export function Cart() {
           )
         );
         clearCart();
+        setBuyerEmail("");
         setIsOpen(false);
       } else {
         alert(
@@ -139,6 +146,18 @@ export function Cart() {
 
             {items.length > 0 && (
               <div className="p-4 border-t space-y-3" style={{ borderColor: "var(--border)" }}>
+                <label className="block text-xs font-medium text-secondary">
+                  {t("cart.email", "אימייל לקבלת קבלה")}
+                  <input
+                    type="email"
+                    value={buyerEmail}
+                    onChange={(e) => setBuyerEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="input-field mt-1 w-full px-3 py-2.5 text-sm"
+                    dir="ltr"
+                  />
+                </label>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted">{t("cart.subtotal", "סה\"כ ביניים")}</span>
                   <span className="mono font-bold" style={{ color: "var(--accent)" }}>

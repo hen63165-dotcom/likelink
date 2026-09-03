@@ -59,7 +59,7 @@ export default function MarketingStudio({ marketer, products = [], sales = [], s
   return (
     <>
       <div className="pt-4 pb-16">
-        {/* HEADER */}}
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="disp text-xl font-semibold">שיווק וקמפיינים</h2>
@@ -75,14 +75,14 @@ export default function MarketingStudio({ marketer, products = [], sales = [], s
           </button>
         </div>
 
-        {/* STATS */}}
+        {/* STATS */}
         <div className="grid grid-cols-2 gap-3 mb-5">
           {stats.map((s) => (
             <StatChip key={s.label} icon={s.icon} label={s.label} value={s.value} />
           ))}
         </div>
 
-        {/* Campaign creation */}}
+        {/* Campaign creation */}
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold">יצירת קמפיין למוצר</p>
           <span className="text-[10px] text-muted">
@@ -118,7 +118,7 @@ export default function MarketingStudio({ marketer, products = [], sales = [], s
           </div>
         )}
 
-        {/* Campaign builder modal */}}
+        {/* Campaign builder modal */}
         <CampaignModal
           campaign={campaign}
           lang={lang}
@@ -128,7 +128,7 @@ export default function MarketingStudio({ marketer, products = [], sales = [], s
           onWhatsApp={openWhatsApp}
         />
 
-        {/* Performance report */}}
+        {/* Performance report */}
         <PerformanceReport report={report} lang={lang} />
       </div>
     </>

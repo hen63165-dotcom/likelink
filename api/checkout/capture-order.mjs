@@ -135,9 +135,13 @@ export default async function handler(req, res) {
 
   let body;
   try { body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text()); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
-  const { orderId, items = [] } = body;
+  const { orderId, buyerEmail = "", items = [] } = body;
   if (!orderId) { json(res, { ok: false, error: "missing_orderId" }, 400); return; }
   if (!Array.isArray(items) || items.length === 0) { json(res, { ok: false, error: "empty_items" }, 400); return; }
+  if (buyerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(buyerEmail).trim())) {
+    json(res, { ok: false, error: "invalid_buyer_email" }, 400);
+    return;
+  }
   const token = await getAccessToken();
   if (!token) { json(res, { ok: false, error: "paypal_not_configured" }, 503); return; }
   let capture;
@@ -182,7 +186,7 @@ export default async function handler(req, res) {
   });
   fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : ""}/api/invoice/send`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ orderId, items: sales.map((s) => ({ title: s.title, price: s.saleAmount / s.quantity, quantity: s.quantity })), total: sales.reduce((s, x) => s + x.saleAmount, 0), platformFee: sales.reduce((s, x) => s + x.platformFee, 0), sellerPayouts: sellerPayoutDetails, currency: "ILS" }),
+    body: JSON.stringify({ orderId, buyerEmail: String(buyerEmail).trim(), items: sales.map((s) => ({ title: s.title, price: s.saleAmount / s.quantity, quantity: s.quantity })), total: sales.reduce((s, x) => s + x.saleAmount, 0), platformFee: sales.reduce((s, x) => s + x.platformFee, 0), sellerPayouts: sellerPayoutDetails, currency: "ILS" }),
   }).catch(() => {});
   json(res, { ok: true, captureId, sales, total: sales.reduce((s, x) => s + x.saleAmount, 0).toFixed(2), platformFees: sales.reduce((s, x) => s + x.platformFee, 0).toFixed(2), sellerPayouts: sellerPayoutDetails.map((s) => ({ marketerId: s.marketerId, net: s.net })), status: capture.status });
 }

@@ -66,9 +66,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { items = [], returnUrl, cancelUrl, custom } = body;
+  const { items = [], buyerEmail = "", returnUrl, cancelUrl, custom } = body;
   if (!Array.isArray(items) || items.length === 0) {
     json(res, { ok: false, error: "empty_cart" }, 400);
+    return;
+  }
+  if (buyerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(buyerEmail).trim())) {
+    json(res, { ok: false, error: "invalid_buyer_email" }, 400);
     return;
   }
 

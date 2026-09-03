@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
-import { CartProvider } from "./context/CartContext";
+import { CartProvider, useCart } from "./context/CartContext";
 import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys";
 import { parsePath } from "./utils/routing";
 
@@ -15,6 +15,7 @@ import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal
 import { installGlobalErrorHealing } from "./lib/autoHeal";
 import { startAutoPilotSwarm } from "./lib/autopilotTick";
 import FloatingAIHelper from "./components/FloatingAIHelper";
+import { capturePayPalCheckout } from "./lib/paymentFlow";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -51,11 +52,39 @@ export default function AppRoot() {
 function App() {
   const { lang, setLang } = useI18n();
   const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
+  const { clearCart } = useCart();
   const [tab, setTab] = useState("feed");
   const [route, setRoute] = useState(() => parsePath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
   const [activeNav, setActiveNav] = useState("discover");
   const [screenshotOpen, setScreenshotOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("token");
+    if (params.get("paypal_return") !== "1" || !orderId) return;
+
+    let pendingItems;
+    try {
+      pendingItems = JSON.parse(sessionStorage.getItem("likelink_pending_checkout") || "null");
+    } catch {
+      pendingItems = [];
+    }
+    if (!pendingItems || !Array.isArray(pendingItems.items) || pendingItems.items.length === 0) {
+      showToast("לא נמצאו פריטי ההזמנה");
+      return;
+    }
+
+    capturePayPalCheckout({ orderId, items: pendingItems.items, buyerEmail: pendingItems.buyerEmail })
+      .then((result) => {
+        if (!result.ok) throw new Error(result.error || "capture_failed");
+        sessionStorage.removeItem("likelink_pending_checkout");
+        clearCart();
+        window.history.replaceState({}, "", "/");
+        showToast("התשלום הצליח וההזמנה נקלטה");
+      })
+      .catch(() => showToast("התשלום אושר, אך קליטת ההזמנה נכשלה. יש לפנות לתמיכה."));
+  }, [clearCart, showToast]);
 
   useEffect(() => {
     const onPop = () => setRoute(parsePath(window.location.pathname));

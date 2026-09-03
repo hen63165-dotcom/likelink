@@ -96,7 +96,7 @@ export function buildPayPalStandardCheckoutUrl({
  * @param {string} cancelUrl  where PayPal redirects on cancel
  * @returns {Promise<{ ok: boolean, orderId?: string, approvalUrl?: string, mock?: boolean, error?: string }>}
  */
-export function createPayPalCheckout({ items = [], returnUrl = "/", cancelUrl = "/" }) {
+export function createPayPalCheckout({ items = [], buyerEmail = "", returnUrl = "/", cancelUrl = "/" }) {
   return fetch("/api/checkout/create-order", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -109,6 +109,7 @@ export function createPayPalCheckout({ items = [], returnUrl = "/", cancelUrl = 
         marketerId: it.marketer?.id || null,
         sellerName: it.marketer?.name || "",
       })),
+      buyerEmail,
       returnUrl,
       cancelUrl,
       custom: items.map((it) => `${it.marketer?.id || "guest"}:${it.product?.id || "x"}`).join(","),
@@ -124,7 +125,7 @@ export function createPayPalCheckout({ items = [], returnUrl = "/", cancelUrl = 
  * @param {Array}  items    cart items for sale recording
  * @returns {Promise<{ ok: boolean, captureId?: string, sales?: [], total?: string, error?: string }>}
  */
-export function capturePayPalCheckout({ orderId, items = [] }) {
+export function capturePayPalCheckout({ orderId, items = [], buyerEmail = "" }) {
   return fetch("/api/checkout/capture-order", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -137,6 +138,7 @@ export function capturePayPalCheckout({ orderId, items = [] }) {
         price: Number(it.product?.price || it.price || 0),
         quantity: Math.max(1, Number(it.quantity || 1)),
       })),
+      buyerEmail,
     }),
   }).then((r) => r.json());
 }
