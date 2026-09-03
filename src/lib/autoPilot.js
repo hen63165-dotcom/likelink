@@ -113,6 +113,7 @@ async function call(mode, marketerId, config) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ mode, marketerId, config }),
+    signal: AbortSignal.timeout(15000),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.ok === false) throw new Error(data.error || `http_${res.status}`);

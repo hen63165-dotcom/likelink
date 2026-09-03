@@ -19,6 +19,7 @@ const FALLBACK_LINES = [
 export default function ViralProofTicker() {
   const { lang } = useI18n();
   const [lines, setLines] = useState(FALLBACK_LINES);
+  const [hasLiveEvents, setHasLiveEvents] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -41,7 +42,10 @@ export default function ViralProofTicker() {
                 ? `פרסום רשף על ${e.product} נשלח לבד · ${e.channels}`
                 : `המערכת פרסמה את ${e.product} אוטומטית · ${e.channels}`,
           }));
-        if (items.length) setLines([...items, ...FALLBACK_LINES.slice(0, 2)]);
+        if (items.length) {
+          setHasLiveEvents(true);
+          setLines([...items, ...FALLBACK_LINES.slice(0, 2)]);
+        }
       } catch { /* offline-safe */ }
     }
     load();
@@ -62,7 +66,9 @@ export default function ViralProofTicker() {
           <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "var(--success)" }} />
         </span>
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted">
-          {lang === "he" ? "חי · פעילות אוטומטית בפלטפורמה" : "LIVE · automatic platform activity"}
+          {hasLiveEvents
+            ? (lang === "he" ? "חי · פעילות אוטומטית מאומתת" : "LIVE · verified automatic activity")
+            : (lang === "he" ? "הצצה למנוע · ממתין לערוץ מחובר" : "ENGINE PREVIEW · waiting for a connected channel")}
         </p>
       </div>
       <div className="overflow-hidden py-2">
