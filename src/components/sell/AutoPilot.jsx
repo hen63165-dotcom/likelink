@@ -23,16 +23,6 @@ import {
 
 const CHANNELS = [
   {
-    type: "telegram",
-    name: "Telegram",
-    icon: Send,
-    hint: "בוט שמפרסם לערוץ/קבוצה — יוצרים בוט אצל @BotFather ומדביקים כאן את הטוקן ומזהה הערוץ (@channel או ‎-100...)",
-    fields: [
-      { key: "botToken", label: "Bot Token" },
-      { key: "chatId", label: "Chat / Channel ID" },
-    ],
-  },
-  {
     type: "webhook",
     name: "Webhook (Make / Zapier / n8n)",
     icon: Globe,

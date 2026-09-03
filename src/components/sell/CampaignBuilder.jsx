@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { runStoryShare, STORY_STYLES, STORY_FORMATS } from "../../lib/storyKit";
 import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot";
+import { shortVideoScript } from "../../lib/marketingFeed";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
 import { SheetModal, Button, LabeledInput } from "../ui";
@@ -55,6 +56,17 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
     return lines.join("\n");
   }, [title, promo, chosen, t, lang, link]);
 
+  const videoScript = useMemo(() => {
+    const first = chosen[0];
+    if (!first) return "";
+    return shortVideoScript({
+      productName: first.title,
+      price: money(Number(first.price) || 0, lang),
+      creatorName: marketer?.name,
+      trackingLink: link,
+    });
+  }, [chosen, lang, link, marketer?.name]);
+
   async function copyAll() {
     const text = `${message}\n\n${link}`;
     try {
@@ -62,6 +74,15 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
       showToast(t("sell.campaignCopied"));
     } catch {
       showToast(text);
+    }
+  }
+
+  async function copyVideoScript() {
+    try {
+      await navigator.clipboard.writeText(videoScript);
+      showToast("תסריט הסרטון הועתק");
+    } catch {
+      showToast(videoScript);
     }
   }
 
@@ -115,7 +136,6 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
   const targets = [
     { id: "wa", label: "WhatsApp", bg: "#25D366", icon: MessageCircle, url: () => `https://wa.me/?text=${encodeURIComponent(`${message}\n${link}`)}` },
     { id: "fb", label: "Facebook", bg: "#1877F2", icon: Globe, url: () => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(message)}` },
-    { id: "tg", label: "Telegram", bg: "#229ED9", icon: Send, url: () => `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}` },
     { id: "x", label: "X", bg: "#111111", icon: Share2, url: () => `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(link)}` },
     { id: "mail", label: t("sell.campaignShareEmail"), bg: "#8A8071", icon: Mail, url: () => `mailto:?subject=${encodeURIComponent(String(title))}&body=${encodeURIComponent(`${message}\n${link}`)}` },
   ];
@@ -203,6 +223,27 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
             <Copy size={14} /> {t("sell.campaignCopy")}
           </button>
         </div>
+
+        {videoScript && (
+          <div className="rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+            <p className="text-xs font-semibold mb-1 flex items-center gap-1.5">
+              <Music2 size={14} style={{ color: "var(--accent)" }} /> ערכת סרטון · TikTok / Reels / Shorts
+            </p>
+            <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+              הוק, תסריט, כתוביות וקריאה לפעולה מוכנים להקלטה או לעריכה בתוך כל כלי וידאו.
+            </p>
+            <div className="rounded-xl p-3 text-[11px] leading-relaxed whitespace-pre-wrap" style={{ background: "var(--bg)", border: "1px dashed var(--border)" }}>
+              {videoScript}
+            </div>
+            <button
+              onClick={copyVideoScript}
+              className="tap w-full mt-2 py-2.5 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2"
+              style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+            >
+              <Copy size={14} /> העתקת ערכת הסרטון
+            </button>
+          </div>
+        )}
 
         {/* Creative engine — סגנון + פורמט */}
         <div className="rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
