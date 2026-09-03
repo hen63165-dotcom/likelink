@@ -93,17 +93,10 @@ export default async function handler(req, res) {
 
   const token = await getAccessToken();
 
-  // No PayPal credentials configured — return a mock order for development/testing
+  // Never pretend a production checkout succeeded. A missing credential is a
+  // deployment/configuration error, not an order that can be approved.
   if (!token) {
-    json(res, {
-      ok: true,
-      mock: true,
-      orderId: `MOCK-${Date.now()}`,
-      approvalUrl: returnUrl || "/",
-      total: total.toFixed(2),
-      currency: "ILS",
-      items: paypalItems,
-    });
+    json(res, { ok: false, error: "paypal_not_configured" }, 503);
     return;
   }
 

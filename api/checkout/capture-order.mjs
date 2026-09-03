@@ -178,7 +178,13 @@ export default async function handler(req, res) {
     payoutsToUpdate.push({ id: uid(), marketerId, amount: Math.round(netAmount * 100) / 100, status: "pending", method: marketer?.paymentMethod || "paypal", recipient: { payPalEmail: marketer?.payPalEmail || "", bank: marketer?.bankDetails || {} }, source: "checkout", orderId, ts: now, paidAt: null, note: `Auto-created from PayPal checkout ${orderId}` });
   }
   try { await Promise.all([kvSet(SALES_KEY, currentSales), kvSet(PAYOUTS_KEY, payoutsToUpdate)]); } catch (e) {
-    json(res, { ok: true, warning: "payment_captured_persistence_failed", captureId, sales, total: sales.reduce((s, x) => s + x.saleAmount, 0).toFixed(2), sellerPayouts: Object.entries(sellerNetMap).map(([id, amt]) => ({ marketerId: id, net: Math.round(amt * 100) / 100 })), status: capture.status }); return;
+    json(res, {
+      ok: false,
+      error: "payment_captured_persistence_failed",
+      captureId,
+      recoveryRequired: true,
+    }, 503);
+    return;
   }
   const sellerPayoutDetails = Object.entries(sellerNetMap).map(([id, amt]) => {
     const m = marketers.find((mk) => mk.id === id);
