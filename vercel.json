@@ -18,9 +18,11 @@
     { "path": "/api/payouts/process", "schedule": "0 2 * * *" }
   ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
-    { "source": "/google-feed.xml", "destination": "/api/google-feed" },
-    { "source": "/r", "destination": "/api/r" },
+    { "source": "/sitemap.xml", "destination": "/api/google-feed?kind=sitemap" },
+    { "source": "/google-feed.xml", "destination": "/api/google-feed?kind=google" },
+    { "source": "/r", "destination": "/api/og?mode=r" },
+    { "source": "/api/r", "destination": "/api/og?mode=r" },
+    { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
             { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
     { "source": "/p/:id", "destination": "/api/og?id=:id" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }

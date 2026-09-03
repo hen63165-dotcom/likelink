@@ -31,9 +31,36 @@ function requestOrigin(req) {
   return `${proto}://${host}`;
 }
 
+// ─── /r affiliate forwarder ─────────────────────────────────────────────────
+// Merged from api/r.mjs (which is now deleted) so the whole deployment stays
+// under the 12-serverless-function limit on the Vercel Hobby plan.
+// Dispatched by vercel.json:  /r → /api/og?mode=r   and   /api/r → /api/og?mode=r
+function sendRedirect(res, target, status = 302) {
+  res.status(status);
+  res.setHeader("Location", target);
+  res.setHeader("cache-control", "no-store, max-age=0");
+  res.end();
+}
+
 export default async function handler(req, res) {
   const origin = requestOrigin(req);
   const url = new URL(req.url, origin);
+
+  // /r?u=<encoded destination URL>&ref=<creator tracking id> — safe affiliate
+  // forwarder. Dispatched BEFORE the bot/SPA logic so real browser clicks are
+  // redirected, never served the React app.
+  if (url.searchParams.get("mode") === "r") {
+    const target = url.searchParams.get("u") || "";
+    void url.searchParams.get("ref");
+    if (!target) { res.status(400); res.end("Missing destination (u)."); return; }
+    let dest;
+    try { dest = new URL(target); } catch { res.status(400); res.end("Invalid destination (u)."); return; }
+    if (dest.protocol !== "http:" && dest.protocol !== "https:") { res.status(400); res.end("Invalid destination protocol."); return; }
+    if (dest.origin === url.origin && dest.pathname.replace(/\/$/, "") === "/r") { res.status(400); res.end("Redirect loop."); return; }
+    sendRedirect(res, dest.toString(), 302);
+    return;
+  }
+
   const slug = url.searchParams.get("slug") || "";
   const productId = url.searchParams.get("id") || "";
   const userAgent = String(getHeader(req, "user-agent") || "");
