@@ -12,6 +12,13 @@ import {
   buildDailyMissions,
   weeklyGoalProgress,
 } from "../../lib/sellerEngagement";
+// ─── Achievements engine (src/lib/gamification.js — wired in unmodified) ────
+import {
+  checkAchievements,
+  calculateTotalPoints,
+  getDailyChallenge,
+  getWeeklyQuest,
+} from "../../lib/gamification";
 
 const BADGE_LABELS = {
   top_seller: { he: "🏆 מוכר מוביל", en: "🏆 Top Seller" },
@@ -96,6 +103,18 @@ export default function SellerEngagement({ marketer, sales, products, marketers 
     return older.length / 4; // rough weekly average over the previous month
   }, [mySales]);
   const weekGoal = useMemo(() => weeklyGoalProgress(weekSales, pastAvg), [weekSales, pastAvg]);
+
+  // ─── Achievements + rotating challenges (src/lib/gamification.js) ───
+  const achievements = useMemo(
+    () => checkAchievements(marketer, products, sales),
+    [marketer, products, sales]
+  );
+  const achievementPoints = useMemo(() => calculateTotalPoints(achievements), [achievements]);
+  const dailyChallenge = useMemo(() => getDailyChallenge(new Date().getDate()), []);
+  const weeklyQuest = useMemo(
+    () => getWeeklyQuest(Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000))),
+    []
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -249,6 +268,46 @@ export default function SellerEngagement({ marketer, sales, products, marketers 
           style={{ color: "var(--text-secondary)" }}>
           {digest}
         </pre>
+      </div>
+
+      {/* Achievements + rotating challenges (src/lib/gamification.js) */}
+      <div className="surface rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Trophy size={16} style={{ color: "var(--accent)" }} />
+            <p className="text-sm font-semibold">{he ? "הישגים" : "Achievements"}</p>
+          </div>
+          <span className="mono text-[11px]" style={{ color: "var(--text-muted)" }}>
+            {achievementPoints} pts
+          </span>
+        </div>
+        {achievements.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {achievements.map((a) => (
+              <span key={a.id} title={a.description}
+                className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+                style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+                {a.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            {he ? "המכירה הראשונה שלך תפתח את ההישג הראשון 🎉" : "Your first sale unlocks your first achievement 🎉"}
+          </p>
+        )}
+        <div className="flex flex-col gap-1.5 mt-3 pt-3" style={{ borderTop: "1px solid var(--accent-subtle)" }}>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span>{dailyChallenge.name}</span>
+            <span className="flex-1" style={{ color: "var(--text-muted)" }}>{dailyChallenge.description}</span>
+            <span className="mono text-[10px]" style={{ color: "var(--text-faint)" }}>+{dailyChallenge.reward}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span>{weeklyQuest.name}</span>
+            <span className="flex-1" style={{ color: "var(--text-muted)" }}>{weeklyQuest.description}</span>
+            <span className="mono text-[10px]" style={{ color: "var(--text-faint)" }}>+{weeklyQuest.reward}</span>
+          </div>
+        </div>
       </div>
     </div>
   );
