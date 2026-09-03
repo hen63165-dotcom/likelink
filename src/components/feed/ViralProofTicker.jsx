@@ -9,13 +9,6 @@ const FALLBACK_LINES = [
   { icon: "🛍️", text: "הכל בקליק אחד: פוסט, מעקב, PayPal" },
 ];
 
-/**
- * ViralProofTicker — live social-proof strip on the feed.
- * Polls POST /api/autopilot {mode:"public-feed"} and shows the platform's
- * real automatic activity ("Likelink just auto-posted X to Telegram ✦").
- * When nothing real yet, falls back to evergreen hooks that scream
- * "everything runs by itself". Every visitor sees the machine working.
- */
 export default function ViralProofTicker() {
   const { lang } = useI18n();
   const [lines, setLines] = useState(FALLBACK_LINES);
@@ -29,18 +22,18 @@ export default function ViralProofTicker() {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ mode: "public-feed" }),
+          signal: AbortSignal.timeout(8000),
         });
         const data = await res.json().catch(() => ({}));
         if (!alive || !Array.isArray(data.events)) return;
         const items = data.events
-          .filter((e) => e.ok && e.product)
+          .filter((event) => event.ok && event.product)
           .slice(0, 6)
-          .map((e) => ({
-            icon: e.event === "price_drop" ? "⚡" : "🤖",
-            text:
-              e.event === "price_drop"
-                ? `פרסום רשף על ${e.product} נשלח לבד · ${e.channels}`
-                : `המערכת פרסמה את ${e.product} אוטומטית · ${e.channels}`,
+          .map((event) => ({
+            icon: event.event === "price_drop" ? "⚡" : "🤖",
+            text: event.event === "price_drop"
+              ? `פרסום רשף על ${event.product} נשלח לבד · ${event.channels}`
+              : `המערכת פרסמה את ${event.product} אוטומטית · ${event.channels}`,
           }));
         if (items.length) {
           setHasLiveEvents(true);
@@ -49,44 +42,34 @@ export default function ViralProofTicker() {
       } catch { /* offline-safe */ }
     }
     load();
-    const t = setInterval(load, 60_000);
-    return () => { alive = false; clearInterval(t); };
+    const timer = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(timer); };
   }, []);
 
-  const row = [...lines, ...lines]; // duplicate for a seamless loop
+  const row = [...lines, ...lines];
+  const label = hasLiveEvents
+    ? (lang === "he" ? "חי · פעילות אוטומטית מאומתת" : "LIVE · verified automatic activity")
+    : (lang === "he" ? "הצצה למנוע · ממתין לערוץ מחובר" : "ENGINE PREVIEW · waiting for a connected channel");
 
   return (
-    <div
-      className="mb-5 rounded-xl overflow-hidden"
-      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
-    >
+    <div className="mb-5 rounded-xl overflow-hidden" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-1.5 px-3 pt-2">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: "var(--success)" }} />
           <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "var(--success)" }} />
         </span>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted">
-          {hasLiveEvents
-            ? (lang === "he" ? "חי · פעילות אוטומטית מאומתת" : "LIVE · verified automatic activity")
-            : (lang === "he" ? "הצצה למנוע · ממתין לערוץ מחובר" : "ENGINE PREVIEW · waiting for a connected channel")}
-        </p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{label}</p>
       </div>
       <div className="overflow-hidden py-2">
         <div className="ll-marquee flex gap-8 whitespace-nowrap ps-4">
-          {row.map((l, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5 text-[12px] text-muted">
-              <span>{l.icon}</span> {l.text} <span className="text-faint">✦</span>
+          {row.map((line, index) => (
+            <span key={index} className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+              <span>{line.icon}</span> {line.text} <span className="text-faint">✦</span>
             </span>
           ))}
         </div>
       </div>
-      <style>{`
-        .ll-marquee { animation: ll-marquee 34s linear infinite; width: max-content; }
-        @keyframes ll-marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-      `}</style>
+      <style>{`.ll-marquee { animation: ll-marquee 34s linear infinite; width: max-content; } @keyframes ll-marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }`}</style>
     </div>
   );
 }
