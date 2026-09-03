@@ -199,18 +199,28 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
   return (
     <div className="pt-4 pb-2">
-      {/* Hero strip */}
+      {/* Public value proposition: make the product clear before the catalog. */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-4 mb-5 relative overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, var(--accent-subtle) 0%, var(--accent-2-subtle) 100%)",
-          border: "1px solid var(--border)",
-        }}
+        className="ll-hero mb-5 relative overflow-hidden"
       >
-        <p className="disp text-base font-semibold">{t("feed.heroTitle")}</p>
-        <p className="text-xs text-muted mt-1">{t("feed.heroSub")}</p>
+        <div className="ll-hero-glow" aria-hidden="true" />
+        <div className="relative z-10 max-w-2xl">
+          <p className="ll-kicker">LIKELINK · הבחירה שלך, במקום אחד</p>
+          <h1 className="ll-hero-title">{t("feed.heroTitle")}</h1>
+          <p className="ll-hero-copy">{t("feed.heroSub")}</p>
+          <div className="ll-hero-actions">
+            <button type="button" className="btn-primary tap px-4 py-2.5 text-sm" onClick={() => navigate("/sell")}>
+              פתחי סטודיו
+            </button>
+            <span className="ll-hero-note">מוצרים שנבחרו על ידי יוצרות אמיתיות</span>
+          </div>
+        </div>
+        <div className="ll-hero-mark" aria-hidden="true">
+          <span>01</span>
+          <span>DISCOVER</span>
+        </div>
       </motion.div>
 
       {/* Live social proof — the platform broadcasting "it runs itself" */}

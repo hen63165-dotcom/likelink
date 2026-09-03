@@ -27,6 +27,86 @@
   --ll-ease:          cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ---------- Public hero: a clear, editorial first impression ---------- */
+.ll-hero {
+  min-height: 230px;
+  padding: 28px 26px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-radius: 22px;
+  color: #F7F3EA;
+  background: #211C16;
+  box-shadow: 0 22px 48px -28px rgba(27, 23, 18, 0.7);
+  isolation: isolate;
+}
+.ll-hero-glow {
+  position: absolute;
+  inset: -35% 35% 0 -10%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(201, 168, 108, 0.45), transparent 62%);
+  filter: blur(10px);
+  animation: ll-hero-drift 12s ease-in-out infinite alternate;
+}
+.ll-kicker {
+  margin: 0 0 10px;
+  color: #DCC79D;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.ll-hero-title {
+  max-width: 620px;
+  margin: 0;
+  color: #FFFDF8;
+  font-family: var(--font-disp);
+  font-size: clamp(2rem, 7vw, 4rem);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+.ll-hero-copy {
+  max-width: 520px;
+  margin: 14px 0 0;
+  color: rgba(247, 243, 234, 0.72);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.ll-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+}
+.ll-hero-actions .btn-primary {
+  background: #D6B878;
+  color: #211C16;
+  box-shadow: none;
+}
+.ll-hero-note {
+  color: rgba(247, 243, 234, 0.58);
+  font-size: 11px;
+}
+.ll-hero-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: rgba(247, 243, 234, 0.46);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+@keyframes ll-hero-drift {
+  from { transform: translate3d(-3%, 2%, 0) scale(0.96); }
+  to { transform: translate3d(7%, -3%, 0) scale(1.08); }
+}
+@media (max-width: 560px) {
+  .ll-hero { min-height: 260px; padding: 22px 18px; }
+  .ll-hero-mark { display: none; }
+  .ll-hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
+
 /* ---------- Canvas & base typography ---------- */
 html, body, #root { background: var(--ll-canvas) !important; }
 
