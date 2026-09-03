@@ -108,6 +108,21 @@ export function socialCaption({ productName, price, creatorName, trackingLink })
   const link = toText(trackingLink, "");
   return `🎁 מצאתי את זה בליקוולינק!\n✨ ${product} של ${creator} — רק ${priceStr}\nקישור אישי שלי: ${link}\n#סטייל #קניות #ליקוולינק #המלצה #מומלץ`.trim();
 }
+
+/** A short vertical-video brief creators can use without an external editor. */
+export function shortVideoScript({ productName, price, creatorName, trackingLink }) {
+  const product = toText(productName, "המוצר שהכי הפתיע אותי");
+  const creator = toText(creatorName, "אני");
+  const priceStr = toText(price, "");
+  const link = toText(trackingLink, "");
+  return [
+    "הוק (0–2 שניות): רגע, למה אף אחת לא סיפרה לי על זה?",
+    `הדגמה (2–8 שניות): ${creator} מציגה את ${product}${priceStr ? ` ב־${priceStr}` : ""}.`,
+    "ערך (8–13 שניות): בוחרים, משתפים ועוקבים אחרי כל הקליקים במקום אחד.",
+    "סיום (13–15 שניות): פותחים את הקישור ובודקים בעצמכם.",
+    `CTA: ${link}`,
+  ].join("\n");
+}
 /** One campaign "kit" for a single approved product. */
 export function buildCampaign(product, marketer, opts = {}) {
   const baseUrl = opts.baseUrl || DEFAULT_BASE_URL;
@@ -145,6 +160,12 @@ export function buildCampaign(product, marketer, opts = {}) {
     category: product.category,
     whatsAppMessage: message,
     socialCaption: caption,
+    shortVideoScript: shortVideoScript({
+      productName: product.title,
+      price: priceStr,
+      creatorName,
+      trackingLink,
+    }),
     whatsAppChatUrl: whatsAppChatUrl(message),
   };
 }
