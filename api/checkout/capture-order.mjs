@@ -119,16 +119,11 @@ export default async function handler(req, res) {
     const url = new URL(req.url, origin);
     const orderId = url.searchParams.get("token");
     if (!orderId) { html(res, successPage("error", "Missing order token", origin)); return; }
-    const token = await getAccessToken();
-    if (!token) { html(res, successPage("error", "Payment service not configured", origin)); return; }
-    try {
-      const captureRes = await fetch(`${paypalBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
-        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, signal: AbortSignal.timeout(15000),
-      });
-      if (!captureRes.ok) { html(res, successPage("error", `Payment failed (${captureRes.status})`, origin)); return; }
-      const capture = await captureRes.json();
-      html(res, capture.status === "COMPLETED" ? successPage("success", `Payment completed! Order ${orderId}`, origin) : successPage("pending", `Payment status: ${capture.status}`, origin));
-    } catch (e) { html(res, successPage("error", `Capture failed: ${String(e.message || e).slice(0, 100)}`, origin)); }
+    // Keep one authoritative capture path: the app POST includes the pending
+    // cart and buyer email, so it can persist the sale, payout, and receipt.
+    const returnUrl = `${origin}/?paypal_return=1&token=${encodeURIComponent(orderId)}`;
+    res.writeHead(302, { Location: returnUrl, "cache-control": "no-store" });
+    res.end();
     return;
   }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
