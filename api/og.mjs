@@ -68,7 +68,10 @@ export default async function handler(req, res) {
   // Real visitor — serve the normal React app from the same deployment.
   if (!BOT_PATTERN.test(userAgent) || (!slug && !productId)) {
     try {
-      const app = await fetch(`${origin}/index.html`, { redirect: "follow" });
+      const app = await fetch(`${origin}/index.html`, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(5000),
+      });
       const html = await app.text();
       res.status(200);
       res.setHeader("content-type", "text/html; charset=utf-8");
@@ -95,7 +98,10 @@ export default async function handler(req, res) {
     try {
       const res = await fetch(
         `${supabaseUrl}/rest/v1/kv?key=eq.marketplace:marketers&select=value`,
-        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+        {
+          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+          signal: AbortSignal.timeout(5000),
+        }
       );
       const rows = await res.json();
       const marketers = rows?.[0]?.value ? JSON.parse(rows[0].value) : [];
@@ -118,7 +124,10 @@ export default async function handler(req, res) {
       if (sbUrl && sbKey) {
         const res = await fetch(
           `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:products")}&select=value`,
-          { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } }
+          {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+            signal: AbortSignal.timeout(5000),
+          }
         );
         const rows = await res.json();
         const v = rows?.[0]?.value ? JSON.parse(rows[0].value) : [];

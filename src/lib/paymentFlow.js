@@ -114,6 +114,7 @@ export function createPayPalCheckout({ items = [], buyerEmail = "", returnUrl = 
       cancelUrl,
       custom: items.map((it) => `${it.marketer?.id || "guest"}:${it.product?.id || "x"}`).join(","),
     }),
+    signal: AbortSignal.timeout(15000),
   }).then((r) => r.json());
 }
 
@@ -140,5 +141,6 @@ export function capturePayPalCheckout({ orderId, items = [], buyerEmail = "" }) 
       })),
       buyerEmail,
     }),
+    signal: AbortSignal.timeout(20000),
   }).then((r) => r.json());
 }
