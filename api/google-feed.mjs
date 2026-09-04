@@ -109,6 +109,9 @@ async function sitemapHandler(req, res) {
   const now = new Date().toISOString();
   const urls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },
+    // Kept from the static sitemap this replaces, so no SEO entry is lost:
+    { loc: `${origin}/feed`, priority: "0.9", changefreq: "daily" },
+    { loc: `${origin}/studio`, priority: "0.8", changefreq: "weekly" },
     ...marketers.filter((m) => m?.slug).map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
     ...products.filter((p) => p?.id && p?.status === "approved").map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
     // Luna's Google Web Stories — one full-screen story per qualifying product,

@@ -294,7 +294,10 @@ function fpiExtractPrice(html) {
 }
 
 async function fetchProductInfoHandler(req, res) {
-  const url = new URL(req.url);
+  // base is REQUIRED: req.url is a relative path, and new URL() without a
+  // base throws "Invalid URL" — the original standalone function had this
+  // bug on Vercel (hidden by the client-side fallback). Fixed here.
+  const url = new URL(req.url, "https://x");
   const target = url.searchParams.get("url") || "";
   if (!target) { fpiJson(res, { ok: false, error: "missing url" }); return; }
 
