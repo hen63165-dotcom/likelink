@@ -477,20 +477,40 @@ export function MarketplaceProvider({ children }) {
         showToast(t("sell.removed"));
       },
       onLogSale: async (product, saleAmount, commissionAmount) => {
-        const fee = Math.round(commissionAmount * (settings.platformFeePercent / 100) * 100) / 100;
-        const net = Math.round((commissionAmount - fee) * 100) / 100;
-        const s = {
-          id: uid(),
-          productId: product.id,
-          marketerId: product.marketerId,
-          saleAmount,
-          commissionAmount,
-          platformFee: fee,
-          marketerNet: net,
-          ts: Date.now(),
-        };
-        await persistSales([...sales, s]);
-        return s;
+        if (!product) return null;
+        // Balanced path: ask the server to validate + sign this self-report.
+        const signRes = await fetch("/api/sign-sale", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            productId: product.id,
+            marketerId: product.marketerId,
+            saleAmount: Number(saleAmount),
+            commissionAmount: Number(commissionAmount),
+          }),
+          signal: AbortSignal.timeout(15000),
+        }).catch(() => null);
+        const signData = signRes ? await signRes.json().catch(() => ({})) : {};
+        if (!signRes || !signRes.ok || !signData.ok || !signData.sale) {
+          showToast(
+            signData?.error
+              ? t("sell.signedSaleRejected", "השרת דחה את רישום המכירה") + ` (${signData.error})`
+              : t("sell.signedSaleRejected", "השרת דחה את רישום המכירה")
+          );
+          return null;
+        }
+
+        const signedSale = signData.sale; // server-authoritative (id, fee, net, ts)
+        const nextSales = [...sales, signedSale];
+        setSales(nextSales);
+        try {
+          await storage.signedSet(K.sales, nextSales, signedSale, signData.sig, signData.sigTs);
+        } catch (e) {
+          console.error("signed sale persist failed", e);
+          showToast(t("sell.signedSaleRejected", "השרת דחה את רישום המכירה"));
+          return null;
+        }
+        return signedSale;
       },
       onAddCollection: async (title) => {
         if (!currentMarketer) return;

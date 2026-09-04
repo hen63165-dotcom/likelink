@@ -23,7 +23,7 @@ Get-Content -Path (Join-Path $PSScriptRoot ".env") | ForEach-Object {
 }
 
 # Client (public by design) + server-only admin secrets.
-$wanted  = @('VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'ADMIN_CODE', 'ADMIN_SESSION_SECRET')
+$wanted  = @('VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'ADMIN_CODE', 'ADMIN_SESSION_SECRET', 'SUPABASE_SERVICE_ROLE_KEY', 'STORE_SIGN_SECRET')
 $targets = @('production', 'preview')
 
 # SECURITY CHECK: never push a VITE_-prefixed admin code (it is public).

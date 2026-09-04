@@ -281,6 +281,6 @@ build that next if you want to keep going.
   ("Log a sale"). No affiliate network (AliExpress, Amazon, etc.) will notify
   your app automatically without integrating their conversion/postback API —
   that's a bigger follow-up project once you've validated the concept.
-- **Admin access** uses a plain client-side passcode (`hub-admin`) — fine for
-  a demo, not for production. Swap in real auth (Supabase Auth, Clerk, etc.)
-  before this handles real money.
+- **Admin access** is verified server-side via `POST /api/admin/auth` — the
+  code lives only in the `ADMIN_CODE` env var (never with a `VITE_` prefix,
+  which would ship it to browsers) and returns an HMAC-signed 8-hour token.

@@ -22,7 +22,7 @@ npm install
 ```env
 VITE_SUPABASE_URL=https://sbzzgfthgaurgcuxiuql.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-VITE_ADMIN_CODE=hub-admin-2026
+ADMIN_CODE=<הזן-כאן-קוד-אקראי-24-תווים-ומעלה>
 ```
 
 **חשוב:**
@@ -87,7 +87,7 @@ vercel
 ```bash
 vercel env add VITE_SUPABASE_URL
 vercel env add VITE_SUPABASE_ANON_KEY
-vercel env add VITE_ADMIN_CODE
+vercel env add ADMIN_CODE
 ```
 
 או דרך ה-Vercel Dashboard:

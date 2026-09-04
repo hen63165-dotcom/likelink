@@ -146,7 +146,8 @@ export async function processPendingPayouts() {
 
     let result;
     if (method === "paypal") {
-      const email = marketer?.payPalEmail || payout.recipient;
+      const email = marketer?.payPalEmail ||
+        (typeof payout.recipient === "string" ? payout.recipient : payout.recipient?.payPalEmail);
       if (!email) {
         result = { ok: false, note: "No PayPal email for creator" };
       } else {
