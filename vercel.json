@@ -25,6 +25,9 @@
     { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
             { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
     { "source": "/p/:id", "destination": "/api/og?id=:id" },
+    { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
+    { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
+    { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "headers": [

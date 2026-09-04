@@ -16,6 +16,8 @@
 // Storage: Supabase `kv` table under key "marketplace:autopilot" (same store
 // the rest of the platform uses).
 
+import { lunaHook } from "../src/lib/ambassador.js";
+
 const KV_KEY = "marketplace:autopilot";
 const MAX_LOGS_PER_CREATOR = 40;
 
@@ -797,9 +799,28 @@ async function publishBrandPulse(origin) {
   }
   if (!channels.length) return { ok: false, skipped: "no_brand_channels" };
 
+  // 🎀 Luna — the platform's digital ambassador — presents today's star item
+  // (deterministic rotation across qualifying approved products). Real traffic
+  // instead of a generic brand story; falls back when there's nothing to feature.
+  let spotlight = null;
+  try {
+    const productsRow = await kvGet("marketplace:products");
+    const list = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
+    const pool = list.filter(
+      (p) => p && p.status === "approved" && Number(p.price) > 0 && /^https?:/i.test(String(p.image || ""))
+    );
+    if (pool.length) spotlight = pool[(meta.run || 0) % pool.length];
+  } catch { /* classic brand-pulse fallback */ }
+
   const story = BRAND_PULSE_STORIES_HE[(meta.run || 0) % BRAND_PULSE_STORIES_HE.length];
-  const link = `${origin}/?utm_source=brandpulse&utm_medium=autopilot&utm_campaign=self_marketing`;
-  const text = `${story}\n\n💜 פותחים סטודיו חינם · ${link}`;
+  const utm = "utm_source=brandpulse&utm_medium=autopilot&utm_campaign=self_marketing";
+  const link = spotlight
+    ? `${origin}/?product=${encodeURIComponent(spotlight.id)}&${utm}`
+    : `${origin}/?${utm}`;
+  const storyLink = spotlight ? `${origin}/story/${encodeURIComponent(spotlight.id)}` : "";
+  const text = spotlight
+    ? `🎀 ${lunaHook(spotlight.id)}\n\n${spotlight.title}${Number(spotlight.price) > 0 ? ` · ${spotlight.price} ₪` : ""}\n${link}${storyLink ? `\n📱 הסטורי שלי בגוגל: ${storyLink}` : ""}\n\n💜 פותחים סטודיו חינם · ${origin}/?${utm}`
+    : `${story}\n\n💜 פותחים סטודיו חינם · ${link}`;
 
   const results = [];
   for (const ch of channels) {

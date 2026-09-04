@@ -61,6 +61,13 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ─── /api/fetch-product-info (merged from api/fetch-product-info.mjs, now
+  // deleted, to stay under the 12-function Hobby limit). Dispatched by
+  // vercel.json:  /api/fetch-product-info → /api/og?mode=fetch
+  if (url.searchParams.get("mode") === "fetch") {
+    return fetchProductInfoHandler(req, res);
+  }
+
   const slug = url.searchParams.get("slug") || "";
   const productId = url.searchParams.get("id") || "";
   const userAgent = String(getHeader(req, "user-agent") || "");
@@ -213,5 +220,108 @@ export default async function handler(req, res) {
   res.status(200);
   res.setHeader("content-type", "text/html; charset=utf-8");
   res.end(html);
+}
+
+// ─── fetch-product-info (merged from api/fetch-product-info.mjs, now deleted,
+// to stay under the 12-function Hobby limit). Same behavior, same JSON shape:
+//   /api/fetch-product-info?url=<encoded> → { ok, data: { image, title, price } }
+function fpiJson(res, obj, status = 200) {
+  res.status(status);
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader("cache-control", "no-store");
+  res.json(obj);
+}
+
+function fpiDecodeEntities(s) {
+  const named = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&nbsp;": " " };
+  return String(s)
+    .replace(/&amp;|&lt;|&gt;|&quot;|&apos;|&nbsp;/g, (m) => named[m] || m)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+}
+
+function fpiGetMeta(html, prop) {
+  const re1 = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, "i");
+  const re2 = new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, "i");
+  const m = html.match(re1) || html.match(re2);
+  return m ? fpiDecodeEntities(m[1]).trim() : null;
+}
+
+function fpiGetTitleTag(html) {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return m ? fpiDecodeEntities(m[1]).trim().slice(0, 300) : null;
+}
+
+function fpiFindPrice(node) {
+  if (!node || typeof node !== "object") return null;
+  const t = Array.isArray(node) ? node : [node];
+  for (const n of t) {
+    if (!n || typeof n !== "object") continue;
+    const type = n["@type"];
+    if (type === "Product" || type === "Offer") {
+      const off = n.offers;
+      if (off && typeof off === "object") {
+        if (Array.isArray(off) && off[0]) {
+          if (off[0].price != null) return off[0].price;
+        } else if (off.price != null) {
+          return off.price;
+        }
+      }
+      if (n.price != null) return n.price;
+      if (n.lowPrice != null) return n.lowPrice;
+    }
+    for (const v of Object.values(n)) {
+      const r = fpiFindPrice(v);
+      if (r != null) return r;
+    }
+  }
+  return null;
+}
+
+function fpiExtractPrice(html) {
+  const metaP = fpiGetMeta(html, "og:price:amount") || fpiGetMeta(html, "product:price:amount");
+  if (metaP) return metaP;
+  const ld = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (ld) {
+    for (const chunk of ld[1].split("</script>")) {
+      try {
+        const root = JSON.parse(chunk.trim());
+        const p = fpiFindPrice(root);
+        if (p != null) return String(p);
+      } catch { /* ignore malformed JSON-LD */ }
+    }
+  }
+  return null;
+}
+
+async function fetchProductInfoHandler(req, res) {
+  const url = new URL(req.url);
+  const target = url.searchParams.get("url") || "";
+  if (!target) { fpiJson(res, { ok: false, error: "missing url" }); return; }
+
+  let t;
+  try { t = new URL(target); } catch { fpiJson(res, { ok: false, error: "invalid url" }); return; }
+  if (t.protocol !== "http:" && t.protocol !== "https:") {
+    fpiJson(res, { ok: false, error: "invalid url protocol" });
+    return;
+  }
+
+  try {
+    const fetchRes = await fetch(t.href, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36 LikelinkBot/1.0",
+        "accept-language": "en,he;q=0.8",
+      },
+    });
+    if (!fetchRes.ok) { fpiJson(res, { ok: false, error: `fetch failed: ${fetchRes.status}` }); return; }
+    const html = await fetchRes.text();
+    const image = fpiGetMeta(html, "og:image") || fpiGetMeta(html, "twitter:image");
+    const title = fpiGetMeta(html, "og:title") || fpiGetMeta(html, "twitter:title") || fpiGetTitleTag(html);
+    const price = fpiExtractPrice(html);
+    fpiJson(res, { ok: true, data: { image, title, price } });
+  } catch {
+    fpiJson(res, { ok: false, error: "fetch or parse error" });
+  }
 }
 

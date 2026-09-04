@@ -135,10 +135,114 @@ async function verifySaleSignature({ key, sale, sig, sigTs }) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// ─── sign-sale (merged from the deleted api/sign-sale.mjs to stay under the
+// ─── 12-serverless-function Hobby limit). Dispatched by vercel.json rewrite:
+// ─── /api/sign-sale → /api/store?mode=sign-sale
+const SIGN_MIN_SALE = 1;        // ₪
+const SIGN_MAX_SALE = 100000;   // ₪ per sale
+const SIGN_MAX_PER_IP_MIN = 15; // signed sales per IP per 60s window
+const signWindow = new Map();   // ip → [ts] (per-lambda sliding window)
+
+async function kvGet(key) {
+  if (!SB_URL || !SB_KEY) return null;
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
+    );
+    const rows = await res.json();
+    return rows?.[0]?.value ? JSON.parse(rows[0].value) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function signSaleHandler(req, res) {
+  let body;
+  try {
+    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+  } catch {
+    json(res, { ok: false, error: "bad_json" }, 400);
+    return;
+  }
+
+  const { productId, marketerId, saleAmount, commissionAmount, ts, id } = body || {};
+  const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : NaN; };
+  const amount = toNum(saleAmount);
+  const commission = toNum(commissionAmount);
+
+  if (!marketerId || !productId) { json(res, { ok: false, error: "missing_fields" }, 400); return; }
+  if (Number.isNaN(amount) || amount < SIGN_MIN_SALE || amount > SIGN_MAX_SALE) {
+    json(res, { ok: false, error: "invalid_amount", min: SIGN_MIN_SALE, max: SIGN_MAX_SALE }, 400);
+    return;
+  }
+  if (Number.isNaN(commission) || commission < 0 || commission > amount) {
+    json(res, { ok: false, error: "invalid_commission" }, 400);
+    return;
+  }
+
+  // Ownership: the product must exist and belong to this creator.
+  const [prods, mks, settings] = await Promise.all([
+    kvGet("marketplace:products"),
+    kvGet("marketplace:marketers"),
+    kvGet("marketplace:settings"),
+  ]);
+  const product = Array.isArray(prods) ? prods.find((p) => p && p.id === productId) : null;
+  if (!product) { json(res, { ok: false, error: "product_not_found" }, 404); return; }
+  if (product.marketerId !== marketerId) { json(res, { ok: false, error: "not_owner" }, 403); return; }
+  if (!Array.isArray(mks) || !mks.some((m) => m && m.id === marketerId)) {
+    json(res, { ok: false, error: "marketer_not_found" }, 404);
+    return;
+  }
+
+  // Rate limit (per IP, sliding 60s window).
+  const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
+  const now = Date.now();
+  const win = (signWindow.get(ip) || []).filter((t) => now - t < 60000);
+  if (win.length >= SIGN_MAX_PER_IP_MIN) { json(res, { ok: false, error: "rate_limited" }, 429); return; }
+  win.push(now);
+  signWindow.set(ip, win.slice(-SIGN_MAX_PER_IP_MIN));
+
+  // Build the sale exactly as the client will persist it.
+  const finalTs = Number.isFinite(toNum(ts)) ? toNum(ts) : now;
+  const feePct = Number(settings?.platformFeePercent ?? 15);
+  const fee = Math.round(commission * (feePct / 100) * 100) / 100;
+  const sale = {
+    id: String(id || `${productId}-${finalTs}`),
+    productId,
+    marketerId,
+    saleAmount: Math.round(amount * 100) / 100,
+    commissionAmount: Math.round(commission * 100) / 100,
+    platformFee: fee,
+    marketerNet: Math.round((commission - fee) * 100) / 100,
+    ts: finalTs,
+  };
+
+  // HMAC over the SAME canonical string verifySaleSignature() reconstructs.
+  const crypto = await import("crypto");
+  const canonical = [
+    "marketplace:sales",
+    String(sale.marketerId),
+    String(sale.productId),
+    Number(sale.saleAmount),
+    Number(sale.commissionAmount),
+    Number(sale.ts),
+  ].join("|");
+  const sig = crypto.createHmac("sha256", SIGN_SECRET).update(canonical).digest("hex");
+
+  json(res, { ok: true, sig, sigTs: now, sale });
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 503); return; }
+
+  // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
+  // here via vercel.json rewrite → /api/store?mode=sign-sale
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "sign-sale") {
+    return signSaleHandler(req, res);
+  }
 
   let body;
   try {
