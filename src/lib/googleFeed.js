@@ -111,6 +111,12 @@ export function collectFeedItems({
   return (products || [])
     .filter((p) => p && p.status === "approved")
     .filter((p) => toText(p.title))
+    // Google Shopping hard requirements — anything missing gets the ITEM
+    // disapproved and pollutes the account's diagnostics. We only ship items
+    // Google will accept, so the feed is always clean:
+    .filter((p) => toNumber(p.price, 0) > 0)      // price must be > 0
+    .filter((p) => toText(p.description))         // description is required
+    .filter((p) => isAbsoluteHttpUrl(p.image))    // image_link is required
     .map((p) => {
       const m = byMarketer.get(p.marketerId);
       return {

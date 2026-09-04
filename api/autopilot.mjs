@@ -681,6 +681,69 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
   return { ok: results.some((r) => r.ok), results };
 }
 
+// ─── ✨ New-product launch announcement ─────────────────────────────────────
+// מעלה מוצר אחד → הוא יוצא מיד לכל הערוצים המחוברים של היוצרת (מעבר לתור המתוכנן),
+// עם אותו קפטן חכם, אותם לינקים ממוקדי-ערוץ ואותה היסטוריה. חד-פעמי לכל מוצר.
+async function announceNewProduct(store, marketerId, cfg, product, origin) {
+  const marketer = (store.__marketers || []).find((m) => m.id === marketerId);
+  const slug = marketer?.slug || marketerId;
+  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+  const tags = pickTags(product);
+
+  // Same caption engine as the scheduled run — consistent voice everywhere.
+  const text = cfg.template?.trim()
+    ? renderTemplate(cfg.template, product, baseLink)
+    : smartCaption(product, baseLink, tags, cfg.runCount);
+
+  const results = [];
+  for (const ch of cfg.channels || []) {
+    const link = trackLink(baseLink, ch.type, product.id);
+    const chText = link === baseLink ? text : text.split(baseLink).join(link);
+    try {
+      if (ch.type === "telegram") await sendTelegram(ch, chText);
+      else if (ch.type === "webhook")
+        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-new-product", event: "new_product" });
+      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
+      else if (ch.type === "discord") await sendDiscord(ch, chText);
+      else if (ch.type === "slack") await sendSlack(ch, chText);
+      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
+      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
+      else if (ch.type === "x") await sendX(ch, chText, link);
+      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
+      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
+      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
+      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
+      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
+      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
+      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
+      results.push({ channel: ch.type, ok: true });
+    } catch (e) {
+      results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+    }
+  }
+
+  // ההשקה המיידית נחשבת פרסום מלא: צורכת את הסלוט המתוכנן (לא כפילות) + לוג.
+  const anyOk = results.some((r) => r.ok);
+  cfg.lastRunAt = Date.now();
+  cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
+  cfg.runCount = (cfg.runCount || 0) + 1;
+  cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
+  cfg.logs = [
+    {
+      ts: Date.now(),
+      ok: anyOk,
+      channel: results.map((r) => r.channel).join(","),
+      detail: results.map((r) => (r.ok ? "sent" : r.detail)).join(", "),
+      text,
+      productId: product.id,
+      event: "new_product",
+    },
+    ...(cfg.logs || []),
+  ].slice(0, MAX_LOGS_PER_CREATOR);
+
+  return { ok: anyOk, results };
+}
+
 // ─── ✨ Brand Pulse — הפרסום העצמי של הפלטפורמה ────────────────────────────
 // כשהקרון/ה-Swarm רצים, גם בלי יוצרת ספציפית, המערכת מפרסמת מדי 24 שעות
 // את "סיפור המערכת" של Likelink לערוצי המותג שהבעלים הגדיר (Telegram/Webhook):
@@ -765,7 +828,7 @@ async function publishBrandPulse(origin) {
 // Runs every enabled automation whose slot is due. Shared by the Vercel cron
 // and the "tick" mode (browsers ping it on visits, so scheduled posts go out
 // on time even on the Hobby plan, where crons fire only once a day).
-async function runDue(origin) {
+async function runDue(origin, opts = {}) {
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
   const [store, marketersRow, productsRow] = await Promise.all([
     kvGet(KV_KEY),
@@ -776,16 +839,34 @@ async function runDue(origin) {
   store.__products = Array.isArray(productsRow) ? productsRow : [];
 
   const startTime = Date.now();
-  const MAX_RUN_MS = 50000;
+  // Time budget: Vercel kills the function at maxDuration (60s). Reserving the
+  // tail for the final kvSet + brand pulse means a full run NEVER hits it.
+  const MAX_RUN_MS = 35000;
+  const maxCreators = Number(opts?.maxCreators) || Infinity;
 
   const ran = [];
+  let budgetHit = false;
   for (const [marketerId, cfg] of Object.entries(store)) {
+    if (ran.length >= maxCreators) break;
     if (marketerId.startsWith("__")) continue;
     if (!cfg?.enabled) continue;
     if ((cfg.nextRunAt || 0) > Date.now()) continue;
-    if (Date.now() - startTime > MAX_RUN_MS) break;
+    if (Date.now() - startTime > MAX_RUN_MS) { budgetHit = true; break; }
+
+    // ── Crash-safe claim ──
+    // Reserve the slot BEFORE publishing and persist it immediately. If the
+    // function dies mid-send, the next run/tick sees the claimed slot and
+    // never republishes the same post (no duplicate spam). runOne() refines
+    // the slot with the smart scheduler at its end anyway.
+    cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
+    try { await kvSet(KV_KEY, stripRuntime(store)); } catch { /* best-effort */ }
+
     const r = await runOne(store, marketerId, cfg, origin);
     ran.push({ marketerId, ok: r.ok });
+
+    // Persist progress after EVERY creator: a killed function can then only
+    // lose the creator currently in flight — never the whole batch's work.
+    try { await kvSet(KV_KEY, stripRuntime(store)); } catch { /* best-effort */ }
   }
   try {
     await kvSet(KV_KEY, stripRuntime(store));
@@ -794,11 +875,14 @@ async function runDue(origin) {
   // Self-marketing engine: once a day, tell the world the platform story.
   // Runs even when no creator is due — so the site markets itself in the
   // background, through the same channels the owner configured for the brand.
-  try {
-    await publishBrandPulse(origin);
-  } catch { /* never let brand pulse break the main run */ }
+  // Gated on budget: it must never be the straw that breaks the 60s limit.
+  if (!budgetHit) {
+    try {
+      await publishBrandPulse(origin);
+    } catch { /* never let brand pulse break the main run */ }
+  }
 
-  return { ok: true, ran };
+  return { ok: true, ran, budgetHit };
 }
 
 export default async function handler(req, res) {
@@ -837,7 +921,10 @@ export default async function handler(req, res) {
   // already scheduled. Must run BEFORE the marketerId check (tick sends none).
   if (mode === "tick") {
     if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
-    const _r2 = await runDue(origin);
+    // One creator per ping: the visiting audience IS the scheduler. Many small,
+    // fast invocations (<15s each) drain the queue — no invocation ever gets
+    // near the 60s Vercel limit, and a killed tick loses at most one post.
+    const _r2 = await runDue(origin, { maxCreators: 1 });
     json(res, _r2);
     return;
   }
@@ -913,6 +1000,40 @@ export default async function handler(req, res) {
     try {
       await kvSet(KV_KEY, stripRuntime(store));
     } catch { /* log persistence best-effort */ }
+    json(res, { ...r, config: publicCfg(cfg) });
+    return;
+  }
+
+  // ── "New product" instant announcement ──
+  // Fired automatically right after a product is created/approved. Public yet
+  // harmless: it can only announce a REAL approved product to the channels its
+  // own creator connected, exactly ONCE (idempotent by product id).
+  if (mode === "announce") {
+    const { productId } = body || {};
+    if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400); return; }
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
+    const [store, productsRow, marketersRow] = await Promise.all([
+      kvGet(KV_KEY),
+      kvGet("marketplace:products"),
+      kvGet("marketplace:marketers"),
+    ]);
+    const productsList = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
+    const product = productsList.find((p) => p && p.id === productId);
+    if (!product) { json(res, { ok: false, error: "product_not_found" }, 404); return; }
+    if (product.status !== "approved") { json(res, { ok: true, skipped: "not_approved" }); return; }
+    const cfg = store[product.marketerId];
+    if (!cfg?.enabled || !Array.isArray(cfg.channels) || !cfg.channels.length) {
+      json(res, { ok: true, skipped: "no_autopilot_channels" });
+      return;
+    }
+    // Idempotency: one launch announcement per product, ever.
+    if ((cfg.logs || []).some((l) => l && l.event === "new_product" && l.productId === productId)) {
+      json(res, { ok: true, skipped: "already_announced" });
+      return;
+    }
+    store.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
+    const r = await announceNewProduct(store, product.marketerId, cfg, product, origin);
+    try { await kvSet(KV_KEY, stripRuntime(store)); } catch { /* best-effort */ }
     json(res, { ...r, config: publicCfg(cfg) });
     return;
   }

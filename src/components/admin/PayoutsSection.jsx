@@ -31,7 +31,7 @@ export default function PayoutsSection() {
     () =>
       (marketers || []).map((m) => {
         const summary = getSellerPayoutSummary(sales, payouts, m.id, charges);
-        const openPayout = (payouts || []).find((p) => p.marketerId === m.id && p.status === PAYOUT_STATUS.PENDING);
+        const openPayout = (payouts || []).find((p) => p.marketerId === m.id && (p.status === PAYOUT_STATUS.PENDING || p.status === PAYOUT_STATUS.PROCESSING));
         const method = m.paymentMethod || PAYOUT_DEFAULT;
         const done = summary.pendingPayout < MIN_PAYOUT_THRESHOLD;
         return { m, summary, openPayout, method, done };

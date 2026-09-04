@@ -471,6 +471,16 @@ export function MarketplaceProvider({ children }) {
         }
 
         showToast(t("sell.published"));
+
+        // 🚀 One upload → everywhere: instant launch announcement to every
+        // channel this creator connected in AutoPilot (fire-and-forget; the
+        // server is idempotent — one announcement per product, ever).
+        fetch("/api/autopilot", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode: "announce", productId: p.id }),
+          keepalive: true,
+        }).catch(() => {});
       },
       onDeleteProduct: async (id) => {
         await persistProducts(products.filter((p) => p.id !== id));
@@ -528,6 +538,16 @@ export function MarketplaceProvider({ children }) {
       onSetStatus: async (id, status) => {
         await persistProducts(products.map((p) => (p.id === id ? { ...p, status } : p)));
         showToast(status === "approved" ? t("admin.approved2") : status === "flagged" ? t("admin.flagged2") : t("admin.removed2"));
+        // 🚀 Approval = go-live: instant launch announcement to the creator's
+        // channels (fire-and-forget; server-side idempotency prevents doubles).
+        if (status === "approved") {
+          fetch("/api/autopilot", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ mode: "announce", productId: id }),
+            keepalive: true,
+          }).catch(() => {});
+        }
       },
       onRemove: async (id) => {
         await persistProducts(products.filter((p) => p.id !== id));
@@ -541,7 +561,7 @@ export function MarketplaceProvider({ children }) {
       },
       onCreatePayout: async (marketerId) => {
         const summary = getSellerPayoutSummary(sales, payouts, marketerId);
-        const open = payouts.some((p) => p.marketerId === marketerId && p.status === PAYOUT_STATUS.PENDING);
+        const open = payouts.some((p) => p.marketerId === marketerId && (p.status === PAYOUT_STATUS.PENDING || p.status === PAYOUT_STATUS.PROCESSING));
         if (summary.pendingPayout < MIN_PAYOUT_THRESHOLD || open) return;
         const marketer = marketers.find((m) => m.id === marketerId);
         const method = marketer?.paymentMethod || PAYOUT_DEFAULT;

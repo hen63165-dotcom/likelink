@@ -17,7 +17,7 @@
 // A real Israeli provider (Tranzila/Cardcom/PayPlus) can be added later for
 // bank-transfer payouts. For now the platform pays via PayPal Mass Payouts.
 
-export const PAYOUT_STATUS = { PENDING: "pending", PAID: "paid", FAILED: "failed" };
+export const PAYOUT_STATUS = { PENDING: "pending", PROCESSING: "processing", PAID: "paid", FAILED: "failed" };
 
 // ─── Payment provider (SERVER-SIDE ONLY) ───────────────────────────────────
 // Real money moves ONLY inside api/payouts/process.mjs (PayPal Mass Payouts,

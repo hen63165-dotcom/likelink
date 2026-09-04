@@ -94,7 +94,9 @@ async function sendPayPalPayout(payout, recipientEmail) {
     },
     body: JSON.stringify({
       sender_batch_header: {
-        sender_batch_id: `likelink-${payout.id}-${Date.now()}`,
+        // STABLE batch id (no Date.now!): PayPal rejects a duplicate batch id,
+        // so a retried/overlapping run can never send the same money twice.
+        sender_batch_id: `likelink-${payout.id}`,
         email_subject: "Your Likelink payout",
         email_message: "Your earnings have been paid out. Thank you for selling with Likelink!",
       },
@@ -132,17 +134,46 @@ export async function processPendingPayouts() {
     return { ok: true, processed: 0, message: "No payouts to process" };
   }
 
-  const pending = payouts.filter((p) => p.status === "pending");
-  if (pending.length === 0) {
+  // ── Crash-safe + idempotent processing ──
+  // Claimable = still pending, or a "processing" claim that went stale
+  // (the previous run died before resolving it) with NO PayPal batch yet.
+  const STALE_MS = 30 * 60 * 1000;
+  const isClaimable = (p) =>
+    p.status === "pending" ||
+    (p.status === "processing" && !p.reference && Date.now() - (p.claimedAt || 0) > STALE_MS);
+
+  // Auto-heal: a "processing" payout WITH a batch reference means PayPal
+  // already accepted the batch — the previous run just died before saving.
+  // Mark it paid instead of ever re-sending that money.
+  const healed = [];
+  const healedPayouts = payouts.map((p) => {
+    if (p.status === "processing" && p.reference && Date.now() - (p.claimedAt || 0) > STALE_MS) {
+      healed.push(p.id);
+      return { ...p, status: "paid", paidAt: Date.now(), note: `${p.note || ""} (auto-healed from processing)`.trim() };
+    }
+    return p;
+  });
+
+  const pending = healedPayouts.filter(isClaimable);
+  if (pending.length === 0 && healed.length === 0) {
     return { ok: true, processed: 0, message: "No pending payouts" };
   }
 
-  const results = [];
-  const updatedPayouts = [...payouts];
+  const results = healed.map((id) => ({ payoutId: id, healed: true }));
+  const updatedPayouts = [...healedPayouts];
 
   for (const payout of pending) {
     const marketer = marketers.find((m) => m.id === payout.marketerId);
     const method = String(payout.method || "paypal").toLowerCase();
+
+    // Claim BEFORE touching PayPal and persist the claim immediately: two
+    // overlapping runs (cron + manual) can then never double-send. The stable
+    // sender_batch_id inside sendPayPalPayout is the second safety net.
+    const idx = updatedPayouts.findIndex((p) => p.id === payout.id);
+    if (idx !== -1) {
+      updatedPayouts[idx] = { ...updatedPayouts[idx], status: "processing", claimedAt: Date.now() };
+      try { await kvSet(PAYOUTS_KEY, updatedPayouts); } catch { /* best-effort */ }
+    }
 
     let result;
     if (method === "paypal") {
@@ -167,7 +198,6 @@ export async function processPendingPayouts() {
       };
     }
 
-    const idx = updatedPayouts.findIndex((p) => p.id === payout.id);
     if (idx !== -1) {
       updatedPayouts[idx] = {
         ...updatedPayouts[idx],
