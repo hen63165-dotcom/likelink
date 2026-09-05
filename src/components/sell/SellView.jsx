@@ -33,6 +33,7 @@ import MarketingHub from "../MarketingHub";
 import AutoVideoStudio from "../video/AutoVideoStudio";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
+import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds";
 
@@ -44,7 +45,7 @@ export default function SellView({ navigate }) {
   const { t, lang } = useI18n();
   const mp = useMarketplace();
   const {
-    currentMarketer: marketer, marketers, products, sales, payouts, settings, charges, notifications,
+    currentMarketer: marketer, marketers, products, sales, payouts, settings, charges, notifications, clicks,
     introSeen, dismissIntro, collections, showToast,
     onLogin, onSignup, onLogout, onAddProduct, onDeleteProduct, onLogSale,
     onAddCollection, onUpdateCollection, onDeleteCollection, onUpdateMarketer, onBuyBoost,
@@ -324,6 +325,10 @@ export default function SellView({ navigate }) {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mb-5">
+          <CoachPanel products={products} sales={sales} clicks={clicks} marketerId={marketer.id} />
         </div>
 
         <div className="surface rounded-2xl p-4 shadow-sm">

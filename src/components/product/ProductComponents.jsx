@@ -195,6 +195,7 @@ export const ProductCard = memo(function ProductCard({
   onOpen,
   onAddToCart,
   index = 0,
+  badge = null,
 }) {
   const { setIsOpen: openCart } = useCart();
 
@@ -224,8 +225,19 @@ export const ProductCard = memo(function ProductCard({
         <div className="w-full aspect-[4/5] overflow-hidden relative">
           <ProductThumb p={p} />
           <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+          {badge && (
+            <span
+              className="absolute top-3 start-3 z-10 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm"
+              style={{
+                background: badge.variant === "trust" ? "rgba(183,143,79,0.92)" : badge.variant === "hot" ? "rgba(179,84,30,0.92)" : "rgba(33,28,22,0.88)",
+                color: "#fff",
+              }}
+            >
+              {badge.label}
+            </span>
+          )}
           {((p.boostedUntil || 0) > Date.now()) && <SponsoredChip />}
-          
+
           {p.price > 0 && (
             <motion.button
               whileTap={{ scale: 0.9 }}
@@ -270,6 +282,7 @@ export const StreamCard = memo(function StreamCard({
   onToggleFavorite,
   onOpen,
   index = 0,
+  badge = null,
 }) {
   const { categoryLabel } = useI18n();
   return (
@@ -292,6 +305,17 @@ export const StreamCard = memo(function StreamCard({
         <div className="w-full aspect-[16/10] overflow-hidden relative">
           <ProductThumb p={p} />
           <FavButton isFav={isFav} onToggle={onToggleFavorite} floating />
+          {badge && (
+            <span
+              className="absolute top-3 start-3 z-10 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm"
+              style={{
+                background: badge.variant === "trust" ? "rgba(183,143,79,0.92)" : badge.variant === "hot" ? "rgba(179,84,30,0.92)" : "rgba(33,28,22,0.88)",
+                color: "#fff",
+              }}
+            >
+              {badge.label}
+            </span>
+          )}
           {((p.boostedUntil || 0) > Date.now()) && <SponsoredChip />}
         </div>
         

@@ -7,7 +7,7 @@ import { useCart } from "../../context/CartContext";
 import { useVideos } from "../../context/VideoContext";
 import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers";
 import { trackClick } from "../../lib/analytics";
-import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations } from "../../lib/recommendations";
+import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations, getFeedBadges } from "../../lib/recommendations";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
@@ -103,6 +103,12 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
         .slice(0, 6),
     [products]
+  );
+
+  // תגיות אמינות — אילו מוצרים מגיעים לתגית (מומלץ / הכי נמכר / טרנדינג)
+  const feedBadges = useMemo(
+    () => getFeedBadges(products || [], sales || [], { topN: 5 }),
+    [products, sales]
   );
 
   // LTK-style curated sections
@@ -581,6 +587,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
               onOpen={() => setActive(p)}
               onAddToCart={handleAddToCart}
               index={i}
+              badge={feedBadges.get(p.id) || null}
             />
           ))}
         </div>
@@ -597,6 +604,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
               onToggleFavorite={() => toggleFavorite(p.id)}
               onOpen={() => setActive(p)}
               index={i}
+              badge={feedBadges.get(p.id) || null}
             />
           ))}
         </div>

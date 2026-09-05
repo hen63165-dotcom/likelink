@@ -271,3 +271,45 @@ export function rankByTrust(products = [], sales = [], limit = 6) {
     .sort((a, b) => b._trustScore - a._trustScore)
     .slice(0, limit);
 }
+
+/**
+ * תגיות פיד — "רק הטובים עולים".
+ * מחשב אילו מוצרים מגיעים לתגית (מומלץ / הכי נמכר / טרנדינג) לפי
+ * מכירות אמיתיות + קליקים, בעזרת rankByTrust הקיים.
+ * מחזיר Map של productId → { label, variant } — O(1) חיפוש ברינדור.
+ *
+ * @returns {Map<string,{label:string,variant:string}>}
+ */
+export function getFeedBadges(products = [], sales = [], { topN = 5 } = {}) {
+  const ranked = rankByTrust(products, sales, products.length);
+  if (!ranked.length) return new Map();
+
+  // מוצרים הכי טובים (פ�ילוט)
+  const topIds = new Set(ranked.slice(0, topN).map((p) => p.id));
+
+  // ספירת מכירות לכל מוצר
+  const salesByProduct = {};
+  (sales || []).forEach((s) => {
+    if (s && s.productId) salesByProduct[s.productId] = (salesByProduct[s.productId] || 0) + 1;
+  });
+
+  // כמות המכירות המקסימלית (לזיהוי "הכי נמכר")
+  let maxSales = 0;
+  Object.values(salesByProduct).forEach((n) => {
+    if (n > maxSales) maxSales = n;
+  });
+
+  const badges = new Map();
+  ranked.forEach((p) => {
+    const salesCount = salesByProduct[p.id] || 0;
+    if (topIds.has(p.id) && salesCount >= 2) {
+      badges.set(p.id, { label: "⭐ מומלץ", variant: "trust" });
+    } else if (salesCount >= 3 && salesCount === maxSales && maxSales > 0) {
+      badges.set(p.id, { label: "🔥 הכי נמכר", variant: "hot" });
+    } else if (topIds.has(p.id) && salesCount >= 1) {
+      badges.set(p.id, { label: "📈 טרנדינג", variant: "trend" });
+    }
+  });
+
+  return badges;
+}
