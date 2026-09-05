@@ -14,7 +14,7 @@ const PAYOUTS_KEY = "marketplace:payouts";
 const MARKETERS_KEY = "marketplace:marketers";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";

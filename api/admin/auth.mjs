@@ -15,6 +15,8 @@
 // per IP and answered with a small artificial delay to blunt brute force.
 
 import crypto from "crypto";
+import { jsonCors } from "../_utils/cors";
+import { audit } from "../audit";
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "";
 const SECRET =
@@ -29,14 +31,11 @@ const MAX_ATTEMPTS = 6;
 // with the 400ms delay and a strong random code this is solid for a solo admin).
 const attempts = new Map(); // ip → [ts]
 
-function json(res, obj, status = 200) {
-  res.status(status);
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  res.setHeader("cache-control", "no-store");
-  res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-methods", "POST, GET, OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type, authorization");
-  res.json(obj);
+function json(res, obj, status = 200, req) {
+  jsonCors(res, obj, status, req, {
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    allowHeaders: ["content-type", "authorization"],
+  });
 }
 
 function clientIp(req) {
@@ -93,7 +92,7 @@ function checkToken(token) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
+  if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
 
   // ── GET: verify an existing admin session token ──
   if (req.method === "GET") {
@@ -101,25 +100,33 @@ export default async function handler(req, res) {
     const auth = (typeof h?.get === "function" ? h.get("authorization") : h?.authorization) || "";
     const token = String(auth).replace(/^Bearer\s+/i, "");
     const data = checkToken(token);
-    if (!data) { json(res, { ok: false, error: "invalid_token" }, 401); return; }
-    json(res, { ok: true, expiresInLeft: data.exp - Date.now() });
+    if (!data) {
+      audit.logApiForbidden({ type: "token-verify" }, { type: "admin-session" }, { _req: req });
+      json(res, { ok: false, error: "invalid_token" }, 401, req);
+      return;
+    }
+    json(res, { ok: true, expiresInLeft: data.exp - Date.now() }, 200, req);
     return;
   }
 
-  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   // ── POST: exchange the admin code for a session token ──
-  if (!ADMIN_CODE) { json(res, { ok: false, error: "server_not_configured" }, 503); return; }
+  if (!ADMIN_CODE) { json(res, { ok: false, error: "server_not_configured" }, 503, req); return; }
 
   const ip = clientIp(req);
-  if (isRateLimited(ip)) { json(res, { ok: false, error: "rate_limited" }, 429); return; }
+  if (isRateLimited(ip)) {
+    audit.logApiRateLimit({ type: "admin-login", ip }, { type: "admin-auth" }, { _req: req });
+    json(res, { ok: false, error: "rate_limited" }, 429, req);
+    return;
+  }
 
   let code = "";
   try {
     const body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
     code = String(body?.code || "");
   } catch {
-    json(res, { ok: false, error: "bad_json" }, 400);
+    json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
   }
 
@@ -128,10 +135,13 @@ export default async function handler(req, res) {
   if (!ok) {
     noteAttempt(ip);
     await new Promise((r) => setTimeout(r, 400)); // blunt brute force
-    json(res, { ok: false, error: "invalid_code" }, 401);
+    audit.logAdminFailure({ type: "admin", ip }, { type: "admin-session" }, { _req: req });
+    json(res, { ok: false, error: "invalid_code" }, 401, req);
     return;
   }
 
   attempts.delete(ip);
-  json(res, { ok: true, token: makeToken(), expiresIn: TTL_MS });
+  const token = makeToken();
+  audit.logAdminSuccess({ type: "admin", ip }, { type: "admin-session" }, { _req: req });
+  json(res, { ok: true, token, expiresIn: TTL_MS }, 200, req);
 }

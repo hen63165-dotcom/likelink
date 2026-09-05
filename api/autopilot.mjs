@@ -17,21 +17,19 @@
 // the rest of the platform uses).
 
 import { lunaHook } from "../src/lib/ambassador.js";
+import { jsonCors } from "./_utils/cors";
 
 const KV_KEY = "marketplace:autopilot";
 const MAX_LOGS_PER_CREATOR = 40;
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function json(res, obj, status = 200) {
-  res.status(status);
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  res.setHeader("cache-control", "no-store");
-  res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-methods", "POST, OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type");
-  res.json(obj);
+function json(res, obj, status = 200, req) {
+  jsonCors(res, obj, status, req, {
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    allowHeaders: ["content-type"],
+  });
 }
 
 // ─── kv storage (same conventions as src/lib/storage.js) ───────────────────
@@ -907,7 +905,7 @@ async function runDue(origin, opts = {}) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
+  if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
 
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
@@ -922,16 +920,16 @@ export default async function handler(req, res) {
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === (process.env.AUTOPILOT_SECRET || ""));
 
-  if (isCron) { const _r = await runDue(origin); json(res, _r); return; }
+  if (isCron) { const _r = await runDue(origin); json(res, _r, 200, req); return; }
 
   // ── Studio API ──
-  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   let body;
   try {
     body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
   } catch {
-    json(res, { ok: false, error: "bad_json" }, 400);
+    json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
   }
 
@@ -941,12 +939,12 @@ export default async function handler(req, res) {
   // Needs no secrets and no marketerId: it only publishes what creators
   // already scheduled. Must run BEFORE the marketerId check (tick sends none).
   if (mode === "tick") {
-    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
     // One creator per ping: the visiting audience IS the scheduler. Many small,
     // fast invocations (<15s each) drain the queue — no invocation ever gets
     // near the 60s Vercel limit, and a killed tick loses at most one post.
     const _r2 = await runDue(origin, { maxCreators: 1 });
-    json(res, _r2);
+    json(res, _r2, 200, req);
     return;
   }
 
@@ -981,18 +979,18 @@ export default async function handler(req, res) {
         events = events.slice(0, 12);
       }
     } catch { /* best-effort */ }
-    json(res, { ok: true, events });
+    json(res, { ok: true, events }, 200, req);
     return;
   }
 
-  if (!marketerId) { json(res, { ok: false, error: "missing_marketerId" }, 400); return; }
-  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
+  if (!marketerId) { json(res, { ok: false, error: "missing_marketerId" }, 400, req); return; }
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
 
   const store = await kvGet(KV_KEY);
 
   if (mode === "get") {
     const cfg = store[marketerId] || null;
-    json(res, { ok: true, config: cfg ? publicCfg(cfg) : null });
+    json(res, { ok: true, config: cfg ? publicCfg(cfg) : null }, 200, req);
     return;
   }
 
@@ -1001,16 +999,16 @@ export default async function handler(req, res) {
     store[marketerId] = sanitizeConfig(prev, body.config || {});
     try {
       await kvSet(KV_KEY, stripRuntime(store));
-      json(res, { ok: true, config: publicCfg(store[marketerId]) });
+      json(res, { ok: true, config: publicCfg(store[marketerId]) }, 200, req);
     } catch (e) {
-      json(res, { ok: false, error: String(e.message || e) }, 500);
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
     return;
   }
 
   if (mode === "run") {
     const cfg = store[marketerId];
-    if (!cfg) { json(res, { ok: false, error: "not_configured" }, 404); return; }
+    if (!cfg) { json(res, { ok: false, error: "not_configured" }, 404, req); return; }
     const [marketersRow, productsRow] = await Promise.all([
       kvGet("marketplace:marketers"),
       kvGet("marketplace:products"),
@@ -1021,7 +1019,7 @@ export default async function handler(req, res) {
     try {
       await kvSet(KV_KEY, stripRuntime(store));
     } catch { /* log persistence best-effort */ }
-    json(res, { ...r, config: publicCfg(cfg) });
+    json(res, { ...r, config: publicCfg(cfg) }, 200, req);
     return;
   }
 
@@ -1031,35 +1029,35 @@ export default async function handler(req, res) {
   // own creator connected, exactly ONCE (idempotent by product id).
   if (mode === "announce") {
     const { productId } = body || {};
-    if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400); return; }
-    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
-    const [store, productsRow, marketersRow] = await Promise.all([
+    if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
+    const [store2, productsRow, marketersRow] = await Promise.all([
       kvGet(KV_KEY),
       kvGet("marketplace:products"),
       kvGet("marketplace:marketers"),
     ]);
     const productsList = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
     const product = productsList.find((p) => p && p.id === productId);
-    if (!product) { json(res, { ok: false, error: "product_not_found" }, 404); return; }
-    if (product.status !== "approved") { json(res, { ok: true, skipped: "not_approved" }); return; }
-    const cfg = store[product.marketerId];
+    if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
+    if (product.status !== "approved") { json(res, { ok: true, skipped: "not_approved" }, 200, req); return; }
+    const cfg = store2[product.marketerId];
     if (!cfg?.enabled || !Array.isArray(cfg.channels) || !cfg.channels.length) {
-      json(res, { ok: true, skipped: "no_autopilot_channels" });
+      json(res, { ok: true, skipped: "no_autopilot_channels" }, 200, req);
       return;
     }
     // Idempotency: one launch announcement per product, ever.
     if ((cfg.logs || []).some((l) => l && l.event === "new_product" && l.productId === productId)) {
-      json(res, { ok: true, skipped: "already_announced" });
+      json(res, { ok: true, skipped: "already_announced" }, 200, req);
       return;
     }
-    store.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
-    const r = await announceNewProduct(store, product.marketerId, cfg, product, origin);
-    try { await kvSet(KV_KEY, stripRuntime(store)); } catch { /* best-effort */ }
-    json(res, { ...r, config: publicCfg(cfg) });
+    store2.__marketers = Array.isArray(marketersRow) ? marketersRow : [];
+    const r = await announceNewProduct(store2, product.marketerId, cfg, product, origin);
+    try { await kvSet(KV_KEY, stripRuntime(store2)); } catch { /* best-effort */ }
+    json(res, { ...r, config: publicCfg(cfg) }, 200, req);
     return;
   }
 
-  json(res, { ok: false, error: "unknown_mode" }, 400);
+  json(res, { ok: false, error: "unknown_mode" }, 400, req);
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────

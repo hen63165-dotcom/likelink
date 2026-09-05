@@ -16,15 +16,13 @@
 
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
+import { jsonCors } from "../_utils/cors";
 
-function json(res, obj, status = 200) {
-  res.status(status);
-  res.setHeader("content-type", "application/json; charset=utf-8");
-  res.setHeader("cache-control", "no-store");
-  res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-methods", "POST, OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type");
-  res.json(obj);
+function json(res, obj, status = 200, req) {
+  jsonCors(res, obj, status, req, {
+    allowMethods: ["POST", "OPTIONS"],
+    allowHeaders: ["content-type"],
+  });
 }
 
 function paypalBase() {
@@ -55,24 +53,24 @@ async function getAccessToken() {
 }
 
 export default async function handler(req, res) {
-  if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
-  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
+  if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   let body;
   try {
     body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
   } catch {
-    json(res, { ok: false, error: "bad_json" }, 400);
+    json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
   }
 
   const { items = [], buyerEmail = "", returnUrl, cancelUrl, custom } = body;
   if (!Array.isArray(items) || items.length === 0) {
-    json(res, { ok: false, error: "empty_cart" }, 400);
+    json(res, { ok: false, error: "empty_cart" }, 400, req);
     return;
   }
   if (buyerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(buyerEmail).trim())) {
-    json(res, { ok: false, error: "invalid_buyer_email" }, 400);
+    json(res, { ok: false, error: "invalid_buyer_email" }, 400, req);
     return;
   }
 
@@ -96,7 +94,7 @@ export default async function handler(req, res) {
   // Never pretend a production checkout succeeded. A missing credential is a
   // deployment/configuration error, not an order that can be approved.
   if (!token) {
-    json(res, { ok: false, error: "paypal_not_configured" }, 503);
+    json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
     return;
   }
 
@@ -137,7 +135,7 @@ export default async function handler(req, res) {
 
     if (!orderRes.ok) {
       const errText = await orderRes.text();
-      json(res, { ok: false, error: "paypal_order_failed", detail: errText.slice(0, 300) }, 502);
+      json(res, { ok: false, error: "paypal_order_failed", detail: errText.slice(0, 300) }, 502, req);
       return;
     }
 
@@ -151,8 +149,8 @@ export default async function handler(req, res) {
       approvalUrl: approvalLink,
       total: total.toFixed(2),
       currency: "ILS",
-    });
+    }, 200, req);
   } catch (e) {
-    json(res, { ok: false, error: "order_creation_failed", detail: String(e.message || e).slice(0, 200) }, 500);
+    json(res, { ok: false, error: "order_creation_failed", detail: String(e.message || e).slice(0, 200) }, 500, req);
   }
 }
