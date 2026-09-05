@@ -2,7 +2,7 @@ import React, { useState, lazy, Suspense } from "react";
 import {
   TrendingUp, Plus, X, LogOut, Share2, ArrowLeft, ShoppingBag, MousePointerClick,
   DollarSign, Layers, Pencil, Trash2, Check, Rocket, CircleAlert, ImageOff,
-  Upload, Loader2, Receipt, Megaphone, Eye, EyeOff,
+  Upload, Loader2, Receipt, Megaphone, Eye, EyeOff, Video,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
@@ -30,6 +30,11 @@ import CampaignBuilder from "./CampaignBuilder";
 import SellerEngagement from "./SellerEngagement";
 import AutoPilot from "./AutoPilot";
 import MarketingHub from "../MarketingHub";
+import AutoVideoStudio from "../video/AutoVideoStudio";
+import AvatarStudio from "../ambassador/AvatarStudio";
+import LunaAssistant from "../ambassador/LunaAssistant";
+import { lunaPersona } from "../../lib/lunaAvatar";
+import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -48,6 +53,10 @@ export default function SellView({ navigate }) {
   const [showForm, setShowForm] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [showMarketingHub, setShowMarketingHub] = useState(false);
+  const [videoProduct, setVideoProduct] = useState(null);
+  const [readyVideo, setReadyVideo] = useState(null);
+  const [hubProduct, setHubProduct] = useState(null);
+  const [showAvatarStudio, setShowAvatarStudio] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
@@ -592,6 +601,8 @@ export default function SellView({ navigate }) {
                 feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
                 onDelete={() => onDeleteProduct(p.id)}
                 onLogSale={(amt, comm) => onLogSale(p, amt, comm)}
+                onMakeVideo={() => setVideoProduct(p)}
+                onOpenHub={() => { setReadyVideo(null); setHubProduct(p); }}
               />
               {isBoosted(p) ? (
                 <p className="text-[10px] font-semibold mt-1.5 px-1 flex items-center gap-1" style={{ color: "var(--accent)" }}>
@@ -725,6 +736,56 @@ export default function SellView({ navigate }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Avatar Studio — בני הדמות של הסטודיו (כמו לונה) */}
+      {showAvatarStudio && (
+        <AvatarStudio
+          marketer={marketer}
+          lang={lang}
+          onClose={() => setShowAvatarStudio(false)}
+          onSave={(brandWorld) => {
+            onUpdateMarketer(marketer.id, { brandWorld });
+            setShowAvatarStudio(false);
+          }}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Luna Assistant — הדמות של הסטודיו, מוכנה לפעולה */}
+      <LunaAssistant
+        marketer={marketer}
+        onOpenStudio={() => setShowAvatarStudio(true)}
+        onOpenCampaign={(p) => {
+          setVideoProduct(p);
+        }}
+      />
+
+      {/* Video Studio — יוצר קליפ 9:16 בקליק (רץ בדפדפן, ללא עלות) */}
+      {videoProduct && (
+        <AutoVideoStudio
+          product={videoProduct}
+          marketer={marketer}
+          onClose={() => setVideoProduct(null)}
+          showToast={showToast}
+          onOpenMarketing={(res) => {
+            const p = videoProduct;
+            setReadyVideo(res);
+            setVideoProduct(null);
+            setHubProduct(p);
+          }}
+        />
+      )}
+
+      {/* MarketingHub — פרסום בלחיצה לכל הרשתות (עם הווידאו מצורף במידה ויש) */}
+      {hubProduct && (
+        <MarketingHub
+          product={hubProduct}
+          sellerId={marketer?.id}
+          onClose={() => { setHubProduct(null); setReadyVideo(null); }}
+          video={readyVideo}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }
@@ -1055,7 +1116,7 @@ function ProductForm({ onClose, onSubmit }) {
   );
 }
 
-function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
+function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenHub }) {
   const { t, categoryLabel } = useI18n();
   const [logging, setLogging] = useState(false);
   const [amount, setAmount] = useState(typeof p.price === "number" && Number.isFinite(p.price) ? String(p.price) : "");
@@ -1081,9 +1142,15 @@ function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
           <span className="flex items-center gap-1"><MousePointerClick size={12} /> {p.clicks || 0}</span>
           <span>{categoryLabel(p.category)}</span>
         </div>
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2 flex-wrap">
           <button onClick={() => setLogging((v) => !v)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
             {t("sell.logSale")}
+          </button>
+          <button onClick={() => onMakeVideo?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+            <Video size={11} /> {`סרטון`}
+          </button>
+          <button onClick={() => onOpenHub?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+            <Megaphone size={11} /> {`פרסום בכל`}
           </button>
           <button onClick={onDelete} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--danger-subtle)", color: "var(--danger)" }}>
             <Trash2 size={11} /> {t("sell.remove")}

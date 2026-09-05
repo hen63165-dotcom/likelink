@@ -247,3 +247,27 @@ export function getSeasonalTrends(products, sales, category) {
     .slice(0, 10)
     .map(s => s.product);
 }
+
+/**
+ * דירוג אמינות — "רק המוצרים הכי טובים עולים".
+ * מדרג מוצרים לפי מכירות בפועל + קליקים + סטטוס מאושר, כך שהקונה שרואה
+ * תמונה רואה קודם את מה שכבר הוכח כטוב בקהילה.
+ * @returns {Array} מוצרים עם שדות _trustScore / _salesCount / _clicks
+ */
+export function rankByTrust(products = [], sales = [], limit = 6) {
+  const countByProduct = {};
+  (sales || []).forEach((s) => {
+    if (s && s.productId) countByProduct[s.productId] = (countByProduct[s.productId] || 0) + 1;
+  });
+
+  return [...(products || [])]
+    .filter((p) => p && p.status === "approved")
+    .map((p) => {
+      const salesCount = countByProduct[p.id] || 0;
+      const clicks = Number(p.clicks || 0);
+      const trust = salesCount * 4 + clicks * 0.5;
+      return { ...p, _trustScore: trust, _salesCount: salesCount, _clicks: clicks };
+    })
+    .sort((a, b) => b._trustScore - a._trustScore)
+    .slice(0, limit);
+}

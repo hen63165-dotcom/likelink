@@ -100,17 +100,23 @@ export function shareToPlatform(platformId, product, campaignText) {
   return { success: true, url: builder(url, text) };
 }
 
-// Share using Web Share API (mobile)
-export async function shareNative(product, campaignText) {
+// Share using Web Share API (mobile) — תומך גם בצירוף קבצים (סרטון/תמונה)
+export async function shareNative(product, campaignText, options = {}) {
   const text = campaignText || `${product.title} — ${product.price} ₪`;
   const url = product.affiliateUrl || product.url || '';
-  
-  if (navigator.share) {
+  const files = options?.files || [];
+
+  if (typeof navigator.share === 'function') {
+    const shareData = { title: product.title, text, url };
+    if (files.length) shareData.files = files;
     try {
-      await navigator.share({ title: product.title, text, url });
+      if (files.length && typeof navigator.canShare === 'function' && navigator.canShare({ files }) === false) {
+        return { success: false, error: 'שיתוף קבצים לא נתמך במכשיר זה' };
+      }
+      await navigator.share(shareData);
       return { success: true, method: 'native' };
     } catch (err) {
-      if (err.name !== 'AbortError') return { success: false, error: err.message };
+      if (err && err.name !== 'AbortError') return { success: false, error: err.message };
       return { success: false, cancelled: true };
     }
   }

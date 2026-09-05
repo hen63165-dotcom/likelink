@@ -4,11 +4,12 @@ import { X, Upload, Camera, Loader2, ShoppingBag, ExternalLink } from "lucide-re
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { analyzeImage, filterProductsByKeywords, fileToBase64, validateImageFile } from "../../lib/visionHelper";
+import { rankByTrust } from "../../lib/recommendations";
 import { money } from "../../utils/helpers";
 
 export function ScreenshotSearchModal({ isOpen, onClose }) {
   const { t } = useI18n();
-  const { products } = useMarketplace();
+  const { products, sales } = useMarketplace();
 
   const [isDragging, setIsDragging] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -65,9 +66,11 @@ export function ScreenshotSearchModal({ isOpen, onClose }) {
         products,
         analysisResult.keywords,
         analysisResult.category,
-        4
+        8
       );
-      setResults(matched);
+      // "רק הטובים עולים": מדרגים לפי מה שכבר נקנה/נלחץ בקהילה
+      const ranked = rankByTrust(matched, sales, 6);
+      setResults(ranked);
       setIsAnalyzing(false);
     } catch (err) {
       setError(t("search.analysisFailed", "שגיאה בניתוח התמונה"));
@@ -191,6 +194,14 @@ export function ScreenshotSearchModal({ isOpen, onClose }) {
                                 <img src={product.image} alt={product.title} className="w-full h-32 object-cover rounded-lg mb-2" />
                               )}
                               <p className="text-xs font-semibold line-clamp-2 mb-1">{product.title}</p>
+                              {(product._salesCount > 0 || product._clicks > 5) && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 mb-1"
+                                  style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+                                >
+                                  ⭐ {product._salesCount > 0 ? `מומלצים — ${product._salesCount} קניות` : "מומלץ — פופולרי"}
+                                </span>
+                              )}
                               <p className="mono text-xs font-bold mb-2" style={{ color: "var(--accent)" }}>
                                 {money(product.price, "he")}
                               </p>

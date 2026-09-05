@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp } from "lucide-react";
+import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp, Play } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useCart } from "../../context/CartContext";
+import { useVideos } from "../../context/VideoContext";
 import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers";
 import { trackClick } from "../../lib/analytics";
 import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations } from "../../lib/recommendations";
@@ -11,7 +12,9 @@ import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
 import { ScreenshotSearchModal } from "../search/ScreenshotSearchModal";
+import { ReelsPlayer } from "../video/ReelsPlayer";
 import ViralProofTicker from "./ViralProofTicker";
+import LunaAssistant from "../ambassador/LunaAssistant";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -30,6 +33,8 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const [followOnly, setFollowOnly] = useState(false);
   const [active, setActive] = useState(null);
   const [showScreenshotSearch, setShowScreenshotSearch] = useState(false);
+  const [playReel, setPlayReel] = useState(null);
+  const { videos: allVideos } = useVideos();
 
   // Deep-link support for Google Merchant feed links (`/?product=<id>`): open
   // that product's modal on load so every g:link in google-feed.xml resolves to
@@ -273,6 +278,49 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
                 <span className="text-[10.5px] font-medium truncate w-full text-center" style={{ color: "var(--text-secondary)" }}>{m.name}</span>
               </button>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Public Reels rail — רילס של יוצרות, מוכנים לצפייה בקנייה ישירה */}
+      {allVideos.length > 0 && (
+        <section className="mb-5">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: "var(--accent)" }} />
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+              Reels · {t("feed.reels", "רילס לייקלינק")}
+            </p>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {allVideos.slice(0, 10).map((v) => {
+              const prod = products.find((p) => p.id === (v.productTags?.[0]?.productId || "")) || products[0];
+              const mk = prod && marketers.find((m) => m.id === prod.marketerId);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => setPlayReel(v)}
+                  className="tap shrink-0 w-28 overflow-hidden rounded-xl surface shadow-sm relative"
+                >
+                  {prod?.image ? (
+                    <img src={safeImgSrc(prod.image)} alt={v.title || ""} className="w-full aspect-[9/16] object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full aspect-[9/16]" style={{ background: "var(--accent-subtle)" }} />
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <motion.span
+                      whileTap={{ scale: 0.8 }}
+                      className="w-10 h-10 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)" }}
+                    >
+                      <Play size={16} color="#fff" fill="#fff" />
+                    </motion.span>
+                  </span>
+                  <span className="absolute bottom-1 left-1 right-1 text-[9px] font-semibold text-white truncate text-center" style={{ background: "rgba(0,0,0,0.45)", borderRadius: 6, padding: "1px 4px" }}>
+                    {mk?.name || v.title || "ריל"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -573,6 +621,27 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       <ScreenshotSearchModal
         isOpen={showScreenshotSearch}
         onClose={() => setShowScreenshotSearch(false)}
+      />
+
+      {/* Reels Player — נגן רילס מלא עם טאג קנייה */}
+      {playReel && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
+          <div className="relative w-full max-w-[300px]">
+            <ReelsPlayer
+              video={playReel}
+              onClose={() => setPlayReel(null)}
+              onProductClick={(prod, mk) => {
+                setPlayReel(null);
+                setActive(prod);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Luna — הדוברת הדיגיטלית: מפתה לפתוח סטודיו ולגלות */}
+      <LunaAssistant
+        onOpenStudio={() => navigate("/studio")}
       />
     </div>
   );

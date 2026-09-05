@@ -8,7 +8,7 @@ import { PLATFORMS } from '../lib/marketing';
 import { CAMPAIGN_TEMPLATES, shareToPlatform, shareNative, schedulePost } from '../lib/campaigns';
 import { autoConvertBuyer, generateViralOffer } from '../lib/viralEngine';
 
-export default function MarketingHub({ product, sellerId, onClose }) {
+export default function MarketingHub({ product, sellerId, onClose, video, showToast }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState([]);
   const [customText, setCustomText] = useState('');
@@ -34,9 +34,14 @@ export default function MarketingHub({ product, sellerId, onClose }) {
     const text = customText || generateText(selectedTemplate);
     const results = [];
 
+    // וידאו שנוצר בסטודיו מצורף לשיתוף הטבעי של המכשיר (אינסטגרם/טיקטוק/וואטסאפ...)
+    const videoFile = video?.blob
+      ? new File([video.blob], "likelink-reel.webm", { type: video.blob.type || "video/webm" })
+      : null;
+
     for (const platformId of selectedPlatforms) {
       if (platformId === 'native') {
-        const result = await shareNative(product, text);
+        const result = await shareNative(product, text, videoFile ? { files: [videoFile] } : {});
         results.push({ platform: 'native', ...result });
       } else {
         const result = shareToPlatform(platformId, product, text);
@@ -79,6 +84,18 @@ export default function MarketingHub({ product, sellerId, onClose }) {
           </div>
         )}
 
+        {video && (
+          <div className="p-4 border-b flex items-center gap-3" style={{ background: "var(--accent-subtle)" }}>
+            <span style={{ fontSize: 24 }}>🎬</span>
+            <div>
+              <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>סרטון מצורף לקמפיין</p>
+              <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                הווידאו יישלח עם הטקסט כשתבחרי שיתוף טבעי (אינסטגרם/טיקטוק/וואטסאפ)
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="p-6 border-b">
           <h3 className="font-semibold mb-3">1. בחר תבנית</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -86,9 +103,11 @@ export default function MarketingHub({ product, sellerId, onClose }) {
               <button
                 key={cat.id}
                 onClick={() => setSelectedTemplate(cat.templates[0])}
-                className={`p-3 rounded-xl border-2 text-center transition ${
-                  selectedTemplate?.id?.startsWith(cat.id) ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'
-                }`}
+                className="p-3 rounded-xl border-2 text-center transition"
+                style={{
+                  borderColor: selectedTemplate?.id?.startsWith(cat.id) ? 'var(--accent)' : 'var(--border)',
+                  background: selectedTemplate?.id?.startsWith(cat.id) ? 'var(--accent-subtle)' : 'var(--bg-elevated)',
+                }}
               >
                 <div className="text-2xl">{cat.icon}</div>
                 <div className="text-sm font-medium mt-1">{cat.name}</div>
@@ -104,10 +123,11 @@ export default function MarketingHub({ product, sellerId, onClose }) {
               <button
                 key={p.id}
                 onClick={() => togglePlatform(p.id)}
-                className={`p-2 rounded-lg border-2 text-center transition ${
-                  selectedPlatforms.includes(p.id) ? 'border-indigo-500' : 'border-gray-200'
-                }`}
-                style={{ backgroundColor: selectedPlatforms.includes(p.id) ? p.color + '20' : 'transparent' }}
+                className="p-2 rounded-lg border-2 text-center transition"
+                style={{
+                  borderColor: selectedPlatforms.includes(p.id) ? 'var(--accent)' : 'var(--border)',
+                  backgroundColor: selectedPlatforms.includes(p.id) ? p.color + '20' : 'transparent',
+                }}
               >
                 <div className="text-xl">{p.icon}</div>
                 <div className="text-xs mt-1">{p.name}</div>
@@ -140,7 +160,8 @@ export default function MarketingHub({ product, sellerId, onClose }) {
           <button
             onClick={handlePublish}
             disabled={!selectedTemplate || selectedPlatforms.length === 0}
-            className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50 hover:bg-indigo-700 transition"
+            className="flex-1 text-white py-3 rounded-xl font-semibold disabled:opacity-50 transition"
+            style={{ background: "linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%)" }}
           >
             🚀 פרסם עכשיו ({selectedPlatforms.length} רשתות)
           </button>

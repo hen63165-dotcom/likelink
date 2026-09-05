@@ -1,11 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Users, ShoppingBag, ArrowLeft, Share2, Languages, UserCheck, UserPlus, Layers, Copy, Sparkles, TrendingUp } from "lucide-react";
+import { Users, ShoppingBag, ArrowLeft, Share2, Languages, UserCheck, UserPlus, Layers, Copy, Sparkles, TrendingUp, Play } from "lucide-react";
+import { motion } from "framer-motion";
 import { useI18n } from "../lib/LangContext";
-import { getTopCreatorIds } from "../utils/helpers";
+import { getTopCreatorIds, normalizeImageUrl } from "../utils/helpers";
 import { ProductCard, ProductModal, TopBadge } from "../components/product/ProductComponents";
 import { EmptyState } from "../components/ui";
 import { updatePageSEO, getCreatorSEO } from "../lib/seo";
 import { getReferralStats, trackReferralClick, getPendingReferral, getReferralTier } from "../lib/referrals";
+import { useVideos } from "../context/VideoContext";
+import { ReelsPlayer } from "../components/video/ReelsPlayer";
 
 export default function CreatorProfilePage({
   slug, marketers, products, collections, favorites, onToggleFavorite,
@@ -14,7 +17,9 @@ export default function CreatorProfilePage({
 }) {
   const { t, categoryLabel } = useI18n();
   const [active, setActive] = useState(null);
+  const [playReel, setPlayReel] = useState(null);
   const [showReferralBanner, setShowReferralBanner] = useState(false);
+  const { videos: allVideos } = useVideos();
 
   const marketer = marketers.find((m) => m.slug === slug || m.id === slug);
   const topIds = useMemo(() => getTopCreatorIds(products), [products]);
@@ -100,6 +105,15 @@ export default function CreatorProfilePage({
   const groupedIds = new Set(myCollections.flatMap((c) => c.productIds));
   const ungrouped = mine.filter((p) => !groupedIds.has(p.id));
   const isFollowing = following.includes(marketer.id);
+
+  // רילים של היוצרת: שנוצרו ע"י הסטודיו שלה או מתויגים למוצר שלה.
+  // חישוב רגיל (לא useMemo) כדי לשמור על סדר ה-hooks לפני ה-early-return.
+  const myReels = allVideos.filter(
+    (v) =>
+      v.marketerId === marketer.id ||
+      (Array.isArray(v.productTags) &&
+        v.productTags.some((tg) => mine.some((p) => p.id === tg.productId)))
+  );
 
   function renderGrid(list) {
     return (
@@ -198,6 +212,54 @@ export default function CreatorProfilePage({
           </button>
         </div>
 
+        {/* Reels — הסרטונים של היוצרת, מוכנים לצפייה וקנייה בקליק */}
+        {myReels.length > 0 && (
+          <section className="mt-6">
+            <p className="text-[12px] font-semibold uppercase tracking-wide mb-2.5 flex items-center gap-1.5" style={{ color: "var(--accent)" }}>
+              🎬 Reels
+            </p>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+              {myReels.slice(0, 12).map((v) => {
+                const prod =
+                  products.find((p) => p.id === (v.productTags?.[0]?.productId || "")) || mine[0] || null;
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => setPlayReel(v)}
+                    className="tap shrink-0 w-28 overflow-hidden rounded-xl surface shadow-sm relative"
+                  >
+                    {prod?.image ? (
+                      <img
+                        src={normalizeImageUrl(prod.image, typeof window !== "undefined" ? window.location.origin : "") || prod.image}
+                        alt={v.title || ""}
+                        className="w-full aspect-[9/16] object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[9/16]" style={{ background: "var(--accent-subtle)" }} />
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <motion.span
+                        whileTap={{ scale: 0.8 }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)" }}
+                      >
+                        <Play size={16} color="#fff" fill="#fff" />
+                      </motion.span>
+                    </span>
+                    <span
+                      className="absolute bottom-1 left-1 right-1 text-[9px] font-semibold text-white truncate text-center"
+                      style={{ background: "rgba(0,0,0,0.45)", borderRadius: 6, padding: "1px 4px" }}
+                    >
+                      {v.title || "ריל"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {myCollections.map((c) => {
           const items = mine.filter((p) => c.productIds.includes(p.id));
           if (items.length === 0) return null;
@@ -256,6 +318,22 @@ export default function CreatorProfilePage({
           onClose={() => setActive(null)}
           onGetDeal={() => handleGetDeal(active)}
         />
+      )}
+
+      {/* Reels Player — נגן הרילס של היוצרת */}
+      {playReel && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.8)" }}>
+          <div className="relative w-full max-w-[300px]">
+            <ReelsPlayer
+              video={playReel}
+              onClose={() => setPlayReel(null)}
+              onProductClick={(prod) => {
+                setPlayReel(null);
+                setActive(prod);
+              }}
+            />
+          </div>
+        </div>
       )}
     </>
   );

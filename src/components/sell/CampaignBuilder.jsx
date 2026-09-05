@@ -6,6 +6,8 @@ import {
 import { runStoryShare, STORY_STYLES, STORY_FORMATS } from "../../lib/storyKit";
 import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot";
 import { shortVideoScript } from "../../lib/marketingFeed";
+import { worldStoryStyle } from "../../lib/brandWorlds";
+import { getFairyName, getBrandWorld } from "../../lib/brandWorlds";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers";
 import { SheetModal, Button, LabeledInput } from "../ui";
@@ -22,7 +24,7 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
 
   const [title, setTitle] = useState(t("sell.campaignDefaultTitle"));
   const [promo, setPromo] = useState("");
-  const [style, setStyle] = useState("pixar");
+  const [style, setStyle] = useState(() => worldStoryStyle(marketer?.brandWorld?.worldId));
   const [format, setFormat] = useState("story");
   const [selected, setSelected] = useState(() =>
     (products || []).map((p) => p.id)

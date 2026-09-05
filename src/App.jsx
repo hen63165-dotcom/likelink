@@ -3,6 +3,7 @@ import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContex
 import { ThemeProvider } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
+import { VideoProvider } from "./context/VideoContext";
 import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys";
 import { parsePath } from "./utils/routing";
 
@@ -38,10 +39,12 @@ export default function AppRoot() {
       <ThemeProvider>
         <MarketplaceProvider>
           <CartProvider>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
-            <Cart />
+            <VideoProvider>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+              <Cart />
+            </VideoProvider>
           </CartProvider>
         </MarketplaceProvider>
       </ThemeProvider>

@@ -13,10 +13,11 @@ const FORMATS = {
 
 /** סגנונות עיצוב — כל אחת בוחרת את הווייב שלה בקליק */
 export const STORY_STYLES = [
+  { id: "lux", label: "לוקס ✨", desc: "עולם הבית של לייקלינק — קרם ושמפניה" },
   { id: "pixar", label: "פיקסאר 🎬", desc: "פוסטר קולנועי חם" },
-  { id: "lux", label: "לוקס 💜", desc: "סגול יוקרתי" },
   { id: "neon", label: "ניאון 🌃", desc: "זוהר של לילה" },
   { id: "minimal", label: "מינימלי 🤍", desc: "נקי ואלגנטי" },
+  { id: "party", label: "מסיבה 🎉", desc: "צבע, ניצוצות, חיוך" },
 ];
 
 export const STORY_FORMATS = [
@@ -26,6 +27,18 @@ export const STORY_FORMATS = [
 ];
 
 const PALETTES = {
+  // לוקס — העולם של Likelink עצמה: קרם, שמפניה, פחם.
+  // כל יצירה באה משפת המותג של האתר, לא מהפלטה הסגולה הישנה.
+  lux: {
+    bg: ["#F7F3EA", "#EDE3CE", "#E3D5BC"],
+    store: "rgba(33,28,22,0.92)",
+    title: "#211C16",
+    price: "#9C7437",
+    cta: "rgba(33,28,22,0.85)",
+    boxStroke: "rgba(156,116,55,0.35)",
+    badgeBg: "rgba(183,143,79,0.16)",
+    badgeText: "#7A5A2C",
+  },
   pixar: {
     bg: ["#FFB25E", "#E86A9E", "#4C2E8C"],
     store: "rgba(255,255,255,0.95)",
@@ -36,7 +49,7 @@ const PALETTES = {
     badgeBg: "rgba(255,255,255,0.92)",
     badgeText: "#7A3C1E",
   },
-  lux: {
+  lux_legacy: {
     bg: ["#6C4CF1", "#3D2E8C", "#14121F"],
     store: "rgba(255,255,255,0.92)",
     title: "#FFFFFF",
@@ -66,6 +79,16 @@ const PALETTES = {
     boxStroke: "rgba(30,26,22,0.18)",
     badgeBg: "rgba(30,26,22,0.08)",
     badgeText: "#1E1A16",
+  },
+  party: {
+    bg: ["#3B0A57", "#C33764", "#FF8A3D"],
+    store: "rgba(255,255,255,0.95)",
+    title: "#FFFFFF",
+    price: "#FFE45B",
+    cta: "rgba(255,255,255,0.9)",
+    boxStroke: "rgba(255,255,255,0.5)",
+    badgeBg: "rgba(255,255,255,0.2)",
+    badgeText: "#3B0A57",
   },
 };
 
