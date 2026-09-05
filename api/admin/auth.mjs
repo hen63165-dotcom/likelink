@@ -16,7 +16,7 @@
 
 import crypto from "crypto";
 import { jsonCors } from "../_utils/cors";
-import { audit } from "../audit";
+import { audit } from "../_utils/audit";
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "";
 const SECRET =
