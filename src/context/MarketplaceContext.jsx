@@ -429,7 +429,7 @@ export function MarketplaceProvider({ children }) {
         // Credit the referrer (if any) and clear the pending referral from session
         const referrerSlug = getPendingReferral();
         if (referrerSlug) {
-          trackReferralConversion(referrerSlug, m.slug);
+          await trackReferralConversion(referrerSlug, m.slug);
           clearPendingReferral();
         }
         await persistMarketers([...marketers, m]);

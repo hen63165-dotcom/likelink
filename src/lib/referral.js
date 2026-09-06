@@ -11,6 +11,7 @@
  */
 
 import { uid } from "../utils/helpers.js";
+import { storage } from "../lib/storage";
 
 const REFERRAL_SESSION_KEY = "referral_source";
 export const REFERRER_PARAM = "ref";
@@ -88,19 +89,22 @@ export function buildReferralLink(marketer) {
 
 /**
  * Track that a referral link was clicked.
- * Stores the click event locally for analytics.
+ * Stored in SHARED storage (Supabase kv) so the INVITED seller's data is
+ * visible to the referrer from any device — never just the clicker's private
+ * localStorage.
  */
-export function trackReferralClick(referrerSlug) {
+export async function trackReferralClick(referrerSlug) {
   if (!referrerSlug) return;
   try {
-    const clicks = JSON.parse(localStorage.getItem("marketplace:referral_clicks") || "[]");
+    const res = await storage.get("marketplace:referral_clicks", true);
+    const clicks = res?.value ? JSON.parse(res.value) : [];
     clicks.push({
       id: uid(),
       referrerSlug: String(referrerSlug),
       clickedAt: Date.now(),
       converted: false,
     });
-    localStorage.setItem("marketplace:referral_clicks", JSON.stringify(clicks.slice(-500)));
+    await storage.set("marketplace:referral_clicks", JSON.stringify(clicks.slice(-500)), true);
   } catch { /* noop */ }
 }
 
@@ -108,26 +112,30 @@ export function trackReferralClick(referrerSlug) {
  * Mark a referral click as converted when the referred marketeer
  * successfully signs up.
  */
-export function trackReferralConversion(referrerSlug, newMarketerId) {
+export async function trackReferralConversion(referrerSlug, newMarketerId) {
   if (!referrerSlug) return;
   try {
-    const clicks = JSON.parse(localStorage.getItem("marketplace:referral_clicks") || "[]");
+    const res = await storage.get("marketplace:referral_clicks", true);
+    const clicks = res?.value ? JSON.parse(res.value) : [];
     const click = clicks.find((c) => c.referrerSlug === referrerSlug && !c.converted);
     if (click) {
       click.converted = true;
       click.convertedAt = Date.now();
       click.newMarketerId = newMarketerId;
-      localStorage.setItem("marketplace:referral_clicks", JSON.stringify(clicks));
+      await storage.set("marketplace:referral_clicks", JSON.stringify(clicks), true);
     }
   } catch { /* noop */ }
 }
 
 /**
- * Get referral analytics for a marketeer.
+ * Get referral analytics for a marketeer — reads from SHARED storage so the
+ * referrer sees real cross-device data collected from visitors who clicked
+ * their link.
  */
-export function getReferralStats(marketerId) {
+export async function getReferralStats(marketerId) {
   try {
-    const clicks = JSON.parse(localStorage.getItem("marketplace:referral_clicks") || "[]");
+    const res = await storage.get("marketplace:referral_clicks", true);
+    const clicks = res?.value ? JSON.parse(res.value) : [];
     const myClicks = clicks.filter((c) => c.referrerSlug === marketerId || c.newMarketerId === marketerId);
     const totalClicks = myClicks.filter((c) => c.referrerSlug === marketerId).length;
     const conversions = myClicks.filter((c) => c.converted).length;

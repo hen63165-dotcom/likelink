@@ -6,7 +6,7 @@ import { getTopCreatorIds, normalizeImageUrl } from "../utils/helpers";
 import { ProductCard, ProductModal, TopBadge } from "../components/product/ProductComponents";
 import { EmptyState } from "../components/ui";
 import { updatePageSEO, getCreatorSEO } from "../lib/seo";
-import { getReferralStats, trackReferralClick, getPendingReferral, getReferralTier } from "../lib/referrals";
+import { getReferralStats, trackReferralClick, getPendingReferral, getReferralTier } from "../lib/referral.js";
 import { useVideos } from "../context/VideoContext";
 import { ReelsPlayer } from "../components/video/ReelsPlayer";
 
@@ -49,10 +49,23 @@ export default function CreatorProfilePage({
     }
   }, [currentSellerId, marketer]);
 
-  const referralStats = useMemo(() => {
-    if (!marketer || !currentSellerId) return null;
-    if (marketer.id !== currentSellerId) return null;
-    return getReferralStats(marketer.id);
+  // Referral stats — loaded async from SHARED storage (Supabase kv) so the
+  // referrer sees real cross-device data collected from their invite links.
+  const [referralStats, setReferralStats] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!marketer || !currentSellerId || marketer.id !== currentSellerId) {
+      setReferralStats(null);
+      return () => { cancelled = true; };
+    }
+    getReferralStats(marketer.id)
+      .then((stats) => {
+        if (!cancelled) setReferralStats(stats);
+      })
+      .catch(() => {
+        if (!cancelled) setReferralStats(null);
+      });
+    return () => { cancelled = true; };
   }, [marketer, currentSellerId]);
 
   async function handleShare() {
