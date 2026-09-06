@@ -2,7 +2,7 @@ import React, { useState, lazy, Suspense } from "react";
 import {
   TrendingUp, Plus, X, LogOut, Share2, ArrowLeft, ShoppingBag, MousePointerClick,
   DollarSign, Layers, Pencil, Trash2, Check, Rocket, CircleAlert, ImageOff,
-  Upload, Loader2, Receipt, Megaphone, Eye, EyeOff, Video,
+    Upload, Loader2, Receipt, Megaphone, Eye, EyeOff, Video, QrCode,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
@@ -31,6 +31,7 @@ import SellerEngagement from "./SellerEngagement";
 import AutoPilot from "./AutoPilot";
 import MarketingHub from "../MarketingHub";
 import AutoVideoStudio from "../video/AutoVideoStudio";
+import ShareQR from "../ShareQR.jsx";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import CoachPanel from "./CoachPanel";
@@ -54,7 +55,8 @@ export default function SellView({ navigate }) {
   const [showForm, setShowForm] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [showMarketingHub, setShowMarketingHub] = useState(false);
-  const [videoProduct, setVideoProduct] = useState(null);
+    const [videoProduct, setVideoProduct] = useState(null);
+  const [qrProduct, setQrProduct] = useState(null);
   const [readyVideo, setReadyVideo] = useState(null);
   const [hubProduct, setHubProduct] = useState(null);
   const [showAvatarStudio, setShowAvatarStudio] = useState(false);
@@ -125,6 +127,19 @@ export default function SellView({ navigate }) {
       showToast(t("sell.linkCopied"));
     } catch {
       showToast(myLink);
+    }
+  }
+
+  // Unique referral link for inviting new sellers — ?ref=<slug> picked up by
+  // initReferral() → stored on the new seller's record as referrerSlug.
+  const referralLink = `${window.location.origin}/?ref=${encodeURIComponent(marketer.slug || marketer.id)}`;
+
+  async function handleInviteReferral() {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      showToast("הקישור להזמנת מוכרות הועתק 💜");
+    } catch {
+      showToast(referralLink);
     }
   }
 
@@ -275,6 +290,21 @@ export default function SellView({ navigate }) {
           <p className="text-[11px] truncate opacity-60 text-white">{myLink.replace(/^https?:\/\//, "")}</p>
         </div>
         <ArrowLeft size={15} className="shrink-0 opacity-40 text-white" style={{ transform: "scaleX(var(--flip,1))" }} />
+            </button>
+
+      {/* Invite-a-seller referral card — purple highlight at the top of the studio */}
+      <button
+        onClick={handleInviteReferral}
+        className="tap w-full rounded-2xl p-4 flex items-center gap-3 mb-5 transition-shadow hover:shadow-card"
+        style={{ background: "linear-gradient(135deg, #6C4CF1 0%, #5A3FC9 100%)" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.2)" }}>
+          <Plus size={18} color="#fff" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[13px] font-semibold text-white">הזמיני מוכרת חדשה 💜</p>
+          <p className="text-[11px] text-white/80 truncate">{referralLink.replace(/^https?:\/\//, "")}</p>
+        </div>
       </button>
 
       <button
@@ -608,6 +638,7 @@ export default function SellView({ navigate }) {
                 onLogSale={(amt, comm) => onLogSale(p, amt, comm)}
                 onMakeVideo={() => setVideoProduct(p)}
                 onOpenHub={() => { setReadyVideo(null); setHubProduct(p); }}
+                onOpenQR={() => setQrProduct(p)}
               />
               {isBoosted(p) ? (
                 <p className="text-[10px] font-semibold mt-1.5 px-1 flex items-center gap-1" style={{ color: "var(--accent)" }}>
@@ -788,6 +819,16 @@ export default function SellView({ navigate }) {
           sellerId={marketer?.id}
           onClose={() => { setHubProduct(null); setReadyVideo(null); }}
           video={readyVideo}
+                    showToast={showToast}
+        />
+      )}
+
+      {/* QR Modal — opens when the QR button on a product row is clicked */}
+      {qrProduct && (
+        <ShareQR
+          url={`${window.location.origin}/p/${qrProduct.id}`}
+          title={qrProduct.title}
+          onClose={() => setQrProduct(null)}
           showToast={showToast}
         />
       )}
@@ -1121,7 +1162,7 @@ function ProductForm({ onClose, onSubmit }) {
   );
 }
 
-function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenHub }) {
+function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenHub, onOpenQR }) {
   const { t, categoryLabel } = useI18n();
   const [logging, setLogging] = useState(false);
   const [amount, setAmount] = useState(typeof p.price === "number" && Number.isFinite(p.price) ? String(p.price) : "");
@@ -1152,7 +1193,10 @@ function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo,
             {t("sell.logSale")}
           </button>
           <button onClick={() => onMakeVideo?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
-            <Video size={11} /> {`סרטון`}
+                        <Video size={11} /> {`סרטון`}
+          </button>
+          <button onClick={() => onOpenQR?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+            <QrCode size={11} /> {`QR`}
           </button>
           <button onClick={() => onOpenHub?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
             <Megaphone size={11} /> {`פרסום בכל`}

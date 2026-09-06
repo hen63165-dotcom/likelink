@@ -12,8 +12,12 @@ import { installGlobalErrorHealing } from './lib/autoHeal.js'
 // PWA layer — Service Worker (offline-first), install prompt,
 // share-target capture and push subscription plumbing.
 import './lib/pwa.js'
+// Referral tracking — reads ?ref=<slug> from the URL on load and stores it
+// in sessionStorage so the marketeer signup flow can attach it.
+import { initReferral } from './lib/referral.js'
 
 installGlobalErrorHealing();
+initReferral();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

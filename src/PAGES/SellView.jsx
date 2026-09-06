@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  ShoppingBag, MousePointerClick, DollarSign, LogOut, Share2, ArrowLeft, Plus, Layers, Pencil, Trash2, X, Rocket, TrendingUp, CircleAlert, Loader2, Upload, ImageOff, Check, Receipt
+  ShoppingBag, MousePointerClick, DollarSign, LogOut, Share2, ArrowLeft, Plus, Layers, Pencil, Trash2, X, Rocket, TrendingUp, CircleAlert, Loader2, Upload, ImageOff, Check, Receipt, Video, QrCode
 } from "lucide-react";
 import { useI18n } from "../lib/LangContext";
 import { CATEGORY_KEYS } from "../lib/i18n";
 import { uploadProductImage } from "../lib/uploadImage";
+import ShareQR from "../components/ShareQR.jsx";
+import AutoVideoStudio from "../components/video/AutoVideoStudio.jsx";
 import {
   money, groupByDay, ProductThumb, EmptyState, StatChip, EarningsChart, LabeledInput, LabeledTextarea
 } from "./SharedComponents";
@@ -14,10 +16,12 @@ export default function SellView({
   collections, onAddCollection, onUpdateCollection, onDeleteCollection, onLogin, onSignup, onLogout,
   onAddProduct, onDeleteProduct, onLogSale
 }) {
-  const { t, lang } = useI18n();
+    const { t, lang } = useI18n();
   const [showForm, setShowForm] = useState(false);
   const [editingCollection, setEditingCollection] = useState(null);
   const [showNewCollection, setShowNewCollection] = useState(false);
+  const [qrProduct, setQrProduct] = useState(null);
+  const [videoProduct, setVideoProduct] = useState(null);
 
   if (!introSeen) {
     return <OnboardingIntro onDismiss={onDismissIntro} />;
@@ -52,6 +56,19 @@ export default function SellView({
     }
   }
 
+  // Unique referral link for inviting new sellers — ?ref=<slug> picked up by
+  // initReferral() → stored on the new seller's record as referrerSlug.
+  const referralLink = `${window.location.origin}/?ref=${encodeURIComponent(marketer.slug || marketer.id)}`;
+
+  async function handleInviteReferral() {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      showToast("הקישור להזמנת מוכרות הועתק 💜");
+    } catch {
+      showToast(referralLink);
+    }
+  }
+
   return (
     <div className="pt-3 pb-4">
       <div className="flex items-center justify-between mb-4">
@@ -73,6 +90,21 @@ export default function SellView({
           <p className="text-[11px] truncate" style={{ color: "#A9A5BC" }}>{myLink.replace(/^https?:\/\//, "")}</p>
         </div>
         <ArrowLeft size={15} color="#8B879C" className="shrink-0" style={{ transform: "scaleX(var(--flip,1))" }} />
+            </button>
+
+      {/* Invite-a-seller referral card — purple highlight at the top of the studio */}
+      <button
+        onClick={handleInviteReferral}
+        className="tap w-full rounded-2xl p-4 flex items-center gap-3 mb-5"
+        style={{ background: "linear-gradient(135deg, #6C4CF1 0%, #5A3FC9 100%)" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.2)" }}>
+          <Plus size={18} color="#fff" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[13px] font-semibold text-white">הזמיני מוכרת חדשה 💜</p>
+          <p className="text-[11px] text-white/80 truncate">{referralLink.replace(/^https?:\/\//, "")}</p>
+        </div>
       </button>
 
       <div className="grid grid-cols-3 gap-2.5 mb-5">
@@ -123,7 +155,7 @@ export default function SellView({
       ) : (
         <div className="flex flex-col gap-3">
           {mine.map((p) => (
-            <CreatorProductRow key={p.id} p={p} lang={lang} feeRate={settings.platformFeePercent} onDelete={() => onDeleteProduct(p.id)} onLogSale={(amt, comm) => onLogSale(p, amt, comm)} />
+                        <CreatorProductRow key={p.id} p={p} lang={lang} feeRate={settings.platformFeePercent} onDelete={() => onDeleteProduct(p.id)} onLogSale={(amt, comm) => onLogSale(p, amt, comm)} onMakeVideo={() => setVideoProduct(p)} onOpenQR={() => setQrProduct(p)} />
           ))}
         </div>
       )}
@@ -135,12 +167,33 @@ export default function SellView({
           onCreate={(title) => { onAddCollection(title); setShowNewCollection(false); }}
         />
       )}
-      {editingCollection && (
+            {editingCollection && (
         <CollectionEditorModal
           collection={editingCollection}
           myProducts={mine}
           onClose={() => setEditingCollection(null)}
           onSave={(productIds) => { onUpdateCollection(editingCollection.id, productIds); setEditingCollection(null); }}
+        />
+      )}
+
+      {/* QR Modal — opens when the QR button on a product row is clicked */}
+      {qrProduct && (
+        <ShareQR
+          url={`${window.location.origin}/p/${qrProduct.id}`}
+          title={qrProduct.title}
+          onClose={() => setQrProduct(null)}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Video Studio Modal — opens when the Video button on a product row is clicked */}
+      {videoProduct && (
+        <AutoVideoStudio
+          product={videoProduct}
+          marketer={marketer}
+          onClose={() => setVideoProduct(null)}
+          showToast={showToast}
+          onOpenMarketing={(res) => { setVideoProduct(null); }}
         />
       )}
     </div>
@@ -383,7 +436,7 @@ function CategoryOption({ value }) {
   return <option value={value}>{categoryLabel(value)}</option>;
 }
 
-function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
+function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenQR }) {
   const { t, categoryLabel } = useI18n();
   const [logging, setLogging] = useState(false);
   const [amount, setAmount] = useState(p.price ? String(p.price) : "");
@@ -411,9 +464,15 @@ function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale }) {
           <span className="flex items-center gap-1"><MousePointerClick size={12} /> {p.clicks || 0}</span>
           <span>{categoryLabel(p.category)}</span>
         </div>
-        <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2">
           <button onClick={() => setLogging((v) => !v)} className="tap text-[11.5px] font-semibold px-2.5 py-1 rounded-full" style={{ background: "#F1EFFB", color: "#6C4CF1" }}>
             {t("sell.logSale")}
+          </button>
+          <button onClick={() => onMakeVideo?.(p)} className="tap text-[11.5px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "#F1EFFB", color: "#6C4CF1" }}>
+            <Video size={11} /> סרטון
+          </button>
+          <button onClick={() => onOpenQR?.(p)} className="tap text-[11.5px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "#F1EFFB", color: "#6C4CF1" }}>
+            <QrCode size={11} /> QR
           </button>
           <button onClick={onDelete} className="tap text-[11.5px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "#FBEAEA", color: "#E1483B" }}>
             <Trash2 size={11} /> {t("sell.remove")}

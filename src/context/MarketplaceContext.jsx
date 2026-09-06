@@ -8,6 +8,7 @@ import { CATEGORY_KEYS } from "../lib/i18n";
 import { useI18n } from "../lib/LangContext";
 import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
+import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 
 const MarketplaceContext = createContext(null);
 
@@ -423,7 +424,14 @@ export function MarketplaceProvider({ children }) {
           trackingId: "",
           slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)),
           createdAt: Date.now(),
+          referrerSlug: getPendingReferral(),
         };
+        // Credit the referrer (if any) and clear the pending referral from session
+        const referrerSlug = getPendingReferral();
+        if (referrerSlug) {
+          trackReferralConversion(referrerSlug, m.slug);
+          clearPendingReferral();
+        }
         await persistMarketers([...marketers, m]);
         await persistSession(m.id);
         showToast(t("sell.studioCreated"));
