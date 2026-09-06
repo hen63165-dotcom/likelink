@@ -58,7 +58,7 @@ export default function CreatorProfilePage({
       setReferralStats(null);
       return () => { cancelled = true; };
     }
-    getReferralStats(marketer.id)
+    getReferralStats(marketer.slug || marketer.id)
       .then((stats) => {
         if (!cancelled) setReferralStats(stats);
       })
