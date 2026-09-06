@@ -17,8 +17,12 @@ import webpush from "web-push";
 const VAPID_KEY = "marketplace:vapid";
 const SUBS_KEY = "marketplace:pushsubs";
 
+import { isApprovedOrigin } from "./_utils/cors";
+
+// 🔒 Fail loud: server writes use the SERVICE ROLE key only. Never fall back
+// to the anon key — the guards below return 500 when it is missing.
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function kvGet(key, fallback) {
   if (!SB_URL || !SB_KEY) return fallback;
@@ -92,13 +96,17 @@ function json(res, obj, status = 200) {
   res.status(status);
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.setHeader("cache-control", "no-store");
-  res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-methods", "POST, OPTIONS");
   res.setHeader("access-control-allow-headers", "content-type");
   res.json(obj);
 }
 
 export default async function handler(req, res) {
+  // 🔒 CORS: no wildcard. Echo back ONLY a validated approved origin
+  // (same-origin requests need no ACAO header at all).
+  const corsOrigin = String(req.headers?.origin || "");
+  if (isApprovedOrigin(corsOrigin)) res.setHeader("access-control-allow-origin", corsOrigin);
+
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
 
   if (req.method === "GET") {

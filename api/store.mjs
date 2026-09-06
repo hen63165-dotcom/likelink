@@ -240,7 +240,7 @@ async function signSaleHandler(req, res) {
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
-  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 503, req); return; }
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "misconfigured: service role key missing" }, 500, req); return; }
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
   // here via vercel.json rewrite → /api/store?mode=sign-sale

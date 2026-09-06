@@ -29,8 +29,9 @@
 //     timestamp: ISO8601
 //   }
 
+// 🔒 Fail loud: audit logs are security records — service role only, no anon fallback.
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const AUDIT_KEY_PREFIX = "audit:";
 

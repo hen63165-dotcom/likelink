@@ -10,6 +10,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { lunaHook } from "../../lib/ambassador";
 import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar";
+import { sanitizeInput } from "../../lib/security";
 import { LunaAvatar } from "./LunaAvatar";
 
 export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }) {
@@ -61,7 +62,7 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
             <div className="p-4 flex items-center gap-3" style={{ background: "linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%)" }}>
               <LunaAvatar persona={persona} size={52} glow={false} />
               <div className="min-w-0" style={{ direction: "rtl" }}>
-                <p className="text-[14px] font-bold text-white">{asSite ? "לונה · לייקלינק" : `${persona.emoji} ${persona.name}`}</p>
+                <p className="text-[14px] font-bold text-white">{asSite ? "לונה · לייקלינק" : `${persona.emoji} ${sanitizeInput(persona.name)}`}</p>
                 <p className="text-[11px] text-white/90">
                   {asSite ? t("luna.greeting", "היי! בואי לגלות את הנבחר של היום") : t("luna.studioGreeting", "הדמות של הסטודיו שלך מוכנה")}
                 </p>
@@ -81,8 +82,8 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
                 >
                   {spotlight.image && <img src={spotlight.image} alt="" className="w-11 h-11 rounded-lg object-cover" />}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12.5px] font-bold truncate" style={{ color: "var(--text)" }}>{spotlight.title}</p>
-                    <p className="text-[11px]" style={{ color: "var(--accent)" }}>{hook}</p>
+                    <p className="text-[12.5px] font-bold truncate" style={{ color: "var(--text)" }}>{sanitizeInput(spotlight.title)}</p>
+                    <p className="text-[11px]" style={{ color: "var(--accent)" }}>{sanitizeInput(hook)}</p>
                   </div>
                 </button>
               )}

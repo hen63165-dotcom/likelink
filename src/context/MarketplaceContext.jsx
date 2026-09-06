@@ -388,6 +388,10 @@ export function MarketplaceProvider({ children }) {
       onLogin: async (email, password) => {
         const cleanEmail = String(email || "").trim().toLowerCase();
         if (!isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        // 🔒 Fail loud: login REQUIRES real auth. Never fall back to
+        // email-only matching, even when Supabase Auth is not configured.
+        if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
+
         const marketer = marketers.find((m) => m.email.toLowerCase() === cleanEmail) || null;
         if (authConfigured) {
           const res = await signInSeller({ email: cleanEmail, password });
@@ -400,6 +404,9 @@ export function MarketplaceProvider({ children }) {
         const cleanName = String(name || "").trim().slice(0, 60);
         const cleanEmail = String(email || "").trim().toLowerCase();
         if (!cleanName || !isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        // 🔒 Fail loud: signup REQUIRES real auth. Never create a studio or a
+        // session on email-only matching, even when Supabase Auth is missing.
+        if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
         if (authConfigured) {
           const res = await signUpSeller({ email: cleanEmail, password });
           if (!res.ok) return showToast(res.error || t("auth.errPassword"));

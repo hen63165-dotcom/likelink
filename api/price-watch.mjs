@@ -19,8 +19,9 @@ const MAX_HISTORY_PER_PRODUCT = 30;
 const DROP_ALERT_PERCENT = 5; // alert when live price is ≥5% below seller's listed price
 
 
+// 🔒 Fail loud: server writes use the SERVICE ROLE key only — no anon fallback.
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function kvGet(key, fallback) {
   if (!SB_URL || !SB_KEY) return fallback;
@@ -37,6 +38,7 @@ async function kvGet(key, fallback) {
 }
 
 async function kvSet(key, value) {
+  if (!SB_URL || !SB_KEY) throw new Error("misconfigured: service role key missing");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: {

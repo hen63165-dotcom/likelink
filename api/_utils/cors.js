@@ -17,6 +17,13 @@
  *   - Production should never use wildcard `*` for credentialed requests
  */
 
+// 🔒 Approved origins — extendable WITHOUT code change via the ALLOWED_ORIGINS
+// env var (comma-separated list of exact origins, e.g. custom domains).
+const ENV_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
 const APPROVED_ORIGINS = new Set([
   "http://localhost:3000",
   "http://localhost:5173",
@@ -24,6 +31,8 @@ const APPROVED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "https://likelink.com",
   "https://www.likelink.com",
+  "https://likelink2.vercel.app",
+  ...ENV_ORIGINS,
 ]);
 
 const APPROVED_PATTERN = /^(https?:\/\/)([a-z0-9-]+\.)*likelink\.com$/;

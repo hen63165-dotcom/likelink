@@ -61,6 +61,8 @@ async function fetchKv(supabaseUrl, supabaseKey, key) {
 // Dispatched by vercel.json:  /sitemap.xml → /api/google-feed?kind=sitemap
 // Logic below is byte-for-byte the original sitemap implementation.
 
+import { isApprovedOrigin } from "./_utils/cors";
+
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
@@ -257,7 +259,10 @@ async function googleFeedHandler(req, res) {
     res.setHeader("content-disposition", `attachment; filename="${FEED_FILE_NAME}"`);
     res.setHeader("content-length", String(body.byteLength));
     res.setHeader("cache-control", "no-store");
-    res.setHeader("access-control-allow-origin", "*");
+    // 🔒 CORS: no wildcard — echo only a validated approved origin
+    // (crawlers and same-origin requests need no ACAO header at all).
+    const reqOrigin = String(req.headers?.origin || "");
+    if (isApprovedOrigin(reqOrigin)) res.setHeader("access-control-allow-origin", reqOrigin);
     res.end(body);
   } catch (error) {
     console.error("[google-feed] generation failed", error);

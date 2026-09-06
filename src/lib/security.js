@@ -7,7 +7,7 @@ export const SECURITY_POLICY = {
   strictMode: true,
   csrfProtection: true,
   sanitizedRoutes: ["/", "/u", "/sell", "/admin"],
-  allowedOrigins: ["localhost", "likelink.com", "www.likelink.com"],
+  allowedOrigins: ["localhost", "likelink.com", "www.likelink.com", "likelink2.vercel.app"],
   maxPayloadSize: 2_000_000,
 };
 
@@ -32,9 +32,21 @@ export function sanitizeObject(obj) {
 
 export function validateOrigin() {
   if (typeof window === "undefined") return true;
-  const url = new URL(window.location.href);
-  const host = url.hostname.toLowerCase();
-  return host === "localhost" || host.includes("likelink.com");
+  try {
+    const url = new URL(window.location.href);
+    const host = url.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1") return true;
+    // 🔒 Exact-match allowlist only. A substring check (host.includes("likelink.com"))
+    // is trivially bypassed with "likelink.com.evil.ru" — exact host equality is not.
+    // Extra hosts can be added via VITE_ALLOWED_HOSTS (comma-separated), no code change.
+    const envHosts = String(import.meta.env?.VITE_ALLOWED_HOSTS || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return SECURITY_POLICY.allowedOrigins.includes(host) || envHosts.includes(host);
+  } catch {
+    return false;
+  }
 }
 
 export function createSecureHeaders() {
