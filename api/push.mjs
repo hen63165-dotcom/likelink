@@ -17,7 +17,7 @@ import webpush from "web-push";
 const VAPID_KEY = "marketplace:vapid";
 const SUBS_KEY = "marketplace:pushsubs";
 
-import { isApprovedOrigin } from "./_utils/cors";
+import { isApprovedOrigin } from "./_utils/cors.js";
 
 // 🔒 Fail loud: server writes use the SERVICE ROLE key only. Never fall back
 // to the anon key — the guards below return 500 when it is missing.

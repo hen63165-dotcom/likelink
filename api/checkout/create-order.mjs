@@ -16,7 +16,7 @@
 
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
-import { jsonCors } from "../_utils/cors";
+import { jsonCors } from "../_utils/cors.js";
 
 function json(res, obj, status = 200, req) {
   jsonCors(res, obj, status, req, {

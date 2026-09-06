@@ -15,8 +15,8 @@
 // per IP and answered with a small artificial delay to blunt brute force.
 
 import crypto from "crypto";
-import { jsonCors } from "../_utils/cors";
-import { audit } from "../_utils/audit";
+import { jsonCors } from "../_utils/cors.js";
+import { audit } from "../_utils/audit.js";
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "";
 const SECRET =

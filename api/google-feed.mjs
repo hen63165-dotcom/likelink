@@ -61,7 +61,7 @@ async function fetchKv(supabaseUrl, supabaseKey, key) {
 // Dispatched by vercel.json:  /sitemap.xml → /api/google-feed?kind=sitemap
 // Logic below is byte-for-byte the original sitemap implementation.
 
-import { isApprovedOrigin } from "./_utils/cors";
+import { isApprovedOrigin } from "./_utils/cors.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;

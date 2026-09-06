@@ -21,8 +21,8 @@
 //
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
-import { jsonCors } from "./_utils/cors";
-import { audit } from "./_utils/audit";
+import { jsonCors } from "./_utils/cors.js";
+import { audit } from "./_utils/audit.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;

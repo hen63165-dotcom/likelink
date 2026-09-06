@@ -17,7 +17,7 @@
 // the rest of the platform uses).
 
 import { lunaHook } from "../src/lib/ambassador.js";
-import { jsonCors } from "./_utils/cors";
+import { jsonCors } from "./_utils/cors.js";
 
 const KV_KEY = "marketplace:autopilot";
 const MAX_LOGS_PER_CREATOR = 40;

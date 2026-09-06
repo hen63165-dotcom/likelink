@@ -10,6 +10,8 @@
 // GET /api/checkout/capture-order?token=<PAYPAL_TOKEN>&PayerID=<...>
 // (Redirect target from PayPal — processes the return and captures)
 
+import { isApprovedOrigin } from "../_utils/cors.js";
+
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 const SALES_KEY = "marketplace:sales";
@@ -18,13 +20,15 @@ const MARKETERS_KEY = "marketplace:marketers";
 const SETTINGS_KEY = "marketplace:settings";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// 🔒 Fail loud: payment capture writes use the SERVICE ROLE key only.
+// Never fall back to the anon key — if it is missing, the guard below
+// returns 500 "misconfigured: service role key missing". No value invented.
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(res, obj, status = 200) {
   res.status(status);
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.setHeader("cache-control", "no-store");
-  res.setHeader("access-control-allow-origin", "*");
   res.setHeader("access-control-allow-methods", "POST, OPTIONS, GET");
   res.setHeader("access-control-allow-headers", "content-type");
   res.json(obj);
@@ -111,6 +115,12 @@ a{display:inline-block;padding:10px 24px;border-radius:8px;background:${color};c
 }
 
 export default async function handler(req, res) {
+  // 🔒 CORS: no wildcard. Echo back ONLY a validated approved origin
+  // (same-origin requests need no ACAO header at all) — same pattern as
+  // api/push.mjs and api/google-feed.mjs.
+  const corsOrigin = String(req.headers?.origin || "");
+  if (isApprovedOrigin(corsOrigin)) res.setHeader("access-control-allow-origin", corsOrigin);
+
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
