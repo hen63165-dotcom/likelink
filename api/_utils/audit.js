@@ -70,8 +70,11 @@ const AUDIT_EVENT_TYPES = {
   API_FORBIDDEN: "api.forbidden",
 };
 
-function sanitizeLogData(data) {
+function sanitizeLogData(data, seen) {
   if (!data || typeof data !== "object") return {};
+  seen = seen || new WeakSet();
+  if (seen.has(data)) return "[Circular]";
+  seen.add(data);
 
   const sanitized = {};
   const sensitiveKeys = new Set([
@@ -87,7 +90,7 @@ function sanitizeLogData(data) {
     } else if (typeof v === "string" && v.length > 500) {
       sanitized[k] = v.slice(0, 500) + "...[TRUNCATED]";
     } else if (typeof v === "object" && v !== null) {
-      sanitized[k] = sanitizeLogData(v);
+      sanitized[k] = sanitizeLogData(v, seen);
     } else {
       sanitized[k] = v;
     }
