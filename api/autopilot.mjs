@@ -20,39 +20,52 @@ import { lunaHook } from "../src/lib/ambassador.js";
 import { jsonCors } from "./_utils/cors.js";
 import { verifyToken } from "./_utils/authVerify.js";
 import { buildCampaign } from "../src/lib/cloud/campaign.js";
+import { selectOpportunity } from "../src/lib/cloud/growth.js";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 
 /**
  * Official Site Campaign cycle (OWNER_SCOPE = OFFICIAL_SITE) — runs on the
- * EXISTING daily cron, once per day, idempotent. Picks a real approved
- * product (rotating), builds the Hebrew content pack via the existing
- * campaign engine, and stores the campaign record (append-only, capped).
+ * EXISTING daily cron, once per day, idempotent. Wraps the ADAPTIVE GROWTH
+ * BRAIN: each cycle discovers the strongest real opportunity from
+ * first-party data (verified sales > conversion > clicks > fatigue), builds
+ * the Hebrew content pack, and stores the campaign record (append-only).
  * Publication stays with authorized channels only — assets are PREPARED.
  */
 async function runSiteCampaignCycle(origin) {
   try {
-    const productsRow = await kvGet("marketplace:products");
-    const approved = (Array.isArray(productsRow) ? productsRow : []).filter((p) => p && p.status === "approved");
+    const [productsRow, salesRow, clicksRow, campaignsRow] = await Promise.all([
+      kvGet("marketplace:products", []),
+      kvGet("marketplace:sales", []),
+      kvGet("marketplace:clicks", []),
+      kvGet(SITE_CAMPAIGNS_KEY, []),
+    ]);
+    const productsList = Array.isArray(productsRow) ? productsRow : [];
+    const salesArr = Array.isArray(salesRow) ? salesRow : [];
+    const clicksArr = Array.isArray(clicksRow) ? clicksRow : [];
+    const campaignsList = Array.isArray(campaignsRow) ? campaignsRow : [];
+    const approved = productsList.filter((p) => p && p.status === "approved");
     if (!approved.length) return { ok: false, skipped: "no_approved_products" };
 
     // One site campaign per calendar day (idempotent — cron retries never double-run).
-    const existing = await kvGet(SITE_CAMPAIGNS_KEY, []);
-    const list = Array.isArray(existing) ? existing : [];
+    const list = campaignsList;
     const today = new Date().toISOString().slice(0, 10);
     if (list.some((c) => String(c?.createdAt || "").slice(0, 10) === today)) {
       return { ok: false, skipped: "campaign_already_ran_today" };
     }
 
-    // Rotate deterministically by day so each cycle features a different product.
-    const dayIndex = Math.floor(Date.now() / 86400000);
-    const product = approved[dayIndex % approved.length];
+    // ── ADAPTIVE GROWTH BRAIN: evidence-first selection (fatigue-aware) ──
+    // No authorized external channel exists on the official-site scope yet;
+    // channelStates stays empty so distribution is honestly BLOCKED/PREPARED.
+    const decision = selectOpportunity({ approved, sales: salesArr, clicks: clicksArr, campaigns: list, channelStates: [] });
+    const product = decision.selected;
+    if (!product) return { ok: false, skipped: "no_opportunity_selected" };
 
     // Learning input — measured content clicks per angle (honest, sample-gated).
     let angleStats = {};
     try {
       const { learnFromClicks } = await import("../src/lib/cloud/campaign.js");
-      angleStats = learnFromClicks(await kvGet("marketplace:clicks", [])).byAngle;
+      angleStats = learnFromClicks(clicksArr).byAngle;
     } catch { /* learning is best-effort — rotation fallback applies */ }
 
     const campaign = buildCampaign(product, {
@@ -68,10 +81,19 @@ async function runSiteCampaignCycle(origin) {
       distribution: "DISTRIBUTION_BLOCKED",
       blockedReason: "NO_AUTHORIZED_CHANNEL",
       metrics: { clicks: 0, note: "NOT_YET_MEASURED" },
+      // The brain's decision is stored with the record — fully auditable.
+      growthDecision: {
+        mode: decision.mode,
+        score: decision.score,
+        reasons: decision.reasons,
+        candidates: decision.candidates,
+        rejected: decision.rejected,
+        selectedProductId: decision.productId,
+      },
     };
     list.push(record);
     await kvSet(SITE_CAMPAIGNS_KEY, list.slice(-100)); // append-only, capped
-    return { ok: true, campaignId: campaign.campaignId, productId: product.id, angle: campaign.angle.id };
+    return { ok: true, campaignId: campaign.campaignId, productId: product.id, angle: campaign.angle.id, mode: decision.mode, score: decision.score };
   } catch (e) {
     return { ok: false, error: String(e.message || e).slice(0, 120) };
   }

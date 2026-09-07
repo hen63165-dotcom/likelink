@@ -19,6 +19,7 @@
 
 import { sendViaResend } from "../invoice/send.mjs";
 import { learnFromClicks } from "../../src/lib/cloud/campaign.js";
+import { selectOpportunity } from "../../src/lib/cloud/growth.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -310,6 +311,32 @@ export async function buildOwnerReport() {
         googleTraffic: googleClicks > 0 ? "MEASURED" : "NOT_YET_MEASURED",
       };
     })(),
+    // ── ADAPTIVE GROWTH BRAIN — the live decision the engine just made ──
+    // Recomputes the same evidence-first selection the daily cycle uses, so
+    // the Owner report always mirrors what the cron decided (or would decide).
+    growthBrain: (() => {
+      try {
+        const decision = selectOpportunity({
+          approved: productsArr.filter((p) => p.status === "approved"),
+          sales: salesArr,
+          clicks: clicksArr,
+          campaigns: Array.isArray(siteCampaigns) ? siteCampaigns : [],
+          channelStates: [], // official-site scope has no authorized external channel yet
+        });
+        return {
+          mode: decision.mode,
+          selectedProduct: decision.selected ? { id: decision.selected.id, title: decision.selected.title } : null,
+          score: decision.score,
+          reasons: decision.reasons,
+          candidates: decision.candidates,
+          rejected: decision.rejected,
+          destination: decision.destination,
+          distributionBlocked: decision.authorization?.distributionBlocked,
+        };
+      } catch {
+        return { mode: "ERROR", reasons: ["growth_brain_failed"] };
+      }
+    })(),
   };
 }
 
@@ -371,6 +398,13 @@ function renderOwnerReportHtml(r) {
     פעולות חסומות אבטחתית (שבוע אחרון): <b>${r.issues.securityBlockedLastWeek}</b><br>
     ערוצי AutoPilot פעילים: <b>${r.traffic.channelsActive}</b>
   </p>
+
+  <h3 style="margin:16px 0 6px">ההזדמנות הנוכחית (Growth Brain)</h3>
+  <p style="font-size:14px;line-height:1.7">
+    ${r.growthBrain?.selectedProduct ? `מוצר: <b>${r.growthBrain.selectedProduct.title}</b>` : "אין מוצר נבחר"} · ציון: <b>${r.growthBrain?.score ?? "—"}</b><br>
+    סיבות: ${(r.growthBrain?.reasons || ["אין נתונים"]).join(" · ")}
+  </p>
+  ${r.growthBrain?.distributionBlocked ? '<p style="font-size:13px;color:#c62828">הפצה חסומה — אין ערוץ מורשה מחובר. הקמפיין נשאר PREPARED עד שיחובר ערוץ.</p>' : ""}
 
   <h3 style="margin:16px 0 6px">הבדיקה הבאה (למידת המערכת)</h3>
   <p style="font-size:14px;line-height:1.7">${r.campaignLearning.nextTest}</p>

@@ -203,6 +203,17 @@ export default function CloudReportSection({ lang }) {
             🎯 {L("הבדיקה הבאה:", "Next test:")} {report.campaignLearning.nextTest}
           </p>
         )}
+        {report.growthBrain && (
+          <p className="text-xs font-semibold mt-2" style={{ borderTop: "1px solid var(--bg-subtle)", paddingTop: 8 }}>
+            🧠 {L("ההזדמנות המובילה היום:", "Today's top opportunity:")} {report.growthBrain.selectedProduct ? report.growthBrain.selectedProduct.title : L("אין נתונים", "no data")}
+            <span className="text-muted"> · {L("ציון", "score")}: {report.growthBrain.score}</span>
+          </p>
+        )}
+        {report.growthBrain?.distributionBlocked && (
+          <p className="text-[11px]" style={{ color: "var(--danger)" }}>
+            ⛔ {L("הפצה חסומה — אין ערוץ מאובטח מחובר (PREPARED).", "Distribution blocked — no authorized channel (PREPARED).")}
+          </p>
+        )}
         {report.googleStatus && (
           <p className="text-xs text-muted mt-2">
             🔍 {L("Google:", "Google:")} {report.googleStatus.status} · {L("מוצרים כשירים:", "Eligible:")} {report.googleStatus.eligibleProducts} · {L("תנועת Google:", "Google traffic:")} {report.googleStatus.googleTraffic === "MEASURED" ? report.googleStatus.googleClicksMeasured : L("טרם נמדדה", "not yet measured")}
