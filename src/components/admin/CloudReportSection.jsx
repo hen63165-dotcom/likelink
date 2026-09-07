@@ -185,6 +185,11 @@ export default function CloudReportSection({ lang }) {
             {L("מוצר מוביל:", "Top product:")} <b>{report.topProduct.title || report.topProduct.productId}</b>
           </p>
         )}
+        {report.campaignLearning && (
+          <p className="text-xs text-muted mt-2" style={{ borderTop: "1px solid var(--bg-subtle)", paddingTop: 8 }}>
+            🎯 {L("הבדיקה הבאה:", "Next test:")} {report.campaignLearning.nextTest}
+          </p>
+        )}
       </div>
 
       <EmptyState

@@ -18,6 +18,7 @@
 // Never stored here: passwords, tokens, PayPal secrets, admin codes.
 
 import { sendViaResend } from "../invoice/send.mjs";
+import { learnFromClicks } from "../../src/lib/cloud/campaign.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -255,8 +256,11 @@ export async function buildOwnerReport() {
       hasAnySales: salesArr.length > 0,
       hasAnyTraffic: clicksArr.length > 0,
     },
+    // §17 learning loop — sample-gated, honest, never a guess
+    campaignLearning: learnFromClicks(clicksArr),
   };
 }
+
 
 // ─── Daily Owner email (REUSES the existing Resend email path) ──────────────
 
@@ -315,6 +319,9 @@ function renderOwnerReportHtml(r) {
     פעולות חסומות אבטחתית (שבוע אחרון): <b>${r.issues.securityBlockedLastWeek}</b><br>
     ערוצי AutoPilot פעילים: <b>${r.traffic.channelsActive}</b>
   </p>
+
+  <h3 style="margin:16px 0 6px">הבדיקה הבאה (למידת המערכת)</h3>
+  <p style="font-size:14px;line-height:1.7">${r.campaignLearning.nextTest}</p>
 
   <p style="font-size:11px;color:#999;margin-top:20px;border-top:1px solid #eee;padding-top:12px">
     כל המספרים מגיעים מנתוני אמת מאומתים בלבד. שלבים שטרם נמדדים מסומנים ככאלה — ולא מוצגים כאפס עסקי.
