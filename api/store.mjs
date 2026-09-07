@@ -234,7 +234,132 @@ async function signSaleHandler(req, res) {
   ].join("|");
   const sig = crypto.createHmac("sha256", SIGN_SECRET).update(canonical).digest("hex");
 
-  json(res, { ok: true, sig, sigTs: now, sale }, 200, req);
+    json(res, { ok: true, sig, sigTs: now, sale }, 200, req);
+}
+
+// ─── Identity link handler (merged from api/identity.mjs) ───────────────────
+// Verifies the caller's auth session server-side and writes the trusted
+// profiles.marketer_id link using the SERVICE_ROLE key. This is the ONLY
+// place that writes that column — the client never writes it directly.
+
+/**
+ * Verify the Bearer token server-side by calling Supabase auth get user.
+ * Returns the Auth user record or null.
+ */
+async function verifyToken(accessToken) {
+  if (!accessToken) return null;
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function profileUpsert(profileId, marketerId) {
+  const res = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${profileId}`, {
+    method: "PATCH",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
+      "content-type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ marketer_id: marketerId }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`profile_update_failed_${res.status}`);
+}
+
+async function linkIdentityHandler(req, res) {
+  // 1. Authenticate the caller via Bearer token (verified server-side).
+  const authHeader = getHeader(req, "authorization") || "";
+  const token = String(authHeader).replace(/^Bearer\s+/i, "").trim();
+  const authUser = await verifyToken(token);
+  if (!authUser?.id) {
+    audit.logApiForbidden({ type: "unauthenticated" }, { type: "identity_link" }, { _req: req });
+    json(res, { ok: false, error: "unauthenticated" }, 401, req);
+    return;
+  }
+
+  // 2. Parse + validate body.
+  let body;
+  try {
+    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+  } catch {
+    json(res, { ok: false, error: "bad_json" }, 400, req);
+    return;
+  }
+
+  const { authUserId, marketerId } = body || {};
+  if (!authUserId || !marketerId || authUserId !== authUser.id) {
+    audit.logApiForbidden(
+      { type: "id_mismatch", claimed: authUserId, session: authUser.id },
+      { type: "identity_link" },
+      { _req: req }
+    );
+    json(res, { ok: false, error: "identity_mismatch" }, 403, req);
+    return;
+  }
+
+  // 3. Verify the marketer exists in kv.
+  const marketers = (await kvGet("marketplace:marketers")) || [];
+  const marketer = marketers.find((m) => m.id === marketerId);
+  if (!marketer) {
+    json(res, { ok: false, error: "marketer_not_found" }, 404, req);
+    return;
+  }
+
+  // 4. Claim check: is this marketer already linked to ANOTHER auth user?
+  try {
+    const claimRes = await fetch(
+      `${SB_URL}/rest/v1/profiles?marketer_id=eq.${encodeURIComponent(marketerId)}&select=id`,
+      {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+        signal: AbortSignal.timeout(10000),
+      }
+    );
+    if (claimRes.ok) {
+      const existing = await claimRes.json();
+      if (existing && existing.length > 0 && existing[0].id !== authUser.id) {
+        audit.logApiForbidden(
+          { type: "already_claimed", marketerId, by: existing[0].id },
+          { type: "identity_link" },
+          { _req: req }
+        );
+        json(res, { ok: false, error: "marketer_already_linked" }, 409, req);
+        return;
+      }
+    }
+  } catch (e) {
+    // If the profiles table doesn't exist yet, skip the claim check.
+    // The marketer_id column is additive; the migration may not have run.
+    if (e.message && !e.message.includes("42P01") && !e.message.includes("42702")) {
+      // Re-throw only unexpected errors
+    }
+  }
+
+  // 5. Write the link (idempotent — PATCH on id = auth.uid).
+  try {
+    await profileUpsert(authUser.id, marketerId);
+  } catch (e) {
+    json(res, { ok: false, error: `link_write_failed: ${e.message}` }, 500, req);
+    return;
+  }
+
+  audit.logApiSuccess(
+    { type: "identity_linked", authUserId: authUser.id, marketerId },
+    { type: "identity_link" },
+    { _req: req }
+  );
+  json(res, { ok: true, authUserId: authUser.id, marketerId }, 200, req);
 }
 
 export default async function handler(req, res) {
@@ -244,8 +369,13 @@ export default async function handler(req, res) {
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
   // here via vercel.json rewrite → /api/store?mode=sign-sale
-  if (new URL(req.url, "https://x").searchParams.get("mode") === "sign-sale") {
+    if (new URL(req.url, "https://x").searchParams.get("mode") === "sign-sale") {
     return signSaleHandler(req, res);
+  }
+
+  // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write)
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
+    return linkIdentityHandler(req, res);
   }
 
   let body;

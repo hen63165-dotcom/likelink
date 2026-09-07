@@ -89,7 +89,10 @@ export async function linkMarketer(authUserId, marketerId) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const res = await fetch("/api/identity", {
+    // Merged into /api/store?mode=link-identity (Vercel Hobby 12-function limit).
+  // The server still verifies the Bearer token server-side and writes
+  // profiles.marketer_id using the SERVICE_ROLE key.
+  const res = await fetch("/api/store?mode=link-identity", {
     method: "POST",
     headers: {
       "content-type": "application/json",
