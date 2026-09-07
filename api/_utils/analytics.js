@@ -147,7 +147,7 @@ function payoutSplit(payouts, fromTs) {
  * Unmeasured funnel stages come back as `measured: false` / null — NOT as 0.
  */
 export async function buildOwnerReport() {
-  const [sales, payouts, charges, clicks, products, marketers, autopilot, auditEvents] = await Promise.all([
+  const [sales, payouts, charges, clicks, products, marketers, autopilot, auditEvents, siteCampaigns] = await Promise.all([
     kvGet(K.sales, []),
     kvGet(K.payouts, []),
     kvGet(K.charges, []),
@@ -156,6 +156,7 @@ export async function buildOwnerReport() {
     kvGet(K.marketers, []),
     kvGet(K.autopilot, {}),
     kvGet(K.audit, []),
+    kvGet("marketplace:site_campaigns", []),
   ]);
 
   const salesArr = Array.isArray(sales) ? sales : [];
@@ -258,6 +259,57 @@ export async function buildOwnerReport() {
     },
     // §17 learning loop — sample-gated, honest, never a guess
     campaignLearning: learnFromClicks(clicksArr),
+    // Official Site campaigns (OWNER_SCOPE = OFFICIAL_SITE) — created daily by
+    // the autonomous cycle. Clicks per campaign measured via utm_campaign.
+    siteCampaigns: (() => {
+      const list = Array.isArray(siteCampaigns) ? siteCampaigns : [];
+      const clicksByCampaign = {};
+      for (const c of clicksArr) {
+        if (c?.camp) clicksByCampaign[String(c.camp).slice(0, 80)] = (clicksByCampaign[String(c.camp).slice(0, 80)] || 0) + 1;
+      }
+      const last = list.length ? list[list.length - 1] : null;
+      return {
+        total: list.length,
+        last: last
+          ? {
+              campaignId: last.campaignId,
+              product: last.product?.title || last.productId,
+              angle: last.angle?.id,
+              status: last.status,
+              createdAt: last.createdAt,
+              trackedUrl: last.trackedUrl,
+              clicks: clicksByCampaign[last.campaignId] || 0,
+            }
+          : null,
+        clicksByCampaign,
+      };
+    })(),
+    // Google discovery status — derived ONLY from real, existing feed data.
+    // Google does not guarantee impressions/clicks; GOOGLE_TRAFFIC is reported
+    // only when actually measured (never claimed).
+    googleStatus: (() => {
+      const eligible = productsArr.filter(
+        (p) => p.status === "approved" && p.title && Number(p.price) > 0 && p.image
+      );
+      const needsAttention = productsArr.filter(
+        (p) => p.status === "approved" && !(p.title && Number(p.price) > 0 && p.image)
+      );
+      const googleClicks = clicksArr.filter((c) => String(c?.src || "").toLowerCase().startsWith("google")).length;
+      const feedReady = productsArr.some((p) => p.status === "approved");
+      return {
+        connection: "GOOGLE_FEED_READY", // the existing /api/google-feed is the live data source
+        merchantCenterOAuth: "ACTION_REQUIRED", // one-time owner action via official Google auth
+        status: !feedReady ? "GOOGLE_NOT_CONFIGURED" : needsAttention.length ? "GOOGLE_PRODUCTS_NEED_ATTENTION" : "GOOGLE_FEED_HEALTHY",
+        feedUrl: "/api/google-feed",
+        eligibleProducts: eligible.length,
+        needsAttentionProducts: needsAttention.length,
+        missingAttributesNote: needsAttention.length
+          ? "מוצרים ללא תמונה/מחיר/כותרת מסומנים NEEDS_ATTENTION — לא מומצאים ב-feed."
+          : null,
+        googleClicksMeasured: googleClicks, // 0 = measured zero, not an estimate
+        googleTraffic: googleClicks > 0 ? "MEASURED" : "NOT_YET_MEASURED",
+      };
+    })(),
   };
 }
 
@@ -322,6 +374,15 @@ function renderOwnerReportHtml(r) {
 
   <h3 style="margin:16px 0 6px">הבדיקה הבאה (למידת המערכת)</h3>
   <p style="font-size:14px;line-height:1.7">${r.campaignLearning.nextTest}</p>
+
+  <h3 style="margin:16px 0 6px">האתר הרשמי — קמפיינים ו-Google</h3>
+  <table style="width:100%;border-collapse:collapse">
+    ${row("קמפייני אתר נוצרו", r.siteCampaigns.total)}
+    ${row("קמפיין אחרון", r.siteCampaigns.last ? `${r.siteCampaigns.last.product} (${r.siteCampaigns.last.status}, ${r.siteCampaigns.last.clicks} קליקים מדודים)` : "טרם רץ")}
+    ${row("Google Feed", r.googleStatus.status)}
+    ${row("מוצרים כשירים ל-Google", `${r.googleStatus.eligibleProducts} כשירים · ${r.googleStatus.needsAttentionProducts} דורשים טיפול`)}
+    ${row("תנועת Google", r.googleStatus.googleTraffic === "MEASURED" ? `${r.googleStatus.googleClicksMeasured} קליקים מדודים` : "טרם נמדדה")}
+  </table>
 
   <p style="font-size:11px;color:#999;margin-top:20px;border-top:1px solid #eee;padding-top:12px">
     כל המספרים מגיעים מנתוני אמת מאומתים בלבד. שלבים שטרם נמדדים מסומנים ככאלה — ולא מוצגים כאפס עסקי.

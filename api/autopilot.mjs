@@ -19,6 +19,64 @@
 import { lunaHook } from "../src/lib/ambassador.js";
 import { jsonCors } from "./_utils/cors.js";
 import { verifyToken } from "./_utils/authVerify.js";
+import { buildCampaign } from "../src/lib/cloud/campaign.js";
+
+const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
+
+/**
+ * Official Site Campaign cycle (OWNER_SCOPE = OFFICIAL_SITE) — runs on the
+ * EXISTING daily cron, once per day, idempotent. Picks a real approved
+ * product (rotating), builds the Hebrew content pack via the existing
+ * campaign engine, and stores the campaign record (append-only, capped).
+ * Publication stays with authorized channels only — assets are PREPARED.
+ */
+async function runSiteCampaignCycle(origin) {
+  try {
+    const productsRow = await kvGet("marketplace:products");
+    const approved = (Array.isArray(productsRow) ? productsRow : []).filter((p) => p && p.status === "approved");
+    if (!approved.length) return { ok: false, skipped: "no_approved_products" };
+
+    // One site campaign per calendar day (idempotent — cron retries never double-run).
+    const existing = await kvGet(SITE_CAMPAIGNS_KEY, []);
+    const list = Array.isArray(existing) ? existing : [];
+    const today = new Date().toISOString().slice(0, 10);
+    if (list.some((c) => String(c?.createdAt || "").slice(0, 10) === today)) {
+      return { ok: false, skipped: "campaign_already_ran_today" };
+    }
+
+    // Rotate deterministically by day so each cycle features a different product.
+    const dayIndex = Math.floor(Date.now() / 86400000);
+    const product = approved[dayIndex % approved.length];
+
+    // Learning input — measured content clicks per angle (honest, sample-gated).
+    let angleStats = {};
+    try {
+      const { learnFromClicks } = await import("../src/lib/cloud/campaign.js");
+      angleStats = learnFromClicks(await kvGet("marketplace:clicks", [])).byAngle;
+    } catch { /* learning is best-effort — rotation fallback applies */ }
+
+    const campaign = buildCampaign(product, {
+      storeUrl: `${origin}/?product=${encodeURIComponent(product.id)}`,
+      angleStats,
+    });
+    if (!campaign) return { ok: false, skipped: "campaign_build_failed" };
+
+    const record = {
+      ...campaign,
+      ownerScope: "OFFICIAL_SITE",
+      status: "PREPARED", // becomes PUBLISHED only via an authorized channel
+      distribution: "DISTRIBUTION_BLOCKED",
+      blockedReason: "NO_AUTHORIZED_CHANNEL",
+      metrics: { clicks: 0, note: "NOT_YET_MEASURED" },
+    };
+    list.push(record);
+    await kvSet(SITE_CAMPAIGNS_KEY, list.slice(-100)); // append-only, capped
+    return { ok: true, campaignId: campaign.campaignId, productId: product.id, angle: campaign.angle.id };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e).slice(0, 120) };
+  }
+}
+
 
 const KV_KEY = "marketplace:autopilot";
 const MAX_LOGS_PER_CREATOR = 40;
@@ -929,6 +987,8 @@ export default async function handler(req, res) {
     import("./_utils/analytics.js")
       .then(({ sendOwnerDailyReport }) => sendOwnerDailyReport())
       .catch(() => {});
+    // Official Site Campaign cycle — same daily cron, idempotent, fail-safe.
+    runSiteCampaignCycle(origin).catch(() => {});
     return;
   }
 

@@ -346,10 +346,12 @@ export function MarketplaceProvider({ children }) {
       // (utm params / referral param / referrer host). Never guessed.
       let src = null;
       let med = null;
+      let camp = null;
       try {
         const params = new URLSearchParams(window.location.search);
         src = params.get("utm_source") || params.get("ref") || null;
         med = params.get("utm_medium") || null;
+        camp = params.get("utm_campaign") || null;
         if (!src && document.referrer) {
           src = new URL(document.referrer).hostname || null;
         }
@@ -361,6 +363,7 @@ export function MarketplaceProvider({ children }) {
         ts: Date.now(),
         ...(src ? { src: String(src).slice(0, 80) } : {}),
         ...(med ? { med: String(med).slice(0, 60) } : {}),
+        ...(camp ? { camp: String(camp).slice(0, 80) } : {}),
       };
       const nextClicks = [...clicks, c];
       const nextProducts = products.map((p) =>

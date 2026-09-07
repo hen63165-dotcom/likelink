@@ -169,6 +169,42 @@ export function buildCampaign(product, { storeUrl = null, angleStats = {} } = {}
 }
 
 /**
+ * Distribution Orchestrator — THIN policy layer (§6).
+ * Decides WHERE a campaign may be distributed given real connection states.
+ * Never stores provider secrets, never publishes by itself, never fakes
+ * authorization: a channel without a real connection is NOT publishable.
+ */
+export function planDistribution(campaign, connections = []) {
+  const plan = [];
+  for (const conn of Array.isArray(connections) ? connections : []) {
+    const channel = String(conn?.provider || "unknown");
+    if (!conn?.connected) {
+      plan.push({ channel, status: "NO_AUTHORIZED_CONNECTION", publishable: false });
+      continue;
+    }
+    // Google is a DISCOVERY channel, not a social post — its asset is the
+    // validated product data flowing through the existing feed (§13).
+    if (channel === "google") {
+      plan.push({ channel, status: "READY_DISCOVERY", publishable: true, variant: "product_discovery", asset: "existing_google_feed" });
+      continue;
+    }
+    // PayPal is a money provider, never a distribution channel.
+    if (channel === "paypal") {
+      plan.push({ channel, status: "NOT_A_DISTRIBUTION_CHANNEL", publishable: false });
+      continue;
+    }
+    plan.push({ channel, status: "READY", publishable: true, variant: "post", trackedUrl: campaign.trackedUrl });
+  }
+  return {
+    campaignId: campaign?.campaignId,
+    plan,
+    publishableChannels: plan.filter((p) => p.publishable).length,
+    distributionStatus: plan.some((p) => p.publishable) ? "READY" : "DISTRIBUTION_BLOCKED",
+    blockedReason: plan.some((p) => p.publishable) ? null : "NO_AUTHORIZED_CHANNEL",
+  };
+}
+
+/**
  * Learning loop input — aggregate measured content clicks per angle.
  * Used by the Owner report (api/_utils/analytics.js). Honesty rules apply:
  * below the minimum sample the loop reports "not enough data", never a guess.

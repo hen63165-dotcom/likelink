@@ -190,6 +190,17 @@ export default function CloudReportSection({ lang }) {
             🎯 {L("הבדיקה הבאה:", "Next test:")} {report.campaignLearning.nextTest}
           </p>
         )}
+        {report.googleStatus && (
+          <p className="text-xs text-muted mt-2">
+            🔍 {L("Google:", "Google:")} {report.googleStatus.status} · {L("מוצרים כשירים:", "Eligible:")} {report.googleStatus.eligibleProducts} · {L("תנועת Google:", "Google traffic:")} {report.googleStatus.googleTraffic === "MEASURED" ? report.googleStatus.googleClicksMeasured : L("טרם נמדדה", "not yet measured")}
+          </p>
+        )}
+        {report.siteCampaigns && (
+          <p className="text-xs text-muted mt-1">
+            ☁️ {L("קמפייני אתר:", "Site campaigns:")} {report.siteCampaigns.total}
+            {report.siteCampaigns.last ? ` · ${L("אחרון:", "last:")} ${report.siteCampaigns.last.product} (${report.siteCampaigns.last.status}, ${report.siteCampaigns.last.clicks} ${L("קליקים", "clicks")})` : ""}
+          </p>
+        )}
       </div>
 
       <EmptyState
