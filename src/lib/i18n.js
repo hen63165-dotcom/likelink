@@ -309,6 +309,13 @@ export const translations = {
       invalidImage: "הקובץ אינו תקין. אנא העלה תמונה.",
       tryAgain: "נסו שוב",
     },
+    cloud: {
+      connectAttention: "החיבור דורש תשומת לב",
+      reconnectService: "חברי מחדש את השירות",
+      sessionExpired: "פג תוקף החיבור שלך",
+      connected: "מחובר",
+      notConnected: "לא מחובר",
+    },
     legal: {
       title: "תנאי שימוש ומדיניות פרטיות",
       copyright: "זכויות יוצר",
@@ -616,6 +623,13 @@ export const translations = {
       viewProduct: "View product",
       invalidImage: "This file isn't valid. Please upload an image.",
       tryAgain: "Try again",
+    },
+    cloud: {
+      connectAttention: "The connection needs attention",
+      reconnectService: "Reconnect this service",
+      sessionExpired: "Your session expired",
+      connected: "Connected",
+      notConnected: "Not connected",
     },
     legal: {
       title: "Terms of Use & Privacy Policy",

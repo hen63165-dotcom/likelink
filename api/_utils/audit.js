@@ -35,6 +35,9 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const AUDIT_KEY_PREFIX = "audit:";
 
+// Success-path API event (used by logApiSuccess).
+const API_SUCCESS_EVENT = "api.success";
+
 const MAX_AUDIT_EVENTS = 10000;
 const MAX_EVENT_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -237,6 +240,12 @@ export const audit = {
 
   logApiRateLimit(actor, target, metadata = {}) {
     return this.log(AUDIT_EVENT_TYPES.API_RATE_LIMIT, actor, target, metadata);
+  },
+
+  // Success-path API audit (e.g. identity link completed). Missing until now —
+  // callers (api/store.mjs link-identity) referenced it and would throw.
+  logApiSuccess(actor, target, metadata = {}) {
+    return this.log(API_SUCCESS_EVENT, actor, target, metadata);
   },
 
   EVENT_TYPES: AUDIT_EVENT_TYPES,
