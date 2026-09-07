@@ -9,6 +9,7 @@ import { useI18n } from "../lib/LangContext";
 import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
+import { resolveCurrentMarketer, linkMarketer } from "../lib/cloud/identity.js";
 
 const MarketplaceContext = createContext(null);
 
@@ -205,7 +206,15 @@ export function MarketplaceProvider({ children }) {
         ...(st && typeof st === "object" ? st : {}),
         platformFeePercent: toNum(st?.platformFeePercent, PLATFORM_FEE_PERCENT_DEFAULT),
       });
-      setSessionMarketerId(sess?.marketerId || null);
+      // Cloud identity: when Auth is configured, resolve the session from the
+      // authenticated user (not from localStorage, which is not an authorization
+      // boundary). Falls back to localStorage for local-dev without Supabase.
+      let activeMarketerId = sess?.marketerId || null;
+      if (authConfigured) {
+        const resolved = await resolveCurrentMarketer(safeMarketers);
+        if (resolved?.marketerId) activeMarketerId = resolved.marketerId;
+      }
+      setSessionMarketerId(activeMarketerId);
       setFavorites(fav || []);
       setIntroSeen(Boolean(intro));
       setCollections(
@@ -392,11 +401,17 @@ export function MarketplaceProvider({ children }) {
         // email-only matching, even when Supabase Auth is not configured.
         if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
 
-        const marketer = marketers.find((m) => m.email.toLowerCase() === cleanEmail) || null;
-        if (authConfigured) {
-          const res = await signInSeller({ email: cleanEmail, password });
-          if (!res.ok) return showToast(res.error || t("auth.errLogin"));
-        }
+        // Authenticate first — Supabase Auth is the identity source.
+        const res = await signInSeller({ email: cleanEmail, password });
+        if (!res.ok) return showToast(res.error || t("auth.errLogin"));
+
+        // Cloud identity resolution: profiles.marketer_id is the trusted link.
+        // Falls back to email match for legacy users, then auto-links server-side.
+        const resolved = await resolveCurrentMarketer(marketers);
+        const marketer = resolved?.marketerId
+          ? marketers.find((m) => m.id === resolved.marketerId) || null
+          : null;
+
         if (!marketer) return showToast(t("auth.errNoStudio"));
         await persistSession(marketer.id);
       },
@@ -441,6 +456,11 @@ export function MarketplaceProvider({ children }) {
         }
         await persistMarketers([...marketers, m]);
         await persistSession(m.id);
+        // Cloud identity: establish the trusted auth → marketer link server-side.
+        // Failure is non-critical — login will use email fallback + auto-link.
+        if (authConfigured && res.data?.user?.id) {
+          linkMarketer(res.data.user.id, m.id).catch(() => {});
+        }
         showToast(t("sell.studioCreated"));
       },
       onLogout: async () => {
