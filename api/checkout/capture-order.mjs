@@ -162,6 +162,13 @@ export default async function handler(req, res) {
   const settings = (await kvGet(SETTINGS_KEY, {})) || {};
   const platformFeePercent = Number(settings.platformFeePercent ?? 15);
   const currentSales = (await kvGet(SALES_KEY, [])) || [];
+  // Anti-fraud idempotency: the SAME PayPal order can never create two sales
+  // (e.g. the buyer's return URL fires twice). Already recorded → acknowledge
+  // without double-recording sales or auto-created payouts.
+  if (Array.isArray(currentSales) && currentSales.some((s) => s && s.orderId === orderId)) {
+    json(res, { ok: true, alreadyRecorded: true, orderId, captureId, status: capture.status });
+    return;
+  }
   const currentPayouts = (await kvGet(PAYOUTS_KEY, [])) || [];
   const marketers = (await kvGet(MARKETERS_KEY, [])) || [];
   const sales = [];

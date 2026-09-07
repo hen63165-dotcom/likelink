@@ -920,7 +920,16 @@ export default async function handler(req, res) {
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === (process.env.AUTOPILOT_SECRET || ""));
 
-  if (isCron) { const _r = await runDue(origin); json(res, _r, 200, req); return; }
+  if (isCron) {
+    const _r = await runDue(origin);
+    json(res, _r, 200, req);
+    // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
+    // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
+    import("./_utils/analytics.js")
+      .then(({ sendOwnerDailyReport }) => sendOwnerDailyReport())
+      .catch(() => {});
+    return;
+  }
 
   // ── Studio API ──
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }

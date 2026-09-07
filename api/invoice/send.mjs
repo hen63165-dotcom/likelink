@@ -36,7 +36,9 @@ function generateReceiptHtml({ orderId, buyerName, items, total, currency, busin
   return "<!DOCTYPE html><html lang='he' dir='rtl'><head><meta charset='utf-8'><title>Receipt " + orderId + "</title></head><body style='margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif'><div style='max-width:600px;margin:24px auto;background:#fff;border-radius:12px;padding:32px'><h1 style='color:#6C4CF1'>Payment Receipt</h1><p>Order: " + orderId + "</p><p>Date: " + date + "</p><p>Business: " + escapeHtml(businessName || "Likelink") + "</p>" + (businessId ? "<p>ID: " + escapeHtml(businessId) + "</p>" : "") + (buyerName ? "<p>Buyer: " + escapeHtml(buyerName) + "</p>" : "") + "<table style='width:100%;border-collapse:collapse'><thead><tr style='background:#f0f0f0'><th style='padding:10px;text-align:right'>Item</th><th style='padding:10px'>Qty</th><th style='padding:10px'>Price</th><th style='padding:10px'>Total</th></tr></thead><tbody>" + rows + "</tbody></table><div style='text-align:right;margin-top:16px;font-size:18px;font-weight:bold;color:#6C4CF1'>" + money(total, currency) + "</div><p style='font-size:11px;color:#999;margin-top:24px'>Official payment confirmation.</p></div></body></html>";
 }
 
-async function sendViaResend({ to, subject, html, from }) {
+// Exported so Cloud Analytics (api/_utils/analytics.js) reuses the SAME email
+// path — no duplicate email system. Behavior unchanged for receipts.
+export async function sendViaResend({ to, subject, html, from }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "no_api_key" };
   const res = await fetch(RESEND_API, {

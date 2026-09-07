@@ -9,6 +9,7 @@ import { ProductThumb } from "../product/ProductComponents";
 import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
 import PayoutsSection from "./PayoutsSection";
 import GrowthEnginePanel from "./GrowthEnginePanel";
+import CloudReportSection from "./CloudReportSection";
 import { adminLogin, verifyAdminToken, adminLogout } from "../../lib/adminAuth";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
@@ -127,7 +128,8 @@ export default function AdminView() {
     <div className="pt-4 pb-10">
       <div className="flex rounded-full p-1 mb-6 surface-subtle">
         {[
-          { id: "overview", l: t("admin.overview") }, 
+          { id: "overview", l: t("admin.overview") },
+          { id: "cloud", l: L("☁️ דוח ענן", "☁️ Cloud") },
           { id: "listings", l: t("admin.listings") }, 
           { id: "creators", l: t("admin.creators") },
           { id: "payouts", l: L("תשלומים", "Payouts") },
@@ -255,6 +257,9 @@ export default function AdminView() {
       )}
       {section === "growth" && (
         <GrowthEnginePanel />
+      )}
+      {section === "cloud" && (
+        <CloudReportSection lang={lang} />
       )}
 
       <div className="mt-8 flex justify-center">

@@ -23,6 +23,7 @@
 
 import { jsonCors } from "./_utils/cors.js";
 import { audit } from "./_utils/audit.js";
+import { buildOwnerReport } from "./_utils/analytics.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -376,6 +377,25 @@ export default async function handler(req, res) {
   // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write)
   if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
     return linkIdentityHandler(req, res);
+  }
+
+  // Owner Cloud Report — global analytics, OWNER-ONLY (admin token required).
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "cloud-report") {
+    const auth = getHeader(req, "authorization");
+    const token = String(auth).replace(/^Bearer\s+/i, "");
+    const admin = await isAdminToken(token);
+    if (!admin) {
+      audit.logApiForbidden({ type: "non-admin" }, { type: "cloud_report" }, { _req: req });
+      json(res, { ok: false, error: "admin_required" }, 403, req);
+      return;
+    }
+    try {
+      const report = await buildOwnerReport();
+      json(res, report, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
   }
 
   let body;
