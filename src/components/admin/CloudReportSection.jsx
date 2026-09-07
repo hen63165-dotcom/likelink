@@ -17,10 +17,23 @@ export default function CloudReportSection({ lang }) {
   async function load() {
     setStatus("loading");
     try {
-      const token = sessionStorage.getItem("ll_admin_token") || "";
+      // Dual-token presentation: admin token when present, plus the verified
+      // session token. The SERVER decides which path authorizes (admin token
+      // OR Owner session matching OWNER_EMAIL) — never the client.
+      const headers = { "content-type": "application/json" };
+      const adminToken = sessionStorage.getItem("ll_admin_token") || "";
+      if (adminToken) headers.authorization = `Bearer ${adminToken}`;
+      try {
+        const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient");
+        if (supabaseConfigured) {
+          const { data } = await supabase.auth.getSession();
+          const t = data?.session?.access_token;
+          if (t) headers.authorization = `Bearer ${t}`;
+        }
+      } catch { /* session unavailable — admin token path still applies */ }
       const res = await fetch("/api/store?mode=cloud-report", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        headers,
         body: "{}",
         signal: AbortSignal.timeout(20000),
       });

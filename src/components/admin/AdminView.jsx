@@ -10,7 +10,7 @@ import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
 import PayoutsSection from "./PayoutsSection";
 import GrowthEnginePanel from "./GrowthEnginePanel";
 import CloudReportSection from "./CloudReportSection";
-import { adminLogin, verifyAdminToken, adminLogout } from "../../lib/adminAuth";
+import { adminLogin, verifyAdminToken, adminLogout, verifyOwnerSession } from "../../lib/adminAuth";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
 const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));
@@ -28,12 +28,18 @@ export default function AdminView() {
   const [section, setSection] = useState("overview");
 
   // Restore a valid server-issued admin session on mount (8h TTL token).
+  // Owner identity path: a verified Owner Supabase session also unlocks the
+  // panel (server decides via cloud-report OWNER_EMAIL check) — no separate
+  // admin account needed for official-site management. Sensitive writes
+  // (settings/payouts) still require the admin token.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const t = sessionStorage.getItem("ll_admin_token");
         if (t && (await verifyAdminToken(t))) {
+          if (alive) setUnlocked(true);
+        } else if (await verifyOwnerSession()) {
           if (alive) setUnlocked(true);
         }
       } catch { /* noop */ }

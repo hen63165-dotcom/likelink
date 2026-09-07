@@ -363,12 +363,30 @@ export default async function handler(req, res) {
     return linkIdentityHandler(req, res);
   }
 
-  // Owner Cloud Report — global analytics, OWNER-ONLY (admin token required).
+  // Owner Cloud Report — global analytics, OWNER-ONLY. Authorized via EITHER
+  // the existing admin token (preserved) OR the Owner's verified Supabase
+  // session matching OWNER_EMAIL (server-side only — never a client-provided
+  // role/flag). This removes the internal "create another Admin" loop while
+  // keeping every check server-authoritative.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "cloud-report") {
     const auth = getHeader(req, "authorization");
     const token = String(auth).replace(/^Bearer\s+/i, "");
-    const admin = await isAdminToken(token);
-    if (!admin) {
+    let authorized = await isAdminToken(token);
+    if (!authorized) {
+      // Owner identity path: verified session email must match OWNER_EMAIL
+      // (server env). No OWNER_EMAIL configured → this path stays closed.
+      const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+      if (ownerEmail) {
+        const authUser = await verifyToken(token);
+        authorized = Boolean(
+          authUser?.email && String(authUser.email).trim().toLowerCase() === ownerEmail
+        );
+        if (!authorized) {
+          audit.logApiForbidden({ type: "owner_session_mismatch" }, { type: "cloud_report" }, { _req: req });
+        }
+      }
+    }
+    if (!authorized) {
       audit.logApiForbidden({ type: "non-admin" }, { type: "cloud_report" }, { _req: req });
       json(res, { ok: false, error: "admin_required" }, 403, req);
       return;
