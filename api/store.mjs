@@ -24,6 +24,7 @@
 import { jsonCors } from "./_utils/cors.js";
 import { audit } from "./_utils/audit.js";
 import { buildOwnerReport } from "./_utils/analytics.js";
+import { verifyToken } from "./_utils/authVerify.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -244,25 +245,8 @@ async function signSaleHandler(req, res) {
 // place that writes that column — the client never writes it directly.
 
 /**
- * Verify the Bearer token server-side by calling Supabase auth get user.
- * Returns the Auth user record or null.
+ * verifyToken now lives in ./_utils/authVerify.js (shared with autopilot.mjs).
  */
-async function verifyToken(accessToken) {
-  if (!accessToken) return null;
-  try {
-    const res = await fetch(`${SB_URL}/auth/v1/user`, {
-      headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${accessToken}`,
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
 
 async function profileUpsert(profileId, marketerId) {
   const res = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${profileId}`, {
@@ -445,6 +429,17 @@ export default async function handler(req, res) {
       sale?.id &&
       value.some((s) => s && s.id === sale.id);
     if (!containsSignedSale) { json(res, { ok: false, error: "signed_sale_missing" }, 403, req); return; }
+    // Anti-fraud: the signed sale must appear EXACTLY once in the written
+    // array — the same sale can never create a double commission. And history
+    // can only GROW: a write may never shrink the existing sales list.
+    const occurrences = value.filter((s) => s && s.id === sale.id).length;
+    if (occurrences !== 1) { json(res, { ok: false, error: "duplicate_signed_sale" }, 403, req); return; }
+    const currentSales = await kvGet(normalizedKey);
+    if (Array.isArray(currentSales) && value.length < currentSales.length) {
+      audit.logApiForbidden({ type: "history_shrink", from: currentSales.length, to: value.length }, { type: "key", key: normalizedKey }, { _req: req });
+      json(res, { ok: false, error: "sales_history_shrink_denied" }, 403, req);
+      return;
+    }
   }
 
   try {

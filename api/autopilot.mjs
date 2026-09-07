@@ -18,6 +18,7 @@
 
 import { lunaHook } from "../src/lib/ambassador.js";
 import { jsonCors } from "./_utils/cors.js";
+import { verifyToken } from "./_utils/authVerify.js";
 
 const KV_KEY = "marketplace:autopilot";
 const MAX_LOGS_PER_CREATOR = 40;
@@ -994,6 +995,25 @@ export default async function handler(req, res) {
 
   if (!marketerId) { json(res, { ok: false, error: "missing_marketerId" }, 400, req); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
+
+  // ── Authorization (anti-IDOR): save/run may only touch the caller's OWN
+  // studio. Ownership = the verified session email matches the studio's email
+  // on record. Legacy studios without an email on record stay backward-
+  // compatible (they cannot be targeted hijacks the same way). `get` remains
+  // open but returns masked secrets only (publicCfg).
+  if (mode === "save" || mode === "run") {
+    const authHeader = String(getH("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const authUser = await verifyToken(authHeader);
+    const marketersRow = await kvGet("marketplace:marketers");
+    const mk = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => m && m.id === marketerId);
+    const owned =
+      authUser?.email && mk?.email &&
+      String(authUser.email).toLowerCase().trim() === String(mk.email).toLowerCase().trim();
+    if (!owned) {
+      json(res, { ok: false, error: "not_authorized_for_marketer" }, 403, req);
+      return;
+    }
+  }
 
   const store = await kvGet(KV_KEY);
 
