@@ -400,6 +400,34 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Public buyer discovery — "best of the best" ranking over the existing
+  // public catalog + real first-party signal. Read-only, no auth (products
+  // are the public feed); never writes, never invents data.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "discover") {
+    let q = "";
+    try {
+      const dbody = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+      q = String(dbody?.query || "").slice(0, 120);
+    } catch { /* empty query = discover all */ }
+    try {
+      const { buildRecommendation } = await import("../src/lib/cloud/discovery.js");
+      const [productsRow, salesRow, clicksRow] = await Promise.all([
+        kvGet("marketplace:products", []),
+        kvGet("marketplace:sales", []),
+        kvGet("marketplace:clicks", []),
+      ]);
+      const recommendation = buildRecommendation(q, {
+        products: Array.isArray(productsRow) ? productsRow : [],
+        sales: Array.isArray(salesRow) ? salesRow : [],
+        clicks: Array.isArray(clicksRow) ? clicksRow : [],
+      });
+      json(res, { ok: true, mode: "discover", query: q, ...recommendation }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
   let body;
   try {
     body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
