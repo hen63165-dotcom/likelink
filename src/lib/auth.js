@@ -70,3 +70,15 @@ export async function isAdmin(userId) {
   if (error || !data) return false;
   return Boolean(data.is_admin);
 }
+
+/** The current session's access token for server-side Bearer verification
+ *  (cloud identity, subscriptions, etc.). Null when logged out / unconfigured. */
+export async function getSessionToken() {
+  if (!authConfigured) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  } catch {
+    return null;
+  }
+}

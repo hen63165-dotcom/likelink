@@ -158,3 +158,50 @@ export function getAllPlans() {
 }
 
 // SUB_STATUS and BILLING are already exported above
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS API CLIENT
+// Talks to /api/store?mode=subs&sub=... (merged into the store function to
+// respect the 12-function Vercel limit). The token comes from
+// auth.js getSessionToken() — identity is ALWAYS server-verified; this module
+// never sends a userId and never touches credentials.
+// ─────────────────────────────────────────────────────────────────────────────
+const SUBS_ENDPOINT = "/api/store?mode=subs";
+
+async function subsPost(sub, token, payload) {
+  const res = await fetch(`${SUBS_ENDPOINT}&sub=${encodeURIComponent(sub)}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok && data?.ok !== false, status: res.status, ...data };
+}
+
+/** Public plan catalog (includes per-plan paypalConfigured flags — booleans only). */
+export function fetchPlans() {
+  return subsPost("plans", null, {});
+}
+
+/** The caller's own subscription (server derives identity from the token). */
+export function fetchMySubscription(token) {
+  return subsPost("get", token, {});
+}
+
+/** Create a real PayPal Billing subscription → { approveUrl } for redirect. */
+export function startSubscriptionCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
+  return subsPost("checkout", token, { planId, billingPeriod });
+}
+
+/** Record a pending subscription locally (no PayPal round-trip). */
+export function createLocalSubscription(token, planId, billingPeriod = BILLING.MONTHLY) {
+  return subsPost("create", token, { planId, billingPeriod });
+}
+
+/** Cancel the caller's own active subscription. */
+export function cancelMySubscription(token) {
+  return subsPost("cancel", token, {});
+}

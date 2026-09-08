@@ -22,7 +22,8 @@ import { readBody } from "./_utils/readBody.mjs";
 //
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
-import { jsonCors } from "./_utils/cors.js";
+import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
@@ -348,6 +349,190 @@ async function linkIdentityHandler(req, res) {
   json(res, { ok: true, authUserId: authUser.id, marketerId }, 200, req);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS (unified commerce) — server-authoritative
+// Key: marketplace:subscriptions (server-only — never in CLIENT_WRITABLE_KEYS)
+// Identity: verified Supabase session only. Client userId is NEVER trusted.
+// Money: only a real PayPal Billing Subscription approval activates a plan.
+// ─────────────────────────────────────────────────────────────────────────────
+const SUBS_KEY = "marketplace:subscriptions";
+const PLAN_ENV_MONTHLY = { starter: "PAYPAL_PLAN_STARTER", professional: "PAYPAL_PLAN_PROFESSIONAL", enterprise: "PAYPAL_PLAN_ENTERPRISE" };
+const PLAN_ENV_YEARLY = { starter: "PAYPAL_PLAN_STARTER_Y", professional: "PAYPAL_PLAN_PROFESSIONAL_Y", enterprise: "PAYPAL_PLAN_ENTERPRISE_Y" };
+
+async function subsAuthUser(req) {
+  const auth = getHeader(req, "authorization");
+  const token = String(auth).replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  try {
+    return await verifyToken(token);
+  } catch {
+    return null;
+  }
+}
+
+async function subsFindOwn(allSubs, authId) {
+  return allSubs.find((s) => s && s.userId === authId && (s.status === "active" || s.status === "trial"));
+}
+
+async function subsHandler(req, res) {
+  const sub = new URL(req.url, "https://x").searchParams.get("sub") || "";
+  let body = {};
+  try { body = (await readBody(req)) || {}; } catch { body = {}; }
+
+  // ── Public: plan catalog (no secrets — only whether a plan is configured) ──
+  if (sub === "plans") {
+    try {
+      const { getAllPlans } = await import("../src/lib/plans.js");
+      const plans = getAllPlans().map((p) => ({
+        id: p.id, name: p.name, tagline: p.tagline, price: p.price, priceYearly: p.priceYearly,
+        period: p.period, platformFee: p.platformFee, features: p.features, cta: p.cta,
+        paypalConfigured: { monthly: Boolean(process.env[PLAN_ENV_MONTHLY[p.id]]), yearly: Boolean(process.env[PLAN_ENV_YEARLY[p.id]]) },
+      }));
+      return json(res, { ok: true, plans, paypalConfigured: paypalConfigured() }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+  }
+
+  // ── PayPal webhook: FAIL-CLOSED signature verification, no session auth ──
+  if (sub === "webhook") {
+    const event = body; // already parsed by readBody
+    if (!event || typeof event !== "object" || !event.event_type) {
+      return json(res, { ok: false, error: "no_body" }, 400, req);
+    }
+    const verdict = await verifyPayPalWebhook(req, event);
+    if (!verdict.ok) {
+      audit.logApiForbidden({ type: "paypal_webhook", reason: verdict.reason }, { type: "event", event: String(event.event_type).slice(0, 60) }, { _req: req });
+      const status = verdict.reason === "config_required" ? 503 : 401;
+      return json(res, { ok: false, error: verdict.reason === "config_required" ? "webhook_verification_not_configured" : "webhook_verification_failed" }, status, req);
+    }
+    try {
+      const { activateSubscription, cancelSubscription } = await import("../src/lib/commerce.js");
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      const resource = event.resource || {};
+      const paypalSubId = resource.id;
+      const renewDays = (s) => (s?.billingPeriod === "yearly" ? 365 : 30);
+      let updated = all;
+      switch (String(event.event_type)) {
+        case "BILLING.SUBSCRIPTION.ACTIVATED":
+        case "BILLING.SUBSCRIPTION.CREATED":
+          updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? activateSubscription(s) : s));
+          break;
+        case "BILLING.SUBSCRIPTION.CANCELLED":
+          updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? cancelSubscription(s) : s));
+          break;
+        case "BILLING.SUBSCRIPTION.EXPIRED":
+          updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? { ...s, status: "expired" } : s));
+          break;
+        case "BILLING.SUBSCRIPTION.SUSPENDED":
+          updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? { ...s, status: "suspended" } : s));
+          break;
+        case "PAYMENT.SALE.COMPLETED": {
+          const now = Date.now();
+          updated = all.map((s) => {
+            if (s.paypalSubscriptionId !== resource.billing_agreement_id) return s;
+            const dur = renewDays(s) * 86400000;
+            return { ...s, status: "active", lastBillingAt: new Date(now).toISOString(), nextBillingAt: new Date(now + dur).toISOString(), expiresAt: new Date(now + dur).toISOString() };
+          });
+          break;
+        }
+        default:
+          break; // unknown verified event → acknowledged, no state change
+      }
+      await kvSet(SUBS_KEY, updated);
+      return json(res, { ok: true, received: true }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+  }
+
+  return subsAuthHandler(req, res, sub, body);
+}
+
+// ── Session-protected subscription actions (identity = verified token only) ──
+async function subsAuthHandler(req, res, sub, body) {
+  const authUser = await subsAuthUser(req);
+  if (!authUser?.id) {
+    audit.logApiForbidden({ type: "anonymous" }, { type: "subs", submode: sub }, { _req: req });
+    return json(res, { ok: false, error: "unauthenticated" }, 401, req);
+  }
+  const authId = String(authUser.id);
+
+  try {
+    const commerce = await import("../src/lib/commerce.js");
+
+    // ── Own subscription state ──
+    if (sub === "get") {
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      let mine = await subsFindOwn(all, authId);
+      let expiredNow = false;
+      if (mine && mine.expiresAt && new Date(mine.expiresAt).getTime() < Date.now()) {
+        mine = { ...mine, status: "expired" };
+        expiredNow = true;
+        await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
+      }
+      return json(res, { ok: true, subscription: mine || null, plan: mine && !expiredNow ? mine.planId : "free" }, 200, req);
+    }
+
+    // ── Real PayPal Billing checkout: returns the official approval URL ──
+    if (sub === "checkout") {
+      const planId = String(body.planId || "").toLowerCase();
+      const billingPeriod = body.billingPeriod === "yearly" ? "yearly" : "monthly";
+      if (!PLAN_ENV_MONTHLY[planId]) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
+      if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
+      const paypalPlanId = process.env[billingPeriod === "yearly" ? PLAN_ENV_YEARLY[planId] : PLAN_ENV_MONTHLY[planId]];
+      if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
+      const origin = getHeader(req, "origin");
+      const base = isApprovedOrigin(origin) ? origin : `https://${process.env.VERCEL_URL || "likelink2.vercel.app"}`;
+      const result = await createPayPalSubscription({
+        paypalPlanId,
+        returnUrl: `${base}/studio?sub=return`,
+        cancelUrl: `${base}/studio?sub=cancel`,
+        customId: authId,
+      });
+      if (result.error) return json(res, { ok: false, error: result.error }, 502, req);
+      // Record the pending subscription bound to the VERIFIED user id.
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      const superseded = all.map((s) => (s.userId === authId && (s.status === "pending" || s.status === "active") ? { ...s, status: "cancelled", supersededBy: planId, cancelledAt: new Date().toISOString() } : s));
+      const record = commerce.createSubscription({ planId, userId: authId, billingPeriod, paypalSubscriptionId: result.subscriptionId });
+      record.authEmail = String(authUser.email || "");
+      await kvSet(SUBS_KEY, [...superseded, record]);
+      return json(res, { ok: true, approveUrl: result.approveUrl, subscriptionId: result.subscriptionId }, 200, req);
+    }
+
+    // ── Create pending subscription locally (idempotent per user) ──
+    if (sub === "create") {
+      const planId = String(body.planId || "").toLowerCase();
+      const billingPeriod = body.billingPeriod === "yearly" ? "yearly" : "monthly";
+      if (!PLAN_ENV_MONTHLY[planId]) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      const existing = await subsFindOwn(all, authId);
+      if (existing && existing.planId === planId && existing.billingPeriod === billingPeriod) {
+        return json(res, { ok: true, subscription: existing, existing: true }, 200, req);
+      }
+      const superseded = all.map((s) => (s.userId === authId && (s.status === "pending" || s.status === "active") ? { ...s, status: "cancelled", supersededBy: planId, cancelledAt: new Date().toISOString() } : s));
+      const record = commerce.createSubscription({ planId, userId: authId, billingPeriod, paypalSubscriptionId: body.paypalSubscriptionId || null });
+      record.authEmail = String(authUser.email || "");
+      await kvSet(SUBS_KEY, [...superseded, record]);
+      return json(res, { ok: true, subscription: record }, 200, req);
+    }
+
+    // ── Cancel own subscription ──
+    if (sub === "cancel") {
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      const mine = await subsFindOwn(all, authId);
+      if (!mine) return json(res, { ok: false, error: "no_active_subscription" }, 404, req);
+      const cancelled = commerce.cancelSubscription(mine);
+      await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? cancelled : s)));
+      return json(res, { ok: true, subscription: cancelled }, 200, req);
+    }
+
+    return json(res, { ok: false, error: "invalid_submode" }, 400, req);
+  } catch (e) {
+    return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
@@ -357,6 +542,14 @@ export default async function handler(req, res) {
   // here via vercel.json rewrite → /api/store?mode=sign-sale
     if (new URL(req.url, "https://x").searchParams.get("mode") === "sign-sale") {
     return signSaleHandler(req, res);
+  }
+
+  // Subscriptions (unified commerce) — merged here to respect the 12-function
+  // Hobby limit. Submodes: plans | get | create | cancel | checkout | webhook.
+  // Identity: ALWAYS the verified Bearer session (never a client-provided userId).
+  // Webhook: FAIL-CLOSED PayPal signature verification (PAYPAL_WEBHOOK_ID env).
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "subs") {
+    return subsHandler(req, res);
   }
 
   // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write)
