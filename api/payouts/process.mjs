@@ -1,3 +1,4 @@
+import { readBody } from "../_utils/readBody.mjs";
 // Vercel Serverless Function — Payouts Processor 💰
 //
 // Daily cron (02:00 UTC) that scans all pending payouts and processes them
@@ -248,7 +249,7 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     let body;
     try {
-      body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+      body = await readBody(req);
     } catch {
       json(res, { ok: false, error: "bad_json" }, 400);
       return;

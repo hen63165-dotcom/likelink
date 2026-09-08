@@ -1,3 +1,4 @@
+import { readBody } from "../_utils/readBody.mjs";
 // Vercel Serverless Function - Automated Invoice & Receipt Email
 //
 // Sends professional HTML receipt to buyer after payment via Resend API.
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
   let body;
-  try { body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text()); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
+  try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
   const { orderId, buyerEmail, buyerName, items = [], total = 0, platformFee = 0, sellerPayouts = [], currency = "ILS" } = body;
   if (!orderId) { json(res, { ok: false, error: "missing_orderId" }, 400); return; }
   const businessName = process.env.BUSINESS_NAME || "Likelink";

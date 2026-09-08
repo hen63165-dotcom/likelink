@@ -1,3 +1,4 @@
+import { readBody } from "./_utils/readBody.mjs";
 // Vercel Serverless Function — AutoPilot 🚀
 //
 // Likelink's built-in self-publishing automation engine ("Make/Zapier inside
@@ -1019,7 +1020,7 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+    body = await readBody(req);
   } catch {
     json(res, { ok: false, error: "bad_json" }, 400, req);
     return;

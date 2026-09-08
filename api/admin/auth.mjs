@@ -1,3 +1,4 @@
+import { readBody } from "../_utils/readBody.mjs";
 // Vercel Serverless Function — server-side admin authentication 🔐
 //
 // WHY THIS EXISTS: the old gate compared the code against VITE_ADMIN_CODE,
@@ -123,7 +124,7 @@ export default async function handler(req, res) {
 
   let code = "";
   try {
-    const body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+    const body = await readBody(req);
     code = String(body?.code || "");
   } catch {
     json(res, { ok: false, error: "bad_json" }, 400, req);

@@ -1,3 +1,4 @@
+import { readBody } from "../_utils/readBody.mjs";
 // Vercel Serverless Function — PayPal Checkout Order Capture & Sale Recorder 💰
 //
 // Captures the payment after buyer approves on PayPal, records the sale in the
@@ -139,7 +140,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
 
   let body;
-  try { body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text()); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
+  try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
   const { orderId, buyerEmail = "", items = [] } = body;
   if (!orderId) { json(res, { ok: false, error: "missing_orderId" }, 400); return; }
   if (!Array.isArray(items) || items.length === 0) { json(res, { ok: false, error: "empty_items" }, 400); return; }

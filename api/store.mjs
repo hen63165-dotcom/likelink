@@ -1,3 +1,4 @@
+import { readBody } from "./_utils/readBody.mjs";
 // Vercel Serverless Function — Store API 🔐
 //
 // THE GATE for every WRITE to the shared kv table from the browser.
@@ -162,7 +163,7 @@ async function kvGet(key) {
 async function signSaleHandler(req, res) {
   let body;
   try {
-    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+    body = await readBody(req);
   } catch {
     json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
@@ -277,7 +278,7 @@ async function linkIdentityHandler(req, res) {
   // 2. Parse + validate body.
   let body;
   try {
-    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+    body = await readBody(req);
   } catch {
     json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
@@ -406,7 +407,7 @@ export default async function handler(req, res) {
   if (new URL(req.url, "https://x").searchParams.get("mode") === "discover") {
     let q = "";
     try {
-      const dbody = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+      const dbody = await readBody(req);
       q = String(dbody?.query || "").slice(0, 120);
     } catch { /* empty query = discover all */ }
     try {
@@ -430,7 +431,7 @@ export default async function handler(req, res) {
 
   let body;
   try {
-    body = typeof req.json === "function" ? await req.json() : JSON.parse(await req.text());
+    body = await readBody(req);
   } catch {
     json(res, { ok: false, error: "bad_json" }, 400, req);
     return;
