@@ -23,7 +23,7 @@ import { readBody } from "./_utils/readBody.mjs";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
@@ -386,9 +386,15 @@ async function subsHandler(req, res) {
       const plans = getAllPlans().map((p) => ({
         id: p.id, name: p.name, tagline: p.tagline, price: p.price, priceYearly: p.priceYearly,
         period: p.period, platformFee: p.platformFee, features: p.features, cta: p.cta,
-        paypalConfigured: { monthly: Boolean(process.env[PLAN_ENV_MONTHLY[p.id]]), yearly: Boolean(process.env[PLAN_ENV_YEARLY[p.id]]) },
+        // Self-provisioning: when PayPal creds exist, plans are created on first
+        // demand by the cloud (ensureBillingPlans). Env vars remain the legacy
+        // override; absence is no longer a config blocker.
+        paypalConfigured: {
+          monthly: Boolean(process.env[PLAN_ENV_MONTHLY[p.id]]) || paypalConfigured(),
+          yearly: Boolean(process.env[PLAN_ENV_YEARLY[p.id]]) || paypalConfigured(),
+        },
       }));
-      return json(res, { ok: true, plans, paypalConfigured: paypalConfigured() }, 200, req);
+      return json(res, { ok: true, plans, paypalConfigured: paypalConfigured(), selfProvisioning: paypalConfigured() }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
@@ -480,7 +486,7 @@ async function subsAuthHandler(req, res, sub, body) {
       const billingPeriod = body.billingPeriod === "yearly" ? "yearly" : "monthly";
       if (!PLAN_ENV_MONTHLY[planId]) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
       if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
-      const paypalPlanId = process.env[billingPeriod === "yearly" ? PLAN_ENV_YEARLY[planId] : PLAN_ENV_MONTHLY[planId]];
+      const paypalPlanId = await resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet });
       if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
       const origin = getHeader(req, "origin");
       const base = isApprovedOrigin(origin) ? origin : `https://${process.env.VERCEL_URL || "likelink2.vercel.app"}`;

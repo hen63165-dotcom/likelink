@@ -51,6 +51,133 @@ export async function getPayPalToken() {
   }
 }
 
+// ── SELF-PROVISIONING BILLING PLANS (zero-touch) ─────────────────────────────
+// The cloud creates its own PayPal Billing Plans on demand using the existing
+// server PayPal credentials. No owner has to run a script or paste plan IDs.
+// Prices come from the single source of truth (src/lib/plans.js) and are
+// converted to USD (PayPal Billing requires a supported currency). Checkout is
+// idempotent: plans are created once and cached (in-memory + optional KV), and
+// any already-existing PayPal plan with the same name is reused.
+//
+// Safety: this ONLY creates billing-plan objects — it NEVER moves money, never
+// creates subscriptions, never charges anyone. Creation is safe and reversible.
+const PLANS_KV_KEY = "marketplace:paypal_plans";
+const ILS_TO_USD = 0.27; // PayPal Billing requires USD; settle later in the buyer's ILS flow.
+
+// A tiny in-memory cache — reset on cold start, but KV is the durable truth.
+let plansCache = null;
+
+export function planPriceUsd(priceIls) {
+  const usd = Math.max(1, Math.round((Number(priceIls) || 0) * ILS_TO_USD * 100) / 100);
+  return usd.toFixed(2);
+}
+
+export function planName(planId, billingPeriod) {
+  const p = planId === "free" ? "Free" : planId.charAt(0).toUpperCase() + planId.slice(1);
+  return `LikeLink ${p} ${billingPeriod === "yearly" ? "Yearly" : "Monthly"}`;
+}
+
+/**
+ * Create a single real PayPal Billing Plan. Returns { id } or { error }.
+ * Safe + idempotent-per-name: if a plan with this name already exists in the
+ * PayPal account we return it rather than duplicate.
+ */
+async function upsertPayPalPlan({ id: planId, billingPeriod, priceIls }) {
+  const token = await getPayPalToken();
+  if (!token) return { error: "paypal_auth_failed" };
+  const body = {
+    name: planName(planId, billingPeriod),
+    description: `LikeLink ${planId} ${billingPeriod} plan`,
+    billing_cycles: [
+      {
+        frequency: { interval_unit: billingPeriod === "yearly" ? "YEAR" : "MONTH", interval_count: 1 },
+        tenure_type: "REGULAR",
+        sequence: 1,
+        total_cycles: 0,
+        pricing_scheme: { fixed_price: { value: planPriceUsd(priceIls), currency_code: "USD" } },
+      },
+    ],
+    payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 2 },
+  };
+  try {
+    const res = await fetch(`${paypalBase()}/v1/billing/plans`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.id) return { id: data.id };
+    // Name-collision → list plans and adopt the existing one (idempotent).
+    if (res.status === 400 || res.status === 409) {
+      try {
+        const listRes = await fetch(`${paypalBase()}/v1/billing/plans?page_size=50&total_required=true`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(15000),
+        });
+        const listData = await listRes.json().catch(() => ({}));
+        const found = (listData.plans || []).find((p) => p.name === body.name);
+        if (found?.id) return { id: found.id };
+      } catch { /* fall through to error */ }
+    }
+    return { error: `paypal_plan_failed_${res.status}` };
+  } catch {
+    return { error: "paypal_plan_network_failed" };
+  }
+}
+
+/**
+ * Ensure all paid monthly+yearly plans exist. Returns a map keyed by
+ * `planId:monthly|yearly` → PayPal plan id (null when PayPal isn't configured).
+ * Uses the existing platform single source of truth for plan prices.
+ */
+export async function ensureBillingPlans({ kvGet, kvSet } = {}) {
+  if (plansCache) return plansCache;
+  if (!paypalConfigured()) return {};
+  // Durable cache (KV) first — avoids PayPal API churn on every cold start.
+  try {
+    if (kvGet) {
+      const cached = await kvGet(PLANS_KV_KEY, null);
+      if (cached && typeof cached === "object" && Object.keys(cached).length) {
+        plansCache = cached;
+        return cached;
+      }
+    }
+  } catch { /* ignore — fall through to create */ }
+
+  const { getAllPlans } = await import("../../src/lib/plans.js");
+  const defs = getAllPlans().filter((p) => p.id !== "free");
+  const out = {};
+  const missing = [];
+  for (const p of defs) {
+    for (const period of ["monthly", "yearly"]) {
+      const key = `${p.id}:${period}`;
+      out[key] = null;
+      const priceIls = period === "yearly" ? p.priceYearly : p.price;
+      const created = await upsertPayPalPlan({ id: p.id, billingPeriod: period, priceIls });
+      if (created.id) out[key] = created.id;
+      else missing.push(key);
+    }
+  }
+  // Cache whatever we got (even partial) so we don't hammer PayPal repeatedly.
+  const hasAny = Object.values(out).some(Boolean);
+  if (hasAny && kvSet) {
+    try { await kvSet(PLANS_KV_KEY, out); } catch { /* best-effort */ }
+  }
+  plansCache = out;
+  return out;
+}
+
+// Resolve a plan id → PayPal Billing plan id for checkout. Falls back to env if
+// present (legacy), then to the self-provisioned mapping.
+export async function resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet } = {}) {
+  const envKey = billingPeriod === "yearly"
+    ? { starter: "PAYPAL_PLAN_STARTER_Y", professional: "PAYPAL_PLAN_PROFESSIONAL_Y", enterprise: "PAYPAL_PLAN_ENTERPRISE_Y" }[planId]
+    : { starter: "PAYPAL_PLAN_STARTER", professional: "PAYPAL_PLAN_PROFESSIONAL", enterprise: "PAYPAL_PLAN_ENTERPRISE" }[planId];
+  if (envKey && process.env[envKey]) return process.env[envKey];
+  const plans = await ensureBillingPlans({ kvGet, kvSet });
+  return plans[`${planId}:${billingPeriod}`] || null;
+}
 // Create a real PayPal Billing Subscription and return its approval link.
 export async function createPayPalSubscription({ paypalPlanId, returnUrl, cancelUrl, customId }) {
   const token = await getPayPalToken();
