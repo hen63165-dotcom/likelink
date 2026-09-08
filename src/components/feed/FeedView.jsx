@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp, Play } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { Search, ShoppingBag, LayoutGrid, Rows3, Heart, UserCheck, TrendingUp, Play, Sparkles, TrendingDown, Award } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
@@ -28,6 +28,8 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
   const [view, setView] = useState("grid");
   const [cat, setCat] = useState("All");
+  const [discovery, setDiscovery] = useState(null); // { hasResult, top, alternatives, intent, decisionId }
+  const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [sort, setSort] = useState("newest");
   const [favOnly, setFavOnly] = useState(false);
   const [followOnly, setFollowOnly] = useState(false);
@@ -95,6 +97,32 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       return sort === "popular" ? (b.clicks || 0) - (a.clicks || 0) : b.createdAt - a.createdAt;
     });
   }, [products, cat, favOnly, followOnly, q, sort, favorites, following]);
+
+  // Adaptive Discovery: when the buyer searches, ask the Cloud "what's best?"
+  // The discovery engine scores by verified revenue > sales > engagement > clicks,
+  // with fatigue + freshness — so the answer changes as evidence changes.
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setDiscovery(null); return; }
+    let cancelled = false;
+    setDiscoveryLoading(true);
+    const ctrl = new AbortController();
+    fetch("/api/store?mode=discover", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: q }),
+      signal: ctrl.signal,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.ok) setDiscovery({ ...data, decisionId: data.decisionId || `dec_${Date.now()}` });
+        else setDiscovery(null);
+      })
+      .catch(() => { if (!cancelled) setDiscovery(null); })
+      .finally(() => { if (!cancelled) setDiscoveryLoading(false); });
+    return () => { cancelled = true; ctrl.abort(); };
+  }, [query]);
 
   const trending = useMemo(
     () =>
@@ -236,6 +264,95 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
       {/* Live social proof — the platform broadcasting "it runs itself" */}
       <ViralProofTicker />
+
+      {/* Adaptive Discovery Result — "the best among the best" for this query */}
+      {query.trim() && (
+        <section className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                {lang === "he" ? "המוצר המומלץ" : "Top Pick"}
+              </p>
+            </div>
+            {discovery?.top?.trend?.emerging && (
+              <span className="text-[10px] font-semibold flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                <TrendingUp className="w-3 h-3" />
+                {lang === "he" ? "תנועה מתחזקת" : "Trending up"}
+              </span>
+            )}
+          </div>
+
+          {discoveryLoading ? (
+            <div className="surface rounded-2xl p-6 text-center text-sm text-muted">
+              {lang === "he" ? "מחפש את הכי טוב..." : "Finding the best..."}
+            </div>
+          ) : discovery && discovery.hasResult && discovery.top ? (
+            <div className="surface rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex gap-4 p-4">
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-[var(--bg-subtle)] shrink-0">
+                  {discovery.top.image ? (
+                    <img src={safeImgSrc(discovery.top.image)} alt={discovery.top.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-semibold line-clamp-2">{discovery.top.title}</h3>
+                    <span className="mono text-sm font-bold shrink-0" style={{ color: "var(--accent)" }}>
+                      {money(discovery.top.price || 0, lang)}
+                    </span>
+                  </div>
+                  {discovery.top.reasons?.length > 0 && (
+                    <ul className="mt-1.5 space-y-0.5">
+                      {discovery.top.reasons.slice(0, 2).map((r, i) => (
+                        <li key={i} className="text-[11px] text-muted flex items-start gap-1">
+                          <span style={{ color: "var(--accent)" }}>•</span> {r}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {discovery.top.badges?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {discovery.top.badges.map((b, i) => (
+                        <span key={i} className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+                          {b}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      className="btn-primary tap px-3 py-1.5 text-xs font-semibold"
+                      onClick={() => {
+                        const prod = products.find((p) => p.id === discovery.top.productId);
+                        if (prod) {
+                          recordClick(prod);
+                          trackClick(prod.id, prod.marketerId, "discovery");
+                          if (prod.affiliateUrl) window.open(prod.affiliateUrl, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                    >
+                      {lang === "he" ? "קני עכשיו" : "Buy Now"}
+                    </button>
+                    {discovery.alternatives?.length > 0 && (
+                      <span className="text-[10px] text-muted">
+                        +{discovery.alternatives.length} {lang === "he" ? "אפשרויות נוספות" : "more options"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : discovery && !discovery.hasResult ? (
+            <div className="surface rounded-2xl p-5 text-center">
+              <p className="text-sm text-muted">{discovery.message || (lang === "he" ? "לא נמצאו מוצרים מתאימים" : "No matching products found")}</p>
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {aiDiscovery.length > 0 && (
         <section className="mb-6">

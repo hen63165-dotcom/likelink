@@ -101,13 +101,24 @@ export function momentumSignal(productId, clicks = [], now = Date.now()) {
 /** Final buyer-facing recommendation (the "best among the best"). */
 export function buildRecommendation(query, { products = [], sales = [], clicks = [], now = Date.now() } = {}) {
   const cands = matchCandidates(query, products);
-  if (!cands.length) return { hasResult: false, intent: { query: normalize(query), categories: [] }, message: "לא נמצאו מוצרים מתאימים עדיין — נסו מונח אחר." };
+  const decisionId = `dec_${now}_${Math.random().toString(36).slice(2, 8)}`;
+  if (!cands.length) {
+    return {
+      hasResult: false,
+      decisionId,
+      intent: { query: normalize(query), categories: [] },
+      message: "לא נמצאו מוצרים מתאימים עדיין — נסו מונח אחר.",
+      decision: { reason: "no_candidates", candidatesConsidered: 0, rejected: products.length },
+    };
+  }
   const ranked = rankCandidates(cands, { sales, clicks, now });
   // Momentum badge on the top candidate only when a real signal exists.
   const top = ranked[0];
   const mom = momentumSignal(top.product.id, clicks, now);
+  const rejected = products.length - cands.length;
   return {
     hasResult: true,
+    decisionId,
     intent: { query: query, categories: [...matchCandidates(query, products).reduce((s,p)=>s.add(p.category), new Set())] },
     top: {
       productId: top.product.id,
@@ -124,5 +135,18 @@ export function buildRecommendation(query, { products = [], sales = [], clicks =
     alternatives: ranked.slice(1, 4).map((r) => ({
       productId: r.product.id, title: r.product.title, price: r.product.price, score: r.score,
     })),
+    decision: {
+      reason: "evidence_based_ranking",
+      candidatesConsidered: cands.length,
+      rejected,
+      rankingPolicy: "revenue>sales>engagement>clicks, with fatigue+freshness",
+      winnerScore: top.score,
+      winnerSignals: {
+        verifiedSales: top.signals.verifiedSales,
+        revenue: top.signals.revenue,
+        clicks30: top.signals.clicks30,
+        conversionRate: top.signals.conversionRate,
+      },
+    },
   };
 }
