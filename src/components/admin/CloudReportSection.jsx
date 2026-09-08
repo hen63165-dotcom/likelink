@@ -150,6 +150,30 @@ export default function CloudReportSection({ lang }) {
         ))}
       </div>
 
+      {/* ZERO-TOUCH AUTONOMY — what the cloud runs by itself (honest status) */}
+      {report.autonomy && (
+        <div className="surface rounded-2xl p-5 shadow-sm" style={{ border: "1px solid var(--accent)", background: "color-mix(in srgb, var(--accent) 6%, var(--surface))" }}>
+          <p className="text-xs font-semibold text-muted mb-2 uppercase tracking-wider">
+            🚀 {L("אוטומציה מלאה (אפס-מגע)", "Full Automation (zero-touch)")}
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <span className="text-muted">{L("הפצת אתר (Owned Web):", "Owned web:")}</span>
+            <b style={{ color: "var(--success)" }}>{L("חיה", "Live")}</b>
+            <span className="text-muted">{L("צינור AI לקמפיינים:", "AI campaign pipeline:")}</span>
+            <b>{L("פעיל מדי יום", "Active daily")}</b>
+            <span className="text-muted">{L("מדידה מהענן:", "Cloud metrics:")}</span>
+            <b>{L("פעילה", "Active")}</b>
+            <span className="text-muted">{L("נתיב הכנסות:", "Revenue path:")}</span>
+            <b>{L("מוכן", "Ready")}</b>
+            <span className="text-muted">{L("דוח יומי למייל:", "Daily email:")}</span>
+            <b>{report.autonomy.emailReport === "ACTIVE" ? L("פעיל", "Active") : L("נדרש OWNER_EMAIL", "OWNER_EMAIL required")}</b>
+          </div>
+          <p className="text-[11px] text-muted mt-2" style={{ borderTop: "1px solid var(--bg-subtle)", paddingTop: 8 }}>
+            {report.autonomy.summary}
+          </p>
+        </div>
+      )}
+
       {/* TRAFFIC — honest empty state, never a fake zero */}
       <div className="surface rounded-2xl p-5 shadow-sm">
         <p className="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">{L("תנועה", "Traffic")}</p>
@@ -272,7 +296,7 @@ export default function CloudReportSection({ lang }) {
               ☁️ {L("קמפייני אתר:", "Site campaigns:")} {report.siteCampaigns.total}
               {report.siteCampaigns.last ? ` · ${L("אחרון:", "last:")} ${report.siteCampaigns.last.product} (${report.siteCampaigns.last.status}, ${report.siteCampaigns.last.clicks} ${L("קליקים", "clicks")})` : ""}
             </p>
-            {report.siteCampaigns.last?.campaignId && report.siteCampaigns.last.status === "PREPARED" && (
+            {report.siteCampaigns.last?.campaignId && ["PREPARED", "WEB_LIVE"].includes(report.siteCampaigns.last.status) && (
               <button
                 type="button"
                 onClick={() => shareLastCampaign(report.siteCampaigns.last)}

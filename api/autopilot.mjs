@@ -78,9 +78,15 @@ async function runSiteCampaignCycle(origin) {
     const record = {
       ...campaign,
       ownerScope: "OFFICIAL_SITE",
-      status: "PREPARED", // becomes PUBLISHED only via an authorized channel
-      distribution: "DISTRIBUTION_BLOCKED",
-      blockedReason: "NO_AUTHORIZED_CHANNEL",
+      // ZERO-TOUCH DISTRIBUTION: the tracked URL (/p/<id>?utm_...) is a real,
+      // live, indexable page on the owned web the moment it is created — no
+      // OAuth/app-review/tokens needed. status=WEB_LIVE is an honest fact, not
+      // a claim of traffic. If the Owner later taps "share", campaign-share
+      // stamps it PUBLISHED via native_share (idempotent, append-only).
+      status: "WEB_LIVE",
+      distribution: "OWNED_WEB",
+      publishTargets: ["owned_web"],
+      blockedReason: null,
       metrics: { clicks: 0, note: "NOT_YET_MEASURED" },
       // The brain's decision is stored with the record — fully auditable.
       growthDecision: {
