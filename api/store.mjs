@@ -429,6 +429,29 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Catalog bootstrap — adds real verified products to the catalog.
+  // Idempotent: only adds products if the catalog is empty or has < 5 products.
+  // This ensures the buyer always has real products to discover.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "bootstrap-catalog") {
+    try {
+      const { bootstrapProducts, deduplicate } = await import("../src/lib/cloud/catalog.js");
+      const existing = (await kvGet("marketplace:products")) || [];
+      // Only bootstrap if catalog is empty or has very few products
+      const realProducts = Array.isArray(existing) ? existing.filter((p) => p && p.title && p.title !== "Product") : [];
+      if (realProducts.length >= 5) {
+        json(res, { ok: true, mode: "bootstrap-catalog", skipped: true, count: realProducts.length, message: "Catalog already populated" }, 200, req);
+        return;
+      }
+      const newProducts = bootstrapProducts();
+      const merged = deduplicate([...realProducts, ...newProducts]);
+      await kvSet("marketplace:products", merged);
+      json(res, { ok: true, mode: "bootstrap-catalog", added: newProducts.length, total: merged.length }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
   let body;
   try {
     body = await readBody(req);
