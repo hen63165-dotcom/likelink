@@ -13,6 +13,7 @@ export default function CloudReportSection({ lang }) {
   const [report, setReport] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | ok | error
   const [period, setPeriod] = useState("all"); // today | week | month | all
+  const [busyShare, setBusyShare] = useState(false);
 
   async function load() {
     setStatus("loading");
@@ -50,6 +51,52 @@ export default function CloudReportSection({ lang }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  // ONE-CLICK native publication: mark the PREPARED site campaign as PUBLISHED
+  // via the OWNER-verified campaign-share endpoint (idempotent, append-only),
+  // then open the OS share sheet with the server-tracked campaign URL.
+  // Distribution needs NO OAuth/app-review — the owner's own phone is the channel.
+  async function shareLastCampaign(last) {
+    if (!last?.campaignId || busyShare) return;
+    setBusyShare(true);
+    try {
+      const headers = { "content-type": "application/json" };
+      const adminToken = sessionStorage.getItem("ll_admin_token") || "";
+      if (adminToken) headers.authorization = `Bearer ${adminToken}`;
+      if (!adminToken) {
+        try {
+          const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient");
+          if (supabaseConfigured) {
+            const { data } = await supabase.auth.getSession();
+            const t = data?.session?.access_token;
+            if (t) headers.authorization = `Bearer ${t}`;
+          }
+        } catch { /* session unavailable — server will reject without a valid token */ }
+      }
+      const res = await fetch("/api/store?mode=campaign-share", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ campaignId: last.campaignId }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) return;
+      const url = last.trackedUrl || window.location.origin;
+      const text = `${last.product} — ב-LikeLink`;
+      try {
+        if (typeof navigator.share === "function") await navigator.share({ title: "LikeLink", text, url });
+        else await navigator.clipboard.writeText(`${text} ${url}`);
+      } catch (e) {
+        if (e?.name !== "AbortError") { try { await navigator.clipboard.writeText(url); } catch { /* optional */ } }
+      }
+      // Reflect the new status locally (append-only server state already updated).
+      setReport((prev) => (prev && prev.siteCampaigns?.last
+        ? { ...prev, siteCampaigns: { ...prev.siteCampaigns, last: { ...prev.siteCampaigns.last, status: "PUBLISHED" } } }
+        : prev));
+    } catch { /* report-level share failure is non-fatal */ } finally {
+      setBusyShare(false);
+    }
+  }
 
   if (status === "loading") {
     return <div className="surface rounded-2xl p-5 text-sm text-muted">{L("טוען דוח ענן…", "Loading cloud report…")}</div>;
@@ -220,10 +267,23 @@ export default function CloudReportSection({ lang }) {
           </p>
         )}
         {report.siteCampaigns && (
-          <p className="text-xs text-muted mt-1">
-            ☁️ {L("קמפייני אתר:", "Site campaigns:")} {report.siteCampaigns.total}
-            {report.siteCampaigns.last ? ` · ${L("אחרון:", "last:")} ${report.siteCampaigns.last.product} (${report.siteCampaigns.last.status}, ${report.siteCampaigns.last.clicks} ${L("קליקים", "clicks")})` : ""}
-          </p>
+          <div className="mt-1">
+            <p className="text-xs text-muted">
+              ☁️ {L("קמפייני אתר:", "Site campaigns:")} {report.siteCampaigns.total}
+              {report.siteCampaigns.last ? ` · ${L("אחרון:", "last:")} ${report.siteCampaigns.last.product} (${report.siteCampaigns.last.status}, ${report.siteCampaigns.last.clicks} ${L("קליקים", "clicks")})` : ""}
+            </p>
+            {report.siteCampaigns.last?.campaignId && report.siteCampaigns.last.status === "PREPARED" && (
+              <button
+                type="button"
+                onClick={() => shareLastCampaign(report.siteCampaigns.last)}
+                disabled={busyShare}
+                className="tap mt-2 text-xs font-bold px-3 py-1.5 rounded-full"
+                style={{ background: "var(--accent)", color: "#fff", opacity: busyShare ? 0.6 : 1 }}
+              >
+                📣 {busyShare ? L("משתפת…", "Sharing…") : L("שתפי את הקמפיין מהטלפון שלך", "Share the campaign from your phone")}
+              </button>
+            )}
+          </div>
         )}
       </div>
 

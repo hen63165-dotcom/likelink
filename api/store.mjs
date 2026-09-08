@@ -552,6 +552,44 @@ export default async function handler(req, res) {
     return subsHandler(req, res);
   }
 
+  // Native-share publication ("creator-as-channel"): the Owner/creator shares
+  // the prepared campaign from their own phone — no OAuth needed. Owner-ONLY
+  // (admin token OR verified owner session), append-only field stamp.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "campaign-share") {
+    const auth = getHeader(req, "authorization");
+    const token = String(auth).replace(/^Bearer\s+/i, "");
+    let authorized = await isAdminToken(token);
+    if (!authorized) {
+      const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+      if (ownerEmail) {
+        const authUser = await verifyToken(token);
+        authorized = Boolean(authUser?.email && String(authUser.email).trim().toLowerCase() === ownerEmail);
+      }
+    }
+    if (!authorized) {
+      audit.logApiForbidden({ type: "non-owner" }, { type: "campaign_share" }, { _req: req });
+      json(res, { ok: false, error: "owner_required" }, 403, req);
+      return;
+    }
+    try {
+      const shareBody = await readBody(req).catch(() => ({}));
+      const campaignId = String(shareBody?.campaignId || "").slice(0, 80);
+      if (!campaignId) { json(res, { ok: false, error: "missing_campaignId" }, 400, req); return; }
+      const list = (await kvGet("marketplace:site_campaigns", [])) || [];
+      const target = list.find((c) => c && c.campaignId === campaignId);
+      if (!target) { json(res, { ok: false, error: "campaign_not_found" }, 404, req); return; }
+      // Idempotent: an already-published campaign is never double-stamped.
+      if (!target.publishedAt) {
+        const updated = list.map((c) => (c.campaignId === campaignId ? { ...c, status: "PUBLISHED", publishedAt: new Date().toISOString(), channel: "native_share" } : c));
+        await kvSet("marketplace:site_campaigns", updated);
+      }
+      json(res, { ok: true, campaignId, status: "PUBLISHED", channel: "native_share" }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
   // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write)
   if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
     return linkIdentityHandler(req, res);

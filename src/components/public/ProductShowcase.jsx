@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ArrowLeft, Share2, Zap, Wallet, Trophy } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
+import { shareProduct } from "../../lib/native";
 
 /**
  * ProductShowcase — public viral page for a single product.
@@ -13,7 +14,13 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 export default function ProductShowcase({ product, owner, navigate }) {
   const { lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
-  const { recordClick } = useMarketplace();
+  const { recordClick, recordProductView } = useMarketplace();
+
+  // First-party view measurement — one view per product per browser session.
+  useEffect(() => {
+    if (product?.id && recordProductView) recordProductView(product);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   if (!product) {
     return (
@@ -34,17 +41,10 @@ export default function ProductShowcase({ product, owner, navigate }) {
     if (product.link) recordClick(product.id, product.link);
   };
 
+  // Share with full attribution: the URL carries utm_source=native_share so the
+  // next visit is measured as creator-originated traffic (no platform APIs needed).
   const handleShare = async () => {
-    const url = window.location.href;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: product.title, url });
-        return;
-      }
-    } catch { /* cancelled */ }
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch { /* clipboard optional */ }
+    await shareProduct(product, { medium: "showcase" });
   };
 
   return (

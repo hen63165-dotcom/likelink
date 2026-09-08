@@ -386,6 +386,40 @@ export function MarketplaceProvider({ children }) {
     [clicks, products, notifications, persistClicks, persistProducts, persistNotifications]
   );
 
+  // Product-view tracking (first-party, no guessing). A view event is stored in
+  // the SAME shared clicks feed with type:'view' so legacy click consumers that
+  // ignore the type field see zero change; analytics counts views separately.
+  const recordProductView = useCallback(
+    async (product) => {
+      if (!product?.id) return;
+      // Dedupe per session: one view per product per browser session (honest metric).
+      try {
+        const seen = JSON.parse(sessionStorage.getItem("ll_viewed") || "[]");
+        if (seen.includes(product.id)) return;
+        seen.push(product.id);
+        sessionStorage.setItem("ll_viewed", JSON.stringify(seen.slice(-200)));
+      } catch { /* private mode — still record the first view */ }
+      let src = null;
+      try {
+        const params = new URLSearchParams(window.location.search);
+        src = params.get("utm_source") || params.get("ref") || (document.referrer ? new URL(document.referrer).hostname : null);
+      } catch { /* no source available */ }
+      const v = {
+        id: uid(),
+        type: "view",
+        productId: product.id,
+        marketerId: product.marketerId || null,
+        ts: Date.now(),
+        ...(src ? { src: String(src).slice(0, 80) } : {}),
+        ...(new URLSearchParams(window.location.search).get("utm_campaign")
+          ? { camp: new URLSearchParams(window.location.search).get("utm_campaign").slice(0, 80) }
+          : {}),
+      };
+      await persistClicks([...clicks, v]);
+    },
+    [clicks, persistClicks]
+  );
+
   const value = useMemo(
     () => ({
       loading,
@@ -675,7 +709,7 @@ export function MarketplaceProvider({ children }) {
       favorites, collections, following, introSeen, toast, currentMarketer,
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections,
-      toggleFollow, recordClick, t,
+      toggleFollow, recordClick, recordProductView, t,
     ]
   );
 

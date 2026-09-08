@@ -93,21 +93,35 @@ function sum(arr, fn) {
 
 function bucketTraffic(clicks, fromTs) {
   const rows = fromTs == null ? clicks : clicks.filter((c) => Number(c?.ts || 0) >= fromTs);
+  // Views (type:'view') and true clicks are counted SEPARATELY — a view is
+  // never inflated into a click. Legacy events without a type remain clicks.
+  const viewRows = rows.filter((c) => c?.type === "view");
+  const clickRows = rows.filter((c) => c?.type !== "view");
   const bySource = {};
   const byProduct = {};
-  for (const c of rows) {
+  for (const c of clickRows) {
     const src = c?.src ? String(c.src).slice(0, 80) : "(לא זוהה מקור)";
     bySource[src] = (bySource[src] || 0) + 1;
     if (c?.productId) byProduct[c.productId] = (byProduct[c.productId] || 0) + 1;
   }
+  const viewsByProduct = {};
+  for (const v of viewRows) {
+    if (v?.productId) viewsByProduct[v.productId] = (viewsByProduct[v.productId] || 0) + 1;
+  }
   return {
-    clicks: rows.length,
+    clicks: clickRows.length,
+    views: viewRows.length,
+    viewsMeasured: true, // product views ARE measured first-party since this release
     measured: true, // clicks ARE measured by the system
     sources: Object.entries(bySource)
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8),
     topProducts: Object.entries(byProduct)
+      .map(([productId, count]) => ({ productId, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+    topViewedProducts: Object.entries(viewsByProduct)
       .map(([productId, count]) => ({ productId, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5),
@@ -180,7 +194,12 @@ export async function buildOwnerReport() {
     all: bucketTraffic(clicksArr, null),
     // Honest data-availability notes — never fake zeros:
     visitorsMeasured: false, // no visitor tracking exists in the system yet
-    productViewsMeasured: false, // feed views are not recorded yet
+    productViewsMeasured: true, // product views ARE measured first-party (one per product per browser session)
+    productViewsToday: traffic.today.views,
+    productViewsWeek: traffic.week.views,
+    productViewsMonth: traffic.month.views,
+    productViewsAll: traffic.all.views,
+    topViewedProducts: traffic.all.topViewedProducts,
     channelsActive: Object.values(autopilot || {}).filter((c) => c?.enabled && Array.isArray(c.channels) && c.channels.length > 0).length,
   };
 
@@ -195,7 +214,7 @@ export async function buildOwnerReport() {
       all: bucketRevenue(salesArr, null).verifiedSales,
     },
     notes: [
-      "מבקרים וצפיות במוצר טרם נמדדים במערכת — הקלקות הן המדד הזמין.",
+      "מבקרים טרם נמדדים כזהות ייחודית; צפיות במוצר וקליקים נמדדים מהענן.",
       "התחלות Checkout טרם נמדדות — המשך המשפך מדווח מנקודת המכירה המאומתת.",
     ],
   };
