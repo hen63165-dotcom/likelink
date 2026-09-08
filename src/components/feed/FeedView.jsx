@@ -15,6 +15,7 @@ import { ScreenshotSearchModal } from "../search/ScreenshotSearchModal";
 import { ReelsPlayer } from "../video/ReelsPlayer";
 import ViralProofTicker from "./ViralProofTicker";
 import LunaAssistant from "../ambassador/LunaAssistant";
+import CloudHomeStrip from "./CloudHomeStrip";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -261,6 +262,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
           <span>DISCOVER</span>
         </div>
       </motion.div>
+
+      {/* Cloud Home Concierge — today's pick + Boost my studio (additive) */}
+      <CloudHomeStrip navigate={navigate} />
 
       {/* Live social proof — the platform broadcasting "it runs itself" */}
       <ViralProofTicker />
