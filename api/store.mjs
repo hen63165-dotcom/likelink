@@ -690,6 +690,22 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ── Trends Intelligence — what's HOT right now ──
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "trends") {
+    try {
+      const [productsRow, salesRow, clicksRow] = await Promise.all([
+        kvGet("marketplace:products", []),
+        kvGet("marketplace:sales", []),
+        kvGet("marketplace:clicks", []),
+      ]);
+      const { trendSummary } = await import("../src/lib/cloud/trends.js");
+      const summary = trendSummary(productsRow || [], { sales: salesRow || [], clicks: clicksRow || [] });
+      return json(res, { ok: true, ...summary }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+  }
+
   let body;
   try {
     body = await readBody(req);
