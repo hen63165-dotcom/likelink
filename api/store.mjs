@@ -25,6 +25,7 @@ import { readBody } from "./_utils/readBody.mjs";
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
+import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
 
@@ -93,20 +94,11 @@ async function kvDelete(key) {
   if (!res.ok && res.status !== 204) throw new Error(`kv_delete_failed_${res.status}`);
 }
 
-// Verify an admin Bearer token (same scheme as /api/admin/auth).
+// Verify an admin Bearer token (same scheme as /api/admin/auth). Verified
+// LOCALLY via the shared _utils/adminAuth.js — no self-HTTP round-trip (a
+// relative fetch would throw in Node's undici, dead-locking admin gates).
 async function isAdminToken(token) {
-  if (!token) return false;
-  try {
-    const res = await fetch("/api/admin/auth", {
-      headers: { authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(8000),
-    }).catch(() => null);
-    if (!res) return false;
-    const data = await res.json().catch(() => ({}));
-    return Boolean(res.ok && data.ok);
-  } catch {
-    return false;
-  }
+  return Boolean(verifyAdminToken(token));
 }
 
 // Verify the HMAC signature produced by /api/sign-sale for a sales self-report.

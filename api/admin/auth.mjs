@@ -1,4 +1,9 @@
+import crypto from "crypto";
 import { readBody } from "../_utils/readBody.mjs";
+import { jsonCors } from "../_utils/cors.js";
+import { audit } from "../_utils/audit.js";
+import { makeAdminToken, verifyAdminToken, ADMIN_TTL_MS } from "../_utils/adminAuth.js";
+
 // Vercel Serverless Function — server-side admin authentication 🔐
 //
 // WHY THIS EXISTS: the old gate compared the code against VITE_ADMIN_CODE,
@@ -10,21 +15,12 @@ import { readBody } from "../_utils/readBody.mjs";
 //                            | 429 rate_limited | 503 server_not_configured
 // GET  (Bearer token)      → 200 { ok, expiresInLeft }     | 401 invalid_token
 //
-// The token is HMAC-SHA256 signed (payload.exp) with ADMIN_SESSION_SECRET
-// (or a deterministic derivation of the admin code when the secret is unset),
-// TTL 8h, verified in constant time. Wrong-code attempts are rate-limited
-// per IP and answered with a small artificial delay to blunt brute force.
-
-import crypto from "crypto";
-import { jsonCors } from "../_utils/cors.js";
-import { audit } from "../_utils/audit.js";
+// Token = HMAC-SHA256 (payload.exp, v=1), base64url, constant-time verified —
+// implementation shared via _utils/adminAuth.js so /api/store can verify the
+// SAME tokens directly (no self-HTTP round-trip).
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "";
-const SECRET =
-  process.env.ADMIN_SESSION_SECRET ||
-  crypto.createHash("sha256").update(`likelink:${ADMIN_CODE}:admin-session`).digest("hex");
 
-const TTL_MS = 8 * 60 * 60 * 1000; // 8h admin session
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 6;
 
@@ -58,38 +54,11 @@ function noteAttempt(ip) {
   attempts.set(ip, arr);
 }
 
-const b64url = (s) => Buffer.from(s, "utf8").toString("base64url");
-
-function sign(payload) {
-  return crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
-}
-
 function safeEqual(a, b) {
   const ab = Buffer.from(String(a), "utf8");
   const bb = Buffer.from(String(b), "utf8");
   if (ab.length !== bb.length) return false;
   return crypto.timingSafeEqual(ab, bb);
-}
-
-function makeToken() {
-  const payload = b64url(JSON.stringify({ exp: Date.now() + TTL_MS, v: 1 }));
-  return `${payload}.${sign(payload)}`;
-}
-
-function checkToken(token) {
-  try {
-    const [payload, sig] = String(token || "").split(".");
-    if (!payload || !sig) return null;
-    const expected = sign(payload);
-    const ab = Buffer.from(sig);
-    const bb = Buffer.from(expected);
-    if (ab.length !== bb.length || !crypto.timingSafeEqual(ab, bb)) return null;
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    if (!data?.exp || data.exp < Date.now()) return null;
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 export default async function handler(req, res) {
@@ -100,7 +69,7 @@ export default async function handler(req, res) {
     const h = req.headers;
     const auth = (typeof h?.get === "function" ? h.get("authorization") : h?.authorization) || "";
     const token = String(auth).replace(/^Bearer\s+/i, "");
-    const data = checkToken(token);
+    const data = verifyAdminToken(token);
     if (!data) {
       audit.logApiForbidden({ type: "token-verify" }, { type: "admin-session" }, { _req: req });
       json(res, { ok: false, error: "invalid_token" }, 401, req);
@@ -142,7 +111,7 @@ export default async function handler(req, res) {
   }
 
   attempts.delete(ip);
-  const token = makeToken();
+  const token = makeAdminToken();
   audit.logAdminSuccess({ type: "admin", ip }, { type: "admin-session" }, { _req: req });
-  json(res, { ok: true, token, expiresIn: TTL_MS }, 200, req);
+  json(res, { ok: true, token, expiresIn: ADMIN_TTL_MS }, 200, req);
 }
