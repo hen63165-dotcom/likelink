@@ -65,6 +65,41 @@ export function catalogIntegrityReport(products, marketers = []) {
     requires: "real_marketerId_matching_marketplace:marketers",
   };
 }
+/**
+ * Attribution repair PLAN (pure — no I/O, no deletion, no field invention).
+ * Assigns the verified single-owner marketerId to products that currently
+ * have NO valid attribution, so real production rows can re-enter public
+ * commerce instead of staying quarantined forever.
+ *
+ * Safety contract:
+ *   - products WITHOUT valid attribution get marketerId = ownerId, and
+ *     NOTHING else on them changes (every existing field is preserved).
+ *   - products WITH valid attribution are returned untouched (never
+ *     overwrites ownership — even if it points at a different marketer).
+ *   - nothing is deleted, nothing is created, no status changes.
+ *   - idempotent by construction: running it on already-repaired data
+ *     yields changedCount === 0.
+ * The CALLER is responsible for the fail-closed policy: this function must
+ * only be invoked when marketplace:marketers resolves to EXACTLY ONE real
+ * marketer whose id matches the configured single owner.
+ */
+export function planAttributionRepair(products, marketers = [], { ownerId = "" } = {}) {
+  const list = Array.isArray(products) ? products : [];
+  const owner = String(ownerId || "").trim();
+  if (!owner) return { products: list, changedCount: 0, hadAttribution: 0 };
+
+  let changedCount = 0;
+  const hadAttribution = list.filter((p) => hasValidAttribution(p, marketers)).length;
+  const productsOut = list.map((p) => {
+    if (!p || typeof p !== "object" || hasValidAttribution(p, marketers)) return p;
+    changedCount += 1;
+    return { ...p, marketerId: owner };
+  });
+  return { products: productsOut, changedCount, hadAttribution };
+}
+
+/**
+ * Report quarantined rows (for ops visibility). Does not mutate storage.
 
 /**
  * Create a canonical product record.

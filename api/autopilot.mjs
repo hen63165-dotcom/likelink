@@ -20,6 +20,7 @@ import { readBody } from "./_utils/readBody.mjs";
 import { lunaHook } from "../src/lib/ambassador.js";
 import { jsonCors } from "./_utils/cors.js";
 import { verifyToken } from "./_utils/authVerify.js";
+import { audit } from "./_utils/audit.js";
 import { buildCampaign } from "../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../src/lib/cloud/growth.js";
 
@@ -35,30 +36,71 @@ const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
  */
 async function runSiteCampaignCycle(origin) {
   try {
-    const [productsRow, salesRow, clicksRow, campaignsRow] = await Promise.all([
+    const [productsRow, salesRow, clicksRow, campaignsRow, marketersRow] = await Promise.all([
       kvGet("marketplace:products", []),
       kvGet("marketplace:sales", []),
       kvGet("marketplace:clicks", []),
       kvGet(SITE_CAMPAIGNS_KEY, []),
+      kvGet("marketplace:marketers", []),
     ]);
-    const productsList = Array.isArray(productsRow) ? productsRow : [];
+    let productsList = Array.isArray(productsRow) ? productsRow : [];
     const salesArr = Array.isArray(salesRow) ? salesRow : [];
     const clicksArr = Array.isArray(clicksRow) ? clicksRow : [];
     const campaignsList = Array.isArray(campaignsRow) ? campaignsRow : [];
-    const approved = productsList.filter((p) => p && p.status === "approved");
-    if (!approved.length) return { ok: false, skipped: "no_approved_products" };
+    const marketersList = Array.isArray(marketersRow) ? marketersRow.filter((m) => m && m.id) : [];
 
-    // One site campaign per calendar day (idempotent — cron retries never double-run).
+    // ── CATALOG ATTRIBUTION REPAIR (single-owner policy · idempotent) ──
+    // Legacy rows without a valid marketerId stay quarantined on every
+    // public surface. When the cloud resolves to EXACTLY ONE real marketer
+    // matching the configured single owner, repair attribution so real
+    // products re-enter public commerce. Nothing is deleted or created;
+    // products with valid ownership are never touched; a repaired state is
+    // a no-op on every later run. Server-internal (cron context only) —
+    // never an anonymous public write.
+    let repair = null;
+    try {
+      const SINGLE_OWNER_ID = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+      if (marketersList.length === 1 && String(marketersList[0].id) === SINGLE_OWNER_ID) {
+        const { planAttributionRepair } = await import("../src/lib/cloud/catalog.js");
+        const plan = planAttributionRepair(productsList, marketersList, { ownerId: SINGLE_OWNER_ID });
+        if (plan.changedCount > 0) {
+          await kvSet("marketplace:products", plan.products);
+          productsList = plan.products;
+          repair = { repaired: plan.changedCount, ownerId: SINGLE_OWNER_ID };
+          audit.logApiSuccess(
+            { type: "attribution_repaired", changed: plan.changedCount, ownerId: SINGLE_OWNER_ID },
+            { type: "site-campaign-cycle" }
+          );
+        }
+      }
+    } catch { /* repair is best-effort; the cycle continues with current state */ }
+
+    // Fail-closed promotability — same policy as discover/trends/feed/og:
+    // only approved products attributable to a REAL marketer in the cloud.
+    const approved = productsList.filter(
+      (p) => p && p.status === "approved" && marketersList.some((m) => m && m.id === p.marketerId)
+    );
+    if (!approved.length) return { ok: false, skipped: "no_approved_products", repair };
+
+    // Stateful idempotency — one campaign per catalog-state per day (cap 3):
+    // an unchanged catalog never duplicates (cron retries are safe); a
+    // CHANGED catalog (repair, new products, approvals) legitimately
+    // produces a fresh campaign so the site never promotes a stale state.
     const list = campaignsList;
     const today = new Date().toISOString().slice(0, 10);
-    if (list.some((c) => String(c?.createdAt || "").slice(0, 10) === today)) {
-      return { ok: false, skipped: "campaign_already_ran_today" };
+    const todays = list.filter((c) => String(c?.createdAt || "").slice(0, 10) === today);
+    const fingerprint = approved.map((p) => p.id).sort().join("|");
+    if (todays.length >= 3) return { ok: false, skipped: "daily_campaign_cap_reached", repair };
+    if (todays.some((c) => (c?.catalogFingerprint || "") === fingerprint)) {
+      return { ok: false, skipped: "campaign_already_ran_today", repair };
     }
 
     // ── ADAPTIVE GROWTH BRAIN: evidence-first selection (fatigue-aware) ──
     // No authorized external channel exists on the official-site scope yet;
     // channelStates stays empty so distribution is honestly BLOCKED/PREPARED.
-    const decision = selectOpportunity({ approved, sales: salesArr, clicks: clicksArr, campaigns: list, channelStates: [] });
+    // marketers is passed so selection is fail-closed on real ownership and
+    // the landing destination uses the creator's real slug when it exists.
+    const decision = selectOpportunity({ approved, sales: salesArr, clicks: clicksArr, campaigns: list, channelStates: [], marketers: marketersList });
     const product = decision.selected;
     if (!product) return { ok: false, skipped: "no_opportunity_selected" };
 
@@ -78,6 +120,8 @@ async function runSiteCampaignCycle(origin) {
     const record = {
       ...campaign,
       ownerScope: "OFFICIAL_SITE",
+      catalogFingerprint: fingerprint,
+      attributionRepair: repair,
       // ZERO-TOUCH DISTRIBUTION: the tracked URL (/p/<id>?utm_...) is a real,
       // live, indexable page on the owned web the moment it is created — no
       // OAuth/app-review/tokens needed. status=WEB_LIVE is an honest fact, not

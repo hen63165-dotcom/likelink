@@ -754,6 +754,61 @@ export default async function handler(req, res) {
     }
   }
 
+  // ─── Attribution repair — ADMIN-ONLY · fail-closed · idempotent ───────────
+  // Legacy cloud rows were written without a valid marketerId and are
+  // quarantined by every public surface (discover/trends/feed/sitemap/og).
+  // This repairs ownership ONLY when ALL of the following hold:
+  //   1) marketplace:marketers resolves to EXACTLY ONE real marketer
+  //   2) that marketer's id matches the configured single owner
+  //      (MARKETPLACE_SINGLE_OWNER_ID env override, else the known owner)
+  //   3) the product currently has NO valid attribution
+  // Products that already have valid ownership are never touched. Nothing is
+  // deleted, nothing is created, no other field changes. A second run is a
+  // no-op (changed: 0, no KV write). Never an anonymous endpoint: 403
+  // without a valid admin token.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "repair-attribution") {
+    if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
+    const _ra = getHeader(req, "authorization");
+    const _raTok = String(_ra).replace(/^Bearer\s+/i, "");
+    if (!(await isAdminToken(_raTok))) {
+      audit.logApiForbidden({ type: "anonymous" }, { type: "repair-attribution" }, { _req: req });
+      json(res, { ok: false, error: "admin_required" }, 403, req);
+      return;
+    }
+    try {
+      const SINGLE_OWNER_ID = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+      const mkRaw = await kvGet("marketplace:marketers");
+      const mkList = Array.isArray(mkRaw) ? mkRaw.filter((m) => m && m.id) : null;
+      if (!mkList || mkList.length !== 1 || String(mkList[0].id) !== SINGLE_OWNER_ID) {
+        json(res, { ok: false, error: "single_owner_condition_not_met", marketers: mkList ? mkList.length : 0 }, 409, req);
+        return;
+      }
+      const prodsRaw = await kvGet("marketplace:products");
+      if (!Array.isArray(prodsRaw)) {
+        json(res, { ok: false, error: "products_unavailable" }, 503, req);
+        return;
+      }
+      const { planAttributionRepair, catalogIntegrityReport } = await import("../src/lib/cloud/catalog.js");
+      const before = catalogIntegrityReport(prodsRaw, mkList);
+      const plan = planAttributionRepair(prodsRaw, mkList, { ownerId: SINGLE_OWNER_ID });
+      if (plan.changedCount === 0) {
+        json(res, { ok: true, mode: "repair-attribution", alreadyRepaired: true, changed: 0, before, after: before }, 200, req);
+        return;
+      }
+      await kvSet("marketplace:products", plan.products);
+      const after = catalogIntegrityReport(plan.products, mkList);
+      audit.logApiSuccess(
+        { type: "attribution_repaired", changed: plan.changedCount, ownerId: SINGLE_OWNER_ID, before: before.publicEligible, after: after.publicEligible },
+        { type: "repair-attribution" },
+        { _req: req }
+      );
+      json(res, { ok: true, mode: "repair-attribution", changed: plan.changedCount, ownerId: SINGLE_OWNER_ID, before, after }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
   let body;
   try {
     body = await readBody(req);
