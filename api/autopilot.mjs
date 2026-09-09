@@ -1050,7 +1050,7 @@ export default async function handler(req, res) {
   const isCron =
     req.method === "GET" &&
     (Boolean(getH("x-vercel-cron")) ||
-      url.searchParams.get("secret") === (process.env.AUTOPILOT_SECRET || ""));
+      url.searchParams.get("secret") === process.env.AUTOPILOT_SECRET);
 
   if (isCron) {
     const _r = await runDue(origin);

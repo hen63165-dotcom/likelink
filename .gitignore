@@ -8,3 +8,10 @@ likelink2/
 likelink2/
 .vercel
 .env*
+# Local ship/scratch tooling + editor/backup artifacts (never commit)
+_ship_*.ps1
+_ship_evidence.txt
+cli-override-temp.json
+scripts/ship-production.ps1
+*.bak-before-*
+*.bak-*

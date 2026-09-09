@@ -145,7 +145,7 @@ export default async function handler(req, res) {
   const isCron =
     req.method === "GET" &&
     (Boolean(getH("x-vercel-cron")) ||
-      url.searchParams.get("secret") === (process.env.PRICE_WATCH_SECRET || ""));
+      url.searchParams.get("secret") === process.env.PRICE_WATCH_SECRET);
 
   if (!isCron) { json(res, { ok: false, error: "unauthorized" }, 401); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
