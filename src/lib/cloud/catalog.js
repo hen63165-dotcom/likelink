@@ -26,8 +26,50 @@ export const AVAILABILITY = {
 };
 
 /**
+ * True when product.marketerId resolves to a real marketer record.
+ * Never invents or remaps attribution — missing/unknown owner fails closed.
+ */
+export function hasValidAttribution(product, marketers = []) {
+  const mid = product?.marketerId == null ? "" : String(product.marketerId).trim();
+  if (!mid) return false;
+  const list = Array.isArray(marketers) ? marketers : [];
+  return list.some((m) => m && String(m.id) === mid);
+}
+
+/**
+ * Public marketplace eligibility: approved + attributable to a known creator.
+ * Quarantines orphan/legacy cloud rows (e.g. bootstrap p1–pN without owner)
+ * at the presentation boundary without deleting cloud data.
+ */
+export function isPublicCatalogProduct(product, marketers = []) {
+  return Boolean(product && product.status === "approved" && hasValidAttribution(product, marketers));
+}
+
+/** Filter to public-safe products only. Admin/studio keep the full list. */
+export function filterPublicCatalog(products, marketers = []) {
+  return (Array.isArray(products) ? products : []).filter((p) => isPublicCatalogProduct(p, marketers));
+}
+
+/**
+ * Report quarantined rows (for ops visibility). Does not mutate storage.
+ * Requires real business data (valid marketerId) before these can go public.
+ */
+export function catalogIntegrityReport(products, marketers = []) {
+  const list = Array.isArray(products) ? products : [];
+  const quarantined = list.filter((p) => p && !hasValidAttribution(p, marketers));
+  return {
+    total: list.length,
+    publicEligible: filterPublicCatalog(list, marketers).length,
+    quarantined: quarantined.length,
+    quarantinedIds: quarantined.map((p) => p.id).filter(Boolean).slice(0, 50),
+    requires: "real_marketerId_matching_marketplace:marketers",
+  };
+}
+
+/**
  * Create a canonical product record.
  * Only fields with real evidence are populated. Never invent data.
+ * marketerId is required for any product that may become public.
  */
 export function createProduct({
   id,
@@ -41,11 +83,13 @@ export function createProduct({
   sourceUrl,
   source,
   brand,
+  marketerId = null,
   availability = AVAILABILITY.UNKNOWN,
   markets = ["IL"],
   tags = [],
 }) {
   const now = Date.now();
+  const owner = marketerId == null ? null : String(marketerId).trim() || null;
   return {
     id: id || `prod_${now}_${Math.random().toString(36).slice(2, 8)}`,
     title: String(title || "").slice(0, 120),
@@ -58,6 +102,7 @@ export function createProduct({
     sourceUrl: sourceUrl || null,
     source: source || "likelink",
     brand: brand || null,
+    marketerId: owner,
     availability,
     markets,
     tags: Array.isArray(tags) ? tags.slice(0, 10) : [],
@@ -119,25 +164,29 @@ export function deduplicate(products) {
 }
 
 /**
- * Bootstrap catalog — real verified products across categories.
- * Each product has a real purchase path (AliExpress affiliate link).
- * Categories match the Hebrew keywords in discovery.js INTENT_KEYWORDS.
+ * Bootstrap catalog samples for local/dev ONLY when a REAL marketerId is supplied.
+ * Fail-closed: without a verified owner id this returns [] — never writes
+ * unattributed p1–pN rows into the live cloud catalog.
+ * Never invent marketer IDs; the caller must pass an existing marketplace marketer.
  */
-export function bootstrapProducts() {
+export function bootstrapProducts({ marketerId } = {}) {
+  const owner = marketerId == null ? "" : String(marketerId).trim();
+  if (!owner) return [];
+
   return [
-    createProduct({ id: "p1", title: "נעלי ריצה נשים קלות — עד ₪189", description: "נעלי ריצה נוחות עם כרית אוויר. מתאימות לריצה והליכה. מדות 36-41.", price: 189, category: "Fashion", image: "https://picsum.photos/seed/lk-shoes/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["נעליים", "ריצה", "נשים"] }),
-    createProduct({ id: "p2", title: "מעיל חורף חם עם כובע — ₪129", description: "מעיף חורף מבודד עם כובע נשלף. חם וקל. מתאים לגברים ונשים.", price: 129, category: "Fashion", image: "https://picsum.photos/seed/lk-coat/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מעיל", "חורף", "חם"] }),
-    createProduct({ id: "p3", title: "סרום ויטמין C 30ml — ₪45", description: "סרום פנים עשיר בויטמין C להבהיר את העור והפחתת כתמים. לכל סוגי העור.", price: 45, category: "Beauty", image: "https://picsum.photos/seed/lk-serum/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["סרום", "ויטמין C", "טיפוח"] }),
-    createProduct({ id: "p4", title: "מסקרה מגדלת מים-עמידה — ₪29", description: "מסקרא איכותית להגדלת הריסים. מים-עמידה, נוחה לשימוש יומי.", price: 29, category: "Beauty", image: "https://picsum.photos/seed/lk-mascara/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מסקרה", "איפור", "ריסים"] }),
-    createProduct({ id: "p5", title: "מנורת לילה חכמה + טעינה אלחוטית — ₪79", description: "מנורת לילה עם גווני אור מתכווננים, טעינה אלחוטית וכיבוי עתי.", price: 79, category: "Home", image: "https://picsum.photos/seed/lk-lamp/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["מנורה", "חכמה", "טעינה אלחוטית"] }),
-    createProduct({ id: "p6", title: "סט כלי מטבח סטנלס 12 חלקים — ₪159", description: "סט כלי מטבח איכותי מפלדת אל-חלד. כולל סכים, כפיות, מלקחיים.", price: 159, category: "Home", image: "https://picsum.photos/seed/lk-kitchen/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מטבח", "כלים", "סטנלס"] }),
-    createProduct({ id: "p7", title: "אוזניות בלוטוט' ביטול רעש — ₪89", description: "אוזניות אלחוטיות עם ביטול רעש, עמידות במים, עד 8 שעות פעילות.", price: 89, category: "Tech", image: "https://picsum.photos/seed/lk-headphones/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["אוזניות", "בלוטות'", "רעש"] }),
-    createProduct({ id: "p8", title: "מצלמת אבטחה WiFi ראיית לילה — ₪119", description: "מצלמת אבטחה חכמה עם WiFi, ראיית לילה, זיהוי תנועה והתראות.", price: 119, category: "Tech", image: "https://picsum.photos/seed/lk-camera/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מצלמה", "אבטחה", "חכמה"] }),
-    createProduct({ id: "p9", title: "משקולות כושר מתכוונות 2-20kg — ₪249", description: "זוג משקולות מתכוונות עם מנגנון סיבוב. לאימוני כוח וכושר.", price: 249, category: "Fitness", image: "https://picsum.photos/seed/lk-weights/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["משקולות", "כושר", "אימון"] }),
-    createProduct({ id: "p10", title: "מזרן יוגה אנטי-החלקה 6mm — ₪59", description: "מזרן יוגה איכותי עם משטח אנטי-החלקה. ליוגה, פילאטיס ומתיחות.", price: 59, category: "Fitness", image: "https://picsum.photos/seed/lk-yoga/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["יוגה", "מזרן", "אימון"] }),
-    createProduct({ id: "p11", title: "תיק גב ארגונומי כיס חשמל — ₪139", description: "תיק גב ארגונומי עם כיס לחשמל/טאבלט, רצועות נוחות, עמיד במים.", price: 139, category: "Accessories", image: "https://picsum.photos/seed/lk-backpack/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["תיק", "גב", "נסיעות"] }),
-    createProduct({ id: "p12", title: "שעון יח חכם דופק + ספירמומטר — ₪199", description: "שעון חכם עם מסך צבע, דופק, ספירמומטר, מעקב שינה. 7 ימים טעינה.", price: 199, category: "Accessories", image: "https://picsum.photos/seed/lk-watch/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["שעון", "חכם", "דופק"] }),
-    createProduct({ id: "p13", title: "ערכת מתנה אמה — פרחים + שוקולד — ₪89", description: "ערכת מתנה עם פרחים יבשים, שוקולד איכותי וכרטיס. אריזה יפה.", price: 89, category: "Gifts", image: "https://picsum.photos/seed/lk-gift/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["מתנה", "אמה", "שוקולד"] }),
-    createProduct({ id: "p14", title: "בושם נשים איכותי 100ml — ₪69", description: "בושם נשים עדין עם ניחוח פרחוני. עמיד לכל היום, אריזה אלגנטית.", price: 69, category: "Gifts", image: "https://picsum.photos/seed/lk-perfume/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["בושם", "מתנה", "נשים"] }),
+    createProduct({ id: "p1", marketerId: owner, title: "נעלי ריצה נשים קלות — עד ₪189", description: "נעלי ריצה נוחות עם כרית אוויר. מתאימות לריצה והליכה. מדות 36-41.", price: 189, category: "Fashion", image: "https://picsum.photos/seed/lk-shoes/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["נעליים", "ריצה", "נשים"] }),
+    createProduct({ id: "p2", marketerId: owner, title: "מעיל חורף חם עם כובע — ₪129", description: "מעיף חורף מבודד עם כובע נשלף. חם וקל. מתאים לגברים ונשים.", price: 129, category: "Fashion", image: "https://picsum.photos/seed/lk-coat/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מעיל", "חורף", "חם"] }),
+    createProduct({ id: "p3", marketerId: owner, title: "סרום ויטמין C 30ml — ₪45", description: "סרום פנים עשיר בויטמין C להבהיר את העור והפחתת כתמים. לכל סוגי העור.", price: 45, category: "Beauty", image: "https://picsum.photos/seed/lk-serum/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["סרום", "ויטמין C", "טיפוח"] }),
+    createProduct({ id: "p4", marketerId: owner, title: "מסקרה מגדלת מים-עמידה — ₪29", description: "מסקרא איכותית להגדלת הריסים. מים-עמידה, נוחה לשימוש יומי.", price: 29, category: "Beauty", image: "https://picsum.photos/seed/lk-mascara/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מסקרה", "איפור", "ריסים"] }),
+    createProduct({ id: "p5", marketerId: owner, title: "מנורת לילה חכמה + טעינה אלחוטית — ₪79", description: "מנורת לילה עם גווני אור מתכווננים, טעינה אלחוטית וכיבוי עתי.", price: 79, category: "Home", image: "https://picsum.photos/seed/lk-lamp/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["מנורה", "חכמה", "טעינה אלחוטית"] }),
+    createProduct({ id: "p6", marketerId: owner, title: "סט כלי מטבח סטנלס 12 חלקים — ₪159", description: "סט כלי מטבח איכותי מפלדת אל-חלד. כולל סכים, כפיות, מלקחיים.", price: 159, category: "Home", image: "https://picsum.photos/seed/lk-kitchen/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מטבח", "כלים", "סטנלס"] }),
+    createProduct({ id: "p7", marketerId: owner, title: "אוזניות בלוטוט' ביטול רעש — ₪89", description: "אוזניות אלחוטיות עם ביטול רעש, עמידות במים, עד 8 שעות פעילות.", price: 89, category: "Tech", image: "https://picsum.photos/seed/lk-headphones/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["אוזניות", "בלוטות'", "רעש"] }),
+    createProduct({ id: "p8", marketerId: owner, title: "מצלמת אבטחה WiFi ראיית לילה — ₪119", description: "מצלמת אבטחה חכמה עם WiFi, ראיית לילה, זיהוי תנועה והתראות.", price: 119, category: "Tech", image: "https://picsum.photos/seed/lk-camera/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מצלמה", "אבטחה", "חכמה"] }),
+    createProduct({ id: "p9", marketerId: owner, title: "משקולות כושר מתכוונות 2-20kg — ₪249", description: "זוג משקולות מתכוונות עם מנגנון סיבוב. לאימוני כוח וכושר.", price: 249, category: "Fitness", image: "https://picsum.photos/seed/lk-weights/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["משקולות", "כושר", "אימון"] }),
+    createProduct({ id: "p10", marketerId: owner, title: "מזרן יוגה אנטי-החלקה 6mm — ₪59", description: "מזרן יוגה איכותי עם משטח אנטי-החלקה. ליוגה, פילאטיס ומתיחות.", price: 59, category: "Fitness", image: "https://picsum.photos/seed/lk-yoga/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["יוגה", "מזרן", "אימון"] }),
+    createProduct({ id: "p11", marketerId: owner, title: "תיק גב ארגונומי כיס חשמל — ₪139", description: "תיק גב ארגונומי עם כיס לחשמל/טאבלט, רצועות נוחות, עמיד במים.", price: 139, category: "Accessories", image: "https://picsum.photos/seed/lk-backpack/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["תיק", "גב", "נסיעות"] }),
+    createProduct({ id: "p12", marketerId: owner, title: "שעון יח חכם דופק + ספירמומטר — ₪199", description: "שעון חכם עם מסך צבע, דופק, ספירמומטר, מעקב שינה. 7 ימים טעינה.", price: 199, category: "Accessories", image: "https://picsum.photos/seed/lk-watch/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["שעון", "חכם", "דופק"] }),
+    createProduct({ id: "p13", marketerId: owner, title: "ערכת מתנה אמה — פרחים + שוקולד — ₪89", description: "ערכת מתנה עם פרחים יבשים, שוקולד איכותי וכרטיס. אריזה יפה.", price: 89, category: "Gifts", image: "https://picsum.photos/seed/lk-gift/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["מתנה", "אמה", "שוקולד"] }),
+    createProduct({ id: "p14", marketerId: owner, title: "בושם נשים איכותי 100ml — ₪69", description: "בושם נשים עדין עם ניחוח פרחוני. עמיד לכל היום, אריזה אלגנטית.", price: 69, category: "Gifts", image: "https://picsum.photos/seed/lk-perfume/600/800", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["בושם", "מתנה", "נשים"] }),
   ];
 }

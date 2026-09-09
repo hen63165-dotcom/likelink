@@ -24,23 +24,26 @@ export async function runDailyCycle({ kvGet, kvSet, origin, now = Date.now() } =
   const results = { timestamp: now, steps: [], errors: [] };
 
   try {
-    const [productsRow, salesRow, clicksRow, campaignsRow] = await Promise.all([
+    const [productsRow, salesRow, clicksRow, campaignsRow, marketersRow] = await Promise.all([
       kvGet('marketplace:products', []),
       kvGet('marketplace:sales', []),
       kvGet('marketplace:clicks', []),
       kvGet('marketplace:site_campaigns', []),
+      kvGet('marketplace:marketers', []),
     ]);
 
     const products = Array.isArray(productsRow) ? productsRow : [];
     const sales = Array.isArray(salesRow) ? salesRow : [];
     const clicks = Array.isArray(clicksRow) ? clicksRow : [];
     const campaigns = Array.isArray(campaignsRow) ? campaignsRow : [];
+    const marketers = Array.isArray(marketersRow) ? marketersRow : [];
 
     const trends = trendSummary(products, { sales, clicks, now });
     results.steps.push({ step: 'trends', hottest: trends.hottest?.length || 0 });
 
-    const approved = products.filter((p) => p?.status === 'approved');
-    const decision = selectOpportunity({ approved, sales, clicks, campaigns, channelStates: [] });
+    // Fail-closed: only promote attributed approved products.
+    const approved = products.filter((p) => p?.status === 'approved' && p?.marketerId && marketers.some((m) => m && m.id === p.marketerId));
+    const decision = selectOpportunity({ approved, sales, clicks, campaigns, marketers, channelStates: [] });
 
     if (!decision.selected) {
       results.steps.push({ step: 'select', status: 'no_opportunity' });

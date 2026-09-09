@@ -108,19 +108,20 @@ async function sitemapHandler(req, res) {
   const origin = `${proto}://${host}`;
   const marketers = await getMarketers();
   const products = await getProducts();
+  const marketerIds = new Set((marketers || []).map((m) => m?.id).filter(Boolean));
+  const publicProducts = (products || []).filter(
+    (p) => p?.id && p?.status === "approved" && p?.marketerId && marketerIds.has(p.marketerId)
+  );
   const now = new Date().toISOString();
   const urls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },
-    // Kept from the static sitemap this replaces, so no SEO entry is lost:
     { loc: `${origin}/feed`, priority: "0.9", changefreq: "daily" },
-    { loc: `${origin}/studio`, priority: "0.8", changefreq: "weekly" },
+    // Studio/admin are noindex in-app — omit from sitemap intentionally.
     ...marketers.filter((m) => m?.slug).map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
-    ...products.filter((p) => p?.id && p?.status === "approved").map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
-    // Luna's Google Web Stories — one full-screen story per qualifying product,
-    // surfaced by Google Discover ("story, but on Google" growth loop).
-    ...products.filter((p) => p?.id && p?.status === "approved" && /^https?:/i.test(String(p.image || ""))).map((p) => ({ loc: `${origin}/story/${encodeURIComponent(p.id)}`, lastmod: now, priority: "0.5", changefreq: "weekly" })),
+    ...publicProducts.map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
+    ...publicProducts.filter((p) => /^https?:/i.test(String(p.image || ""))).map((p) => ({ loc: `${origin}/story/${encodeURIComponent(p.id)}`, lastmod: now, priority: "0.5", changefreq: "weekly" })),
   ];
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url>\n    <loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</mod>` : ""}\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join("\n")}\n</urlset>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url>\n    <loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ""}\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join("\n")}\n</urlset>`;
   res.status(200);
   res.setHeader("content-type", "application/xml; charset=utf-8");
   res.setHeader("cache-control", "public, max-age=3600, s-maxage=3600");
@@ -151,9 +152,20 @@ async function storyHandler(req, res) {
 
   const id = new URL(req.url, "https://x").searchParams.get("id") || "";
   let product = null;
+  let marketers = [];
   try {
-    const products = await getProducts();
-    product = products.find((p) => p && p.id === id && p.status === "approved") || null;
+    const [products, mk] = await Promise.all([getProducts(), getMarketers()]);
+    marketers = mk;
+    const marketerIds = new Set((marketers || []).map((m) => m?.id).filter(Boolean));
+    product =
+      products.find(
+        (p) =>
+          p &&
+          p.id === id &&
+          p.status === "approved" &&
+          p.marketerId &&
+          marketerIds.has(p.marketerId)
+      ) || null;
   } catch { /* handled below */ }
 
   const image = product && /^https?:/i.test(String(product.image || "")) ? String(product.image).trim() : "";
@@ -165,7 +177,10 @@ async function storyHandler(req, res) {
   }
 
   const hook = lunaHook(product.id);
-  const pageUrl = `${origin}/?product=${encodeURIComponent(product.id)}`;
+  const owner = marketers.find((m) => m && m.id === product.marketerId);
+  const pageUrl = owner?.slug
+    ? `${origin}/u/${encodeURIComponent(owner.slug)}?product=${encodeURIComponent(product.id)}`
+    : `${origin}/p/${encodeURIComponent(product.id)}`;
   const canonical = `${origin}/story/${encodeURIComponent(product.id)}`;
   const title = xmlEscape(`${AMBASSADOR.name} מציגה: ${product.title}`.slice(0, 90));
   const desc = xmlEscape(lunaStoryText(product, hook).split("\n")[0]);

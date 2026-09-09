@@ -7,6 +7,7 @@ import { useCart } from "../../context/CartContext";
 import { useVideos } from "../../context/VideoContext";
 import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers";
 import { trackClick } from "../../lib/analytics";
+import { isPublicCatalogProduct } from "../../lib/cloud/catalog";
 import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations, getFeedBadges } from "../../lib/recommendations";
 import { CATEGORY_KEYS } from "../../lib/i18n";
 import { EmptyState, IconButton } from "../ui";
@@ -39,22 +40,21 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const [playReel, setPlayReel] = useState(null);
   const { videos: allVideos } = useVideos();
 
-  // Deep-link support for Google Merchant feed links (`/?product=<id>`): open
-  // that product's modal on load so every g:link in google-feed.xml resolves to
-  // a page that actually shows the product.
+  // Deep-link support for Google Merchant feed links (`/p/:id` and `/?product=<id>`):
+  // open that product's modal only when it is publicly attributable.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("product");
     if (!id) return;
-    const target = products.find((p) => p.id === id && p.status === "approved");
+    const target = products.find((p) => p.id === id && isPublicCatalogProduct(p, marketers));
     if (target) setActive(target);
     // Clean the param off the URL without a page reload or history entry.
     const url = new URL(window.location.href);
     url.searchParams.delete("product");
     window.history.replaceState({}, "", url.pathname + url.search);
-  }, [products]);
+  }, [products, marketers]);
 
   const getMarketer = (id) => marketers.find((m) => m.id === id) || null;
-  const topIds = useMemo(() => getTopCreatorIds(products), [products]);
+  const topIds = useMemo(() => getTopCreatorIds(products.filter((p) => isPublicCatalogProduct(p, marketers))), [products, marketers]);
 
   const q = query.trim().toLowerCase();
   const visible = useMemo(() => {
@@ -62,7 +62,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
     const boostedRank = (p) => ((p.boostedUntil || 0) > now ? p.boostedUntil || 0 : 0);
 
     let list = products
-      .filter((p) => p.status === "approved")
+      .filter((p) => isPublicCatalogProduct(p, marketers))
       .filter((p) => cat === "All" || p.category === cat)
       .filter((p) => !favOnly || favorites.includes(p.id))
       .filter((p) => !followOnly || following.includes(p.marketerId));
@@ -97,7 +97,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       if (ab !== bb) return bb - ab; // boosted products drop-in to the top
       return sort === "popular" ? (b.clicks || 0) - (a.clicks || 0) : b.createdAt - a.createdAt;
     });
-  }, [products, cat, favOnly, followOnly, q, sort, favorites, following]);
+  }, [products, marketers, cat, favOnly, followOnly, q, sort, favorites, following]);
 
   // Adaptive Discovery: when the buyer searches, ask the Cloud "what's best?"
   // The discovery engine scores by verified revenue > sales > engagement > clicks,
@@ -128,10 +128,10 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const trending = useMemo(
     () =>
       [...products]
-        .filter((p) => p.status === "approved")
+        .filter((p) => isPublicCatalogProduct(p, marketers))
         .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
         .slice(0, 6),
-    [products]
+    [products, marketers]
   );
 
   // תגיות אמינות — אילו מוצרים מגיעים לתגית (מומלץ / הכי נמכר / טרנדינג)
@@ -144,7 +144,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const popularToday = useMemo(
     () =>
       [...products]
-        .filter((p) => p.status === "approved")
+        .filter((p) => isPublicCatalogProduct(p, marketers))
         .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
         .slice(0, 10),
     [products]
@@ -184,7 +184,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const topShared = useMemo(
     () =>
       [...products]
-        .filter((p) => p.status === "approved")
+        .filter((p) => isPublicCatalogProduct(p, marketers))
         .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
         .slice(0, 8),
     [products]
@@ -196,24 +196,24 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   );
 
   const aiDiscovery = useMemo(
-    () => getPersonalizedFeed(products.filter((p) => p.status === "approved"), userProfile, 6),
+    () => getPersonalizedFeed(products.filter((p) => isPublicCatalogProduct(p, marketers)), userProfile, 6),
     [products, userProfile]
   );
 
   const liveTrendPicks = useMemo(
-    () => getTrendingProducts(products.filter((p) => p.status === "approved"), clicks || [], sales || [], 7).slice(0, 4),
+    () => getTrendingProducts(products.filter((p) => isPublicCatalogProduct(p, marketers)), clicks || [], sales || [], 7).slice(0, 4),
     [products, clicks, sales]
   );
 
   const creatorMatches = useMemo(
-    () => getCreatorRecommendations(marketers, userProfile, products.filter((p) => p.status === "approved"), 4),
+    () => getCreatorRecommendations(marketers, userProfile, products.filter((p) => isPublicCatalogProduct(p, marketers)), 4),
     [marketers, userProfile, products]
   );
 
   const findsUnder100 = useMemo(
     () =>
       [...products]
-        .filter((p) => p.status === "approved" && p.price > 0 && p.price <= 100)
+        .filter((p) => isPublicCatalogProduct(p, marketers) && p.price > 0 && p.price <= 100)
         .sort((a, b) => a.price - b.price)
         .slice(0, 10),
     [products]
@@ -457,7 +457,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         <div className="mb-5">
           <div className="grid grid-cols-3 gap-3">
             {styleCategories.map((c) => {
-                            const catProducts = products.filter((p) => p.status === "approved" && p.category === c.id);
+                            const catProducts = products.filter((p) => isPublicCatalogProduct(p, marketers) && p.category === c.id);
               const image = safeImgSrc(catProducts[0]?.image);
               return (
                 <motion.button

@@ -308,14 +308,16 @@ export async function buildOwnerReport() {
     // Google does not guarantee impressions/clicks; GOOGLE_TRAFFIC is reported
     // only when actually measured (never claimed).
     googleStatus: (() => {
+      const marketerIds = new Set(marketersArr.map((m) => m?.id).filter(Boolean));
       const eligible = productsArr.filter(
-        (p) => p.status === "approved" && p.title && Number(p.price) > 0 && p.image
+        (p) => p.status === "approved" && p.marketerId && marketerIds.has(p.marketerId) && p.title && Number(p.price) > 0 && p.image
       );
       const needsAttention = productsArr.filter(
-        (p) => p.status === "approved" && !(p.title && Number(p.price) > 0 && p.image)
+        (p) => p.status === "approved" && p.marketerId && marketerIds.has(p.marketerId) && !(p.title && Number(p.price) > 0 && p.image)
       );
+      const quarantined = productsArr.filter((p) => p && (!p.marketerId || !marketerIds.has(p.marketerId)));
       const googleClicks = clicksArr.filter((c) => String(c?.src || "").toLowerCase().startsWith("google")).length;
-      const feedReady = productsArr.some((p) => p.status === "approved");
+      const feedReady = eligible.length > 0;
       return {
         connection: "GOOGLE_FEED_READY", // the existing /api/google-feed is the live data source
         merchantCenterOAuth: "ACTION_REQUIRED", // one-time owner action via official Google auth
@@ -323,9 +325,12 @@ export async function buildOwnerReport() {
         feedUrl: "/api/google-feed",
         eligibleProducts: eligible.length,
         needsAttentionProducts: needsAttention.length,
+        quarantinedUnattributed: quarantined.length,
         missingAttributesNote: needsAttention.length
           ? "מוצרים ללא תמונה/מחיר/כותרת מסומנים NEEDS_ATTENTION — לא מומצאים ב-feed."
-          : null,
+          : quarantined.length
+            ? `${quarantined.length} מוצרים ללא בעלות מאומתת — מורחקים מה-feed הציבורי (fail-closed).`
+            : null,
         googleClicksMeasured: googleClicks, // 0 = measured zero, not an estimate
         googleTraffic: googleClicks > 0 ? "MEASURED" : "NOT_YET_MEASURED",
       };
@@ -336,10 +341,11 @@ export async function buildOwnerReport() {
     growthBrain: (() => {
       try {
         const decision = selectOpportunity({
-          approved: productsArr.filter((p) => p.status === "approved"),
+          approved: productsArr.filter((p) => p.status === "approved" && p.marketerId),
           sales: salesArr,
           clicks: clicksArr,
           campaigns: Array.isArray(siteCampaigns) ? siteCampaigns : [],
+          marketers: marketersArr,
           channelStates: [], // official-site scope has no authorized external channel yet
         });
         return {

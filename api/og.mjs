@@ -123,43 +123,89 @@ export default async function handler(req, res) {
   }
 
   // --- Product-specific handling (when id param present) ---
+  // Fail-closed: unattributed / unknown products get noindex + generic card
+  // (never invent marketer or product claims for crawlers).
   let product = null;
+  let owner = null;
   if (productId) {
     try {
       const sbUrl = process.env.VITE_SUPABASE_URL;
       const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
       if (sbUrl && sbKey) {
-        const res = await fetch(
-          `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:products")}&select=value`,
-          {
-            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
-            signal: AbortSignal.timeout(5000),
-          }
-        );
-        const rows = await res.json();
-        const v = rows?.[0]?.value ? JSON.parse(rows[0].value) : [];
-        const list = Array.isArray(v) ? v : Object.values(v || {});
-        product = list.find((p) => p?.id === productId) || null;
+        const [prodRes, mkRes] = await Promise.all([
+          fetch(
+            `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:products")}&select=value`,
+            {
+              headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+              signal: AbortSignal.timeout(5000),
+            }
+          ),
+          fetch(
+            `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:marketers")}&select=value`,
+            {
+              headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+              signal: AbortSignal.timeout(5000),
+            }
+          ),
+        ]);
+        const prodRows = await prodRes.json();
+        const mkRows = await mkRes.json();
+        const list = (() => {
+          const v = prodRows?.[0]?.value ? JSON.parse(prodRows[0].value) : [];
+          return Array.isArray(v) ? v : Object.values(v || {});
+        })();
+        const marketers = (() => {
+          const v = mkRows?.[0]?.value ? JSON.parse(mkRows[0].value) : [];
+          return Array.isArray(v) ? v : Object.values(v || {});
+        })();
+        const found = list.find((p) => p?.id === productId) || null;
+        const mk = found ? marketers.find((m) => m && m.id === found.marketerId) : null;
+        if (found && mk && found.status === "approved") {
+          product = found;
+          owner = mk;
+        }
       }
     } catch { /* fallback to generic card below */ }
 
-    title = product?.title
+    const attributable = Boolean(product && owner);
+    title = attributable
       ? `${escapeHtml(product.title)} — קנייה בקליק`
-      : "Likelink — סטודיו חכם שרץ לבד";
-    description = product
-      ? "הפריט הזה פורסם אוטומטית בעברית לכל רשת · נבחר בקליק בסטודיו של Likelink 💜"
-      : "פותחים סטודיו, מדביקים לינק — והמערכת מפרסמת, עוקבת ומשלמת לבד.";
-    const productImage = product?.image && /^https?:/i.test(product.image)
-      ? product.image
-      : `${origin}/icons/icon-512.webp`;
+      : "Likelink — המוצר לא זמין";
+    description = attributable
+      ? `מומלץ על ידי ${escapeHtml(owner.name)} · נבחר בקליק בסטודיו של Likelink`
+      : "המוצר אינו זמין לאינדוקס או שחסרה בעלות מאומתת.";
+    const productImage =
+      attributable && product?.image && /^https?:/i.test(product.image)
+        ? product.image
+        : `${origin}/icons/icon-512.webp`;
     const pageUrl = `${origin}/p/${encodeURIComponent(productId)}`;
+    const robots = attributable ? "index,follow" : "noindex,nofollow";
+    const jsonLd = attributable
+      ? JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: product.title,
+          description: product.description || description,
+          image: productImage,
+          url: pageUrl,
+          brand: { "@type": "Brand", name: owner.name || "Likelink" },
+          offers: {
+            "@type": "Offer",
+            priceCurrency: product.currency || "ILS",
+            price: String(product.price ?? ""),
+            availability: "https://schema.org/InStock",
+            url: pageUrl,
+          },
+        })
+      : "";
 
     const html = `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8" />
 <title>${title}</title>
-<meta name="robots" content="index,follow" />
+<meta name="robots" content="${robots}" />
+<link rel="canonical" href="${pageUrl}" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${description}" />
 <meta property="og:image" content="${productImage}" />
@@ -171,15 +217,16 @@ export default async function handler(req, res) {
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${description}" />
 <meta name="twitter:image" content="${productImage}" />
+${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 </head>
 <body style="margin:0;background:#f7f5f2;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#6f6b63">
-<div style="text-align:center;padding:24px">לינק מוצר · נוצר בסטודיו של Likelink 💜</div>
+<div style="text-align:center;padding:24px">${attributable ? "לינק מוצר · נוצר בסטודיו של Likelink" : "מוצר לא זמין"}</div>
 </body>
 </html>`;
 
-    res.status(200);
+    res.status(attributable ? 200 : 404);
     res.setHeader("content-type", "text/html; charset=utf-8");
-    res.setHeader("cache-control", "public, max-age=600");
+    res.setHeader("cache-control", attributable ? "public, max-age=600" : "public, max-age=60");
     res.end(html);
     return;
   }

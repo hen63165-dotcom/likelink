@@ -6,6 +6,9 @@ import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
 import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys";
 import { parsePath } from "./utils/routing";
+import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo";
+import { isPublicCatalogProduct } from "./lib/cloud/catalog";
+import { initReferral } from "./lib/referral";
 
 // Modern Layout & UI
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
@@ -61,6 +64,26 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeNav, setActiveNav] = useState("discover");
   const [screenshotOpen, setScreenshotOpen] = useState(false);
+
+  useEffect(() => {
+    initReferral();
+  }, []);
+
+  // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
+  useEffect(() => {
+    if (route.type === "creator" || route.type === "product") return;
+    if (tab === "admin") {
+      updatePageSEO(getDefaultSEO("admin"));
+      setNoIndex("admin");
+      return;
+    }
+    if (tab === "sell") {
+      updatePageSEO(getDefaultSEO("studio"));
+      setNoIndex("studio");
+      return;
+    }
+    updatePageSEO(getDefaultSEO(tab === "feed" ? "feed" : "home"));
+  }, [tab, route.type]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -141,14 +164,19 @@ function App() {
     );
   }
 
-  // Product Showcase Route — every shared product gets a public, viral page
+  // Product Showcase Route — fail-closed without valid creator attribution
   if (route.type === "product") {
     const product = products.find((p) => p.id === route.id);
     const owner = product ? marketers.find((m) => m.id === product.marketerId) : null;
+    const publicOk = product && owner && isPublicCatalogProduct(product, marketers);
     return (
       <AppShell>
         <Suspense fallback={<LoadingScreen />}>
-          <ProductShowcase product={product} owner={owner} navigate={navigate} />
+          <ProductShowcase
+            product={publicOk ? product : null}
+            owner={publicOk ? owner : null}
+            navigate={navigate}
+          />
         </Suspense>
         <Toast message={toast?.msg} />
       </AppShell>

@@ -18,7 +18,8 @@ export function canNativeShare() {
 }
 
 // Tracked product URL — attribution: source=native_share, medium=<how>, campaign=<id?>
-export function trackedProductUrl(product, { medium = "share", campaignId = null } = {}) {
+// Propagates creator ref when marketerId is known (no fabrication).
+export function trackedProductUrl(product, { medium = "share", campaignId = null, ref = null } = {}) {
   try {
     const base = `${window.location.origin}/p/${encodeURIComponent(product.id)}`;
     const params = new URLSearchParams({
@@ -26,6 +27,8 @@ export function trackedProductUrl(product, { medium = "share", campaignId = null
       utm_medium: String(medium).slice(0, 40),
       ...(campaignId ? { utm_campaign: String(campaignId).slice(0, 80) } : {}),
     });
+    const referrer = ref || product.marketerId || null;
+    if (referrer) params.set("ref", String(referrer).slice(0, 80));
     return `${base}?${params.toString()}`;
   } catch {
     return null;

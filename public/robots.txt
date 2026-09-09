@@ -1,22 +1,21 @@
 # ============================================================
 # Likelink — robots.txt
 # ------------------------------------------------------------
-# IMPORTANT: This file must remain fully permissive. It deliberately
-# contains NO "Disallow" and NO "noai"/"noimageai" directives, so that
-# Google AI Search / Search Console, Bing, and all major AI engines can
-# crawl, index, and cite Likelink for AI Overviews and answer engines.
-# (The absence of blocking directives is what allows AI indexing.)
-#
+# Public marketplace surfaces stay crawlable for Google / Bing /
+# AI answer engines. Private app surfaces are blocked.
 # Sitemap domain: https://likelink.com
 # ============================================================
 
-# Allow everything (default), including non-matching agents.
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
 
 # --- Standard search engines ---
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /api/
 User-agent: Googlebot-Image
 Allow: /
 User-agent: Googlebot-News
@@ -24,7 +23,7 @@ Allow: /
 User-agent: Googlebot-Video
 Allow: /
 
-# Google AI services & AI Overviews / AI Search (MUST stay allowed)
+# Google AI services & AI Overviews / AI Search
 User-agent: Google-Extended
 Allow: /
 User-agent: GoogleOther
@@ -32,6 +31,8 @@ Allow: /
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /api/
 User-agent: Bangbot
 Allow: /
 User-agent: Applebot
@@ -49,7 +50,7 @@ Allow: /
 User-agent: NAVER
 Allow: /
 
-# --- AI assistant / LLM engine crawlers (explicitly allowed to opt in) ---
+# --- AI assistant / LLM engine crawlers ---
 User-agent: GPTBot
 Allow: /
 User-agent: OAI-SearchBot
@@ -81,5 +82,4 @@ Allow: /
 User-agent: omgilibot
 Allow: /
 
-# The sitemap must be an absolute URL.
 Sitemap: https://likelink.com/sitemap.xml

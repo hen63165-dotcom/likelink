@@ -3,30 +3,41 @@ import { ArrowLeft, Share2, Zap, Wallet, Trophy } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { shareProduct } from "../../lib/native";
+import { updatePageSEO, getProductSEO, getDefaultSEO } from "../../lib/seo";
+import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers";
 
 /**
  * ProductShowcase — public viral page for a single product.
- * Every shared product link now lands on a stunning page that shows the
- * item + a "this studio runs itself" strip. Whoever sees it instantly
- * understands the creator made money without CapCut, coding or ads —
- * and that they can have the same machine.
+ * Fail-closed: App only mounts this with attributable products; missing
+ * product/owner still shows a truthful 404 (no fabricated attribution).
  */
 export default function ProductShowcase({ product, owner, navigate }) {
   const { lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
   const { recordClick, recordProductView } = useMarketplace();
 
-  // First-party view measurement — one view per product per browser session.
   useEffect(() => {
-    if (product?.id && recordProductView) recordProductView(product);
+    if (product?.id && owner?.id && recordProductView) recordProductView(product);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product?.id]);
+  }, [product?.id, owner?.id]);
 
-  if (!product) {
+  useEffect(() => {
+    const seo = getProductSEO(product, owner);
+    if (seo) updatePageSEO(seo);
+    else updatePageSEO({ ...getDefaultSEO("home"), robots: "noindex,follow", title: "מוצר לא נמצא | לייקלינק" });
+    return () => updatePageSEO(getDefaultSEO("home"));
+  }, [product, owner]);
+
+  if (!product || !owner) {
     return (
       <div className="pt-16 flex flex-col items-center text-center px-6">
         <p className="disp text-lg font-semibold">{L("המוצר לא נמצא", "Product not found")}</p>
-        <p className="text-sm text-muted mt-2">{L("ייתכן שהקישור שגוי או שהמוצר הוסר.", "The link may be wrong, or the product was removed.")}</p>
+        <p className="text-sm text-muted mt-2">
+          {L(
+            "ייתכן שהקישור שגוי, שהמוצר הוסר, או שחסרה בעלות מאומתת.",
+            "The link may be wrong, the product was removed, or attribution is missing."
+          )}
+        </p>
         <button onClick={() => navigate("/feed")} className="tap mt-5 text-sm font-bold" style={{ color: "var(--accent)" }}>
           {L("חזרה לפיד", "Back to feed")}
         </button>
@@ -35,26 +46,39 @@ export default function ProductShowcase({ product, owner, navigate }) {
   }
 
   const price = Number(product.price) || 0;
-  const ownerSlug = owner?.slug || "studio";
+  const ownerSlug = owner.slug || owner.id;
+  const trackedHref =
+    buildAffiliateUrl(product.affiliateUrl || product.link || "", owner.trackingId) ||
+    product.affiliateUrl ||
+    product.link ||
+    "";
+  const outboundHref = resolveDestinationUrl(trackedHref) || trackedHref;
 
   const handleBuy = () => {
-    if (product.link) recordClick(product.id, product.link);
+    if (product) recordClick(product);
   };
 
-  // Share with full attribution: the URL carries utm_source=native_share so the
-  // next visit is measured as creator-originated traffic (no platform APIs needed).
   const handleShare = async () => {
     await shareProduct(product, { medium: "showcase" });
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-[var(--bg)]">
-      {/* Hero — product image full-bleed */}
       <div className="w-full h-[46vh] relative overflow-hidden bg-[var(--bg-subtle)]">
         {product.image ? (
-          <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
+          <img
+            src={product.image}
+            alt={product.title}
+            width={600}
+            height={800}
+            loading="eager"
+            decoding="async"
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl">🛍️</div>
+          <div className="w-full h-full flex items-center justify-center text-5xl" aria-hidden="true">
+            ·
+          </div>
         )}
         <button
           type="button"
@@ -77,28 +101,36 @@ export default function ProductShowcase({ product, owner, navigate }) {
               ₪{price}
             </p>
           )}
+          <p className="text-xs text-muted mt-2">
+            {L(`מומלץ על ידי ${owner.name}`, `Recommended by ${owner.name}`)}
+          </p>
 
-          <a
-            href={product.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleBuy}
-            className="tap w-full mt-4 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px]"
-            style={{ background: "var(--accent)", color: "#fff" }}
-          >
-            {L("קנייה מהירה וזורמת", "Buy in one tap")} →
-          </a>
+          {outboundHref ? (
+            <a
+              href={outboundHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleBuy}
+              className="tap w-full mt-4 py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-[15px]"
+              style={{ background: "var(--accent)", color: "#fff" }}
+            >
+              {L("קנייה מהירה וזורמת", "Buy in one tap")} →
+            </a>
+          ) : (
+            <p className="text-sm text-muted mt-4 text-center">
+              {L("קישור רכישה אינו זמין כרגע.", "Purchase link is not available right now.")}
+            </p>
+          )}
 
           <button
             type="button"
             onClick={() => navigate(`/u/${encodeURIComponent(ownerSlug)}`)}
             className="tap w-full mt-2 py-2.5 rounded-xl text-xs font-semibold bg-[var(--bg-subtle)]"
           >
-            {L(`הסטודיו של ${owner?.name || "יוצרת"}`, `${owner?.name || "Creator"}'s studio`)} →
+            {L(`הסטודיו של ${owner.name}`, `${owner.name}'s studio`)} →
           </button>
         </div>
 
-        {/* The viral strip — sells the platform through this product */}
         <div className="mt-5 rounded-3xl p-5" style={{ background: "linear-gradient(135deg,#6C4CF1,#3D2E8C)" }}>
           <p className="text-white font-bold text-sm leading-snug">
             {L("הסטודיו הזה מתנהל לבד", "This studio runs itself")}
@@ -116,7 +148,6 @@ export default function ProductShowcase({ product, owner, navigate }) {
           </div>
         </div>
 
-        {/* Recruitment CTA */}
         <div className="surface rounded-3xl mt-4 p-5 text-center shadow-sm">
           <p className="disp text-lg font-bold">{L("ככה זה נראה כשזה עובד", "This is what 'it just works' looks like")}</p>
           <p className="text-xs text-muted mt-1.5 leading-relaxed">
@@ -130,7 +161,7 @@ export default function ProductShowcase({ product, owner, navigate }) {
             className="tap w-full mt-4 py-3.5 rounded-xl flex items-center justify-center gap-2 font-bold text-[14px]"
             style={{ background: "var(--text)", color: "var(--bg)" }}
           >
-            {L("💜 פתחי סטודיו בחינם", "💜 Open your free studio")}
+            {L("פתחי סטודיו בחינם", "Open your free studio")}
           </a>
         </div>
 

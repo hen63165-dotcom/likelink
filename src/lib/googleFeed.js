@@ -96,8 +96,8 @@ function wrap(name, value) {
 
 /**
  * Build the ordered list of Google feed items. Only products the admin approved
- * (status === "approved") with a title and a link are included; the rest would
- * trigger Merchant Center errors, so they are filtered out here.
+ * (status === "approved") with valid creator attribution, a title and a link
+ * are included; orphan/unattributed rows are quarantined (fail-closed).
  */
 export function collectFeedItems({
   products = [],
@@ -110,6 +110,8 @@ export function collectFeedItems({
 
   return (products || [])
     .filter((p) => p && p.status === "approved")
+    // Fail-closed attribution: marketerId must resolve to a known creator.
+    .filter((p) => p.marketerId && byMarketer.has(p.marketerId))
     .filter((p) => toText(p.title))
     // Google Shopping hard requirements — anything missing gets the ITEM
     // disapproved and pollutes the account's diagnostics. We only ship items
@@ -119,13 +121,16 @@ export function collectFeedItems({
     .filter((p) => isAbsoluteHttpUrl(p.image))    // image_link is required
     .map((p) => {
       const m = byMarketer.get(p.marketerId);
+      // Prefer clean /p/:id URLs (canonical product pages) for Merchant crawl.
+      const base = String(baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+      const link = `${base}/p/${encodeURIComponent(String(p.id ?? ""))}`;
       return {
         id: toText(p.id, p.id),
         title: toText(p.title),
         description: toText(p.description),
         // Always point to OUR landing page (Google crawls this), not the
         // retailer's affiliate URL (which varies and is not crawlable).
-        link: productPageUrl(baseUrl, p.id),
+        link,
         image: isAbsoluteHttpUrl(p.image) ? p.image.trim() : "",
         price: formatPrice(p.price, currency),
         availability: availabilityFor(p.status),

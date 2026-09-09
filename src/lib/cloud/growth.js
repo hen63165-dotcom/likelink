@@ -107,10 +107,19 @@ export function opportunityScore(signals) {
   };
 }
 
-/** Rank all approved products by opportunity score — the SELECT step. */
-export function rankOpportunities(approved, { sales = [], clicks = [], campaigns = [], now = Date.now() } = {}) {
+/** Rank all approved+attributed products by opportunity score — the SELECT step. */
+export function rankOpportunities(approved, { sales = [], clicks = [], campaigns = [], marketers, now = Date.now() } = {}) {
+  const hasDirectory = Array.isArray(marketers);
+  const marketerIds = new Set((marketers || []).map((m) => m && m.id).filter(Boolean));
   return (Array.isArray(approved) ? approved : [])
     .filter((p) => p && p.status === "approved")
+    // Fail-closed: require marketerId; when a marketer directory is supplied,
+    // it must resolve. Empty directory ⇒ nothing is publicly promotable.
+    .filter((p) => {
+      if (!p.marketerId) return false;
+      if (!hasDirectory) return true;
+      return marketerIds.has(p.marketerId);
+    })
     .map((p) => {
       const signals = productSignals(p, { sales, clicks, campaigns, now });
       const { score, reasons, hasEnoughSignals } = opportunityScore(signals);
@@ -122,14 +131,19 @@ export function rankOpportunities(approved, { sales = [], clicks = [], campaigns
 /**
  * THE decision — what should LikeLink promote RIGHT NOW?
  * Explainable, evidence-first, with safe bootstrap when no data exists.
+ * Destination always uses creator slug when available (never fabricates owner).
  */
-export function selectOpportunity({ approved, sales = [], clicks = [], campaigns = [], channelStates = [], now = Date.now() } = {}) {
-  const list = rankOpportunities(approved, { sales, clicks, campaigns, now });
+export function selectOpportunity({ approved, sales = [], clicks = [], campaigns = [], channelStates = [], marketers = [], now = Date.now() } = {}) {
+  const list = rankOpportunities(approved, { sales, clicks, campaigns, marketers, now });
 
-  if (!list.length) return { selected: null, reasons: ["אין מוצרים מאושרים"], mode: "NONE" };
+  if (!list.length) return { selected: null, reasons: ["אין מוצרים מאושרים עם בעלות מאומתת"], mode: "NONE" };
 
   const totalActivity = (Array.isArray(sales) ? sales : []).length + (Array.isArray(clicks) ? clicks : []).length;
   const authorized = (Array.isArray(channelStates) ? channelStates : []).some((c) => c?.authorized);
+  const ownerPath = (product) => {
+    const m = (Array.isArray(marketers) ? marketers : []).find((x) => x && x.id === product?.marketerId);
+    return m?.slug || product?.marketerId || product?.id;
+  };
 
   if (totalActivity === 0) {
     // Bootstrap — controlled deterministic rotation, NOT random, NOT fake.
@@ -144,7 +158,7 @@ export function selectOpportunity({ approved, sales = [], clicks = [], campaigns
       breakdown: { signals: pick.signals },
       candidates: list.slice(0, 3).map((x) => ({ productId: x.product.id, title: x.product.title, score: x.score })),
       rejected: list.filter((x, i) => i !== idx).slice(0, 3).map((x) => ({ productId: x.product.id, title: x.product.title, score: x.score })),
-      destination: { type: "owned_web", landingPath: `/u/${pick.product.slug || pick.product.id}` },
+      destination: { type: "owned_web", landingPath: `/u/${ownerPath(pick.product)}` },
       authorization: { closestAuthorized: "NONE", distributionBlocked: true },
     };
   }
@@ -160,7 +174,7 @@ export function selectOpportunity({ approved, sales = [], clicks = [], campaigns
     candidates: list.slice(0, 3).map((x) => ({ productId: x.product.id, title: x.product.title, score: x.score, reasons: x.reasons.slice(0, 2) })),
     rejected: list.slice(1, 4).map((x) => ({ productId: x.product.id, title: x.product.title, score: x.score, reasons: x.reasons.slice(0, 2) })),
     at: new Date(now).toISOString(),
-    destination: { type: "owned_web_page", landingPath: `/u/${top.product.slug || top.product.id}` },
+    destination: { type: "owned_web_page", landingPath: `/u/${ownerPath(top.product)}` },
     authorization: { closestAuthorized: authorized ? "has" : "none", distributionBlocked: !authorized },
     nextAction: top.reasons.length ? top.reasons[0] : "אין עדיין די נתונים — בדיקה מבוקרת.",
   };

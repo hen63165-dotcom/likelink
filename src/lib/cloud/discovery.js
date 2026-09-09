@@ -17,6 +17,7 @@
  */
 
 import { productSignals, opportunityScore } from "./growth.js";
+import { filterPublicCatalog, hasValidAttribution } from "./catalog.js";
 
 // Category aliases (Hebrew) → canonical category keys (same as CATEGORY_KEYS).
 const INTENT_KEYWORDS = {
@@ -61,12 +62,13 @@ function intentCategories(query) {
   return hits;
 }
 
-/** Filter approved products by category intent (all approved when no query). */
-export function matchCandidates(query, products = []) {
+/** Filter public attributable products by category intent. */
+export function matchCandidates(query, products = [], marketers = []) {
   const cats = intentCategories(query);
-  return (Array.isArray(products) ? products : []).filter(
-    (p) => p && p.status === "approved" && (cats.size === 0 || cats.has(p.category))
-  );
+  const pool = marketers?.length
+    ? filterPublicCatalog(products, marketers)
+    : (Array.isArray(products) ? products : []).filter((p) => p && p.status === "approved" && p.marketerId);
+  return pool.filter((p) => cats.size === 0 || cats.has(p.category));
 }
 
 /**
@@ -99,8 +101,9 @@ export function momentumSignal(productId, clicks = [], now = Date.now()) {
 }
 
 /** Final buyer-facing recommendation (the "best among the best"). */
-export function buildRecommendation(query, { products = [], sales = [], clicks = [], now = Date.now() } = {}) {
-  const cands = matchCandidates(query, products);
+export function buildRecommendation(query, { products = [], marketers = [], sales = [], clicks = [], now = Date.now() } = {}) {
+  const publicProducts = filterPublicCatalog(products, marketers);
+  const cands = matchCandidates(query, publicProducts, marketers);
   const decisionId = `dec_${now}_${Math.random().toString(36).slice(2, 8)}`;
   if (!cands.length) {
     return {
@@ -108,29 +111,49 @@ export function buildRecommendation(query, { products = [], sales = [], clicks =
       decisionId,
       intent: { query: normalize(query), categories: [] },
       message: "לא נמצאו מוצרים מתאימים עדיין — נסו מונח אחר.",
-      decision: { reason: "no_candidates", candidatesConsidered: 0, rejected: products.length },
+      decision: {
+        reason: "no_candidates",
+        candidatesConsidered: 0,
+        rejected: (Array.isArray(products) ? products : []).length,
+        quarantined: (Array.isArray(products) ? products : []).length - publicProducts.length,
+      },
     };
   }
   const ranked = rankCandidates(cands, { sales, clicks, now });
   // Momentum badge on the top candidate only when a real signal exists.
   const top = ranked[0];
+  if (!hasValidAttribution(top.product, marketers)) {
+    return {
+      hasResult: false,
+      decisionId,
+      intent: { query: normalize(query), categories: [] },
+      message: "לא נמצאו מוצרים עם בעלות מאומתת.",
+      decision: { reason: "attribution_fail_closed", candidatesConsidered: cands.length },
+    };
+  }
   const mom = momentumSignal(top.product.id, clicks, now);
-  const rejected = products.length - cands.length;
+  const rejected = (Array.isArray(products) ? products : []).length - cands.length;
+  const owner = (Array.isArray(marketers) ? marketers : []).find((m) => m && m.id === top.product.marketerId);
+  const ownerPath = owner?.slug || top.product.marketerId;
   return {
     hasResult: true,
     decisionId,
-    intent: { query: query, categories: [...matchCandidates(query, products).reduce((s,p)=>s.add(p.category), new Set())] },
+    intent: { query: query, categories: [...cands.reduce((s, p) => s.add(p.category), new Set())] },
     top: {
       productId: top.product.id,
       title: top.product.title,
       price: top.product.price,
       image: top.product.image || null,
       category: top.product.category,
+      marketerId: top.product.marketerId,
       score: top.score,
       reasons: top.reasons,
       badges: top.badges,
       trend: mom,
-      purchasePath: { type: "owned_web", url: `/u/${top.product.marketerId || ""}?product=${encodeURIComponent(top.product.id)}` },
+      purchasePath: {
+        type: "owned_web",
+        url: `/u/${encodeURIComponent(ownerPath)}?product=${encodeURIComponent(top.product.id)}`,
+      },
     },
     alternatives: ranked.slice(1, 4).map((r) => ({
       productId: r.product.id, title: r.product.title, price: r.product.price, score: r.score,

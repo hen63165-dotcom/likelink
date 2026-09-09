@@ -641,6 +641,7 @@ export default async function handler(req, res) {
   // Public buyer discovery — "best of the best" ranking over the existing
   // public catalog + real first-party signal. Read-only, no auth (products
   // are the public feed); never writes, never invents data.
+  // Fail-closed: only products with a valid marketerId → known marketer.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "discover") {
     let q = "";
     try {
@@ -649,57 +650,104 @@ export default async function handler(req, res) {
     } catch { /* empty query = discover all */ }
     try {
       const { buildRecommendation } = await import("../src/lib/cloud/discovery.js");
-      const [productsRow, salesRow, clicksRow] = await Promise.all([
+      const { filterPublicCatalog, catalogIntegrityReport } = await import("../src/lib/cloud/catalog.js");
+      const [productsRow, marketersRow, salesRow, clicksRow] = await Promise.all([
         kvGet("marketplace:products", []),
+        kvGet("marketplace:marketers", []),
         kvGet("marketplace:sales", []),
         kvGet("marketplace:clicks", []),
       ]);
+      const marketers = Array.isArray(marketersRow) ? marketersRow : [];
+      const publicProducts = filterPublicCatalog(productsRow, marketers);
       const recommendation = buildRecommendation(q, {
-        products: Array.isArray(productsRow) ? productsRow : [],
+        products: publicProducts,
+        marketers,
         sales: Array.isArray(salesRow) ? salesRow : [],
         clicks: Array.isArray(clicksRow) ? clicksRow : [],
       });
-      json(res, { ok: true, mode: "discover", query: q, ...recommendation }, 200, req);
+      json(res, {
+        ok: true,
+        mode: "discover",
+        query: q,
+        integrity: catalogIntegrityReport(productsRow, marketers),
+        ...recommendation,
+      }, 200, req);
     } catch (e) {
       json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
     return;
   }
 
-  // Catalog bootstrap — adds real verified products to the catalog.
-  // Idempotent: only adds products if the catalog is empty or has < 5 products.
-  // This ensures the buyer always has real products to discover.
+  // Catalog bootstrap — FAIL CLOSED.
+  // Legacy path wrote unattributed p1–pN into live KV (no marketerId).
+  // Never invent marketer IDs; never seed cloud without a verified owner
+  // that already exists in marketplace:marketers. Does not delete existing data.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "bootstrap-catalog") {
     try {
-      const { bootstrapProducts, deduplicate } = await import("../src/lib/cloud/catalog.js");
+      const { bootstrapProducts, deduplicate, hasValidAttribution, catalogIntegrityReport } = await import("../src/lib/cloud/catalog.js");
       const force = new URL(req.url, "https://x").searchParams.get("force") === "true";
+      const ownerParam = new URL(req.url, "https://x").searchParams.get("marketerId");
       const existing = (await kvGet("marketplace:products")) || [];
-      // Only bootstrap if catalog is empty or has very few products (unless forced)
-      const realProducts = Array.isArray(existing) ? existing.filter((p) => p && p.title && p.title !== "Product") : [];
-      if (realProducts.length >= 5 && !force) {
-        json(res, { ok: true, mode: "bootstrap-catalog", skipped: true, count: realProducts.length, message: "Catalog already populated" }, 200, req);
+      const marketers = (await kvGet("marketplace:marketers")) || [];
+      const marketerList = Array.isArray(marketers) ? marketers : [];
+      const integrity = catalogIntegrityReport(existing, marketerList);
+
+      // Refuse unattributed writes. Owner must be a real existing marketer.
+      const ownerId = ownerParam == null ? "" : String(ownerParam).trim();
+      const ownerExists = ownerId && marketerList.some((m) => m && String(m.id) === ownerId);
+      if (!ownerExists) {
+        json(res, {
+          ok: false,
+          mode: "bootstrap-catalog",
+          error: "attribution_required",
+          message: "bootstrap-catalog requires marketerId matching an existing marketplace marketer. Unattributed seed writes are blocked. Existing orphan rows stay in KV but are quarantined from public surfaces.",
+          integrity,
+        }, 403, req);
         return;
       }
-      const newProducts = bootstrapProducts();
+
+      const realProducts = Array.isArray(existing) ? existing.filter((p) => p && p.title && p.title !== "Product") : [];
+      const attributedCount = realProducts.filter((p) => hasValidAttribution(p, marketerList)).length;
+      if (attributedCount >= 5 && !force) {
+        json(res, { ok: true, mode: "bootstrap-catalog", skipped: true, count: attributedCount, integrity, message: "Attributed catalog already populated" }, 200, req);
+        return;
+      }
+
+      const newProducts = bootstrapProducts({ marketerId: ownerId }).filter((p) => hasValidAttribution(p, marketerList));
+      if (!newProducts.length) {
+        json(res, { ok: false, mode: "bootstrap-catalog", error: "empty_bootstrap", integrity }, 400, req);
+        return;
+      }
       const merged = deduplicate([...realProducts, ...newProducts]);
       await kvSet("marketplace:products", merged);
-      json(res, { ok: true, mode: "bootstrap-catalog", added: newProducts.length, total: merged.length, forced: force }, 200, req);
+      json(res, {
+        ok: true,
+        mode: "bootstrap-catalog",
+        added: newProducts.length,
+        total: merged.length,
+        forced: force,
+        marketerId: ownerId,
+        integrity: catalogIntegrityReport(merged, marketerList),
+      }, 200, req);
     } catch (e) {
       json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
     return;
   }
 
-  // ── Trends Intelligence — what's HOT right now ──
+  // ── Trends Intelligence — what's HOT right now (public = attributed only) ──
   if (new URL(req.url, "https://x").searchParams.get("mode") === "trends") {
     try {
-      const [productsRow, salesRow, clicksRow] = await Promise.all([
+      const { filterPublicCatalog } = await import("../src/lib/cloud/catalog.js");
+      const [productsRow, marketersRow, salesRow, clicksRow] = await Promise.all([
         kvGet("marketplace:products", []),
+        kvGet("marketplace:marketers", []),
         kvGet("marketplace:sales", []),
         kvGet("marketplace:clicks", []),
       ]);
       const { trendSummary } = await import("../src/lib/cloud/trends.js");
-      const summary = trendSummary(productsRow || [], { sales: salesRow || [], clicks: clicksRow || [] });
+      const publicProducts = filterPublicCatalog(productsRow, marketersRow);
+      const summary = trendSummary(publicProducts || [], { sales: salesRow || [], clicks: clicksRow || [] });
       return json(res, { ok: true, ...summary }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
