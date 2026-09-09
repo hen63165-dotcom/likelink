@@ -187,19 +187,26 @@ export async function buildOwnerReport() {
   const startOfMonth = now - 30 * 24 * 3600 * 1000;
 
   // ── Traffic (observed where the system measures it) ──
+  // The buckets are bound first — the literal below must never reference
+  // `traffic` inside its own initializer (that was an uncaught TDZ crash that
+  // only surfaced once admin gates actually passed through in production).
+  const tToday = bucketTraffic(clicksArr, startOfToday);
+  const tWeek = bucketTraffic(clicksArr, startOfWeek);
+  const tMonth = bucketTraffic(clicksArr, startOfMonth);
+  const tAll = bucketTraffic(clicksArr, null);
   const traffic = {
-    today: bucketTraffic(clicksArr, startOfToday),
-    week: bucketTraffic(clicksArr, startOfWeek),
-    month: bucketTraffic(clicksArr, startOfMonth),
-    all: bucketTraffic(clicksArr, null),
+    today: tToday,
+    week: tWeek,
+    month: tMonth,
+    all: tAll,
     // Honest data-availability notes — never fake zeros:
     visitorsMeasured: false, // no visitor tracking exists in the system yet
     productViewsMeasured: true, // product views ARE measured first-party (one per product per browser session)
-    productViewsToday: traffic.today.views,
-    productViewsWeek: traffic.week.views,
-    productViewsMonth: traffic.month.views,
-    productViewsAll: traffic.all.views,
-    topViewedProducts: traffic.all.topViewedProducts,
+    productViewsToday: tToday.views,
+    productViewsWeek: tWeek.views,
+    productViewsMonth: tMonth.views,
+    productViewsAll: tAll.views,
+    topViewedProducts: tAll.topViewedProducts,
     channelsActive: Object.values(autopilot || {}).filter((c) => c?.enabled && Array.isArray(c.channels) && c.channels.length > 0).length,
   };
 
