@@ -1054,14 +1054,25 @@ export default async function handler(req, res) {
 
   if (isCron) {
     const _r = await runDue(origin);
-    json(res, _r, 200, req);
+    // Official Site Campaign cycle — awaited on the SAME daily cron so the
+    // cycle reliably completes: Vercel freezes the invocation once the
+    // response is flushed, so fire-and-forget would silently drop it (this
+    // shipped with zero site campaigns in production). The cycle is bounded
+    // (a few kv reads + at most one write) and idempotent — the response
+    // stays well under the 60s limit. Its result rides along so the state is
+    // observable on every tick.
+    let siteCycle = { ok: false, skipped: "not_run" };
+    try {
+      siteCycle = await runSiteCampaignCycle(origin);
+    } catch (e) {
+      siteCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
+    }
+    json(res, { ..._r, siteCycle }, 200, req);
     // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
     // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
     import("./_utils/analytics.js")
       .then(({ sendOwnerDailyReport }) => sendOwnerDailyReport())
       .catch(() => {});
-    // Official Site Campaign cycle — same daily cron, idempotent, fail-safe.
-    runSiteCampaignCycle(origin).catch(() => {});
     return;
   }
 
