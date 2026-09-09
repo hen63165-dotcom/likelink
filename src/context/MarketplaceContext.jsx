@@ -137,14 +137,10 @@ export function MarketplaceProvider({ children }) {
       ]);
 
       const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
-      const safeMarketers = legacySeedDetected ? SEED_MARKETERS : (m || []);
-      const safeProducts = legacySeedDetected ? SEED_PRODUCTS : (p || []);
+      const safeMarketers = m || [];
+      const safeProducts = p || [];
 
-      if (legacySeedDetected) {
-        resetLegacyMarketplaceStorage();
-        await setJSON(K.marketers, SEED_MARKETERS, true);
-        await setJSON(K.products, SEED_PRODUCTS, true);
-      }
+      // Production safety: never reset shared marketplace data or replace production data with demo seeds.
 
       // Self-heal corrupt legacy records: every string field must be a plain
       // string so any string coercion (render, template literals, navigator.share,
@@ -184,13 +180,19 @@ export function MarketplaceProvider({ children }) {
       );
       // Sanitize the other stores so numeric/string conversions never crash:
       // product price/commission, sale/payout numerics (+ts), settings fee, collections.
-      setProducts(
-        (safeProducts || []).map((x) => ({
+      const validMarketerIds = new Set((safeMarketers || []).map((m) => (typeof m?.id === "string" ? m.id.trim() : "")).filter(Boolean));
+      const sanitizedProducts = (safeProducts || [])
+        .filter((x) => {
+          const marketerId = typeof x?.marketerId === "string" ? x.marketerId.trim() : "";
+          return Boolean(marketerId) && validMarketerIds.has(marketerId);
+        })
+        .map((x) => ({
           ...x,
+          marketerId: x.marketerId.trim(),
           price: toNum(x?.price, 0),
           commission: toNum(x?.commission, 0),
-        }))
-      );
+        }));
+      setProducts(sanitizedProducts);
       setClicks(c || []);
       setSales(
         (s || []).map((x) => ({
