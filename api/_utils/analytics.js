@@ -162,7 +162,7 @@ function payoutSplit(payouts, fromTs) {
  * Unmeasured funnel stages come back as `measured: false` / null — NOT as 0.
  */
 export async function buildOwnerReport() {
-  const [sales, payouts, charges, clicks, products, marketers, autopilot, auditEvents, siteCampaigns] = await Promise.all([
+  const [sales, payouts, charges, clicks, products, marketers, autopilot, auditEvents, siteCampaigns, veritasLedger] = await Promise.all([
     kvGet(K.sales, []),
     kvGet(K.payouts, []),
     kvGet(K.charges, []),
@@ -172,6 +172,7 @@ export async function buildOwnerReport() {
     kvGet(K.autopilot, {}),
     kvGet(K.audit, []),
     kvGet("marketplace:site_campaigns", []),
+    kvGet("marketplace:veritas", []),
   ]);
 
   const salesArr = Array.isArray(sales) ? sales : [];
@@ -396,6 +397,23 @@ export async function buildOwnerReport() {
           : "הענן נוהג לבד: קמפיינים, מדידה ולמידה. להוספת מייל יומי — הגדירי OWNER_EMAIL.",
       };
     })(),
+    // ── VERITAS integrity ledger — tamper-proof chain of every cloud action ──
+    veritas: await (async () => {
+      try {
+        const { veritasSummary } = await import("../src/lib/cloud/veritas.js");
+        const summary = veritasSummary(Array.isArray(veritasLedger) ? veritasLedger : [], 8);
+        return {
+          valid: summary.valid,
+          count: summary.count,
+          root: summary.root,
+          first: summary.first,
+          last: summary.last,
+          recent: summary.recent,
+        };
+      } catch {
+        return { valid: false, count: 0, error: "veritas_unavailable" };
+      }
+    })(),
   };
 }
 
@@ -476,6 +494,13 @@ function renderOwnerReportHtml(r) {
     ${row("מוצרים כשירים ל-Google", `${r.googleStatus.eligibleProducts} כשירים · ${r.googleStatus.needsAttentionProducts} דורשים טיפול`)}
     ${row("תנועת Google", r.googleStatus.googleTraffic === "MEASURED" ? `${r.googleStatus.googleClicksMeasured} קליקים מדודים` : "טרם נמדדה")}
   </table>
+
+  <h3 style="margin:16px 0 6px">🔏 שרשרת אמינות (VERITAS)</h3>
+  <p style="font-size:14px;line-height:1.7">
+    ${r.veritas?.valid === true ? "✅ שלמות הענן מאומתת" : r.veritas?.valid === false ? "⚠️ שלמות הענן לא תקינה" : "טרם נרשמו פעולות"}
+    · רשומות: <b>${r.veritas?.count ?? 0}</b>
+    ${r.veritas?.last ? `· עדכון אחרון: ${new Date(r.veritas.last).toLocaleString("he-IL", { timeZone: r.timezone })}` : ""}
+  </p>
 
   <p style="font-size:11px;color:#999;margin-top:20px;border-top:1px solid #eee;padding-top:12px">
     כל המספרים מגיעים מנתוני אמת מאומתים בלבד. שלבים שטרם נמדדים מסומנים ככאלה — ולא מוצגים כאפס עסקי.

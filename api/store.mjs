@@ -533,8 +533,37 @@ async function subsAuthHandler(req, res, sub, body) {
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
-  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "misconfigured: service role key missing" }, 500, req); return; }
+
+  // VERITAS public integrity verification — anyone can verify the ledger via GET.
+  // Returns the full hash-chain + a validity proof. No secrets, no writes.
+  if (req.method === "GET" && new URL(req.url, "https://x").searchParams.get("mode") === "veritas") {
+    try {
+      const { veritasSummary } = await import("../src/lib/cloud/veritas.js");
+      const ledger = (await kvGet("marketplace:veritas", [])) || [];
+      const summary = veritasSummary(ledger, 12);
+      json(res, {
+        ok: true,
+        mode: "veritas",
+        integrity: {
+          valid: summary.valid,
+          count: summary.count,
+          root: summary.root,
+          first: summary.first,
+          last: summary.last,
+          brokenAt: summary.brokenAt,
+          reason: summary.reason,
+        },
+        recent: summary.recent,
+        ledger: ledger.slice(-50), // capped public view
+      }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, mode: "veritas", error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
+  if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
   // here via vercel.json rewrite → /api/store?mode=sign-sale

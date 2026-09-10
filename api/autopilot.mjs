@@ -23,8 +23,25 @@ import { verifyToken } from "./_utils/authVerify.js";
 import { audit } from "./_utils/audit.js";
 import { buildCampaign } from "../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../src/lib/cloud/growth.js";
+import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/veritas.js";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
+const VERITAS_KEY = "marketplace:veritas";
+
+/**
+ * Record a VERITAS pulse — append-only integrity ledger.
+ * Each entry is hash-chained to the previous one (tamper-proof).
+ * Server-side only, never exposed to clients. Fail-closed: if the ledger
+ * can't be read/written, the pulse is skipped (never blocks the host action).
+ */
+async function recordVeritasPulse(type, entry) {
+  try {
+    const row = await kvGet(VERITAS_KEY, []);
+    const ledger = Array.isArray(row) ? row : [];
+    const next = appendVeritas(ledger, { type, ...entry });
+    await kvSet(VERITAS_KEY, next);
+  } catch { /* pulse is best-effort — never let it break the host function */ }
+}
 
 /**
  * Official Site Campaign cycle (OWNER_SCOPE = OFFICIAL_SITE) — runs on the
@@ -71,6 +88,7 @@ async function runSiteCampaignCycle(origin) {
             { type: "attribution_repaired", changed: plan.changedCount, ownerId: SINGLE_OWNER_ID },
             { type: "site-campaign-cycle" }
           );
+          await recordVeritasPulse("attribution_repair", { ok: true, repaired: plan.changedCount, ownerId: SINGLE_OWNER_ID });
         }
       }
     } catch { /* repair is best-effort; the cycle continues with current state */ }
@@ -144,8 +162,10 @@ async function runSiteCampaignCycle(origin) {
     };
     list.push(record);
     await kvSet(SITE_CAMPAIGNS_KEY, list.slice(-100)); // append-only, capped
+    await recordVeritasPulse("campaign_created", { ok: true, campaignId: campaign.campaignId, productId: product.id, angle: campaign.angle.id, mode: decision.mode, score: decision.score, repair: repair || null });
     return { ok: true, campaignId: campaign.campaignId, productId: product.id, angle: campaign.angle.id, mode: decision.mode, score: decision.score };
   } catch (e) {
+    await recordVeritasPulse("campaign_cycle_error", { ok: false, error: String(e.message || e).slice(0, 120) });
     return { ok: false, error: String(e.message || e).slice(0, 120) };
   }
 }
