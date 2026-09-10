@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, Flame, Share2, ChevronRight } from "lucide-react";
+import { Sparkles, Flame, Share2, ChevronRight, BadgeCheck } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { fetchCloudHome, buildStudioBoost } from "../../lib/cloud/home";
 import { shareProduct } from "../../lib/native";
+import { composeLunaFace } from "../../lib/cloud/lunaFace";
 
 /**
  * Cloud Home Concierge ☁️🎯
@@ -51,9 +52,40 @@ export default function CloudHomeStrip({ navigate }) {
   }
 
   if (!pick && !boost) return null;
+  const face = pick ? composeLunaFace(pick) : null;
 
   return (
     <section className="mb-5 flex flex-col gap-3">
+      {/* LUNA FACE — the living voice of the main studio (additive, real data) */}
+      {face && face.ok && (
+        <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(108,76,241,.14), rgba(255,255,255,.06))", border: "1px solid rgba(108,76,241,.35)" }}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-1.5 mb-2">
+              <BadgeCheck size={14} style={{ color: "var(--accent)" }} />
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                {L("לונה · הסטודיו הראשי חי", "Luna · the main studio is alive")}
+              </p>
+            </div>
+            <p className="text-[15px] font-extrabold leading-snug text-[var(--text)]" dir="rtl">
+              {face.headline}
+            </p>
+            {face.followUp && (
+              <p className="text-[13px] font-semibold mt-1 text-[var(--text)]" dir="rtl">
+                {face.followUp}
+              </p>
+            )}
+            <p className="text-[11.5px] text-muted mt-1.5" dir="rtl">
+              {face.reasoning}
+            </p>
+            <div className="flex items-center gap-2 mt-2.5">
+              <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}>
+                {L(face.badge, "Cloud pick")}
+              </span>
+              <span className="text-[9.5px] text-muted">· {L(face.note, face.note)}</span>
+            </div>
+          </div>
+        </div>
+      )}
       {/* TODAY'S PICK */}
       {pick && (
         <div className="surface rounded-2xl overflow-hidden shadow-sm relative">
