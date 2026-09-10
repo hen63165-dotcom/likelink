@@ -39,9 +39,11 @@ export function hashEntry(prevHash, entry) {
   return crypto.createHash("sha256").update(`likelink-veritas:${data}`).digest("hex");
 }
 
-/** Strip the stored-linkage fields before re-hashing an existing record. */
+/** Strip the stored-linkage fields before re-hashing an existing record.
+ * Only `prev` and `hash` are removed — `seq`, `ts`, and the entry body must
+ * remain so the recomputed hash matches the original. */
 function stripLinkage(record) {
-  const { prev, hash, seq, ...body } = record || {};
+  const { prev, hash, ...body } = record || {};
   return body;
 }
 
