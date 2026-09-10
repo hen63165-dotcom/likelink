@@ -699,11 +699,21 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Catalog bootstrap — FAIL CLOSED.
+  // Catalog bootstrap — FAIL CLOSED + ADMIN-ONLY.
   // Legacy path wrote unattributed p1–pN into live KV (no marketerId).
   // Never invent marketer IDs; never seed cloud without a verified owner
   // that already exists in marketplace:marketers. Does not delete existing data.
+  // SECURITY: catalog writes require the admin token — this was previously
+  // reachable with only a known marketerId (anonymous catalog write hole).
   if (new URL(req.url, "https://x").searchParams.get("mode") === "bootstrap-catalog") {
+    const auth = getHeader(req, "authorization");
+    const token = String(auth).replace(/^Bearer\s+/i, "");
+    const admin = await isAdminToken(token);
+    if (!admin) {
+      audit.logApiForbidden({ type: "non-admin" }, { type: "bootstrap_catalog" }, { _req: req });
+      json(res, { ok: false, mode: "bootstrap-catalog", error: "admin_required" }, 403, req);
+      return;
+    }
     try {
       const { bootstrapProducts, deduplicate, hasValidAttribution, catalogIntegrityReport } = await import("../src/lib/cloud/catalog.js");
       const force = new URL(req.url, "https://x").searchParams.get("force") === "true";
