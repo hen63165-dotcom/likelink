@@ -19,27 +19,61 @@
 
 import { lunaHook, AMBASSADOR } from "../ambassador.js";
 
-// Angle bank — each angle is a TEMPLATE using only safe product fields.
+// ── Category → Hebrew (single source: mirrors catalog.CATEGORIES.he) ──
+const CATEGORY_HE = {
+  Fashion: "אופנה",
+  Beauty: "יופי וטיפוח",
+  Home: "בית ומטבח",
+  Tech: "טכנולוגיה",
+  Fitness: "ספורט וכושר",
+  Kids: "ילדים",
+  Accessories: "אקססוריז",
+  Pets: "חיות מחמד",
+  Gifts: "מתנות",
+  Travel: "נסיעות",
+  Other: "קניות",
+};
+
+const priceOf = (p) => (Number(p?.price) > 0 ? `₪${p.price}` : "");
+const catHe = (p) => CATEGORY_HE[p?.category] || CATEGORY_HE.Other;
+
+// ── Angle bank (2026) — MAXIMUM curiosity, ZERO fabrication. ──────────────
+// Every template uses ONLY real product fields (title / price / category).
+// No fake urgency, no invented scarcity, no fabricated social proof — the
+// stop-scroll power comes from curiosity gaps, price honesty, POV framing
+// and mini-story narration, not from invented facts.
 const ANGLES = [
   {
     id: "curiosity",
-    build: (p) => `רגע — יש סיבה ש"${p.title}" מקבל תשומת לב. שווה להציץ לפני שממשיכים 👀`,
+    build: (p) => `רגע לפני שתמשיכי בגלילה 👀\n"${p.title}" — יש סיבה ששווה לעצור על זה רגע.`,
+  },
+  {
+    id: "value",
+    build: (p) => { const pr = priceOf(p); return `"${p.title}"${pr ? ` — ${pr}` : ""}.\nבלי הטעיות ובלי מבצעים מדומיינים: מחיר אמיתי, לינק ישיר, וזהו.`; },
   },
   {
     id: "problem",
-    build: (p) => `אם גם אתם מחפשים פתרון פשוט בנושא ${p.category || "הזה"} — "${p.title}" עשוי לחסוך לכם הרבה זמן.`,
-  },
-  {
-    id: "benefit",
-    build: (p) => `מצאנו את "${p.title}" — קצר, ברור, ובלי סיפורים. כל הפרטים בלינק.`,
+    build: (p) => `מחפשים פתרון פשוט ב${catHe(p)}?\n"${p.title}" עשוי לסגור את זה בלי בלגן ובלי חיפושים בעשרה אתרים.`,
   },
   {
     id: "emotion",
-    build: (p) => `יש מוצרים שפשוט כיף להמליץ עליהם. "${p.title}" הוא אחד מהם ✨`,
+    build: (p) => `יש קניות שהן סתם קניות — ויש כאלה שהן פינוק.\n"${p.title}" נראה בדיוק כמו הסוג השני ✨`,
   },
   {
-    id: "social",
-    build: (p) => `"${p.title}" — אחד הפריטים שאנשים שואלים עליהם שוב ושוב. הנה הלינק הישר למוצר.`,
+    id: "pov",
+    build: (p) => `POV: מצאת בדיוק את מה שחיפשת ב${catHe(p)} 👇\n"${p.title}"`,
+  },
+  {
+    id: "story",
+    build: (p) => `היא גללה. עצרה. ושלחה לכל החברות.\n"${p.title}" — ככה נראה הרגע שמוצאים את הדבר הנכון.`,
+  },
+  {
+    id: "contrast",
+    build: (p) => { const pr = priceOf(p); return `פשוט. שווה.${pr ? ` וזה עולה ${pr} — תשפטו בעצמכם.` : ""}\n"${p.title}" — ככה נראה קנייה חכמה.`; },
+  },
+  {
+    id: "direct",
+    build: (p) => { const pr = priceOf(p); return `"${p.title}"${pr ? ` · ${pr}` : ""}\nקליק אחד → המוצר, המחיר, הקנייה. בלי סיפורים.`; },
   },
 ];
 

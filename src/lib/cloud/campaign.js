@@ -45,9 +45,15 @@ const AUDIENCE_BY_CATEGORY = {
 const ANGLE_LABELS = {
   luna: "לונה — הפנים של LikeLink",
   curiosity: "סקרנות",
+  value: "מחיר אמיתי",
   problem: "בעיה → פתרון",
-  benefit: "תועלת ישירה",
   emotion: "רגש",
+  pov: "POV",
+  story: "מיני-סיפור",
+  contrast: "שיפוט חופשי",
+  direct: "ישירות",
+  // legacy ids (older click data may still reference them)
+  benefit: "תועלת ישירה",
   social: "ראייה חברתית",
 };
 
@@ -63,7 +69,7 @@ export function pickAngle({ campaignId, angleStats }) {
   const total = Object.values(angleStats || {}).reduce((s, n) => s + n, 0);
   const h = hash(campaignId);
   if (total < MIN_SAMPLE || !angleStats || Object.keys(angleStats).length < 2) {
-    const rotation = ["curiosity", "problem", "benefit", "emotion", "social", "luna"];
+    const rotation = ["curiosity", "value", "problem", "emotion", "pov", "story", "contrast", "direct", "luna"];
     return { angle: rotation[h % rotation.length], learned: false, reason: "safe_default_rotation" };
   }
   const ranked = Object.entries(angleStats).sort((a, b) => b[1] - a[1]);
