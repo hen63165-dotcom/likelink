@@ -17,7 +17,7 @@
  * Reuses the existing Luna voice (src/lib/ambassador.js) as variation #1.
  */
 
-import { lunaHook, AMBASSADOR } from "../ambassador.js";
+import { lunaHookForProduct, AMBASSADOR } from "../ambassador.js";
 
 // ── Category → Hebrew (single source: mirrors catalog.CATEGORIES.he) ──
 const CATEGORY_HE = {
@@ -89,7 +89,7 @@ export function generateHookVariations(product, { count = 3, storeUrl = null } =
     {
       id: "luna",
       angle: "luna",
-      text: `${lunaHook(product.id)}\n${product.title}${Number(product.price) > 0 ? ` · ₪${product.price}` : ""}\n${buildTrackedLink(product, { storeUrl, channel: "luna" })}`,
+      text: `${lunaHookForProduct(product)}\n${product.title}${Number(product.price) > 0 ? ` · ₪${product.price}` : ""}\n${buildTrackedLink(product, { storeUrl, channel: "luna" })}`,
       link: buildTrackedLink(product, { storeUrl, channel: "luna" }),
       voice: AMBASSADOR.nameEn,
     },
