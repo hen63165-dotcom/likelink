@@ -15,3 +15,4 @@ cli-override-temp.json
 scripts/ship-production.ps1
 *.bak-before-*
 *.bak-*
+`n.codeartsdoer/`n.vscode/\netlify/
