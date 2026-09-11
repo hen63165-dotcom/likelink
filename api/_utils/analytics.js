@@ -549,6 +549,6 @@ export async function sendOwnerDailyReport({ force = false } = {}) {
   if (res.ok) {
     try { await kvSet(LAST_SENT_KEY, today); } catch { /* best-effort */ }
   }
-  return { ok: Boolean(res.ok), reason: res.reason || null };
+  return { ok: Boolean(res.ok), reason: res.reason || null, detail: res.detail || null };
 }
 
