@@ -528,7 +528,7 @@ function renderOwnerReportHtml(r) {
  * Idempotent per day via a kv marker (a cron retry can never double-send).
  */
 export async function sendOwnerDailyReport({ force = false } = {}) {
-  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim();
+  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase(); // Resend compares the recipient case-sensitively against the account owner email — HEN63165@ vs hen63165@ rejected with 403
   if (!ownerEmail || !ownerEmail.includes("@")) {
     return { ok: false, skipped: "owner_email_not_configured" };
   }
