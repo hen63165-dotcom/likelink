@@ -544,6 +544,7 @@ export async function sendOwnerDailyReport() {
     to: ownerEmail,
     subject: `LikeLink — דוח יומי (${today})`,
     html: renderOwnerReportHtml(report),
+    from: process.env.OWNER_REPORT_FROM || process.env.RECEIPT_FROM || undefined,
   });
   if (res.ok) {
     try { await kvSet(LAST_SENT_KEY, today); } catch { /* best-effort */ }
