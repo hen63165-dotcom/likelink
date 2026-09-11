@@ -62,10 +62,68 @@ export async function getPayPalToken() {
 // Safety: this ONLY creates billing-plan objects — it NEVER moves money, never
 // creates subscriptions, never charges anyone. Creation is safe and reversible.
 const PLANS_KV_KEY = "marketplace:paypal_plans";
+const PRODUCT_KV_KEY = "marketplace:paypal_product";
+const PRODUCT_NAME = "LikeLink Cloud";
 const ILS_TO_USD = 0.27; // PayPal Billing requires USD; settle later in the buyer's ILS flow.
 
 // A tiny in-memory cache — reset on cold start, but KV is the durable truth.
 let plansCache = null;
+let productCache = null;
+
+/**
+ * Ensure the PayPal catalog Product exists (required parent of every Billing
+ * Plan). Idempotent: adopts an existing product with the same name, creates it
+ * once otherwise, caches in-memory + KV. Creating a product NEVER moves money.
+ */
+export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
+  if (productCache) return productCache;
+  if (!paypalConfigured()) return null;
+  try {
+    if (kvGet) {
+      const cached = await kvGet(PRODUCT_KV_KEY, null);
+      if (cached && typeof cached === "string" && cached.length > 0 && cached.length < 64) {
+        productCache = cached;
+        return cached;
+      }
+    }
+  } catch { /* ignore — fall through to API */ }
+  const token = await getPayPalToken();
+  if (!token) return null;
+  // Adopt an existing product first (idempotent — never duplicate).
+  try {
+    const listRes = await fetch(`${paypalBase()}/v1/catalog/products?page_size=20&total_required=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    const listData = await listRes.json().catch(() => ({}));
+    const found = (listData.products || []).find((p) => p.name === PRODUCT_NAME);
+    if (found?.id) {
+      productCache = found.id;
+      if (kvSet) { try { await kvSet(PRODUCT_KV_KEY, found.id); } catch { /* best-effort */ } }
+      return found.id;
+    }
+  } catch { /* fall through to create */ }
+  // First run only: create the platform product once.
+  try {
+    const res = await fetch(`${paypalBase()}/v1/catalog/products`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: PRODUCT_NAME,
+        description: "LikeLink creator subscriptions",
+        type: "SERVICE",
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.id) {
+      productCache = data.id;
+      if (kvSet) { try { await kvSet(PRODUCT_KV_KEY, data.id); } catch { /* best-effort */ } }
+      return data.id;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 export function planPriceUsd(priceIls) {
   const usd = Math.max(1, Math.round((Number(priceIls) || 0) * ILS_TO_USD * 100) / 100);
@@ -82,10 +140,12 @@ export function planName(planId, billingPeriod) {
  * Safe + idempotent-per-name: if a plan with this name already exists in the
  * PayPal account we return it rather than duplicate.
  */
-async function upsertPayPalPlan({ id: planId, billingPeriod, priceIls }) {
+async function upsertPayPalPlan({ id: planId, billingPeriod, priceIls, productId }) {
   const token = await getPayPalToken();
   if (!token) return { error: "paypal_auth_failed" };
+  if (!productId) return { error: "paypal_product_failed" }; // PayPal requires product_id on every plan
   const body = {
+    product_id: productId,
     name: planName(planId, billingPeriod),
     description: `LikeLink ${planId} ${billingPeriod} plan`,
     billing_cycles: [
@@ -145,6 +205,10 @@ export async function ensureBillingPlans({ kvGet, kvSet } = {}) {
     }
   } catch { /* ignore — fall through to create */ }
 
+  // PayPal Billing requires every plan to point at a catalog Product.
+  const productId = await ensurePayPalProduct({ kvGet, kvSet });
+  if (!productId) return {};
+
   const { getAllPlans } = await import("../../src/lib/plans.js");
   const defs = getAllPlans().filter((p) => p.id !== "free");
   const out = {};
@@ -154,7 +218,7 @@ export async function ensureBillingPlans({ kvGet, kvSet } = {}) {
       const key = `${p.id}:${period}`;
       out[key] = null;
       const priceIls = period === "yearly" ? p.priceYearly : p.price;
-      const created = await upsertPayPalPlan({ id: p.id, billingPeriod: period, priceIls });
+      const created = await upsertPayPalPlan({ id: p.id, billingPeriod: period, priceIls, productId });
       if (created.id) out[key] = created.id;
       else missing.push(key);
     }
