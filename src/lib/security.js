@@ -7,7 +7,7 @@ export const SECURITY_POLICY = {
   strictMode: true,
   csrfProtection: true,
   sanitizedRoutes: ["/", "/u", "/sell", "/admin"],
-  allowedOrigins: ["localhost", "likelink.com", "www.likelink.com", "likelink2.vercel.app"],
+  allowedOrigins: ["localhost", "likelink.com", "www.likelink.com", "likelink.app", "www.likelink.app", "likelink2.vercel.app"],
   maxPayloadSize: 2_000_000,
 };
 
