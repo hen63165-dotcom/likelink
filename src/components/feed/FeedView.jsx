@@ -22,6 +22,7 @@ import StudioFeed from "./StudioFeed";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
 import { lunaPersona } from "../../lib/lunaAvatar";
+import { getCurrentTrendContext } from "../../lib/cloud/trendScanner";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -38,6 +39,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   const [discovery, setDiscovery] = useState(null);
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [trend, setTrend] = useState(null);
+  const [trendContext, setTrendContext] = useState(null);
   const [sort, setSort] = useState("newest");
   const [favOnly, setFavOnly] = useState(false);
   const [followOnly, setFollowOnly] = useState(false);
@@ -138,6 +140,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       .then((r) => r.json())
       .then((data) => { if (!cancelled && data?.ok) setTrend(data); })
       .catch(() => {});
+
+    // Get current trend context (time-of-day, season, urgency)
+    setTrendContext(getCurrentTrendContext());
 
     return () => { cancelled = true; ctrl.abort(); };
   }, [query]);

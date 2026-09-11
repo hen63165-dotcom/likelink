@@ -4,6 +4,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { fetchCloudHome, buildStudioBoost } from "../../lib/cloud/home";
 import { shareProduct } from "../../lib/native";
+import { getCurrentTrendContext } from "../../lib/cloud/trendScanner";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { lunaPersona } from "../../lib/lunaAvatar";
