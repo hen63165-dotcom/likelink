@@ -4,25 +4,37 @@
  * קול בעברית, ופעולות בקליק (לפתוח / ליצור / לשתף) — עבור האתר עצמו
  * ועבור כל סטודיו עם דמות משלו.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Sparkles, Send } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { lunaHook } from "../../lib/ambassador";
+import { lunaHook, composeLunaFaceForAssistant } from "../../lib/ambassador";
 import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar";
 import { sanitizeInput } from "../../lib/security";
 import { LunaAvatar } from "./LunaAvatar";
+import { fetchCloudHome } from "../../lib/cloud/home";
 
 export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }) {
-  const { t, lang } = useI18n();
-  const { products, marketers } = useMarketplace();
+    const { t, lang } = useI18n();
+  const L = (he, en) => (lang === "he" ? he : en);
+    const { products, marketers } = useMarketplace();
   const [open, setOpen] = useState(false);
+  const [cloudPick, setCloudPick] = useState(null);
 
-  const flagship = (products || [])
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const home = await fetchCloudHome({ query: "" });
+      if (alive && home.ok && home.hasPick) setCloudPick(home.pick);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+    const flagship = (products || [])
     .filter((p) => p?.status === "approved" && (p.clickCount > 3 || p.clicks > 3))
     .sort((a, b) => (b.clicks || b.clickCount || 0) - (a.clicks || a.clickCount || 0))[0] || (products || [])[0];
 
-  const spotlight = flagship;
+  const spotlight = cloudPick || flagship;
   const persona = lunaPersona(marketer); // דמות הסטודיו או לונה של האתר
 
   const asSite = !marketer;
@@ -72,7 +84,7 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
               </button>
             </div>
 
-            {/* גוף */}
+                        {/* גוף */}
             <div className="p-3.5 flex flex-col gap-2.5" style={{ direction: "rtl" }}>
               {spotlight && (
                 <button
@@ -80,12 +92,30 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
                   className="tap text-start rounded-xl p-2.5 flex items-center gap-2.5"
                   style={{ background: "var(--bg-subtle)" }}
                 >
-                  {spotlight.image && <img src={spotlight.image} alt="" className="w-11 h-11 rounded-lg object-cover" />}
+                  {spotlight.image ? (
+                    <img src={spotlight.image} alt="" className="w-11 h-11 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-11 h-11 rounded-lg flex items-center justify-center text-sm" style={{ background: `linear-gradient(135deg, ${persona.gradient})`, color: "#fff" }}>
+                      {persona.emoji}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-[12.5px] font-bold truncate" style={{ color: "var(--text)" }}>{sanitizeInput(spotlight.title)}</p>
                     <p className="text-[11px]" style={{ color: "var(--accent)" }}>{sanitizeInput(hook)}</p>
                   </div>
                 </button>
+              )}
+
+              {/* Luna Face — the main studio's voice today (only when from the cloud pick) */}
+              {cloudPick && (
+                <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--accent) 20%, transparent)" }}>
+                  <p className="text-[11px] font-bold mb-1" style={{ color: "var(--accent)" }}>
+                    {L("לונה אומרת", "Luna says")}
+                  </p>
+                  <p className="text-[12.5px] font-semibold" style={{ color: "var(--text)" }}>
+                    {L("הבחירה שלי היום — " + (spotlight?.title || ""), "Today's pick — " + (spotlight?.title || ""))}
+                  </p>
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">

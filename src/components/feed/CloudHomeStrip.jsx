@@ -5,6 +5,8 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { fetchCloudHome, buildStudioBoost } from "../../lib/cloud/home";
 import { shareProduct } from "../../lib/native";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
+import { LunaAvatar } from "../ambassador/LunaAvatar";
+import { lunaPersona } from "../../lib/lunaAvatar";
 
 /**
  * Cloud Home Concierge ☁️🎯
@@ -19,9 +21,10 @@ import { composeLunaFace } from "../../lib/cloud/lunaFace";
 export default function CloudHomeStrip({ navigate }) {
   const { lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
-  const { currentMarketer, products } = useMarketplace();
+    const { currentMarketer, products } = useMarketplace();
   const [pick, setPick] = useState(null);
   const [boost, setBoost] = useState(null);
+  const [trend, setTrend] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -29,6 +32,12 @@ export default function CloudHomeStrip({ navigate }) {
     (async () => {
       const home = await fetchCloudHome({ query: "" });
       if (alive && home.ok && home.hasPick) setPick(home.pick);
+      // Also pick up live trend signals so Luna's voice reflects what's hot NOW
+      try {
+        const res = await fetch("/api/store?mode=trends", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+        const data = await res.json().catch(() => null);
+        if (alive && data?.ok) setTrend(data);
+      } catch { /* offline-safe */ }
     })();
     return () => { alive = false; };
   }, []);
@@ -52,16 +61,18 @@ export default function CloudHomeStrip({ navigate }) {
   }
 
   if (!pick && !boost) return null;
-  const face = pick ? composeLunaFace(pick) : null;
+    const face = pick ? composeLunaFace(pick, trend) : null;
 
   return (
     <section className="mb-5 flex flex-col gap-3">
-      {/* LUNA FACE — the living voice of the main studio (additive, real data) */}
+            {/* LUNA FACE — the living voice of the main studio */}
       {face && face.ok && (
         <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(108,76,241,.14), rgba(255,255,255,.06))", border: "1px solid rgba(108,76,241,.35)" }}>
           <div className="relative z-10">
-            <div className="flex items-center gap-1.5 mb-2">
-              <BadgeCheck size={14} style={{ color: "var(--accent)" }} />
+                        <div className="flex items-center gap-1.5 mb-2">
+              <div className="w-5 h-5">
+                <LunaAvatar persona={lunaPersona()} size={20} glow={false} />
+              </div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
                 {L("לונה · הסטודיו הראשי חי", "Luna · the main studio is alive")}
               </p>
@@ -98,13 +109,17 @@ export default function CloudHomeStrip({ navigate }) {
               </p>
             </div>
             <div className="flex gap-3 items-center">
-              {pick.image && (
+                            {pick.image ? (
                 <img
                   src={pick.image}
                   alt={pick.title}
                   className="w-16 h-16 rounded-xl object-cover bg-[var(--bg-subtle)] shrink-0"
                   onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
+              ) : (
+                <div className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center text-xl" style={{ background: `linear-gradient(135deg, ${lunaPersona().gradient})`, color: "#fff" }}>
+                  {lunaPersona().emoji}
+                </div>
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate">{pick.title}</p>

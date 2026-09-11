@@ -56,9 +56,11 @@ function cap(s, n) {
 /**
  * Compose Luna's "face" for the home experience.
  * @param {object} pick — the live discover result (or null)
- * @returns {object} — { ok, headline, reasoning, badge, note, followUp }
+ * @param {object|null} [trend] — optional live trend data { hottest, activeProducts }
+ *   so Luna can say "this is exactly what's heating up right now".
+ * @returns {object} — { ok, headline, reasoning, badge, note, followUp, product, trending }
  */
-export function composeLunaFace(pick) {
+export function composeLunaFace(pick, trend) {
   if (!pick || !pick.productId) {
     return {
       ok: false,
@@ -67,6 +69,7 @@ export function composeLunaFace(pick) {
       badge: "הסטודיו הראשי",
       note: "ממתין לנתונים אמיתיים בשביל המלצה",
       followUp: null,
+      trending: null,
     };
   }
   const product = {
@@ -79,16 +82,56 @@ export function composeLunaFace(pick) {
   const reasons = Array.isArray(pick.reasons) && pick.reasons.length
     ? pick.reasons.slice(0, 2).map((r) => (typeof r === "string" ? r : reasonLabel(r?.key)))
     : [];
-  const reasoning = reasons.length ? cap(reasons.join(" · "), 90) : reasonLabel("default");
-  const badge = catHe(pick.category) || "בחירת הענן";
+  const baseReasoning = reasons.length ? cap(reasons.join(" · "), 90) : reasonLabel("default");
+
+  // Trend-aware: if the pick is ALSO the hottest trend right now, Luna calls it out.
+  let trending = null;
+  let trendingBadge = null;
+  if (trend && Array.isArray(trend.hottest)) {
+    const match = trend.hottest.find((t) => t?.product?.id === product.id);
+    if (match && match.score > 50) {
+      trending = match;
+      trendingBadge = `🔥 ${momentEmoji(match.momentum)}`;
+    }
+  }
+
+  const badge = trendingBadge || (catHe(pick.category) || "בחירת הענן");
   const followUp = product.title ? cap(`הבחירה שלי היום — ${product.title}`, 70) : null;
+
+  const note = trending
+    ? `🔥 ${momentWord(trending.momentum, "he")} בענף ${catHe(product.category)} · מהענן · נתונים אמיתיים בלבד`
+    : "מהענן · מבוסס על נתונים אמיתיים בלבד";
+
   return {
     ok: true,
     headline,
-    reasoning,
+    reasoning: baseReasoning,
     badge,
-    note: "מהענן · מבוסס על נתונים אמיתיים בלבד",
+    note,
     followUp,
     product,
+    trending,
   };
+}
+
+/** Short momentum emoji for labels. */
+function momentEmoji(m) {
+  if (!m) return "🔥";
+  return {
+    "🔥 viral": "🔥",
+    "📈 hot": "📈",
+    "↗️ rising": "↗️",
+    "→ steady": "→",
+    "❄️ cold": "❄️",
+  }[m] || "🔥";
+}
+function momentWord(m, lang = "he") {
+  const map = {
+    "🔥 viral": lang === "he" ? "ויוראלי" : "Viral",
+    "📈 hot": lang === "he" ? "חם" : "Hot",
+    "↗️ rising": lang === "he" ? "עולה" : "Rising",
+    "→ steady": lang === "he" ? "יציב" : "Steady",
+    "❄️ cold": lang === "he" ? "קרחום" : "Cold",
+  };
+  return map[m] || (lang === "he" ? "חם" : "Hot");
 }

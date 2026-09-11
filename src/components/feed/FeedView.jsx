@@ -17,6 +17,10 @@ import { ReelsPlayer } from "../video/ReelsPlayer";
 import ViralProofTicker from "./ViralProofTicker";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import CloudHomeStrip from "./CloudHomeStrip";
+import TrendingBar from "./TrendingBar";
+import { LunaAvatar } from "../ambassador/LunaAvatar";
+import { composeLunaFace } from "../../lib/cloud/lunaFace";
+import { lunaPersona } from "../../lib/lunaAvatar";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -262,6 +266,49 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
           <span>DISCOVER</span>
         </div>
       </motion.div>
+
+            {/* CloudFace — Luna speaks the live pick (real data, additive, before the strip) */}
+      {discovery && discovery.hasResult && discovery.top && (() => {
+        const face = composeLunaFace(discovery.top);
+        if (!face || !face.ok) return null;
+        const persona = lunaPersona();
+        return (
+          <section className="mb-5">
+            <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(108,76,241,.16), rgba(255,255,255,.08))", border: "1px solid rgba(108,76,241,.32)" }}>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full shrink-0">
+                  <LunaAvatar persona={persona} size={36} glow={false} />
+                </div>
+                <div className="min-w-0 flex-1" dir="rtl">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                    {lang === "he" ? "לונה · הסטודיו הראשי חי" : "Luna · the main studio is alive"}
+                  </p>
+                  <p className="text-[14px] font-extrabold leading-snug mt-1" style={{ color: "var(--text)" }}>
+                    {face.headline}
+                  </p>
+                  {face.followUp && (
+                    <p className="text-[12.5px] font-semibold mt-1" style={{ color: "var(--text)" }}>
+                      {face.followUp}
+                    </p>
+                  )}
+                  <p className="text-[10.5px] text-muted mt-1">
+                    {face.reasoning}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}>
+                      {face.badge}
+                    </span>
+                    <span className="text-[9px] text-muted">· {face.note}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+            {/* TrendingBar — what's hot live right now */}
+      <TrendingBar />
 
       {/* Cloud Home Concierge — today's pick + Boost my studio (additive) */}
       <CloudHomeStrip navigate={navigate} />

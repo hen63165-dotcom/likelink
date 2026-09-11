@@ -86,3 +86,22 @@ export function lunaStoryText(product = {}, hook) {
   const line = hook || lunaHook(product.id);
   return `${line}\n\n${name}${price ? ` · ${price}` : ""}\nמחכה לך בסטודיו של Likelink 💜`;
 }
+
+/**
+ * Luna Face for the floating LunaAssistant — composes the "headline + reasoning"
+ * straight from the live Cloud Home pick. Used so Luna's floating bubble speaks
+ * the *real* daily pick (not just a local product guess) whenever CloudHomeStrip
+ * couldn't load it (e.g. cold cache / no currentMarketer).
+ */
+export function composeLunaFaceForAssistant(pick) {
+  if (!pick || !pick.productId) return null;
+  const headline = lunaHookForProduct(pick) || lunaHook(pick.productId);
+  return {
+    hook: headline,
+    productId: pick.productId,
+    title: pick.title || null,
+    image: pick.image || null,
+    price: Number(pick.price) || 0,
+    badge: pick.badges?.[0] || pick.category || null,
+  };
+}
