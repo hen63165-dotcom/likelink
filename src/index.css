@@ -261,3 +261,32 @@ input[type="range"].accent-primary::-webkit-slider-thumb {
   cursor: grab;
 }
 
+/* ── StoryRings — שורת טבעות הסטורי (חתימת משפיען על) ────────── */
+.ll-story-ring {
+  position: relative;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.ll-story-ring::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    #7C4DBE, #E86A9E, #F0A3C9, #FFB6A3, #B06AC9, #7C4DBE
+  );
+}
+.ll-ring-spin::before {
+  animation: ll-ring-rotate 6s linear infinite;
+}
+@keyframes ll-ring-rotate {
+  to { transform: rotate(360deg); }
+}
+.ll-no-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.ll-no-scroll::-webkit-scrollbar {
+  display: none;
+}

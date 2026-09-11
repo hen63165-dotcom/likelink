@@ -19,6 +19,7 @@ import LunaAssistant from "../ambassador/LunaAssistant";
 import CloudHomeStrip from "./CloudHomeStrip";
 import TrendingBar from "./TrendingBar";
 import StudioFeed from "./StudioFeed";
+import StoryRings from "./StoryRings";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
 import { lunaPersona } from "../../lib/lunaAvatar";
@@ -324,6 +325,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
           </section>
         );
       })()}
+
+            {/* StoryRings — שורת טבעות הסטורי: לונה + היוצרות המובילות + פתיחת סטודיו */}
+      <StoryRings marketers={marketers} products={products} navigate={navigate} lang={lang} />
 
             {/* TrendingBar — what's hot live right now */}
       <TrendingBar />
