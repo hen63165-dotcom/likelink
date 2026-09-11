@@ -20,6 +20,7 @@
 import { sendViaResend } from "../invoice/send.mjs";
 import { learnFromClicks } from "../../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../../src/lib/cloud/growth.js";
+import { visitorStats } from "./passport.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -188,6 +189,8 @@ export async function buildOwnerReport() {
   const startOfMonth = now - 30 * 24 * 3600 * 1000;
 
   // ── Traffic (observed where the system measures it) ──
+  // Cloud Passport ☁️ — מבקרים ייחודיים אמיתיים (אנונימיים, חתומים בענן)
+  const visitors = await visitorStats(kvGet);
   // The buckets are bound first — the literal below must never reference
   // `traffic` inside its own initializer (that was an uncaught TDZ crash that
   // only surfaced once admin gates actually passed through in production).
@@ -201,7 +204,8 @@ export async function buildOwnerReport() {
     month: tMonth,
     all: tAll,
     // Honest data-availability notes — never fake zeros:
-    visitorsMeasured: false, // no visitor tracking exists in the system yet
+    visitorsMeasured: true, // Cloud Passport ☁️ — מבקרים ייחודיים נמדדים עכשיו בענן
+    visitors, // נכנסו היום/השבוע/סה"כ · חיים עכשיו · חדשות/חוזרות · יציאות · צפיות ממוצעות
     productViewsMeasured: true, // product views ARE measured first-party (one per product per browser session)
     productViewsToday: tToday.views,
     productViewsWeek: tWeek.views,
@@ -271,6 +275,7 @@ export async function buildOwnerReport() {
     timezone: TZ,
     catalog: { products: productsArr.length, approved: productsArr.filter((p) => p.status === "approved").length, creators: marketersArr.length },
     traffic,
+    visitors,
     funnel,
     revenue,
     ownerMoney,
@@ -426,6 +431,7 @@ function he(n) {
 
 function renderOwnerReportHtml(r) {
   const t = r.traffic, rev = r.revenue.all, om = r.ownerMoney.lifetime;
+  const v = r.visitors || {};
   const noTraffic = !r.dataIntegrity.hasAnyTraffic;
   const noSales = !r.dataIntegrity.hasAnySales;
   const row = (label, value) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:14px">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:14px;font-weight:bold;text-align:left">${value}</td></tr>`;
@@ -435,6 +441,9 @@ function renderOwnerReportHtml(r) {
   const salesLine = noSales
     ? "<b>עדיין אין מכירות מאומתות.</b>"
     : `מכירות מאומתות: <b>${r.funnel.verifiedSales.today}</b> היום · <b>${r.funnel.verifiedSales.week}</b> השבוע · <b>${r.funnel.verifiedSales.all}</b> סה"כ`;
+  const visitorsLine = v && v.measured
+    ? `☁️ מבקרות ייחודיות: <b>${v.uniqueToday || 0}</b> היום · <b>${v.uniqueWeek || 0}</b> השבוע · <b>${v.uniqueAll || 0}</b> סה"כ — <b>${v.liveNow || 0}</b> באתר עכשיו · חדשות <b>${v.newToday || 0}</b> / חוזרות <b>${v.returningToday || 0}</b> · יציאות <b>${v.exitsToday || 0}</b> · ${v.avgViewsToday || 0} צפיות בממוצע למבקרת`
+    : "מבקרות: טרם נאספו נתוני תעודת ענן לתקופה זו.";
   const sources = t.all.sources.length
     ? t.all.sources.slice(0, 5).map((s) => `<li>${s.source}: ${s.count}</li>`).join("")
     : "<li>לא זוהה מקור תנועה</li>";
@@ -447,6 +456,9 @@ function renderOwnerReportHtml(r) {
   <h3 style="margin:16px 0 6px">האם הייתה תנועה?</h3>
   <p style="font-size:14px;line-height:1.7">${trafficLine}</p>
   <ul style="font-size:13px;color:#555">${sources}</ul>
+
+  <h3 style="margin:16px 0 6px">☁️ מבקרות (תעודת ענן)</h3>
+  <p style="font-size:14px;line-height:1.7">${visitorsLine}</p>
 
   <h3 style="margin:16px 0 6px">האם הייתה מכירה?</h3>
   <p style="font-size:14px;line-height:1.7">${salesLine}</p>

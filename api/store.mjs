@@ -28,6 +28,7 @@ import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
+import { getOrCreatePassport, recordVisit, rateAllow } from "./_utils/passport.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -535,6 +536,26 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "misconfigured: service role key missing" }, 500, req); return; }
 
+  // ── Cloud Passport ☁️ (תעודת ענן) ──
+  // זהות אנונימית חתומה לכל מבקר + מדידת תנועה אמיתית + מגן סף.
+  // מדידה והגנה לעולם לא שוברות בקשה עסקית — כל כשל כאן שקט.
+  let passport = null;
+  try {
+    passport = getOrCreatePassport(req, res);
+    if (passport) {
+      const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
+      await recordVisit(kvGet, kvSet, passport.hash);
+      const rateKey = `${passport.hash}|${ip}`;
+      if (req.method === "POST") {
+        // מגן סף כללי — רך (240/דקה): סורקים אגרסיביים נעצרים, אנשים אמיתיים לא מרגישים
+        if (!rateAllow("store", rateKey, 240)) {
+          json(res, { ok: false, error: "rate_limited" }, 429, req);
+          return;
+        }
+      }
+    }
+  } catch { /* שקט — הענן ממשיך לשרת גם בלי מדידה */ }
+
   // VERITAS public integrity verification — anyone can verify the ledger via GET.
   // Returns the full hash-chain + a validity proof. No secrets, no writes.
   if (req.method === "GET" && new URL(req.url, "https://x").searchParams.get("mode") === "veritas") {
@@ -568,6 +589,11 @@ export default async function handler(req, res) {
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
   // here via vercel.json rewrite → /api/store?mode=sign-sale
     if (new URL(req.url, "https://x").searchParams.get("mode") === "sign-sale") {
+    // מגן סף מחמיר לחתימת מכירות — כסף לא משחקים
+    if (passport && !rateAllow("sign-sale", passport.hash, 30)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
     return signSaleHandler(req, res);
   }
 
@@ -576,6 +602,11 @@ export default async function handler(req, res) {
   // Identity: ALWAYS the verified Bearer session (never a client-provided userId).
   // Webhook: FAIL-CLOSED PayPal signature verification (PAYPAL_WEBHOOK_ID env).
   if (new URL(req.url, "https://x").searchParams.get("mode") === "subs") {
+    // מגן סף למנויים — יצירת/ביטול מנוי הם פעולות כספיות
+    if (passport && !rateAllow("subs", passport.hash, 60)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
     return subsHandler(req, res);
   }
 
