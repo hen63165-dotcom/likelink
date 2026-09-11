@@ -340,6 +340,42 @@ function fpiExtractPrice(html) {
   return null;
 }
 
+// Fetch strategies — stores block generic datacenter UAs, so we ladder through
+// identities big commerce platforms accept (real Chrome → Googlebot → Bingbot).
+const FPI_STRATEGIES = [
+  {
+    name: "chrome",
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "accept-language": "en,he;q=0.8",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none",
+      "upgrade-insecure-requests": "1",
+    },
+  },
+  {
+    name: "googlebot",
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/124.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      "accept-language": "en;q=0.9",
+    },
+  },
+  {
+    name: "bingbot",
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/124.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      "accept-language": "en;q=0.9",
+    },
+  },
+];
+
 async function fetchProductInfoHandler(req, res) {
   // base is REQUIRED: req.url is a relative path, and new URL() without a
   // base throws "Invalid URL" — the original standalone function had this
@@ -355,23 +391,29 @@ async function fetchProductInfoHandler(req, res) {
     return;
   }
 
-  try {
-    const fetchRes = await fetch(t.href, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36 LikelinkBot/1.0",
-        "accept-language": "en,he;q=0.8",
-      },
-    });
-    if (!fetchRes.ok) { fpiJson(res, { ok: false, error: `fetch failed: ${fetchRes.status}` }); return; }
-    const html = await fetchRes.text();
-    const image = fpiGetMeta(html, "og:image") || fpiGetMeta(html, "twitter:image");
-    const title = fpiGetMeta(html, "og:title") || fpiGetMeta(html, "twitter:title") || fpiGetTitleTag(html);
-    const price = fpiExtractPrice(html);
-    fpiJson(res, { ok: true, data: { image, title, price } });
-  } catch {
-    fpiJson(res, { ok: false, error: "fetch or parse error" });
+  // Ladder: try each strategy until one returns parseable content.
+  let lastError = "fetch or parse error";
+  for (const strategy of FPI_STRATEGIES) {
+    try {
+      const fetchRes = await fetch(t.href, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(12000),
+        headers: strategy.headers,
+      });
+      if (!fetchRes.ok) { lastError = `fetch failed: ${fetchRes.status} (${strategy.name})`; continue; }
+      const html = await fetchRes.text();
+      if (!html || html.length < 200) { lastError = `empty body (${strategy.name})`; continue; }
+      const image = fpiGetMeta(html, "og:image") || fpiGetMeta(html, "twitter:image");
+      const title = fpiGetMeta(html, "og:title") || fpiGetMeta(html, "twitter:title") || fpiGetTitleTag(html);
+      const price = fpiExtractPrice(html);
+      if (!image && !title && !price) { lastError = `no metadata (${strategy.name})`; continue; }
+      fpiJson(res, { ok: true, data: { image, title, price } });
+      return;
+    } catch {
+      lastError = `fetch or parse error (${strategy.name})`;
+      // continue to the next strategy
+    }
   }
+  fpiJson(res, { ok: false, error: lastError });
 }
 
