@@ -527,7 +527,7 @@ function renderOwnerReportHtml(r) {
  * Skips entirely unless OWNER_EMAIL is configured server-side.
  * Idempotent per day via a kv marker (a cron retry can never double-send).
  */
-export async function sendOwnerDailyReport() {
+export async function sendOwnerDailyReport({ force = false } = {}) {
   const ownerEmail = String(process.env.OWNER_EMAIL || "").trim();
   if (!ownerEmail || !ownerEmail.includes("@")) {
     return { ok: false, skipped: "owner_email_not_configured" };
@@ -537,7 +537,7 @@ export async function sendOwnerDailyReport() {
   // Once-per-day guard (Israel-time date as the marker).
   const today = todayKey();
   const lastSent = await kvGet(LAST_SENT_KEY, null);
-  if (lastSent === today) return { ok: false, skipped: "already_sent_today" };
+  if (!force && lastSent === today) return { ok: false, skipped: "already_sent_today" };
 
   const report = await buildOwnerReport();
   const res = await sendViaResend({
