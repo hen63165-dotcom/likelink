@@ -18,6 +18,7 @@ import ViralProofTicker from "./ViralProofTicker";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import CloudHomeStrip from "./CloudHomeStrip";
 import TrendingBar from "./TrendingBar";
+import StudioFeed from "./StudioFeed";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
 import { lunaPersona } from "../../lib/lunaAvatar";
@@ -34,8 +35,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
   const [view, setView] = useState("grid");
   const [cat, setCat] = useState("All");
-  const [discovery, setDiscovery] = useState(null); // { hasResult, top, alternatives, intent, decisionId }
+  const [discovery, setDiscovery] = useState(null);
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
+  const [trend, setTrend] = useState(null);
   const [sort, setSort] = useState("newest");
   const [favOnly, setFavOnly] = useState(false);
   const [followOnly, setFollowOnly] = useState(false);
@@ -126,6 +128,17 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       })
       .catch(() => { if (!cancelled) setDiscovery(null); })
       .finally(() => { if (!cancelled) setDiscoveryLoading(false); });
+
+    // Also fetch live trend data for the studio feed
+    fetch("/api/store?mode=trends", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    })
+      .then((r) => r.json())
+      .then((data) => { if (!cancelled && data?.ok) setTrend(data); })
+      .catch(() => {});
+
     return () => { cancelled = true; ctrl.abort(); };
   }, [query]);
 
@@ -309,6 +322,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
             {/* TrendingBar — what's hot live right now */}
       <TrendingBar />
+
+      {/* StudioFeed — the studio's autonomous influencer-style post */}
+      <StudioFeed discovery={discovery} trend={trend} navigate={navigate} />
 
       {/* Cloud Home Concierge — today's pick + Boost my studio (additive) */}
       <CloudHomeStrip navigate={navigate} />
