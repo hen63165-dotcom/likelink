@@ -10,6 +10,7 @@ import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 import { resolveCurrentMarketer, linkMarketer } from "../lib/cloud/identity.js";
+import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard";
 
 const MarketplaceContext = createContext(null);
 
@@ -453,6 +454,7 @@ export function MarketplaceProvider({ children }) {
       toggleFollow,
       recordClick,
       onLogin: async (email, password) => {
+        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return showToast("שגיאת הגדרת מערכת — פנה לתמיכה"); }
         const cleanEmail = String(email || "").trim().toLowerCase();
         if (!isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
         // 🔒 Fail loud: login REQUIRES real auth. Never fall back to
@@ -474,6 +476,7 @@ export function MarketplaceProvider({ children }) {
         await persistSession(marketer.id);
       },
       onSignup: async (name, email, password) => {
+        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return showToast("שגיאת הגדרת מערכת — פנה לתמיכה"); }
         const cleanName = String(name || "").trim().slice(0, 60);
         const cleanEmail = String(email || "").trim().toLowerCase();
         if (!cleanName || !isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
