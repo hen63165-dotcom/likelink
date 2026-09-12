@@ -84,6 +84,35 @@ export function verifyVeritas(ledger) {
 }
 
 /**
+ * Compute a VERITAS integrity hash for a product record.
+ *
+ * The hash binds the product's immutable identity (id, title, price, currency,
+ * category, affiliateUrl, createdAt) to the current VERITAS chain tip, so that
+ * any tampering with the product data is detectable by re-hashing and comparing.
+ *
+ * This is SERVER-SIDE ONLY (relies on Node's crypto). The browser never needs
+ * to compute VERITAS hashes — it reads the stored `veritas_hash` field.
+ *
+ * @param {object} product — the canonical product record
+ * @param {string|null} prevHash — the current chain tip (or VERITAS_GENESIS)
+ * @returns {string} sha256 hex hash
+ */
+export function productVeritasHash(product, prevHash = null) {
+  if (!product || typeof product !== "object") return null;
+  const body = {
+    type: "product_fingerprint",
+    productId: String(product.id || ""),
+    title: String(product.title || ""),
+    price: Number(product.price) || 0,
+    currency: String(product.currency || "ILS"),
+    category: String(product.category || ""),
+    affiliateUrl: String(product.affiliateUrl || ""),
+    createdAt: Number(product.createdAt || 0),
+  };
+  return hashEntry(prevHash, body);
+}
+
+/**
  * Compact summary for dashboards/reports: validity + tail event types.
  * @param {Array} ledger
  * @param {number} tail — how many recent events to include.

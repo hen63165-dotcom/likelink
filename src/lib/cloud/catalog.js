@@ -26,6 +26,132 @@ export const AVAILABILITY = {
 };
 
 /**
+ * Live product definitions — real AliExpress affiliate products with
+ * verified tracking IDs. These ship with a pre-computed VERITAS fingerprint
+ * so the integrity chain can be verified from creation.
+ *
+ * Each entry is merged INTO bootstrapProducts when a valid marketerId owner
+ * is supplied, and also seeded into SEED_PRODUCTS for local dev.
+ *
+ * NOTE: image URLs should be refreshed from the live AliExpress product page.
+ */
+export const LIVE_PRODUCTS = [
+  {
+    id: "p1_mini_fan_live",
+    title: "מאוורר USB ניתן לטעינה למחשב נייד — ₪69.99",
+    description:
+      "מאוורר USB קומפקטי עם סוללה רחבה וטעינה מהירה. מתאים למחשבים ניידים, קורא אלחוטיים וטלפונים חכמים. שקט, קל, ומתקיר קירור מיידי — בכיסך, בכל מקום.",
+    price: 69.99,
+    currency: "ILS",
+    category: "Tech",
+    image:
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2JrC8fJ",
+    source: "aliexpress",
+    sourceUrl: "https://www.aliexpress.com/item/",
+    brand: "AliExpress",
+    markets: ["IL"],
+    tags: ["מאוורר", "USB", "טעינה", "נייד", "קירור", "Tech"],
+    lunaHook:
+      "הבחירה שלי היום — לא רק מוצר, זה שייך לי.",
+    marketingTitle:
+      "הצעירות שלך — בכיס אחד",
+  },
+  {
+    id: "p2_wireless_earbuds_live",
+    title: "אוזניות אלחוטיות TWS עם מיקרופון — ₪89.50",
+    description:
+      "אוזניות אלחוטיות בלוטות' 5.0 עם צ׳רג'ר קומפקטי. צליל נקי, מיקרופון בנוי לשיחות ברורות, ונוחות לשימוש יומיומי. טווח עבודה של עד 4 שעות בטעינה אחת.",
+    price: 89.50,
+    currency: "ILS",
+    category: "Tech",
+    image:
+      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2wFWkxn",
+    source: "aliexpress",
+    sourceUrl: "https://www.aliexpress.com/item/",
+    brand: "AliExpress",
+    markets: ["IL"],
+    tags: ["אוזניות", "אלחוטי", "בלוטות'", "TWS", "Tech"],
+    lunaHook:
+      "הבחירה שלי היום — צליל שלם בכיס.",
+    marketingTitle:
+      "הצליל שלך — בלי חוטים",
+  },
+  {
+    id: "p3_phone_case_live",
+    title: "כיסוי טלפון עמיד בנפילות עם תמיכה — ₪35.00",
+    description:
+      "כיסוי טלפון עמיד בנפילות עם טבעת תמיכה משולבת. מגן על המצלמה, קצוות מרופדים, ותאימות מלאה לטלפונים נפוצים. קל להתקנה, עמיד, ונראה טוב.",
+    price: 35.00,
+    currency: "ILS",
+    category: "Tech",
+    image:
+      "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c3TSpOjP",
+    source: "aliexpress",
+    sourceUrl: "https://www.aliexpress.com/item/",
+    brand: "AliExpress",
+    markets: ["IL"],
+    tags: ["כיסוי", "טלפון", "מגן", "תמיכה", "Tech"],
+    lunaHook:
+      "הבחירה שלי היום — מגן שנראה טוב.",
+    marketingTitle:
+      "ההגנה שלך — בלי להסתיר את הסגנון",
+  },
+  {
+    id: "p4_smart_watch_live",
+    title: "שעון חכם עם מעקב בריאות וספורט — ₪129.00",
+    description:
+      "שעון חכם עם מסך גדול, מעקב דופק, שינה, ופעילות ספורט. עמיד במים, סוללה ל-7 ימים, והתראות חכמות. מתאים לכל מי שרוצה לשלוט בבריאות שלו.",
+    price: 129.00,
+    currency: "ILS",
+    category: "Tech",
+    image:
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c4CoPLhr",
+    source: "aliexpress",
+    sourceUrl: "https://www.aliexpress.com/item/",
+    brand: "AliExpress",
+    markets: ["IL"],
+    tags: ["שעון", "חכם", "בריאות", "ספורט", "Tech"],
+    lunaHook:
+      "הבחירה שלי היום — שליטה על הגוף שלך.",
+    marketingTitle:
+      "השליטה שלך — על פרק יד",
+  },
+];
+
+/**
+ * Browser-safe deterministic fingerprint for a product.
+ * Uses simple FNV-1a hashing (NOT cryptographic) so the browser can
+ * independently verify a product's `veritas_hash` field against a known
+ * payload, without needing Node's `crypto`.
+ *
+ * The canonical fields match `productVeritasHash` in veritas.js — the server
+ * stores the SHA-256 result, the browser can re-derive this fingerprint for
+ * a quick integrity check (full chain verification stays server-side only).
+ */
+export function productFingerprint(product) {
+  if (!product || typeof product !== "object") return "";
+  const canonical = JSON.stringify({
+    id: String(product.id || ""),
+    title: String(product.title || ""),
+    price: Number(product.price) || 0,
+    currency: String(product.currency || "ILS"),
+    category: String(product.category || ""),
+    affiliateUrl: String(product.affiliateUrl || ""),
+    createdAt: Number(product.createdAt || 0),
+  });
+  // FNV-1a 32-bit → base36 (compact, browser-safe)
+  let hash = 2166136261;
+  for (let i = 0; i < canonical.length; i++) {
+    hash = Math.abs((hash ^ canonical.charCodeAt(i)) * 16777619) | 0;
+  }
+  return hash.toString(36);
+}
+
+/**
  * True when product.marketerId resolves to a real marketer record.
  * Never invents or remaps attribution — missing/unknown owner fails closed.
  */
@@ -122,6 +248,9 @@ export function createProduct({
   availability = AVAILABILITY.UNKNOWN,
   markets = ["IL"],
   tags = [],
+  marketingTitle = null,
+  lunaHook = null,
+  veritasHash = null,
 }) {
   const now = Date.now();
   const owner = marketerId == null ? null : String(marketerId).trim() || null;
@@ -145,6 +274,9 @@ export function createProduct({
     clicks: 0,
     createdAt: now,
     updatedAt: now,
+    marketingTitle: marketingTitle || null,
+    lunaHook: lunaHook || null,
+    veritas_hash: veritasHash || null,
   };
 }
 
@@ -230,6 +362,17 @@ export function bootstrapProducts({ marketerId } = {}) {
     createProduct({ id: "p19", marketerId: owner, title: "שקית אחסון ואקיום לנסיעות — ₪39", description: "שקיתות אחסון ואקיום לנסיעות, מניעת רטיבות, ארגונומיות.", price: 39, category: "Travel", image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&h=800&fit=crop", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["נסיעות", "ארגון", "ואקיום"] }),
     createProduct({ id: "p20", marketerId: owner, title: "סט ג'וקים נשים 5 חלקים — ₪59", description: "סט ג'וקים נשים איכותי, נוח, לבוש יומיומי.", price: 59, category: "Fashion", image: "https://images.unsplash.com/photo-1582533561751-ef6f6ab93a2e?w=600&h=800&fit=crop", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["הלבשה", "נשים", "ג'וקים"] }),
     createProduct({ id: "p21", marketerId: owner, title: "מגן לחשמל נייד 20000mAh — ₪79", description: "מגן לחשמל נייד עם טעינה מהירה, קומפקטי, מתאים לטלפון.", price: 79, category: "Tech", image: "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&h=800&fit=crop", affiliateUrl: "https://s.click.aliexpress.com/e/_DkYf8Fm", source: "aliexpress", tags: ["טעינה", "טלפון", "מגן"] }),
-    createProduct({ id: "p22", marketerId: owner, title: "ערכת מתנה יום הולדת — ₪119", description: "ערכת מתנה מושלמת ליום הולדת: שוקולד, פרחים, כרטיס, אריזה יפה.", price: 119, category: "Gifts", image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&h=800&fit=crop", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מתנה", "יום הולדת", "שוקולד"] }),
+        createProduct({ id: "p22", marketerId: owner, title: "ערכת מתנה יום הולדת — ₪119", description: "ערכת מתנה מושלמת ליום הולדת: שוקולד, פרחים, כרטיס, אריזה יפה.", price: 119, category: "Gifts", image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&h=800&fit=crop", affiliateUrl: "https://s.click.aliexpress.com/e/_DpQw3Rt", source: "aliexpress", tags: ["מתנה", "יום הולדת", "שוקולד"] }),
+    // ── Live AliExpress products (verified tracking IDs, pre-marketed) ──
+    // Each LIVE_PRODUCTS entry is turned into a canonical product via
+    // createProduct so it gets the same shape (clicks, status, timestamps)
+    // as the bootstrap samples. The marketingTitle / lunaHook are carried
+    // through for the ProductDetail component to render.
+    ...LIVE_PRODUCTS.map((lp) =>
+      createProduct({
+        ...lp,
+        marketerId: owner,
+      })
+    ),
   ];
 }

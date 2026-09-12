@@ -246,7 +246,80 @@ export const SEED_PRODUCTS = [
     312,
     26,
     "Accessories",
-    214,
+        214,
     7
-  )
+  ),
+  // ── Live AliExpress products (verified tracking IDs, pre-marketed) ──
+  {
+    id: "p1_mini_fan_live",
+    marketerId: "cr-noa",
+    title: "מאוורר USB ניתן לטעינה למחשב נייד — ₪69.99",
+    description:
+      "מאוורר USB קומפקטי עם סוללה רחבה וטעינה מהירה. מתאים למחשבים ניידים, קורא אלחוטיים וטלפונים חכמים. שקט, קל, ומתקיר קירור מיידי — בכיסך, בכל מקום.",
+    image:
+      "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2JrC8fJ",
+    category: "Tech",
+    price: 69.99,
+    commission: 7,
+    status: "approved",
+    clicks: 0,
+    createdAt: now - 1 * DAY,
+    marketingTitle: "הצעירות שלך — בכיס אחד",
+    lunaHook: "הבחירה שלי היום — לא רק מוצר, זה שייך לי.",
+  },
+  {
+    id: "p2_wireless_earbuds_live",
+    marketerId: "cr-noa",
+    title: "אוזניות אלחוטיות TWS עם מיקרופון — ₪89.50",
+    description:
+      "אוזניות אלחוטיות בלוטות' 5.0 עם צ׳רג'ר קומפקטי. צליל נקי, מיקרופון בנוי לשיחות ברורות, ונוחות לשימוש יומיומי.",
+    image:
+      "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2wFWkxn",
+    category: "Tech",
+    price: 89.50,
+    commission: 7,
+    status: "approved",
+    clicks: 0,
+    createdAt: now - 2 * DAY,
+    marketingTitle: "הצליל שלך — בלי חוטים",
+    lunaHook: "הבחירה שלי היום — צליל שלם בכיס.",
+  },
+  {
+    id: "p3_phone_case_live",
+    marketerId: "cr-noa",
+    title: "כיסוי טלפון עמיד בנפילות עם תמיכה — ₪35.00",
+    description:
+      "כיסוי טלפון עמיד בנפילות עם טבעת תמיכה משולבת. מגן על המצלמה, קצוות מרופדים, ותאימות מלאה לטלפונים נפוצים.",
+    image:
+      "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c3TSpOjP",
+    category: "Tech",
+    price: 35.00,
+    commission: 7,
+    status: "approved",
+    clicks: 0,
+    createdAt: now - 3 * DAY,
+    marketingTitle: "ההגנה שלך — בלי להסתיר את הסגנון",
+    lunaHook: "הבחירה שלי היום — מגן שנראה טוב.",
+  },
+  {
+    id: "p4_smart_watch_live",
+    marketerId: "cr-noa",
+    title: "שעון חכם עם מעקב בריאות וספורט — ₪129.00",
+    description:
+      "שעון חכם עם מסך גדול, מעקב דופק, שינה, ופעילת ספורט. עמיד במים, סוללה ל-7 ימים, והתראות חכמות.",
+    image:
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c4CoPLhr",
+    category: "Tech",
+    price: 129.00,
+    commission: 7,
+    status: "approved",
+    clicks: 0,
+    createdAt: now - 4 * DAY,
+    marketingTitle: "השליטה שלך — על פרק יד",
+    lunaHook: "הבחירה שלי היום — שליטה על הגוף שלך.",
+  },
 ];

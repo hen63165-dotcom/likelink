@@ -871,6 +871,164 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ─── Server-side click recording (mode=record-click) ───────────────────────
+  // Records a click server-side — tamper-resistant. Works alongside the
+  // client-side recordClick (which gives instant UI feedback) but the server
+  // copy is the authoritative counter. Each click appends to the VERITAS chain
+  // so the integrity ledger proves no clicks were silently added or removed.
+  // No auth required (clicks are public traffic signals), but rate-limited.
+  if (req.method === "POST" && new URL(req.url, "https://x").searchParams.get("mode") === "record-click") {
+    if (passport && !rateAllow("record-click", passport.hash, 300)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
+    try {
+      const bodyRc = await readBody(req).catch(() => ({}));
+      const productId = String(bodyRc?.productId || "").slice(0, 80);
+      if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+
+      const now = Date.now();
+      const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
+      const ua = String(getHeader(req, "user-agent") || "").slice(0, 200);
+      const ref = String(bodyRc?.ref || "").slice(0, 80);
+
+      // 1. Record the click event
+      const existingClicks = (await kvGet("marketplace:clicks")) || [];
+      const clickList = Array.isArray(existingClicks) ? existingClicks : [];
+      const clickId = `${productId}-${now}-${Math.random().toString(36).slice(2, 8)}`;
+      const newClick = {
+        id: clickId,
+        productId,
+        marketerId: String(bodyRc?.marketerId || "").slice(0, 80) || null,
+        ts: now,
+        ip: ip.slice(0, 45),
+        ua,
+        ref: ref || null,
+      };
+      await kvSet("marketplace:clicks", [...clickList.slice(-4999), newClick]);
+
+      // 2. Increment product click count (read-modify-write, best-effort)
+      const prods = (await kvGet("marketplace:products")) || [];
+      if (Array.isArray(prods)) {
+        const updated = prods.map((p) =>
+          p && p.id === productId ? { ...p, clicks: (p.clicks || 0) + 1, updatedAt: now } : p
+        );
+        await kvSet("marketplace:products", updated);
+      }
+
+      // 3. Append VERITAS entry for the click (fail-safe: never blocks the click)
+      try {
+        const { appendVeritas } = await import("../src/lib/cloud/veritas.js");
+        const veritasRow = await kvGet("marketplace:veritas", []);
+        const ledger = Array.isArray(veritasRow) ? veritasRow : [];
+        const next = appendVeritas(ledger, {
+          type: "click",
+          productId,
+          ...(ref ? { ref } : {}),
+          ...(ua ? { ua } : {}),
+        });
+        await kvSet("marketplace:veritas", next);
+      } catch { /* pulse is best-effort */ }
+
+      json(res, { ok: true, mode: "record-click", clickId, productId, clicks: clickList.length + 1 }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
+  // ─── Admin-only product creation with VERITAS (mode=create-product) ────────
+  // Creates a new product record, computes its VERITAS fingerprint, and
+  // appends a VERITAS pulse. Admin-only — prevents anonymous product creation.
+  if (req.method === "POST" && new URL(req.url, "https://x").searchParams.get("mode") === "create-product") {
+    const auth = getHeader(req, "authorization");
+    const token = String(auth).replace(/^Bearer\s+/i, "");
+    if (!(await isAdminToken(token))) {
+      audit.logApiForbidden({ type: "non-admin" }, { type: "create-product" }, { _req: req });
+      json(res, { ok: false, mode: "create-product", error: "admin_required" }, 403, req);
+      return;
+    }
+    try {
+      const bodyCp = await readBody(req).catch(() => ({}));
+      const { createProduct, productFingerprint } = await import("../src/lib/cloud/catalog.js");
+      const { appendVeritas, productVeritasHash } = await import("../src/lib/cloud/veritas.js");
+
+      const now = Date.now();
+      const product = createProduct({
+        id: bodyCp?.id || `prod_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        marketerId: String(bodyCp?.marketerId || "").trim(),
+        title: bodyCp?.title,
+        description: bodyCp?.description,
+        price: bodyCp?.price,
+        currency: bodyCp?.currency || "ILS",
+        category: bodyCp?.category,
+        image: bodyCp?.image,
+        affiliateUrl: bodyCp?.affiliateUrl,
+        sourceUrl: bodyCp?.sourceUrl,
+        source: bodyCp?.source,
+        brand: bodyCp?.brand,
+        tags: Array.isArray(bodyCp?.tags) ? bodyCp.tags : [],
+        marketingTitle: bodyCp?.marketingTitle,
+        lunaHook: bodyCp?.lunaHook,
+      });
+
+      // Fail-closed: require valid attribution
+      const marketers = (await kvGet("marketplace:marketers")) || [];
+      const mkList = Array.isArray(marketers) ? marketers : [];
+      if (!product.marketerId || !mkList.some((m) => m && m.id === product.marketerId)) {
+        json(res, { ok: false, mode: "create-product", error: "attribution_required" }, 403, req);
+        return;
+      }
+
+      // Compute VERITAS hash for this product, chained to the current ledger tip
+      const veritasRowCp = await kvGet("marketplace:veritas", []);
+      const ledgerCp = Array.isArray(veritasRowCp) ? veritasRowCp : [];
+      const prevHash = ledgerCp.length ? ledgerCp[ledgerCp.length - 1].hash : null;
+      const vHash = productVeritasHash(product, prevHash);
+      product.veritas_hash = vHash;
+
+      // Append product creation to the VERITAS chain
+      const nextLedger = appendVeritas(ledgerCp, {
+        type: "product_created",
+        productId: product.id,
+        marketerId: product.marketerId,
+        price: Number(product.price) || 0,
+        category: product.category,
+        veritasHash: vHash,
+      });
+      await kvSet("marketplace:veritas", nextLedger);
+
+      // Insert the product
+      const prods = (await kvGet("marketplace:products")) || [];
+      const newList = Array.isArray(prods) ? [...prods, product] : [product];
+      await kvSet("marketplace:products", newList);
+
+      audit.logApiSuccess(
+        { type: "product_created", productId: product.id, veritasHash: vHash?.slice(0, 12) },
+        { type: "create-product" },
+        { _req: req }
+      );
+
+      json(res, {
+        ok: true,
+        mode: "create-product",
+        product: {
+          id: product.id,
+          title: product.title,
+          price: product.price,
+          marketerId: product.marketerId,
+          status: product.status,
+        },
+        veritasHash: vHash,
+        fingerprint: productFingerprint(product),
+        chainSeq: nextLedger[nextLedger.length - 1]?.seq || 0,
+      }, 201, req);
+    } catch (e) {
+      json(res, { ok: false, mode: "create-product", error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
   let body;
   try {
     body = await readBody(req);
