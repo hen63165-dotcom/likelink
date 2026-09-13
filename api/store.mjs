@@ -148,7 +148,7 @@ async function kvSet(key, value) {
       "content-type": "application/json",
       Prefer: "resolution=merge-duplicates",
     },
-    body: JSON.stringify({ key, value: JSON.stringify(value) }),
+    body: JSON.stringify({ key, value: value }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`kv_upsert_failed_${res.status}`);
@@ -220,7 +220,13 @@ async function kvGet(key) {
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
     const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : null;
+    if (!rows?.[0]?.value) return null;
+    let parsed = JSON.parse(rows[0].value);
+    // LEGACY: if the stored value is a double-serialized JSON string, unwrap once
+    while (typeof parsed === "string" && parsed.length > 0) {
+      try { parsed = JSON.parse(parsed); } catch { break; }
+    }
+    return parsed;
   } catch {
     return null;
   }
