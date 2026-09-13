@@ -6,48 +6,48 @@ const DAY = 86400000;
 const HOUR = 3600000;
 
 const DEFAULT_TRACKING_IDS = {
-  "cr-maya": "trk-maya",
-  "cr-noa": "trk-noa",
-  "cr-dana": "trk-dana",
-  "cr-shira": "trk-shira",
+  "msd6go4kff49s5": "trk-maya",
+  "msd6go4kff49s5": "trk-noa",
+  "msd6go4kff49s5": "trk-dana",
+  "msd6go4kff49s5": "trk-shira",
 };
 
 export const SEED_MARKETERS = [
   {
-    id: "cr-maya",
+    id: "msd6go4kff49s5",
     name: "Maya Levin",
     email: "maya@likelink.test",
-    trackingId: DEFAULT_TRACKING_IDS["cr-maya"] || "",
+    trackingId: DEFAULT_TRACKING_IDS["msd6go4kff49s5"] || "",
     slug: "maya-levin",
     color: "#C1356C",
     bio: "Luxury staples and statement accessories for the modern wardrobe.",
     createdAt: now - 6 * DAY,
   },
   {
-    id: "cr-noa",
+    id: "msd6go4kff49s5",
     name: "Noa Sloane",
     email: "noa@likelink.test",
-    trackingId: DEFAULT_TRACKING_IDS["cr-noa"] || "",
+    trackingId: DEFAULT_TRACKING_IDS["msd6go4kff49s5"] || "",
     slug: "noa-sloane",
     color: "#D98A2B",
     bio: "Minimal beauty rituals and elevated essentials with a polished finish.",
     createdAt: now - 5 * DAY,
   },
   {
-    id: "cr-dana",
+    id: "msd6go4kff49s5",
     name: "Dana Hart",
     email: "dana@likelink.test",
-    trackingId: DEFAULT_TRACKING_IDS["cr-dana"] || "",
+    trackingId: DEFAULT_TRACKING_IDS["msd6go4kff49s5"] || "",
     slug: "dana-hart",
     color: "#2F7E77",
     bio: "Refined home details and smart styling pieces that feel quietly luxurious.",
     createdAt: now - 4 * DAY,
   },
   {
-    id: "cr-shira",
+    id: "msd6go4kff49s5",
     name: "Shira Vale",
     email: "shira@likelink.test",
-    trackingId: DEFAULT_TRACKING_IDS["cr-shira"] || "",
+    trackingId: DEFAULT_TRACKING_IDS["msd6go4kff49s5"] || "",
     slug: "shira-vale",
     color: "#6B5BC4",
     bio: "Polished everyday essentials designed for an effortless premium lifestyle.",
@@ -83,7 +83,7 @@ const createProductRow = (id, marketerId, title, description, image, price, comm
 export const SEED_PRODUCTS = [
   createProductRow(
     "p-01",
-    "cr-maya",
+    "msd6go4kff49s5",
     "צמיד טניס מואסניט עם גימור זהב 18K",
     "צמיד טניס יוקרתי עם אבני מואסניט זוהרות וגימור זהב מלוטש שמחמיא לכל לוק יומיומי.",
     "https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=900&q=80",
@@ -95,7 +95,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-02",
-    "cr-maya",
+    "msd6go4kff49s5",
     "משקפי שמש רטרו בגזרה אוברסייז",
     "משקפיים מוצהרים עם צללית רטרו רכה ומשקל קל — מושלמים לצילומים ולערב בעיר.",
     "https://images.unsplash.com/photo-1577803947579-9f7ea5f6b8a5?auto=format&fit=crop&w=900&q=80",
@@ -107,7 +107,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-03",
-    "cr-maya",
+    "msd6go4kff49s5",
     "תיק כתף מיני מעור נאפה",
     "מבנה אלגנטי, מרקם רך ואבזרי מתכת מלוטשים למעברים מיום לערב.",
     "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=900&q=80",
@@ -119,7 +119,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-04",
-    "cr-maya",
+    "msd6go4kff49s5",
     "שמלת סליפ משי באורך מידי",
     "צללית זורמת עם נגיעה חלקה ומחשוף תפור בעדינות — לערבים אלגנטיים ומיוחדים.",
     "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
@@ -131,7 +131,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-05",
-    "cr-noa",
+    "msd6go4kff49s5",
     "סרום ויטמין C לזוהר",
     "מבהיר, מחליק ומזין לעומק — משאיר את העור רענן וזוהר בלי כבדות.",
     "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=900&q=80",
@@ -143,7 +143,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-06",
-    "cr-noa",
+    "msd6go4kff49s5",
     "עגילי חישוק זהב, גימור 18K",
     "פריט יומיומי מלוטש עם תחושת משקל נוחה וברק רך שמשדרג כל לוק פשוט.",
     "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?auto=format&fit=crop&w=900&q=80",
@@ -155,7 +155,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-07",
-    "cr-noa",
+    "msd6go4kff49s5",
     "ערכת קליפסים לשיער עם קריסטלים",
     "נגיעה עדינה של גלאם עם ברק קריסטלי — לתסרוקת מעוצבת ולאירועים.",
     "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80",
@@ -167,7 +167,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-08",
-    "cr-dana",
+    "msd6go4kff49s5",
     "אגרטל קרמיקה בעבודת יד",
     "פריט נייטרלי מעוצב שמוסיף מרקם ושלווה למדף או לשולחן.",
     "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=900&q=80",
@@ -179,7 +179,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-09",
-    "cr-dana",
+    "msd6go4kff49s5",
     "כיסוי לפטופ בעיצוב עור",
     "מינימלי, מסודר ומוגבה לנשיאה יומיומית — מלוטש לעבודה וקריר לנסיעות.",
     "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80",
@@ -191,7 +191,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-10",
-    "cr-dana",
+    "msd6go4kff49s5",
     "ג'קט עור אופנוען קרופד",
     "צללית אדג'ית בעור רך במיוחד, תפור להרגיש עשיר, חלק ובלי טעות.",
     "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
@@ -203,7 +203,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-11",
-    "cr-shira",
+    "msd6go4kff49s5",
     "סוודר פולו סריג בגוון אבן",
     "סריג יוקרתי עם צווארון נקי וחתכה רגועה — קל לעיצוב, נוח ותמיד מלוטש.",
     "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80",
@@ -215,7 +215,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-12",
-    "cr-shira",
+    "msd6go4kff49s5",
     "סט בכור סאטן באספרסו",
     "סט מחמיא עם ברק סאטני וקווים מודרניים שמעניקים ללוק מראה עורכי.",
     "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=80",
@@ -227,7 +227,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-13",
-    "cr-shira",
+    "msd6go4kff49s5",
     "שרשרת פנינים בשכבות",
     "ערימה עדינה של פנינים וטונים זהביים ללוק מינימלי עם אנרגיה רכה.",
     "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=900&q=80",
@@ -239,7 +239,7 @@ export const SEED_PRODUCTS = [
   ),
   createProductRow(
     "p-14",
-    "cr-maya",
+    "msd6go4kff49s5",
     "תיק טוטה מעוצב בגוון קמל",
     "תיק לנשיאה יומיומית עם קווים נקיים ומקום מספק לפריטים חיוניים בלי לאבד צורה.",
     "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80",
@@ -252,7 +252,7 @@ export const SEED_PRODUCTS = [
   // ── Live AliExpress products (verified tracking IDs, pre-marketed) ──
   {
     id: "p1_mini_fan_live",
-    marketerId: "cr-noa",
+    marketerId: "msd6go4kff49s5",
     title: "מאוורר USB ניתן לטעינה למחשב נייד — ₪69.99",
     description:
       "מאוורר USB קומפקטי עם סוללה רחבה וטעינה מהירה. מתאים למחשבים ניידים, קורא אלחוטיים וטלפונים חכמים. שקט, קל, ומתקיר קירור מיידי — בכיסך, בכל מקום.",
@@ -270,7 +270,7 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "p2_wireless_earbuds_live",
-    marketerId: "cr-noa",
+    marketerId: "msd6go4kff49s5",
     title: "אוזניות אלחוטיות TWS עם מיקרופון — ₪89.50",
     description:
       "אוזניות אלחוטיות בלוטות' 5.0 עם צ׳רג'ר קומפקטי. צליל נקי, מיקרופון בנוי לשיחות ברורות, ונוחות לשימוש יומיומי.",
@@ -288,7 +288,7 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "p3_phone_case_live",
-    marketerId: "cr-noa",
+    marketerId: "msd6go4kff49s5",
     title: "כיסוי טלפון עמיד בנפילות עם תמיכה — ₪35.00",
     description:
       "כיסוי טלפון עמיד בנפילות עם טבעת תמיכה משולבת. מגן על המצלמה, קצוות מרופדים, ותאימות מלאה לטלפונים נפוצים.",
@@ -306,7 +306,7 @@ export const SEED_PRODUCTS = [
   },
   {
     id: "p4_smart_watch_live",
-    marketerId: "cr-noa",
+    marketerId: "msd6go4kff49s5",
     title: "שעון חכם עם מעקב בריאות וספורט — ₪129.00",
     description:
       "שעון חכם עם מסך גדול, מעקב דופק, שינה, ופעילת ספורט. עמיד במים, סוללה ל-7 ימים, והתראות חכמות.",

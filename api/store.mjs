@@ -109,9 +109,21 @@ async function autoBootstrapCatalog(req) {
     // Also bootstrap marketers if they don't exist (needed for attribution)
     const existingMarketers = (await kvGet("marketplace:marketers")) || [];
     const realMarketers = Array.isArray(existingMarketers) ? existingMarketers.filter((m) => m && m.id) : [];
-    if (realMarketers.length === 0 && Array.isArray(SEED_MARKETERS) && SEED_MARKETERS.length) {
-      await kvSet("marketplace:marketers", SEED_MARKETERS);
-      return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount, marketersSeeded: SEED_MARKETERS.length };
+    // Seed the single known owner marketer if not present
+    const OWNER_ID = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+    const hasOwner = realMarketers.some((m) => String(m.id) === OWNER_ID);
+    if (!hasOwner) {
+      const ownerMarketer = {
+        id: OWNER_ID,
+        name: "ALYOSTYLE",
+        email: "hen63165@gmail.com",
+        slug: "alyostyle",
+        color: "#C1356C",
+        bio: "LikeLink Official — curated by ALYOSTYLE",
+        createdAt: Date.now(),
+      };
+      await kvSet("marketplace:marketers", [ownerMarketer]);
+      return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount, marketersSeeded: 1 };
     }
     return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount, marketersSeeded: 0 };
   } catch (e) {
