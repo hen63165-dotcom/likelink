@@ -66,6 +66,40 @@ function getHeader(req, name) {
   return h?.[name] || "";
 }
 
+// ── AUTO-BOOTSTRAP: cloud self-initialization ───────────────────────────────
+// If the KV store has no real products (empty, or only placeholder "Product"
+// titles), automatically seed it from the canonical seed data. This runs
+// SERVER-SIDE (has env vars), requires NO admin token, and is idempotent:
+// once real products exist, this is a cheap no-op.
+// Called on every discover/trends/feed request so the catalog heals itself
+// after any accidental wipe — zero manual steps, zero secrets to paste.
+async function autoBootstrapCatalog(req) {
+  try {
+    const existing = (await kvGet("marketplace:products")) || [];
+    if (!Array.isArray(existing)) return { bootstrapped: false, reason: "kv_not_array" };
+    const realCount = existing.filter(
+      (p) => p && p.title && p.title !== "Product" && p.id
+    ).length;
+    if (realCount >= 5) return { bootstrapped: false, reason: "already_populated", count: realCount };
+    const { SEED_PRODUCTS } = await import("../src/data/seed.js");
+    const seedList = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
+    if (!seedList.length) return { bootstrapped: false, reason: "no_seed_data" };
+    const seen = new Map();
+    for (const p of existing) {
+      if (p && p.id && p.title && p.title !== "Product") seen.set(p.id, p);
+    }
+    for (const p of seedList) {
+      if (p && p.id && !seen.has(p.id)) seen.set(p.id, p);
+    }
+    const merged = Array.from(seen.values());
+    if (!merged.length) return { bootstrapped: false, reason: "merge_empty" };
+    await kvSet("marketplace:products", merged);
+    return { bootstrapped: true, count: merged.length, seedCount: seedList.length };
+  } catch (e) {
+    return { bootstrapped: false, reason: String(e.message || e) };
+  }
+}
+
 async function kvSet(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
@@ -701,6 +735,9 @@ export default async function handler(req, res) {
       q = String(dbody?.query || "").slice(0, 120);
     } catch { /* empty query = discover all */ }
     try {
+      // Auto-bootstrap: if KV has no real products, seed from canonical data.
+      // Runs server-side (has env vars), no admin token needed, idempotent.
+      const bootstrapResult = await autoBootstrapCatalog(req);
       const { buildRecommendation } = await import("../src/lib/cloud/discovery.js");
       const { filterPublicCatalog, catalogIntegrityReport } = await import("../src/lib/cloud/catalog.js");
       const [productsRow, marketersRow, salesRow, clicksRow] = await Promise.all([
@@ -722,6 +759,7 @@ export default async function handler(req, res) {
         mode: "discover",
         query: q,
         integrity: catalogIntegrityReport(productsRow, marketers),
+        bootstrap: bootstrapResult,
         ...recommendation,
       }, 200, req);
     } catch (e) {
