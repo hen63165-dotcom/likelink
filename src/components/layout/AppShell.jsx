@@ -26,7 +26,7 @@ export function TopBar({
   ];
 
   return (
-    <header className="w-full sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 safe-top">
+    <header className="w-full sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-gray-100 safe-top">
       {/* Row 1: Brand + Smart Search + Actions */}
       <div className="max-w-app mx-auto px-4 h-16 flex items-center gap-3">
         {showBack && onBack && (
