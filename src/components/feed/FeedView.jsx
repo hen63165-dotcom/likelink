@@ -772,21 +772,26 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         />
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
-          {visible.map((p, i) => (
-            <ProductCard
-              key={p.id}
-              p={p}
-              marketer={getMarketer(p.marketerId)}
-              isTop={topIds.has(p.marketerId)}
-              lang={lang}
-              isFav={favorites.includes(p.id)}
-              onToggleFavorite={() => toggleFavorite(p.id)}
-              onOpen={() => setActive(p)}
-              onAddToCart={handleAddToCart}
-              index={i}
-              badge={feedBadges.get(p.id) || null}
-            />
-          ))}
+          {visible.map((p, i) => {
+            const b = feedBadges.get(p.id) || null;
+            const isTrust = b?.variant === "trust";
+            return (
+              <div key={p.id} style={isTrust ? { gridColumn: "span 2" } : undefined}>
+                <ProductCard
+                  p={p}
+                  marketer={getMarketer(p.marketerId)}
+                  isTop={topIds.has(p.marketerId)}
+                  lang={lang}
+                  isFav={favorites.includes(p.id)}
+                  onToggleFavorite={() => toggleFavorite(p.id)}
+                  onOpen={() => setActive(p)}
+                  onAddToCart={handleAddToCart}
+                  index={i}
+                  badge={b}
+                />
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col gap-4">
