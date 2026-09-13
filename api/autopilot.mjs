@@ -906,6 +906,7 @@ async function announceNewProduct(store, marketerId, cfg, product, origin) {
 // שיווקי עצמי שנמשך בלי שאף אחד יגע בדבר.
 
 const BRAND_PULSE_KEY = "brand_pulse:meta";
+const BRAND_POSTS_KEY = "brand_pulse:posts"; // public Luna self-publish feed
 const BRAND_PULSE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // פעם ביום
 
 const BRAND_PULSE_STORIES_HE = [
@@ -947,7 +948,10 @@ async function publishBrandPulse(origin) {
   if (process.env.BRAND_WEBHOOK_URL) {
     channels.push({ type: "webhook", url: process.env.BRAND_WEBHOOK_URL });
   }
-  if (!channels.length) return { ok: false, skipped: "no_brand_channels" };
+  // Dependency-free: even with zero external channels, Luna ALWAYS publishes
+  // to the platform's OWN site feed (brand_pulse:posts) — the official site
+  // is the first channel. External channels are optional amplifiers.
+  const webSelfPublish = true;
 
   // 🎀 Luna — the platform's digital ambassador — presents today's star item
   // (deterministic rotation across qualifying approved products). Real traffic
@@ -984,6 +988,29 @@ async function publishBrandPulse(origin) {
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
     }
+  }
+
+  // 🎀 SELF-PUBLISH (dependency-free): the official site itself is the channel.
+  // Luna's brand story is appended to a public web feed (brand_pulse:posts) —
+  // rendered on likelink2.vercel.app for every visitor, always, no secrets.
+  let webPublished = false;
+  try {
+    const feed = (await kvGet(BRAND_POSTS_KEY)) || [];
+    const list = Array.isArray(feed) ? feed : [];
+    list.push({
+      id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      ts: Date.now(),
+      text,
+      link,
+      spotlight: spotlight ? { id: spotlight.id, title: spotlight.title, price: spotlight.price, image: spotlight.image } : null,
+      channels: results.map((r) => r.channel),
+    });
+    while (list.length > 30) list.shift(); // cap, append-only otherwise
+    await kvSet(BRAND_POSTS_KEY, list);
+    webPublished = true;
+    results.push({ channel: "web", ok: true });
+  } catch (e) {
+    results.push({ channel: "web", ok: false, detail: String(e.message || e) });
   }
 
   const anyOk = results.some((r) => r.ok);

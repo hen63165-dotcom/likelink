@@ -26,6 +26,7 @@ export default function CloudHomeStrip({ navigate }) {
   const [pick, setPick] = useState(null);
   const [boost, setBoost] = useState(null);
   const [trend, setTrend] = useState(null);
+  const [pulse, setPulse] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,12 @@ export default function CloudHomeStrip({ navigate }) {
         const res = await fetch("/api/store?mode=trends", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
         const data = await res.json().catch(() => null);
         if (alive && data?.ok) setTrend(data);
+      } catch { /* offline-safe */ }
+      // Luna's own self-published brand story (dependency-free public channel)
+      try {
+        const res = await fetch("/api/store?mode=brand-pulse");
+        const data = await res.json().catch(() => null);
+        if (alive && data?.ok && data.posts?.length) setPulse(data.posts[0]);
       } catch { /* offline-safe */ }
     })();
     return () => { alive = false; };
@@ -95,6 +102,17 @@ export default function CloudHomeStrip({ navigate }) {
               </span>
               <span className="text-[9.5px] text-muted">· {L(face.note, face.note)}</span>
             </div>
+            {/* Luna's self-published brand story — the platform markets itself */}
+            {pulse?.text && (
+              <div className="mt-3 rounded-xl p-2.5" style={{ background: "color-mix(in srgb, var(--accent) 7%, transparent)", border: "1px dashed color-mix(in srgb, var(--accent) 30%, transparent)" }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1" dir="rtl">
+                  {L("🎀 הפרסום העצמי של לונה · חי", "🎀 Luna's self-publish · live")}
+                </p>
+                <p className="text-[11.5px] leading-snug text-[var(--text)] line-clamp-3 whitespace-pre-line" dir="rtl">
+                  {pulse.text}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
