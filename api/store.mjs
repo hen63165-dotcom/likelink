@@ -656,6 +656,48 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ── Brand Pulse — public read-only feed of Luna's self-published stories ──
+  // The platform markets itself: every daily cron, Luna appends her brand
+  // story (with today's spotlight + tracked link) here. Zero secrets — this
+  // is the public-facing half of the dependency-free self-publish channel.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "brand-pulse") {
+    try {
+      const feed = (await kvGet("brand_pulse:posts")) || [];
+      const list = Array.isArray(feed) ? feed : [];
+      return json(res, { ok: true, mode: "brand-pulse", count: list.length, posts: list.slice(-8).reverse() }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+  }
+
+  // ── Cloud Status — honest, public, read-only health of the platform ──
+  // The site tells the truth about itself: what is configured, what is live,
+  // what is dormant. No secrets, only booleans and counts.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "cloud-status") {
+    try {
+      const [products, marketers, brandFeed, campaigns] = await Promise.all([
+        kvGet("marketplace:products", []),
+        kvGet("marketplace:marketers", []),
+        kvGet("brand_pulse:posts", []),
+        kvGet("marketplace:site_campaigns", []),
+      ]);
+      return json(res, {
+        ok: true,
+        mode: "cloud-status",
+        paypalConfigured: Boolean(paypalConfigured()),
+        ownerEmailConfigured: Boolean(process.env.OWNER_EMAIL),
+        resendConfigured: Boolean(process.env.RESEND_API_KEY),
+        brandChannelsConfigured: Boolean(process.env.BRAND_TELEGRAM_BOT || process.env.BRAND_WEBHOOK_URL),
+        products: Array.isArray(products) ? products.length : 0,
+        marketers: Array.isArray(marketers) ? marketers.length : 0,
+        brandPulsePosts: Array.isArray(brandFeed) ? brandFeed.length : 0,
+        siteCampaigns: Array.isArray(campaigns) ? campaigns.length : 0,
+      }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+  }
+
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
@@ -888,48 +930,6 @@ export default async function handler(req, res) {
       return json(res, { ok: true, mode: "force-bootstrap", productsWritten: seedProducts.length, marketersWritten: 1, ownerId: ownerMarketer.id }, 200, req);
     } catch (e) {
       return json(res, { ok: false, mode: "force-bootstrap", error: String(e.message || e) }, 500, req);
-    }
-  }
-
-  // ── Brand Pulse — public read-only feed of Luna's self-published stories ──
-  // The platform markets itself: every daily cron, Luna appends her brand
-  // story (with today's spotlight + tracked link) here. Zero secrets — this
-  // is the public-facing half of the dependency-free self-publish channel.
-  if (new URL(req.url, "https://x").searchParams.get("mode") === "brand-pulse") {
-    try {
-      const feed = (await kvGet("brand_pulse:posts")) || [];
-      const list = Array.isArray(feed) ? feed : [];
-      return json(res, { ok: true, mode: "brand-pulse", count: list.length, posts: list.slice(-8).reverse() }, 200, req);
-    } catch (e) {
-      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
-    }
-  }
-
-  // ── Cloud Status — honest, public, read-only health of the platform ──
-  // The site tells the truth about itself: what is configured, what is live,
-  // what is dormant. No secrets, only booleans and counts.
-  if (new URL(req.url, "https://x").searchParams.get("mode") === "cloud-status") {
-    try {
-      const [products, marketers, brandFeed, campaigns] = await Promise.all([
-        kvGet("marketplace:products", []),
-        kvGet("marketplace:marketers", []),
-        kvGet("brand_pulse:posts", []),
-        kvGet("marketplace:site_campaigns", []),
-      ]);
-      return json(res, {
-        ok: true,
-        mode: "cloud-status",
-        paypalConfigured: Boolean(paypalConfigured()),
-        ownerEmailConfigured: Boolean(process.env.OWNER_EMAIL),
-        resendConfigured: Boolean(process.env.RESEND_API_KEY),
-        brandChannelsConfigured: Boolean(process.env.BRAND_TELEGRAM_BOT || process.env.BRAND_WEBHOOK_URL),
-        products: Array.isArray(products) ? products.length : 0,
-        marketers: Array.isArray(marketers) ? marketers.length : 0,
-        brandPulsePosts: Array.isArray(brandFeed) ? brandFeed.length : 0,
-        siteCampaigns: Array.isArray(campaigns) ? campaigns.length : 0,
-      }, 200, req);
-    } catch (e) {
-      return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
   }
 
