@@ -5,12 +5,14 @@ import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/hel
 import { useI18n } from "../../lib/LangContext";
 import { useCart } from "../../context/CartContext";
 import { Badge } from "../ui";
+import { useScrollReveal } from "../../hooks/useScrollReveal";
 
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
  */
 export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
   const [failed, setFailed] = useState(false);
+  const { ref: revealRef, revealStyle } = useScrollReveal();
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const rawSrc = p?.image || "";
   const normalized = normalizeImageUrl(rawSrc, origin);
@@ -18,7 +20,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
   const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
 
   return (
-    <div className={`relative w-full h-full overflow-hidden bg-stone-100 ${className}`}>
+    <div ref={revealRef} style={{ ...revealStyle }} className={`relative w-full h-full overflow-hidden bg-stone-100 ${className}`}>
       <img
         src={finalSrc}
         alt={p?.title || "Luxury item"}
