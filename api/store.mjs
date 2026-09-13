@@ -87,7 +87,18 @@ async function autoBootstrapCatalog(req) {
     ).length;
     // If we have fewer than 5 real products OR more than half have placeholder images, bootstrap
     const needsBootstrap = realCount < 5 || (fakeImageCount > existing.length / 2);
-    if (!needsBootstrap) return { bootstrapped: false, reason: "already_populated", count: realCount, fakeImages: fakeImageCount };
+    if (!needsBootstrap) {
+      // Even if products are fine, ensure the owner marketer exists for attribution
+      const existingMarketersQuick = (await kvGet("marketplace:marketers")) || [];
+      const realMarketersQuick = Array.isArray(existingMarketersQuick) ? existingMarketersQuick.filter((m) => m && m.id) : [];
+      const OWNER_ID_QUICK = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+      const hasOwnerQuick = realMarketersQuick.some((m) => String(m.id) === OWNER_ID_QUICK);
+      if (!hasOwnerQuick && Array.isArray(SEED_MARKETERS) && SEED_MARKETERS.length) {
+        await kvSet("marketplace:marketers", [SEED_MARKETERS[0]]);
+        return { bootstrapped: false, reason: "marketer_seeded", count: realCount, marketersSeeded: 1 };
+      }
+      return { bootstrapped: false, reason: "already_populated", count: realCount, fakeImages: fakeImageCount };
+    }
     const { SEED_PRODUCTS, SEED_MARKETERS } = await import("../src/data/seed.js");
     const seedList = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
     if (!seedList.length) return { bootstrapped: false, reason: "no_seed_data" };
