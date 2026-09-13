@@ -77,16 +77,28 @@ async function autoBootstrapCatalog(req) {
   try {
     const existing = (await kvGet("marketplace:products")) || [];
     if (!Array.isArray(existing)) return { bootstrapped: false, reason: "kv_not_array" };
+    // Count products with REAL images (not picsum placeholders) and valid IDs
     const realCount = existing.filter(
-      (p) => p && p.title && p.title !== "Product" && p.id
+      (p) => p && p.title && p.title !== "Product" && p.id &&
+             p.image && !String(p.image).includes("picsum.photos")
     ).length;
-    if (realCount >= 5) return { bootstrapped: false, reason: "already_populated", count: realCount };
+    const fakeImageCount = existing.filter(
+      (p) => p && p.image && String(p.image).includes("picsum.photos")
+    ).length;
+    // If we have fewer than 5 real products OR more than half have placeholder images, bootstrap
+    const needsBootstrap = realCount < 5 || (fakeImageCount > existing.length / 2);
+    if (!needsBootstrap) return { bootstrapped: false, reason: "already_populated", count: realCount, fakeImages: fakeImageCount };
     const { SEED_PRODUCTS } = await import("../src/data/seed.js");
     const seedList = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
     if (!seedList.length) return { bootstrapped: false, reason: "no_seed_data" };
+    // Replace placeholder products with real ones; keep any truly custom products
     const seen = new Map();
     for (const p of existing) {
-      if (p && p.id && p.title && p.title !== "Product") seen.set(p.id, p);
+      // Only keep products that have real images AND are not placeholders
+      if (p && p.id && p.title && p.title !== "Product" &&
+          p.image && !String(p.image).includes("picsum.photos")) {
+        seen.set(p.id, p);
+      }
     }
     for (const p of seedList) {
       if (p && p.id && !seen.has(p.id)) seen.set(p.id, p);
@@ -94,7 +106,7 @@ async function autoBootstrapCatalog(req) {
     const merged = Array.from(seen.values());
     if (!merged.length) return { bootstrapped: false, reason: "merge_empty" };
     await kvSet("marketplace:products", merged);
-    return { bootstrapped: true, count: merged.length, seedCount: seedList.length };
+    return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount };
   } catch (e) {
     return { bootstrapped: false, reason: String(e.message || e) };
   }
