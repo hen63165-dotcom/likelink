@@ -35,7 +35,73 @@ export const AVAILABILITY = {
  *
  * NOTE: image URLs should be refreshed from the live AliExpress product page.
  */
-export const LIVE_PRODUCTS = [];
+export const LIVE_PRODUCTS = [
+  {
+    id: "p1_silver_ring_live",
+    title: "טבעת כסף 925 קלאסית עם זרקון מרקיז",
+    description: "טבעת אלגנטית מכסף סטרלינג 925 עם אבן זרקון בחיתוך מרקיז. עיצוב קלאסי ונקי, מתאימה לאירוסין, חתונה, או כפריט יומיומי.",
+    price: 10.62,
+    category: "Accessories",
+    image: "https://images.unsplash.com/photo-1617038220319-276d3cfab638?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2JrC8fJ",
+    source: "aliexpress",
+    tags: ["טבעת", "כסף 925", "זרקון", "תכשיטים"],
+    marketingTitle: "הנצנוץ שלך — על האצבע",
+    lunaHook: "הבחירה שלי היום — פרט קטן, רושם גדול.",
+  },
+  {
+    id: "p2_attagems_bracelet_live",
+    title: "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן",
+    description: "צמיד טניס מרשים מכסף סטרלינג 925 עם אבני מואסניט DVVS1 בחיתוך עגול. גימור זהב לבן מלוטש שמעניק ברק יהלום אמיתי.",
+    price: 378.40,
+    category: "Accessories",
+    image: "https://images.unsplash.com/photo-1602173574767-37ac01994b2a?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c2wFWkxn",
+    source: "aliexpress",
+    tags: ["צמיד", "מואסניט", "כסף 925", "טניס"],
+    marketingTitle: "הברק שלך — סביב פרק היד",
+    lunaHook: "הבחירה שלי היום — ברק שלא מפסיק לדבר.",
+  },
+  {
+    id: "p3_smyoue_platinum_bracelet_live",
+    title: "צמיד טניס מואסניט Smyoue מצופה פלטינה",
+    description: "צמיד טניס עדין מכסף 925 עם אבני מואסניט אמיתיות, מצופה פלטינה. אפשרות לבחור עובי אבן מ-2 עד 6.5 מ״מ.",
+    price: 228.96,
+    category: "Accessories",
+    image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c3TSpOjP",
+    source: "aliexpress",
+    tags: ["צמיד", "מואסניט", "פלטינה", "כסף 925"],
+    marketingTitle: "העדינות שלך — עם נצנוץ אמיתי",
+    lunaHook: "הבחירה שלי היום — עדין אבל בלתי נשכח.",
+  },
+  {
+    id: "p4_smyoue_chain_bracelet_live",
+    title: "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט",
+    description: "שרשרת יד עדינה מכסף 925 מצופה 14K, עם תליוני מואסניט קטנים לאורך השרשרת. מתכווננת מ-14 עד 21 ס״מ.",
+    price: 85.36,
+    category: "Accessories",
+    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600&h=800&fit=crop",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c4CoPLhr",
+    source: "aliexpress",
+    tags: ["שרשרת יד", "מואסניט", "14K", "כסף 925"],
+    marketingTitle: "העדינות שלך — סביב פרק היד",
+    lunaHook: "הבחירה שלי היום — נגיעה עדינה שרואים.",
+  },
+  {
+    id: "p5_smyoue_earrings_live",
+    title: "עגילי Smyoue מואסניט ורודים 0.2-3 קראט",
+    description: "עגילי חן קלאסיים מכסף סטרלינג 925 עם אבני מואסניט בגוון רוז גולד. 4.8 כוכבים מעל 1,400 ביקורות.",
+    price: 47.17,
+    category: "Accessories",
+    image: "https://ae01.alicdn.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg",
+    affiliateUrl: "https://s.click.aliexpress.com/e/_c45JuVY5",
+    source: "aliexpress",
+    tags: ["עגילים", "מואסניט", "כסף 925", "רוז גולד"],
+    marketingTitle: "הנצנוץ שלך — ליד הפנים",
+    lunaHook: "הבחירה שלי היום — נצנוץ שמתאים לכל אירוע.",
+  },
+];
 
 /**
  * Browser-safe deterministic fingerprint for a product.
