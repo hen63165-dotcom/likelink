@@ -19,6 +19,7 @@ import LunaAssistant from "../ambassador/LunaAssistant";
 import CloudHomeStrip from "./CloudHomeStrip";
 import TrendingBar from "./TrendingBar";
 import StudioFeed from "./StudioFeed";
+import KineticWord from "../ui/KineticWord";
 import StoryRings from "./StoryRings";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { composeLunaFace } from "../../lib/cloud/lunaFace";
@@ -272,6 +273,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
         <div className="relative z-10 max-w-2xl">
           <p className="ll-kicker">LIKELINK · הבחירה שלך, במקום אחד</p>
           <h1 className="ll-hero-title">{t("feed.heroTitle")}</h1>
+          <p className="ll-hero-copy" style={{fontWeight:600}}>
+            <KineticWord words={["אמין", "מקורי", "מומלץ", "בקליק"]} intervalMs={2500} />
+          </p>
           <p className="ll-hero-copy">{t("feed.heroSub")}</p>
           <div className="ll-hero-actions">
             <button type="button" className="btn-primary tap px-4 py-2.5 text-sm" onClick={() => navigate("/sell")}>
