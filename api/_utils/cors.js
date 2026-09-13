@@ -31,11 +31,13 @@ const APPROVED_ORIGINS = new Set([
   "http://127.0.0.1:5173",
   "https://likelink.com",
   "https://www.likelink.com",
+  "https://likelink.app",
+  "https://www.likelink.app",
   "https://likelink2.vercel.app",
   ...ENV_ORIGINS,
 ]);
 
-const APPROVED_PATTERN = /^(https?:\/\/)([a-z0-9-]+\.)*likelink\.com$/;
+const APPROVED_PATTERN = /^(https?:\/\/)([a-z0-9-]+\.)*likelink\.(com|app)$/;
 
 export function isApprovedOrigin(origin) {
   if (!origin) return false;
