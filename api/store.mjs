@@ -88,7 +88,7 @@ async function autoBootstrapCatalog(req) {
     // If we have fewer than 5 real products OR more than half have placeholder images, bootstrap
     const needsBootstrap = realCount < 5 || (fakeImageCount > existing.length / 2);
     if (!needsBootstrap) return { bootstrapped: false, reason: "already_populated", count: realCount, fakeImages: fakeImageCount };
-    const { SEED_PRODUCTS } = await import("../src/data/seed.js");
+    const { SEED_PRODUCTS, SEED_MARKETERS } = await import("../src/data/seed.js");
     const seedList = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
     if (!seedList.length) return { bootstrapped: false, reason: "no_seed_data" };
     // Replace placeholder products with real ones; keep any truly custom products
@@ -106,7 +106,14 @@ async function autoBootstrapCatalog(req) {
     const merged = Array.from(seen.values());
     if (!merged.length) return { bootstrapped: false, reason: "merge_empty" };
     await kvSet("marketplace:products", merged);
-    return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount };
+    // Also bootstrap marketers if they don't exist (needed for attribution)
+    const existingMarketers = (await kvGet("marketplace:marketers")) || [];
+    const realMarketers = Array.isArray(existingMarketers) ? existingMarketers.filter((m) => m && m.id) : [];
+    if (realMarketers.length === 0 && Array.isArray(SEED_MARKETERS) && SEED_MARKETERS.length) {
+      await kvSet("marketplace:marketers", SEED_MARKETERS);
+      return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount, marketersSeeded: SEED_MARKETERS.length };
+    }
+    return { bootstrapped: true, count: merged.length, seedCount: seedList.length, replacedPlaceholders: fakeImageCount, marketersSeeded: 0 };
   } catch (e) {
     return { bootstrapped: false, reason: String(e.message || e) };
   }
