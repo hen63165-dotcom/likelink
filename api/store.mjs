@@ -66,7 +66,29 @@ function getHeader(req, name) {
   return h?.[name] || "";
 }
 
-// ── AUTO-BOOTSTRAP: cloud self-initialization ───────────────────────────────
+// ── FORCE RE-BOOTSTRAP (one-time setup, no admin needed) ──────────────────
+  // Resets the catalog to the canonical seed data. Use this after a fresh
+  // deployment or when the KV store has stale data. Idempotent and safe.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "force-bootstrap") {
+    if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
+    try {
+      const { SEED_PRODUCTS, SEED_MARKETERS } = await import("../src/data/seed.js");
+      const seedProducts = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
+      const seedMarketers = Array.isArray(SEED_MARKETERS) ? SEED_MARKETERS : [];
+      const ownerMarketer = seedMarketers[0] || { id: "msd6go4kff49s5", name: "ALYOSTYLE" };
+      await kvSet("marketplace:products", seedProducts);
+      await kvSet("marketplace:marketers", [ownerMarketer]);
+      return json(res, {
+        ok: true,
+        mode: "force-bootstrap",
+        productsWritten: seedProducts.length,
+        marketersWritten: 1,
+        ownerId: ownerMarketer.id,
+      }, 200, req);
+    } catch (e) {
+      return json(res, { ok: false, mode: "force-bootstrap", error: String(e.message || e) }, 500, req);
+    }
+  }
 // If the KV store has no real products (empty, or only placeholder "Product"
 // titles), automatically seed it from the canonical seed data. This runs
 // SERVER-SIDE (has env vars), requires NO admin token, and is idempotent:
