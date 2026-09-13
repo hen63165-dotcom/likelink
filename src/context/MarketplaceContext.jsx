@@ -90,6 +90,7 @@ async function setJSON(key, value, shared) {
 
 // Safe coercion helpers — never throw "Cannot convert object to primitive value",
 // even when a legacy record holds a non-primitive field.
+const toArr = (v) => (Array.isArray(v) ? v : []);
 const toStr = (v, fb = "") => {
   if (typeof v === "string") return v;
   try { return String(v ?? fb); } catch { return fb; }
@@ -138,8 +139,8 @@ export function MarketplaceProvider({ children }) {
       ]);
 
       const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
-      const safeMarketers = m || [];
-      const safeProducts = p || [];
+      const safeMarketers = toArr(m);
+      const safeProducts = toArr(p);
 
       // Production safety: never reset shared marketplace data or replace production data with demo seeds.
 
@@ -147,7 +148,7 @@ export function MarketplaceProvider({ children }) {
       // string so any string coercion (render, template literals, navigator.share,
       // URLSearchParams, login lookup) never crashes. slug falls back to slugify(name).
       setMarketers(
-        (safeMarketers || []).map((x) => {
+        toArr(safeMarketers).map((x) => {
           const name = typeof x?.name === "string" ? x.name : String(x?.name ?? x?.email ?? "");
           const email = typeof x?.email === "string" ? x.email : String(x?.email ?? "");
           const slug =
@@ -181,8 +182,8 @@ export function MarketplaceProvider({ children }) {
       );
       // Sanitize the other stores so numeric/string conversions never crash:
       // product price/commission, sale/payout numerics (+ts), settings fee, collections.
-      const validMarketerIds = new Set((safeMarketers || []).map((m) => (typeof m?.id === "string" ? m.id.trim() : "")).filter(Boolean));
-      const sanitizedProducts = (safeProducts || [])
+      const validMarketerIds = new Set(toArr(safeMarketers).map((m) => (typeof m?.id === "string" ? m.id.trim() : "")).filter(Boolean));
+      const sanitizedProducts = toArr(safeProducts)
         .filter((x) => {
           const marketerId = typeof x?.marketerId === "string" ? x.marketerId.trim() : "";
           return Boolean(marketerId) && validMarketerIds.has(marketerId);
@@ -194,9 +195,9 @@ export function MarketplaceProvider({ children }) {
           commission: toNum(x?.commission, 0),
         }));
       setProducts(sanitizedProducts);
-      setClicks(c || []);
+      setClicks(toArr(c));
       setSales(
-        (s || []).map((x) => ({
+        toArr(s).map((x) => ({
           ...x,
           saleAmount: toNum(x?.saleAmount, 0),
           commissionAmount: toNum(x?.commissionAmount, 0),
@@ -218,10 +219,10 @@ export function MarketplaceProvider({ children }) {
         if (resolved?.marketerId) activeMarketerId = resolved.marketerId;
       }
       setSessionMarketerId(activeMarketerId);
-      setFavorites(fav || []);
+      setFavorites(toArr(fav));
       setIntroSeen(Boolean(intro));
       setCollections(
-        (cols || []).map((x) => ({
+        toArr(cols).map((x) => ({
           ...x,
           id: toStr(x?.id),
           marketerId: toStr(x?.marketerId),
@@ -229,9 +230,9 @@ export function MarketplaceProvider({ children }) {
           productIds: Array.isArray(x?.productIds) ? x.productIds : [],
         }))
       );
-      setFollowing(follow || []);
+      setFollowing(toArr(follow));
       setPayouts(
-        (po || []).map((x) => ({
+        toArr(po).map((x) => ({
           ...x,
           amount: toNum(x?.amount, 0),
           ts: toNum(x?.ts, 0),
@@ -239,14 +240,14 @@ export function MarketplaceProvider({ children }) {
         }))
       );
       setCharges(
-        (ch || []).map((x) => ({
+        toArr(ch).map((x) => ({
           ...x,
           marketerId: toStr(x?.marketerId),
           amount: toNum(x?.amount, 0),
           ts: toNum(x?.ts, 0),
         }))
       );
-      setNotifications(Array.isArray(nt) ? nt.slice(0, 60) : []);
+      setNotifications(toArr(nt).slice(0, 60));
       setLoading(false);
     })();
   }, []);
