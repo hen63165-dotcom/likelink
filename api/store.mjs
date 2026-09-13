@@ -1,4 +1,5 @@
 import { readBody } from "./_utils/readBody.mjs";
+import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
 // Vercel Serverless Function — Store API 🔐
 //
 // THE GATE for every WRITE to the shared kv table from the browser.
@@ -89,8 +90,8 @@ async function autoBootstrapCatalog(req) {
       const realMarketersQuick = Array.isArray(existingMarketersQuick) ? existingMarketersQuick.filter((m) => m && m.id) : [];
       const OWNER_ID_QUICK = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
       const hasOwnerQuick = realMarketersQuick.some((m) => String(m.id) === OWNER_ID_QUICK);
-      if (!hasOwnerQuick && Array.isArray(SEED_MARKETERS) && SEED_MARKETERS.length) {
-        await kvSet("marketplace:marketers", [SEED_MARKETERS[0]]);
+      if (!hasOwnerQuick && Array.isArray(TOP_LEVEL_SEED_MARKETERS) && TOP_LEVEL_SEED_MARKETERS.length) {
+        await kvSet("marketplace:marketers", [TOP_LEVEL_SEED_MARKETERS[0]]);
         return { bootstrapped: false, reason: "marketer_seeded", count: realCount, marketersSeeded: 1 };
       }
       return { bootstrapped: false, reason: "already_populated", count: realCount, fakeImages: fakeImageCount };
