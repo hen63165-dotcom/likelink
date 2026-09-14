@@ -20,7 +20,7 @@
  * This module runs in BOTH Vercel serverless AND browser contexts.
  */
 
-import { audit } from "../../api/_utils/audit.js";
+import { audit } from "../../../api/_utils/audit.js";
 
 // Job registry — all growth jobs register here
 const JOB_REGISTRY = new Map();
