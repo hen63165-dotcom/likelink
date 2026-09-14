@@ -8,12 +8,9 @@ import { readBody } from "./_utils/readBody.mjs";
 // is ONLY the execution adapter. Replace Vercel Cron with any other scheduler
 // without touching business logic.
 
-import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { audit } from "./_utils/audit.js";
-import { registerJob, executeJob, runDueJobs, getJobStatus, JOB_STATE } from "../src/lib/cloud/growthScheduler.js";
-import { discoverOpportunities, createContentAsset, generateSitemapEntries, generateInternalLinks, CONTENT_TYPES } from "../src/lib/cloud/selfGrowth.js";
-import { rankByTrend } from "../src/lib/cloud/trends.js";
-import { buildTrackedLink } from "../src/lib/cloud/hooks.js";
+import { jsonCors } from "./_utils/cors.js";
+import { registerJob, executeJob, runDueJobs, getJobStatus } from "../src/lib/cloud/growthScheduler.js";
+import { discoverOpportunities, createContentAsset, generateSitemapEntries, generateInternalLinks } from "../src/lib/cloud/selfGrowth.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -138,6 +135,6 @@ export default async function handler(req, res) {
 
   // Run all due jobs
   const results = await runDueJobs({ kvGet, kvSet });
-  audit.log("growth.cycle.complete", { type: "system", id: "growth-scheduler" }, { type: "cycle" }, { results: results.length });
+  console.log("[GROWTH] Cycle complete:", results.length, "jobs executed");
   json(res, { ok: true, results }, 200, req);
 }

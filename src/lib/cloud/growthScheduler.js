@@ -20,7 +20,12 @@
  * This module runs in BOTH Vercel serverless AND browser contexts.
  */
 
-import { audit } from "../../../api/_utils/audit.js";
+// Audit logging — simplified for serverless compatibility
+const auditLog = (event, actor, target, metadata) => {
+  try {
+    console.log("[AUDIT]", JSON.stringify({ event, actor, target, ts: new Date().toISOString(), ...metadata }));
+  } catch { /* noop */ }
+};
 
 // Job registry — all growth jobs register here
 const JOB_REGISTRY = new Map();
@@ -124,18 +129,12 @@ export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
   }
 
   // Audit log
-  if (auditLog) {
-    try {
-      audit.log(
-        result.ok ? "growth.job.success" : "growth.job.failure",
-        { type: "system", id: "growth-scheduler" },
-        { type: "job", id },
-        { result: result.ok ? "success" : result.error, durationMs: finalRecord.durationMs }
-      );
-    } catch {
-      // Non-blocking
-    }
-  }
+  auditLog(
+    result.ok ? "growth.job.success" : "growth.job.failure",
+    { type: "system", id: "growth-scheduler" },
+    { type: "job", id },
+    { result: result.ok ? "success" : result.error, durationMs: finalRecord.durationMs }
+  );
 
   return { ...result, durationMs: finalRecord.durationMs };
 }
