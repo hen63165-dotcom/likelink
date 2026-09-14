@@ -113,6 +113,30 @@ async function sitemapHandler(req, res) {
     (p) => p?.id && p?.status === "approved" && p?.marketerId && marketerIds.has(p.marketerId)
   );
   const now = new Date().toISOString();
+
+  // Fetch growth content for sitemap
+  let growthUrls = [];
+  try {
+    if (SB_URL && SB_KEY) {
+      const growthRes = await fetch(
+        `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent("growth:content")}&select=value`,
+        { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+      );
+      const growthRows = await growthRes.json();
+      const growthContent = growthRows?.[0]?.value ? JSON.parse(growthRows[0].value) : [];
+      if (Array.isArray(growthContent)) {
+        growthUrls = growthContent
+          .filter((a) => a?.destination?.url && a?.contentId)
+          .map((a) => ({
+            loc: `${origin}/grow/${encodeURIComponent(a.contentId)}`,
+            lastmod: new Date(a.createdAt || Date.now()).toISOString(),
+            priority: "0.5",
+            changefreq: "weekly",
+          }));
+      }
+    }
+  } catch { /* ignore growth sitemap errors */ }
+
   const urls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },
     { loc: `${origin}/feed`, priority: "0.9", changefreq: "daily" },
@@ -120,6 +144,7 @@ async function sitemapHandler(req, res) {
     ...marketers.filter((m) => m?.slug).map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
     ...publicProducts.map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
     ...publicProducts.filter((p) => /^https?:/i.test(String(p.image || ""))).map((p) => ({ loc: `${origin}/story/${encodeURIComponent(p.id)}`, lastmod: now, priority: "0.5", changefreq: "weekly" })),
+    ...growthUrls.slice(0, 50),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `  <url>\n    <loc>${xmlEscape(u.loc)}</loc>${u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ""}\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`).join("\n")}\n</urlset>`;
   res.status(200);

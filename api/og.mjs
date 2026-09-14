@@ -68,6 +68,44 @@ export default async function handler(req, res) {
     return fetchProductInfoHandler(req, res);
   }
 
+  // ─── /grow/:id — Growth content OG previews ───────────────────────────────
+  // Dispatched by vercel.json: /grow/:id → /api/og?mode=growth&id=:id
+  if (url.searchParams.get("mode") === "growth") {
+    const growthId = url.searchParams.get("id") || "";
+    const sbUrl = process.env.VITE_SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    let growthAsset = null;
+    if (sbUrl && sbKey && growthId) {
+      try {
+        const gRes = await fetch(
+          `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("growth:content")}&select=value`,
+          { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` }, signal: AbortSignal.timeout(5000) }
+        );
+        const gRows = await gRes.json();
+        const gContent = gRows?.[0]?.value ? JSON.parse(gRows[0].value) : [];
+        growthAsset = (Array.isArray(gContent) ? gContent : []).find((a) => a?.contentId === growthId) || null;
+      } catch { /* fallback to generic */ }
+    }
+    if (growthAsset) {
+      const gTitle = `${growthAsset.title} | LikeLink`;
+      const gDesc = growthAsset.lunaStory || growthAsset.hooks?.[0]?.text || growthAsset.title || "";
+      const gImage = growthAsset.product?.image || `${origin}/luna-face.svg`;
+      const gUrl = `${origin}/grow/${encodeURIComponent(growthId)}`;
+      const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(gTitle)}</title><meta property="og:title" content="${escapeHtml(gTitle)}"><meta property="og:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta property="og:image" content="${escapeHtml(gImage)}"><meta property="og:url" content="${escapeHtml(gUrl)}"><meta property="og:type" content="article"><meta property="og:site_name" content="LikeLink"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(gTitle)}"><meta name="twitter:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta name="twitter:image" content="${escapeHtml(gImage)}"><link rel="canonical" content="${escapeHtml(gUrl)}"></head><body></body></html>`;
+      res.status(200);
+      res.setHeader("content-type", "text/html; charset=utf-8");
+      res.setHeader("cache-control", "public, max-age=3600");
+      res.end(html);
+      return;
+    }
+    // Growth asset not found — fall through to generic
+    const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>LikeLink</title><meta property="og:title" content="LikeLink — קניות ממליצות"><meta property="og:image" content="${origin}/luna-face.svg"><meta property="og:site_name" content="LikeLink"></head><body></body></html>`;
+    res.status(200);
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.end(html);
+    return;
+  }
+
   const slug = url.searchParams.get("slug") || "";
   const productId = url.searchParams.get("id") || "";
   const userAgent = String(getHeader(req, "user-agent") || "");

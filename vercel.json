@@ -14,6 +14,7 @@
   },
   "crons": [
     { "path": "/api/autopilot", "schedule": "0 9 * * *" },
+    { "path": "/api/growth-job", "schedule": "0 10 * * *" },
     { "path": "/api/price-watch", "schedule": "0 3 * * *" },
     { "path": "/api/payouts/process", "schedule": "0 2 * * *" }
   ],
@@ -25,6 +26,7 @@
     { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
             { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
     { "source": "/p/:id", "destination": "/api/og?id=:id" },
+    { "source": "/grow/:id", "destination": "/api/og?mode=growth&id=:id" },
     { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
     { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
     { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" },
