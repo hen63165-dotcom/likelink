@@ -1137,7 +1137,8 @@ async function runGrowthCycle() {
     }
 
     // 3. Store (dedupe by destination URL — never duplicate content)
-    const existing = (await kvGet("growth:content", [])) || [];
+    const rawExisting = await kvGet("growth:content");
+    const existing = Array.isArray(rawExisting) ? rawExisting : [];
     const existingUrls = new Set(existing.map((a) => a?.destination?.url).filter(Boolean));
     const fresh = assets.filter((a) => a.destination?.url && !existingUrls.has(a.destination.url));
     const merged = [...fresh, ...existing].slice(0, 100);
