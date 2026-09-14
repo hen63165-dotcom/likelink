@@ -1083,9 +1083,77 @@ async function runDue(origin, opts = {}) {
   return { ok: true, ran, budgetHit };
 }
 
+// ─── 🌱 CLOUD GROWTH CYCLE — LikeLink self-promotion (FREE core capability) ──
+// Runs on the SAME daily cron as autopilot. Discovers content opportunities
+// from REAL catalog data, creates content assets, and stores them for SEO /
+// sitemap exposure. Deterministic, idempotent, bounded — never invents data.
+async function runGrowthCycle() {
+  try {
+    const now = Date.now();
+    const [products, marketers, sales, clicks] = await Promise.all([
+      kvGet("marketplace:products", []),
+      kvGet("marketplace:marketers", []),
+      kvGet("marketplace:sales", []),
+      kvGet("marketplace:clicks", []),
+    ]);
+    const prodList = Array.isArray(products) ? products : [];
+    const salesArr = Array.isArray(sales) ? sales : [];
+    const clicksArr = Array.isArray(clicks) ? clicks : [];
+
+    // 1. Discover opportunities (score = sales*100 + clicks*10 + image bonus)
+    const ops = [];
+    for (const p of prodList) {
+      if (!p?.id || !p.title) continue;
+      const s = { clicks: clicksArr.filter((c) => c?.productId === p.id).length, sales: salesArr.filter((x) => x?.productId === p.id).length };
+      ops.push({ type: "product_discovery", productId: p.id, title: p.title, category: p.category, price: p.price, image: p.image, score: s.sales * 100 + s.clicks * 10 + (p.image ? 5 : 0), reason: s.sales > 0 ? "real_sales" : s.clicks > 0 ? "real_clicks" : "catalog_entry" });
+    }
+    const cats = {};
+    for (const p of prodList) { if (p.category) cats[p.category] = (cats[p.category] || 0) + 1; }
+    for (const [cat, count] of Object.entries(cats)) { if (count >= 2) ops.push({ type: "category_page", category: cat, productCount: count, score: count * 20 }); }
+    const top = prodList.find((p) => p?.status === "approved" && p?.image) || prodList[0];
+    if (top) ops.push({ type: "luna_story", productId: top.id, title: top.title, category: top.category, score: 30 });
+    ops.push({ type: "educational", title: "איך לפתוח סטודיו ב-Likelink", score: 10 });
+    ops.sort((a, b) => b.score - a.score);
+
+    // 2. Create content assets (top 5, idempotent — dedupe by destination URL)
+    const mkId = (ts) => `content_${ts}_${Math.random().toString(36).slice(2, 8)}`;
+    const assets = [];
+    for (const opp of ops.slice(0, 5)) {
+      let dest = null, extra = {};
+      if (opp.type === "product_discovery") {
+        const p = prodList.find((x) => x.id === opp.productId);
+        if (!p) continue;
+        dest = `/p/${p.id}`; extra = { product: { id: p.id, title: p.title, price: p.price, image: p.image, category: p.category } };
+      } else if (opp.type === "category_page") {
+        dest = `/feed?cat=${opp.category}`; extra = { category: opp.category, productCount: opp.productCount };
+      } else if (opp.type === "luna_story") {
+        const p = prodList.find((x) => x.id === opp.productId);
+        if (!p) continue;
+        dest = `/p/${p.id}?utm_source=luna`; extra = { character: "לונה", product: { id: p.id, title: p.title, price: p.price } };
+      } else {
+        dest = "/sell";
+      }
+      assets.push({ contentId: mkId(now), type: opp.type, title: opp.title || opp.category || "Likelink", createdAt: now, status: "published", destination: { url: dest }, ...extra });
+    }
+
+    // 3. Store (dedupe by destination URL — never duplicate content)
+    const existing = (await kvGet("growth:content", [])) || [];
+    const existingUrls = new Set(existing.map((a) => a?.destination?.url).filter(Boolean));
+    const fresh = assets.filter((a) => a.destination?.url && !existingUrls.has(a.destination.url));
+    const merged = [...fresh, ...existing].slice(0, 100);
+    await kvSet("growth:content", merged);
+
+    // 4. Store opportunities for observability
+    await kvSet("growth:opportunities", ops.slice(0, 20));
+
+    return { ok: true, opportunities: ops.length, created: fresh.length, total: merged.length };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e).slice(0, 160) };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
-
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
   const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
@@ -1114,6 +1182,15 @@ export default async function handler(req, res) {
     } catch (e) {
       siteCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
+    // Cloud Growth Cycle — LikeLink self-promotion (FREE core capability).
+    // Runs on the SAME daily cron, idempotent, bounded (a few kv reads +
+    // at most 2 writes). Its result rides along so the state is observable.
+    let growthCycle = { ok: false, skipped: "not_run" };
+    try {
+      growthCycle = await runGrowthCycle();
+    } catch (e) {
+      growthCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
+    }
     // Owner-report self-test hook: `?testReport=1` on the cron path awaits the
     // send and returns Resend's exact result — used to diagnose delivery
     // without guessing (shows resend_error_xxx or the actual message id).
@@ -1128,7 +1205,7 @@ export default async function handler(req, res) {
       }
       return;
     }
-    json(res, { ..._r, siteCycle }, 200, req);
+    json(res, { ..._r, siteCycle, growthCycle }, 200, req);
     // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
     // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
     import("./_utils/analytics.js")
