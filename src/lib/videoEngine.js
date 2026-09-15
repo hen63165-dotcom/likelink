@@ -104,44 +104,6 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/**
- * מצייר טקסט עטוף לכמה שורות, ממורכז אופקית סביב x, החל מ-startY.
- * שובר מילים (RTL-safe — פשוט מפצל לפי רווחים, לא תלוי בכיוון) עד maxWidth,
- * וחותך ל-maxLines שורות (עם "…" בשורה האחרונה אם הטקסט ארוך יותר).
- * ctx.font / ctx.fillStyle / ctx.textAlign / ctx.direction כבר מוגדרים לפני הקריאה.
- */
-function drawWrapped(ctx, text, x, startY, maxWidth, lineHeight, maxLines) {
-  const words = String(text || "").split(/\s+/).filter(Boolean);
-  const lines = [];
-  let current = "";
-
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (ctx.measureText(candidate).width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-      if (lines.length === maxLines - 1) break;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current && lines.length < maxLines) lines.push(current);
-
-  // אם עוד נשארו מילים שלא נכנסו — מוסיפים "…" לשורה האחרונה
-  const consumed = lines.join(" ").split(/\s+/).length;
-  if (consumed < words.length && lines.length) {
-    let last = lines[lines.length - 1];
-    while (ctx.measureText(`${last}…`).width > maxWidth && last.length > 1) {
-      last = last.slice(0, -1);
-    }
-    lines[lines.length - 1] = `${last}…`;
-  }
-
-  lines.forEach((line, i) => {
-    ctx.fillText(line, x, startY + i * lineHeight);
-  });
-}
-
 /** רקע: גרדיאנט עמוק + זוהר עדין בצבע המותג */
 function drawBackground(ctx, W, H, pal) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
