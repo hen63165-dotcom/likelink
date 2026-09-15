@@ -671,7 +671,11 @@ export default async function handler(req, res) {
     try {
       const feed = (await kvGet("brand_pulse:posts")) || [];
       const list = Array.isArray(feed) ? feed : [];
-      return json(res, { ok: true, mode: "brand-pulse", count: list.length, posts: list.slice(-8).reverse() }, 200, req);
+      // Sort by real timestamp (newest first) instead of array position —
+      // array order is append-order and can diverge from actual recency
+      // (e.g. seeded posts prepended later). Cap at 8.
+      const sorted = [...list].sort((a, b) => (b?.ts || 0) - (a?.ts || 0)).slice(0, 8);
+      return json(res, { ok: true, mode: "brand-pulse", count: list.length, posts: sorted }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
