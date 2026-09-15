@@ -670,12 +670,37 @@ export default async function handler(req, res) {
   if (new URL(req.url, "https://x").searchParams.get("mode") === "brand-pulse") {
     try {
       const feed = (await kvGet("brand_pulse:posts")) || [];
-      const list = Array.isArray(feed) ? feed : [];
+      let list = Array.isArray(feed) ? feed : [];
+
+      // ☁️ Passport-driven self-heal: if the feed is stale (>6h), this visitor's
+      // signed Cloud Passport triggers one web-only Luna publish — the site
+      // markets itself with zero cron dependency. Rate-limited per passport
+      // (2/min); publishBrandPulse's own 6h web cooldown makes concurrent
+      // triggers safe and idempotent.
+      let selfHeal = "not_needed";
+      try {
+        const newestTs = list.reduce((m, p) => Math.max(m, Number(p?.ts) || 0), 0);
+        const BRAND_PULSE_STALE_MS = 6 * 60 * 60 * 1000; // must match BRAND_WEB_COOLDOWN_MS in autopilot.mjs
+        if (Date.now() - newestTs > BRAND_PULSE_STALE_MS) {
+          if (passport && rateAllow("brand-selfheal", passport.hash, 2)) {
+            const selfOrigin = `https://${getHeader(req, "x-forwarded-host") || getHeader(req, "host") || "likelink2.vercel.app"}`;
+            const { ensureBrandPulseFresh } = await import("./autopilot.mjs");
+            const r = await ensureBrandPulseFresh(selfOrigin, BRAND_PULSE_STALE_MS);
+            selfHeal = r.selfHeal || (r.ok ? "published" : "failed");
+            if (r.ok && selfHeal === "published") {
+              const refreshed = (await kvGet("brand_pulse:posts")) || [];
+              if (Array.isArray(refreshed)) list = refreshed;
+            }
+          } else {
+            selfHeal = "rate_limited";
+          }
+        }
+      } catch { selfHeal = "failed"; }
       // Sort by real timestamp (newest first) instead of array position —
       // array order is append-order and can diverge from actual recency
       // (e.g. seeded posts prepended later). Cap at 8.
       const sorted = [...list].sort((a, b) => (b?.ts || 0) - (a?.ts || 0)).slice(0, 8);
-      return json(res, { ok: true, mode: "brand-pulse", count: list.length, posts: sorted }, 200, req);
+      return json(res, { ok: true, mode: "brand-pulse", count: list.length, selfHeal, posts: sorted }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }

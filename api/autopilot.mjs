@@ -907,7 +907,8 @@ async function announceNewProduct(store, marketerId, cfg, product, origin) {
 
 const BRAND_PULSE_KEY = "brand_pulse:meta";
 const BRAND_POSTS_KEY = "brand_pulse:posts"; // public Luna self-publish feed
-const BRAND_PULSE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // פעם ביום
+const BRAND_PULSE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // פעם ביום (ערוצים חיצוניים)
+const BRAND_WEB_COOLDOWN_MS = 6 * 60 * 60 * 1000;    // פיד האתר עצמו — עד 4 פרסומים ביום
 
 const BRAND_PULSE_STORIES_HE = [
   [
@@ -935,11 +936,17 @@ const BRAND_PULSE_STORIES_HE = [
   ].join("\n"),
 ];
 
-async function publishBrandPulse(origin) {
+export async function publishBrandPulse(origin, opts = {}) {
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
   const store = await kvGet(KV_KEY);
   const meta = store[BRAND_PULSE_KEY] || {};
-  if (Date.now() - (meta.ts || 0) < BRAND_PULSE_COOLDOWN_MS) return { ok: false, skipped: "cooldown" };
+  // webOnly=true → self-publish to the site's own feed only, on a faster 6h
+  // rhythm (visitor Cloud-Passport self-heal). Full run keeps the daily
+  // cadence for the optional external channels.
+  const isWebOnly = Boolean(opts.webOnly);
+  const lastTs = isWebOnly ? (meta.webTs || 0) : (meta.ts || 0);
+  const cooldownMs = isWebOnly ? BRAND_WEB_COOLDOWN_MS : BRAND_PULSE_COOLDOWN_MS;
+  if (Date.now() - lastTs < cooldownMs) return { ok: false, skipped: "cooldown" };
 
   const channels = [];
   if (process.env.BRAND_TELEGRAM_BOT && process.env.BRAND_TELEGRAM_CHAT) {
@@ -977,7 +984,7 @@ async function publishBrandPulse(origin) {
     : `${story}\n\n💜 פותחים סטודיו חינם · ${link}`;
 
   const results = [];
-  for (const ch of channels) {
+  for (const ch of (isWebOnly ? [] : channels)) {
     try {
       if (ch.type === "telegram") {
         await sendTelegram(ch, text);
@@ -1013,14 +1020,50 @@ async function publishBrandPulse(origin) {
     results.push({ channel: "web", ok: false, detail: String(e.message || e) });
   }
 
-  const anyOk = results.some((r) => r.ok);
+  const anyOk = results.some((r) => r.ok) || isWebOnly; // web self-publish always counts
   if (anyOk) {
     try {
-      store[BRAND_PULSE_KEY] = { ts: Date.now(), run: (meta.run || 0) + 1 };
+      store[BRAND_PULSE_KEY] = {
+        ts: isWebOnly ? (meta.ts || 0) : Date.now(), // external-channel rhythm untouched by web ticks
+        webTs: Date.now(),
+        run: (meta.run || 0) + 1,
+      };
       await kvSet(KV_KEY, stripRuntime(store));
+      await recordVeritasPulse("brand_pulse_publish", {
+        spotlightId: spotlight?.id || null,
+        mode: isWebOnly ? "web_selfheal" : "daily",
+      });
     } catch { /* best-effort */ }
   }
   return { ok: anyOk, results };
+}
+
+/**
+ * ☁️ Passport-triggered self-heal: keeps the site's own feed alive WITHOUT any
+ * cron dependency. Called from store.mjs when a visitor (holding a signed
+ * Cloud Passport) loads the brand-pulse feed: if the newest post is older than
+ * staleMs, publish one web-only Luna post. Idempotent — the 6h web cooldown
+ * inside publishBrandPulse prevents duplicates even under concurrent triggers.
+ */
+export async function ensureBrandPulseFresh(origin, staleMs = BRAND_WEB_COOLDOWN_MS) {
+  if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
+  let newest = 0;
+  try {
+    const feed = await kvGet(BRAND_POSTS_KEY);
+    const list = Array.isArray(feed) ? feed : [];
+    newest = list.reduce((m, p) => Math.max(m, Number(p?.ts) || 0), 0);
+  } catch (e) {
+    return { ok: false, selfHeal: "failed", error: String(e.message || e).slice(0, 120) };
+  }
+  if (Date.now() - newest < staleMs) {
+    return { ok: true, selfHeal: "not_needed", newestTs: newest };
+  }
+  const r = await publishBrandPulse(origin, { webOnly: true });
+  return {
+    ok: Boolean(r.ok),
+    selfHeal: r.ok ? "published" : (r.skipped || "failed"),
+    results: r.results,
+  };
 }
 
 // Runs every enabled automation whose slot is due. Shared by the Vercel cron
