@@ -27,6 +27,7 @@ export default function CloudHomeStrip({ navigate }) {
   const [boost, setBoost] = useState(null);
   const [trend, setTrend] = useState(null);
   const [pulse, setPulse] = useState(null);
+  const [pulseList, setPulseList] = useState([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -44,7 +45,10 @@ export default function CloudHomeStrip({ navigate }) {
       try {
         const res = await fetch("/api/store?mode=brand-pulse");
         const data = await res.json().catch(() => null);
-        if (alive && data?.ok && data.posts?.length) setPulse(data.posts[0]);
+        if (alive && data?.ok && data.posts?.length) {
+          setPulse(data.posts[0]);
+          setPulseList(data.posts.slice(0, 6));
+        }
       } catch { /* offline-safe */ }
     })();
     return () => { alive = false; };
@@ -113,6 +117,45 @@ export default function CloudHomeStrip({ navigate }) {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* LUNA FEED — the rest of Luna's self-published posts (additive strip) */}
+      {pulseList.length > 1 && (
+        <div className="surface rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Sparkles size={14} style={{ color: "var(--accent)" }} />
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+              {L("🎀 עוד מהפרסום העצמי של לונה", "🎀 More from Luna's self-publish")}
+            </p>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {pulseList.slice(1).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="tap shrink-0 w-36 text-start rounded-xl overflow-hidden"
+                style={{ background: "var(--bg-elevated)", border: "1px solid color-mix(in srgb, var(--accent) 18%, transparent)" }}
+                onClick={() => p.spotlight?.id && navigate(`/p/${encodeURIComponent(p.spotlight.id)}`)}
+              >
+                {p.spotlight?.image && (
+                  <img
+                    src={p.spotlight.image}
+                    alt={p.spotlight.title || ""}
+                    className="w-full h-20 object-cover bg-[var(--bg-subtle)]"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                )}
+                <div className="p-2">
+                  <p className="text-[11px] font-bold leading-snug line-clamp-2" dir="rtl">
+                    {p.spotlight?.title || L("מלונה 💜", "From Luna 💜")}
+                  </p>
+                  {Number(p.spotlight?.price) > 0 && (
+                    <p className="text-[10px] text-muted mt-0.5">₪{Number(p.spotlight.price).toFixed(0)}</p>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
