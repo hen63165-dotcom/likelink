@@ -933,6 +933,48 @@ export default async function handler(req, res) {
       const ownerMarketer = seedMarketers[0] || { id: "msd6go4kff49s5", name: "ALYOSTYLE" };
       await kvSet("marketplace:products", seedProducts);
       await kvSet("marketplace:marketers", [ownerMarketer]);
+
+      // ── Seed influencer-style Brand Pulse posts for the REAL live products ──
+      // One Luna post per p-live-* product (real titles / prices / images from
+      // the canonical seed — no invented products, no invented links).
+      // Idempotent: seeds only when no seeded posts exist yet, and never
+      // removes or modifies existing posts.
+      try {
+        const host = getHeader(req, "x-forwarded-host") || getHeader(req, "host") || "likelink2.vercel.app";
+        const siteOrigin = `https://${host}`;
+        const utm = "utm_source=brandpulse&utm_medium=autopilot&utm_campaign=today_drop";
+        const livePool = seedProducts.filter((p) => p && String(p.id || "").startsWith("p-live-") && /^https?:/i.test(String(p.image || "")));
+        if (livePool.length) {
+          const existingPosts = (await kvGet("brand_pulse:posts")) || [];
+          const posts = Array.isArray(existingPosts) ? existingPosts : [];
+          const hasSeeds = posts.some((p) => String(p.id || "").startsWith("bp_seed_"));
+          if (!hasSeeds) {
+            // Hook per product id — text always matches the actual product.
+            const hookById = {
+              "p-live-01": (p) => `POV: מצאת את הטבעת שכולן שואלות איפה קנית 💍\nכסף סטרלינג 925, זרקון בחיתוך מרקיז — והמחיר? ${p.price} ₪ בלבד. קלאסי, נקי, והולך עם הכל.`,
+              "p-live-02": (p) => `בכנות? לא כל צמיד שווה פוסט. הזה כן 💜\n${p.title} · ${p.price} ₪ — ברק של יהלום אמיתי, תשפטו בעצמכן.`,
+              "p-live-03": (p) => `גללתי. עצרתי. והזמנתי ✨\n${p.title} · ${p.price} ₪ — הפריט שצץ לי בפיד ושווה כל שקל. עדין, פלטינה, ומושלם לשכבות.`,
+              "p-live-04": (p) => `שאלתן אותי בסטורי — אז הנה התשובה 🎀\n${p.title} · ${p.price} ₪. מצופה 14K, מרגיש הרבה יותר יקר ממה שהוא עולה.`,
+              "p-live-05": (p) => `יש עגילים שנראים יוקרתי — והמחיר הזה פשוט לא הגיוני 👀\n${p.title} · ${p.price} ₪. מואסניט בגוון רוז, 4.8★ מ-1,400 ביקורות.`,
+            };
+            const genericHook = (p) => `הבחירה שלי היום 💜\n${p.title} · ${p.price} ₪ — פריט ששווה עצירה באמצע הגלילה.`;
+            const seeded = livePool.map((p, i) => {
+              const hook = hookById[p.id] || genericHook;
+              const productLink = `${siteOrigin}/?product=${encodeURIComponent(p.id)}&${utm}`;
+              return {
+                id: `bp_seed_${p.id}`,
+                ts: Date.now() + i,
+                text: `${hook(p)}\n\n🛒 לצפייה: ${productLink}\n\n💜 פותחים סטודיו חינם · ${siteOrigin}`,
+                link: productLink,
+                spotlight: { id: p.id, title: p.title, price: p.price, image: p.image },
+                channels: ["site"],
+              };
+            });
+            await kvSet("brand_pulse:posts", [...seeded, ...posts].slice(0, 30));
+          }
+        }
+      } catch { /* brand pulse seeding is best-effort; never blocks bootstrap */ }
+
       return json(res, { ok: true, mode: "force-bootstrap", productsWritten: seedProducts.length, marketersWritten: 1, ownerId: ownerMarketer.id }, 200, req);
     } catch (e) {
       return json(res, { ok: false, mode: "force-bootstrap", error: String(e.message || e) }, 500, req);
