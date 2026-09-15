@@ -142,6 +142,46 @@ function drawImageSeg(ctx, img, t, W, H) {
   ctx.fillRect(0, 0, W, H);
 }
 
+/**
+ * ציור טקסט עטוף (word-wrap) עד maxLines שורות, ממורכז אופקית סביב x.
+ * שורה ראשונה: baseline ב-y; כל שורה נוספת מתקדמת ב-lineHeight.
+ * אם הטקסט נחתך — מתווסף "…" בסוף השורה האחרונה (תוך וידוא שהיא עדיין במסגרת maxWidth).
+ * RTL-safe: סדר הגליפים נקבע לפי ctx.direction שנקבע בראש drawOverlay.
+ * (מממש את אותה לוגיקת גלישה של wrapText ב-storyKit.js, בהתאמה לחתימת הקריאה הקיימת.)
+ */
+function drawWrapped(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text ?? "").split(/\s+/).filter(Boolean);
+  if (!words.length) return;
+
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+      if (lines.length >= maxLines) break;
+    } else {
+      line = test;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+
+  // נחתך? מוסיפים "…" לשורה האחרונה תוך התאמה לרוחב
+  const consumedWords = lines.join(" ").split(/\s+/).filter(Boolean).length;
+  if (consumedWords < words.length && lines.length) {
+    let last = lines[lines.length - 1];
+    while (last && ctx.measureText(`${last}…`).width > maxWidth) {
+      const trimmed = last.replace(/\s*\S+$/, "");
+      if (trimmed === last) break; // הגנה מלולאה אינסופית
+      last = trimmed;
+    }
+    lines[lines.length - 1] = last ? `${last}…` : "…";
+  }
+
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+}
+
 /** שכבת-על: מותג + שם חנות + הוק + מחיר + CTA */
 function drawOverlay(ctx, o, W, H, t) {
   const { pal, title, price, hook, cta, storeName } = o;
