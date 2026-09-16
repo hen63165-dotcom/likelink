@@ -851,7 +851,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
 
       {/* Luna — הדוברת הדיגיטלית: מפתה לפתוח סטודיו ולגלות */}
       <LunaAssistant
-        onOpenStudio={() => navigate("/studio")}
+        onOpenStudio={() => navigate("/sell")}
       />
     </div>
   );

@@ -311,7 +311,7 @@ export default function CreatorProfilePage({
               פתחו סטודיו מכירה בחינן והתחילו להרוויח — בלי צורך בטכנולוגיה
             </p>
             <button
-              onClick={() => navigate('/studio')}
+              onClick={() => navigate('/sell')}
               className="tap rounded-full px-5 py-2 text-xs font-semibold bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md hover:shadow-lg transition-shadow"
             >
               🚀 פתחו סטודיו משלכם
