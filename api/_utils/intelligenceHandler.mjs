@@ -6,7 +6,8 @@ import { creatorContext } from "./intelligenceContext.mjs";
 
 const codes = { UNAUTHENTICATED: 401, INVALID_TASK: 400, INVALID_CONTENT: 400,
   INVALID_CONTEXT: 400, INVALID_REQUEST: 400, REQUEST_TOO_LARGE: 413,
-  VERSION_CONFLICT: 409, RATE_LIMITED: 429, BLOCKED_BY_STORAGE: 503 };
+  VERSION_CONFLICT: 409, RATE_LIMITED: 429, BLOCKED_BY_STORAGE: 503,
+  JOB_NOT_RESUMABLE: 400, INVALID_JOB: 400 };
 async function limitedBody(req) {
   if (Number(req.headers?.["content-length"]) > 16000) throw new Error("REQUEST_TOO_LARGE");
   let raw;
@@ -44,6 +45,17 @@ export function createIntelligenceHandler({ verify = verifyToken, store = intell
         const state = await store.read(user.id);
         return res.status(200).json({ ok: true, version: state.version,
           memory: creatorContext(state.memory), jobs: state.jobs || [] });
+      }
+      // Cloud status: per-capability health + CORE_READY / CORE_DEGRADED / CORE_BLOCKED.
+      if (body.action === "status") {
+        const status = core.coreStatus();
+        return res.status(200).json({ ok: true, ...status,
+          capabilities: ["text", "translation"].map(c => core.resolveCapability(c)) });
+      }
+      if (body.action === "resume") {
+        if (typeof body.jobId !== "string" || body.jobId.length > 80) throw new Error("INVALID_REQUEST");
+        const result = await core.resume(user.id, body.jobId);
+        return res.status(200).json(result);
       }
       if (body.action === "memory") {
         if (!Number.isInteger(body.version) || body.version < 0) throw new Error("INVALID_REQUEST");

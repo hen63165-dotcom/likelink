@@ -143,6 +143,14 @@ async function autoBootstrapCatalog(req) {
 
 async function kvSet(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
+  if (key === 'marketplace:subscriptions') {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/financial_legacy_subscriptions`, {
+      method: 'POST', headers: { apikey: SB_KEY, authorization: `Bearer ${SB_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ p_value: value }), signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) throw Error('PAYMENT_STORAGE_REQUIRED');
+    return;
+  }
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: {
@@ -614,6 +622,10 @@ async function subsAuthHandler(req, res, sub, body) {
 }
 
 export default async function handler(req, res) {
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'finance') {
+    const { financialHandler } = await import('./_utils/financialHandler.mjs');
+    return financialHandler(req, res);
+  }
   if (new URL(req.url, "https://x").searchParams.get("mode") === "intelligence") {
     return intelligenceHandler(req, res);
   }
@@ -1290,6 +1302,10 @@ export default async function handler(req, res) {
 
   const { key, value, action, sig, sigTs, sale } = body || {};
   const normalizedKey = String(key || "").toLowerCase().trim();
+  // Private Intelligence state is writable ONLY through its authenticated CAS RPC path.
+  if (normalizedKey.startsWith("intelligence:") || normalizedKey.startsWith("finance:") || normalizedKey === "marketplace:subscriptions") {
+    return json(res, { ok: false, error: "private_namespace" }, 403, req);
+  }
   if (!normalizedKey || normalizedKey.length > MAX_KEY_LEN) {
     json(res, { ok: false, error: "invalid_key" }, 400, req);
     return;

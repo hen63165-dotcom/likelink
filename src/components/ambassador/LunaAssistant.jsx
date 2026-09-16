@@ -13,7 +13,7 @@ import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
 import { sanitizeInput } from "../../lib/security.js";
 import { LunaAvatar } from "./LunaAvatar";
 import { fetchCloudHome } from "../../lib/cloud/home.js";
-import { runIntelligenceTask, intelligenceMessage } from "../../lib/cloud/intelligenceClient.js";
+import { runIntelligenceTask, intelligenceMessage, intelligenceStatus, inspectIntelligence, resumeIntelligenceJob } from "../../lib/cloud/intelligenceClient.js";
 
 export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }) {
     const { t, lang } = useI18n();
@@ -22,6 +22,23 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
   const [open, setOpen] = useState(false);
   const [cloudPick, setCloudPick] = useState(null);
   const [luna, setLuna] = useState({ status: "idle", text: "" });
+  const [cloud, setCloud] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    Promise.all([intelligenceStatus(), inspectIntelligence()]).then(([status, history]) => {
+      if (!alive) return;
+      setCloud(status);
+      setJobs(history.ok ? history.jobs || [] : []);
+    });
+    return () => { alive = false; };
+  }, [open, luna.status]);
+  async function resumeJob(jobId) {
+    setLuna({ status: "running", text: "" });
+    const r = await resumeIntelligenceJob(jobId);
+    setLuna({ status: r.job?.status || "failed", text: r.ok ? r.result.text : intelligenceMessage(r.job?.errorCode || r.error) });
+  }
 
   // Cloud Intelligence in action: Luna's suggestion is a REAL orchestrator run
   // (server-side, validated) — or an honest status when it cannot execute.
@@ -153,6 +170,25 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
                 )}
               </div>
 
+              {cloud && (
+                <div role="status" className="text-[11px] rounded-xl p-2" style={{ background: "var(--bg-subtle)" }}>
+                  {cloud.ok ? L(cloud.status === "CORE_READY" ? "הענן מוכן" : "מצב ענן מוגבל — הסטודיו והקטלוג ממשיכים לעבוד", cloud.status === "CORE_READY" ? "Cloud ready" : "Degraded cloud — Studio and catalog remain usable") : intelligenceMessage(cloud.error)}
+                  {(cloud.capabilities || []).map(c => (
+                    <p key={c.capability} dir="ltr">{c.capability}: {c.status}</p>
+                  ))}
+                </div>
+              )}
+              {jobs.filter(j => ["blocked", "retrying"].includes(j.status) && j.expiresAt > Date.now()).slice(0, 3).map(j => (
+                <div key={j.jobId} className="rounded-xl p-2 text-[11px]" style={{ background: "var(--bg-subtle)" }}>
+                  <p>{j.operation} · {j.status}</p>
+                  <p>{intelligenceMessage(j.errorCode)}</p>
+                  <button type="button" onClick={() => resumeJob(j.jobId)}
+                    disabled={luna.status === "running" || j.nextAttemptAt > Date.now()}
+                    className="tap font-bold disabled:opacity-50" style={{ color: "var(--accent)" }}>
+                    {L("המשיכי את אותה משימה", "Resume this job")}
+                  </button>
+                </div>
+              ))}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => { onOpenStudio && onOpenStudio(); setOpen(false); }}

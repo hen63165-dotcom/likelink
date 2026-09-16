@@ -34,6 +34,7 @@ import AutoVideoStudio from "../video/AutoVideoStudio";
 import ShareQR from "../ShareQR.jsx";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
+import StudioCheckout from "./StudioCheckout";
 import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
@@ -183,6 +184,8 @@ export default function SellView({ navigate }) {
           <LogOut size={15} />
         </button>
       </div>
+
+      <StudioCheckout />
 
       <LabeledInput
         label={t("sell.trackingIdLabel")}

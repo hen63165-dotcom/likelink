@@ -30,17 +30,6 @@ export function Cart() {
       if (result.ok && result.approvalUrl) {
         // Redirect buyer to PayPal for approval
         window.location.href = result.approvalUrl;
-      } else if (result.mock) {
-        // Development mode — no PayPal credentials configured
-        alert(
-          t(
-            "cart.mockCheckout",
-            `Mock checkout (no PayPal credentials): Total ${result.total} ILS for ${items.length} items. In production, buyer would be redirected to PayPal.`
-          )
-        );
-        clearCart();
-        setBuyerEmail("");
-        setIsOpen(false);
       } else {
         // Human-readable reasons for every known failure — the buyer never sees a bare error code.
         const reasons = {

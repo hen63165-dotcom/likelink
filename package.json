@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node --test tests/*.test.mjs tests/**/*.test.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "feed:google": "node scripts/generate-google-feed.mjs"

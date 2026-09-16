@@ -205,3 +205,16 @@ export function createLocalSubscription(token, planId, billingPeriod = BILLING.M
 export function cancelMySubscription(token) {
   return subsPost("cancel", token, {});
 }
+
+// Studio Financial Cloud client. Provider details never enter the UI.
+export async function financialRequest(action, token, payload = {}) {
+  try {
+    const res = await fetch(`/api/store?mode=finance&action=${encodeURIComponent(action)}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(25000),
+    });
+    const data = await res.json();
+    return { ...data, ok: res.ok && data.ok === true };
+  } catch { return { ok: false, error: 'PAYMENT_RECONCILIATION_REQUIRED' }; }
+}
+

@@ -58,7 +58,7 @@ test("text task runs through the orchestrator, persists a completed job, and ret
   assert.equal(job.status, "completed");
   assert.equal(job.provider, "openai");
   assert.ok(job.latency >= 0 && job.requestId && job.jobId);
-  assert.deepEqual(events.map((e) => e.status), ["queued", "running", "completed"]);
+  assert.deepEqual(events.map((e) => e.status), ["queued", "running", "verifying", "completed"]);
   assert.equal(events[0].provider, null);
 });
 
