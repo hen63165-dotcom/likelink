@@ -696,6 +696,28 @@ export default async function handler(req, res) {
           }
         }
       } catch { selfHeal = "failed"; }
+      // Feed hygiene: NEVER advertise a product that is not in the approved,
+      // attributed public catalog (e.g. demo rows removed by force-bootstrap,
+      // quarantined attribution). Posts whose spotlight no longer resolves are
+      // HIDDEN at read time — history stays intact, the public feed stays
+      // honest, and links can never 404 into an empty product page.
+      try {
+        const { filterPublicCatalog } = await import("../src/lib/cloud/catalog.js");
+        const [hygProds, hygMks] = await Promise.all([
+          kvGet("marketplace:products", []),
+          kvGet("marketplace:marketers", []),
+        ]);
+        const publicIds = new Set(
+          filterPublicCatalog(
+            Array.isArray(hygProds) ? hygProds : [],
+            Array.isArray(hygMks) ? hygMks : []
+          ).map((p) => String(p.id))
+        );
+        list = list.filter((p) => {
+          const sid = p?.spotlight?.id;
+          return !sid || publicIds.has(String(sid));
+        });
+      } catch { /* hygiene is fail-open: serve the feed as-is on error */ }
       // Sort by real timestamp (newest first) instead of array position —
       // array order is append-order and can diverge from actual recency
       // (e.g. seeded posts prepended later). Cap at 8.
