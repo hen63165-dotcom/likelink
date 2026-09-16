@@ -43,18 +43,23 @@ export default function ProductCard({ product, onClick }) {
         </button>
 
         {/* Price tag */}
-        <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-full bg-white/90">
+        <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-full bg-white/90">
           <span className="text-[14px] font-extrabold" style={{ color: "var(--text)" }}>₪{product.price}</span>
+        </div>
+
+        {/* Title — LTK-style gradient scrim overlaid on the image itself, not a separate box below it */}
+        <div
+          className="absolute inset-x-0 bottom-0 pt-8 pb-2.5 px-3"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0) 85%)" }}
+        >
+          <p className="text-[12.5px] font-bold leading-snug line-clamp-2 text-white">
+            {product.title}
+          </p>
         </div>
       </div>
 
       {/* Product info */}
       <div className="p-3" dir="rtl">
-        {/* Title */}
-        <p className="text-[12px] font-bold leading-snug line-clamp-2" style={{ color: "var(--text)" }}>
-          {product.title}
-        </p>
-
         {/* Luna's caption preview */}
         <button
           onClick={() => setShowCaption(!showCaption)}
