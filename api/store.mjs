@@ -1,3 +1,5 @@
+import { intelligenceHandler } from "./_utils/intelligenceHandler.mjs";
+
 import { readBody } from "./_utils/readBody.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
 // Vercel Serverless Function — Store API 🔐
@@ -612,6 +614,9 @@ async function subsAuthHandler(req, res, sub, body) {
 }
 
 export default async function handler(req, res) {
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "intelligence") {
+    return intelligenceHandler(req, res);
+  }
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "misconfigured: service role key missing" }, 500, req); return; }
 

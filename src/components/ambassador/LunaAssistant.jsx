@@ -13,6 +13,7 @@ import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
 import { sanitizeInput } from "../../lib/security.js";
 import { LunaAvatar } from "./LunaAvatar";
 import { fetchCloudHome } from "../../lib/cloud/home.js";
+import { runIntelligenceTask, intelligenceMessage } from "../../lib/cloud/intelligenceClient.js";
 
 export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }) {
     const { t, lang } = useI18n();
@@ -20,6 +21,22 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
     const { products, marketers } = useMarketplace();
   const [open, setOpen] = useState(false);
   const [cloudPick, setCloudPick] = useState(null);
+  const [luna, setLuna] = useState({ status: "idle", text: "" });
+
+  // Cloud Intelligence in action: Luna's suggestion is a REAL orchestrator run
+  // (server-side, validated) — or an honest status when it cannot execute.
+  async function askLuna() {
+    const draft = spotlight?.title
+      ? `מוצר: ${spotlight.title}${spotlight.price ? `, מחיר: ${spotlight.price} ₪` : ""}`
+      : "הצעתי לי רעיון לפוסט קצר לקידום הסטודיו שלי";
+    setLuna({ status: "running", text: "" });
+    const r = await runIntelligenceTask({
+      operation: "luna.suggest", modality: "text",
+      content: { kind: "text", text: draft },
+    });
+    if (r.ok && r.result?.text) setLuna({ status: "completed", text: r.result.text });
+    else setLuna({ status: r.job?.status || "failed", text: intelligenceMessage(r.job?.errorCode || r.error) });
+  }
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +134,24 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
                   </p>
                 </div>
               )}
+
+              {/* Cloud Intelligence — ask Luna for a REAL orchestrator-run suggestion */}
+              <div className="rounded-xl px-3 py-2.5" style={{ background: "var(--bg-subtle)" }}>
+                <button
+                  onClick={askLuna}
+                  disabled={luna.status === "running"}
+                  className="tap w-full flex items-center justify-center gap-1.5 text-[11.5px] font-bold disabled:opacity-60"
+                  style={{ color: "var(--accent)" }}
+                >
+                  <Sparkles size={13} />
+                  {luna.status === "running" ? L("לונה חושבת…", "Luna is thinking…") : L("בקשי מלונה הצעה מהענן ✨", "Ask Luna for a cloud idea ✨")}
+                </button>
+                {luna.text && (
+                  <p className="text-[12.5px] font-semibold mt-2 whitespace-pre-wrap text-center" style={{ color: "var(--text)" }}>
+                    {sanitizeInput(luna.text)}
+                  </p>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button

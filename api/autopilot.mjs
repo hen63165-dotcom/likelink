@@ -24,6 +24,7 @@ import { audit } from "./_utils/audit.js";
 import { buildCampaign } from "../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../src/lib/cloud/growth.js";
 import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/veritas.js";
+import { createIntelligenceCore } from "./_utils/intelligenceCore.mjs";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
@@ -366,30 +367,18 @@ function smartCaption(product, link, tags, runCount) {
     .join("\n");
 }
 
-async function aiPolish(text, product) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return text;
+// Central AI path: the existing aiPolish behavior becomes an orchestrator task.
+// Same silent-fallback contract as before — automation must never break — but
+// now with one central route, server-side keys, validation and job records.
+const __core = createIntelligenceCore();
+export async function aiPolish(text, product) {
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        max_tokens: 220,
-        messages: [
-          {
-            role: "system",
-            content:
-              "את עוזרת שיווקית של יוצרות תוכן בישראל. שפרי את טקסט הפרסום: עברית קליטה ואנרגטית, 2–3 אימוג'ים, וסיימי בקריאה לפעולה לכניסה לחנות. אל תשני ואל תמחקי קישורים, מחירים והאשטגים קיימים. אל תמציאי מחירים או פרטים. החזירי רק את הטקסט.",
-          },
-          { role: "user", content: `מוצר: ${product.title || product.name || ""}\nטיוטה:\n${text}` },
-        ],
-      }),
-      signal: AbortSignal.timeout(15000),
+    if (!product?.marketerId) return text;
+    const result = await __core.runForMarketer(product.marketerId, {
+      operation: "autopilot.polish", modality: "text",
+      content: { kind: "text", text },
     });
-    const data = await res.json();
-    const out = data?.choices?.[0]?.message?.content?.trim();
-    return out && out.length > 10 ? out : text;
+    return result?.ok && result.result?.text ? result.result.text : text;
   } catch {
     return text; // silent fallback — automation must never break
   }
