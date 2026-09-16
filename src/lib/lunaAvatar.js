@@ -31,7 +31,10 @@ export function worldGradient(worldId) {
 
 /** בונה את כל הפרסונה של הסטודיו (world + alterEgo + emoji + colors) */
 export function lunaPersona(marketer = {}) {
-  const world = getBrandWorld(marketer);
+  // The site's Luna uses the illustrated fairy, not the default studio's dove.
+  // Keep existing studios and explicitly configured personas unchanged.
+  const hasStudioContext = Boolean(marketer?.id || marketer?.brandWorld);
+  const world = getBrandWorld(hasStudioContext ? marketer : { brandWorld: { worldId: "pixar" } });
   const cfg = (marketer?.brandWorld && typeof marketer.brandWorld === "object" ? marketer.brandWorld : {}) || {};
   return {
     worldId: world.worldId || "lux",

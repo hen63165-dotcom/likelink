@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { X, ChevronRight, Share2, Heart } from "lucide-react";
 import { generateProductStory } from "../../lib/cloud/storyEngine.js";
 import { useI18n } from "../../lib/LangContext";
+import { LunaAvatar } from "../ambassador/LunaAvatar";
 
 export default function LunaStoryViewer({ product, onClose, onProductClick }) {
   const { lang } = useI18n();
@@ -91,7 +92,9 @@ export default function LunaStoryViewer({ product, onClose, onProductClick }) {
 
         <div className="absolute top-6 left-0 right-0 z-20 flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm" style={{ background: "linear-gradient(135deg, #C9A86C, #9C7437)" }}>🧚</div>
+            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center" style={{ background: "linear-gradient(135deg, #4C2E8C, #E86A9E)" }}>
+              <LunaAvatar size={32} glow={false} />
+            </div>
             <div>
               <p className="text-[11px] font-bold text-white">לונה · הסטודיו</p>
               <p className="text-[9px] text-white/70">עכשיו</p>

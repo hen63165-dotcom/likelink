@@ -42,10 +42,22 @@ export function Cart() {
         setBuyerEmail("");
         setIsOpen(false);
       } else {
+        // Human-readable reasons for every known failure — the buyer never sees a bare error code.
+        const reasons = {
+          paypal_not_configured:
+            "התשלום דרך PayPal עדיין לא מופעל בעסק — המוכרת/הפלטפורמה צריכה לחבר חשבון PayPal Business. נסו שוב מאוחר יותר או פנו אלינו.",
+          paypal_order_failed:
+            "PayPal דחה את יצירת ההזמנה. נסו שוב בעוד רגע — אם זה חוזר, פנו אלינו עם פרטי הסל.",
+          empty_cart: "העגלה ריקה.",
+          invalid_buyer_email: "כתובת האימייל לא תקינה.",
+          method_not_allowed: "שגיאת תקשורת עם שרת התשלום.",
+        };
+        const human = reasons[result.error] || "";
         alert(
           t(
             "cart.checkoutError",
-            `Checkout initialization failed: ${result.error || "unknown error"}`
+            human ||
+              `אתחול התשלום נכשל${result.error ? ` (${result.error})` : ""}. נסו שוב — אם זה חוזר, פנו אלינו.`
           )
         );
       }
