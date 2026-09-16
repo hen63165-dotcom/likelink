@@ -12,7 +12,7 @@
  * anymore. It is a UI convenience cache. The real identity comes from the
  * authenticated Auth session + the profiles.marketer_id link (server-verified).
  */
-import { supabase, supabaseConfigured } from "../supabaseClient";
+import { supabase, supabaseConfigured } from "../supabaseClient.js";
 
 /**
  * Resolve the canonical LikeLink marketer for the current auth user.

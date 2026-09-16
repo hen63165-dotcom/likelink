@@ -1,4 +1,4 @@
-import { PAYOUT_INTERVAL_DAYS } from "../constants/keys";
+import { PAYOUT_INTERVAL_DAYS } from "../constants/keys.js";
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 

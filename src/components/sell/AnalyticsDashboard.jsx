@@ -1,8 +1,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Eye, MousePointerClick, TrendingUp, DollarSign, Award, ShoppingBag } from "lucide-react";
-import { getCreatorAnalytics } from "../../lib/analytics";
-import { money } from "../../utils/helpers";
+import { getCreatorAnalytics } from "../../lib/analytics.js";
+import { money } from "../../utils/helpers.js";
 import { useI18n } from "../../lib/LangContext";
 
 export function AnalyticsDashboard({ marketerId, products = [] }) {

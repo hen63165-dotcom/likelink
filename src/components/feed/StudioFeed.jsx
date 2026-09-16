@@ -10,12 +10,37 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Flame, TrendingUp, Share2 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
-import { composeStudioPost } from "../../lib/cloud/studioEngine";
+import { composeStudioPost } from "../../lib/cloud/studioEngine.js";
+import { shareNative, copyToClipboard } from "../../lib/campaigns.js";
 
 export default function StudioFeed({ discovery, trend, navigate }) {
   const { lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
   const [posts, setPosts] = useState([]);
+  const [shared, setShared] = useState(false);
+
+  // Share the REAL featured product — Web Share API with clipboard fallback.
+  const sharePost = async (post) => {
+    const top = discovery?.top;
+    if (!top) return;
+    let url = "";
+    try {
+      url = `${window.location.origin}/p/${encodeURIComponent(top.productId || post.productId)}`;
+    } catch {
+      url = "";
+    }
+    const text = post.headline || top.title || "";
+    const res = await shareNative({ title: text, affiliateUrl: url }, text);
+    if (res?.success) {
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+      return;
+    }
+    if (res?.cancelled) return;
+    await copyToClipboard(`${text}\n${url}`);
+    setShared(true);
+    setTimeout(() => setShared(false), 2000);
+  };
 
   useEffect(() => {
     if (!discovery?.hasResult || !discovery?.top) return;
@@ -85,8 +110,15 @@ export default function StudioFeed({ discovery, trend, navigate }) {
               >
                 {post.cta}
               </button>
-              <button type="button" className="tap w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
-                <Share2 size={14} style={{ color: "var(--text)" }} />
+              <button
+                type="button"
+                className="tap w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--bg-subtle)" }}
+                onClick={() => sharePost(post)}
+                aria-label={L("שתפי", "Share")}
+                title={shared ? L("הועתק ✓", "Copied ✓") : L("שתפי", "Share")}
+              >
+                {shared ? <span className="text-[11px]">✓</span> : <Share2 size={14} style={{ color: "var(--text)" }} />}
               </button>
             </div>
           </div>

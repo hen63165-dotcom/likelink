@@ -19,7 +19,7 @@ import {
   TEMPLATE_VARS,
   defaultTemplate,
   checkAutoPilotAccess,
-} from "../../lib/autoPilot";
+} from "../../lib/autoPilot.js";
 
 const CHANNELS = [
   {

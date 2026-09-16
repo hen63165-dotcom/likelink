@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { TrendingUp, Trophy, Flame, Award, BarChart3, Eye, MousePointerClick } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 import {
   buildLeaderboard,
   computeStreak,
@@ -11,14 +11,14 @@ import {
   computeLevel,
   buildDailyMissions,
   weeklyGoalProgress,
-} from "../../lib/sellerEngagement";
+} from "../../lib/sellerEngagement.js";
 // ─── Achievements engine (src/lib/gamification.js — wired in unmodified) ────
 import {
   checkAchievements,
   calculateTotalPoints,
   getDailyChallenge,
   getWeeklyQuest,
-} from "../../lib/gamification";
+} from "../../lib/gamification.js";
 
 const BADGE_LABELS = {
   top_seller: { he: "🏆 מוכר מוביל", en: "🏆 Top Seller" },

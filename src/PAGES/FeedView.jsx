@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Search, ShoppingBag, Heart, UserCheck, Rows3, LayoutGrid } from "lucide-react";
 import { useI18n } from "../lib/LangContext";
-import { CATEGORY_KEYS } from "../lib/i18n";
+import { CATEGORY_KEYS } from "../lib/i18n.js";
 import { getTopCreatorIds, ProductCard, StreamCard, ProductModal, EmptyState } from "./SharedComponents";
 
 export default function FeedView({ products, marketers, favorites, onToggleFavorite, following, onOpenClick, showToast }) {

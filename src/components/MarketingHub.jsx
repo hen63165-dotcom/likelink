@@ -4,9 +4,9 @@
  */
 
 import { useState } from 'react';
-import { PLATFORMS } from '../lib/marketing';
-import { CAMPAIGN_TEMPLATES, shareToPlatform, shareNative, schedulePost } from '../lib/campaigns';
-import { autoConvertBuyer, generateViralOffer } from '../lib/viralEngine';
+import { PLATFORMS } from '../lib/marketing.js';
+import { CAMPAIGN_TEMPLATES, shareToPlatform, shareNative, schedulePost } from '../lib/campaigns.js';
+import { autoConvertBuyer, generateViralOffer } from '../lib/viralEngine.js';
 
 export default function MarketingHub({ product, sellerId, onClose, video, showToast }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);

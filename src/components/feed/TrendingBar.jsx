@@ -19,11 +19,14 @@ const MOMENTUM_LABELS = {
   "❄️ cold": { he: "קרחום", en: "Cold" },
 };
 
-export default function TrendingBar() {
+export default function TrendingBar({ navigate }) {
   const { lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
   const [trends, setTrends] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Chips open the product page — navigate prop from FeedView, with a
+  // self-contained fallback so the button works even standalone.
+  const go = navigate || ((u) => { window.location.href = u; });
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +85,8 @@ export default function TrendingBar() {
             <button
               key={t.product?.id || i}
               type="button"
+              onClick={() => t.product?.id && go(`/p/${encodeURIComponent(t.product.id)}`)}
+              aria-label={t.product?.title || "product"}
               className="flex shrink-0 flex-col items-center gap-1 rounded-xl px-2.5 py-1.5 text-center tap"
               style={{
                 minWidth: "72px",

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { storage } from "./storage";
-import { translations, categoryLabels } from "./i18n";
+import { storage } from "./storage.js";
+import { translations, categoryLabels } from "./i18n.js";
 
 const LangContext = createContext(null);
 const LANG_KEY = "ui:lang";

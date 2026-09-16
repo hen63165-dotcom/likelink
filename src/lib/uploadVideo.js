@@ -1,4 +1,4 @@
-import { supabase, supabaseConfigured } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
 /**
  * Uploads a generated reel video (Blob) and returns a public URL.

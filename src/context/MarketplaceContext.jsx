@@ -1,16 +1,18 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { storage } from "../lib/storage";
-import { supabase } from "../lib/supabaseClient";
-import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth";
-import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, PAYOUT_DEFAULT, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys";
-import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers";
-import { CATEGORY_KEYS } from "../lib/i18n";
+import { storage } from "../lib/storage.js";
+import { supabase } from "../lib/supabaseClient.js";
+import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth.js";
+import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, PAYOUT_DEFAULT, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys.js";
+import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers.js";
+import { CATEGORY_KEYS } from "../lib/i18n.js";
 import { useI18n } from "../lib/LangContext";
-import { SEED_MARKETERS, SEED_PRODUCTS } from "../data/seed";
-import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments";
+// SECURITY: NO seed fallback here. When the cloud is unreachable or empty, the
+// UI must show an EMPTY marketplace — never fake demo products/marketers.
+// The server auto-bootstraps the real catalog (api/store.mjs autoBootstrapCatalog).
+import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments.js";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 import { resolveCurrentMarketer, linkMarketer } from "../lib/cloud/identity.js";
-import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard";
+import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard.js";
 
 const MarketplaceContext = createContext(null);
 
@@ -123,8 +125,8 @@ export function MarketplaceProvider({ children }) {
   useEffect(() => {
     (async () => {
       const [m, p, c, s, st, sess, fav, intro, cols, follow, po, ch, nt] = await Promise.all([
-        getJSON(K.marketers, true, SEED_MARKETERS),
-        getJSON(K.products, true, SEED_PRODUCTS),
+        getJSON(K.marketers, true, []),
+        getJSON(K.products, true, []),
         getJSON(K.clicks, true, []),
         getJSON(K.sales, true, []),
         getJSON(K.settings, true, { platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT }),

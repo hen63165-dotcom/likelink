@@ -975,24 +975,34 @@ export default async function handler(req, res) {
         const utm = "utm_source=brandpulse&utm_medium=autopilot&utm_campaign=today_drop";
         const livePool = seedProducts.filter((p) => p && String(p.id || "").startsWith("p-live-") && /^https?:/i.test(String(p.image || "")));
         if (livePool.length) {
-          const existingPosts = (await kvGet("brand_pulse:posts")) || [];
-          const posts = Array.isArray(existingPosts) ? existingPosts : [];
-          const hasSeeds = posts.some((p) => String(p.id || "").startsWith("bp_seed_"));
-          if (!hasSeeds) {
-            // Hook per product id — text always matches the actual product.
+          const existingPostsRaw = (await kvGet("brand_pulse:posts")) || [];
+          const existingPostsArr = Array.isArray(existingPostsRaw) ? existingPostsRaw : [];
+          // Luna story seeds, versioned. v2 = Pixar-style Hebrew curiosity
+          // stories (one per real product). Legacy system seeds (bp_seed_*)
+          // are replaced by the new version; REAL posts (bp_<ts>_*) created
+          // by publishBrandPulse are NEVER touched.
+          const SEED_STORY_VERSION = "v2";
+          const alreadySeeded = existingPostsArr.some((p) =>
+            String(p?.id || "").startsWith(`bp_seed_${SEED_STORY_VERSION}_`)
+          );
+          if (!alreadySeeded) {
+            const userPosts = existingPostsArr.filter((p) => p && !String(p?.id || "").startsWith("bp_seed_"));
+            // Hook per product id — POV / curiosity-gap / social-proof, always
+            // matching the real product's actual materials, options and price.
+            // No invented statistics — every claim traces to the product row.
             const hookById = {
-              "p-live-01": (p) => `POV: מצאת את הטבעת שכולן שואלות איפה קנית 💍\nכסף סטרלינג 925, זרקון בחיתוך מרקיז — והמחיר? ${p.price} ₪ בלבד. קלאסי, נקי, והולך עם הכל.`,
-              "p-live-02": (p) => `בכנות? לא כל צמיד שווה פוסט. הזה כן 💜\n${p.title} · ${p.price} ₪ — ברק של יהלום אמיתי, תשפטו בעצמכן.`,
-              "p-live-03": (p) => `גללתי. עצרתי. והזמנתי ✨\n${p.title} · ${p.price} ₪ — הפריט שצץ לי בפיד ושווה כל שקל. עדין, פלטינה, ומושלם לשכבות.`,
-              "p-live-04": (p) => `שאלתן אותי בסטורי — אז הנה התשובה 🎀\n${p.title} · ${p.price} ₪. מצופה 14K, מרגיש הרבה יותר יקר ממה שהוא עולה.`,
-              "p-live-05": (p) => `יש עגילים שנראים יוקרתי — והמחיר הזה פשוט לא הגיוני 👀\n${p.title} · ${p.price} ₪. מואסניט בגוון רוז, 4.8★ מ-1,400 ביקורות.`,
+              "p-live-01": (p) => `POV: עצרו אותי ברחוב לשאול מאיפה הטבעת 💍\nכסף סטרלינג 925 · זרקון בחיתוך מרקיז · ${p.price} ₪ בלבד.\nקלאסית מספיק לחתונה. צנועה מספיק ליום-יום. זו הטבעת.`,
+              "p-live-02": (p) => `יש תכשיטים שקונים — ויש כאלה שזוכרים 💎\nצמיד טניס מואסניט DVVS1 בציפוי זהב לבן. ברק שנשאר בתמונות גם בלי פלאש.\n${p.title} · ${p.price} ₪ — הפריט שכולן ישאלו אותך מאיפה.`,
+              "p-live-03": (p) => `גללתי. עצרתי. הזמנתי ✨\nצמיד פלטינה עדין עם מואסניט אמיתי — ובחירת עובי אבן מ-2 עד 6.5 מ״מ.\n${p.title} · ${p.price} ₪. מושלם לבד, מושלם לשכבות.`,
+              "p-live-04": (p) => `שאלתן בסטורי מה על הפרק שלי — אז הנה התשובה 🎀\nכסף 925 מצופה 14K עם תליוני מואסניט · מתכווננת 14–21 ס״מ.\n${p.title} · ${p.price} ₪ — נראה הרבה יותר יקר ממה שהוא עולה.`,
+              "p-live-05": (p) => `4.8★ מעל 1,400 ביקורות. יש סיבה 👀\nעגילי מואסניט בגוון רוז — הנצנוץ שיושב הכי קרוב לפנים.\n${p.title} · ${p.price} ₪. מחיר שפשוט לא מסתדר עם המראה.`,
             };
             const genericHook = (p) => `הבחירה שלי היום 💜\n${p.title} · ${p.price} ₪ — פריט ששווה עצירה באמצע הגלילה.`;
             const seeded = livePool.map((p, i) => {
               const hook = hookById[p.id] || genericHook;
               const productLink = `${siteOrigin}/?product=${encodeURIComponent(p.id)}&${utm}`;
               return {
-                id: `bp_seed_${p.id}`,
+                id: `bp_seed_${SEED_STORY_VERSION}_${p.id}`,
                 ts: Date.now() + i,
                 text: `${hook(p)}\n\n🛒 לצפייה: ${productLink}\n\n💜 פותחים סטודיו חינם · ${siteOrigin}`,
                 link: productLink,
@@ -1000,7 +1010,7 @@ export default async function handler(req, res) {
                 channels: ["site"],
               };
             });
-            await kvSet("brand_pulse:posts", [...seeded, ...posts].slice(0, 30));
+            await kvSet("brand_pulse:posts", [...seeded, ...userPosts].slice(0, 30));
           }
         }
       } catch { /* brand pulse seeding is best-effort; never blocks bootstrap */ }

@@ -7,20 +7,20 @@ import {
 import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers";
-import { CATEGORY_KEYS } from "../../lib/i18n";
-import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys";
-import { uploadProductImage } from "../../lib/uploadImage";
-import { getSellerPayoutSummary } from "../../lib/payments";
-import { resetPassword, authConfigured } from "../../lib/auth";
-import { fetchProductInfo } from "../../lib/productInfo";
-import { buildSellerAIInsights } from "../../lib/aiAssistant";
-import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow";
-import { suggestPrice, generateHebrewDescription, scoreStoreHealth } from "../../lib/aiStudio";
-import { checkSecurityBaseline } from "../../lib/security";
-import { calculateMonetizationPotential, checkMonetizationEligibility } from "../../lib/monetization";
+import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers.js";
+import { CATEGORY_KEYS } from "../../lib/i18n.js";
+import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys.js";
+import { uploadProductImage } from "../../lib/uploadImage.js";
+import { getSellerPayoutSummary } from "../../lib/payments.js";
+import { resetPassword, authConfigured } from "../../lib/auth.js";
+import { fetchProductInfo } from "../../lib/productInfo.js";
+import { buildSellerAIInsights } from "../../lib/aiAssistant.js";
+import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow.js";
+import { suggestPrice, generateHebrewDescription, scoreStoreHealth } from "../../lib/aiStudio.js";
+import { checkSecurityBaseline } from "../../lib/security.js";
+import { calculateMonetizationPotential, checkMonetizationEligibility } from "../../lib/monetization.js";
 import AutoSetupWizard from "../AutoSetupWizard";
-import { isSetupComplete } from "../../lib/autoSetup";
+import { isSetupComplete } from "../../lib/autoSetup.js";
 import {
   EmptyState, StatChip, Button, LabeledInput, LabeledTextarea, SheetModal,
 } from "../ui";
@@ -35,8 +35,8 @@ import ShareQR from "../ShareQR.jsx";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import CoachPanel from "./CoachPanel";
-import { lunaPersona } from "../../lib/lunaAvatar";
-import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds";
+import { lunaPersona } from "../../lib/lunaAvatar.js";
+import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.

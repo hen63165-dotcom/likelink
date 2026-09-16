@@ -5,11 +5,11 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useCart } from "../../context/CartContext";
 import { useVideos } from "../../context/VideoContext";
-import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers";
-import { trackClick } from "../../lib/analytics";
-import { isPublicCatalogProduct } from "../../lib/cloud/catalog";
-import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations, getFeedBadges } from "../../lib/recommendations";
-import { CATEGORY_KEYS } from "../../lib/i18n";
+import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers.js";
+import { trackClick } from "../../lib/analytics.js";
+import { isPublicCatalogProduct } from "../../lib/cloud/catalog.js";
+import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations, getFeedBadges } from "../../lib/recommendations.js";
+import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { EmptyState, IconButton } from "../ui";
 import { ProductCard, StreamCard, ProductModal, CreatorAvatar } from "../product/ProductComponents";
 import { ScreenshotSearchModal } from "../search/ScreenshotSearchModal";
@@ -22,9 +22,9 @@ import StudioFeed from "./StudioFeed";
 import KineticWord from "../ui/KineticWord";
 import StoryRings from "./StoryRings";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
-import { composeLunaFace } from "../../lib/cloud/lunaFace";
-import { lunaPersona } from "../../lib/lunaAvatar";
-import { getCurrentTrendContext } from "../../lib/cloud/trendScanner";
+import { composeLunaFace } from "../../lib/cloud/lunaFace.js";
+import { lunaPersona } from "../../lib/lunaAvatar.js";
+import { getCurrentTrendContext } from "../../lib/cloud/trendScanner.js";
 
 // Resolve image URLs against the app origin so relative / protocol-relative
 // URLs load correctly on the live web app — not just on localhost.
@@ -334,7 +334,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       <StoryRings marketers={marketers} products={products} navigate={navigate} lang={lang} />
 
             {/* TrendingBar — what's hot live right now */}
-      <TrendingBar />
+      <TrendingBar navigate={navigate} />
 
       {/* StudioFeed — the studio's autonomous influencer-style post */}
       <StudioFeed discovery={discovery} trend={trend} navigate={navigate} />

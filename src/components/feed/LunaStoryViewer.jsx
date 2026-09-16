@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { X, ChevronRight, Share2, Heart } from "lucide-react";
-import { generateProductStory } from "../../lib/cloud/storyEngine";
+import { generateProductStory } from "../../lib/cloud/storyEngine.js";
 import { useI18n } from "../../lib/LangContext";
 
 export default function LunaStoryViewer({ product, onClose, onProductClick }) {

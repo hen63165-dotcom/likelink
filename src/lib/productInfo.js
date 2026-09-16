@@ -1,4 +1,4 @@
-import { fetchOgImage } from "../utils/helpers";
+import { fetchOgImage } from "../utils/helpers.js";
 
 /**
  * Fetch a product's image / title / price from its link.

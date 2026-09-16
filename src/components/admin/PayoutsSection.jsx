@@ -2,9 +2,9 @@ import React, { useMemo } from "react";
 import { Send, CheckCircle2, AlertCircle, Landmark, CreditCard, Globe } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { money } from "../../utils/helpers";
-import { getSellerPayoutSummary, PAYOUT_STATUS } from "../../lib/payments";
-import { MIN_PAYOUT_THRESHOLD, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys";
+import { money } from "../../utils/helpers.js";
+import { getSellerPayoutSummary, PAYOUT_STATUS } from "../../lib/payments.js";
+import { MIN_PAYOUT_THRESHOLD, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys.js";
 
 /**
  * Platform financial control center.

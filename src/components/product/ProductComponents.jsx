@@ -1,11 +1,11 @@
 import React, { memo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageOff, Heart, Star, ShoppingBag, Share2, Sparkles, ShieldCheck } from "lucide-react";
-import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers";
+import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers.js";
 import { useI18n } from "../../lib/LangContext";
 import { useCart } from "../../context/CartContext";
 import { Badge } from "../ui";
-import { useScrollReveal } from "../../hooks/useScrollReveal";
+import { useScrollReveal } from "../../hooks/useScrollReveal.js";
 
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.

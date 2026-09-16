@@ -3,8 +3,8 @@ import {
   ShoppingBag, MousePointerClick, DollarSign, LogOut, Share2, ArrowLeft, Plus, Layers, Pencil, Trash2, X, Rocket, TrendingUp, CircleAlert, Loader2, Upload, ImageOff, Check, Receipt, Video, QrCode
 } from "lucide-react";
 import { useI18n } from "../lib/LangContext";
-import { CATEGORY_KEYS } from "../lib/i18n";
-import { uploadProductImage } from "../lib/uploadImage";
+import { CATEGORY_KEYS } from "../lib/i18n.js";
+import { uploadProductImage } from "../lib/uploadImage.js";
 import ShareQR from "../components/ShareQR.jsx";
 import AutoVideoStudio from "../components/video/AutoVideoStudio.jsx";
 import {

@@ -5,12 +5,12 @@
  */
 import { useState, useEffect } from "react";
 import { X, Video, Loader2, Download, Share2, CheckCircle2, Send } from "lucide-react";
-import { generateProductReel, canRecordVideo } from "../../lib/videoEngine";
-import { uploadReelVideo } from "../../lib/uploadVideo";
+import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
+import { uploadReelVideo } from "../../lib/uploadVideo.js";
 import { useVideos } from "../../context/VideoContext";
 import VideoUpload from "./VideoUpload";
-import { getBrandWorld, worldHook, worldVideoPalette } from "../../lib/brandWorlds";
-import { lunaPersona } from "../../lib/lunaAvatar";
+import { getBrandWorld, worldHook, worldVideoPalette } from "../../lib/brandWorlds.js";
+import { lunaPersona } from "../../lib/lunaAvatar.js";
 
 const HOOKS = (p, store) => [
   `✨ ${store}: ${p?.title || "הקולקציה החדשה"} — הפריט שכולם שואלים עליו`,

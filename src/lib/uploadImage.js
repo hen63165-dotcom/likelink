@@ -1,4 +1,4 @@
-import { supabase, supabaseConfigured } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
 /**
  * Uploads a product photo and returns a public URL.

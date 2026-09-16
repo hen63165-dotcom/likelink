@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BarChart3, RefreshCw, ShieldAlert } from "lucide-react";
 import { StatChip, EmptyState } from "../ui";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 
 /**
  * Owner Cloud Report ☁️📊 — the ONLY place global system analytics are shown.
@@ -25,7 +25,7 @@ export default function CloudReportSection({ lang }) {
       const adminToken = sessionStorage.getItem("ll_admin_token") || "";
       if (adminToken) headers.authorization = `Bearer ${adminToken}`;
       try {
-        const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient");
+        const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient.js");
         if (supabaseConfigured) {
           const { data } = await supabase.auth.getSession();
           const t = data?.session?.access_token;
@@ -65,7 +65,7 @@ export default function CloudReportSection({ lang }) {
       if (adminToken) headers.authorization = `Bearer ${adminToken}`;
       if (!adminToken) {
         try {
-          const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient");
+          const { supabase, supabaseConfigured } = await import("../../lib/supabaseClient.js");
           if (supabaseConfigured) {
             const { data } = await supabase.auth.getSession();
             const t = data?.session?.access_token;

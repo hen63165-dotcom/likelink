@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ShoppingBag, Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useI18n } from "../../lib/LangContext";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 import {
   createPayPalCheckout,
-} from "../../lib/paymentFlow";
+} from "../../lib/paymentFlow.js";
 
 export function Cart() {
   const { items, isOpen, setIsOpen, removeItem, updateQuantity, clearCart, cartTotal, cartCount } = useCart();

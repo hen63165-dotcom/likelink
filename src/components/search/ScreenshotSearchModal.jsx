@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, Camera, Loader2, ShoppingBag, ExternalLink } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { analyzeImage, filterProductsByKeywords, fileToBase64, validateImageFile } from "../../lib/visionHelper";
-import { rankByTrust } from "../../lib/recommendations";
-import { money } from "../../utils/helpers";
+import { analyzeImage, filterProductsByKeywords, fileToBase64, validateImageFile } from "../../lib/visionHelper.js";
+import { rankByTrust } from "../../lib/recommendations.js";
+import { money } from "../../utils/helpers.js";
 
 export function ScreenshotSearchModal({ isOpen, onClose }) {
   const { t } = useI18n();

@@ -4,11 +4,11 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
-import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys";
-import { parsePath } from "./utils/routing";
-import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo";
-import { isPublicCatalogProduct } from "./lib/cloud/catalog";
-import { initReferral } from "./lib/referral";
+import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys.js";
+import { parsePath } from "./utils/routing.js";
+import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo.js";
+import { isPublicCatalogProduct } from "./lib/cloud/catalog.js";
+import { initReferral } from "./lib/referral.js";
 
 // Modern Layout & UI
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
@@ -16,10 +16,10 @@ import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
 import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
-import { installGlobalErrorHealing } from "./lib/autoHeal";
-import { startAutoPilotSwarm } from "./lib/autopilotTick";
+import { installGlobalErrorHealing } from "./lib/autoHeal.js";
+import { startAutoPilotSwarm } from "./lib/autopilotTick.js";
 import FloatingAIHelper from "./components/FloatingAIHelper";
-import { capturePayPalCheckout } from "./lib/paymentFlow";
+import { capturePayPalCheckout } from "./lib/paymentFlow.js";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));

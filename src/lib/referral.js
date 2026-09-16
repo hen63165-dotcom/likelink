@@ -11,7 +11,7 @@
  */
 
 import { uid } from "../utils/helpers.js";
-import { storage } from "../lib/storage";
+import { storage } from "../lib/storage.js";
 
 const REFERRAL_SESSION_KEY = "referral_source";
 export const REFERRER_PARAM = "ref";

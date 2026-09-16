@@ -10,11 +10,23 @@
  * The feature must be fully gated and not affect the base application.
  */
 
+import { getEnv } from "./env.js";
+
 const FLAG_PREFIX = "VITE_FLAG_";
 
+/**
+ * Resolve one flag from the environment.
+ *
+ * BUG FIXED: this used to read `import.meta.env[envKey]` — a DYNAMIC lookup.
+ * Vite can only statically replace the whole `import.meta.env` object, and in
+ * Node `import.meta.env` is `undefined`, so the expression threw
+ * ("Cannot read properties of undefined (reading 'VITE_FLAG_…')") the moment
+ * any serverless function, CLI script or test imported this module.
+ * Reading through `getEnv()` works in every runtime and never throws.
+ */
 function getFlag(name, defaultValue = false) {
   const envKey = FLAG_PREFIX + name.toUpperCase();
-  const envValue = import.meta.env[envKey];
+  const envValue = getEnv(envKey, "");
 
   if (envValue === "true" || envValue === "1") return true;
   if (envValue === "false" || envValue === "0") return false;

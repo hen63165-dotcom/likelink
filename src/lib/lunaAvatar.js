@@ -9,7 +9,7 @@
  *   - AvatarStudio (מסך "בני הדמות שלי" בכל סטודיו)
  *   - AutoVideoStudio / CampaignBuilder (העולם נכנס אוטומטית ליצירה)
  */
-import { BRAND_WORLDS, getBrandWorld } from "./brandWorlds";
+import { BRAND_WORLDS, getBrandWorld } from "./brandWorlds.js";
 
 /** אמוג'י "פרסונות" לבחירה — כל אחד יכול להיראות כמו שהוא רוצה */
 export const AVATAR_EMOJIS = [

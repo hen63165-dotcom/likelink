@@ -3,7 +3,7 @@
  * Real-looking testimonials with names, avatars, ratings, dates.
  */
 import { Star } from "lucide-react";
-import { generateTestimonial } from "../../lib/cloud/influencerVoice";
+import { generateTestimonial } from "../../lib/cloud/influencerVoice.js";
 
 export default function Testimonials({ product }) {
   // Generate 3 testimonials for this product

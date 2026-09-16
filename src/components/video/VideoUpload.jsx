@@ -6,7 +6,7 @@
  */
 import { useRef, useState } from "react";
 import { Upload, Loader2 } from "lucide-react";
-import { uploadReelVideo } from "../../lib/uploadVideo";
+import { uploadReelVideo } from "../../lib/uploadVideo.js";
 
 export default function VideoUpload({ product, marketer, onUploaded, showToast }) {
   const inputRef = useRef(null);

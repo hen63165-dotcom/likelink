@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generatePayPalLink, autoConfigureSeller, getSetupProgress, isSetupComplete } from '../lib/autoSetup';
+import { generatePayPalLink, autoConfigureSeller, getSetupProgress, isSetupComplete } from '../lib/autoSetup.js';
 
 /**
  * Auto-Setup Wizard

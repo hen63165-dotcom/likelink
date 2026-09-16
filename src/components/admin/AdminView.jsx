@@ -2,15 +2,15 @@ import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { Lock, Users, ShoppingBag, MousePointerClick, DollarSign, Check, Flag, Trash2, CircleAlert } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers";
+import { money, groupByDay, getTopCreatorIds } from "../../utils/helpers.js";
 import { StatChip, EmptyState, Button } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
 
-import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed";
+import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed.js";
 import PayoutsSection from "./PayoutsSection";
 import GrowthEnginePanel from "./GrowthEnginePanel";
 import CloudReportSection from "./CloudReportSection";
-import { adminLogin, verifyAdminToken, adminLogout, verifyOwnerSession } from "../../lib/adminAuth";
+import { adminLogin, verifyAdminToken, adminLogout, verifyOwnerSession } from "../../lib/adminAuth.js";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle.
 const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ default: m.EarningsChart })));

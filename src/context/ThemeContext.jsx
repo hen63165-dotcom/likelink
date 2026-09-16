@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { storage } from "../lib/storage";
-import { K } from "../constants/keys";
+import { storage } from "../lib/storage.js";
+import { K } from "../constants/keys.js";
 
 const ThemeContext = createContext(null);
 

@@ -5,9 +5,9 @@
  */
 import { useState } from "react";
 import { X, Save, Sparkles, Share2, Check } from "lucide-react";
-import { BRAND_WORLDS, DEFAULT_WORLD } from "../../lib/brandWorlds";
-import { AVATAR_EMOJIS, lunaPersona, personaEmojiSeed, lunaPitch, personaPitch } from "../../lib/lunaAvatar";
-import { getTier } from "../../lib/pricing";
+import { BRAND_WORLDS, DEFAULT_WORLD } from "../../lib/brandWorlds.js";
+import { AVATAR_EMOJIS, lunaPersona, personaEmojiSeed, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
+import { getTier } from "../../lib/pricing.js";
 import { LunaAvatar } from "./LunaAvatar";
 
 export default function AvatarStudio({ marketer, lang = "he", onClose, onSave, showToast }) {

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Rocket, Copy, Check, Send, Users } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
-import { buildRecruitPitches, whatsappShare, recommendedPitchId, NICHES, PLATFORMS } from "../../lib/growthEngine";
+import { buildRecruitPitches, whatsappShare, recommendedPitchId, NICHES, PLATFORMS } from "../../lib/growthEngine.js";
 
 /**
  * Growth Engine Panel — admin-side recruiter for new creators.

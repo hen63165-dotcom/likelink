@@ -19,7 +19,7 @@
  * missing config is a deployment error and we refuse silently.
  */
 
-import { supabase, supabaseConfigured } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
 const PREFIX = "sch:";
 const scoped = (key, shared) => PREFIX + (shared ? "shared:" : "local:") + key;

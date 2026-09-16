@@ -108,7 +108,7 @@ export function summarizePlan(plan = [], executedIds = new Set()) {
 // לבד: Cron שרץ כל 30 דקות בודק מי "חייב" פוסט, מייצר טקסט (עם AI אופציונלי)
 // ושולח ישר ל-Telegram / Facebook Page / Webhook גנרי (Make/Zapier/n8n).
 
-import { supabase, supabaseConfigured } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
 async function call(mode, marketerId, config) {
   // Attach the verified session token — the server authorizes save/run to the

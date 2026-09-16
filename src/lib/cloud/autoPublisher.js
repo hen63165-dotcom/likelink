@@ -11,8 +11,8 @@
  * Result: visitors see a LIVE site that changes daily, posted by a "top influencer".
  */
 
-import { getCurrentTrendContext, generateDailyTrendReport } from "./trendScanner";
-import { composeLunaFaceForAssistant } from "../ambassador";
+import { getCurrentTrendContext, generateDailyTrendReport } from "./trendScanner.js";
+import { composeLunaFaceForAssistant } from "../ambassador.js";
 
 // Influencer posting schedule — when to post what
 const POSTING_SCHEDULE = {

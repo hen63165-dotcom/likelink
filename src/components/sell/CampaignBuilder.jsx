@@ -3,13 +3,13 @@ import {
   Check, Copy, Share2, MessageCircle, Send, Globe, Mail,
   Link2, ShoppingBag, Sparkles, X, Camera, Music2,
 } from "lucide-react";
-import { runStoryShare, STORY_STYLES, STORY_FORMATS } from "../../lib/storyKit";
-import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot";
-import { shortVideoScript } from "../../lib/marketingFeed";
-import { worldStoryStyle } from "../../lib/brandWorlds";
-import { getFairyName, getBrandWorld } from "../../lib/brandWorlds";
+import { runStoryShare, STORY_STYLES, STORY_FORMATS } from "../../lib/storyKit.js";
+import { buildWeeklyPlan, todayHebrewIndex } from "../../lib/autoPilot.js";
+import { shortVideoScript } from "../../lib/marketingFeed.js";
+import { worldStoryStyle } from "../../lib/brandWorlds.js";
+import { getFairyName, getBrandWorld } from "../../lib/brandWorlds.js";
 import { useI18n } from "../../lib/LangContext";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 import { SheetModal, Button, LabeledInput } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
 

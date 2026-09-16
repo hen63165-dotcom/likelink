@@ -2,9 +2,9 @@ import React, { useEffect } from "react";
 import { ArrowLeft, Share2, Zap, Wallet, Trophy } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { shareProduct } from "../../lib/native";
-import { updatePageSEO, getProductSEO, getDefaultSEO } from "../../lib/seo";
-import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers";
+import { shareProduct } from "../../lib/native.js";
+import { updatePageSEO, getProductSEO, getDefaultSEO } from "../../lib/seo.js";
+import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 
 /**
  * ProductShowcase — public viral page for a single product.

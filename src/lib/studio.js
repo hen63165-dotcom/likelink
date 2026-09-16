@@ -20,8 +20,8 @@
  *   - Client-side studio context is for UI only, never for authorization
  */
 
-import { storage } from "./storage";
-import { K } from "../constants/keys";
+import { storage } from "./storage.js";
+import { K } from "../constants/keys.js";
 
 export const STUDIO_STATUS = {
   ACTIVE: "active",

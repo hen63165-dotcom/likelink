@@ -5,13 +5,13 @@ import {
   DollarSign, BarChart3, MessageCircle, Image as ImageIcon, Check,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 import {
   buildCampaign,
   buildCampaignReport,
   whatsAppChatUrl,
   toText,
-} from "../../lib/marketingFeed";
+} from "../../lib/marketingFeed.js";
 import { StatChip, Button, EmptyState } from "../ui";
 import { ProductThumb } from "../product/ProductComponents";
 

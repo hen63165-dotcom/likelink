@@ -46,7 +46,7 @@ export function adminLogout() {
  */
 export async function verifyOwnerSession() {
   try {
-    const { supabase, supabaseConfigured } = await import("./supabaseClient");
+    const { supabase, supabaseConfigured } = await import("./supabaseClient.js");
     if (!supabaseConfigured) return false;
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;

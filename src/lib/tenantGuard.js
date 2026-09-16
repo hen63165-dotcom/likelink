@@ -17,7 +17,7 @@
  *   - Store authorization state
  */
 
-import { getCurrentStudioId } from "./studio";
+import { getCurrentStudioId } from "./studio.js";
 
 export async function requireStudio() {
   const studioId = await getCurrentStudioId();

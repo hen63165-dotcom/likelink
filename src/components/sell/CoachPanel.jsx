@@ -5,7 +5,7 @@
  */
 import { useMemo } from "react";
 import { Lightbulb, TrendingUp } from "lucide-react";
-import { analyzeSeller, dailyTip } from "../../lib/sellerCoach";
+import { analyzeSeller, dailyTip } from "../../lib/sellerCoach.js";
 
 const PRIORITY_STYLE = {
   high: { background: "rgba(179, 84, 30, 0.14)", color: "#B3541E" },

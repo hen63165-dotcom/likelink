@@ -8,11 +8,11 @@ import { useState, useEffect } from "react";
 import { X, Sparkles, Send } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { lunaHook, composeLunaFaceForAssistant } from "../../lib/ambassador";
-import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar";
-import { sanitizeInput } from "../../lib/security";
+import { lunaHook, composeLunaFaceForAssistant } from "../../lib/ambassador.js";
+import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
+import { sanitizeInput } from "../../lib/security.js";
 import { LunaAvatar } from "./LunaAvatar";
-import { fetchCloudHome } from "../../lib/cloud/home";
+import { fetchCloudHome } from "../../lib/cloud/home.js";
 
 export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }) {
     const { t, lang } = useI18n();

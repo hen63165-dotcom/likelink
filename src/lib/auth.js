@@ -14,7 +14,7 @@
  * This module is import-safe when Supabase is NOT configured: every function
  * checks `authConfigured` and returns a clear error or null instead of crashing.
  */
-import { supabase, supabaseConfigured } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
 export const authConfigured = supabaseConfigured;
 

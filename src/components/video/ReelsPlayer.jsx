@@ -4,7 +4,7 @@ import { Play, ShoppingBag, X } from "lucide-react";
 import { useVideos } from "../../context/VideoContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useI18n } from "../../lib/LangContext";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 
 /**
  * ReelsPlayer 🎬 — נגן רילס מלא מסך, עם טאגי מוצר וקנייה בקליק.

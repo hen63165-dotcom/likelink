@@ -1,6 +1,6 @@
 import React from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { money } from "../../utils/helpers";
+import { money } from "../../utils/helpers.js";
 
 export function EarningsChart({ title, data, lang }) {
   const hasData = data.some((d) => d.value > 0);
