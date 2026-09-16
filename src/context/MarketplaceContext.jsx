@@ -140,7 +140,16 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.notifications, true, []),
       ]);
 
-      const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
+            const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
+      if (legacySeedDetected) {
+        // 🔥 Self-heal: wipe the localStorage copies of the 14 legacy demo
+        // products so they no longer appear in the feed or generate the
+        // "Products needing a manual tracking-ID fix" console warning.
+        // The cloud is re-bootstrapped by `force-bootstrap`; this handles
+        // the client-side copy for every returning visitor instantly.
+        console.info("[Likelink] Legacy demo seed detected in localStorage — self-healing");
+        resetLegacyMarketplaceStorage();
+      }
       const safeMarketers = toArr(m);
       const safeProducts = toArr(p);
 

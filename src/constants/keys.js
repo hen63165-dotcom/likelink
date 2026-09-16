@@ -4,7 +4,11 @@
 // VITE_ prefix is public, an old VITE_ADMIN_CODE must NOT be added to Vercel.
 
 // ─── Platform URL ──────────────────────────────────────────────────────────
-export const PLATFORM_URL = window.location.origin;
+// Node-safe: `window` is undefined in serverless functions / CLI / tests.
+// Returns the browser origin when available, empty string otherwise so
+// importing modules (e.g. api, scripts, node:test) never crash.
+export const PLATFORM_URL =
+  typeof window !== "undefined" && window.location ? window.location.origin : "";
 
 // ─── Platform revenue model ────────────────────────────────────────────────
 // Likelink takes a flat % cut of each creator's affiliate commission. The
