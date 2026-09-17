@@ -3,7 +3,7 @@
 # ------------------------------------------------------------
 # Public marketplace surfaces stay crawlable for Google / Bing /
 # AI answer engines. Private app surfaces are blocked.
-# Sitemap domain: https://likelink.com
+# Sitemap domain: https://likelink2.vercel.app
 # ============================================================
 
 User-agent: *
@@ -82,4 +82,4 @@ Allow: /
 User-agent: omgilibot
 Allow: /
 
-Sitemap: https://likelink.com/sitemap.xml
+Sitemap: https://likelink2.vercel.app/sitemap.xml
