@@ -2,6 +2,7 @@ import { verifyToken } from './authVerify.js';
 import { verifyAdminToken } from './adminAuth.js';
 import { applyCors } from './cors.js';
 import { createFinancialCore } from './financialCore.mjs';
+import { originFromRequest } from './origin.mjs';
 
 
 // Mounted in the existing store function, not a new serverless endpoint.
@@ -46,7 +47,11 @@ export function createFinancialHandler({ core = createFinancialCore(), verify = 
       if(action==='status') return res.status(200).json({ok:true,...core.status()});
       if(action==='webhook') return res.status(200).json({ok:true,...await core.webhook(params.get('order'),body,req.headers)});
       if(action==='checkout') {
-        let origin; try { origin=new URL(env.PAYMENT_PUBLIC_ORIGIN); } catch { throw Error('PAYMENT_PROVIDER_REQUIRED'); }
+        // Single source of truth: PAYMENT_PUBLIC_ORIGIN when explicitly set,
+        // otherwise the canonical public origin (api/_utils/origin.mjs). The
+        // strict validation below is unchanged — a legacy/hijacked origin can
+        // never be used for a payment callback.
+        let origin; try { origin=new URL(env.PAYMENT_PUBLIC_ORIGIN || originFromRequest(req)); } catch { throw Error('PAYMENT_PROVIDER_REQUIRED'); }
         if(origin.protocol!=='https:' || origin.username || origin.password || origin.pathname!=='/' || origin.search || origin.hash) throw Error('PAYMENT_PROVIDER_REQUIRED');
         const order=await core.checkout(user.id,body,origin.origin);
         return res.status(200).json({ok:true,order});

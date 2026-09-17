@@ -169,7 +169,7 @@ function itemToXml(item) {
  * @param {Object} params
  * @param {Array}  params.products   Raw Likelink products
  * @param {Array}  params.marketers  Raw Likelink marketers (for product_type)
- * @param {string} [params.baseUrl]  Public origin, e.g. "https://www.likelink.com"
+ * @param {string} [params.baseUrl]  Public origin, e.g. "https://likelink2.vercel.app"
  * @param {string} [params.currency] ISO currency code, default "ILS"
  * @param {string} [params.brand]    Brand for every item, default "Likelink"
  * @param {string} [params.title]    Channel <title>, default "Likelink - Google Merchant Feed"

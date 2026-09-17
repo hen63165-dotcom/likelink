@@ -14,6 +14,7 @@ import { readBody } from "./_utils/readBody.mjs";
 // (price-watch) so creators get real phone notifications when prices drop.
 
 import webpush from "web-push";
+import { originFromRequest } from "./_utils/origin.mjs";
 
 const VAPID_KEY = "marketplace:vapid";
 const SUBS_KEY = "marketplace:pushsubs";
@@ -68,7 +69,11 @@ export async function sendPushToMarketer(marketerId, payload) {
     const [keys, subs] = await Promise.all([ensureVapidKeys(), kvGet(SUBS_KEY, {})]);
     if (!keys?.publicKey || !subs[marketerId]?.length) return 0;
 
-    webpush.setVapidDetails("mailto:hello@likelink.app", keys.publicKey, keys.privateKey);
+    // VAPID subject must be a mailto: or https: URL we actually control.
+    // Env override first, then the canonical production origin (never a
+    // domain the project does not own).
+    const subject = process.env.VAPID_SUBJECT || originFromRequest();
+    webpush.setVapidDetails(subject, keys.publicKey, keys.privateKey);
 
     let sent = 0;
     const alive = [];

@@ -1,6 +1,6 @@
 # 🚀 Likelink — Complete System Guide
 
-## 🌐 כתובת האתר: https://likelink.vercel.app
+## 🌐 כתובת האתר: https://likelink2.vercel.app
 
 ---
 
@@ -40,7 +40,7 @@
 2. קבל את האימייל של החשבון
 
 ### שלב 2 — הדבק בסטודיו:
-1. כנס ל-`https://likelink.vercel.app/sell`
+1. כנס ל-`https://likelink2.vercel.app/sell`
 2. לחץ "הגדרות"
 3. הדבק את האימייל של PayPal
 4. שמור
@@ -77,7 +77,7 @@
 
 ## 📌 סיכום:
 
-**האתר חי:** `https://likelink.vercel.app`
+**האתר חי:** `https://likelink2.vercel.app`
 
 **הכנסה מתחילה כש:**
 1. מוכרים נרשמים
@@ -93,7 +93,7 @@
 
 ## 🎯 הצעד הבא:
 
-1. **תיכנסי לאתר** → `https://likelink.vercel.app`
+1. **תיכנסי לאתר** → `https://likelink2.vercel.app`
 2. **תנסי לפתוח סטודיו** → תראי איך זה נראה
 3. **תתחילי לקרוא למוכרים הראשונים** — חברות, משפחה, קהילות
 4. **תגדירי PayPal** → כדי לקבל תשלומים

@@ -14,10 +14,12 @@
  *   VITE_SUPABASE_ANON_KEY required
  * Optional overrides:
  *   LIKELINK_BASE_URL      the public origin used in g:link (defaults to the
- *                          inbound request origin, then a hardcoded default)
+ *                          inbound request origin, then the canonical origin)
  *   LIKELINK_CURRENCY      ISO code (default "ILS")
  *   LIKELINK_BRAND         brand for every item (default "Likelink")
  */
+
+import { originFromRequest } from "./_utils/origin.mjs";
 
 import { buildGoogleFeed, FEED_FILE_NAME } from "../src/lib/googleFeed.js";
 import { AMBASSADOR, lunaHook, lunaStoryText } from "../src/lib/ambassador.js";
@@ -101,11 +103,8 @@ async function getProducts() {
 }
 
 async function sitemapHandler(req, res) {
-  const h = req.headers;
-  const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
-  const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getH("x-forwarded-host") || getH("host") || "likelink.app";
-  const origin = `${proto}://${host}`;
+  // Single source of truth for the public origin (see api/_utils/origin.mjs).
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
   const marketers = await getMarketers();
   const products = await getProducts();
   const marketerIds = new Set((marketers || []).map((m) => m?.id).filter(Boolean));
@@ -170,10 +169,7 @@ export default async function handler(req, res) {
 // amp-story — indexable by Google and surfaced in Discover. "Instagram stories,
 // but on Google", narrated by Luna, the platform's digital ambassador.
 async function storyHandler(req, res) {
-  const getH = (n) => (typeof req.headers?.get === "function" ? req.headers.get(n) : req.headers?.[n]);
-  const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getH("x-forwarded-host") || getH("host") || "likelink2.vercel.app";
-  const origin = process.env.LIKELINK_BASE_URL || `${proto}://${host}`;
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
 
   const id = new URL(req.url, "https://x").searchParams.get("id") || "";
   let product = null;
@@ -285,9 +281,7 @@ async function googleFeedHandler(req, res) {
   }
 
   try {
-    const host = req.headers && (req.headers.host || req.headers["x-forwarded-host"]);
-    const inferred = host ? `https://${String(host).replace(/:\d+$/, "")}` : "https://likelink2.vercel.app";
-    const origin = process.env.LIKELINK_BASE_URL || inferred;
+    const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
     const [products, marketers] = await Promise.all([
       fetchKv(supabaseUrl, supabaseKey, SUPABASE_KEY),
       fetchKv(supabaseUrl, supabaseKey, MARKETERS_KEY),

@@ -13,7 +13,7 @@
  * Options:
  *   --input <path>    JSON file with { products, marketers }
  *   --output <path>   output XML path (default ./google-feed.xml)
- *   --base <url>      public origin used in g:link (default https://www.likelink.com)
+ *   --base <url>      public origin used in g:link (default https://likelink2.vercel.app)
  *   --currency <code> ISO currency (default ILS)
  *   --brand <name>    brand for every item (default Likelink)
  *
@@ -129,7 +129,7 @@ async function main() {
     data = await loadFromSupabase(env);
   }
 
-  const baseUrl = opts.base || env.LIKELINK_BASE_URL || "https://www.likelink.com";
+  const baseUrl = opts.base || env.LIKELINK_BASE_URL || "https://likelink2.vercel.app";
   const currency = opts.currency || env.LIKELINK_CURRENCY || "ILS";
   const brand = opts.brand || env.LIKELINK_BRAND || "Likelink";
 

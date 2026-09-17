@@ -68,7 +68,7 @@ VITE_SUPABASE_ANON_KEY
 Optional overrides:
 
 ```
-LIKELINK_BASE_URL  (g:link origin, default https://www.likelink.com)
+LIKELINK_BASE_URL  (g:link origin, default https://likelink2.vercel.app)
 LIKELINK_CURRENCY  (default ILS)
 LIKELINK_BRAND     (default Likelink)
 ```
@@ -89,7 +89,7 @@ exact same XML from the live in-app data and downloads it straight away.
 npm run feed:google
 
 # …or from a JSON export: { "marketers": [], "products": [...] }
-npm run feed:google -- --input feed-input/products.json --base https://www.likelink.com
+npm run feed:google -- --input feed-input/products.json --base https://likelink2.vercel.app
 ```
 
 The output path defaults to `./google-feed.xml` — override with `--output`.
@@ -101,7 +101,7 @@ The output path defaults to `./google-feed.xml` — override with `--output`.
 | `g:id` | `product.id` |
 | `g:title` | `product.title` |
 | `g:description` | `product.description` |
-| `g:link` | `https://www.likelink.com/?product=<id>` (deep-links to the product in the app) |
+| `g:link` | `https://likelink2.vercel.app/?product=<id>` (deep-links to the product in the app) |
 | `g:image_link` | `product.image` (absolute http(s) URL only) |
 | `g:price` | `product.price` formatted as `<amount> ILS`, e.g. `249.00 ILS` |
 | `g:availability` | `in stock` when `status === "approved"`, else `out of stock` |

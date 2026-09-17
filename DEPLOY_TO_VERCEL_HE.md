@@ -104,17 +104,22 @@ vercel env add ADMIN_CODE
 **אפשרויות:**
 
 **אופציה A - Vercel Domain (חינם):**
-- כתובת זמנית: `likelink.vercel.app`
+- כתובת זמנית: `likelink2.vercel.app`
 - ניתן לשנות ב-Settings > Domains
 
 **אופציה B - Domain משלי (מומלץ):**
 - רכש domain מ-GoDaddy, Namecheap, או אחר
 - ב-Vercel Settings > Domains > Add
 
-**אפשרויות DomainPOPULARIES בישראל:**
+**אשרויות Domain POPULARIES בישראל:**
 - `likelink.co.il`
 - `likelink.app`
 - `getlikelink.com`
+
+> ה-production URL הנוכחי הוא `https://likelink2.vercel.app` והוא מקור האמת
+> היחיד לקישורים ציבוריים (canonical / og:url / sitemap / feeds).
+> כשמחברים דומיין מותאם — מעדכנים אותו רק ב-`src/constants/domain.js`
+> וב-`api/_utils/origin.mjs` (או דרך `PUBLIC_ORIGIN`), ולא בקוד מפוזר.
 
 ### 4.2 הגדרת SEO
 
@@ -149,10 +154,10 @@ git push origin main  # אם מחובר ל-GitHub
 
 ```bash
 # בדיקת URL
-curl https://likelink.vercel.app
+curl https://likelink2.vercel.app
 
 # בדיקת API
-curl https://likelink.vercel.app/api/health
+curl https://likelink2.vercel.app/api/health
 ```
 
 ---
@@ -215,7 +220,7 @@ ls -la dist/
 
 ```bash
 # בדוק שהאתר עולה
-curl -I https://likelink.vercel.app
+curl -I https://likelink2.vercel.app
 
 # צפה ב-Status Code
 # אמור להיות 200 OK
@@ -296,7 +301,7 @@ console.log(import.meta.env.VITE_SUPABASE_URL)
 
 ✅ **לאחר ביצוע כל השלבים:**
 
-- אתר פעיל ב-`https://likelink.vercel.app`
+- אתר פעיל ב-`https://likelink2.vercel.app`
 - או ב-Domain משלי `https://likelink.co.il`
 - העלאה אוטומטית מוגדרת
 - אבטחה מורטת

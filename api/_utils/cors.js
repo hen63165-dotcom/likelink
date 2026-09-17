@@ -7,15 +7,22 @@
  *
  * APPROVED ORIGINS:
  *   - localhost (development)
- *   - likelink.com
- *   - www.likelink.com
- *   - Studio subdomains (*.studios.likelink.com) — future
+ *   - https://likelink2.vercel.app (production)
+ *   - any custom domain listed in the PUBLIC_ORIGIN / ALLOWED_ORIGINS env vars
+ *
+ * NOTE: `likelink.com` / `likelink.app` are NOT owned by this project and are
+ * deliberately rejected — trusting a host we do not control would let a third
+ * party make credentialed cross-origin calls against our API.
  *
  * SECURITY NOTES:
  *   - Credentials (cookies, auth headers) require explicit origin, not wildcard
  *   - Preflight requests (OPTIONS) are handled automatically
  *   - Production should never use wildcard `*` for credentialed requests
  */
+
+// Single source of truth for the canonical production origin (mirrors
+// src/constants/domain.js). Never hardcode another origin below.
+import { LEGACY_HOSTS, hostOf } from "./origin.mjs";
 
 // 🔒 Approved origins — extendable WITHOUT code change via the ALLOWED_ORIGINS
 // env var (comma-separated list of exact origins, e.g. custom domains).
@@ -29,19 +36,25 @@ const APPROVED_ORIGINS = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
-  "https://likelink.com",
-  "https://www.likelink.com",
-  "https://likelink.app",
-  "https://www.likelink.app",
   "https://likelink2.vercel.app",
+  ...String(process.env.PUBLIC_ORIGIN || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
   ...ENV_ORIGINS,
 ]);
 
-const APPROVED_PATTERN = /^(https?:\/\/)([a-z0-9-]+\.)*likelink\.(com|app)$/;
+// 🔒 Allow our own preview/deploy subdomains (e.g. likelink2-git-branch.vercel.app)
+// but NEVER a host we do not control. `*.vercel.app` is ours only when it
+// belongs to this project; we accept the project prefix explicitly.
+const APPROVED_PATTERN = /^https:\/\/likelink2(-[a-z0-9-]+)?\.vercel\.app$/;
 
 export function isApprovedOrigin(origin) {
   if (!origin) return false;
   const normalized = origin.toLowerCase().trim();
+  // Refuse legacy placeholder hosts we do not own, even if someone lists them
+  // in ALLOWED_ORIGINS by mistake.
+  if (LEGACY_HOSTS.includes(hostOf(normalized))) return false;
   if (APPROVED_ORIGINS.has(normalized)) return true;
   if (APPROVED_PATTERN.test(normalized)) return true;
   return false;

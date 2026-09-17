@@ -61,7 +61,7 @@ export async function handler(event) {
       process.env.LIKELINK_BASE_URL ||
       (event.headers && event.headers["x-forwarded-host"]
         ? `https://${event.headers["x-forwarded-host"]}`
-        : "https://www.likelink.com");
+        : "https://likelink2.vercel.app");
 
     const [products, marketers] = await Promise.all([
       fetchKv(supabaseUrl, supabaseKey, SUPABASE_KEY),

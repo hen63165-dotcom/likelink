@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
+import { PRODUCTION_ORIGIN, hostOf } from "../src/constants/domain.js";
 const env = {};
 try { const raw = readFileSync(new URL("../.env", import.meta.url), "utf8"); for (const line of raw.split(/\r?\n/)) { const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.+?)\s*$/); if (m) env[m[1]] = m[2]; } } catch {}
 const SB_URL = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
-const ORIGIN = "https://likelink.vercel.app";
+const ORIGIN = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || PRODUCTION_ORIGIN;
 const url = process.argv[2] || "https://www.aliexpress.com/item/1005059060787359.html";
 const headers = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
@@ -28,7 +29,7 @@ console.log("Product:", JSON.stringify(product, null, 2));
 const mks = await kvGet("marketplace:marketers", []);
 let mk = Array.isArray(mks) && mks.length ? mks[0] : null;
 let nm = Array.isArray(mks) ? mks : [];
-if (!mk) { mk = { id: uid(), name: "Likelink Official", email: "hello@likelink.com", slug: "likelink-official", createdAt: Date.now() }; nm = [mk]; await kvSet("marketplace:marketers", nm); product.marketerId = mk.id; }
+if (!mk) { mk = { id: uid(), name: "Likelink Official", email: "hello@" + hostOf(PRODUCTION_ORIGIN), slug: "likelink-official", createdAt: Date.now() }; nm = [mk]; await kvSet("marketplace:marketers", nm); product.marketerId = mk.id; }
 const prods = await kvGet("marketplace:products", []);
 await kvSet("marketplace:products", [...(Array.isArray(prods) ? prods : []), product]);
 console.log("Added! Feed: " + ORIGIN + "/?product=" + product.id);

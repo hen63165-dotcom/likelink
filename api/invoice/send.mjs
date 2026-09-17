@@ -1,4 +1,5 @@
 import { readBody } from "../_utils/readBody.mjs";
+import { PRODUCTION_ORIGIN, hostOf } from "../_utils/origin.mjs";
 // Vercel Serverless Function - Automated Invoice & Receipt Email
 //
 // Sends professional HTML receipt to buyer after payment via Resend API.
@@ -8,6 +9,12 @@ import { readBody } from "../_utils/readBody.mjs";
 // Body: { orderId, buyerEmail, buyerName, items, total, platformFee, sellerPayouts }
 
 const RESEND_API = "https://api.resend.com/emails";
+
+// Sender identity. RECEIPT_FROM (Vercel env) always wins — set it to a domain
+// you actually own and that Resend has verified. The fallback is derived from
+// the canonical production origin so a legacy host we do not own
+// (likelink.com / likelink.app) can never be emitted as our sending address.
+const DEFAULT_RECEIPT_FROM = `Likelink <receipts@${hostOf(PRODUCTION_ORIGIN)}>`;
 
 function json(res, obj, status) {
   if (status === undefined) status = 200;
@@ -46,7 +53,7 @@ export async function sendViaResend({ to, subject, html, from }) {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: from || process.env.RECEIPT_FROM || "Likelink <receipts@likelink.app>",
+      from: from || process.env.RECEIPT_FROM || DEFAULT_RECEIPT_FROM,
       to: Array.isArray(to) ? to : [to],
       subject, html,
     }),

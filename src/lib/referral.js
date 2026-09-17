@@ -5,7 +5,7 @@
  * של המפציץ (referrer) כשמוכרת חדשה נרשמת.
  *
  * זרימה:
- * 1. Visitor לוחץ קישור הפניה: likelink.vercel.app/?ref=theirSlug
+ * 1. Visitor לוחץ קישור הפניה: likelink2.vercel.app/?ref=theirSlug
  * 2. initReferral() קורא את הפרמטר ref ושומר ב-sessionStorage
  * 3. כשהמוכרת נרשמת, onSignup שואל getPendingReferral() ושומר referrerSlug
  */

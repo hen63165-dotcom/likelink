@@ -7,7 +7,7 @@ export const SECURITY_POLICY = {
   strictMode: true,
   csrfProtection: true,
   sanitizedRoutes: ["/", "/u", "/sell", "/admin"],
-  allowedOrigins: ["localhost", "likelink.com", "www.likelink.com", "likelink.app", "www.likelink.app", "likelink2.vercel.app"],
+  allowedOrigins: ["localhost", "127.0.0.1", "likelink2.vercel.app"],
   maxPayloadSize: 2_000_000,
 };
 
@@ -36,8 +36,11 @@ export function validateOrigin() {
     const url = new URL(window.location.href);
     const host = url.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1") return true;
-    // 🔒 Exact-match allowlist only. A substring check (host.includes("likelink.com"))
-    // is trivially bypassed with "likelink.com.evil.ru" — exact host equality is not.
+    // 🔒 Exact-match allowlist only. A substring check (host.includes("likelink"))
+    // is trivially bypassed with "likelink2.vercel.app.evil.ru" — exact host
+    // equality is not. The legacy likelink.com/.app hosts are deliberately
+    // absent: we do not own them, so trusting them would be a bypass. Extend
+    // via VITE_ALLOWED_HOSTS (comma-separated) or src/constants/domain.js.
     // Extra hosts can be added via VITE_ALLOWED_HOSTS (comma-separated), no code change.
     const envHosts = String(import.meta.env?.VITE_ALLOWED_HOSTS || "")
       .split(",")

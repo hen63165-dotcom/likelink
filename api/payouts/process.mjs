@@ -1,4 +1,5 @@
 import { readBody } from "../_utils/readBody.mjs";
+import { originFromRequest } from "../_utils/origin.mjs";
 // Vercel Serverless Function — Payouts Processor 💰
 //
 // Daily cron (02:00 UTC) that scans all pending payouts and processes them
@@ -229,7 +230,7 @@ export default async function handler(req, res) {
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
 
-  const url = new URL(req.url, "https://likelink.app");
+  const url = new URL(req.url, process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req));
   const isCron =
     req.method === "GET" &&
     (Boolean(getH("x-vercel-cron")) ||

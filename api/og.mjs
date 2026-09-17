@@ -12,6 +12,8 @@
 //
 // Merged from the previous /api/creator-og and /api/product-og endpoints.
 
+import { originFromRequest } from "./_utils/origin.mjs";
+
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
 
@@ -25,10 +27,11 @@ function getHeader(req, name) {
   return h ? h[name] : undefined;
 }
 
+// Origin for emitted OG URLs — single source of truth (api/_utils/origin.mjs).
+// A legacy / unknown / hijacked Host header can never become a canonical URL:
+// originFromRequest() falls back to the canonical production origin instead.
 function requestOrigin(req) {
-  const proto = (getHeader(req, "x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getHeader(req, "x-forwarded-host") || getHeader(req, "host") || "likelink2.vercel.app";
-  return `${proto}://${host}`;
+  return originFromRequest(req);
 }
 
 // ─── /r affiliate forwarder ─────────────────────────────────────────────────

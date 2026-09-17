@@ -7,10 +7,12 @@
 
     <!--
       ===== SEO / AI-Search configuration =====
-      CANONICAL DOMAIN:
-      https://likelink2.vercel.app — used below and mirrored in
-      /public/robots.txt + /public/sitemap.xml. Do NOT add
-      "noindex"/"noai"/"noimageai".
+      CANONICAL DOMAIN: https://likelink2.vercel.app
+      This file cannot import ES modules at parse time, so the origin is
+      mirrored here from src/constants/domain.js (PRODUCTION_ORIGIN) — the
+      single source of truth. Mirrored in /public/robots.txt +
+      /public/sitemap.xml. tests/domainOrigin.test.mjs fails the build if
+      any of these diverge. Do NOT add "noindex"/"noai"/"noimageai".
       =========================================
     -->
     <title>לייקלינק Likelink2 — קניות מהיוצרות המובילות בישראל</title>

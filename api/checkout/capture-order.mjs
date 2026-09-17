@@ -1,4 +1,5 @@
 import { readBody } from "../_utils/readBody.mjs";
+import { originFromRequest } from "../_utils/origin.mjs";
 // Vercel Serverless Function — PayPal Checkout Order Capture & Sale Recorder 💰
 //
 // Captures the payment after buyer approves on PayPal, records the sale in the
@@ -123,9 +124,8 @@ export default async function handler(req, res) {
   if (isApprovedOrigin(corsOrigin)) res.setHeader("access-control-allow-origin", corsOrigin);
 
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
-  const h = req.headers;
-  const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
-  const origin = `${String(getH("x-forwarded-proto") || "https").split(",")[0].trim()}://${getH("x-forwarded-host") || getH("host") || "likelink.app"}`;
+  // Public origin: single source of truth (api/_utils/origin.mjs).
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
   if (req.method === "GET") {
     const url = new URL(req.url, origin);
     const orderId = url.searchParams.get("token");

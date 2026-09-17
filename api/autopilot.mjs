@@ -1,4 +1,5 @@
 import { readBody } from "./_utils/readBody.mjs";
+import { originFromRequest } from "./_utils/origin.mjs";
 // Vercel Serverless Function — AutoPilot 🚀
 //
 // Likelink's built-in self-publishing automation engine ("Make/Zapier inside
@@ -1189,9 +1190,9 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
-  const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getH("x-forwarded-host") || getH("host") || "likelink.app";
-  const origin = `${proto}://${host}`;
+  // Public origin: single source of truth (api/_utils/origin.mjs). Never a
+  // legacy/unknown Host header — falls back to production.
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
 
   // ── CRON: publish for every enabled creator whose slot is due ──
   const url = new URL(req.url, origin);

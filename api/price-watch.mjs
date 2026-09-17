@@ -11,6 +11,8 @@
 // Storage: kv "marketplace:pricehistory"  → { [productId]: [{ ts, price }] }
 //          kv "marketplace:notifications" → append price-drop notifications
 
+import { originFromRequest } from "./_utils/origin.mjs";
+
 const HISTORY_KEY = "marketplace:pricehistory";
 const NOTIFS_KEY = "marketplace:notifications";
 const ANNOUNCED_KEY = "marketplace:pricedrop_announced"; // { [productId]: livePrice } — anti-spam
@@ -160,11 +162,9 @@ export default async function handler(req, res) {
   const notifications = Array.isArray(notifsRow) ? notifsRow : [];
   const announced = announcedRow && typeof announcedRow === "object" ? announcedRow : {};
 
-  // Real deployment origin (same derivation as api/autopilot.mjs) so flash
-  // posts carry correct store links.
-  const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getH("x-forwarded-host") || getH("host") || "likelink.app";
-  const origin = `${proto}://${host}`;
+  // Public origin: single source of truth (api/_utils/origin.mjs) so flash
+  // posts carry correct store links on any deployment.
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
 
   const pool = products
     .filter((p) => p?.status === "approved" && /^https?:\/\//i.test(p.affiliateUrl || ""))

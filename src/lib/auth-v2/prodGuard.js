@@ -14,14 +14,12 @@
 // only refuses to allow it on a known production host, loudly, with a
 // clear error — instead of the app silently "working" in an insecure mode.
 
-// Production hostname(s) actually serving live traffic today. index.html
-// previously hardcoded https://likelink.com as canonical, but that domain
-// is not connected to this Vercel project — the real live domain is below.
+// Production hosts actually serving live traffic. Confirmed: the Vercel
+// project is "likelink2" and the production URL is https://likelink2.vercel.app
+// (legacy likelink.com/.app are NOT ours and are intentionally excluded).
+// Source of truth: src/constants/domain.js. Add every custom domain here.
 const KNOWN_PRODUCTION_HOSTS = [
   "likelink2.vercel.app",
-  "likelink2-hen63165-8727s-projects.vercel.app",
-  "likelink.com",
-  "www.likelink.com",
 ];
 
 /**

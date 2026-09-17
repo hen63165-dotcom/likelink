@@ -6,7 +6,16 @@
  * Private/admin/studio surfaces use noindex.
  */
 
-export const PUBLIC_ORIGIN = "https://likelink2.vercel.app";
+import { PRODUCTION_ORIGIN } from "../constants/domain.js";
+
+/**
+ * Canonical public origin for every emitted public URL.
+ *
+ * Always the production origin — even when served from a preview deployment,
+ * so a preview URL can never leak into a canonical tag. Legacy `likelink.com`
+ * is never emitted. Source of truth: src/constants/domain.js.
+ */
+export const PUBLIC_ORIGIN = PRODUCTION_ORIGIN;
 
 export function updatePageSEO(options) {
   const {
