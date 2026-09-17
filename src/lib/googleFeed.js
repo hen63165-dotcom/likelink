@@ -20,7 +20,7 @@ const G_NS = "http://base.google.com/ns/1.0";
 
 export const DEFAULT_BRAND = "Likelink";
 export const DEFAULT_CURRENCY = "ILS"; // Likelink prices are in Israeli New Shekels
-export const DEFAULT_BASE_URL = "https://www.likelink.com";
+export const DEFAULT_BASE_URL = "https://likelink2.vercel.app";
 
 /* ---------------------------------------------------------------------------
  * Small helpers (safe in Node + browser)

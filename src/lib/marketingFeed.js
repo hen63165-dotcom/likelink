@@ -14,7 +14,7 @@
  * the seed data and `findProductsNeedingTracking` in src/utils/helpers.js.
  */
 
-export const DEFAULT_BASE_URL = "https://www.likelink.com";
+export const DEFAULT_BASE_URL = "https://likelink2.vercel.app";
 export const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
 export const DEFAULT_CURRENCY = "ILS";
 

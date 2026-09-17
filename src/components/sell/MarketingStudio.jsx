@@ -22,7 +22,7 @@ export default function MarketingStudio({ marketer, products = [], sales = [], s
   const [campaign, setCampaign] = useState(null);
 
   const approved = (products || []).filter((p) => p && p.status === "approved");
-  const base = typeof window !== "undefined" ? window.location.origin : "https://www.likelink.com";
+  const base = typeof window !== "undefined" ? window.location.origin : "https://likelink2.vercel.app";
   const report = buildCampaignReport({ products, sales });
   const ref = toText(marketer?.trackingId, "");
 

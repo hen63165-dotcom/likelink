@@ -6,7 +6,7 @@
  * Private/admin/studio surfaces use noindex.
  */
 
-export const PUBLIC_ORIGIN = "https://likelink.com";
+export const PUBLIC_ORIGIN = "https://likelink2.vercel.app";
 
 export function updatePageSEO(options) {
   const {

@@ -27,7 +27,7 @@ function getHeader(req, name) {
 
 function requestOrigin(req) {
   const proto = (getHeader(req, "x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getHeader(req, "x-forwarded-host") || getHeader(req, "host") || "likelink.com";
+  const host = getHeader(req, "x-forwarded-host") || getHeader(req, "host") || "likelink2.vercel.app";
   return `${proto}://${host}`;
 }
 

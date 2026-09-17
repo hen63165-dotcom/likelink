@@ -14,17 +14,14 @@
 // only refuses to allow it on a known production host, loudly, with a
 // clear error — instead of the app silently "working" in an insecure mode.
 
-// TODO (human decision, not the agent's to invent): confirm the exact
-// production hostname(s) actually serving live traffic today. index.html
-// hardcodes https://likelink.com as canonical; the Vercel project is
-// "likelink2" with several *.vercel.app domains. List every domain real
-// users can reach the live app on.
+// Production hostname(s) actually serving live traffic today. index.html
+// previously hardcoded https://likelink.com as canonical, but that domain
+// is not connected to this Vercel project — the real live domain is below.
 const KNOWN_PRODUCTION_HOSTS = [
+  "likelink2.vercel.app",
+  "likelink2-hen63165-8727s-projects.vercel.app",
   "likelink.com",
   "www.likelink.com",
-  // Add every production Vercel domain here, e.g.:
-  // "likelink2.vercel.app",
-  // "likelink2-hen63165-8727s-projects.vercel.app",
 ];
 
 /**

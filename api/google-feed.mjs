@@ -172,7 +172,7 @@ export default async function handler(req, res) {
 async function storyHandler(req, res) {
   const getH = (n) => (typeof req.headers?.get === "function" ? req.headers.get(n) : req.headers?.[n]);
   const proto = String(getH("x-forwarded-proto") || "https").split(",")[0].trim();
-  const host = getH("x-forwarded-host") || getH("host") || "likelink.com";
+  const host = getH("x-forwarded-host") || getH("host") || "likelink2.vercel.app";
   const origin = process.env.LIKELINK_BASE_URL || `${proto}://${host}`;
 
   const id = new URL(req.url, "https://x").searchParams.get("id") || "";
@@ -286,7 +286,7 @@ async function googleFeedHandler(req, res) {
 
   try {
     const host = req.headers && (req.headers.host || req.headers["x-forwarded-host"]);
-    const inferred = host ? `https://${String(host).replace(/:\d+$/, "")}` : "https://www.likelink.com";
+    const inferred = host ? `https://${String(host).replace(/:\d+$/, "")}` : "https://likelink2.vercel.app";
     const origin = process.env.LIKELINK_BASE_URL || inferred;
     const [products, marketers] = await Promise.all([
       fetchKv(supabaseUrl, supabaseKey, SUPABASE_KEY),
