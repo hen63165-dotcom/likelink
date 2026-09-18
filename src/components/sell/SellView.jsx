@@ -8,6 +8,7 @@ import { AnimatePresence } from "framer-motion";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, formatDate } from "../../utils/helpers.js";
+import { launchProduct } from "../../lib/cloud/launch.js";
 import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys.js";
 import { uploadProductImage } from "../../lib/uploadImage.js";
@@ -19,6 +20,7 @@ import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentF
 import { suggestPrice, generateHebrewDescription, scoreStoreHealth } from "../../lib/aiStudio.js";
 import { checkSecurityBaseline } from "../../lib/security.js";
 import { calculateMonetizationPotential, checkMonetizationEligibility } from "../../lib/monetization.js";
+import { getAutoPilotConfig } from "../../lib/autoPilot.js";
 import AutoSetupWizard from "../AutoSetupWizard";
 import { isSetupComplete } from "../../lib/autoSetup.js";
 import {
@@ -642,6 +644,15 @@ export default function SellView({ navigate }) {
                 onMakeVideo={() => setVideoProduct(p)}
                 onOpenHub={() => { setReadyVideo(null); setHubProduct(p); }}
                 onOpenQR={() => setQrProduct(p)}
+                onLaunch={async (product) => {
+                  const autoConfig = await getAutoPilotConfig(marketer?.id).catch(() => null);
+                  return await launchProduct(product, {
+                    marketer,
+                    products: mine,
+                    clicks,
+                    config: autoConfig,
+                  });
+                }}
               />
               {isBoosted(p) ? (
                 <p className="text-[10px] font-semibold mt-1.5 px-1 flex items-center gap-1" style={{ color: "var(--accent)" }}>
@@ -1165,9 +1176,11 @@ function ProductForm({ onClose, onSubmit }) {
   );
 }
 
-function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenHub, onOpenQR }) {
+function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo, onOpenHub, onOpenQR, onLaunch, onStatusChange }) {
   const { t, categoryLabel } = useI18n();
   const [logging, setLogging] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [launchResult, setLaunchResult] = useState(null);
   const [amount, setAmount] = useState(typeof p.price === "number" && Number.isFinite(p.price) ? String(p.price) : "");
   const [comm, setComm] = useState(typeof p.commission === "number" && Number.isFinite(p.commission) ? String(p.commission) : "");
   const [receipt, setReceipt] = useState(null);
@@ -1204,9 +1217,39 @@ function CreatorProductRow({ p, lang, feeRate, onDelete, onLogSale, onMakeVideo,
           <button onClick={() => onOpenHub?.(p)} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
             <Megaphone size={11} /> {`פרסום בכל`}
           </button>
+          {p.status === "approved" && (
+            <button
+              onClick={async () => {
+                setLaunching(true);
+                setLaunchResult(null);
+                try {
+                  const res = await onLaunch?.(p);
+                  setLaunchResult(res);
+                } catch (e) {
+                  setLaunchResult({ ok: false, error: e.message });
+                } finally {
+                  setLaunching(false);
+                }
+              }}
+              disabled={launching || p.status !== "approved"}
+              className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1"
+              style={{ background: "var(--success-subtle)", color: "var(--success)" }}
+              title={lang === "he" ? "השק מוצר בפעם אחת" : "Launch this product"}
+            >
+              {launching ? <Loader2 size={11} className="animate-spin" /> : <Rocket size={11} />} {launching ? "משיק..." : "השקה"}
+            </button>
+          )}
           <button onClick={onDelete} className="tap text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: "var(--danger-subtle)", color: "var(--danger)" }}>
             <Trash2 size={11} /> {t("sell.remove")}
           </button>
+          {launchResult && (
+            <div className="mt-2 p-2 rounded-lg w-full text-[10px]" style={{ background: launchResult.ok ? "var(--success-subtle)" : "var(--danger-subtle)", color: launchResult.ok ? "var(--success)" : "var(--danger)" }}>
+              {launchResult.ok
+                ? "✓ הושק בהצלחה — נגיש ב" + (launchResult.result?.publicUrl?.replace("https://likelink2.vercel.app", "/p") || "/p/" + p.id)
+                : "✗ " + (launchResult.error || "השקה נכשלה")
+              }
+            </div>
+          )}
         </div>
         {logging && (
           <div className="mt-3 p-3 rounded-xl surface-subtle">
