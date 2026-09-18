@@ -248,6 +248,9 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
     { id: "Beauty", label: t("feed.beautyCare"), color: "#a78bfa" },
     { id: "Home", label: t("feed.lifestyleHome"), color: "#38bdf8" },
   ];
+  // Category card images must be HONEST: only real product photos from the
+  // live catalog. A category with no real photo renders its color tile —
+  // never a fake stock/placeholder image.
 
   async function handleGetDeal(p) {
     await recordClick(p);

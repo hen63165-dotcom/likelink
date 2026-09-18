@@ -36,6 +36,7 @@ import AutoVideoStudio from "../video/AutoVideoStudio";
 import ShareQR from "../ShareQR.jsx";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
+import StudioHub from "./StudioHub";
 import StudioCheckout from "./StudioCheckout";
 import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
@@ -188,6 +189,17 @@ export default function SellView({ navigate }) {
       </div>
 
       <StudioCheckout />
+
+      {/* Creator/Seller Studio — Capability Hub: intelligence, content, launch, trends, WhatsApp */}
+      <div className="mt-6">
+        <StudioHub
+          marketer={marketer}
+          products={products}
+          sales={sales}
+          clicks={clicks}
+          showToast={showToast}
+        />
+      </div>
 
       <LabeledInput
         label={t("sell.trackingIdLabel")}

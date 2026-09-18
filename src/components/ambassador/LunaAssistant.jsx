@@ -1,14 +1,15 @@
 /**
- * LunaAssistant 🧚 — העוזרת הדיגיטלית של Lykelink.
- * כדור מרחף בתחתית: לוחצים → לונה נפתחת עם הפריט הנבחר של היום,
- * קול בעברית, ופעולות בקליק (לפתוח / ליצור / לשתף) — עבור האתר עצמו
- * ועבור כל סטודיו עם דמות משלו.
+ * LunaAssistant 🧚 — העוזרת הדיגיטלית של לייקלינק.
+ * כפתור צף בתחתית המסך: לחיצה פותחת פאנל עם הבחירה של היום,
+ * הצעה מהענן, ופעולות בקליק (פתיחת סטודיו / יצירה / שיתוף).
+ * הפאנל נפתח אך ורק בלחיצת המשתמש — לעולם לא אוטומטית.
  */
 import { useState, useEffect } from "react";
 import { X, Sparkles, Send } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { lunaHook, composeLunaFaceForAssistant } from "../../lib/ambassador.js";
+import { lunaHook } from "../../lib/ambassador.js";
+import { composeLunaFace } from "../../lib/cloud/lunaFace.js";
 import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
 import { sanitizeInput } from "../../lib/security.js";
 import { LunaAvatar } from "./LunaAvatar";
@@ -24,6 +25,7 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
   const [luna, setLuna] = useState({ status: "idle", text: "" });
   const [cloud, setCloud] = useState(null);
   const [jobs, setJobs] = useState([]);
+  // Only load cloud status when panel is opened by user — never auto-open
   useEffect(() => {
     if (!open) return;
     let alive = true;
@@ -33,7 +35,7 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
       setJobs(history.ok ? history.jobs || [] : []);
     });
     return () => { alive = false; };
-  }, [open, luna.status]);
+  }, [open]);
   async function resumeJob(jobId) {
     setLuna({ status: "running", text: "" });
     const r = await resumeIntelligenceJob(jobId);
@@ -161,7 +163,7 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
                   style={{ color: "var(--accent)" }}
                 >
                   <Sparkles size={13} />
-                  {luna.status === "running" ? L("לונה חושבת…", "Luna is thinking…") : L("בקשי מלונה הצעה מהענן ✨", "Ask Luna for a cloud idea ✨")}
+                  {luna.status === "running" ? L("לונה חושבת…", "Luna is thinking…") : L("בקשי מלונה רעיון לקידום ✨", "Ask Luna for a promo idea ✨")}
                 </button>
                 {luna.text && (
                   <p className="text-[12.5px] font-semibold mt-2 whitespace-pre-wrap text-center" style={{ color: "var(--text)" }}>

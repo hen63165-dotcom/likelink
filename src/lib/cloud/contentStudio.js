@@ -7,7 +7,7 @@
  * Pure module: no network, no secrets, no side effects.
  */
 
-import { lunaHook, lunaStoryText, AMBASSADOR } from '../lib/ambassador.js';
+import { lunaHook, lunaStoryText, AMBASSADOR } from '../../lib/ambassador.js';
 
 // Content formats — what's trending on each platform
 const FORMATS = {
