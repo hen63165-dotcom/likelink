@@ -913,6 +913,7 @@ export default async function handler(req, res) {
       const publicUrl = `${baseUrl}/p/${encodeURIComponent(product.id)}`;
       const idemKey = idempotencyKey || `publish:${product.id}:${provider || "internal"}:${Date.now()}`;
       const publishLogKey = `publish:log:${product.id}`;
+      const existingLog = await kvGet(publishLogKey, []);
 
       // ─── Internal Publishing (LIKELINK2-FIRST-PARTY) ─────────────────────
       // When no specific external provider/channel is requested, publish to
@@ -920,7 +921,6 @@ export default async function handler(req, res) {
       // verified above), mark it as published, store the publication record,
       // and return the real public URL. The /p/:id page already renders.
       if (!provider && !channel) {
-        const existingLog = await kvGet(publishLogKey, []);
         if (Array.isArray(existingLog) && existingLog.some((r) => r.idempotencyKey === idemKey)) {
           const existing = existingLog.find((r) => r.idempotencyKey === idemKey);
           json(res, {
