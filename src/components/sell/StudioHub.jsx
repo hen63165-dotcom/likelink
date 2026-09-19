@@ -15,7 +15,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   Sparkles, Video, Play, Rocket, TrendingUp, MessageCircle,
   CheckCircle2, Loader2, X, ChevronRight, Lightbulb, BarChart3, Copy,
-  Target, Brain, Zap, Share2, Activity
+  Target, Brain, Zap, Share2, Activity, BarChart2, Users, PieChart,
+  Globe, Send, FileText, Shield, Settings, HelpCircle, Menu
 } from 'lucide-react';
 import { useI18n } from '../../lib/LangContext';
 import { launchProduct, summarizeLaunch } from '../../lib/cloud/launch.js';
@@ -45,7 +46,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   
   // State for selected product and active tab
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [activeTab, setActiveTab] = useState('intelligence');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [capabilities, setCapabilities] = useState({});
   const [launching, setLaunching] = useState(false);
   const [launchResult, setLaunchResult] = useState(null);
@@ -211,15 +212,20 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     });
   }, [marketer, myProducts, sales]);
 
-  // טאבים
+  // טאבים — מגדרים לכל המוצרים המבוקשים מהעיצוב
   const tabs = [
-    { id: 'growth', label: 'Growth OS', color: '#6C4CF1' },
-    { id: 'intelligence', label: 'Product Intelligence', color: '#6C4CF1' },
-    { id: 'content', label: 'Content Studio', color: '#C9A86C' },
-    { id: 'video', label: 'Video/UGC', color: '#E86A9E' },
-    { id: 'launch', label: 'Launch', color: '#00C896' },
-    { id: 'trends', label: 'Trends', color: '#E86A9E' },
-    { id: 'whatsapp', label: 'WhatsApp', color: '#35D354' },
+    { id: 'dashboard', label: 'Dashboard', color: '#6C4CF1', icon: <Activity size={14} /> },
+    { id: 'intelligence', label: 'Product Intelligence', color: '#6C4CF1', icon: <Lightbulb size={14} /> },
+    { id: 'ugc', label: 'UGC AI', color: '#E86A9E', icon: <Video size={14} /> },
+    { id: 'content', label: 'Content Studio', color: '#C9A86C', icon: <Sparkles size={14} /> },
+    { id: 'launch', label: 'Launch', color: '#00C896', icon: <Rocket size={14} /> },
+    { id: 'trends', label: 'Live Trends', color: '#E86A9E', icon: <TrendingUp size={14} /> },
+    { id: 'reach', label: 'Reach/Performance', color: '#3B82F6', icon: <BarChart2 size={14} /> },
+    { id: 'autopilot', label: 'AutoPilot', color: '#00C896', icon: <Zap size={14} /> },
+    { id: 'recommendations', label: 'AI Recommendations', color: '#7C4DBE', icon: <Brain size={14} /> },
+    { id: 'top', label: 'Top Products', color: '#E86A9E', icon: <PieChart size={14} /> },
+    { id: 'community', label: 'Community', color: '#35D354', icon: <Users size={14} /> },
+    { id: 'whatsapp', label: 'WhatsApp', color: '#35D354', icon: <MessageCircle size={14} /> },
   ];
 
   // הצגת רשימת מוצרים (כשאין מוצר נבחר)
@@ -355,7 +361,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         </div>
       )}
 
-      {/* טאבים */}
+      {/* טאבים — עם אייקונים */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -371,6 +377,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
                 boxShadow: isActive ? `0 4px 12px ${tab.color}30` : 'none',
               }}
             >
+              {React.cloneElement(tab.icon, { size: 14 })}
               {tab.label}
             </button>
           );
@@ -379,9 +386,44 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
       {/* גוף הטאב */}
       <div className="rounded-2xl p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-        {/* Growth OS */}
+        {/* Dashboard — overview of all capabilities */}
+        {activeTab === 'dashboard' && (
+          <DashboardTab
+            product={product}
+            marketer={marketer}
+            myProducts={myProducts}
+            productTrends={productTrends}
+            sales={sales}
+            clicks={clicks}
+            studioHealth={studioHealth}
+            CAPABILITY_STATUS={CAPABILITY_STATUS}
+            Loader2={Loader2}
+            Lightbulb={Lightbulb}
+            Rocket={Rocket}
+            TrendingUp={TrendingUp}
+            Share2={Share2}
+            Copy={Copy}
+            generateWhatsappMessage={generateWhatsappMessage}
+            openWhatsapp={openWhatsapp}
+            copyToClipboard={copyToClipboard}
+            clearSelection={clearSelection}
+            selectProduct={selectProduct}
+          />
+        )}
+
+        {/* Growth OS — main autonomous growth dashboard */}
         {activeTab === 'growth' && (
           <GrowthOSTab product={product} marketer={marketer} products={myProducts} clicks={clicks} sales={sales} showToast={showToast} />
+        )}
+
+        {/* Product Intelligence */}
+        {activeTab === 'intelligence' && (
+          <ProductIntelligenceTab product={product} cap={cap} extractProductInfo={extractProductInfo} Lightbulb={Lightbulb} Loader2={Loader2} />
+        )}
+
+        {/* UGC AI */}
+        {activeTab === 'ugc' && (
+          <UGCTab product={product} marketer={marketer} canRecord={canRecord} CAPABILITY_STATUS={CAPABILITY_STATUS} Video={Video} Loader2={Loader2} showToast={showToast} generateContent={generateContent} />
         )}
 
         {/* Launch — תמיד זמין, לא תלוי ב-cap */}
@@ -394,95 +436,44 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
           <ContentStudioTab product={product} cap={cap} generateContent={generateContent} copyToClipboard={copyToClipboard} setVideoProduct={setVideoProduct} canRecord={canRecord} CAPABILITY_STATUS={CAPABILITY_STATUS} Video={Video} Loader2={Loader2} />
         )}
 
-        {/* Video/UGC */}
+        {/* Video/UGC (legacy compatibility) */}
         {activeTab === 'video' && (
           <VideoUGCTab product={product} marketer={marketer} canRecord={canRecord} CAPABILITY_STATUS={CAPABILITY_STATUS} Video={Video} Loader2={Loader2} showToast={showToast} />
         )}
 
-        {/* Trends */}
+        {/* Live Trends */}
         {activeTab === 'trends' && (
           <TrendsTab product={product} productTrends={productTrends} CheckCircle2={CheckCircle2} />
         )}
 
-        {/* WhatsApp */}
-        {activeTab === 'whatsapp' && (
-          <WhatsAppTab product={product} whatsappDraft={whatsappDraft} copied={copied} generateWhatsappMessage={generateWhatsappMessage} copyToClipboard={copyToClipboard} openWhatsapp={openWhatsapp} setWhatsappDraft={setWhatsappDraft} marketer={marketer} />
+        {/* Reach/Performance */}
+        {activeTab === 'reach' && (
+          <ReachPerformanceTab product={product} marketer={marketer} sales={sales} clicks={clicks} myProducts={myProducts} BarChart2={BarChart2} Globe={Globe} />
         )}
 
-        {/* Product Intelligence */}
-        {activeTab === 'intelligence' && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold flex items-center gap-2">
-                <Lightbulb size={16} style={{ color: '#6C4CF1' }} />
-                Product Intelligence
-              </p>
-              <button
-                onClick={() => extractProductInfo(product)}
-                disabled={cap.status === CAPABILITY_STATUS.PROCESSING}
-                className="tap text-xs font-semibold px-3 py-1.5 rounded-full"
-                style={{
-                  background: cap.status === CAPABILITY_STATUS.PROCESSING ? 'var(--bg-subtle)' : '#6C4CF1',
-                  color: cap.status === CAPABILITY_STATUS.PROCESSING ? 'var(--text-muted)' : '#fff',
-                }}
-              >
-                {cap.status === CAPABILITY_STATUS.PROCESSING ? <Loader2 size={12} className="animate-spin" /> : 'חילוץ מידע'}
-              </button>
-            </div>
+        {/* AutoPilot */}
+        {activeTab === 'autopilot' && (
+          <AutoPilotTab product={product} marketer={marketer} CAPABILITY_STATUS={CAPABILITY_STATUS} Zap={Zap} Loader2={Loader2} />
+        )}
 
-            {cap.status === CAPABILITY_STATUS.NOT_STARTED && (
-              <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
-                <p className="text-xs text-muted">חילוץ כותרת, מחיר ותמונה מלינק המוצר — לפני ההשקה</p>
-                <button
-                  onClick={() => extractProductInfo(product)}
-                  className="tap mt-2 text-xs font-semibold px-4 py-2 rounded-full"
-                  style={{ background: '#6C4CF1', color: '#fff' }}
-                >
-                  חילוץ מידע עכשיו
-                </button>
-              </div>
-            )}
+        {/* AI Recommendations */}
+        {activeTab === 'recommendations' && (
+          <RecommendationsTab product={product} marketer={marketer} myProducts={myProducts} sales={sales} Brain={Brain} Target={Target} />
+        )}
 
-            {cap.status === CAPABILITY_STATUS.PROCESSING && (
-              <div className="p-4 rounded-xl" style={{ background: 'var(--bg-subtle)' }}>
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                  <span className="text-sm">מחלצת מידע מהלינק…</span>
-                </div>
-              </div>
-            )}
+        {/* Top Products */}
+        {activeTab === 'top' && (
+          <TopProductsTab myProducts={myProducts} productTrends={productTrends} sales={sales} clicks={clicks} PieChart={PieChart} />
+        )}
 
-            {cap.status === CAPABILITY_STATUS.COMPLETED && cap.data && (
-              <div className="flex flex-col gap-3">
-                {cap.data.image && (
-                  <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-subtle)' }}>
-                    <img src={cap.data.image} alt={product.title} className="w-full h-32 object-cover" />
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  {cap.data.title && (
-                    <div className="p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
-                      <p className="text-[10px] text-muted mb-1">כותרת</p>
-                      <p className="text-sm font-semibold">{cap.data.title}</p>
-                    </div>
-                  )}
-                  {cap.data.price && (
-                    <div className="p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
-                      <p className="text-[10px] text-muted mb-1">מחיר</p>
-                      <p className="text-sm font-semibold">₪{cap.data.price}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+        {/* Community */}
+        {activeTab === 'community' && (
+          <CommunityTab marketer={marketer} myProducts={myProducts} sales={sales} Users={Users} Share2={Share2} />
+        )}
 
-            {cap.status === CAPABILITY_STATUS.FAILED && (
-              <div className="p-4 rounded-xl" style={{ background: '#FEE2E2', border: '1px solid #FECACA' }}>
-                <p className="text-sm font-semibold" style={{ color: '#991B1B' }}>שגיאה בחילוץ מידע</p>
-                <p className="text-xs mt-1" style={{ color: '#B91C1C' }}>{cap.error}</p>
-              </div>
-            )}
-          </div>
+         {/* WhatsApp */}
+        {activeTab === 'whatsapp' && (
+          <WhatsAppTab product={product} whatsappDraft={whatsappDraft} copied={copied} generateWhatsappMessage={generateWhatsappMessage} copyToClipboard={copyToClipboard} openWhatsapp={openWhatsapp} setWhatsappDraft={setWhatsappDraft} marketer={marketer} />
         )}
 
       </div>
@@ -490,7 +481,534 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   );
 }
 
-// Content Studio tab JSX
+// Dashboard tab — overview card grid
+const DashboardTab = ({
+  product, marketer, myProducts, productTrends, sales, clicks,
+  studioHealth, CAPABILITY_STATUS, Loader2, Lightbulb, Rocket,
+  TrendingUp, Share2, Copy, generateWhatsappMessage, openWhatsapp,
+  copyToClipboard, clearSelection, selectProduct
+}) => {
+  const [loadingStates, setLoadingStates] = React.useState({});
+
+  const handleQuickAction = useCallback((action, product) => {
+    if (action === 'whatsapp') return openWhatsapp(product);
+    if (action === 'copy') return Copy;
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>{myProducts.length}</p>
+          <p className="text-[10px] text-muted mt-0.5">מוצרים פעילים</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-2xl font-bold" style={{ color: '#00C896' }}>{(sales || []).filter(s => s.marketerId === marketer?.id).length}</p>
+          <p className="text-[10px] text-muted mt-0.5">מכירות השבוע</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-2xl font-bold" style={{ color: '#E86A9E' }}>
+            {myProducts.reduce((sum, p) => sum + (p.clicks || 0), 0)}
+          </p>
+          <p className="text-[10px] text-muted mt-0.5">סה״כ קליקים</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-2xl font-bold" style={{ color: '#6C4CF1' }}>{studioHealth?.grade || '—'}</p>
+          <p className="text-[10px] text-muted mt-0.5">ציון סטודיו</p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <button
+          onClick={() => selectProduct(myProducts[0])}
+          disabled={myProducts.length === 0}
+          className="tap py-2.5 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 disabled:opacity-50"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+        >
+          <Lightbulb size={14} style={{ color: '#6C4CF1' }} />
+          ניתוח מוצר
+        </button>
+        <button
+          onClick={() => openWhatsapp(myProducts[0])}
+          disabled={myProducts.length === 0}
+          className="tap py-2.5 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 disabled:opacity-50"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+        >
+          <Share2 size={14} style={{ color: '#35D354' }} />
+          שיתוף WhatsApp
+        </button>
+        <button
+          onClick={() => copyToClipboard(generateWhatsappMessage(myProducts[0]))}
+          disabled={myProducts.length === 0}
+          className="tap py-2.5 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 disabled:opacity-50"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+        >
+          <Copy size={14} style={{ color: '#6C4CF1' }} />
+          העתק הודעה
+        </button>
+      </div>
+
+      {/* Top Products quick view */}
+      {myProducts.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted mb-2">🏆 מוצרים מובילים</p>
+          <div className="flex flex-col gap-2">
+            {productTrends.slice(0, 5).map((item) => (
+              <div
+                key={item.product.id}
+                className="flex items-center gap-2 p-2 rounded-xl"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+              >
+                <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
+                  <ProductThumb p={item.product} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate">{item.product.title}</p>
+                  <p className="text-[10px] text-muted">ציון {Math.round(item.score)} · {item.momentum}</p>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>
+                  #{item.rank || productTrends.indexOf(item) + 1}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Sales quick view */}
+      {sales && sales.filter(s => s.marketerId === marketer?.id).length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted mb-2">📈 מכירות אחרונות</p>
+          <div className="flex flex-col gap-1">
+            {sales.filter(s => s.marketerId === marketer?.id).slice(0, 3).map((s, i) => (
+              <div key={s.id || i} className="flex items-center justify-between p-2 rounded-xl text-[11px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span className="truncate">{s.productTitle || s.productId || 'מכירה'}</span>
+                <span style={{ color: '#00C896' }}>₪{(s.marketerNet || s.commissionAmount || 0).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Product Intelligence tab (extracted)
+const ProductIntelligenceTab = ({ product, cap, extractProductInfo, Lightbulb, Loader2 }) => (
+  <div className="flex flex-col gap-4">
+    <div className="flex items-center justify-between">
+      <p className="text-sm font-semibold flex items-center gap-2">
+        <Lightbulb size={16} style={{ color: '#6C4CF1' }} />
+        Product Intelligence
+      </p>
+      <button
+        onClick={() => extractProductInfo(product)}
+        disabled={cap.status === CAPABILITY_STATUS.PROCESSING}
+        className="tap text-xs font-semibold px-3 py-1.5 rounded-full"
+        style={{
+          background: cap.status === CAPABILITY_STATUS.PROCESSING ? 'var(--bg-subtle)' : '#6C4CF1',
+          color: cap.status === CAPABILITY_STATUS.PROCESSING ? 'var(--text-muted)' : '#fff',
+        }}
+      >
+        {cap.status === CAPABILITY_STATUS.PROCESSING ? <Loader2 size={12} className="animate-spin" /> : 'חילוץ מידע'}
+      </button>
+    </div>
+
+    {cap.status === CAPABILITY_STATUS.NOT_STARTED && (
+      <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
+        <p className="text-xs text-muted">חילוץ כותרת, מחיר ותמונה מלינק המוצר — לפני ההשקה</p>
+        <button
+          onClick={() => extractProductInfo(product)}
+          className="tap mt-2 text-xs font-semibold px-4 py-2 rounded-full"
+          style={{ background: '#6C4CF1', color: '#fff' }}
+        >
+          חילוץ מידע עכשיו
+        </button>
+      </div>
+    )}
+
+    {cap.status === CAPABILITY_STATUS.PROCESSING && (
+      <div className="p-4 rounded-xl" style={{ background: 'var(--bg-subtle)' }}>
+        <div className="flex items-center justify-center gap-2 py-2">
+          <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
+          <span className="text-sm">מחלצת מידע מהלינק…</span>
+        </div>
+      </div>
+    )}
+
+    {cap.status === CAPABILITY_STATUS.COMPLETED && cap.data && (
+      <div className="flex flex-col gap-3">
+        {cap.data.image && (
+          <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-subtle)' }}>
+            <img src={cap.data.image} alt={product.title} className="w-full h-32 object-cover" />
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {cap.data.title && (
+            <div className="p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
+              <p className="text-[10px] text-muted mb-1">כותרת</p>
+              <p className="text-sm font-semibold">{cap.data.title}</p>
+            </div>
+          )}
+          {cap.data.price && (
+            <div className="p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
+              <p className="text-[10px] text-muted mb-1">מחיר</p>
+              <p className="text-sm font-semibold">₪{cap.data.price}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {cap.status === CAPABILITY_STATUS.FAILED && (
+      <div className="p-4 rounded-xl" style={{ background: '#FEE2E2', border: '1px solid #FECACA' }}>
+        <p className="text-sm font-semibold" style={{ color: '#991B1B' }}>שגיאה בחילוץ מידע</p>
+        <p className="text-xs mt-1" style={{ color: '#B91C1C' }}>{cap.error}</p>
+      </div>
+    )}
+  </div>
+);
+
+// UGC AI tab — combines video/UGC and content creation
+const UGCTab = ({ product, marketer, canRecord, CAPABILITY_STATUS, Video, Loader2, showToast, generateContent }) => {
+  const [ugcStatus, setUgcStatus] = React.useState(CAN_RECORD_VIDEO ? CAPABILITY_STATUS.READY : CAPABILITY_STATUS.UNAVAILABLE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold flex items-center gap-2"><Video size={16} style={{ color: '#E86A9E' }} />UGC AI</p>
+      </div>
+
+      {/* UGC Generation */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">UGC VIDEO GENERATION</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold">Browser Recorder</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: canRecord ? '#00C89620' : '#FEE2E2', color: canRecord ? '#00C896' : '#991B1B' }}>
+            {canRecord ? 'READY' : 'UNAVAILABLE'}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted mt-1">
+          {canRecord
+            ? 'Canvas + MediaRecorder → WebM. No external AI provider.'
+            : 'Browser does not support video recording. Fallback: script-based caption export.'
+          }
+        </p>
+        {!canRecord && (
+          <p className="text-[10px] text-faint mt-1">Fallback: complete creative package with script, captions, and edit spec ready for external renderer.</p>
+        )}
+      </div>
+
+      {/* AI Content Pack */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">AI CONTENT PACK</p>
+        <button
+          onClick={() => generateContent(product)}
+          className="tap w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+          style={{ background: '#E86A9E', color: '#fff' }}
+        >
+          <Sparkles size={14} />
+          צור חבילת תוכן למוצר
+        </button>
+        <p className="text-[10px] text-muted mt-1 text-center">Reels, Stories, Posts, TikTok — באחד לחיצה</p>
+      </div>
+    </div>
+  );
+};
+
+// Reach/Performance tab
+const ReachPerformanceTab = ({ product, marketer, sales, clicks, myProducts, BarChart2, Globe }) => {
+  const [reachData, setReachData] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!product || !sales || !clicks) return;
+    try {
+      const { getReachMetrics } = require('../../lib/cloud/discovery.js');
+      setReachData(getReachMetrics({ product, sales, clicks }));
+    } catch (e) { /* best-effort */ }
+  }, [product, sales, clicks]);
+
+  const allClicks = myProducts.reduce((sum, p) => sum + (p.clicks || 0), 0);
+  const allSales = sales.filter(s => s.marketerId === marketer?.id).length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-semibold flex items-center gap-2"><BarChart2 size={16} style={{ color: '#3B82F6' }} />Reach / Performance</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-lg font-bold" style={{ color: '#3B82F6' }}>{allClicks}</p>
+          <p className="text-[10px] text-muted mt-0.5">סה״כ קליקים</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-lg font-bold" style={{ color: '#00C896' }}>{allSales}</p>
+          <p className="text-[10px] text-muted mt-0.5">מכירות מאושרות</p>
+        </div>
+      </div>
+
+      {reachData && reachData.verified ? (
+        <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-[11px] text-muted">Reach (verified): {reachData.reach}</p>
+          <p className="text-[11px] text-muted">CTR: {reachData.ctr}%</p>
+          <p className="text-[11px] text-muted">Conversion rate: {reachData.cvr}%</p>
+        </div>
+      ) : (
+        <div className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-[11px] text-muted">מדדי הגעה זמינים כאשר יש נתונים מדויקים (קליקים ומכירות ממותגים למוצר).</p>
+        </div>
+      )}
+
+      <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold mb-2 flex items-center gap-1"><Globe size={12} /> מקורות פרסום</p>
+        <div className="flex flex-wrap gap-1 text-[10px]">
+          <span className="px-2 py-1 rounded-full" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>Likelink Feed</span>
+          <span className="px-2 py-1 rounded-full" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>WhatsApp Share</span>
+          <span className="px-2 py-1 rounded-full" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>Creator Profile</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// AutoPilot tab
+const AutoPilotTab = ({ product, marketer, CAPABILITY_STATUS, Zap, Loader2 }) => {
+  const [config, setConfig] = React.useState(null);
+  const [status, setStatus] = React.useState({ overall: 'IDLE' });
+
+  React.useEffect(() => {
+    try {
+      const { getAutoPilotConfig } = require('../../lib/cloud/autoPilot.js');
+      const cfg = getAutoPilotConfig(marketer);
+      setConfig(cfg);
+    } catch (e) { /* best-effort */ }
+  }, [marketer]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-semibold flex items-center gap-2"><Zap size={16} style={{ color: '#00C896' }} />AutoPilot</p>
+
+      {config && (
+        <>
+          <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted">STATUS</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>
+                {status.overall}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted">אוטומציה של פרסום והתפתחות המוצר על בסיס ביצועים אמיתיים.</p>
+          </div>
+
+          <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-xs font-semibold text-muted mb-2">CONFIGURATION</p>
+            <div className="flex flex-col gap-1 text-[11px]">
+              <div className="flex justify-between"><span className="text-muted">קצב פרסום</span><span>{config.rate || 'בפעילות'}</span></div>
+              <div className="flex justify-between"><span className="text-muted">שעת פיקה</span><span>{config.peakHour !== undefined ? config.peakHour + ':00' : 'אוטומטי'}</span></div>
+              <div className="flex justify-between"><span className="text-muted">יעד קליקים/יום</span><span>{config.target || 'ללא הגבלה'}</span></div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}>
+        <p className="text-[10px] text-muted">AutoPilot מפעיל את ההשקה וההתפשטות באופן אוטונומי, רק כשיש לך מוצרים מאושרים ופעילים.</p>
+      </div>
+    </div>
+  );
+};
+
+// AI Recommendations tab
+const RecommendationsTab = ({ product, marketer, myProducts, sales, Brain, Target }) => {
+  const [recommendations, setRecommendations] = React.useState(null);
+
+  React.useEffect(() => {
+    try {
+      const { getAIRecommendations } = require('../../lib/cloud/intelligenceContext.mjs');
+      if (product) {
+        setRecommendations(getAIRecommendations({ product, marketer, myProducts, sales }));
+      }
+    } catch (e) { /* best-effort */ }
+  }, [product, marketer, myProducts, sales]);
+
+  if (!product) {
+    return (
+      <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
+        <p className="text-xs text-muted">בחרי מוצר כדי לקבל המלצות מותאמות אישית</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-semibold flex items-center gap-2"><Brain size={16} style={{ color: '#7C4DBE' }} />AI Recommendations</p>
+
+      {recommendations ? (
+        <div className="flex flex-col gap-3">
+          {recommendations.map((rec, i) => (
+            <div key={i} className="p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-start justify-between mb-1">
+                <span className="text-xs font-semibold" style={{ color: '#6C4CF1' }}>{rec.type || 'recommendation'}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>
+                  {rec.priority || 'medium'}
+                </span>
+              </div>
+              <p className="text-sm">{rec.text || rec.title}</p>
+              {rec.action && (
+                <button className="tap mt-2 text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#6C4CF1', color: '#fff' }}>
+                  {rec.action}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted">טוען המלצות...</p>
+      )}
+    </div>
+  );
+};
+
+// Top Products tab
+const TopProductsTab = ({ myProducts, productTrends, sales, clicks, PieChart }) => {
+  const sortedProducts = useMemo(() => {
+    return [...myProducts].sort((a, b) => {
+      const aScore = (a.clicks || 0) * 2 + (sales.filter(s => s.productId === a.id || s.product === a.id).length) * 10;
+      const bScore = (b.clicks || 0) * 2 + (sales.filter(s => s.productId === b.id || s.product === b.id).length) * 10;
+      return bScore - aScore;
+    });
+  }, [myProducts, sales]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-semibold flex items-center gap-2"><PieChart size={16} style={{ color: '#E86A9E' }} />Top Products</p>
+
+      {sortedProducts.length === 0 ? (
+        <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-xs text-muted">אין מוצרים להצגה</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {sortedProducts.map((product, idx) => {
+            const trend = productTrends.find(p => p.product.id === product.id);
+            const productSales = sales.filter(s => s.productId === product.id || s.product === product.id);
+            const clicksTotal = product.clicks || 0;
+            const salesCount = productSales.length;
+            const score = clicksTotal * 2 + salesCount * 10;
+
+            return (
+              <div key={product.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-center shrink-0 w-8 h-8 rounded-lg" style={{ background: 'var(--bg-subtle)' }}>
+                  <span className="text-xs font-bold" style={{ color: idx < 3 ? '#FFB347' : 'var(--text-muted)' }}>
+                    #{idx + 1}
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
+                  <ProductThumb p={product} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{product.title}</p>
+                  <p className="text-[10px] text-muted">
+                    {clicksTotal} קליקים · {salesCount} מכירות · ציון {score}
+                  </p>
+                </div>
+                {trend && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>
+                    {trend.momentum}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Community tab
+const CommunityTab = ({ marketer, myProducts, sales, Users, Share2 }) => {
+  const [communityData, setCommunityData] = React.useState(null);
+
+  React.useEffect(() => {
+    try {
+      const { getCommunityMetrics } = require('../../lib/cloud/social.js');
+      if (marketer) {
+        setCommunityData(getCommunityMetrics(marketer));
+      }
+    } catch (e) { /* best-effort */ }
+  }, [marketer]);
+
+  const myLink = `${window.location.origin}/u/${marketer?.slug || marketer?.id}`;
+  const communityProducts = myProducts.filter(p => p.boostedUntil && p.boostedUntil > Date.now());
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm font-semibold flex items-center gap-2"><Users size={16} style={{ color: '#35D354' }} />Community</p>
+
+      <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">פרופיל יוצרים</p>
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full overflow-hidden" style={{ background: 'var(--bg-subtle)' }}>
+            {marketer?.avatarUrl ? <img src={marketer.avatarUrl} alt={marketer.name} className="w-full h-full object-cover" /> : null}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{marketer?.name || 'משתמש'}</p>
+            <p className="text-xs text-muted truncate">{marketer?.email}</p>
+          </div>
+        </div>
+      </div>
+
+      {communityData && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-bold" style={{ color: '#35D354' }}>{communityData.followers || 0}</p>
+            <p className="text-[10px] text-muted mt-0.5">עוקבים</p>
+          </div>
+          <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-bold" style={{ color: '#6C4CF1' }}>{communityData.reach || 0}</p>
+            <p className="text-[10px] text-muted mt-0.5">הגעה</p>
+          </div>
+          <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-lg font-bold" style={{ color: '#E86A9E' }}>{communityData.engagementRate || 0}%</p>
+            <p className="text-[10px] text-muted mt-0.5">אינטראקציה</p>
+          </div>
+        </div>
+      )}
+
+      <div className="p-3 rounded-xl" style={{ background: 'var(--bg-subtle)' }}>
+        <p className="text-xs font-semibold mb-2">קישור אישי לשיתוף</p>
+        <div className="flex items-center gap-2">
+          <code className="text-[10px] text-muted truncate flex-1">{myLink}</code>
+          <button
+            onClick={() => navigator.clipboard.writeText(myLink)}
+            className="tap px-2 py-1 rounded-lg text-xs font-semibold"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+          >
+            <Share2 size={10} />
+          </button>
+        </div>
+      </div>
+
+      {communityProducts.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted mb-2">מוצרים מבוססים</p>
+          <div className="flex flex-col gap-1">
+            {communityProducts.slice(0, 3).map(p => (
+              <div key={p.id} className="flex items-center gap-2 text-xs">
+                <div className="w-6 h-6 rounded overflow-hidden shrink-0"><ProductThumb p={p} /></div>
+                <span className="truncate flex-1">{p.title}</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: '#6C4CF120', color: '#6C4CF1' }}>boosted</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ContentStudioTab = ({ product, cap, generateContent, copyToClipboard, setVideoProduct, canRecord, CAPABILITY_STATUS, Video, Loader2 }) => (
   <div className="flex flex-col gap-4">
     <div className="flex items-center justify-between">
