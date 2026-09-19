@@ -128,8 +128,3 @@ export function audienceInsightSummary(signals, lang = "he") {
   if (topHook) parts.push(lang === "he" ? `הוק מוביל: ${topHook.key}` : `Top hook: ${topHook.key}`);
   return parts.join(" · ") || (lang === "he" ? "אין מספיק נתונים" : "Insufficient data");
 }
-
-function safeNum(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}

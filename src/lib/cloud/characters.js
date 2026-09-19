@@ -33,7 +33,7 @@ export const CHARACTER_LANGUAGES = Object.freeze({
   ru: "ru",
 });
 
-export const CHARACTER_PRESETS = Object.freeze({
+export const CHARACTER_PRESETS = {
   [CHARACTER_TYPES.AI_MALE_MODEL]: {
     id: CHARACTER_TYPES.AI_MALE_MODEL,
     name: { he: "דני", en: "Danny" },
