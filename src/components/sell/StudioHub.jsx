@@ -23,6 +23,7 @@ import { rankByTrend } from '../../lib/cloud/trends.js';
 import { generateContentPack } from '../../lib/cloud/contentStudio.js';
 import { suggestPrice, scoreStoreHealth } from '../../lib/aiStudio.js';
 import { fetchProductInfo } from '../../lib/productInfo.js';
+import { canRecordVideo } from '../../lib/videoEngine.js';
 import { money } from '../../utils/helpers.js';
 import { ProductThumb } from '../product/ProductComponents.jsx';
 import { EmptyState } from '../ui/index.jsx';
@@ -36,6 +37,8 @@ const CAPABILITY_STATUS = {
   UNAVAILABLE: 'unavailable',
   NOT_STARTED: 'not_started',
 };
+
+const CAN_RECORD_VIDEO = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
 
 export default function StudioHub({ marketer, products, sales, clicks, onLaunchComplete, showToast }) {
   const { t, lang, categoryLabel } = useI18n();
@@ -213,6 +216,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     { id: 'growth', label: 'Growth OS', color: '#6C4CF1' },
     { id: 'intelligence', label: 'Product Intelligence', color: '#6C4CF1' },
     { id: 'content', label: 'Content Studio', color: '#C9A86C' },
+    { id: 'video', label: 'Video/UGC', color: '#E86A9E' },
     { id: 'launch', label: 'Launch', color: '#00C896' },
     { id: 'trends', label: 'Trends', color: '#E86A9E' },
     { id: 'whatsapp', label: 'WhatsApp', color: '#35D354' },
@@ -366,6 +370,11 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         {/* Content Studio */}
         {activeTab === 'content' && (
           <ContentStudioTab product={product} cap={cap} generateContent={generateContent} copyToClipboard={copyToClipboard} setVideoProduct={setVideoProduct} canRecord={canRecord} CAPABILITY_STATUS={CAPABILITY_STATUS} Video={Video} Loader2={Loader2} />
+        )}
+
+        {/* Video/UGC */}
+        {activeTab === 'video' && (
+          <VideoUGCTab product={product} marketer={marketer} canRecord={canRecord} CAPABILITY_STATUS={CAPABILITY_STATUS} Video={Video} Loader2={Loader2} showToast={showToast} />
         )}
 
         {/* Trends */}
@@ -776,6 +785,264 @@ const GrowthOSTab = ({ product, marketer, products, clicks, sales, showToast }) 
           </div>
         ) : (
           <p className="text-xs text-muted">מנתח ביצועים...</p>
+        )}
+      </div>
+
+      {/* Video / Editing / Voiceover / Language — truthful states */}
+      <VideoEditingTab product={product} />
+      <VoiceoverTab product={product} creative={creative} />
+      <LanguageCapabilitiesTab product={product} />
+    </div>
+  );
+};
+
+// Video Editing Tab — truthful edit spec
+const VideoEditingTab = ({ product }) => {
+  const [spec, setSpec] = React.useState(null);
+  React.useEffect(() => {
+    if (!product) return;
+    try {
+      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
+      const { buildEditSpec } = require('../../lib/cloud/videoEditing.js');
+      const cv = createCreativeVariant({ product, language: 'he', creativeType: 'reel' });
+      if (cv) setSpec(buildEditSpec({ creative: cv, product }));
+    } catch (e) { /* best-effort */ }
+  }, [product]);
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+      <p className="text-xs font-semibold text-muted mb-2">VIDEO EDITING</p>
+      {spec ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold">{spec.aspectRatio}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: spec.status === 'READY' ? '#00C89620' : '#FEE2E2', color: spec.status === 'READY' ? '#00C896' : '#991B1B' }}>
+              {spec.status}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted">{spec.scenes?.length || 0} scenes · {Math.round((spec.totalDurationMs || 0) / 1000)}s</p>
+          {(spec.scenes || []).slice(0, 3).map((s, i) => (
+            <div key={i} className="flex justify-between text-[11px]">
+              <span className="font-semibold">{s.type}</span>
+              <span className="text-muted">{s.durationMs}ms</span>
+            </div>
+          ))}
+          {spec.blockers?.length > 0 && <p className="text-[10px] text-faint">Blockers: {spec.blockers.join(', ')}</p>}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted">Edit spec not generated yet.</p>
+      )}
+    </div>
+  );
+};
+
+// Voiceover Tab — truthful voiceover script state
+const VoiceoverTab = ({ product, creative }) => {
+  const [voiceover, setVoiceover] = React.useState(null);
+  React.useEffect(() => {
+    if (!product || !creative) return;
+    try {
+      const { generateVoiceoverScript } = require('../../lib/cloud/voiceoverScript.js');
+      setVoiceover(generateVoiceoverScript({ creative, product }));
+    } catch (e) { /* best-effort */ }
+  }, [product, creative]);
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+      <p className="text-xs font-semibold text-muted mb-2">VOICEOVER</p>
+      {voiceover ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold">{voiceover.language}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: voiceover.status === 'VOICEOVER_READY' ? '#00C89620' : '#FEE2E2', color: voiceover.status === 'VOICEOVER_READY' ? '#00C896' : '#991B1B' }}>
+              {voiceover.status}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted">{voiceover.lines?.length || 0} lines · {Math.round((voiceover.totalDurationMs || 0) / 1000)}s</p>
+          {voiceover.blockers?.length > 0 && <p className="text-[10px] text-faint">Blockers: {voiceover.blockers.join(', ')}</p>}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted">Voiceover script not generated yet.</p>
+      )}
+    </div>
+  );
+};
+
+// Language Capabilities Tab — truthful matrix
+const LanguageCapabilitiesTab = ({ product }) => {
+  const [caps, setCaps] = React.useState({});
+  React.useEffect(() => {
+    try {
+      const { getLanguageCapability, getSupportedLanguages, getUnsupportedLanguages } = require('../../lib/cloud/languageCapabilities.js');
+      const supported = getSupportedLanguages();
+      const unsupported = getUnsupportedLanguages();
+      setCaps({ supported, unsupported, he: getLanguageCapability('he'), en: getLanguageCapability('en') });
+    } catch (e) { /* best-effort */ }
+  }, []);
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+      <p className="text-xs font-semibold text-muted mb-2">LANGUAGE CAPABILITIES</p>
+      {caps.he && caps.en ? (
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-[11px]">
+            <span className="font-semibold">Hebrew (he)</span>
+            <span style={{ color: '#00C896' }}>{caps.he.supportLevel}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="font-semibold">English (en)</span>
+            <span style={{ color: '#00C896' }}>{caps.en.supportLevel}</span>
+          </div>
+          {caps.unsupported?.length > 0 && (
+            <p className="text-[10px] text-faint mt-1">Declared but unavailable: {caps.unsupported.join(', ')}</p>
+          )}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted">Language capabilities not loaded.</p>
+      )}
+    </div>
+  );
+};
+
+// Video/UGC tab — truthful video generation and editing states
+const VideoUGCTab = ({ product, marketer, canRecord, CAPABILITY_STATUS, Video, Loader2, showToast }) => {
+  const [videoStatus, setVideoStatus] = useState(CAN_RECORD_VIDEO ? CAPABILITY_STATUS.READY : CAPABILITY_STATUS.UNAVAILABLE);
+  const [editSpec, setEditSpec] = useState(null);
+  const [voiceover, setVoiceover] = useState(null);
+  const [captions, setCaptions] = useState([]);
+
+  React.useEffect(() => {
+    if (!product) return;
+    try {
+      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
+      const { buildEditSpec } = require('../../lib/cloud/videoEditing.js');
+      const { generateVoiceoverScript } = require('../../lib/cloud/voiceoverScript.js');
+      const { getLanguageCapability } = require('../../lib/cloud/languageCapabilities.js');
+
+      const cv = createCreativeVariant({ product, language: 'he', creativeType: 'reel' });
+      if (cv) {
+        setCaptions(cv.captions?.he?.lines || []);
+        const spec = buildEditSpec({ creative: cv, product });
+        setEditSpec(spec);
+        const vo = generateVoiceoverScript({ creative: cv, product });
+        setVoiceover(vo);
+      }
+    } catch (e) {
+      // best-effort
+    }
+  }, [product]);
+
+  const langCap = product ? getLanguageCapability('he') : null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Video size={18} style={{ color: '#E86A9E' }} />
+        <p className="text-sm font-semibold">Video / UGC</p>
+      </div>
+
+      {/* Video Generation Status */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">VIDEO GENERATION</p>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold">Browser Recorder</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: canRecord ? '#00C89620' : '#FEE2E2', color: canRecord ? '#00C896' : '#991B1B' }}>
+            {canRecord ? 'READY' : 'UNAVAILABLE'}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted mt-1">
+          {canRecord ? 'Canvas + MediaRecorder → WebM. No external AI provider.' : 'Browser does not support video recording.'}
+        </p>
+        {!canRecord && (
+          <p className="text-[10px] text-faint mt-1">Fallback: complete creative package with script, captions, and edit spec ready for external renderer.</p>
+        )}
+      </div>
+
+      {/* Captions / Subtitles */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">CAPTIONS / SUBTITLES</p>
+        {captions.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {captions.slice(0, 5).map((cap, i) => (
+              <div key={i} className="flex justify-between text-[11px] py-1" style={{ borderBottom: '1px solid var(--border)' }}>
+                <span className="font-semibold">{cap.text.slice(0, 40)}</span>
+                <span className="text-muted">{cap.type}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted">No captions generated yet.</p>
+        )}
+        <p className="text-[10px] text-faint mt-1">Source: script-based captions (not transcription).</p>
+      </div>
+
+      {/* Voiceover */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">VOICEOVER</p>
+        {voiceover ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">{voiceover.language}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: voiceover.status === 'VOICEOVER_READY' ? '#00C89620' : '#FEE2E2', color: voiceover.status === 'VOICEOVER_READY' ? '#00C896' : '#991B1B' }}>
+                {voiceover.status}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted">{voiceover.lines?.length || 0} lines · {Math.round((voiceover.totalDurationMs || 0) / 1000)}s</p>
+            {voiceover.blockers?.length > 0 && (
+              <p className="text-[10px] text-faint">Blockers: {voiceover.blockers.join(', ')}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted">Voiceover script not generated yet.</p>
+        )}
+      </div>
+
+      {/* Edit Spec */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">EDIT SPECIFICATION</p>
+        {editSpec ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">{editSpec.aspectRatio}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: editSpec.status === 'READY' ? '#00C89620' : '#FEE2E2', color: editSpec.status === 'READY' ? '#00C896' : '#991B1B' }}>
+                {editSpec.status}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted">{editSpec.scenes?.length || 0} scenes · {Math.round((editSpec.totalDurationMs || 0) / 1000)}s</p>
+            <div className="flex flex-col gap-1 mt-1">
+              {(editSpec.scenes || []).slice(0, 4).map((scene, i) => (
+                <div key={i} className="flex justify-between text-[11px]">
+                  <span className="font-semibold">{scene.type}</span>
+                  <span className="text-muted">{scene.durationMs}ms</span>
+                </div>
+              ))}
+            </div>
+            {editSpec.blockers?.length > 0 && (
+              <p className="text-[10px] text-faint">Blockers: {editSpec.blockers.join(', ')}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted">Edit spec not generated yet.</p>
+        )}
+      </div>
+
+      {/* Language Capabilities */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">LANGUAGE CAPABILITIES</p>
+        {langCap ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex justify-between text-[11px]">
+              <span className="font-semibold">Hebrew (he)</span>
+              <span style={{ color: '#00C896' }}>FULL</span>
+            </div>
+            <div className="flex justify-between text-[11px]">
+              <span className="font-semibold">English (en)</span>
+              <span style={{ color: '#00C896' }}>FULL</span>
+            </div>
+            <p className="text-[10px] text-faint mt-1">Other languages declared but not fully implemented.</p>
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted">Select a product to view language capabilities.</p>
         )}
       </div>
     </div>

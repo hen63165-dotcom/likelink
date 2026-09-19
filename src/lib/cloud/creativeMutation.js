@@ -97,13 +97,20 @@ export function createCreativeVariant({
       description: product.description || lunaStory,
       hook: hooks[0]?.text || lunaHook,
       cta: ctaOptions[0] || "לרכישה 👉 הלינק בפרופיל",
+      lines: buildCaptionLines(baseScript, language === "he" ? "he" : "en"),
     },
     en: {
       title: product.title || "",
       description: product.description || "",
       hook: hooks[0]?.text || "",
       cta: ctaOptions[0] || "Shop now 👉 link in bio",
+      lines: buildCaptionLines(baseScript, "en"),
     },
+  };
+
+  const subtitles = {
+    he: buildSubtitleTracks(baseScript, "he"),
+    en: buildSubtitleTracks(baseScript, "en"),
   };
 
   const hashtags = buildHashtags(product, trend);
@@ -121,7 +128,7 @@ export function createCreativeVariant({
     ctaOptions,
     script: baseScript,
     captions,
-    subtitles: { he: [], en: [] },
+    subtitles,
     textOverlays: [],
     title: captions[language]?.title || product.title || "",
     description: captions[language]?.description || product.description || "",
@@ -193,4 +200,24 @@ export function creativeSummary(creative, lang = "he") {
     he: parts.join(" · "),
     en: parts.join(" · "),
   };
+}
+
+function buildCaptionLines(script, lang) {
+  const lines = [];
+  if (script.hook) lines.push({ text: script.hook, startMs: 0, endMs: 3000, type: "hook" });
+  if (script.introduction) lines.push({ text: script.introduction, startMs: 3000, endMs: 7000, type: "intro" });
+  if (script.demonstration) lines.push({ text: script.demonstration, startMs: 7000, endMs: 11000, type: "demo" });
+  if (script.benefits) lines.push({ text: script.benefits, startMs: 11000, endMs: 14500, type: "benefit" });
+  if (script.cta) lines.push({ text: script.cta, startMs: 14500, endMs: 18000, type: "cta" });
+  return lines;
+}
+
+function buildSubtitleTracks(script, lang) {
+  const cues = [];
+  if (script.hook) cues.push({ startMs: 0, endMs: 3000, text: script.hook });
+  if (script.introduction) cues.push({ startMs: 3000, endMs: 7000, text: script.introduction });
+  if (script.demonstration) cues.push({ startMs: 7000, endMs: 11000, text: script.demonstration });
+  if (script.benefits) cues.push({ startMs: 11000, endMs: 14500, text: script.benefits });
+  if (script.cta) cues.push({ startMs: 14500, endMs: 18000, text: script.cta });
+  return cues;
 }
