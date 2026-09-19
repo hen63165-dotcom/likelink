@@ -26,7 +26,7 @@
 
 import { TREND_STATES, trendIsActive, trendHasEvidence, scoreTrendForOpportunity } from "./trendRadar.js";
 import { evaluateCapability } from "./capabilityBroker.js";
-import { getProviderConnectionState } from "./connectionManager.js";
+import { getConnectionState } from "./connectionManager.js";
 
 export const OPPORTUNITY_DECISIONS = Object.freeze({
   ACT: "ACT",

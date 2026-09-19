@@ -22,6 +22,7 @@
 
 import { generateHookVariations } from "./hooks.js";
 import { lunaHookForProduct, lunaStoryText, AMBASSADOR } from "../ambassador.js";
+import { trendHasEvidence } from "./trendRadar.js";
 
 export const CREATIVE_TYPES = Object.freeze({
   SHORT_VIDEO: "short_video",

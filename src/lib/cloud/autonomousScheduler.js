@@ -21,9 +21,9 @@
  */
 
 import { discoverOpportunities } from "./selfGrowth.js";
-import { evaluateOpportunity, selectBestOpportunities, OPPORTUNITY_DECISIONS } from "./opportunityEngine.js";
+import { evaluateOpportunity, selectBestOpportunity, OPPORTUNITY_DECISIONS } from "./opportunityEngine.js";
 import { createCreativeVariant } from "./creativeMutation.js";
-import { preflightPublish, preflightLaunch, preflightShare } from "./preflight.js";
+import { preflightPublishProduct, preflightLaunch, preflightShare } from "./preflight.js";
 import { resolveDistributionState, getBestFallback, DISTRIBUTION_STATES } from "./distributionIntelligence.js";
 import { recordPerformanceEvent } from "./growthLearning.js";
 import { getProviderConnectionState } from "./connectionManager.js";
@@ -58,7 +58,7 @@ export function createCycle({ products = [], trends = [], events = [], recentCon
     }
   }
 
-  const selected = selectBestOpportunities(opportunities, 3);
+  const selected = selectBestOpportunity(opportunities, 3);
   const creatives = [];
   for (const opp of selected) {
     if (opp.decision !== OPPORTUNITY_DECISIONS.ACT) continue;
@@ -69,7 +69,7 @@ export function createCycle({ products = [], trends = [], events = [], recentCon
       creativeType: "post",
     });
     if (creative) {
-      const preflight = preflightShare({ product: opp.product, creative, channel: channels[0] });
+      const preflight = preflightShare({ product: opp.product, creative });
       const distState = resolveDistributionState({
         intent: "share",
         provider: channels[0] || "web",

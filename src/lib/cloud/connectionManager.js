@@ -57,9 +57,23 @@ export function updateConnectionState(store, provider, state, meta = {}) {
   return out;
 }
 
+export const CONNECTED_STATES = Object.freeze([CONNECTION_STATE.CONNECTED, CONNECTION_STATE.READY]);
+export const BLOCKED_STATES = Object.freeze([
+  CONNECTION_STATE.BLOCKED,
+  CONNECTION_STATE.REAUTH_REQUIRED,
+  CONNECTION_STATE.ERROR,
+  CONNECTION_STATE.UNAVAILABLE,
+]);
+
 export function getConnectionState(store, provider) {
   const list = Array.isArray(store?.[CONNECTION_KEY]) ? store[CONNECTION_KEY] : [];
   return list.find((c) => c && c.provider === provider) || null;
+}
+
+export function getProviderConnectionState(provider, store) {
+  if (provider === "web" || provider === "direct") return CONNECTION_STATE.CONNECTED;
+  const entry = getConnectionState(store || {}, provider);
+  return entry ? entry.state : CONNECTION_STATE.NOT_CONNECTED;
 }
 
 export function listConnectionStates(store) {
