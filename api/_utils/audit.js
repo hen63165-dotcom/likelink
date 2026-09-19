@@ -103,12 +103,14 @@ function sanitizeLogData(data, seen) {
 }
 
 function getClientIp(req) {
+  if (!req || !req.headers) return "unknown";
   const h = req.headers;
   const get = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]) || "";
   return String(get("x-forwarded-for")).split(",")[0].trim() || get("x-real-ip") || "unknown";
 }
 
 function getUserAgent(req) {
+  if (!req || !req.headers) return "";
   const h = req.headers;
   const get = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]) || "";
   return String(get("user-agent") || "").slice(0, 300);
