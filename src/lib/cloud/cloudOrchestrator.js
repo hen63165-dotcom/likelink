@@ -11,6 +11,8 @@ import { discoverOpportunities, generateSEO, generateSitemapEntries } from "./se
 import { notifyOwner, notifyTrending, notifyDailySummary } from "./notify.js";
 import { launchProduct } from "./launch.js";
 import { sendOwnerDailyReport } from "../../api/_utils/analytics.js";
+import { evaluateCapability, executeIntent, INTENT } from "./capabilityBroker.js";
+import { listConnectionStates, updateConnectionState, CONNECTION_STATE, CONNECTION_KEY } from "./connectionManager.js";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -127,6 +129,16 @@ export async function runUnifiedCycle(ctx, opts = {}) {
       p?.marketerId &&
       marketers.some((m) => m && m.id === p.marketerId)
   );
+
+  // Capability broker: preflight before any action.
+  const storeForBroker = { [CONNECTION_KEY]: listConnectionStates({ [CONNECTION_KEY]: channels || [] }) };
+  const launchEval = evaluateCapability(
+    { store: storeForBroker, origin, env },
+    INTENT.LAUNCH_PRODUCT,
+    { product: approved[0] || null }
+  );
+  results.steps.push({ step: "preflight", capability: launchEval.capability, detail: launchEval.detail, ok: launchEval.capability === "READY" });
+
   const decision = selectOpportunity({
     approved,
     sales,

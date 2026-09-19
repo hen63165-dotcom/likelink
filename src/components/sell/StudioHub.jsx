@@ -272,7 +272,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
                       <p className="text-sm font-semibold truncate">{product.title}</p>
                       {trend && trend.score > 50 && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                          style={{ background: trend.momentum === '🔥 viral' ? '#E86A9E20' : '#6C4CF120', color: trend.momentum === '🔥 viral' ? '#E86A9E' : '#6C4CF1' }}>
+                          style={{ background: trend.momentum === 'verified' ? '#00C89620' : '#6C4CF120', color: trend.momentum === 'verified' ? '#00C896' : '#6C4CF1' }}>
                           {trend.momentum}
                         </span>
                       )}
@@ -604,9 +604,8 @@ const TrendsTab = ({ product, productTrends, CheckCircle2 }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold truncate">{item.product.title}</p>
-                    {idx === 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#6C4CF120', color: '#6C4CF1' }}>#1</span>}
-                    {isVerified && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>verified</span>}
-                    {isRecommendation && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#C9A86C20', color: '#C9A86C' }}>recommendation</span>}
+                     {isVerified && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>verified</span>}
+                     {isRecommendation && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#C9A86C20', color: '#C9A86C' }}>recommendation</span>}
                   </div>
                   <p className="text-xs text-muted mt-0.5">
                     ציון: {item.score} · {item.momentum}

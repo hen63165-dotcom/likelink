@@ -23,13 +23,13 @@ const BUZZ_TRIGGERS = {
   fomo: ["אל תפספסי", "תפספסי את זה", "ראי לפני שתגמר", "הזדמנות חד-פעמית", "לא יחזור שוב"],
 };
 
-// Content angles per momentum type
+// Content angles per momentum type — evidence-based, no fabricated claims.
 const MOMENTUM_ANGLES = {
-  "🔥 viral": { tone: "פריט ששורף את הרשת", hook: "זה מה שכולן מדברות עליו עכשיו", urgency: "טרם ייגמר — קודם לבד" },
-  "📈 hot": { tone: "טרנד חם שעולה", hook: "כולן מחשיפות את זה — הגיע הזמן גם לך", urgency: "מחיר לזמן מוגבל" },
-  "↗️ rising": { tone: "עולה חם — עוד לפני שיקפוץ", hook: "תפסים את זה לפני שכולם ידעו", urgency: "השווק עכשיו לפני שיעלה" },
-  "→ steady": { tone: "קלאסיקה שתמיד עושה את העבודה", hook: "מוצר שווה כל שקל — נגמר מהר", urgency: "מלאי מוגבל" },
-  "❄️ cold": { tone: "יצירתיות צריכה להטות קצת", hook: "מוצר מעולה שמחכה לך", urgency: "הנחה מיוחדת לזמן קצר" },
+  verified: { tone: "מוצר עם מכירות מאומתות", hook: "זה מה שכבר קנו — ועוד קונים", urgency: "מומלץ על פי נתונים" },
+  rising: { tone: "עולה בקנאות — עוד לפני השיא", hook: "תפסים את זה לפני שכולם ידעו", urgency: "מומלץ להיטיב עכשיו" },
+  relevant: { tone: "רלוונטי לקטגוריה שלך", hook: "בחירה מבוססת עבורך", urgency: "כדאי לצפות" },
+  estimated: { tone: "פוטנציאל מתגלה", hook: "מוצר שמתחיל לזרוח", urgency: "כדאי לעקוב" },
+  insufficient_data: { tone: "ממתין לנתונים", hook: "נתחיל לאסוף מידע", urgency: "אין מספיק נתונים" },
 };
 
 /**
@@ -39,8 +39,8 @@ const MOMENTUM_ANGLES = {
 export function composeStudioPost({ pick, trend, format = "feed" } = {}) {
   if (!pick || !pick.productId) return null;
 
-  const momentum = trend?.momentum || (trend?.score > 100 ? "📈 hot" : "→ steady");
-  const angle = MOMENTUM_ANGLES[momentum] || MOMENTUM_ANGLES["→ steady"];
+  const momentum = trend?.momentum || (trend?.score > 100 ? "rising" : "insufficient_data");
+  const angle = MOMENTUM_ANGLES[momentum] || MOMENTUM_ANGLES["insufficient_data"];
   const heatLevel = getHeatLevel(trend?.score || 0);
 
   const product = {

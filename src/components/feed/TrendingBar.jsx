@@ -12,11 +12,11 @@ import { Flame } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 
 const MOMENTUM_LABELS = {
-  "🔥 viral": { he: "ויוראלי", en: "Viral" },
-  "📈 hot": { he: "חם", en: "Hot" },
-  "↗️ rising": { he: "עולה", en: "Rising" },
-  "→ steady": { he: "יציב", en: "Steady" },
-  "❄️ cold": { he: "קרחום", en: "Cold" },
+  verified: { he: "מאומת", en: "Verified" },
+  rising: { he: "עולה", en: "Rising" },
+  relevant: { he: "רלוונטי", en: "Relevant" },
+  estimated: { he: "משוער", en: "Estimated" },
+  insufficient_data: { he: "אין נתונים", en: "No data" },
 };
 
 export default function TrendingBar({ navigate }) {
@@ -78,7 +78,7 @@ export default function TrendingBar({ navigate }) {
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {items.map((t, i) => {
-          const mKey = t.momentum || "❄️ cold";
+          const mKey = t.momentum || "insufficient_data";
           const label = MOMENTUM_LABELS[mKey] || { he: mKey, en: "Hot" };
           const heat = Math.max(1, Math.min(10, Math.ceil(t.score / 40)));
           return (

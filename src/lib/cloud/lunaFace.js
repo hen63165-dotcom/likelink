@@ -114,24 +114,24 @@ export function composeLunaFace(pick, trend) {
   };
 }
 
-/** Short momentum emoji for labels. */
+/** Short momentum label for badges. */
 function momentEmoji(m) {
-  if (!m) return "🔥";
+  if (!m) return "●";
   return {
-    "🔥 viral": "🔥",
-    "📈 hot": "📈",
-    "↗️ rising": "↗️",
-    "→ steady": "→",
-    "❄️ cold": "❄️",
-  }[m] || "🔥";
+    verified: "●",
+    rising: "●",
+    relevant: "●",
+    estimated: "●",
+    insufficient_data: "●",
+  }[m] || "●";
 }
 function momentWord(m, lang = "he") {
   const map = {
-    "🔥 viral": lang === "he" ? "ויוראלי" : "Viral",
-    "📈 hot": lang === "he" ? "חם" : "Hot",
-    "↗️ rising": lang === "he" ? "עולה" : "Rising",
-    "→ steady": lang === "he" ? "יציב" : "Steady",
-    "❄️ cold": lang === "he" ? "קרחום" : "Cold",
+    verified: lang === "he" ? "מאומת" : "Verified",
+    rising: lang === "he" ? "עולה" : "Rising",
+    relevant: lang === "he" ? "רלוונטי" : "Relevant",
+    estimated: lang === "he" ? "משוער" : "Estimated",
+    insufficient_data: lang === "he" ? "אין נתונים" : "No data",
   };
-  return map[m] || (lang === "he" ? "חם" : "Hot");
+  return map[m] || (lang === "he" ? "משוער" : "Estimated");
 }

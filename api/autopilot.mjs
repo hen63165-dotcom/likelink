@@ -388,6 +388,22 @@ export async function aiPolish(text, product) {
 
 // ─── channel dispatchers ────────────────────────────────────────────────────
 
+async function checkChannelConnection(store, channelType) {
+  try {
+    const raw = await kvGet("marketplace:connection_states");
+    const list = Array.isArray(raw) ? raw : [];
+    const state = list.find((c) => c && c.provider === channelType);
+    if (!state) return "READY";
+    if (state.state === "CONNECTED") return "READY";
+    if (state.state === "DEGRADED") return "DEGRADED";
+    if (state.state === "EXPIRED" || state.state === "REAUTH_REQUIRED") return "BLOCKED";
+    if (state.state === "BLOCKED" || state.state === "ERROR") return "BLOCKED";
+    return "BLOCKED";
+  } catch {
+    return "READY";
+  }
+}
+
 async function sendTelegram(ch, text) {
   const res = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMessage`, {
     method: "POST",
@@ -681,6 +697,15 @@ async function runOne(store, marketerId, cfg, origin) {
 
   const results = [];
   for (const ch of cfg.channels || []) {
+    const connStatus = await checkChannelConnection(store, ch.type);
+    if (connStatus === "BLOCKED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_blocked_or_expired" });
+      continue;
+    }
+    if (connStatus === "DEGRADED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_degraded" });
+      continue;
+    }
     // Per-channel UTM link so the creator can see exactly which channel
     // brings the traffic. Links are swapped in AFTER AI polish (the polish
     // prompt forbids touching links, and this keeps them intact anyway).
@@ -702,7 +727,7 @@ async function runOne(store, marketerId, cfg, origin) {
       else if (ch.type === "reddit") await sendReddit(ch, chText, link);
       else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
       else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
-      else results.push({ channel: ch.type, ok: false, detail: "unknown_channel" });
+      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
       results.push({ channel: ch.type, ok: true });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
@@ -774,6 +799,15 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
 
   const results = [];
   for (const ch of cfg.channels) {
+    const connStatus = await checkChannelConnection(store, ch.type);
+    if (connStatus === "BLOCKED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_blocked_or_expired" });
+      continue;
+    }
+    if (connStatus === "DEGRADED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_degraded" });
+      continue;
+    }
     const link = trackLink(baseLink, ch.type, `drop_${product.id}`);
     const chText = priceDropCaption(product, listedN, liveN, pct, link);
     try {
@@ -840,6 +874,15 @@ async function announceNewProduct(store, marketerId, cfg, product, origin) {
 
   const results = [];
   for (const ch of cfg.channels || []) {
+    const connStatus = await checkChannelConnection(store, ch.type);
+    if (connStatus === "BLOCKED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_blocked_or_expired" });
+      continue;
+    }
+    if (connStatus === "DEGRADED") {
+      results.push({ channel: ch.type, ok: false, detail: "connection_degraded" });
+      continue;
+    }
     const link = trackLink(baseLink, ch.type, product.id);
     const chText = link === baseLink ? text : text.split(baseLink).join(link);
     try {

@@ -21,7 +21,7 @@ const SIGNAL_WEIGHTS = {
  */
 export function trendScore(product, { sales = [], clicks = [], views = [], now = Date.now() } = {}) {
   const id = product?.id;
-  if (!id) return { score: 0, signals: {}, momentum: 'cold' };
+  if (!id) return { score: 0, signals: {}, momentum: 'insufficient_data' };
 
   const dayMs = 24 * 60 * 60 * 1000;
   const window7d = now - 7 * dayMs;
@@ -48,13 +48,13 @@ export function trendScore(product, { sales = [], clicks = [], views = [], now =
     productClicks.length * SIGNAL_WEIGHTS.click +
     productViews.length * SIGNAL_WEIGHTS.view;
 
-  // Momentum classification
-  let momentum = 'cold';
-  if (salesVelocity > 2 && score > 200) momentum = '🔥 viral';
-  else if (salesVelocity > 1.5 && score > 100) momentum = '📈 hot';
-  else if (salesVelocity > 1 && score > 50) momentum = '↗️ rising';
-  else if (score > 0) momentum = '→ steady';
-  else momentum = '❄️ cold';
+  // Momentum classification — evidence-only, no fabricated claims.
+  let momentum = 'insufficient_data';
+  if (salesVelocity > 2 && score > 200) momentum = 'verified';
+  else if (salesVelocity > 1.5 && score > 100) momentum = 'rising';
+  else if (salesVelocity > 1 && score > 50) momentum = 'relevant';
+  else if (score > 0) momentum = 'estimated';
+  else momentum = 'insufficient_data';
 
   return {
     score: Math.round(score),
