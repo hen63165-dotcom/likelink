@@ -26,6 +26,7 @@ import { buildCampaign } from "../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../src/lib/cloud/growth.js";
 import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/veritas.js";
 import { createIntelligenceCore } from "./_utils/intelligenceCore.mjs";
+import { runCloudAutopilotCycle, getCloudCycleStatus } from "../src/lib/cloud/cloudAutopilot.js";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
@@ -1225,6 +1226,15 @@ export default async function handler(req, res) {
     } catch (e) {
       growthCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
+    // Cloud Autopilot Cycle — full verified pipeline (trends + growth brain +
+    // campaign + feed + veritas). Runs after the content asset cycle so both
+    // run on the same cron tick; the feed is the public "what's hot now" surface.
+    let cloudCycle = { ok: false, skipped: "not_run" };
+    try {
+      cloudCycle = await runCloudAutopilotCycle({ kvGet, kvSet, origin, env: process.env }, {});
+    } catch (e) {
+      cloudCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
+    }
     // Owner-report self-test hook: `?testReport=1` on the cron path awaits the
     // send and returns Resend's exact result — used to diagnose delivery
     // without guessing (shows resend_error_xxx or the actual message id).
@@ -1233,13 +1243,13 @@ export default async function handler(req, res) {
       try {
         const { sendOwnerDailyReport } = await import("./_utils/analytics.js");
         const report = await sendOwnerDailyReport({ force: true });
-        json(res, { ..._r, siteCycle, report }, 200, req);
+        json(res, { ..._r, siteCycle, growthCycle, cloudCycle, report }, 200, req);
       } catch (e) {
-        json(res, { ..._r, siteCycle, report: { ok: false, error: String(e.message || e).slice(0, 160) } }, 200, req);
+        json(res, { ..._r, siteCycle, growthCycle, cloudCycle, report: { ok: false, error: String(e.message || e).slice(0, 160) } }, 200, req);
       }
       return;
     }
-    json(res, { ..._r, siteCycle, growthCycle }, 200, req);
+    json(res, { ..._r, siteCycle, growthCycle, cloudCycle }, 200, req);
     // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
     // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
     import("./_utils/analytics.js")

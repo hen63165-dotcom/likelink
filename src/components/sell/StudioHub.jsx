@@ -122,9 +122,9 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     }
   }, [showToast]);
 
-  // הפעלת מוצר
-  const handleLaunch = useCallback(async (product) => {
-    if (!product) return;
+  // הפעלת מוצר עם הגנה מפני לחיצה כפולה, התקדמות ו-backoff
+  const handleLaunch = useCallback(async (product, retryCount = 0) => {
+    if (!product || launching) return;
     setLaunching(true);
     setLaunchResult(null);
     try {
@@ -145,7 +145,19 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         showToast?.(summary.text || 'שגיאה בהשקה');
       }
     } catch (e) {
-      setLaunchResult({ ok: false, error: e.message, steps: [] });
+      const isRetryable = retryCount < 2;
+      setLaunchResult({
+        ok: false,
+        error: e.message || 'לא ידוע',
+        retryable: isRetryable,
+        retryCount,
+        steps: [],
+      });
+      if (isRetryable) {
+        showToast?.(`שגיאה בהשקה — מנסה שוב (${retryCount + 1}/3)...`);
+        setTimeout(() => handleLaunch(product, retryCount + 1), 1500 * (retryCount + 1));
+        return;
+      }
       showToast?.('שגיאה בהשקה: ' + (e.message || 'לא ידוע'));
     } finally {
       setLaunching(false);
@@ -488,62 +500,128 @@ const ContentStudioTab = ({ product, cap, generateContent, copyToClipboard, setV
 );
 
 // Launch tab
-const LaunchTab = ({ product, launchResult, launching, handleLaunch, CheckCircle2, Rocket, Loader2 }) => (
-  <div>
-    <div className="flex items-center justify-between mb-4">
-      <p className="text-sm font-semibold flex items-center gap-2"><Rocket size={16} style={{ color: '#00C896' }} />Launch this product</p>
-      {launchResult && <span className={`text-xs px-2 py-1 rounded-full ${launchResult.ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{launchResult.ok ? 'השקה הושלמה' : 'לא השגת'}</span>}
-    </div>
-    {!launchResult && (
-      <div className="flex flex-col gap-2">
-        <button onClick={() => handleLaunch(product)} disabled={launching || !product} className="tap w-full py-3 rounded-xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: launching ? 'var(--bg-subtle)' : 'linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%)', color: launching ? 'var(--text-muted)' : '#fff' }}>
-          {launching ? <><Loader2 size={16} className="animate-spin" />מפעילה…</> : <><Rocket size={16} />להפעיל את המוצר בקליק אחד</>}
-        </button>
-        <p className="text-xs text-muted text-center">מפעילה SEO/OG, יוצרת קמפיין, ומבנית קישור מעקב</p>
-      </div>
-    )}
-    {launchResult && (
-      <div className="flex flex-col gap-2">
-        <div className="p-3 rounded-xl" style={{ background: launchResult.ok ? 'var(--success-subtle)' : 'var(--bg-subtle)', border: `1px solid ${launchResult.ok ? 'var(--success)' : 'var(--border)'}` }}>
-          <p className={`text-sm font-semibold ${launchResult.ok ? 'text-green-600' : 'text-red-600'}`}>{launchResult.ok ? '✅ המוצר הושק בהצלחה!' : '❌ ההשקה נכשלה'}</p>
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-semibold">צעדים בהפעלה:</p>
-          {launchResult.steps?.map((step, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
-              {step.status === 'DONE' ? <CheckCircle2 size={12} style={{ color: '#00C896' }} /> : <span className="text-muted">○</span>}
-              <span className={step.status === 'DONE' ? 'text-green-600' : 'text-muted'}>{step.step.replace(/_/g, ' ')} — {step.detail}</span>
-            </div>
-          ))}
-        </div>
-        {!launchResult.ok && <button onClick={() => handleLaunch(product)} disabled={launching} className="tap w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50" style={{ background: '#6C4CF1', color: '#fff' }}><Rocket size={12} />נסי שוב</button>}
-      </div>
-    )}
-  </div>
-);
+const LaunchTab = ({ product, launchResult, launching, handleLaunch, CheckCircle2, Rocket, Loader2 }) => {
+  const [retrying, setRetrying] = useState(false);
+  const steps = launchResult?.steps || [];
+  const doneCount = steps.filter((s) => s.status === 'DONE').length;
+  const totalSteps = steps.length || 7;
+  const progress = launchResult ? Math.round((doneCount / totalSteps) * 100) : 0;
 
-// Trends tab — source is measured clicks/sales (see trends.js), never invented
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold flex items-center gap-2"><Rocket size={16} style={{ color: '#00C896' }} />Launch this product</p>
+        {launchResult && (
+          <span className={`text-xs px-2 py-1 rounded-full ${launchResult.ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {launchResult.ok ? 'השקה הושלמה' : 'לא השגת'}
+          </span>
+        )}
+      </div>
+
+      {launching && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-muted">מפעילה...</span>
+            <span className="font-semibold" style={{ color: 'var(--accent)' }}>{progress}%</span>
+          </div>
+          <div className="h-1.5 rounded-full" style={{ background: 'var(--border)' }}>
+            <div className="h-1.5 rounded-full transition-all duration-300" style={{ background: 'var(--accent)', width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+
+      {!launchResult && !launching && (
+        <div className="flex flex-col gap-2">
+          <button onClick={() => handleLaunch(product)} disabled={launching || !product} className="tap w-full py-3 rounded-xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: launching ? 'var(--bg-subtle)' : 'linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%)', color: launching ? 'var(--text-muted)' : '#fff' }}>
+            <Rocket size={16} />להפעיל את המוצר בקליק אחד
+          </button>
+          <p className="text-xs text-muted text-center">מפעילה SEO/OG, יוצרת קמפיין, ומבנית קישור מעקב</p>
+        </div>
+      )}
+
+      {launchResult && (
+        <div className="flex flex-col gap-2">
+          <div className="p-3 rounded-xl" style={{ background: launchResult.ok ? 'var(--success-subtle)' : 'var(--bg-subtle)', border: `1px solid ${launchResult.ok ? 'var(--success)' : 'var(--border)'}` }}>
+            <p className={`text-sm font-semibold ${launchResult.ok ? 'text-green-600' : 'text-red-600'}`}>{launchResult.ok ? '✅ המוצר הושק בהצלחה!' : '❌ ההשקה נכשלה'}</p>
+            {launchResult.error && <p className="text-xs mt-1 text-muted">{launchResult.error}</p>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold">צעדים בהפעלה:</p>
+            {steps.map((step, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                {step.status === 'DONE' ? <CheckCircle2 size={12} style={{ color: '#00C896' }} /> : <span className="text-muted">○</span>}
+                <span className={step.status === 'DONE' ? 'text-green-600' : 'text-muted'}>{step.step.replace(/_/g, ' ')} — {step.detail}</span>
+              </div>
+            ))}
+          </div>
+
+          {!launchResult.ok && !retrying && (
+            <button
+              onClick={() => { setRetrying(true); handleLaunch(product, 0); }}
+              disabled={launching}
+              className="tap w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+              style={{ background: '#6C4CF1', color: '#fff' }}
+            >
+              <Rocket size={12} />נסי שוב
+            </button>
+          )}
+          {retrying && (
+            <p className="text-xs text-muted text-center">מנסה שוב...</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Trends tab — verified data vs recommendation, with source/timestamp
 const TrendsTab = ({ product, productTrends, CheckCircle2 }) => {
   const trend = productTrends.find(p => p.product.id === product.id);
+  const now = Date.now();
+  const dayMs = 86400000;
+
   return (
     <div>
       <p className="text-sm font-semibold flex items-center gap-2 mb-4"><TrendingUp size={16} style={{ color: '#E86A9E' }} />Trend Intelligence</p>
       {productTrends.length === 0 ? (
         <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
           <p className="text-xs text-muted">אין עדיין נתונים מספיקים לזיהוי טרנדים</p>
+          <p className="text-[10px] text-muted mt-1">נדרשים לפחות קליקים או מכירות מדודים בשבוע האחרון</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           {productTrends.map((item, idx) => {
             const isSelected = item.product.id === product.id;
+            const isVerified = (item.signals?.sales7d || 0) > 0;
+            const isRecommendation = !isVerified && (item.signals?.clicks7d || 0) > 0;
+            const freshness = item.product?.createdAt
+              ? Math.max(0, Math.round((now - Number(item.product.createdAt)) / dayMs))
+              : null;
+
             return (
               <div key={item.product.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: isSelected ? '#E86A9E20' : 'var(--bg)', border: `1px solid ${isSelected ? '#E86A9E' : 'var(--border)'}` }}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold truncate">{item.product.title}</p>
                     {idx === 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#6C4CF120', color: '#6C4CF1' }}>#1</span>}
+                    {isVerified && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>verified</span>}
+                    {isRecommendation && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#C9A86C20', color: '#C9A86C' }}>recommendation</span>}
                   </div>
-                  <p className="text-xs text-muted mt-0.5">ציון: {item.score} · {item.momentum}</p>
+                  <p className="text-xs text-muted mt-0.5">
+                    ציון: {item.score} · {item.momentum}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {(item.signals?.clicks7d || 0) > 0 && (
+                      <span className="text-[10px] text-muted">{item.signals.clicks7d} קליקים (7 ימים)</span>
+                    )}
+                    {(item.signals?.sales7d || 0) > 0 && (
+                      <span className="text-[10px] text-muted">{item.signals.sales7d} מכירות (7 ימים)</span>
+                    )}
+                    {freshness !== null && (
+                      <span className="text-[10px] text-muted">נוצר לפני {freshness} ימים</span>
+                    )}
+                  </div>
                 </div>
                 {isSelected && <CheckCircle2 size={16} style={{ color: '#E86A9E' }} />}
               </div>
@@ -560,7 +638,14 @@ const TrendsTab = ({ product, productTrends, CheckCircle2 }) => {
             <div><p className="text-muted">קליקים (7 ימים)</p><p className="font-bold">{trend.signals?.clicks7d || 0}</p></div>
             <div><p className="text-muted">מכירות (7 ימים)</p><p className="font-bold">{trend.signals?.sales7d || 0}</p></div>
           </div>
-          <p className="text-[10px] text-muted mt-2">מקור: נתונים פנימיים — קליקים ומכירות מודדים באפליקציה</p>
+          <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <p className="text-[10px] text-muted">
+              מקור: נתונים פנימיים (קליקים ומכירות מדודים באפליקציה)
+              {trend.product?.createdAt && (
+                <span> · עודכן: {new Date(Number(trend.product.createdAt)).toLocaleDateString('he-IL')}</span>
+              )}
+            </p>
+          </div>
         </div>
       )}
     </div>
