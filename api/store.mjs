@@ -1113,13 +1113,13 @@ export default async function handler(req, res) {
           ? "Published successfully"
           : `Publish failed: ${autopilotResult?.error || "see results for details"}`,
       }, autopilotResult?.ok ? 200 : 500, req);
-    } catch (e) {
-      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+         } catch (e) {
+      json(res, { ok: false, error: String(e.message || e), stack: String(e.stack || "").split("\n")[1] || null }, 500, req);
     }
     return;
   }
 
-  // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write)
+  // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write) link auth user → marketer (server-verified Bearer + service-role write)
   if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
     return linkIdentityHandler(req, res);
   }
