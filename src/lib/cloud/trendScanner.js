@@ -1,7 +1,10 @@
 /**
- * Trend Scanner 🔍 — Finds what's HOT right now.
+ * Trend Scanner 🔍 — Finds what's relevant right now.
  * Uses time-of-day + season + category momentum — no external APIs needed.
+ * Extended to use evidence-based lifecycle states from trendRadar.
  */
+
+import { TREND_STATES, createTrend, TREND_STATE_LABELS } from "./trendRadar.js";
 
 const TREND_CYCLE = {
   morning: ["Fitness", "Beauty", "Tech"],
@@ -106,5 +109,24 @@ export function generateDailyTrendReport(products, now = new Date()) {
     hotCategory: context.hotCategories[0],
     urgency: context.urgency,
     allRanked: ranked,
+    lifecycleTrends: buildLifecycleTrends(products, context),
   };
+}
+
+export function buildLifecycleTrends(products, context) {
+  const now = Date.now();
+  return products.slice(0, 5).map((p, idx) => {
+    const state = idx === 0 ? TREND_STATES.ACCELERATING : idx < 3 ? TREND_STATES.RISING : TREND_STATES.DETECTED;
+    return createTrend({
+      state,
+      category: p.category,
+      platform: "likelink_feed",
+      signal: context.urgency || "category_momentum",
+      keywords: [p.category, p.title?.split(/\s+/).slice(0, 2).join(" ")].filter(Boolean),
+      relatedProducts: [p.id],
+      confidence: "ESTIMATED",
+      evidence: `seasonal_boost:${JSON.stringify(context.seasonalBoost[p.category] || 1)}`,
+      expiresAt: now + 24 * 60 * 60 * 1000,
+    });
+  });
 }

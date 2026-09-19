@@ -1,7 +1,7 @@
 import { trendSummary, getHottest } from "./trends.js";
 import { buildCampaign } from "./campaign.js";
 import { appendVeritas, verifyVeritas } from "./veritas.js";
-import { generateDailyTrendReport } from "./trendScanner.js";
+import { generateDailyTrendReport, buildLifecycleTrends } from "./trendScanner.js";
 import { generateProductStory } from "./storyEngine.js";
 import { generateHookVariations } from "./hooks.js";
 import { generateContentPack, generatePixarStory } from "./contentStudio.js";
@@ -13,6 +13,13 @@ import { launchProduct } from "./launch.js";
 import { sendOwnerDailyReport } from "../../api/_utils/analytics.js";
 import { evaluateCapability, executeIntent, INTENT } from "./capabilityBroker.js";
 import { listConnectionStates, updateConnectionState, CONNECTION_STATE, CONNECTION_KEY } from "./connectionManager.js";
+import { createTrend, TREND_STATES, trendIsActive, summarizeTrend } from "./trendRadar.js";
+import { evaluateOpportunity, OPPORTUNITY_DECISIONS, selectBestOpportunities } from "./opportunityEngine.js";
+import { createCreativeVariant, CREATIVE_TYPES, CREATIVE_STATUS } from "./creativeMutation.js";
+import { resolveDistributionState, DISTRIBUTION_STATES } from "./distributionIntelligence.js";
+import { createCycle, recordCycleResult, scheduleNextCycle } from "./autonomousScheduler.js";
+import { recordPerformanceEvent, computeWinningPatterns } from "./growthLearning.js";
+import { getProviderConnectionState, CONNECTED_STATES } from "./connectionManager.js";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -163,3 +170,62 @@ export async function runUnifiedCycle(ctx, opts = {}) {
     score: decision.score,
     ok: true,
   });
+
+  // ── 5. GROWTH OS CYCLE ─────────────────────────────────────────────────────
+  let growthCycle = null;
+  try {
+    const lifecycleTrends = buildLifecycleTrends(approved, generateDailyTrendReport(approved, new Date(now)).context);
+    const recentContent = campaigns.slice(-10);
+    const channels = Object.keys(listConnectionStates()).filter((ch) => ch !== CONNECTION_KEY);
+    growthCycle = createCycle({
+      products: approved,
+      trends: lifecycleTrends,
+      events: clicks,
+      recentContent,
+      channels,
+    });
+    results.steps.push({
+      step: "growth_os",
+      opportunitiesEvaluated: growthCycle.summary.opportunitiesEvaluated,
+      selectedCount: growthCycle.summary.selectedCount,
+      creativesGenerated: growthCycle.summary.creativesGenerated,
+      ok: true,
+    });
+  } catch (e) {
+    results.errors.push({ step: "growth_os", error: String(e.message || e) });
+    results.steps.push({ step: "growth_os", ok: false });
+  }
+
+  // ── 6. VERITAS ─────────────────────────────────────────────────────────────
+  let veritasEntry = null;
+  try {
+    const veritasResult = appendVeritas(veritasLedger, {
+      type: "orchestrator_cycle",
+      productId: decision.selected.id,
+      mode: decision.mode,
+      growthOpportunities: growthCycle?.summary?.selectedCount || 0,
+      ok: true,
+    });
+    veritasLedger = veritasResult;
+    veritasEntry = veritasResult[veritasResult.length - 1];
+    results.veritas = verifyVeritas(veritasResult);
+    results.steps.push({ step: "veritas", ok: true, hash: veritasEntry.hash });
+  } catch (e) {
+    results.errors.push({ step: "veritas", error: String(e.message || e) });
+    results.steps.push({ step: "veritas", ok: false });
+  }
+
+  // ── 7. PERSIST ─────────────────────────────────────────────────────────────
+  try {
+    await kvSet("marketplace:veritas", veritasLedger);
+    if (growthCycle?.nextCycleAt) {
+      await kvSet("marketplace:next_cycle", growthCycle.nextCycleAt);
+    }
+  } catch (e) {
+    results.errors.push({ step: "persist", error: String(e.message || e) });
+  }
+
+  results.ok = results.errors.length === 0;
+  results.doneAt = nowIso();
+  return results;
+}

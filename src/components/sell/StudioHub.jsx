@@ -14,7 +14,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   Sparkles, Video, Play, Rocket, TrendingUp, MessageCircle,
-  CheckCircle2, Loader2, X, ChevronRight, Lightbulb, BarChart3, Copy
+  CheckCircle2, Loader2, X, ChevronRight, Lightbulb, BarChart3, Copy,
+  Target, Brain, Zap, Share2, Activity
 } from 'lucide-react';
 import { useI18n } from '../../lib/LangContext';
 import { launchProduct, summarizeLaunch } from '../../lib/cloud/launch.js';
@@ -209,6 +210,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
   // טאבים
   const tabs = [
+    { id: 'growth', label: 'Growth OS', color: '#6C4CF1' },
     { id: 'intelligence', label: 'Product Intelligence', color: '#6C4CF1' },
     { id: 'content', label: 'Content Studio', color: '#C9A86C' },
     { id: 'launch', label: 'Launch', color: '#00C896' },
@@ -351,6 +353,11 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
       {/* גוף הטאב */}
       <div className="rounded-2xl p-4" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+        {/* Growth OS */}
+        {activeTab === 'growth' && (
+          <GrowthOSTab product={product} marketer={marketer} products={myProducts} clicks={clicks} sales={sales} showToast={showToast} />
+        )}
+
         {/* Launch — תמיד זמין, לא תלוי ב-cap */}
         {activeTab === 'launch' && (
           <LaunchTab product={product} launchResult={launchResult} launching={launching} handleLaunch={handleLaunch} CheckCircle2={CheckCircle2} Rocket={Rocket} Loader2={Loader2} />
@@ -647,6 +654,130 @@ const TrendsTab = ({ product, productTrends, CheckCircle2 }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Growth OS tab — main autonomous growth dashboard
+const GrowthOSTab = ({ product, marketer, products, clicks, sales, showToast }) => {
+  const [opportunity, setOpportunity] = useState(null);
+  const [creative, setCreative] = useState(null);
+  const [distribution, setDistribution] = useState(null);
+  const [learning, setLearning] = useState(null);
+
+  React.useEffect(() => {
+    if (!product) return;
+    try {
+      const { createTrend } = require('../../lib/cloud/trendRadar.js');
+      const { evaluateOpportunity } = require('../../lib/cloud/opportunityEngine.js');
+      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
+      const trend = createTrend({ state: 'RISING', category: product.category, platform: 'likelink_feed', signal: 'category_momentum', confidence: 'ESTIMATED' });
+      const opp = evaluateOpportunity({ product, trend, creativeAvailability: true, connectionStates: { web: 'CONNECTED' } });
+      setOpportunity(opp);
+      const cv = createCreativeVariant({ product, trend, language: 'he', creativeType: 'post' });
+      setCreative(cv);
+      const { resolveDistributionState } = require('../../lib/cloud/distributionIntelligence.js');
+      setDistribution({ state: resolveDistributionState({ intent: 'share', provider: 'web' }), channel: 'web' });
+      const { computeWinningPatterns } = require('../../lib/cloud/growthLearning.js');
+      setLearning(computeWinningPatterns(clicks || []));
+    } catch (e) {
+      // best-effort — growth OS is additive
+    }
+  }, [product, clicks]);
+
+  if (!product) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="p-4 rounded-xl text-center" style={{ background: 'var(--bg-subtle)' }}>
+          <p className="text-xs text-muted">בחרי מוצר כדי לצפות ב-Growth OS</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Brain size={18} style={{ color: '#6C4CF1' }} />
+        <p className="text-sm font-semibold">Autonomous Growth OS</p>
+      </div>
+
+      {/* Opportunity */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">OPPORTUNITY ENGINE</p>
+        {opportunity ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold" style={{ color: opportunity.decision === 'ACT' ? '#10B981' : opportunity.decision === 'WATCH' ? '#3B82F6' : '#6B7280' }}>
+                {opportunity.decision}
+              </span>
+              <span className="text-[10px] text-muted">{opportunity.confidence}</span>
+            </div>
+            <p className="text-[11px] text-muted">{opportunity.reason} · score: {Math.round(opportunity.total || 0)}</p>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {Object.entries(opportunity.scores || {}).map(([k, v]) => (
+                <div key={k} className="flex justify-between"><span className="text-muted">{k}</span><span className="font-semibold">{Math.round(v || 0)}</span></div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">מערכת מזהה הזדמנויות...</p>
+        )}
+      </div>
+
+      {/* Creative */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">CREATIVE MUTATION</p>
+        {creative ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">{creative.title}</p>
+            <p className="text-xs italic" style={{ color: 'var(--accent)' }}>"{creative.hooks?.[0]?.text || creative.script?.hook || ''}"</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {(creative.hashtags || []).slice(0, 6).map((tag, i) => (
+                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--bg-subtle)', color: 'var(--text-muted)' }}>{tag}</span>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted mt-1">type: {creative.creativeType} · aspect: {creative.aspectRatio}</p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">יוצר וריאציות יצירה...</p>
+        )}
+      </div>
+
+      {/* Distribution */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">DISTRIBUTION</p>
+        {distribution ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold">{distribution.channel}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: distribution.state === 'READY' ? '#00C89620' : distribution.state === 'ASSISTED' ? '#C9A86C20' : '#FEE2E2', color: distribution.state === 'READY' ? '#00C896' : distribution.state === 'ASSISTED' ? '#C9A86C' : '#991B1B' }}>
+                {distribution.state}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted">סטטוס הערוץ לפרסום אוטונומי</p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">בודק זמינות ערוצים...</p>
+        )}
+      </div>
+
+      {/* Learning */}
+      <div className="rounded-2xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold text-muted mb-2">LEARNING LOOP</p>
+        {learning ? (
+          <div className="flex flex-col gap-2">
+            {learning.hooks?.[0] && <p className="text-[11px]"><span className="text-muted">הוק מוביל:</span> <span className="font-semibold">{learning.hooks[0].key}</span> · cvr: {learning.hooks[0].cvr}%</p>}
+            {learning.formats?.[0] && <p className="text-[11px]"><span className="text-muted">פורמט מוביל:</span> <span className="font-semibold">{learning.formats[0].key}</span> · {learning.formats[0].conversions} המרות</p>}
+            {learning.channels?.[0] && <p className="text-[11px]"><span className="text-muted">ערוץ מוביל:</span> <span className="font-semibold">{learning.channels[0].key}</span> · {learning.channels[0].conversions} המרות</p>}
+            {!learning.hooks?.length && !learning.formats?.length && !learning.channels?.length && (
+              <p className="text-[11px] text-muted">אין מספיק נתוני ביצוע למידה — המערכת לומדת מהנתונים האמיתיים</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted">מנתח ביצועים...</p>
+        )}
+      </div>
     </div>
   );
 };
