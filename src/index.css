@@ -4,6 +4,7 @@
 @tailwind utilities;
 
 :root {
+  /* Light theme preserved */
   --bg: #f7f3ee;
   --bg-elevated: #ffffff;
   --bg-subtle: #f9f4ef;
@@ -42,6 +43,37 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+[data-theme="dark"] {
+  /* Dark premium SaaS — navy / purple / neon blue */
+  --bg: #0b0d1a;
+  --bg-elevated: #111327;
+  --bg-subtle: #151833;
+  --bg-muted: #1a1f40;
+  --text: #e8ecff;
+  --text-secondary: #c5cbf5;
+  --text-muted: #8a93d8;
+  --text-faint: #5b63a8;
+  --border: rgba(120, 130, 255, 0.12);
+  --border-subtle: rgba(120, 130, 255, 0.07);
+  --accent: #7aa3ff;
+  --accent-hover: #5a7bff;
+  --accent-subtle: rgba(122, 163, 255, 0.18);
+  --accent-2: #b38dff;
+  --accent-2-subtle: rgba(179, 141, 255, 0.18);
+  --success: #34d399;
+  --success-subtle: rgba(52, 211, 153, 0.14);
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.14);
+  --warning: #fbbf24;
+  --warning-subtle: rgba(251, 191, 36, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 22px 48px rgba(0, 0, 0, 0.55);
+  --header-blur: rgba(11, 13, 26, 0.72);
+  --overlay: rgba(0, 0, 0, 0.55);
+  --gradient-brand: linear-gradient(135deg, #6C4CF1 0%, #3B82F6 100%);
+}
+
 [dir="rtl"] { --flip: -1; }
 .mirror-rtl { transform: scaleX(var(--flip)); }
 
@@ -50,8 +82,8 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top right, rgba(217, 181, 127, 0.22), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(182, 122, 74, 0.14), transparent 24%),
+    radial-gradient(circle at top right, rgba(108, 76, 241, 0.22), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 24%),
     var(--bg);
   background-attachment: fixed;
   color: var(--text);
@@ -60,6 +92,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top right, rgba(108, 76, 241, 0.22), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.14), transparent 24%),
+    var(--bg);
 }
 
 img { max-width: 100%; display: block; }
