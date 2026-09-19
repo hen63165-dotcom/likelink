@@ -226,33 +226,40 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   if (!hasProduct) {
     return (
       <div className="pb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="disp text-xl font-semibold">{t('sell.studioTitle')} {marketer?.name?.split(' ')[0]}</h2>
-            <p className="text-xs text-muted mt-0.5">כל הכלים במקום אחד — בחרי מוצר כדי להתחיל</p>
+        {/* Hero Section */}
+        <div className="rounded-2xl p-6 mb-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a1f40 0%, #111327 100%)', border: '1px solid rgba(120,130,255,0.15)' }}>
+          <div className="absolute top-0 right-0 w-32 h-32 opacity-20" style={{ background: 'radial-gradient(circle, #6C4CF1 0%, transparent 70%)' }} />
+          <div className="relative z-10">
+            <h2 className="disp text-2xl font-bold mb-1" style={{ color: '#e8ecff' }}>{t('sell.studioTitle')} {marketer?.name?.split(' ')[0]}</h2>
+            <p className="text-sm mb-4" style={{ color: '#8a93d8' }}>הסטודיו החכם שלך ל-UGC, תוכן ופרסום אוטונומי</p>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: 'rgba(108,76,241,0.2)', color: '#b38dff' }}>🤖 AI Content</span>
+              <span className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: 'rgba(59,130,246,0.2)', color: '#7aa3ff' }}>📊 Growth OS</span>
+              <span className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: 'rgba(0,200,150,0.2)', color: '#34d399' }}>🚀 AutoPilot</span>
+              <span className="text-[10px] px-2.5 py-1 rounded-full" style={{ background: 'rgba(232,106,158,0.2)', color: '#f0a3c9' }}>🎬 Video/UGC</span>
+            </div>
           </div>
         </div>
 
+        {/* Stats Row */}
         {marketer && (
-          <div className="flex items-center gap-2 mb-4 p-2 rounded-xl" style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-1.5">
-              <Sparkles size={14} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold">Capability Hub</span>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{myProducts.length}</p>
+              <p className="text-[10px] text-muted">מוצרים</p>
             </div>
-            <div className="flex-1 h-1 rounded-full" style={{ background: 'var(--border)' }} />
-            <div className="flex items-center gap-1 text-[10px] text-muted">
-              <CheckCircle2 size={12} style={{ color: '#00C896' }} />
-              <span>{myProducts.length} מוצרים</span>
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-lg font-bold" style={{ color: '#00C896' }}>{(sales || []).filter(s => s.marketerId === marketer.id).length}</p>
+              <p className="text-[10px] text-muted">מכירות</p>
             </div>
-            {studioHealth && (
-              <div className="flex items-center gap-1 text-[10px]">
-                <BarChart3 size={12} style={{ color: studioHealth.score >= 70 ? '#00C896' : '#E86A9E' }} />
-                <span style={{ color: studioHealth.score >= 70 ? '#00C896' : '#E86A9E' }}>{studioHealth.grade}</span>
-              </div>
-            )}
+            <div className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-lg font-bold" style={{ color: '#E86A9E' }}>{studioHealth?.grade || '—'}</p>
+              <p className="text-[10px] text-muted">ציון</p>
+            </div>
           </div>
         )}
 
+        {/* Product List */}
         {myProducts.length === 0 ? (
           <EmptyState
             icon={Lightbulb}
@@ -314,25 +321,39 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
   return (
     <div className="pb-6">
-      {/* כותרת עם חזרה */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      {/* Hero Header for Selected Product */}
+      <div className="rounded-2xl p-5 mb-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a1f40 0%, #111327 100%)', border: '1px solid rgba(120,130,255,0.15)' }}>
+        <div className="absolute top-0 left-0 w-40 h-40 opacity-10" style={{ background: 'radial-gradient(circle, #7aa3ff 0%, transparent 70%)' }} />
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0" style={{ border: '2px solid rgba(122,163,255,0.3)' }}>
+            <ProductThumb p={product} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="disp text-lg font-semibold truncate" style={{ color: '#e8ecff' }}>{product.title}</h3>
+              {product.status === 'approved' && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>APPROVED</span>
+              )}
+            </div>
+            <p className="text-xs" style={{ color: '#8a93d8' }}>{categoryLabel(product.category)} · {money(product.price, lang)} · {product.clicks || 0} קליקים</p>
+          </div>
           <button
             onClick={clearSelection}
-            className="tap w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}
+            className="tap w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
           >
-            <X size={14} style={{ color: 'var(--text-muted)' }} />
+            <X size={14} style={{ color: '#c5cbf5' }} />
           </button>
-          <div>
-            <h3 className="disp text-lg font-semibold truncate max-w-[200px]">{product.title}</h3>
-            <p className="text-xs text-muted">{categoryLabel(product.category)} · {money(product.price, lang)}</p>
-          </div>
         </div>
-        {cap.status === CAPABILITY_STATUS.PROCESSING && (
-          <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
-        )}
       </div>
+
+      {/* Processing indicator */}
+      {cap.status === CAPABILITY_STATUS.PROCESSING && (
+        <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{ background: 'rgba(122,163,255,0.1)', border: '1px solid rgba(122,163,255,0.2)' }}>
+          <Loader2 size={16} className="animate-spin" style={{ color: 'var(--accent)' }} />
+          <span className="text-xs font-semibold" style={{ color: '#7aa3ff' }}>מעבד...</span>
+        </div>
+      )}
 
       {/* טאבים */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
@@ -342,11 +363,12 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="tap shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+              className="tap shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all"
               style={{
-                background: isActive ? `${tab.color}20` : 'var(--bg-elevated)',
+                background: isActive ? `${tab.color}25` : 'var(--bg-elevated)',
                 color: isActive ? tab.color : 'var(--text-muted)',
                 border: `1px solid ${isActive ? tab.color : 'var(--border)'}`,
+                boxShadow: isActive ? `0 4px 12px ${tab.color}30` : 'none',
               }}
             >
               {tab.label}
