@@ -907,57 +907,105 @@ export default async function handler(req, res) {
 
       const marketerId = product.marketerId;
 
+      const origin = getHeader(req, "origin");
+      const isProductionOrigin = typeof origin && origin && origin !== "https://x";
+      const baseUrl = isProductionOrigin ? origin : "https://likelink2.vercel.app";
+      const publicUrl = `${baseUrl}/p/${encodeURIComponent(product.id)}`;
+      const idemKey = idempotencyKey || `publish:${product.id}:${provider || "internal"}:${Date.now()}`;
+      const publishLogKey = `publish:log:${product.id}`;
+
+      // ─── Internal Publishing (LIKELINK2-FIRST-PARTY) ─────────────────────
+      // When no specific external provider/channel is requested, publish to
+      // LikeLink2 itself: ensure the product is approved + attributed (already
+      // verified above), mark it as published, store the publication record,
+      // and return the real public URL. The /p/:id page already renders.
+      if (!provider && !channel) {
+        const existingLog = await kvGet(publishLogKey, []);
+        if (Array.isArray(existingLog) && existingLog.some((r) => r.idempotencyKey === idemKey)) {
+          const existing = existingLog.find((r) => r.idempotencyKey === idemKey);
+          json(res, {
+            ok: true,
+            status: "PUBLISHED",
+            provider: "likelink2",
+            message: "Already published internally — returning existing publication",
+            idempotencyKey: idemKey,
+            publicationId: existing.publicationId,
+            publishedUrl: existing.publishedUrl,
+            product: { id: product.id, title: product.title },
+          }, 200, req);
+          return;
+        }
+
+        const publicationId = `pub_${product.id}_${Date.now()}`;
+        const pubRecord = {
+          publicationId,
+          productId: product.id,
+          marketerId,
+          provider: "likelink2",
+          status: "PUBLISHED",
+          publishedUrl: publicUrl,
+          idempotencyKey: idemKey,
+          ts: Date.now(),
+        };
+
+        try {
+          await kvSet(publishLogKey, Array.isArray(existingLog) ? [pubRecord, ...existingLog.slice(-99)] : [pubRecord]);
+        } catch (kvErr) {
+          // KV write failure — do NOT claim publication succeeded
+          json(res, { ok: false, error: "storage_failed", detail: String(kvErr.message || kvErr).slice(0, 120) }, 500, req);
+          return;
+        }
+
+        audit.logApiSuccess(
+          { type: "publish", productId, marketerId, provider: "likelink2", result: "success" },
+          { type: "publish" }
+        );
+
+        json(res, {
+          ok: true,
+          status: "PUBLISHED",
+          provider: "likelink2",
+          message: "Published to LikeLink2 successfully",
+          idempotencyKey: idemKey,
+          publicationId,
+          publishedUrl: publicUrl,
+          product: { id: product.id, title: product.title },
+          // Share actions (client-side only — no secrets involved)
+          share: {
+            copy: publicUrl,
+            open: publicUrl,
+            whatsApp: `https://wa.me/?text=${encodeURIComponent(`${product.title}\n${publicUrl}`)}`,
+            telegram: `https://t.me/share/url?url=${encodeURIComponent(publicUrl)}&text=${encodeURIComponent(product.title)}`,
+            email: `mailto:?subject=${encodeURIComponent(product.title)}&body=${encodeURIComponent(publicUrl)}`,
+          },
+        }, 200, req);
+        return;
+      }
+
+      // ─── External Provider Publishing (existing flow) ────────────────────
       // Get the autopilot config for the marketer to check connected channels
       const autopilotStore = await kvGet("marketplace:autopilot", {});
       const marketerConfig = autopilotStore?.[marketerId] || {};
 
+      // Connect state check for the requested provider
+      const connStatesRaw = await kvGet("marketplace:connection_states", []);
+      const connStates = Array.isArray(connStatesRaw) ? connStatesRaw : [];
+      const providerConn = connStates.find((c) => c && c.provider === provider);
+      const providerConnected = providerConn && (providerConn.state === "CONNECTED" || providerConn.state === "READY");
+
       if (!marketerConfig.enabled || !Array.isArray(marketerConfig.channels) || marketerConfig.channels.length === 0) {
-        // No connected channels — prepare assisted publishing package using existing modules
-        const { generateContentPack } = await import("../src/lib/cloud/contentStudio.js");
-        const { buildCampaign } = await import("../src/lib/cloud/campaign.js");
-        const { pickTags } = await import("../src/lib/cloud/autoPublisher.js");
-
-        const storeUrl = typeof origin && origin !== "https://x"
-          ? `${origin}/p/${product.id}`
-          : `https://likelink2.vercel.app/p/${product.id}`;
-        const campaign = buildCampaign(product, { storeUrl, angleStats: {} });
-        const trackedUrl = campaign?.trackedUrl || storeUrl;
-        const contentPack = generateContentPack(product, { format: "all" });
-        const tags = pickTags(product);
-
-        const captionTemplates = {
-          he: `${contentPack?.hook || product.title}\nמחיר: ₪${product.price || ""}\nלרכישה 👉 ${trackedUrl}\n${tags.join(" ")}`,
-          en: `${contentPack?.hook || product.title}\nPrice: $${product.price || ""}\nShop 👉 ${trackedUrl}\n${tags.join(" ")}`,
-        };
-        const caption = captionTemplates[language] || captionTemplates.he;
-
-        const result = {
-          status: "ASSISTED",
-          provider: "none",
-          message: "No connected channels — preparing assisted publishing package",
-          caption,
-          link: trackedUrl,
-          hashtags: tags,
-          cta: "קנה עכשיו",
-          product: { id: product.id, title: product.title, price: product.price, image: product.image || null },
-          language,
-          fallback: {
-            copy: caption,
-            open: trackedUrl,
-            share: `${caption}\n\n${trackedUrl}`,
-            whatsApp: `https://wa.me/?text=${encodeURIComponent(`${caption}\n\n${trackedUrl}`)}`,
-          },
-          nextAction: "connect_channel",
-        };
-
-        json(res, {
-          ok: true,
-          status: result.status,
-          message: result.message,
-          result,
-          idempotencyKey: idempotencyKey || `assisted:${product.id}:${Date.now()}`,
-        }, 200, req);
-        return;
+        if (!providerConnected) {
+          // No connected channels AND no external provider — return CONNECT_REQUIRED
+          json(res, {
+            ok: true,
+            status: "CONNECT_REQUIRED",
+            provider: provider || null,
+            message: "Connect a provider to publish externally, or use internal publishing (no provider param)",
+            nextAction: "connect_provider",
+            internalUrl: publicUrl,
+          }, 200, req);
+          return;
+        }
       }
 
       // Channel-specific or all connected channels
@@ -976,9 +1024,6 @@ export default async function handler(req, res) {
       }
 
       // Idempotency check
-      const idemKey = idempotencyKey || `publish:${product.id}:${provider || "multi"}:${Date.now()}`;
-      const publishLogKey = `publish:log:${product.id}`;
-      const existingLog = await kvGet(publishLogKey, []);
       if (Array.isArray(existingLog) && existingLog.some((r) => r.idempotencyKey === idemKey)) {
         json(res, {
           ok: true,
@@ -991,10 +1036,10 @@ export default async function handler(req, res) {
 
       // Delegate to existing /api/autopilot mode:"run" endpoint
       // This reuses ALL existing channel dispatchers (sendTelegram, sendFacebook, etc.)
-      const autopilotUrl = `${SB_URL ? `https://${new URL(SB_URL).hostname}` : origin}/api/autopilot`;
+      const autopilotUrl = `${SB_URL ? `https://${new URL(SB_URL).hostname}` : baseUrl}/api/autopilot`;
       let autopilotResult;
       try {
-        const autopilotRes = await fetch(`${origin || "https://likelink2.vercel.app"}/api/autopilot`, {
+        const autopilotRes = await fetch(`${baseUrl}/api/autopilot`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -1016,7 +1061,7 @@ export default async function handler(req, res) {
         const { generateContentPack } = await import("../src/lib/cloud/contentStudio.js");
         const contentPack = generateContentPack(product, { format: "all" });
         const caption = contentPack?.hook || product.title;
-        const trackedUrl = product.url || product.affiliateUrl || `${origin || "https://likelink2.vercel.app"}/p/${product.id}`;
+        const trackedUrl = product.url || product.affiliateUrl || publicUrl;
 
         json(res, {
           ok: true,
@@ -1043,6 +1088,7 @@ export default async function handler(req, res) {
         productId,
         marketerId,
         idempotencyKey: idemKey,
+        provider,
         ts: Date.now(),
         result: autopilotResult,
       };
@@ -1050,7 +1096,7 @@ export default async function handler(req, res) {
       try { await kvSet(publishLogKey, logList); } catch {}
 
       audit.logApiSuccess(
-        { type: "publish", productId, marketerId, result: autopilotResult?.ok ? "success" : "review" },
+        { type: "publish", productId, marketerId, provider, result: autopilotResult?.ok ? "success" : "review" },
         { type: "publish" }
       );
 

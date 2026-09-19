@@ -45,6 +45,7 @@ import { generateVoiceoverScript } from "./voiceoverScript.js";
 export const PUBLISH_STATUS = Object.freeze({
   PUBLISHED: "PUBLISHED",
   PROCESSING: "PROCESSING",
+  READY: "READY",
   ACTION_REQUIRED: "ACTION_REQUIRED",
   ASSISTED: "ASSISTED",
   BLOCKED: "BLOCKED",

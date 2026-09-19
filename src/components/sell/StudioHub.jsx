@@ -171,28 +171,39 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     }
   }, [marketer, products, clicks, showToast, onLaunchComplete]);
 
-  // פרסום מוצר לערוצים מחוברים או ASSISTED fallback
-  const handlePublish = useCallback(async (product, channels) => {
+  // פרסום מוצר לערוצים מחוברים או LikeLink2 פנימי
+  const handlePublish = useCallback(async (product, provider = null) => {
     if (!product) return;
     setPublishing(true);
     setPublishResult(null);
     try {
+      const body = {
+        mode: 'publish',
+        productId: product.id,
+      };
+      if (provider) {
+        body.provider = provider;
+      }
+
       const response = await fetch('/api/store', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'publish',
-          store: products[0]?.store || marketer?.storeId || 'default',
-          product,
-          channels: channels || null,
-        }),
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${window.__likelink?.token || ''}` },
+        body: JSON.stringify(body),
       });
       const result = await response.json();
       setPublishResult(result);
       if (result.ok) {
-        showToast?.('המוצר פורסם בהצלחה 🚀');
-      } else if (result.assisted) {
-        showToast?.('המוצר מוכן לפרסום — הוראות התחברות במייל 📧');
+        if (result.status === 'PUBLISHED' && result.provider === 'likelink2') {
+          showToast?.('המוצר פורסם ב-LikeLink2 בהצלחה! 🚀');
+        } else if (result.status === 'ASSISTED') {
+          showToast?.('המוצר מוכן לפרסום — השתמש בכלים להלן 📋');
+        } else if (result.status === 'PROCESSING') {
+          showToast?.('הפרסום נשלח לערוצים מחוברים ⏳');
+        } else if (result.status === 'CONNECT_REQUIRED') {
+          showToast?.('התחבר לשירות חיצוני דרך ההגדרות');
+        } else {
+          showToast?.('המוצר פורסם בהצלחה 🚀');
+        }
       } else {
         showToast?.(result.error || 'שגיאה בפרסום');
       }
@@ -514,7 +525,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
          {/* Connections / Publish Center */}
          {activeTab === 'publish' && (
-           <PublishCenterTab product={product} marketer={marketer} brandChannelsConfigured={brandChannelsConfigured} publishResult={publishResult} publishing={publishing} handlePublish={handlePublish} Globe={Globe} Rocket={Rocket} Loader2={Loader2} showToast={showToast} />
+           <PublishCenterTab product={product} marketer={marketer} brandChannelsConfigured={brandChannelsConfigured} publishResult={publishResult} publishing={publishing} handlePublish={handlePublish} Globe={Globe} Rocket={Rocket} Loader2={Loader2} Copy={Copy} Share2={Share2} showToast={showToast} />
          )}
 
        </div>
@@ -590,6 +601,24 @@ const DashboardTab = ({
           העתק הודעה
         </button>
       </div>
+
+      {/* Publish Quick Action */}
+      {myProducts.length > 0 && (
+        <div className="pt-2">
+          <button
+            onClick={() => { setActiveTab('publish'); }}
+            disabled={!myProducts.length}
+            className="tap w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+            style={{
+              background: 'linear-gradient(135deg, #00C896 0%, #0D9488 55%, #0F766E 100%)',
+              color: '#fff',
+            }}
+          >
+            <Rocket size={14} />
+            פרסם מוצר ל-LikeLink2
+          </button>
+        </div>
+      )}
 
       {/* Top Products quick view */}
       {myProducts.length > 0 && (
@@ -1097,7 +1126,8 @@ const ContentStudioTab = ({ product, cap, generateContent, copyToClipboard, setV
 );
 
 // Publish Center tab — connections and one-click publish
-const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishResult, publishing, handlePublish, Globe, Rocket, Loader2, showToast }) => {
+const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishResult, publishing, handlePublish, Globe, Rocket, Loader2, Copy, Share2, showToast }) => {
+  const [copiedLink, setCopiedLink] = useState(false);
   const [showConnectAssist, setShowConnectAssist] = useState(false);
   const connectedProviders = [
     { id: 'telegram', label: 'Telegram Bot', icon: '✈️' },
@@ -1107,19 +1137,180 @@ const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishR
     { id: 'tiktok', label: 'TikTok Shop', icon: '🎵' },
     { id: 'whatsapp', label: 'WhatsApp Channel', icon: '💬' },
   ];
-  const connectedCount = connectedProviders.filter(p => p.id === 'telegram').length;
+  const connectedCount = brandChannelsConfigured ? 1 : 0;
 
-  if (publishResult?.ok) {
-    showToast?.('הפרסום הושלם בהצלחה!');
+  const publicUrl = product ? `${window.location.origin}/p/${encodeURIComponent(product.id)}` : null;
+  const shareUrls = publishResult?.share || {};
+
+  const copyToClipboard = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      showToast?.('הועתק ללוחית ❱❱');
+    } catch {
+      showToast?.(text);
+    }
+  }, [showToast]);
+
+  const handleNativeShare = useCallback(async () => {
+    if (!navigator.share) {
+      copyToClipboard(publicUrl || publishResult?.publishedUrl || '');
+      return;
+    }
+    try {
+      await navigator.share({
+        title: product?.title || 'מוצר מאסיסטיד',
+        text: publishResult?.result?.caption || publishResult?.result?.captionTemplates?.he || product?.title || '',
+        url: publishResult?.publishedUrl || publicUrl,
+      });
+    } catch {
+      copyToClipboard(publishResult?.publishedUrl || publicUrl || '');
+    }
+  }, [product, publishResult, publicUrl, copyToClipboard]);
+
+  if (publishResult?.ok && (publishResult.status === 'PUBLISHED' || publishResult.status === 'PUBLISHED_INTERNAL')) {
+    return (
+      <div className="flex flex-col gap-4">
+        {/* Success Banner */}
+        <div className="p-4 rounded-xl flex items-center gap-3" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10B981' }}>
+          <Rocket size={20} style={{ color: '#10B981' }} />
+          <div className="flex-1">
+            <p className="text-xs font-bold text-green-400">
+              {publishResult.status === 'PUBLISHED' && publishResult.provider === 'likelink2'
+                ? 'פורסם ב-LikeLink2 בהצלחה!'
+                : 'המוצר פורסם בהצלחה!'}
+            </p>
+            <p className="text-[10px] text-muted mt-0.5">מזהה פרסום: {publishResult.publicationId || publishResult.idempotencyKey}</p>
+          </div>
+        </div>
+
+        {/* Public URL */}
+        {publishResult.publishedUrl && (
+          <div className="p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-xs font-semibold mb-2">🔗 כתובת ציבורית</p>
+            <div className="flex items-center gap-2">
+              <code className="text-[10px] break-all flex-1" style={{ color: '#3B82F6' }}>{publishResult.publishedUrl}</code>
+              <button
+                onClick={() => copyToClipboard(publishResult.publishedUrl)}
+                className="tap p-1.5 rounded-lg"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+              >
+                <Copy size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Share Actions */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleNativeShare}
+            className="tap py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+          >
+            <Share2 size={12} /> לשתף
+          </button>
+          {shareUrls?.whatsApp && (
+            <a
+              href={shareUrls.whatsApp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tap py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              💬 WhatsApp
+            </a>
+          )}
+          {shareUrls?.telegram && (
+            <a
+              href={shareUrls.telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tap py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              ✈️ Telegram
+            </a>
+          )}
+          {shareUrls?.email && (
+            <a
+              href={shareUrls.email}
+              className="tap py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              📧 Email
+            </a>
+          )}
+          {shareUrls?.copy && shareUrls.copy !== publishResult.publishedUrl && (
+            <button
+              onClick={() => copyToClipboard(shareUrls.copy)}
+              className="tap py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              <Copy size={12} /> {copiedLink ? 'הועתק!' : 'העתק כיתובת'}
+            </button>
+          )}
+        </div>
+
+        {/* Caption */}
+        {publishResult.result?.caption && (
+          <div className="p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-xs font-semibold mb-2">📄 כיתוב מוכן</p>
+            <p className="text-xs text-muted whitespace-pre-wrap break-words">{publishResult.result.caption}</p>
+            <button
+              onClick={() => copyToClipboard(publishResult.result.caption)}
+              className="tap mt-2 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              <Copy size={10} /> העתק כיתוב
+            </button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Internal Publishing Section — always available */}
+      <div className="p-4 rounded-xl" style={{ background: 'var(--bg-elevated)', border: '1px solid #00C896' }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={18} style={{ color: '#00C896' }} />
+          <span className="text-xs font-bold text-green-400">פרסום פנימי ל-LikeLink2</span>
+        </div>
+        <p className="text-[10px] text-muted mb-3">
+          פרסם את המוצר ישירות ל-LikeLink2 — קבלת כתובת ציבורית, קישור מעקב, וכלים לשיתוף.
+          אין צורך בחיבור חיצוני.
+        </p>
+        <button
+          onClick={() => handlePublish(product)}
+          disabled={publishing || !product}
+          className="tap w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, #00C896 0%, #0D9488 55%, #0F766E 100%)',
+            color: '#fff',
+          }}
+        >
+          {publishing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              פורסם...
+            </>
+          ) : (
+            <>
+              <Rocket size={14} />
+              פרסם ל-LikeLink2
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Brand Channels Status */}
       <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
           <Globe size={16} style={{ color: '#3B82F6' }} />
-          <span className="text-xs font-semibold">ערוצי מותג מחוברים</span>
+          <span className="text-xs font-semibold">ערוצי מותג חיצוניים</span>
         </div>
         <div className={`text-xs font-bold px-2 py-0.5 rounded-full ${
           brandChannelsConfigured
@@ -1133,7 +1324,7 @@ const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishR
       {/* Connected Provider Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {connectedProviders.map((provider) => {
-          const isConnected = provider.id === 'telegram';
+          const isConnected = brandChannelsConfigured && provider.id === 'telegram';
           return (
             <div
               key={provider.id}
@@ -1156,74 +1347,41 @@ const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishR
         })}
       </div>
 
-      {/* Publish Button */}
+      {/* External Publish Button */}
       <div className="pt-2">
         <button
-          onClick={() => brandChannelsConfigured ? handlePublish(product) : setShowConnectAssist(true)}
-          disabled={publishing || !product}
+          onClick={() => brandChannelsConfigured ? handlePublish(product, 'external') : setShowConnectAssist(true)}
+          disabled={publishing || !product || !brandChannelsConfigured}
           className="tap w-full py-3 rounded-xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50"
           style={{
             background: brandChannelsConfigured
               ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 55%, #1D4ED8 100%)'
-              : 'linear-gradient(135deg, #F59E0B 0%, #D97706 55%, #B45309 100%)',
+              : 'linear-gradient(135deg, #6B7280 0%, #4B5563 55%, #374151 100%)',
             color: '#fff',
           }}
         >
-          {publishing ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              מפרסם...
-            </>
-          ) : brandChannelsConfigured ? (
-            <>
-              <Rocket size={14} />
-              פרסם לכל הערוצים
-            </>
-          ) : (
-            <>
-              <Globe size={14} />
-              התחבר ערוצי מותג קודם
-            </>
-          )}
+          <Rocket size={14} />
+          {brandChannelsConfigured ? 'פרסם לערוצים חיצוניים' : 'התחבר ערוצים חיצוניים קודם'}
         </button>
       </div>
 
       {/* Assisted Connection Fallback */}
       {showConnectAssist && (
         <div className="p-4 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-          <p className="text-xs font-semibold mb-2">אין לך ערוצים מחוברים.</p>
+          <p className="text-xs font-semibold mb-2">אין לך ערוצים חיצוניים מחוברים.</p>
           <p className="text-[10px] text-muted mb-3">
-            המערכת תפרסם את המוצר באמצעות ASSISTED fallback — תקבל הוראות מייל
-            עם קישורים להתחברות לערוצים.
+            פרסם ל-LikeLink2 בחינם — אין צורך בחיבור חיצוני.
           </p>
-          <button
-            onClick={() => {
-              setShowConnectAssist(false);
-              handlePublish(product, 'assist');
-            }}
-            className="tap w-full py-2 rounded-lg text-xs font-semibold"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
-          >
-            המשך ב-ASSISTED
-          </button>
         </div>
       )}
 
-      {/* Publish Result */}
-      {publishResult && (
+      {/* Publish Result Error */}
+      {publishResult && !publishResult.ok && (
         <div className="p-3 rounded-xl text-[10px]" style={{
-          background: publishResult.ok
-            ? 'rgba(16, 185, 129, 0.1)'
-            : publishResult.assisted
-              ? 'rgba(245, 158, 11, 0.1)'
-              : 'rgba(239, 68, 68, 0.1)',
-          border: `1px solid ${publishResult.ok ? '#10B981' : publishResult.assisted ? '#F59E0B' : '#EF4444'}`,
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid #EF4444',
         }}>
-          {publishResult.ok
-            ? `✅ פורסם: ${JSON.stringify(publishResult.results)}`
-            : publishResult.assisted
-              ? `📧 אסיסטד — הוראות נשלחו. ${publishResult.email ? 'אל: ' + publishResult.email : ''}`
-              : `❌ ${publishResult.error || 'שגיאה בפרסום'}`}
+          <p className="text-red-400 font-semibold">❌ {publishResult.error || 'שגיאה בפרסום'}</p>
         </div>
       )}
     </div>
