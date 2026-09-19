@@ -11,6 +11,7 @@
 
 import { isPublicCatalogProduct, hasValidAttribution } from "./catalog.js";
 import { CONNECTION_STATE, getConnectionState, summarizeConnectionHealth } from "./connectionManager.js";
+import { assertOwnership } from "./securityControls.js";
 
 export const PREFLIGHT = {
   READY: "READY",
@@ -28,8 +29,9 @@ export function preflightPublishProduct({ product, marketer, store = {}, channel
   if (!product.marketerId) {
     return { status: PREFLIGHT.BLOCKED, reason: "no_marketerId", nextAction: "Assign a marketer to the product." };
   }
-  if (marketer && product.marketerId !== marketer.id) {
-    return { status: PREFLIGHT.BLOCKED, reason: "ownership_mismatch", nextAction: "You can only publish your own products." };
+  const ownership = assertOwnership({ actor: marketer, resourceOwnerId: product.marketerId, resourceType: "product" });
+  if (!ownership.ok) {
+    return { status: PREFLIGHT.BLOCKED, reason: ownership.reason, nextAction: ownership.action };
   }
 
   const health = summarizeConnectionHealth(store);

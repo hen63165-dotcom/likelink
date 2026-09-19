@@ -20,6 +20,7 @@ import { resolveDistributionState, DISTRIBUTION_STATES } from "./distributionInt
 import { createCycle, recordCycleResult, scheduleNextCycle } from "./autonomousScheduler.js";
 import { recordPerformanceEvent, computeWinningPatterns } from "./growthLearning.js";
 import { getProviderConnectionState, CONNECTED_STATES } from "./connectionManager.js";
+import { createProvenance, EVIDENCE_LEVELS, validateGrowthSignal } from "./securityControls.js";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -199,12 +200,19 @@ export async function runUnifiedCycle(ctx, opts = {}) {
   // ── 6. VERITAS ─────────────────────────────────────────────────────────────
   let veritasEntry = null;
   try {
+    const provenance = createProvenance({
+      source: "cloud_orchestrator",
+      actor: "system",
+      eventType: "orchestrator_cycle",
+      evidenceLevel: EVIDENCE_LEVELS.SYSTEM_GENERATED,
+    });
     const veritasResult = appendVeritas(veritasLedger, {
       type: "orchestrator_cycle",
       productId: decision.selected.id,
       mode: decision.mode,
       growthOpportunities: growthCycle?.summary?.selectedCount || 0,
       ok: true,
+      provenance,
     });
     veritasLedger = veritasResult;
     veritasEntry = veritasResult[veritasResult.length - 1];

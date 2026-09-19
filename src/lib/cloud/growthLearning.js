@@ -18,15 +18,31 @@
  */
 
 import { OPPORTUNITY_DECISIONS } from "./opportunityEngine.js";
+import { createProvenance, EVIDENCE_LEVELS, validateGrowthSignal, sanitizeSignalForStorage } from "./securityControls.js";
 
 const LEARNING_MAX_EVENTS = 5000;
 const LEARNING_MIN_SAMPLE = 5;
 
 export function recordPerformanceEvent(event) {
   if (!event || !event.creativeId) return null;
+  const validation = validateGrowthSignal(event);
+  if (!validation.valid) {
+    return { rejected: true, reason: validation.reason, event };
+  }
+  const provenance = createProvenance({
+    source: event.source || "growth_learning",
+    actor: event.actor || null,
+    session: event.session || null,
+    product: event.productId,
+    creator: event.creatorId || null,
+    provider: event.provider || null,
+    eventType: event.type,
+    evidenceLevel: event.evidenceLevel || EVIDENCE_LEVELS.MEASURED,
+  });
   const events = loadLearningEvents();
   const entry = {
-    ...event,
+    ...sanitizeSignalForStorage(event),
+    provenance,
     ts: event.ts || Date.now(),
     id: `perf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
   };
