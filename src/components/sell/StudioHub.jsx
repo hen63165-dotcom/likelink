@@ -41,7 +41,7 @@ const CAPABILITY_STATUS = {
 
 const CAN_RECORD_VIDEO = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
 
-export default function StudioHub({ marketer, products, sales, clicks, onLaunchComplete, showToast }) {
+export default function StudioHub({ marketer, products, sales, clicks, onLaunchComplete, showToast, brandChannelsConfigured = false }) {
   const { t, lang, categoryLabel } = useI18n();
   
   // State for selected product and active tab
@@ -50,6 +50,8 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   const [capabilities, setCapabilities] = useState({});
   const [launching, setLaunching] = useState(false);
   const [launchResult, setLaunchResult] = useState(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState(null);
   const [videoProduct, setVideoProduct] = useState(null);
   const [whatsappDraft, setWhatsappDraft] = useState('');
   const [copied, setCopied] = useState(false);
@@ -169,6 +171,39 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     }
   }, [marketer, products, clicks, showToast, onLaunchComplete]);
 
+  // פרסום מוצר לערוצים מחוברים או ASSISTED fallback
+  const handlePublish = useCallback(async (product, channels) => {
+    if (!product) return;
+    setPublishing(true);
+    setPublishResult(null);
+    try {
+      const response = await fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'publish',
+          store: products[0]?.store || marketer?.storeId || 'default',
+          product,
+          channels: channels || null,
+        }),
+      });
+      const result = await response.json();
+      setPublishResult(result);
+      if (result.ok) {
+        showToast?.('המוצר פורסם בהצלחה 🚀');
+      } else if (result.assisted) {
+        showToast?.('המוצר מוכן לפרסום — הוראות התחברות במייל 📧');
+      } else {
+        showToast?.(result.error || 'שגיאה בפרסום');
+      }
+    } catch (e) {
+      setPublishResult({ ok: false, error: e.message || 'שגיאה בפרסום' });
+      showToast?.('שגיאה בפרסום: ' + (e.message || 'לא ידוע'));
+    } finally {
+      setPublishing(false);
+    }
+  }, [marketer, products, showToast]);
+
   // הודעת וואטסאפ
   const generateWhatsappMessage = useCallback((product, customText = '') => {
     if (!product) return '';
@@ -219,6 +254,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     { id: 'ugc', label: 'UGC AI', color: '#E86A9E', icon: <Video size={14} /> },
     { id: 'content', label: 'Content Studio', color: '#C9A86C', icon: <Sparkles size={14} /> },
     { id: 'launch', label: 'Launch', color: '#00C896', icon: <Rocket size={14} /> },
+    { id: 'publish', label: 'Connections', color: '#3B82F6', icon: <Globe size={14} /> },
     { id: 'trends', label: 'Live Trends', color: '#E86A9E', icon: <TrendingUp size={14} /> },
     { id: 'reach', label: 'Reach/Performance', color: '#3B82F6', icon: <BarChart2 size={14} /> },
     { id: 'autopilot', label: 'AutoPilot', color: '#00C896', icon: <Zap size={14} /> },
@@ -472,11 +508,16 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         )}
 
          {/* WhatsApp */}
-        {activeTab === 'whatsapp' && (
-          <WhatsAppTab product={product} whatsappDraft={whatsappDraft} copied={copied} generateWhatsappMessage={generateWhatsappMessage} copyToClipboard={copyToClipboard} openWhatsapp={openWhatsapp} setWhatsappDraft={setWhatsappDraft} marketer={marketer} />
-        )}
+         {activeTab === 'whatsapp' && (
+           <WhatsAppTab product={product} whatsappDraft={whatsappDraft} copied={copied} generateWhatsappMessage={generateWhatsappMessage} copyToClipboard={copyToClipboard} openWhatsapp={openWhatsapp} setWhatsappDraft={setWhatsappDraft} marketer={marketer} />
+         )}
 
-      </div>
+         {/* Connections / Publish Center */}
+         {activeTab === 'publish' && (
+           <PublishCenterTab product={product} marketer={marketer} brandChannelsConfigured={brandChannelsConfigured} publishResult={publishResult} publishing={publishing} handlePublish={handlePublish} Globe={Globe} Rocket={Rocket} Loader2={Loader2} showToast={showToast} />
+         )}
+
+       </div>
     </div>
   );
 }
@@ -1054,6 +1095,140 @@ const ContentStudioTab = ({ product, cap, generateContent, copyToClipboard, setV
     )}
   </div>
 );
+
+// Publish Center tab — connections and one-click publish
+const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishResult, publishing, handlePublish, Globe, Rocket, Loader2, showToast }) => {
+  const [showConnectAssist, setShowConnectAssist] = useState(false);
+  const connectedProviders = [
+    { id: 'telegram', label: 'Telegram Bot', icon: '✈️' },
+    { id: 'facebook', label: 'Facebook Shop', icon: '📘' },
+    { id: 'instagram', label: 'Instagram Shop', icon: '📷' },
+    { id: 'google', label: 'Google Merchant', icon: '🔍' },
+    { id: 'tiktok', label: 'TikTok Shop', icon: '🎵' },
+    { id: 'whatsapp', label: 'WhatsApp Channel', icon: '💬' },
+  ];
+  const connectedCount = connectedProviders.filter(p => p.id === 'telegram').length;
+
+  if (publishResult?.ok) {
+    showToast?.('הפרסום הושלם בהצלחה!');
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Brand Channels Status */}
+      <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-2">
+          <Globe size={16} style={{ color: '#3B82F6' }} />
+          <span className="text-xs font-semibold">ערוצי מותג מחוברים</span>
+        </div>
+        <div className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+          brandChannelsConfigured
+            ? 'bg-green-500/20 text-green-400'
+            : 'bg-yellow-500/20 text-yellow-400'
+        }`}>
+          {brandChannelsConfigured ? `${connectedCount} מחוברים` : 'לא מחוברים'}
+        </div>
+      </div>
+
+      {/* Connected Provider Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {connectedProviders.map((provider) => {
+          const isConnected = provider.id === 'telegram';
+          return (
+            <div
+              key={provider.id}
+              className="p-3 rounded-xl flex flex-col items-center gap-1.5"
+              style={{
+                background: isConnected ? 'var(--bg-elevated)' : 'var(--bg)',
+                border: `1px solid ${isConnected ? '#3B82F6' : 'var(--border)'}`,
+                opacity: isConnected ? 1 : 0.6,
+              }}
+            >
+              <span className="text-lg">{provider.icon}</span>
+              <span className="text-xs font-semibold">{provider.label}</span>
+              {isConnected && (
+                <span className="text-[10px] px-1.5 py-0.25 rounded-full bg-green-500/20 text-green-400">
+                  מחובר
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Publish Button */}
+      <div className="pt-2">
+        <button
+          onClick={() => brandChannelsConfigured ? handlePublish(product) : setShowConnectAssist(true)}
+          disabled={publishing || !product}
+          className="tap w-full py-3 rounded-xl text-base font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+          style={{
+            background: brandChannelsConfigured
+              ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 55%, #1D4ED8 100%)'
+              : 'linear-gradient(135deg, #F59E0B 0%, #D97706 55%, #B45309 100%)',
+            color: '#fff',
+          }}
+        >
+          {publishing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              מפרסם...
+            </>
+          ) : brandChannelsConfigured ? (
+            <>
+              <Rocket size={14} />
+              פרסם לכל הערוצים
+            </>
+          ) : (
+            <>
+              <Globe size={14} />
+              התחבר ערוצי מותג קודם
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Assisted Connection Fallback */}
+      {showConnectAssist && (
+        <div className="p-4 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-xs font-semibold mb-2">אין לך ערוצים מחוברים.</p>
+          <p className="text-[10px] text-muted mb-3">
+            המערכת תפרסם את המוצר באמצעות ASSISTED fallback — תקבל הוראות מייל
+            עם קישורים להתחברות לערוצים.
+          </p>
+          <button
+            onClick={() => {
+              setShowConnectAssist(false);
+              handlePublish(product, 'assist');
+            }}
+            className="tap w-full py-2 rounded-lg text-xs font-semibold"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+          >
+            המשך ב-ASSISTED
+          </button>
+        </div>
+      )}
+
+      {/* Publish Result */}
+      {publishResult && (
+        <div className="p-3 rounded-xl text-[10px]" style={{
+          background: publishResult.ok
+            ? 'rgba(16, 185, 129, 0.1)'
+            : publishResult.assisted
+              ? 'rgba(245, 158, 11, 0.1)'
+              : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${publishResult.ok ? '#10B981' : publishResult.assisted ? '#F59E0B' : '#EF4444'}`,
+        }}>
+          {publishResult.ok
+            ? `✅ פורסם: ${JSON.stringify(publishResult.results)}`
+            : publishResult.assisted
+              ? `📧 אסיסטד — הוראות נשלחו. ${publishResult.email ? 'אל: ' + publishResult.email : ''}`
+              : `❌ ${publishResult.error || 'שגיאה בפרסום'}`}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Launch tab
 const LaunchTab = ({ product, launchResult, launching, handleLaunch, CheckCircle2, Rocket, Loader2 }) => {

@@ -750,19 +750,34 @@ export default async function handler(req, res) {
   // what is dormant. No secrets, only booleans and counts.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "cloud-status") {
     try {
-      const [products, marketers, brandFeed, campaigns] = await Promise.all([
+      const [products, marketers, brandFeed, campaigns, connStatesRaw] = await Promise.all([
         kvGet("marketplace:products", []),
         kvGet("marketplace:marketers", []),
         kvGet("brand_pulse:posts", []),
         kvGet("marketplace:site_campaigns", []),
+        kvGet("marketplace:connection_states", []),
       ]);
+
+      const connStates = Array.isArray(connStatesRaw) ? connStatesRaw : [];
+      const hasConnectedChannel = connStates.some((c) => c && (c.state === "CONNECTED" || c.state === "READY"));
+      const hasBrandChannel = Boolean(process.env.BRAND_TELEGRAM_BOT || process.env.BRAND_WEBHOOK_URL);
+      const brandChannelsConfigured = hasConnectedChannel || hasBrandChannel;
+
       return json(res, {
         ok: true,
         mode: "cloud-status",
         paypalConfigured: Boolean(paypalConfigured()),
         ownerEmailConfigured: Boolean(process.env.OWNER_EMAIL),
         resendConfigured: Boolean(process.env.RESEND_API_KEY),
-        brandChannelsConfigured: Boolean(process.env.BRAND_TELEGRAM_BOT || process.env.BRAND_WEBHOOK_URL),
+        brandChannelsConfigured,
+        brandChannelsConfiguredFromEnv: hasBrandChannel,
+        brandChannelsConfiguredFromConnections: hasConnectedChannel,
+        connectionStates: connStates.map((c) => ({
+          provider: c?.provider || "unknown",
+          state: c?.state || "UNKNOWN",
+          lastVerified: c?.lastVerified || null,
+          lastSuccess: c?.lastSuccess || null,
+        })),
         products: Array.isArray(products) ? products.length : 0,
         marketers: Array.isArray(marketers) ? marketers.length : 0,
         brandPulsePosts: Array.isArray(brandFeed) ? brandFeed.length : 0,
@@ -831,6 +846,227 @@ export default async function handler(req, res) {
         await kvSet("marketplace:site_campaigns", updated);
       }
       json(res, { ok: true, campaignId, status: "PUBLISHED", channel: "native_share" }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+    }
+    return;
+  }
+
+  // ─── Publish mode — one-click external publishing ──────────────────────────
+  // Reuses existing autopilot channel infrastructure (api/autopilot.mjs).
+  // NO new provider code — delegates to existing /api/autopilot mode:"run".
+  // Identity: server-verified Bearer token (never client-supplied marketerId).
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "publish") {
+    if (passport && !rateAllow("publish", passport.hash, 30)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
+
+    let actor = null;
+    const authHeader = getHeader(req, "authorization");
+    const token = String(authHeader).replace(/^Bearer\s+/i, "");
+    if (token) {
+      try { actor = await verifyToken(token); } catch {}
+    }
+
+    try {
+      const body = await readBody(req).catch(() => ({}));
+      const { productId, provider, channel, language = "he", idempotencyKey } = body || {};
+
+      if (!productId) {
+        json(res, { ok: false, error: "missing_productId" }, 400, req);
+        return;
+      }
+
+      // Validate product exists and is approved
+      const productsRow = await kvGet("marketplace:products", []);
+      const productList = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
+      const product = productList.find((p) => p && String(p.id) === String(productId));
+
+      if (!product) {
+        json(res, { ok: false, error: "product_not_found" }, 404, req);
+        return;
+      }
+
+      if (product.status !== "approved") {
+        json(res, { ok: false, error: "product_not_approved", status: product.status }, 403, req);
+        return;
+      }
+
+      // Ownership check: actor must own the product (or be admin)
+      const isOwner = actor?.id && String(product.marketerId) === String(actor.id);
+      let isAdmin = false;
+      if (token) {
+        try { isAdmin = await verifyAdminToken(token); } catch {}
+      }
+      if (!isOwner && !isAdmin) {
+        audit.logApiForbidden({ type: "cross_owner_publish", productId, actorId: actor?.id }, { type: "publish" }, { _req: req });
+        json(res, { ok: false, error: "ownership_mismatch" }, 403, req);
+        return;
+      }
+
+      const marketerId = product.marketerId;
+
+      // Get the autopilot config for the marketer to check connected channels
+      const autopilotStore = await kvGet("marketplace:autopilot", {});
+      const marketerConfig = autopilotStore?.[marketerId] || {};
+
+      if (!marketerConfig.enabled || !Array.isArray(marketerConfig.channels) || marketerConfig.channels.length === 0) {
+        // No connected channels — prepare assisted publishing package using existing modules
+        const { generateContentPack } = await import("../src/lib/cloud/contentStudio.js");
+        const { buildCampaign } = await import("../src/lib/cloud/campaign.js");
+        const { pickTags } = await import("../src/lib/cloud/autoPublisher.js");
+
+        const storeUrl = typeof origin && origin !== "https://x"
+          ? `${origin}/p/${product.id}`
+          : `https://likelink2.vercel.app/p/${product.id}`;
+        const campaign = buildCampaign(product, { storeUrl, angleStats: {} });
+        const trackedUrl = campaign?.trackedUrl || storeUrl;
+        const contentPack = generateContentPack(product, { format: "all" });
+        const tags = pickTags(product);
+
+        const captionTemplates = {
+          he: `${contentPack?.hook || product.title}\nמחיר: ₪${product.price || ""}\nלרכישה 👉 ${trackedUrl}\n${tags.join(" ")}`,
+          en: `${contentPack?.hook || product.title}\nPrice: $${product.price || ""}\nShop 👉 ${trackedUrl}\n${tags.join(" ")}`,
+        };
+        const caption = captionTemplates[language] || captionTemplates.he;
+
+        const result = {
+          status: "ASSISTED",
+          provider: "none",
+          message: "No connected channels — preparing assisted publishing package",
+          caption,
+          link: trackedUrl,
+          hashtags: tags,
+          cta: "קנה עכשיו",
+          product: { id: product.id, title: product.title, price: product.price, image: product.image || null },
+          language,
+          fallback: {
+            copy: caption,
+            open: trackedUrl,
+            share: `${caption}\n\n${trackedUrl}`,
+            whatsApp: `https://wa.me/?text=${encodeURIComponent(`${caption}\n\n${trackedUrl}`)}`,
+          },
+          nextAction: "connect_channel",
+        };
+
+        json(res, {
+          ok: true,
+          status: result.status,
+          message: result.message,
+          result,
+          idempotencyKey: idempotencyKey || `assisted:${product.id}:${Date.now()}`,
+        }, 200, req);
+        return;
+      }
+
+      // Channel-specific or all connected channels
+      const targetChannels = channel && provider
+        ? marketerConfig.channels.filter((c) => c.type === provider)
+        : marketerConfig.channels;
+
+      if (targetChannels.length === 0) {
+        json(res, {
+          ok: false,
+          status: "ACTION_REQUIRED",
+          message: `Channel '${provider || channel}' is not configured`,
+          nextAction: "configure_channel",
+        }, 200, req);
+        return;
+      }
+
+      // Idempotency check
+      const idemKey = idempotencyKey || `publish:${product.id}:${provider || "multi"}:${Date.now()}`;
+      const publishLogKey = `publish:log:${product.id}`;
+      const existingLog = await kvGet(publishLogKey, []);
+      if (Array.isArray(existingLog) && existingLog.some((r) => r.idempotencyKey === idemKey)) {
+        json(res, {
+          ok: true,
+          status: "PROCESSING",
+          message: "Duplicate prevention: publish already initiated for this idempotency key",
+          idempotencyKey: idemKey,
+        }, 200, req);
+        return;
+      }
+
+      // Delegate to existing /api/autopilot mode:"run" endpoint
+      // This reuses ALL existing channel dispatchers (sendTelegram, sendFacebook, etc.)
+      const autopilotUrl = `${SB_URL ? `https://${new URL(SB_URL).hostname}` : origin}/api/autopilot`;
+      let autopilotResult;
+      try {
+        const autopilotRes = await fetch(`${origin || "https://likelink2.vercel.app"}/api/autopilot`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: token ? `Bearer ${token}` : undefined,
+          },
+          body: JSON.stringify({
+            mode: "run",
+            marketerId,
+            productId,
+            channel: provider || null,
+            idempotencyKey: idemKey,
+            language,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        autopilotResult = await autopilotRes.json().catch(() => null);
+      } catch (e) {
+        // Fallback: prepare assisted package
+        const { generateContentPack } = await import("../src/lib/cloud/contentStudio.js");
+        const contentPack = generateContentPack(product, { format: "all" });
+        const caption = contentPack?.hook || product.title;
+        const trackedUrl = product.url || product.affiliateUrl || `${origin || "https://likelink2.vercel.app"}/p/${product.id}`;
+
+        json(res, {
+          ok: true,
+          status: "ASSISTED",
+          message: `Publish endpoint unavailable — prepared assisted package (${String(e.message || e).slice(0, 80)})`,
+          idempotencyKey: idemKey,
+          result: {
+            caption,
+            link: trackedUrl,
+            hashtags: (contentPack?.hashtags || []).slice(0, 10),
+            fallback: {
+              copy: caption,
+              open: trackedUrl,
+              share: `${caption}\n\n${trackedUrl}`,
+            },
+            nextAction: "share_manually",
+          },
+        }, 200, req);
+        return;
+      }
+
+      // Record publish attempt in log
+      const logEntry = {
+        productId,
+        marketerId,
+        idempotencyKey: idemKey,
+        ts: Date.now(),
+        result: autopilotResult,
+      };
+      const logList = Array.isArray(existingLog) ? [...existingLog, logEntry].slice(-100) : [logEntry];
+      try { await kvSet(publishLogKey, logList); } catch {}
+
+      audit.logApiSuccess(
+        { type: "publish", productId, marketerId, result: autopilotResult?.ok ? "success" : "review" },
+        { type: "publish" }
+      );
+
+      const finalStatus = autopilotResult?.ok ? "PUBLISHED" : "FAILED";
+      json(res, {
+        ok: autopilotResult?.ok || false,
+        status: finalStatus,
+        idempotencyKey: idemKey,
+        product: { id: product.id, title: product.title },
+        channel: provider || `multi (${targetChannels.length})`,
+        results: autopilotResult?.results || [],
+        caption: autopilotResult?.text || "",
+        message: autopilotResult?.ok
+          ? "Published successfully"
+          : `Publish failed: ${autopilotResult?.error || "see results for details"}`,
+      }, autopilotResult?.ok ? 200 : 500, req);
     } catch (e) {
       json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
