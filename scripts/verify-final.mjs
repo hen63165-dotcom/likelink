@@ -23,6 +23,7 @@ function runTest(name, testFn) {
   } catch (e) {
     log('FAIL', `${name}: ${e.message || e}`);
     return false;
+  }
 }
 
 function checkFileExists(path) {
@@ -34,16 +35,16 @@ function checkFileExists(path) {
   }
 }
 
-function checkExport(modulePath, exportName) {
+async function checkExport(modulePath, exportName) {
   try {
-    const module = require(modulePath);
+    const module = await import(modulePath);
     return typeof module[exportName] !== 'undefined';
   } catch {
     return false;
   }
 }
 
-function testCoreExports() {
+async function testCoreExports() {
   const trustPath = join(root, 'src/lib/cloud/trustVerification.js');
   const lunaPath = join(root, 'src/lib/cloud/lunaGrowth.js');
   const storePath = join(root, 'api/store.mjs');
@@ -52,19 +53,19 @@ function testCoreExports() {
   if (!checkFileExists(lunaPath)) throw new Error(`lunaGrowth.js not found at ${lunaPath}`);
   if (!checkFileExists(storePath)) throw new Error(`store.mjs not found at ${storePath}`);
 
-  const trustModule = require(trustPath);
-  const lunaModule = require(lunaPath);
+  const trustModule = await import(trustPath);
+  const lunaModule = await import(lunaPath);
 
   const requiredTrustExports = ['TRUST_STATE', 'VERIFICATION_STAGE', 'verifyProduct', 'resolveTrustState', 'isDiscoveryEligible', 'trustGateReport'];
   for (const exportName of requiredTrustExports) {
-    if (!checkExport(trustPath, exportName)) {
+    if (!await checkExport(trustPath, exportName)) {
       throw new Error(`Missing export in trustVerification.js: ${exportName}`);
     }
   }
 
   const requiredLunaExports = ['LUNA_GROWTH_CYCLE', 'LUNA_ACTION_TYPE', 'LUNA_ACTION_STATUS', 'runGrowthCycle', 'detectOpportunities', 'diagnoseProduct', 'selfHealProduct'];
   for (const exportName of requiredLunaExports) {
-    if (!checkExport(lunaPath, exportName)) {
+    if (!await checkExport(lunaPath, exportName)) {
       throw new Error(`Missing export in lunaGrowth.js: ${exportName}`);
     }
   }
@@ -75,12 +76,12 @@ function testCoreExports() {
   if (!storeContent.includes('luna')) throw new Error('store.mjs missing luna mode');
 }
 
-function testSelfMarketingCapabilities() {
+async function testSelfMarketingCapabilities() {
   const lunaPath = join(root, 'src/lib/cloud/lunaGrowth.js');
   const trustPath = join(root, 'src/lib/cloud/trustVerification.js');
 
-  const lunaModule = require(lunaPath);
-  const trustModule = require(trustPath);
+  const lunaModule = await import(lunaPath);
+  const trustModule = await import(trustPath);
 
   const selfMarketingActionTypes = ['marketing_scan', 'content_create', 'publish_attempt', 'performance_measure', 'optimization'];
 
@@ -146,12 +147,12 @@ function testCloudCheck() {
   }
 }
 
-function main() {
+async function main() {
   log('START', 'LikeLink2 Self-Marketing Verification');
 
   const results = {
-    coreExports: runTest('Core exports', testCoreExports),
-    selfMarketingCapabilities: runTest('Self-marketing capabilities', testSelfMarketingCapabilities),
+    coreExports: await runTest('Core exports', testCoreExports),
+    selfMarketingCapabilities: await runTest('Self-marketing capabilities', testSelfMarketingCapabilities),
     integration: runTest('Marketing integration', testMarketingIntegration),
     unitTests: runTest('Unit tests', testUnitTests),
     build: runTest('Build', testBuild),
@@ -178,6 +179,4 @@ function main() {
   }
 }
 
-if (require.main === module) {
-  main();
-}
+main();
