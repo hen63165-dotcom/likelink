@@ -1168,10 +1168,17 @@ export default async function handler(req, res) {
   }
   // Trust status read mode — returns verification status for a product
   if (new URL(req.url, "https://x").searchParams.get("mode") === "trust") {
-    const params = new URL(req.url, "https://x").searchParams;
-    const body = await readBody(req).catch(() => ({}));
-    const { productId } = body || {};
-    const pid = productId || params.get("productId");
+    // Support both GET (query params) and POST (body)
+    let pid = null;
+    if (req.method === "GET") {
+      const params = new URL(req.url, "https://x").searchParams;
+      pid = params.get("productId");
+    } else {
+      const body = await readBody(req).catch(() => ({}));
+      const { productId } = body || {};
+      pid = productId;
+    }
+    pid = pid || new URL(req.url, "https://x").searchParams.get("productId");
     if (!pid) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
     const verifyLogKey = "verify:log:" + String(pid);
     const log = await kvGet(verifyLogKey, []);
