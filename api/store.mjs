@@ -791,6 +791,21 @@ export default async function handler(req, res) {
     }
   }
 
+  // Trust status read — allow GET for trust mode
+  if (req.method === "GET") {
+    const params = new URL(req.url, "https://x").searchParams;
+    const mode = params.get("mode");
+    if (mode === "trust") {
+      const pid = params.get("productId");
+      if (!pid) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+      const verifyLogKey = "verify:log:" + String(pid);
+      const log = await kvGet(verifyLogKey, []);
+      const latest = Array.isArray(log) && log.length > 0 ? log[log.length - 1] : null;
+      json(res, { ok: true, productId: pid, hasVerification: !!latest, state: latest?.state || "UNVERIFIED", discoveryEligible: latest ? isDiscoveryEligible(latest) : false, verification: latest || null }, 200, req);
+      return;
+    }
+  }
+
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
