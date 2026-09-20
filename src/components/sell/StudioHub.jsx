@@ -22,6 +22,8 @@ import { useI18n } from '../../lib/LangContext';
 import { launchProduct, summarizeLaunch } from '../../lib/cloud/launch.js';
 import { rankByTrend } from '../../lib/cloud/trends.js';
 import { generateContentPack } from '../../lib/cloud/contentStudio.js';
+import { verifyProduct, TRUST_STATE, isDiscoveryEligible, trustGateReport } from '../../lib/cloud/trustVerification.js';
+import { runGrowthCycle, diagnoseProduct } from '../../lib/cloud/lunaGrowth.js';
 import { suggestPrice, scoreStoreHealth } from '../../lib/aiStudio.js';
 import { fetchProductInfo } from '../../lib/productInfo.js';
 import { canRecordVideo } from '../../lib/videoEngine.js';
@@ -52,6 +54,8 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   const [launchResult, setLaunchResult] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
   const [videoProduct, setVideoProduct] = useState(null);
   const [whatsappDraft, setWhatsappDraft] = useState('');
   const [copied, setCopied] = useState(false);
@@ -215,6 +219,27 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     }
   }, [marketer, products, showToast]);
 
+  // Trust verification — calls the server-side verify endpoint
+  const handleVerify = useCallback(async (product) => {
+    if (!product) return;
+    setVerifying(true);
+    setVerificationResult(null);
+    try {
+      const body = { productId: product.id };
+      const response = await fetch('/api/store?mode=verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: 'Bearer ' + (window.__likelink?.token || '') },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      setVerificationResult(result);
+    } catch (e) {
+      setVerificationResult({ ok: false, error: String(e.message || e) });
+    } finally {
+      setVerifying(false);
+    }
+  }, [marketer]);
+
   // הודעת וואטסאפ
   const generateWhatsappMessage = useCallback((product, customText = '') => {
     if (!product) return '';
@@ -266,6 +291,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     { id: 'content', label: 'Content Studio', color: '#C9A86C', icon: <Sparkles size={14} /> },
     { id: 'launch', label: 'Launch', color: '#00C896', icon: <Rocket size={14} /> },
     { id: 'publish', label: 'Connections', color: '#3B82F6', icon: <Globe size={14} /> },
+    { id: 'trust', label: 'Trust & Verification', color: '#8B5CF6', icon: <Shield size={14} /> },
     { id: 'trends', label: 'Live Trends', color: '#E86A9E', icon: <TrendingUp size={14} /> },
     { id: 'reach', label: 'Reach/Performance', color: '#3B82F6', icon: <BarChart2 size={14} /> },
     { id: 'autopilot', label: 'AutoPilot', color: '#00C896', icon: <Zap size={14} /> },
@@ -526,6 +552,9 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
          {/* Connections / Publish Center */}
          {activeTab === 'publish' && (
            <PublishCenterTab product={product} marketer={marketer} brandChannelsConfigured={brandChannelsConfigured} publishResult={publishResult} publishing={publishing} handlePublish={handlePublish} Globe={Globe} Rocket={Rocket} Loader2={Loader2} Copy={Copy} Share2={Share2} showToast={showToast} />
+         )}
+         {activeTab === 'trust' && (
+           <TrustVerificationTab product={product} verifying={verifying} verificationResult={verificationResult} handleVerify={handleVerify} Shield={Shield} CheckCircle2={CheckCircle2} Loader2={Loader2} Copy={Copy} />
          )}
 
        </div>
@@ -1382,6 +1411,95 @@ const PublishCenterTab = ({ product, marketer, brandChannelsConfigured, publishR
           border: '1px solid #EF4444',
         }}>
           <p className="text-red-400 font-semibold">❌ {publishResult.error || 'שגיאה בפרסום'}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// Trust Verification tab
+const TrustVerificationTab = ({ product, verifying, verificationResult, handleVerify, Shield, CheckCircle2, Loader2, Copy }) => {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, []);
+
+  const stateColors = {
+    VERIFIED: { bg: 'rgba(16, 185, 129, 0.1)', border: '#10B981', text: 'text-green-400' },
+    CHECK_REQUIRED: { bg: 'rgba(245, 158, 14, 0.1)', border: '#F59E0B', text: 'text-yellow-400' },
+    REJECTED: { bg: 'rgba(239, 68, 68, 0.1)', border: '#EF4444', text: 'text-red-400' },
+    EXPIRED: { bg: 'rgba(147, 51, 234, 0.1)', border: '#8B5CF6', text: 'text-purple-400' },
+    SUSPENDED: { bg: 'rgba(245, 158, 14, 0.1)', border: '#F59E0B', text: 'text-yellow-400' },
+    SOURCE_UNAVAILABLE: { bg: 'rgba(107, 114, 128, 0.1)', border: '#6B7280', text: 'text-gray-400' },
+  };
+
+  const currentState = verificationResult?.verification?.state || 'UNVERIFIED';
+  const stateColor = stateColors[currentState] || stateColors.CHECK_REQUIRED;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Verification Status Banner */}
+      <div className="p-4 rounded-xl flex items-center gap-3" style={{ background: stateColor.bg, border: '1px solid ' + stateColor.border }}>
+        <Shield size={20} style={{ color: stateColor.border }} />
+        <div className="flex-1">
+          <p className={"text-xs font-bold " + stateColor.text}>
+            {currentState}
+          </p>
+          <p className="text-[10px] text-muted mt-0.5">
+            {verificationResult?.verification?.reason || 'לחץ לאימות המוצר'}
+          </p>
+        </div>
+      </div>
+
+      {/* Verify Button */}
+      <button
+        onClick={() => handleVerify && handleVerify(product)}
+        disabled={verifying || !product}
+        className="tap w-full py-3 rounded-xl text-base font-bold flex items-center justify-center gap-2"
+        style={{ background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 55%, #6D28D9 100%)', color: '#fff' }}
+      >
+        {verifying ? <Loader2 size={16} className="animate-spin" /> : <Shield size={14} />}
+        {verifying ? 'בודק...' : 'אמת מוצר בטחוני'}
+      </button>
+
+      {/* Verification Assertions */}
+      {verificationResult?.verification && (
+        <div className="p-3 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+          <p className="text-xs font-semibold mb-2">🔍 פרטי אימות</p>
+          <div className="grid grid-cols-1 gap-1.5">
+            {verificationResult.verification.assertions.map((a, i) => {
+              const aColor = a.status === 'VERIFIED' ? '#10B981' : a.status === 'REJECTED' ? '#EF4444' : '#F59E0B';
+              return (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted">{a.stage}</span>
+                  <span className="text-[10px] font-semibold" style={{ color: aColor }}>{a.status}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Trust Gate Report */}
+      {verificationResult && verificationResult.trustGateReport && (
+        <div className="p-3 rounded-xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+          <p className="text-xs font-semibold mb-2">🛡️ שער אמון</p>
+          {verificationResult.discoveryEligible ? (
+            <p className="text-xs text-green-400">המוצר זכאי לגילוי בקרב קונים ✅</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-red-400">המוצר לא זכאי לגילוי — נדרש תיקון</p>
+              {verificationResult.trustGateReport.details?.map((d, i) => (
+                <p key={i} className="text-[10px] text-muted">• {d.reason} → {d.fix}</p>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

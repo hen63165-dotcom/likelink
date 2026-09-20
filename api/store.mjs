@@ -29,6 +29,9 @@ import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
+import { verifyProduct, isDiscoveryEligible, trustGateReport } from "../src/lib/cloud/trustVerification.js";
+import { runGrowthCycle, runDailyTrendScan, diagnoseProduct } from "../src/lib/cloud/lunaGrowth.js";
+
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
 import { getOrCreatePassport, recordVisit, rateAllow } from "./_utils/passport.js";
@@ -1119,6 +1122,106 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Trust verification mode — runs the trust verification engine on a product
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "verify") {
+    let actor = null;
+    const authHeader = getHeader(req, "authorization");
+    const token = String(authHeader).replace(/^Bearer\s+/i, "");
+    if (token) { try { actor = await verifyToken(token); } catch {} }
+    const isStoreAdmin = await isAdminToken(token).catch(() => false);
+    if (!actor && !isStoreAdmin) {
+      audit.logApiForbidden({ type: "unauthenticated", reason: "verify_without_auth" }, { type: "verify" }, { _req: req });
+      json(res, { ok: false, error: "authentication_required_for_verify" }, 401, req);
+      return;
+    }
+    try {
+      const body = await readBody(req).catch(() => ({}));
+      const { productId, url, product: productBody } = body || {};
+      const productsRow = await kvGet("marketplace:products", []);
+      const productList = Array.isArray(productsRow) ? productsRow : [];
+      let product = productList.find((p) => p && String(p.id) === String(productId));
+      if (!product && productBody) product = productBody;
+      const verificationUrl = url || product?.affiliateUrl || product?.url || null;
+      if (!product) {
+        json(res, { ok: false, error: "product_not_found" }, 404, req);
+        return;
+      }
+      const marketersRow = await kvGet("marketplace:marketers", []);
+      const marketers = Array.isArray(marketersRow) ? marketersRow : [];
+      const verification = verifyProduct({
+        product, url: verificationUrl, actor: actor || (isStoreAdmin ? { id: "admin", authenticated: true } : null), marketers, now: Date.now(),
+      });
+      const verifyLogKey = "verify:log:" + String(product.id);
+      const existingLog = await kvGet(verifyLogKey, []);
+      const logList = Array.isArray(existingLog) ? [...existingLog, verification].slice(-50) : [verification];
+      try { await kvSet(verifyLogKey, logList); } catch {}
+      audit.logApiSuccess(
+        { type: "verification_run", productId, state: verification.state },
+        { type: "verify" }
+      );
+      json(res, { ok: true, productId: product.id, productName: product.title, verification, discoveryEligible: isDiscoveryEligible(verification), trustGateReport: trustGateReport(verification) }, 200, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+      return;
+    }
+  }
+  // Trust status read mode — returns verification status for a product
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "trust") {
+    const params = new URL(req.url, "https://x").searchParams;
+    const body = await readBody(req).catch(() => ({}));
+    const { productId } = body || {};
+    const pid = productId || params.get("productId");
+    if (!pid) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+    const verifyLogKey = "verify:log:" + String(pid);
+    const log = await kvGet(verifyLogKey, []);
+    const latest = Array.isArray(log) && log.length > 0 ? log[log.length - 1] : null;
+    json(res, { ok: true, productId: pid, hasVerification: !!latest, state: latest?.state || "UNVERIFIED", discoveryEligible: latest ? isDiscoveryEligible(latest) : false, verification: latest || null }, 200, req);
+    return;
+  }
+  // Luna autonomous growth cycle
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "luna-growth") {
+    let actor = null;
+    const authHeader = getHeader(req, "authorization");
+    const token = String(authHeader).replace(/^Bearer\s+/i, "");
+    if (token) { try { actor = await verifyToken(token); } catch {} }
+    const isStoreAdmin = await isAdminToken(token).catch(() => false);
+    if (!actor && !isStoreAdmin) { json(res, { ok: false, error: "authentication_required" }, 401, req); return; }
+    try {
+      const body = await readBody(req).catch(() => ({})) || {};
+      const { action, productId } = body;
+      if (action === "scan") {
+        const productsRow = await kvGet("marketplace:products", []);
+        const allProducts = Array.isArray(productsRow) ? productsRow : [];
+        const clicksRow = await kvGet("marketplace:clicks", []);
+        const salesRow = await kvGet("marketplace:sales", []);
+        const approved = allProducts.filter((p) => p && p.status === "approved");
+        const result = runDailyTrendScan({ products: approved, sales: Array.isArray(salesRow) ? salesRow : [], clicks: Array.isArray(clicksRow) ? clicksRow : [], views: [] });
+        json(res, { ok: true, result }, 200, req);
+        return;
+      }
+      if (action === "growth-cycle" && productId) {
+        const productsRow = await kvGet("marketplace:products", []);
+        const allProducts = Array.isArray(productsRow) ? productsRow : [];
+        const product = allProducts.find((p) => p && String(p.id) === String(productId));
+        if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
+        const marketersRow = await kvGet("marketplace:marketers", []);
+        const marketers = Array.isArray(marketersRow) ? marketersRow : [];
+        const clicksRow = await kvGet("marketplace:clicks", []);
+        const salesRow = await kvGet("marketplace:sales", []);
+        const connStates = await kvGet("marketplace:connection_states", []);
+        const campaignsRow = await kvGet("marketplace:site_campaigns", []);
+        const result = await runGrowthCycle({ product, products: allProducts, sales: Array.isArray(salesRow) ? salesRow : [], clicks: Array.isArray(clicksRow) ? clicksRow : [], campaigns: Array.isArray(campaignsRow) ? campaignsRow : [], channelStates: Array.isArray(connStates) ? connStates : [], marketers, actor: actor || (isStoreAdmin ? { id: "admin", authenticated: true } : null), origin: getHeader(req, "origin") || "https://likelink2.vercel.app" });
+        json(res, { ok: true, result }, 200, req);
+        return;
+      }
+      json(res, { ok: false, error: "invalid_action" }, 400, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+      return;
+    }
+  }
   // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write) link auth user → marketer (server-verified Bearer + service-role write)
   if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
     return linkIdentityHandler(req, res);
