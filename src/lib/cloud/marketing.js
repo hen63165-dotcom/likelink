@@ -17,13 +17,14 @@
  * DETECT → UNDERSTAND → TRUST → CREATE → LOCALIZE → VERIFY → PUBLISH → MEASURE → LEARN → OPTIMIZE → REPEAT
  */
 
-const { detectOpportunities, diagnoseProduct, selfHealProduct, generateLunaContent, generateLunaHooks } = require('./lunaGrowth.js');
-const { verifyProduct, trustGateReport, isDiscoveryEligible, TRUST_STATE } = require('./trustVerification.js');
-const { buildCampaign, planDistribution, learnFromClicks } = require('./campaign.js');
-const { generateContentPack } = require('./contentStudio.js');
-const { generateHookVariations, recommendHookAngles } = require('./hooks.js');
-const { createProduct } = require('./catalog.js');
-const { lunaHook, lunaHookForProduct, lunaStoryText, AMBASSADOR } = require('../ambassador.js');
+import { detectOpportunities, diagnoseProduct, selfHealProduct, generateLunaContent, generateLunaHooks } from './lunaGrowth.js';
+import { verifyProduct, trustGateReport, isDiscoveryEligible, TRUST_STATE } from './trustVerification.js';
+import { buildCampaign, planDistribution, learnFromClicks } from './campaign.js';
+import { generateContentPack } from './contentStudio.js';
+import { generateHookVariations, recommendHookAngles } from './hooks.js';
+import { createProduct } from './catalog.js';
+import { lunaHook, lunaHookForProduct, lunaStoryText, AMBASSADOR } from '../ambassador.js';
+import { trendSummary, detectEmerging, detectDeclining, rankByTrend } from './trends.js';
 
 const LANG_RTL = 'he';
 
@@ -65,10 +66,10 @@ export const LIKE_LINK_SELF_MARKETING = {
 };
 
 function detectMarketingOpportunities({ products = [], sales = [], clicks = [], views = [], now = Date.now() } = {}) {
-  const summary = require('./trends.js').trendSummary(products, { sales, clicks, views, now });
-  const emerging = require('./trends.js').detectEmerging(products, { sales, clicks, now });
-  const declining = require('./trends.js').detectDeclining(products, { sales, clicks, now });
-  const ranked = require('./trends.js').rankByTrend(products, { sales, clicks, views, now, limit: 20 });
+  const summary = trendSummary(products, { sales, clicks, views, now });
+  const emerging = detectEmerging(products, { sales, clicks, now });
+  const declining = detectDeclining(products, { sales, clicks, now });
+  const ranked = rankByTrend(products, { sales, clicks, views, now, limit: 20 });
 
   const opportunities = ranked.map((r) => ({
     productId: r.product.id,
@@ -287,7 +288,8 @@ function publishMarketingContent(content, actor, provider = null, channel = null
     content: content,
     actorId: actor?.id || null,
     publishedAt: new Date().toISOString(),
-    idempotencyKey: `marketing:${content.product.id}:${provider || 'internal'}:${Date.now()}`,n    marketingMetadata: {
+    idempotencyKey: `marketing:${content.product.id}:${provider || 'internal'}:${Date.now()}`,
+    marketingMetadata: {
       angle: content.angle,
       pillar: content.pillar,
       language: content.language,

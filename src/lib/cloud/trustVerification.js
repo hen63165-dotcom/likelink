@@ -76,6 +76,7 @@ const KNOWN_AFFILIATE_DOMAINS = new Set([
   "awstrck.me",
   "www.aliexpress.com",
   "aliexpress.com",
+  "likelink2.vercel.app",
 ])
 
 const BLOCKED_DOMAINS = new Set([
