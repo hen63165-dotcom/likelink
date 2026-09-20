@@ -1244,6 +1244,65 @@ export default async function handler(req, res) {
       return;
     }
   }
+  // LikeLink2 self-marketing mode (internal only)
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "marketing") {
+    let actor = null;
+    const authHeader = getHeader(req, "authorization");
+    const token = String(authHeader).replace(/^Bearer\s+/i, "");
+    if (token) { try { actor = await verifyToken(token); } catch {} }
+    const isStoreAdmin = await isAdminToken(token).catch(() => false);
+    if (!actor && !isStoreAdmin) { json(res, { ok: false, error: "authentication_required" }, 401, req); return; }
+    try {
+      const body = await readBody(req).catch(() => ({})) || {};
+      const { action, productId } = body;
+      if (action === "scan") {
+        const productsRow = await kvGet("marketplace:products", []);
+        const allProducts = Array.isArray(productsRow) ? productsRow : [];
+        const approved = allProducts.filter((p) => p && p.status === "approved");
+        const { runMarketingCycle, runDailyMarketingScan, analyzeMarketingPerformance } = require('./src/lib/cloud/marketing.js');
+        const scan = runDailyMarketingScan({ products: approved, sales: [], clicks: [], views: [], now: Date.now() });
+        json(res, { ok: true, scan, campaigns: scan.highPriorityOpportunities }, 200, req);
+        return;
+      }
+      if (action === "cycle" && productId) {
+        const productsRow = await kvGet("marketplace:products", []);
+        const allProducts = Array.isArray(productsRow) ? productsRow : [];
+        const product = allProducts.find((p) => p && String(p.id) === String(productId));
+        if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
+        const { runMarketingCycle } = require('./src/lib/cloud/marketing.js');
+        const marketersRow = await kvGet("marketplace:marketers", []);
+        const marketers = Array.isArray(marketersRow) ? marketersRow : [];
+        const actor = isStoreAdmin ? { id: "admin", authenticated: true } : actor || { id: product.marketerId, authenticated: true };
+        const cycle = runMarketingCycle({
+          product,
+          products: allProducts,
+          sales: [],
+          clicks: [],
+          views: [],
+          actor,
+          marketer: product.marketerId,
+          language: "he",
+          provider: "likelink2_internal",
+          channel: "native_luna",
+        });
+        json(res, { ok: true, cycle }, 200, req);
+        return;
+      }
+      if (action === "analyze") {
+        const productsRow = await kvGet("marketplace:products", []);
+        const allProducts = Array.isArray(productsRow) ? productsRow : [];
+        const { analyzeMarketingPerformance } = require('./src/lib/cloud/marketing.js');
+        const analysis = analyzeMarketingPerformance(allProducts, 24 * 60 * 60 * 1000);
+        json(res, { ok: true, analysis }, 200, req);
+        return;
+      }
+      json(res, { ok: false, error: "invalid_marketing_action" }, 400, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e) }, 500, req);
+      return;
+    }
+  }
   // Cloud identity: link auth user → marketer (server-verified Bearer + service-role write) link auth user → marketer (server-verified Bearer + service-role write)
   if (new URL(req.url, "https://x").searchParams.get("mode") === "link-identity") {
     return linkIdentityHandler(req, res);
