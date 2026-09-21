@@ -194,7 +194,7 @@ function createSelfMarketingContent(product, marketingInsights, language = LANG_
   const hooks = generateHookVariations(product, { count: 5, format: 'short_video' });
 
   const marketingContent = {
-    product: { id: product.id, title: product.title, price: product.price },
+    product: { id: product.id, title: product.title, price: product.price, marketerId: product.marketerId },
     lunaHook,
     lunaStory: story,
     contentPack,
