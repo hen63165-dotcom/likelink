@@ -97,4 +97,19 @@ export const SEED_PRODUCTS = [
     clicks: 0,
     createdAt: now - 5 * DAY,
   },
+  // LikeLink2 Self-Marketing Product (internal — LikeLink2 markets itself)
+  {
+    id: "like-marketing-01",
+    marketerId: "msd6go4kff49s5",
+    title: "LikeLink2 Native Self-Marketing Engine",
+    description: "מנוע שיווק עצמי נייטיב של LikeLink2: מוצר/קישור → לונה מבינה → תוכן → אמון → פרסום → מדידה → אופטימיזציה. גילוי נאות: זהו מוצר פנימי של LikeLink2 למערכת שיווק עצמי. קישור שיווקי affiliate גילוי נאות sponsored.",
+    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80",
+    affiliateUrl: "https://likelink2.vercel.app",
+    category: "Marketing",
+    price: 0,
+    commission: 0,
+    status: "approved",
+    clicks: 0,
+    createdAt: now,
+  },
 ];
