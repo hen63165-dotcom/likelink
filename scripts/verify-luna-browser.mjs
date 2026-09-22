@@ -25,7 +25,7 @@ const server=http.createServer(async(req,res)=>{
  let result;
  if(b.action==='status') result={ok:true,status:'CORE_DEGRADED',capabilities:[{capability:'text',status:'NOT_CONFIGURED'}]};
  else if(b.action==='inspect')result={ok:true,jobs:completed?[]:[{jobId:'original-job',operation:'luna.suggest',status:'blocked',errorCode:'BLOCKED_BY_CREDENTIAL',expiresAt:Date.now()+3600000}]};
- else if(b.action==='resume'){ids.push(b.jobId);attempts++;if(attempts===1){req.socket.destroy();return;}completed=true;result={ok:true,job:{jobId:b.jobId,status:'completed'},result:{text:'Verified local browser result'}};}
+ else if(b.action==='resume'){ids.push(b.jobId);attempts++;if(attempts===1){res.statusCode=500;return res.end('simulated-outage');}completed=true;result={ok:true,job:{jobId:b.jobId,status:'completed'},result:{text:'Verified local browser result'}};}
  else result={ok:false,error:'INVALID_REQUEST'};
  res.setHeader('content-type','application/json');return res.end(JSON.stringify(result));
  }
@@ -58,7 +58,7 @@ try {
  await evaluate(`${resume}.click()`);
  await until(`document.body.textContent.includes('Verified local browser result')`);
  assert.deepEqual(ids,['original-job','original-job']);assert.equal(attempts,2);assert.deepEqual(errors,[]);
- console.log('PASS: Edge 390px, real Luna + client, blocked job -> network failure -> enabled resume -> same job success; no uncaught exceptions. Cloud mocked, not production.');
+ console.log('PASS: Edge 390px, real Luna + client, blocked job -> failed resume (honest cloud-unavailable state) -> enabled resume -> same job success; no uncaught exceptions. Cloud mocked, not production.');
 } finally {
  ws?.close();edge.kill();server.closeAllConnections();await new Promise(r=>server.close(r));
  setTimeout(()=>{try{rmSync(profile,{recursive:true,force:true});}catch{}},1500);
