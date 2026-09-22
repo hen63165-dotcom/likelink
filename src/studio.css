@@ -112,7 +112,7 @@
 .ll-nav-item.ll-nav-active .ll-nav-icon { color: var(--accent); }
 
 .ll-header {
-  background: rgba(11, 13, 26, 0.85);
+  background: var(--header-blur);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
@@ -175,44 +175,4 @@
   letter-spacing: 0.05em;
   font-weight: 500;
 }
-
-.ll-cta-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
-  color: white;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 10px 20px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(108, 76, 241, 0.35);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ll-cta-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(108, 76, 241, 0.45);
-}
-
-.ll-cta-primary:active { transform: translateY(0) scale(0.98); }
-
-.ll-cta-secondary {
-  background: var(--bg-subtle);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 10px 20px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ll-cta-secondary:hover { background: var(--bg-muted); border-color: rgba(122, 163, 255, 0.3); color: var(--accent); }
 

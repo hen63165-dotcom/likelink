@@ -154,14 +154,12 @@ const OverviewPanel = ({ onNavigate }) => {
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="ll-card rounded-2xl p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-[var(--text-faint)]">{s.label}</span>
-                <Icon size={16} className="text-[var(--accent)]" />
+            <div key={s.label} className="ll-stat-card">
+              <div className="ll-stat-icon">
+                <Icon size={17} />
               </div>
-              <div className="mt-2 text-2xl font-extrabold text-[var(--text)]">
-                {loading ? "…" : s.value}
-              </div>
+              <div className="ll-stat-value">{loading ? "…" : s.value}</div>
+              <div className="ll-stat-label">{s.label}</div>
             </div>
           );
         })}
@@ -915,6 +913,79 @@ const SECTION_LABELS = {
   operate: { he: "תפעול", en: "Operate" },
 };
 
+// Short, truthful one-liners: they describe what the panel actually does and
+// where its data comes from. No promises, no invented capability.
+const VIEW_SUBTITLES = {
+  [VIEW_IDS.OVERVIEW]: {
+    he: "תמונת מצב מהנתונים האמיתיים שלך — מוצרים, מכירות ולחיצות.",
+    en: "A snapshot of your real data — products, sales and clicks.",
+  },
+  [VIEW_IDS.LUNA]: {
+    he: "בקשה בשפה חופשית — לונה מנתבת למנועים האמיתיים ומחזירה סטטוס אמיתי.",
+    en: "Natural-language requests routed into the real engines, with real status.",
+  },
+  [VIEW_IDS.PRODUCTS]: {
+    he: "סטודיו המוצרים המלא — יצירה, קטלוג, קישורים ותשלומים.",
+    en: "The full product studio — creation, catalog, links and payouts.",
+  },
+  [VIEW_IDS.PRODUCT_INTELLIGENCE]: {
+    he: "ניתוח מבוסס מערכות השיווק והתוכן האמיתיות — בלי נתוני דמו.",
+    en: "Analysis from the real marketing and content engines — no demo data.",
+  },
+  [VIEW_IDS.SELF_MARKETING]: {
+    he: "שיווק LikeLink2 עצמו — אותות אמיתיים, בחירת זווית ופרסום מותר.",
+    en: "LikeLink2 marketing itself — real signals, angle selection, allowed channels.",
+  },
+  [VIEW_IDS.UGC]: {
+    he: "ביצועי קהילה אמיתיים מהמכירות והמוצרים שלך.",
+    en: "Real community performance from your own sales and products.",
+  },
+  [VIEW_IDS.VIDEO]: {
+    he: "רנדור 9:16 בדפדפן — או מצב אמיתי של מה שחסר.",
+    en: "9:16 in-browser rendering — or the truthful state of what is missing.",
+  },
+  [VIEW_IDS.CREATOR_LAB]: {
+    he: "זהות היוצר והעולם המותגי — נשמר לחשבון האמיתי שלך.",
+    en: "Creator identity and brand world — saved to your real account.",
+  },
+  [VIEW_IDS.CONTENT]: {
+    he: "יצירה ופרסום תוכן דרך מערכת הפרסום האמיתית.",
+    en: "Content creation and publishing through the real publishing system.",
+  },
+  [VIEW_IDS.CAMPAIGNS]: {
+    he: "בניית קמפיין ושיתוף — קישורים אמיתיים בלבד.",
+    en: "Campaign building and sharing — real links only.",
+  },
+  [VIEW_IDS.TRENDS]: {
+    he: "מכ\"ם טרנדים והזדמנויות ממנוע הצמיחה האמיתי.",
+    en: "Trend radar and opportunities from the real growth engine.",
+  },
+  [VIEW_IDS.PUBLISHING]: {
+    he: "פרסום פנימי נשמר באמת; ערוץ חיצוני רק אם מחובר ומאושר.",
+    en: "Internal publishing really persists; external only when connected and authorized.",
+  },
+  [VIEW_IDS.PERFORMANCE]: {
+    he: "מדדים מחושבים מהלחיצות והמכירות שלך בלבד.",
+    en: "Metrics computed from your own clicks and sales only.",
+  },
+  [VIEW_IDS.TRUST]: {
+    he: "מצב האמון האמיתי לכל מוצר — כולל הסבר מדוע נחסם.",
+    en: "The real trust state per product — including why it is blocked.",
+  },
+  [VIEW_IDS.AUTOPILOT]: {
+    he: "פרסום מתוזמן וכללי גישה אמיתיים לחשבון.",
+    en: "Scheduled publishing and real access gating for your account.",
+  },
+  [VIEW_IDS.RECOMMENDATIONS]: {
+    he: "זכאות לחידוש הכנסה מחושבת מהנתונים האמיתיים שלך.",
+    en: "Monetization eligibility computed from your real data.",
+  },
+  [VIEW_IDS.SETTINGS]: {
+    he: "חשבון, שפה, ערכת נושא, תשלומים ובריאות המערכת.",
+    en: "Account, language, theme, payouts and system health.",
+  },
+};
+
 export function StudioShell({ view: initialView, onNavigate: externalNavigate }) {
   const { lang, setLang } = useI18n();
   const { setTheme } = useTheme();
@@ -1075,15 +1146,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
   return (
     <div dir={lang === "he" ? "rtl" : "ltr"} className="ll-studio min-h-screen">
       {/* Top bar */}
-      <header
-        className="sticky top-0 z-40 border-b safe-top"
-        style={{
-          background: "var(--header-blur)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          borderColor: "var(--border)",
-        }}
-      >
+      <header className="ll-header sticky top-0 z-40 safe-top">
         <div className="flex h-14 items-center gap-3 px-4">
           <button
             onClick={() => setDrawerOpen(true)}
@@ -1104,7 +1167,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
               <Sparkles size={15} />
             </button>
             {activeView && (() => { const Icon = activeView.icon; return <Icon size={17} style={{ color: "var(--accent)" }} />; })()}
-            <h1 className="truncate text-sm font-bold" style={{ color: "var(--text)" }}>
+            <h1 className="ll-page-title truncate">
               {activeView ? (lang === "he" ? activeView.he : activeView.en) : ""}
             </h1>
           </div>
@@ -1156,7 +1219,21 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
               body={String(error.message || error)}
             />
           ) : (
-            renderView()
+            <>
+              {activeView && (
+                <div className="mb-5 min-w-0">
+                  <h2 className="ll-page-title">
+                    {lang === "he" ? activeView.he : activeView.en}
+                  </h2>
+                  {VIEW_SUBTITLES[view] && (
+                    <p className="ll-page-subtitle">
+                      {lang === "he" ? VIEW_SUBTITLES[view].he : VIEW_SUBTITLES[view].en}
+                    </p>
+                  )}
+                </div>
+              )}
+              {renderView()}
+            </>
           )}
         </main>
       </div>
