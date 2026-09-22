@@ -1,10 +1,10 @@
 /* ============================================================
    LIKELINK — Ultra-Luxury Minimalist Theme (2026)
    ------------------------------------------------------------
-   Loaded AFTER the app's compiled Tailwind bundle so these rules
-   win the cascade. `!important` is used where the app renders
-   hard-coded inline styles, so the redesign reliably overrides
-   the shipped look without touching the minified React bundle.
+   NOTE: This file is imported by src/main.jsx so the theme ships
+   inside the compiled CSS bundle. It mirrors /public/luxury.css
+   (which index.html & login.html also load via <link>). Keep the
+   two files in sync — src/luxury.css is the bundled copy.
    ============================================================ */
 
 :root {
@@ -27,8 +27,92 @@
   --ll-ease:          cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ---------- Canvas & base typography ---------- */
-html, body, #root { background: var(--ll-canvas) !important; }
+/* ---------- Public hero: a clear, editorial first impression ---------- */
+.ll-hero {
+  min-height: 230px;
+  padding: 28px 26px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-radius: 22px;
+  color: #F7F3EA;
+  background: #211C16;
+  box-shadow: 0 22px 48px -28px rgba(27, 23, 18, 0.7);
+  isolation: isolate;
+}
+.ll-hero-glow {
+  position: absolute;
+  inset: -35% 35% 0 -10%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(201, 168, 108, 0.45), transparent 62%);
+  filter: blur(10px);
+  animation: ll-hero-drift 12s ease-in-out infinite alternate;
+}
+.ll-kicker {
+  margin: 0 0 10px;
+  color: #DCC79D;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.ll-hero-title {
+  max-width: 620px;
+  margin: 0;
+  color: #FFFDF8;
+  font-family: var(--font-disp);
+  font-size: clamp(2rem, 7vw, 4rem);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+.ll-hero-copy {
+  max-width: 520px;
+  margin: 14px 0 0;
+  color: rgba(247, 243, 234, 0.72);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.ll-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+}
+.ll-hero-actions .btn-primary {
+  background: #D6B878;
+  color: #211C16;
+  box-shadow: none;
+}
+.ll-hero-note {
+  color: rgba(247, 243, 234, 0.58);
+  font-size: 11px;
+}
+.ll-hero-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: rgba(247, 243, 234, 0.46);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+@keyframes ll-hero-drift {
+  from { transform: translate3d(-3%, 2%, 0) scale(0.96); }
+  to { transform: translate3d(7%, -3%, 0) scale(1.08); }
+}
+@media (max-width: 560px) {
+  .ll-hero { min-height: 260px; padding: 22px 18px; }
+  .ll-hero-mark { display: none; }
+  .ll-hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
+
+/* ---------- Canvas & base typography ----------
+   Cream marketplace canvas applies ONLY in light theme. The Studio forces
+   data-theme="dark" and must keep its deep-navy background. */
+html:not([data-theme="dark"]),
+html:not([data-theme="dark"]) body,
+html:not([data-theme="dark"]) #root { background: var(--ll-canvas) !important; }
 
 body {
   font-family: "Inter", "Space Grotesk", system-ui, sans-serif !important;
@@ -38,6 +122,10 @@ body {
   letter-spacing: 0.002em;
 }
 
+[data-theme="dark"] body {
+  color: #e8ecff !important;
+}
+
 .disp, .disp * {
   font-family: "Fraunces", "Cormorant Garamond", "Space Grotesk", serif !important;
   font-weight: 400 !important;
@@ -45,8 +133,9 @@ body {
   font-optical-sizing: auto;
 }
 
-/* ---------- Top bar: refined, frosted, hairline ---------- */
-header, header[class*="sticky"] {
+/* ---------- Top bar: refined, frosted, hairline ----------
+   Cream header applies ONLY in light theme — never inside the dark Studio. */
+html:not([data-theme="dark"]) header, html:not([data-theme="dark"]) header[class*="sticky"] {
   background: rgba(247, 243, 234, 0.82) !important;
   -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
   backdrop-filter: blur(18px) saturate(150%) !important;
@@ -68,10 +157,11 @@ header span[class*="rounded-full"] {
   font-weight: 500 !important;
 }
 
-/* ---------- Bottom navigation: glassmorphism ---------- */
-[class~="fixed"][class~="bottom-0"],
-nav[class*="fixed"],
-[class*="fixed"][class*="bottom-0"] {
+/* ---------- Bottom navigation: glassmorphism ----------
+   Cream glass applies ONLY in light theme — never inside the dark Studio. */
+html:not([data-theme="dark"]) [class~="fixed"][class~="bottom-0"],
+html:not([data-theme="dark"]) nav[class*="fixed"],
+html:not([data-theme="dark"]) [class*="fixed"][class*="bottom-0"] {
   background: rgba(251, 248, 241, 0.66) !important;
   -webkit-backdrop-filter: blur(22px) saturate(170%) !important;
   backdrop-filter: blur(22px) saturate(170%) !important;
@@ -106,7 +196,7 @@ button[style*="F1EFFB"] {
 }
 
 button[style*="ECEAF3"],
-header button {
+html:not([data-theme="dark"]) header button {
   background: rgba(255, 255, 255, 0.78) !important;
   border: 1px solid var(--ll-hairline) !important;
   color: var(--ll-ink) !important;
@@ -133,7 +223,7 @@ button:active,
 /* ---------- Product feed & cards ---------- */
 .grid.grid-cols-2 { gap: 14px 12px !important; }
 
-.grid.grid-cols-2 > * {
+html:not([data-theme="dark"]) .grid.grid-cols-2 > * {
   background: var(--ll-surface) !important;
   border-radius: var(--ll-radius) !important;
   border: 1px solid var(--ll-hairline-soft) !important;
@@ -149,9 +239,9 @@ button:active,
   object-fit: cover !important;
   object-position: center !important;
   display: block !important;
-  background: var(--ll-canvas-2) !important;
   border-radius: 0 !important;
 }
+html:not([data-theme="dark"]) img { background: var(--ll-canvas-2) !important; }
 
 /* ---------- Section headers: quiet uppercase ---------- */
 main [class*="uppercase"],
@@ -174,14 +264,18 @@ main [class*="uppercase"],
 }
 
 /* ---------- Forms / sell inputs: refined ---------- */
-input, textarea, select {
+html:not([data-theme="dark"]) input,
+html:not([data-theme="dark"]) textarea,
+html:not([data-theme="dark"]) select {
   border-radius: 14px !important;
   border: 1px solid var(--ll-hairline) !important;
   background: var(--ll-surface) !important;
   box-shadow: inset 0 1px 2px rgba(27, 23, 18, 0.04) !important;
   transition: border-color var(--ll-ease) 0.15s, box-shadow var(--ll-ease) 0.15s !important;
 }
-input:focus, textarea:focus, select:focus {
+html:not([data-theme="dark"]) input:focus,
+html:not([data-theme="dark"]) textarea:focus,
+html:not([data-theme="dark"]) select:focus {
   outline: none !important;
   border-color: var(--ll-champagne) !important;
   box-shadow: 0 0 0 3px rgba(183, 143, 79, 0.18) !important;
@@ -239,15 +333,15 @@ div[class*="rounded-full"][style*="F1EFFB"] {
 
 /* ============================================================
    LEGACY THEME VARIABLES — remap the whole UI to the luxury
-   palette. The app's components read --bg / --text / --accent /
-   --border / --font-* directly, so overriding these :root custom
-   properties here (declared after index.css) shifts the ENTIRE
-   interface to the warm editorial look, not just the shell/nav/
-   buttons. --flip (RTL) and the --radius tokens are intentionally
-   left untouched.
+   palette in LIGHT theme only. The Studio forces data-theme="dark"
+   and must keep its deep-navy custom properties. These :root
+   declarations come later than index.css so scoping to
+   :not([data-theme="dark"]) keeps the Studio dark while the
+   marketplace stays cream. --flip (RTL) and the --radius tokens
+   are intentionally left untouched.
    ============================================================ */
 
-:root {
+:root:not([data-theme="dark"]) {
   --bg:              #F7F3EA;
   --bg-elevated:     #FFFFFF;
   --bg-subtle:       #FBF8F1;

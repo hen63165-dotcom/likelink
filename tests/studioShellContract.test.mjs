@@ -25,6 +25,8 @@ const SHELL = read("src/components/studio/StudioShell.jsx");
 const STUDIO_CSS = read("src/studio.css");
 const MAIN = read("src/main.jsx");
 const INDEX_CSS = read("src/index.css");
+const LUXURY_CSS = read("src/luxury.css");
+const PUBLIC_LUXURY_CSS = read("public/luxury.css");
 
 // The full Studio information architecture requested for the command center.
 const REQUIRED_VIEWS = [
@@ -130,6 +132,30 @@ test("dark palette is deep navy with blue/violet AI accents", () => {
   assert.ok(/--bg-elevated:\s*#111327/.test(block), "dark --bg-elevated must be navy (#111327)");
   assert.ok(/--accent:\s*#7aa3ff/.test(block), "dark --accent must be electric blue (#7aa3ff)");
   assert.ok(/--accent-2:\s*#b38dff/.test(block), "dark --accent-2 must be violet (#b38dff)");
+});
+
+test("luxury cream layer stays synced and scoped to light theme only", () => {
+  // index.html loads /public/luxury.css via <link> AFTER the compiled bundle,
+  // so an unscoped copy would silently clobber the dark Studio palette and
+  // render the command center cream/white instead of deep navy.
+  const norm = (s) => s.replace(/\r\n/g, "\n");
+  assert.equal(
+    norm(PUBLIC_LUXURY_CSS),
+    norm(LUXURY_CSS),
+    "public/luxury.css must stay in sync with src/luxury.css (the bundled copy)"
+  );
+  assert.ok(
+    !/html,\s*body,\s*#root\s*\{[^}]*background/.test(PUBLIC_LUXURY_CSS),
+    "no unscoped html/body/#root cream canvas rule may exist"
+  );
+  assert.ok(
+    PUBLIC_LUXURY_CSS.includes(':root:not([data-theme="dark"])'),
+    "the legacy --bg palette remap must be scoped to non-dark theme"
+  );
+  assert.ok(
+    PUBLIC_LUXURY_CSS.includes('html:not([data-theme="dark"]) body'),
+    "the cream canvas background must be scoped via the html ancestor"
+  );
 });
 
 test("Studio never fabricates metrics, creators or publications", () => {
