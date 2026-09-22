@@ -14,7 +14,6 @@ function getInitialTheme() {
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(getInitialTheme);
   const [storedTheme, setStoredTheme] = useState(getInitialTheme);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -27,11 +26,9 @@ export function ThemeProvider({ children }) {
       }
       if (resolved) {
         setStoredTheme(resolved);
-        setThemeState(resolved);
       } else {
         setStoredTheme("dark");
       }
-      setInitialized(true);
     })();
   }, []);
 
@@ -54,8 +51,8 @@ export function ThemeProvider({ children }) {
   }, [theme, setTheme]);
 
   const value = useMemo(
-    () => ({ theme, storedTheme, setTheme, toggleTheme, isDark: theme === "dark", initialized }),
-    [theme, storedTheme, setTheme, toggleTheme, initialized]
+    () => ({ theme, storedTheme, setTheme, toggleTheme, isDark: theme === "dark" }),
+    [theme, storedTheme, setTheme, toggleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -63,6 +60,6 @@ export function ThemeProvider({ children }) {
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
+  if (!ctx) throw new Error("useTheme must be used within ThemeContext.Provider");
   return ctx;
 }
