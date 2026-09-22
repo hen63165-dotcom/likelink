@@ -1,0 +1,68 @@
+/* ============================================================
+   LikeLink2 Studio — dark premium surface styles (2026 redesign)
+   All colors come from the existing [data-theme="dark"] palette
+   in index.css (deep navy background, blue/purple AI accents).
+   ============================================================ */
+
+.ll-studio {
+  background:
+    radial-gradient(circle at top right, rgba(108, 76, 241, 0.20), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.12), transparent 26%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+.ll-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.ll-tap {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.ll-tap:hover {
+  box-shadow: var(--shadow-md);
+}
+.ll-tap:active {
+  transform: scale(0.97);
+  opacity: 0.95;
+}
+
+.ll-grad-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ll-glow {
+  box-shadow: 0 10px 26px -8px rgba(108, 76, 241, 0.55);
+}
+
+/* Sidebar navigation */
+.ll-nav-item {
+  color: var(--text-secondary);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ll-nav-item:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+.ll-nav-item.ll-nav-active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.ll-nav-item.ll-nav-active:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.ll-dot {
+  box-shadow: 0 0 0 3px var(--bg-elevated);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ll-tap:active { transform: none; }
+}

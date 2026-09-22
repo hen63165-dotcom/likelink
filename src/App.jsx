@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
-import { ThemeProvider } from "./context/ThemeContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { LangProvider, useI18n } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
@@ -12,6 +12,7 @@ import { initReferral } from "./lib/referral.js";
 
 // Modern Layout & UI
 import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
+import { StudioShell } from "./components/studio/StudioShell";
 import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
@@ -59,6 +60,7 @@ function App() {
   const { lang, setLang } = useI18n();
   const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
   const { clearCart } = useCart();
+  const { setTheme, storedTheme } = useTheme();
   const [tab, setTab] = useState("feed");
   const [route, setRoute] = useState(() => parsePath(window.location.pathname));
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,6 +70,13 @@ function App() {
   useEffect(() => {
     initReferral();
   }, []);
+
+  // The seller Studio is a dark premium surface — force dark while it is open
+  // (transient override) and restore the visitor's saved theme everywhere else.
+  useEffect(() => {
+    if (tab === "sell") setTheme("dark", false);
+    else setTheme(storedTheme, false);
+  }, [tab, storedTheme, setTheme]);
 
   // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
   useEffect(() => {
@@ -183,7 +192,21 @@ function App() {
     );
   }
 
-  // Main App Tabs
+  // Seller Studio — the dark premium LikeLink2 Studio shell (2026 redesign).
+  // Fully replaces the old cream marketplace shell for the studio tab.
+  if (tab === "sell") {
+    return (
+      <>
+        <StudioShell
+          view={route.view}
+          onNavigate={(v) => navigate(`/studio/${v}`)}
+        />
+        <Toast message={toast?.msg} />
+      </>
+    );
+  }
+
+  // Main App Tabs (marketplace — keeps the existing light shell)
   return (
     <AppShell>
       <TopBar
@@ -208,7 +231,6 @@ function App() {
               onScreenshotSearch={() => setScreenshotOpen(true)}
             />
           )}
-          {tab === "sell" && <SellView navigate={navigate} />}
           {tab === "admin" && <AdminView />}
         </Suspense>
       </main>

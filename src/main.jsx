@@ -7,6 +7,8 @@ import './index.css'
 // redesign ships with every production build. Keep in sync with the
 // /public/luxury.css copy that index.html & login.html also load via <link>.
 import './luxury.css'
+// LikeLink2 Studio — dark premium command-center surface (2026 redesign).
+import './studio.css'
 // Auto-Heal runtime — catches errors, repairs corrupt storage, and keeps
 // the app booting cleanly on every visit (self-updating, self-repairing).
 import { installGlobalErrorHealing } from './lib/autoHeal.js'

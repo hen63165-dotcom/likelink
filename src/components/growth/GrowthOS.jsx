@@ -2,11 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Brain, Target, Zap, Share2, Activity, ChevronRight } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { TREND_STATES, TREND_STATE_LABELS, TREND_STATE_COLORS, createTrend, trendIsActive, summarizeTrend } from "../../lib/cloud/trendRadar.js";
-import { evaluateOpportunity, OPPORTUNITY_DECISIONS, OPPORTUNITY_DECISION_LABELS, selectBestOpportunities } from "../../lib/cloud/opportunityEngine.js";
+import { evaluateOpportunity, OPPORTUNITY_DECISIONS, OPPORTUNITY_DECISION_LABELS, selectBestOpportunity } from "../../lib/cloud/opportunityEngine.js";
 import { createCreativeVariant, CREATIVE_TYPES, CREATIVE_STATUS } from "../../lib/cloud/creativeMutation.js";
 import { resolveDistributionState, DISTRIBUTION_STATES, getBestFallback } from "../../lib/cloud/distributionIntelligence.js";
-import { computeWinningPatterns, audienceInsightSummary } from "../../lib/cloud/audienceIntelligence.js";
-import { recordPerformanceEvent } from "../../lib/cloud/growthLearning.js";
+import { computeWinningPatterns, recordPerformanceEvent } from "../../lib/cloud/growthLearning.js";
 import { getProviderConnectionState, CONNECTED_STATES } from "../../lib/cloud/connectionManager.js";
 import { EmptyState } from "../ui/index.jsx";
 import { money } from "../../utils/helpers.js";
@@ -70,7 +69,7 @@ export default function GrowthOS({ products = [], events = [], channels = ["web"
       .filter(Boolean);
   }, [selectedProduct, trends, channels]);
 
-  const bestOpportunities = useMemo(() => selectBestOpportunities(opportunities, 3), [opportunities]);
+  const bestOpportunities = useMemo(() => selectBestOpportunity(opportunities, 3), [opportunities]);
 
   const creative = useMemo(() => {
     if (!selectedProduct || !bestOpportunities[0]?.trend) return null;
