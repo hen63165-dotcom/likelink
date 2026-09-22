@@ -29,13 +29,13 @@
     { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
     { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
     { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" },
-    { "source": "/feed", "destination": "/index.html" },
-    { "source": "/feed/:path*", "destination": "/index.html" },
-    { "source": "/studio", "destination": "/index.html" },
-    { "source": "/studio/:path*", "destination": "/index.html" },
-    { "source": "/sell", "destination": "/index.html" },
-    { "source": "/admin", "destination": "/index.html" },
-    { "source": "/admin/:path*", "destination": "/index.html" }
+    { "source": "/feed", "destination": "/" },
+    { "source": "/feed/:path*", "destination": "/" },
+    { "source": "/studio", "destination": "/" },
+    { "source": "/studio/:path*", "destination": "/" },
+    { "source": "/sell", "destination": "/" },
+    { "source": "/admin", "destination": "/" },
+    { "source": "/admin/:path*", "destination": "/" }
   ],
   "headers": [
     {
