@@ -44,6 +44,7 @@ import { AnalyticsDashboard } from "../sell/AnalyticsDashboard";
 import AutoPilot from "../sell/AutoPilot";
 import SellerEngagement from "../sell/SellerEngagement";
 import CampaignBuilder from "../sell/CampaignBuilder";
+import StudioHub from "../sell/StudioHub";
 import GrowthOS from "../growth/GrowthOS";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import AvatarStudio from "../ambassador/AvatarStudio";
@@ -58,6 +59,8 @@ const VIEW_IDS = {
   OVERVIEW: "overview",
   LUNA: "luna",
   PRODUCTS: "products",
+  PRODUCT_INTELLIGENCE: "product-intelligence",
+  SELF_MARKETING: "self-marketing",
   UGC: "ugc",
   VIDEO: "video",
   CREATOR_LAB: "creator-lab",
@@ -693,6 +696,28 @@ function useMyProducts() {
   );
 }
 
+/** Product Intelligence & Self-Marketing — the real StudioHub engine. */
+function IntelligencePanel({ highlight }) {
+  const { lang } = useI18n();
+  const { currentMarketer: marketer, products, sales, clicks, showToast } = useMarketplace();
+  const title = highlight === "self"
+    ? (lang === "he" ? "שיווק עצמי · LikeLink2 — מנוע השיווק האמיתי" : "Self-Marketing · LikeLink2 — the real marketing engine")
+    : (lang === "he" ? "תבונת מוצר — יכולות אמיתיות" : "Product Intelligence — real capabilities");
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>{title}</h3>
+      <StudioHub
+        marketer={marketer}
+        products={products || []}
+        sales={sales || []}
+        clicks={clicks || []}
+        showToast={showToast}
+      />
+    </div>
+  );
+}
+
+/** Performance — real metrics only, computed from the seller's own clicks/sales. */
 function PerformancePanel({ onNavigate }) {
   const { lang } = useI18n();
   const { currentMarketer: marketer } = useMarketplace();
@@ -850,6 +875,7 @@ const NAV_SECTIONS = [
       { view: VIEW_IDS.OVERVIEW, icon: LayoutDashboard, he: "סקירה כללית", en: "Overview" },
       { view: VIEW_IDS.LUNA, icon: Sparkles, he: "לונה · מרכז בקרה", en: "Luna · Command" },
       { view: VIEW_IDS.PRODUCTS, icon: Package, he: "מוצרים וסטודיו", en: "Products & Studio" },
+      { view: VIEW_IDS.PRODUCT_INTELLIGENCE, icon: Brain, he: "תבונת מוצר", en: "Product Intelligence" },
     ],
   },
   {
@@ -864,7 +890,8 @@ const NAV_SECTIONS = [
   {
     id: "grow",
     items: [
-      { view: VIEW_IDS.CAMPAIGNS, icon: Megaphone, he: "קמפיינים", en: "Campaigns" },
+      { view: VIEW_IDS.SELF_MARKETING, icon: Megaphone, he: "שיווק עצמי", en: "Self-Marketing" },
+      { view: VIEW_IDS.CAMPAIGNS, icon: Send, he: "קמפיינים", en: "Campaigns" },
       { view: VIEW_IDS.TRENDS, icon: TrendingUp, he: "טרנדים", en: "Trends" },
       { view: VIEW_IDS.PUBLISHING, icon: Send, he: "פרסום", en: "Publishing" },
       { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים", en: "Performance" },
@@ -1027,6 +1054,8 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
           <SellView />
         </Suspense>
       );
+      case VIEW_IDS.PRODUCT_INTELLIGENCE: return <IntelligencePanel highlight="product" />;
+      case VIEW_IDS.SELF_MARKETING: return <IntelligencePanel highlight="self" />;
       case VIEW_IDS.UGC: return <UgcPanel onNavigate={navigate} />;
       case VIEW_IDS.VIDEO: return <VideoPanel onNavigate={navigate} />;
       case VIEW_IDS.CREATOR_LAB: return <CreatorLabPanel onNavigate={navigate} />;
@@ -1065,6 +1094,15 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
             <Menu size={18} />
           </button>
           <div className="flex min-w-0 items-center gap-2">
+            <button
+              onClick={() => navigate(VIEW_IDS.LUNA)}
+              className="ll-tap flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+              style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}
+              aria-label={lang === "he" ? "לונה — מרכז הבקרה" : "Luna — command center"}
+              title={lang === "he" ? "לונה — מרכז הבקרה" : "Luna — command center"}
+            >
+              <Sparkles size={15} />
+            </button>
             {activeView && (() => { const Icon = activeView.icon; return <Icon size={17} style={{ color: "var(--accent)" }} />; })()}
             <h1 className="truncate text-sm font-bold" style={{ color: "var(--text)" }}>
               {activeView ? (lang === "he" ? activeView.he : activeView.en) : ""}

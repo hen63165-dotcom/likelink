@@ -17,20 +17,24 @@
     { "path": "/api/price-watch", "schedule": "0 3 * * *" },
     { "path": "/api/payouts/process", "schedule": "0 2 * * *" }
   ],
-  "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/google-feed?kind=sitemap" },
-    { "source": "/google-feed.xml", "destination": "/api/google-feed?kind=google" },
-    { "source": "/r", "destination": "/api/og?mode=r" },
-    { "source": "/api/r", "destination": "/api/og?mode=r" },
-    { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
-            { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
-    { "source": "/p/:id", "destination": "/api/og?id=:id" },
-    { "source": "/grow/:id", "destination": "/api/og?mode=growth&id=:id" },
-    { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
-    { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
-    { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ],
+  "rewrites": {
+    "beforeFiles": [
+      { "source": "/sitemap.xml", "destination": "/api/google-feed?kind=sitemap" },
+      { "source": "/google-feed.xml", "destination": "/api/google-feed?kind=google" },
+      { "source": "/r", "destination": "/api/og?mode=r" },
+      { "source": "/api/r", "destination": "/api/og?mode=r" },
+      { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
+      { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
+      { "source": "/p/:id", "destination": "/api/og?id=:id" },
+      { "source": "/grow/:id", "destination": "/api/og?mode=growth&id=:id" },
+      { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
+      { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
+      { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" }
+    ],
+    "afterFiles": [
+      { "source": "/:path*", "destination": "/index.html" }
+    ]
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
