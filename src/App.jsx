@@ -71,12 +71,13 @@ function App() {
     initReferral();
   }, []);
 
-  // The seller Studio is a dark premium surface — force dark while it is open
-  // (transient override) and restore the visitor's saved theme everywhere else.
+  // The seller Studio is a dark premium surface — force dark whenever the Studio
+  // is the active surface (tab "sell" OR the landing/feed view showing the Studio).
   useEffect(() => {
-    if (tab === "sell") setTheme("dark", false);
+    const showStudio = tab === "sell" || route.type === "landing" || tab === "feed";
+    if (showStudio) setTheme("dark", false);
     else setTheme(storedTheme, false);
-  }, [tab, storedTheme, setTheme]);
+  }, [tab, route.type, storedTheme, setTheme]);
 
   // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
   useEffect(() => {
@@ -200,6 +201,23 @@ function App() {
         <StudioShell
           view={route.view}
           onNavigate={(v) => navigate(`/studio/${v}`)}
+        />
+        <Toast message={toast?.msg} />
+      </>
+    );
+  }
+
+  // Landing / unknown routes — dark premium Studio is the default experience,
+  // replacing the old cream/beige marketplace as the primary surface.
+  if (route.type === "landing" || tab === "feed") {
+    return (
+      <>
+        <StudioShell
+          view={route.view || undefined}
+          onNavigate={(v) => {
+            if (v === "overview" || !v) navigate("/");
+            else navigate(`/studio/${v}`);
+          }}
         />
         <Toast message={toast?.msg} />
       </>
