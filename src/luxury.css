@@ -107,8 +107,10 @@
   .ll-hero-actions { align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 
-/* ---------- Canvas & base typography ---------- */
-html, body, #root { background: var(--ll-canvas) !important; }
+/* ---------- Canvas & base typography ----------
+   Cream marketplace canvas applies ONLY in light theme. The Studio forces
+   data-theme="dark" and must keep its deep-navy background. */
+html:not([data-theme="dark"]), body:not([data-theme="dark"]), #root:not([data-theme="dark"]) { background: var(--ll-canvas) !important; }
 
 body {
   font-family: "Inter", "Space Grotesk", system-ui, sans-serif !important;
@@ -118,6 +120,10 @@ body {
   letter-spacing: 0.002em;
 }
 
+[data-theme="dark"] body {
+  color: #e8ecff !important;
+}
+
 .disp, .disp * {
   font-family: "Fraunces", "Cormorant Garamond", "Space Grotesk", serif !important;
   font-weight: 400 !important;
@@ -125,8 +131,9 @@ body {
   font-optical-sizing: auto;
 }
 
-/* ---------- Top bar: refined, frosted, hairline ---------- */
-header, header[class*="sticky"] {
+/* ---------- Top bar: refined, frosted, hairline ----------
+   Cream header applies ONLY in light theme — never inside the dark Studio. */
+html:not([data-theme="dark"]) header, html:not([data-theme="dark"]) header[class*="sticky"] {
   background: rgba(247, 243, 234, 0.82) !important;
   -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
   backdrop-filter: blur(18px) saturate(150%) !important;
@@ -148,10 +155,11 @@ header span[class*="rounded-full"] {
   font-weight: 500 !important;
 }
 
-/* ---------- Bottom navigation: glassmorphism ---------- */
-[class~="fixed"][class~="bottom-0"],
-nav[class*="fixed"],
-[class*="fixed"][class*="bottom-0"] {
+/* ---------- Bottom navigation: glassmorphism ----------
+   Cream glass applies ONLY in light theme — never inside the dark Studio. */
+html:not([data-theme="dark"]) [class~="fixed"][class~="bottom-0"],
+html:not([data-theme="dark"]) nav[class*="fixed"],
+html:not([data-theme="dark"]) [class*="fixed"][class*="bottom-0"] {
   background: rgba(251, 248, 241, 0.66) !important;
   -webkit-backdrop-filter: blur(22px) saturate(170%) !important;
   backdrop-filter: blur(22px) saturate(170%) !important;
@@ -319,15 +327,15 @@ div[class*="rounded-full"][style*="F1EFFB"] {
 
 /* ============================================================
    LEGACY THEME VARIABLES — remap the whole UI to the luxury
-   palette. The app's components read --bg / --text / --accent /
-   --border / --font-* directly, so overriding these :root custom
-   properties here (declared after index.css) shifts the ENTIRE
-   interface to the warm editorial look, not just the shell/nav/
-   buttons. --flip (RTL) and the --radius tokens are intentionally
-   left untouched.
+   palette in LIGHT theme only. The Studio forces data-theme="dark"
+   and must keep its deep-navy custom properties. These :root
+   declarations come later than index.css so scoping to
+   :not([data-theme="dark"]) keeps the Studio dark while the
+   marketplace stays cream. --flip (RTL) and the --radius tokens
+   are intentionally left untouched.
    ============================================================ */
 
-:root {
+:root:not([data-theme="dark"]) {
   --bg:              #F7F3EA;
   --bg-elevated:     #FFFFFF;
   --bg-subtle:       #FBF8F1;
