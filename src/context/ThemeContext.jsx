@@ -4,28 +4,34 @@ import { K } from "../constants/keys.js";
 
 const ThemeContext = createContext(null);
 
-/**
- * ThemeProvider — marketplace light theme by default, with an optional
- * transient (non-persisted) override used by the Studio shell to force the
- * dark premium theme while the seller studio is open, without changing the
- * visitor's saved preference for the public marketplace.
- */
+function getInitialTheme() {
+  if (typeof document === "undefined") return "dark";
+  const current = document.documentElement.getAttribute("data-theme");
+  if (current === "dark" || current === "light") return current;
+  return "dark";
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState("light");
-  const [storedTheme, setStoredTheme] = useState("light");
+  const [theme, setThemeState] = useState(getInitialTheme);
+  const [storedTheme, setStoredTheme] = useState(getInitialTheme);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     (async () => {
-      let resolved = "light";
+      let resolved = null;
       try {
         const res = await storage.get(K.theme, false);
         if (res?.value === "dark" || res?.value === "light") resolved = res.value;
-        else if (window.matchMedia("(prefers-color-scheme: dark)").matches) resolved = "dark";
       } catch {
-        /* storage unavailable — keep light */
+        /* storage unavailable */
       }
-      setStoredTheme(resolved);
-      setThemeState(resolved);
+      if (resolved) {
+        setStoredTheme(resolved);
+        setThemeState(resolved);
+      } else {
+        setStoredTheme("dark");
+      }
+      setInitialized(true);
     })();
   }, []);
 
@@ -48,8 +54,8 @@ export function ThemeProvider({ children }) {
   }, [theme, setTheme]);
 
   const value = useMemo(
-    () => ({ theme, storedTheme, setTheme, toggleTheme, isDark: theme === "dark" }),
-    [theme, storedTheme, setTheme, toggleTheme]
+    () => ({ theme, storedTheme, setTheme, toggleTheme, isDark: theme === "dark", initialized }),
+    [theme, storedTheme, setTheme, toggleTheme, initialized]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
