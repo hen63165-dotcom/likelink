@@ -866,6 +866,41 @@ function SettingsPanel({ onExit }) {
   );
 }
 
+function CloudHealthCard() {
+  const { lang } = useI18n();
+  const [health, setHealth] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/store?mode=status", { headers: { accept: "application/json" } });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!cancelled && data) setHealth(data);
+      } catch { /* offline or unavailable — card stays in the checking state */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const he = lang === "he";
+  const ready = health && (health.ok === true || health.status === "ok" || health.cloud === "ok");
+  return (
+    <div className="ll-card rounded-xl p-3">
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ background: health ? (ready ? "var(--success)" : "var(--warning, #f59e0b)") : "var(--text-faint)" }}
+        />
+        <span className="text-xs font-bold" style={{ color: "var(--text)" }}>
+          {he ? "בריאות המערכת" : "System health"}
+        </span>
+        <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+          {health ? (ready ? (he ? "תקין" : "OK") : (he ? "מוגבל" : "Limited")) : (he ? "בודק…" : "Checking…")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const NAV_SECTIONS = [
   {
     id: "core",
