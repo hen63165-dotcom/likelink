@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Package, Sparkles, Clapperboard, UserCog, FileText,
   Megaphone, TrendingUp, Send, BarChart3, ShieldCheck, Bot, Lightbulb,
   Settings, LogOut, Moon, Sun, Languages, ChevronLeft, Store, Copy,
-  Activity, Menu, Brain,
+  Activity, Menu, Brain, AlertCircle, CheckCircle,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -1034,6 +1034,27 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     Object.values(VIEW_IDS).includes(initialView) ? initialView : VIEW_IDS.OVERVIEW
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [autonomousJobs, setAutonomousJobs] = useState([]);
+  const [lastAutonomousCheck, setLastAutonomousCheck] = useState(0);
+
+  // Fetch autonomous job status for Luna site agent heartbeat
+  useEffect(() => {
+    let cancelled = false;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/autopilot?mode=autonomous-jobs-status", { headers: { accept: "application/json" } });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!cancelled && data?.jobs) {
+          setAutonomousJobs(data.jobs);
+          setLastAutonomousCheck(Date.now());
+        }
+      } catch { /* offline or unavailable */ }
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 60000); // poll every minute
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   // Deep links & browser back/forward: follow the route's view segment.
   useEffect(() => {
@@ -1210,6 +1231,21 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
             <span className="hidden text-[10px] sm:inline" style={{ color: "var(--text-faint)" }}>
               {lang === "he" ? "עברית · RTL" : "Hebrew-first"}
             </span>
+            {/* Luna Site Agent Heartbeat */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+              <span className="text-[10px] font-bold" style={{ color: "var(--accent)" }}>
+                {lang === "he" ? "לונה" : "Luna"}
+              </span>
+              <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--success)" }} />
+              <span className="text-[10px] text-[var(--text-secondary)]">
+                {autonomousJobs.length > 0
+                  ? (lang === "he" ? `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} פעיל` : `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} active`)
+                  : (lang === "he" ? "מרכז בקרה פעיל" : "Command center active")}
+              </span>
+              <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+                {lastAutonomousCheck ? new Date(lastAutonomousCheck).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (lang === "he" ? "מתחבר…" : "Connecting…")}
+              </span>
+            </div>
           </div>
         </div>
       </header>

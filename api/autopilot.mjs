@@ -27,6 +27,7 @@ import { selectOpportunity } from "../src/lib/cloud/growth.js";
 import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/veritas.js";
 import { createIntelligenceCore } from "./_utils/intelligenceCore.mjs";
 import { runCloudAutopilotCycle, getCloudCycleStatus } from "../src/lib/cloud/cloudAutopilot.js";
+import { runAllDueAutonomousJobs, getAutonomousJobStatus } from "../src/lib/cloud/autonomousJobs.js";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
@@ -1292,7 +1293,15 @@ export default async function handler(req, res) {
       }
       return;
     }
-    json(res, { ..._r, siteCycle, growthCycle, cloudCycle }, 200, req);
+    json(res, { ..._r, siteCycle, growthCycle, cloudCycle, autonomousJobs }, 200, req);
+    // Autonomous Growth Jobs — runs every cron tick (every 30 min) to process
+    // all due autonomous jobs (growth cycles, trend scans, opportunity discovery, etc.)
+    let autonomousJobs = { ok: false, skipped: "not_run" };
+    try {
+      autonomousJobs = await runAllDueAutonomousJobs();
+    } catch (e) {
+      autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
+    }
     // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
     // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
     import("./_utils/analytics.js")
@@ -1359,6 +1368,18 @@ export default async function handler(req, res) {
       }
     } catch { /* best-effort */ }
     json(res, { ok: true, events }, 200, req);
+    return;
+  }
+
+  // Autonomous job status — for Studio dashboard / Luna command center
+  // Shows cloud scheduler health: last run, next run, failures, queue depth
+  if (mode === "autonomous-jobs-status") {
+    try {
+      const status = await getAutonomousJobStatus();
+      json(res, { ok: true, jobs: status }, 200, req);
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e).slice(0, 160) }, 500, req);
+    }
     return;
   }
 
