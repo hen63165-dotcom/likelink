@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Package, Sparkles, Clapperboard, UserCog, FileText,
   Megaphone, TrendingUp, Send, BarChart3, ShieldCheck, Bot, Lightbulb,
   Settings, LogOut, Moon, Sun, Languages, ChevronLeft, Store, Copy,
-  Activity, Menu,
+  Activity, Menu, Brain,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
