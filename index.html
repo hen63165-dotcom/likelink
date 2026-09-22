@@ -81,16 +81,56 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>if (new URLSearchParams(window.location.search).get('debug') === 'storage') { location.replace('/debug-storage.html'); }</script>
+    <script>
+      // First-paint theme: apply the Studio's dark premium surface before React
+      // hydrates so the first visible frame is never the old cream shell.
+      // Visitor preference wins: only default to dark when nothing was saved.
+      try {
+        var __llTheme = null;
+        try { __llTheme = localStorage.getItem('likelink.theme'); } catch (e) { /* private mode — ignore */ }
+        if (__llTheme !== 'light' && __llTheme !== 'dark') { __llTheme = 'dark'; }
+        document.documentElement.setAttribute('data-theme', __llTheme);
+        if (__llTheme === 'dark') document.documentElement.classList.add('dark');
+      } catch (e) { /* never block first paint on theme */ }
+    </script>
   </head>
   <body>
     <!-- Semantic fallback: present in the initial HTML so JS-less crawlers
          and AI engines can still read accurate page content before React hydrates. -->
-    <div id="root">
-      <h1>Likelink2 — Luxury creator marketplace</h1>
-      <p>Curated fashion, accessories, beauty and elevated essentials picked by premium creators and styled for modern life.</p>
-      <noscript>
-        <p>Enable JavaScript to browse the Likelink2 creator marketplace.</p>
-      </noscript>
+    <div id="root" data-ll-studio-root>
+      <div class="ll-studio" dir="rtl" lang="he" style="min-height:100vh;background:#0b0d1a;color:#f4f6ff">
+        <div class="ll-header" style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(122,163,255,.16)">
+          <div class="ll-glow" style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#6c4cf1,#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800">✦</div>
+          <div>
+            <div style="font-weight:800;font-size:15px">LikeLink2 <span class="ll-grad-text">Studio</span></div>
+            <div style="font-size:11px;color:#9aa3c7">מרכז הבקרה ליוצרים</div>
+          </div>
+        </div>
+        <main style="max-width:1120px;margin:0 auto;padding:28px 18px 64px">
+          <h1 class="ll-page-title" style="font-size:26px;margin:0 0 6px">מרכז הבקרה של LikeLink2</h1>
+          <p class="ll-page-subtitle" style="margin:0 0 20px;color:#9aa3c7">לונה, מוצרים, UGC, וידאו, טרנדים, קמפיינים, פרסום, אמון וביצועים — הכל במקום אחד.</p>
+          <nav aria-label="ניווט הסטודיו" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+            <span class="ll-nav-item">לונה</span>
+            <span class="ll-nav-item">מוצרים</span>
+            <span class="ll-nav-item">UGC</span>
+            <span class="ll-nav-item">וידאו AI</span>
+            <span class="ll-nav-item">תוכן</span>
+            <span class="ll-nav-item">קמפיינים</span>
+            <span class="ll-nav-item">טרנדים</span>
+            <span class="ll-nav-item">פרסום</span>
+            <span class="ll-nav-item">ביצועים</span>
+            <span class="ll-nav-item">אמון</span>
+          </nav>
+          <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <div class="ll-card ll-stat-card" style="padding:16px;border-radius:16px"><div class="ll-stat-label">לונה</div><div class="ll-stat-value">מרכז הפקודות של הסטודיו</div></div>
+            <div class="ll-card ll-stat-card" style="padding:16px;border-radius:16px"><div class="ll-stat-label">תבונת מוצר</div><div class="ll-stat-value">Trust תחילה, אחר כך יצירה</div></div>
+            <div class="ll-card ll-stat-card" style="padding:16px;border-radius:16px"><div class="ll-stat-label">פרסום</div><div class="ll-stat-value">סטטוס אמיתי בלבד</div></div>
+          </section>
+          <noscript>
+            <p>הפעילו JavaScript כדי לפתוח את הסטודיו המלא של LikeLink2.</p>
+          </noscript>
+        </main>
+      </div>
     </div>
         <script type="module" src="./src/main.jsx"></script>
     <link rel="stylesheet" href="/luxury.css">
