@@ -24,7 +24,7 @@ const AFFILIATE_DISCLOSURE_AR = "رابط شريك: ربما نحصل على ع�
  * NEVER invents products — only imports from existing catalog definitions.
  */
 export function ingestProducts({ marketerId } = {}) {
-  const owner = String(marketerId || "msd6go4kff49s5").trim();
+  const owner = marketerId == null ? "" : String(marketerId).trim();
   if (!owner) return { ok: false, error: "missing_owner_id" };
 
   const candidates = [];
