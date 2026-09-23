@@ -106,21 +106,24 @@ export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("timeout")), job.maxDurationMs)
     );
-    result = await Promise.race([job.fn({ kvGet, kvSet, now }), timeoutPromise]);
-    result = { ok: true, ...(result || {}) };
+    result = await Promise.race([job.fn({ kvGet, kvSet, now }), timeoutPromise]) || {};
   } catch (e) {
     result = { ok: false, error: String(e.message || e) };
   }
 
-  // Update state
+  // Distinguish skipped (ok:false + skipped reason) from failed (ok:false + error)
+  const isSkipped = !result.ok && Boolean(result.skipped);
+
+  // Update state — skipped jobs are not failures, they're intentional no-ops
+  const finishedAt = Date.now();
   const finalRecord = {
     ...runRecord,
-    state: result.ok ? JOB_STATE.SUCCESS : JOB_STATE.FAILED,
-    finishedAt: now,
-    durationMs: now - runRecord.startedAt,
-    lastRunAt: now,
-    nextRunAt: now + job.intervalMs,
-    result: result.ok ? "success" : result.error,
+    state: result.ok ? JOB_STATE.SUCCESS : (isSkipped ? JOB_STATE.SKIPPED : JOB_STATE.FAILED),
+    finishedAt,
+    durationMs: finishedAt - runRecord.startedAt,
+    lastRunAt: finishedAt,
+    nextRunAt: finishedAt + job.intervalMs,
+    result: result.ok ? "success" : (isSkipped ? result.skipped : result.error),
   };
   try {
     await kvSet(stateKey, finalRecord);
@@ -130,10 +133,10 @@ export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
 
   // Audit log
   auditLog(
-    result.ok ? "growth.job.success" : "growth.job.failure",
+    result.ok ? "growth.job.success" : (isSkipped ? "growth.job.skipped" : "growth.job.failure"),
     { type: "system", id: "growth-scheduler" },
     { type: "job", id },
-    { result: result.ok ? "success" : result.error, durationMs: finalRecord.durationMs }
+    { result: result.ok ? "success" : (isSkipped ? result.skipped : result.error), durationMs: finalRecord.durationMs }
   );
 
   return { ...result, durationMs: finalRecord.durationMs };

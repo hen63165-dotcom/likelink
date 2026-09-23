@@ -12,8 +12,8 @@
  */
 
 import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthScheduler.js";
-import { runGrowthCycle, runDailyTrendScan } from "./lunaGrowth.js";
-import { discoverOpportunities } from "./selfGrowth.js";
+import { runGrowthCycle, runDailyTrendScan, detectOpportunities } from "./lunaGrowth.js";
+import { discoverOpportunities as discoverOpportunitiesLegacy } from "./selfGrowth.js";
 
 const ORIGIN = "https://likelink2.vercel.app";
 
@@ -178,7 +178,7 @@ registerJob("opportunity-discovery", {
   maxDurationMs: 60000,
   async fn({ kvGet, kvSet, now }) {
     const data = await getMarketplaceData(kvGet);
-    const opportunities = discoverOpportunities({
+    const opportunities = detectOpportunities({
       products: data.products,
       sales: data.sales,
       clicks: data.clicks,
