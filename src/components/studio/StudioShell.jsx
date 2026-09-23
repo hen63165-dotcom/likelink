@@ -50,6 +50,9 @@ import LunaAssistant from "../ambassador/LunaAssistant";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import AutoVideoStudio from "../video/AutoVideoStudio";
 import MarketingHub from "../MarketingHub";
+import LunaStatusCard from "./LunaStatusCard";
+import GrowthPipelineStrip from "./GrowthPipelineStrip";
+import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -227,6 +230,15 @@ const OverviewPanel = ({ onNavigate }) => {
           )}
         </div>
       </div>
+
+      {/* Luna Cloud Status + Growth Pipeline (real execution state) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <LunaStatusCard />
+        <GrowthShowcaseDemo />
+      </div>
+
+      {/* Growth Pipeline Strip */}
+      <GrowthPipelineStrip />
     </div>
   );
 };

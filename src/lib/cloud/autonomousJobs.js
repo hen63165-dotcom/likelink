@@ -241,6 +241,7 @@ export async function getAutonomousJobStatus(opts = {}) {
         lastRunAt: state.lastRunAt || null,
         nextRunAt: state.nextRunAt || null,
         durationMs: state.durationMs || null,
+        result: state.result || null,
       });
     } catch {
       statuses.push({ id, state: "unknown" });
