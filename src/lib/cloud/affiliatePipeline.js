@@ -67,7 +67,7 @@ export function normalizeProduct(raw) {
  * Validate a product — reject products missing required evidence.
  * Real signals only: no fabricated data.
  */
-export function validateProduct(product, { marketerExists = false } = {}) {
+export function validateProduct(product, { marketerExists = false, marketers = [] } = {}) {
   if (!product) return { valid: false, reason: "missing_product" };
 
   const checks = {
@@ -76,7 +76,7 @@ export function validateProduct(product, { marketerExists = false } = {}) {
     hasAffiliateUrl: Boolean(product.affiliateUrl && isValidAffiliateUrl(product.affiliateUrl)),
     hasImage: Boolean(product.image && product.image.length > 0),
     hasCategory: Boolean(product.category && product.category.trim()),
-    hasOwner: Boolean(marketerExists ? hasValidAttribution(product) : product.marketerId),
+    hasOwner: Boolean(marketerExists ? hasValidAttribution(product, marketers) : product.marketerId),
   };
 
   const invalid = Object.entries(checks).filter(([, v]) => !v);

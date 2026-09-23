@@ -241,7 +241,7 @@ registerJob("affiliate-product-import", {
     const rejected = [];
 
     for (const p of newProducts) {
-      const v = validateProduct(p, { marketerExists: hasOwnerMarketer });
+      const v = validateProduct(p, { marketerExists: hasOwnerMarketer, marketers: marketerList });
       const q = qualityFilter(p, {
         clicks: await kvGet("marketplace:clicks", []),
         sales: await kvGet("marketplace:sales", []),
