@@ -133,7 +133,7 @@ registerJob("site-campaign-cycle", {
   maxDurationMs: 60000,
   async fn({ kvGet, kvSet, now }) {
     try {
-      const { runSiteCampaignCycle } = await import("../api/autopilot.mjs");
+      const { runSiteCampaignCycle } = await import("../../../api/autopilot.mjs");
       const result = await runSiteCampaignCycle(ORIGIN);
       return { ok: true, ...result };
     } catch (e) {
@@ -148,7 +148,7 @@ registerJob("brand-pulse-publish", {
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
-      const { publishBrandPulse } = await import("../api/autopilot.mjs");
+      const { publishBrandPulse } = await import("../../../api/autopilot.mjs");
       const result = await publishBrandPulse(ORIGIN, { webOnly: true });
       return { ok: true, ...result };
     } catch (e) {
@@ -163,7 +163,7 @@ registerJob("brand-pulse-external", {
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
-      const { publishBrandPulse } = await import("../api/autopilot.mjs");
+      const { publishBrandPulse } = await import("../../../api/autopilot.mjs");
       const result = await publishBrandPulse(ORIGIN, { webOnly: false });
       return { ok: true, ...result };
     } catch (e) {
@@ -204,7 +204,7 @@ registerJob("brand-pulse-freshness", {
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
-      const { ensureBrandPulseFresh } = await import("../api/autopilot.mjs");
+      const { ensureBrandPulseFresh } = await import("../../../api/autopilot.mjs");
       const result = await ensureBrandPulseFresh(ORIGIN);
       return { ok: true, ...result };
     } catch (e) {
