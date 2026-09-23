@@ -287,11 +287,13 @@ export function formatDate(ts) {
   return day + "/" + month + "/" + d.getFullYear();
 }
 
-/** Track a product view via the server-side measurement endpoint. */
+/** Track a product view via the server-side measurement mode router.
+ *  Views are recorded in the lightweight `marketplace:events` log and are
+ *  deliberately NOT counted as clicks. */
 export function trackProductView(productId, marketerId, source = "feed") {
   if (!productId) return null;
   try {
-    fetch("/api/track", {
+    fetch("/api/store?mode=record-click", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ type: "product_view", productId, marketerId: marketerId || null, source }),
@@ -303,11 +305,12 @@ export function trackProductView(productId, marketerId, source = "feed") {
   return null;
 }
 
-/** Track an outbound affiliate click via the server-side measurement endpoint. */
+/** Track an outbound affiliate click via the server-side measurement mode router.
+ *  This is the authoritative click counter (marketplace:clicks + VERITAS). */
 export function trackOutboundClick(productId, marketerId, affiliateUrl, source = "feed") {
   if (!productId || !affiliateUrl) return null;
   try {
-    fetch("/api/track", {
+    fetch("/api/store?mode=record-click", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ type: "outbound_click", productId, marketerId: marketerId || null, affiliateUrl, source }),

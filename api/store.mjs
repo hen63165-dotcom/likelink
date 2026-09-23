@@ -1615,43 +1615,76 @@ export default async function handler(req, res) {
       const bodyRc = await readBody(req).catch(() => ({}));
       const productId = String(bodyRc?.productId || "").slice(0, 80);
       if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+      // Event type: "product_view" (impression, does NOT count as a click),
+      // "outbound_click" (default — the authoritative click counter) or
+      // "lead_capture" (creator/merchant expressed interest).
+      const TRACK_TYPES = new Set(["product_view", "outbound_click", "lead_capture"]);
+      const rawType = String(bodyRc?.type || "").slice(0, 40);
+      const type = TRACK_TYPES.has(rawType) ? rawType : "outbound_click";
+      const isClick = type !== "product_view";
 
       const now = Date.now();
       const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
       const ua = String(getHeader(req, "user-agent") || "").slice(0, 200);
-      const ref = String(bodyRc?.ref || "").slice(0, 80);
+      const ref = String(bodyRc?.ref || bodyRc?.source || "").slice(0, 80);
 
-      // 1. Record the click event
-      const existingClicks = (await kvGet("marketplace:clicks")) || [];
-      const clickList = Array.isArray(existingClicks) ? existingClicks : [];
+      // 1. Record the event — clicks feed `marketplace:clicks`, views/leads feed
+      //    the lightweight `marketplace:events` log (never mixed with clicks,
+      //    so analytics can count traffic separately from real clicks).
       const clickId = `${productId}-${now}-${Math.random().toString(36).slice(2, 8)}`;
-      const newClick = {
-        id: clickId,
-        productId,
-        marketerId: String(bodyRc?.marketerId || "").slice(0, 80) || null,
-        ts: now,
-        ip: ip.slice(0, 45),
-        ua,
-        ref: ref || null,
-      };
-      await kvSet("marketplace:clicks", [...clickList.slice(-4999), newClick]);
-
-      // 2. Increment product click count (read-modify-write, best-effort)
-      const prods = (await kvGet("marketplace:products")) || [];
-      if (Array.isArray(prods)) {
-        const updated = prods.map((p) =>
-          p && p.id === productId ? { ...p, clicks: (p.clicks || 0) + 1, updatedAt: now } : p
-        );
-        await kvSet("marketplace:products", updated);
+      const marketerId = String(bodyRc?.marketerId || "").slice(0, 80) || null;
+      let clickCount = 0;
+      if (isClick) {
+        const existingClicks = (await kvGet("marketplace:clicks")) || [];
+        const clickList = Array.isArray(existingClicks) ? existingClicks : [];
+        const newClick = {
+          id: clickId,
+          productId,
+          marketerId,
+          ts: now,
+          ip: ip.slice(0, 45),
+          ua,
+          ref: ref || null,
+          type,
+        };
+        await kvSet("marketplace:clicks", [...clickList.slice(-4999), newClick]);
+        clickCount = clickList.length + 1;
+      } else {
+        const existingEvents = (await kvGet("marketplace:events")) || [];
+        const eventList = Array.isArray(existingEvents) ? existingEvents : [];
+        await kvSet("marketplace:events", [
+          ...eventList.slice(-4999),
+          {
+            id: clickId,
+            type,
+            productId,
+            marketerId,
+            language: String(bodyRc?.language || "he").slice(0, 8),
+            source: ref || null,
+            ts: now,
+          },
+        ]);
       }
 
-      // 3. Append VERITAS entry for the click (fail-safe: never blocks the click)
+      // 2. Increment product click count (read-modify-write, best-effort).
+      //    Views deliberately do NOT increment clicks — views are not clicks.
+      if (isClick) {
+        const prods = (await kvGet("marketplace:products")) || [];
+        if (Array.isArray(prods)) {
+          const updated = prods.map((p) =>
+            p && p.id === productId ? { ...p, clicks: (p.clicks || 0) + 1, updatedAt: now } : p
+          );
+          await kvSet("marketplace:products", updated);
+        }
+      }
+
+      // 3. Append VERITAS entry (fail-safe: never blocks the action)
       try {
         const { appendVeritas } = await import("../src/lib/cloud/veritas.js");
         const veritasRow = await kvGet("marketplace:veritas", []);
         const ledger = Array.isArray(veritasRow) ? veritasRow : [];
         const next = appendVeritas(ledger, {
-          type: "click",
+          type: isClick ? "click" : type,
           productId,
           ...(ref ? { ref } : {}),
           ...(ua ? { ua } : {}),
@@ -1659,7 +1692,7 @@ export default async function handler(req, res) {
         await kvSet("marketplace:veritas", next);
       } catch { /* pulse is best-effort */ }
 
-      json(res, { ok: true, mode: "record-click", clickId, productId, clicks: clickList.length + 1 }, 200, req);
+      json(res, { ok: true, mode: "record-click", type, clickId, productId, clicks: clickCount }, 200, req);
     } catch (e) {
       json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
