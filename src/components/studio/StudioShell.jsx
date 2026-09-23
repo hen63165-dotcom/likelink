@@ -54,6 +54,7 @@ import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
+import LunaOpportunityHero from "./LunaOpportunityHero";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -182,6 +183,10 @@ const OverviewPanel = ({ onNavigate }) => {
 
   return (
     <div className="space-y-6">
+      <LunaOpportunityHero
+        onAddProduct={() => onNavigate(VIEW_IDS.PRODUCTS)}
+        onCreateContent={() => onNavigate(VIEW_IDS.VIDEO)}
+      />
       {error && (
         <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "var(--danger-subtle)", color: "var(--danger)" }}>
           {String(error.message || error)}
