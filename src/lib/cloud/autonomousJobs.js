@@ -277,13 +277,15 @@ registerJob("affiliate-product-import", {
       owner,
     });
 
-    return {
+     return {
       ok: true,
       ingested: normalized.length,
       imported: validated.length,
       rejected: rejected.length,
       duplicates: duplicates.length,
       newIds: validated.map((p) => p.id),
+      rejectedDetails: rejected,
+      duplicateDetails: duplicates,
     };
   },
 });
