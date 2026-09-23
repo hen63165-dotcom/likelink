@@ -228,13 +228,13 @@ registerJob("affiliate-product-import", {
 
     const existingProducts = await kvGet("marketplace:products", []);
     const existingList = Array.isArray(existingProducts) ? existingProducts : [];
-
-    const normalized = candidates.map((c) => normalizeProduct(c));
-
+    const existingClicks = await kvGet("marketplace:clicks", []);
+    const existingSales = await kvGet("marketplace:sales", []);
     const existingMarketers = await kvGet("marketplace:marketers", []);
     const marketerList = Array.isArray(existingMarketers) ? existingMarketers : [];
     const hasOwnerMarketer = marketerList.some((m) => m && String(m.id) === owner);
 
+    const normalized = candidates.map((c) => normalizeProduct(c));
     const { newProducts, duplicates } = findNewProducts(normalized, existingList);
 
     const validated = [];
@@ -243,16 +243,17 @@ registerJob("affiliate-product-import", {
     for (const p of newProducts) {
       const v = validateProduct(p, { marketerExists: hasOwnerMarketer, marketers: marketerList });
       const q = qualityFilter(p, {
-        clicks: await kvGet("marketplace:clicks", []),
-        sales: await kvGet("marketplace:sales", []),
+        clicks: existingClicks,
+        sales: existingSales,
+        marketers: marketerList,
       });
 
       if (v.valid && q.eligible) {
         validated.push(p);
 
         const contentPack = buildHookEngine(p, {
-          clicks: await kvGet("marketplace:clicks", []),
-          sales: await kvGet("marketplace:sales", []),
+          clicks: existingClicks,
+          sales: existingSales,
           lang: "he",
         });
 

@@ -91,10 +91,10 @@ export function validateProduct(product, { marketerExists = false, marketers = [
  * Quality filter — applies real signals to decide whether a product is
  * ready for the marketplace. Returns { eligible, reasons }.
  */
-export function qualityFilter(product, { clicks = [], sales = [] } = {}) {
+export function qualityFilter(product, { clicks = [], sales = [], marketers = [] } = {}) {
   const reasons = [];
 
-  const v = validateProduct(product, { marketerExists: true });
+  const v = validateProduct(product, { marketerExists: marketers && marketers.length > 0, marketers });
   if (!v.valid) return { eligible: false, reasons: [v.reason] };
 
   if (!product.status || product.status !== "approved") {
