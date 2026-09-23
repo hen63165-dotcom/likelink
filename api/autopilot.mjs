@@ -55,7 +55,7 @@ async function recordVeritasPulse(type, entry) {
  * the Hebrew content pack, and stores the campaign record (append-only).
  * Publication stays with authorized channels only — assets are PREPARED.
  */
-async function runSiteCampaignCycle(origin) {
+export async function runSiteCampaignCycle(origin) {
   try {
     const [productsRow, salesRow, clicksRow, campaignsRow, marketersRow] = await Promise.all([
       kvGet("marketplace:products", []),
@@ -1245,9 +1245,51 @@ export default async function handler(req, res) {
     req.method === "GET" &&
     (Boolean(getH("x-vercel-cron")) ||
       url.searchParams.get("secret") === process.env.AUTOPILOT_SECRET);
+  const cronMode = url.searchParams.get("cron") || "daily";
+  const testReport = url.searchParams.get("testReport") === "1";
 
   if (isCron) {
     const _r = await runDue(origin);
+
+    // LIGHT cron (every 15 min): queue processing + health check only.
+    // Runs autonomous jobs whose intervals are due (15-min health checks,
+    // hourly scans, etc.). Never runs the heavy daily content cycles.
+    if (cronMode === "light") {
+      let autonomousJobs = { ok: false, skipped: "not_run" };
+      try {
+        autonomousJobs = await runAllDueAutonomousJobs();
+      } catch (e) {
+        autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
+      }
+      json(res, { ok: true, cron: "light", due: _r, autonomousJobs }, 200, req);
+      return;
+    }
+
+    // HOURLY cron: growth opportunity scan + analytics aggregation.
+    // The autonomous jobs system handles hourly opportunity-discovery
+    // and analytics aggregation via runAllDueAutonomousJobs.
+    if (cronMode === "hourly") {
+      let autonomousJobs = { ok: false, skipped: "not_run" };
+      try {
+        autonomousJobs = await runAllDueAutonomousJobs();
+      } catch (e) {
+        autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
+      }
+      if (testReport) {
+        try {
+          const { sendOwnerDailyReport } = await import("./_utils/analytics.js");
+          const report = await sendOwnerDailyReport({ force: true });
+          json(res, { ok: true, cron: "hourly", autonomousJobs, report }, 200, req);
+        } catch (e) {
+          json(res, { ok: true, cron: "hourly", autonomousJobs, report: { ok: false, error: String(e.message || e).slice(0, 160) } }, 200, req);
+        }
+        return;
+      }
+      json(res, { ok: true, cron: "hourly", autonomousJobs }, 200, req);
+      return;
+    }
+
+    // ── DAILY cron (default / cron=daily): full pipeline ──
     // Official Site Campaign cycle — awaited on the SAME daily cron so the
     // cycle reliably completes: Vercel freezes the invocation once the
     // response is flushed, so fire-and-forget would silently drop it (this
@@ -1277,13 +1319,17 @@ export default async function handler(req, res) {
     try {
       cloudCycle = await runCloudAutopilotCycle({ kvGet, kvSet, origin, env: process.env }, {});
     } catch (e) {
-      cloudCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
+     cloudCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
+    // WEEKLY cron: experiment review, strategy optimization, content audit,
+    // SEO audit, growth report. Runs the full daily pipeline PLUS a weekly
+    // report. Falls through to the daily cycle below.
+    const isWeekly = cronMode === "weekly";
+
     // Owner-report self-test hook: `?testReport=1` on the cron path awaits the
     // send and returns Resend's exact result — used to diagnose delivery
     // without guessing (shows resend_error_xxx or the actual message id).
-    const uq = new URL(req.url, "https://x");
-    if (uq.searchParams.get("testReport") === "1") {
+    if (testReport) {
       try {
         const { sendOwnerDailyReport } = await import("./_utils/analytics.js");
         const report = await sendOwnerDailyReport({ force: true });
@@ -1293,9 +1339,6 @@ export default async function handler(req, res) {
       }
       return;
     }
-    json(res, { ..._r, siteCycle, growthCycle, cloudCycle, autonomousJobs }, 200, req);
-    // Autonomous Growth Jobs — runs every cron tick (every 30 min) to process
-    // all due autonomous jobs (growth cycles, trend scans, opportunity discovery, etc.)
     let autonomousJobs = { ok: false, skipped: "not_run" };
     try {
       autonomousJobs = await runAllDueAutonomousJobs();
@@ -1307,6 +1350,17 @@ export default async function handler(req, res) {
     import("./_utils/analytics.js")
       .then(({ sendOwnerDailyReport }) => sendOwnerDailyReport())
       .catch(() => {});
+    // WEEKLY: also send the weekly growth report.
+    let weeklyReport = { ok: false, skipped: isWeekly ? "not_weekly" : "n/a" };
+    if (isWeekly) {
+      try {
+        const { sendWeeklyReport } = await import("./_utils/analytics.js");
+        weeklyReport = await sendWeeklyReport({ force: true });
+      } catch (e) {
+        weeklyReport = { ok: false, error: String(e.message || e).slice(0, 120) };
+      }
+    }
+    json(res, { ..._r, siteCycle, growthCycle, cloudCycle, autonomousJobs, weeklyReport, cron: cronMode }, 200, req);
     return;
   }
 
@@ -1449,6 +1503,7 @@ export default async function handler(req, res) {
   if (mode === "announce") {
     const { productId } = body || {};
     if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(String(productId))) { json(res, { ok: false, error: "invalid_productId" }, 400, req); return; }
     if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
     const [store2, productsRow, marketersRow] = await Promise.all([
       kvGet(KV_KEY),

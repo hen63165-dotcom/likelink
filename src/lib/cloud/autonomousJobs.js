@@ -3,7 +3,7 @@
  * ============================================
  * Registers all autonomous growth jobs with the provider-neutral growthScheduler.
  * These jobs are executed by Vercel Cron (via /api/autopilot) or manual triggers.
- * 
+ *
  * Each job is:
  * - Idempotent (safe to re-run)
  * - Retry-safe with exponential backoff
@@ -13,44 +13,62 @@
 
 import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthScheduler.js";
 import { runGrowthCycle, runDailyTrendScan } from "./lunaGrowth.js";
-import { publishBrandPulse, ensureBrandPulseFresh } from "../api/autopilot.mjs";
 import { discoverOpportunities } from "./selfGrowth.js";
-import { runSiteCampaignCycle } from "../api/autopilot.mjs";
 
 const ORIGIN = "https://likelink2.vercel.app";
 
-function getKVStore() {
-  return {
-    async kvGet(key) {
-      try {
-        const res = await fetch(`/api/store?mode=get&key=${encodeURIComponent(key)}`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.value;
-      } catch {
-        return null;
-      }
-    },
-    async kvSet(key, value) {
-      try {
-        await fetch(`/api/store?mode=set`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ key, value }),
-        });
-      } catch { /* non-blocking */ }
-    },
-  };
+const SB_URL = process.env.VITE_SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+const SB_HEADERS = {
+  apikey: SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  "content-type": "application/json",
+  Prefer: "resolution=merge-duplicates",
+};
+
+async function svKvGet(key, fallback) {
+  if (!SB_URL || !SB_KEY) return fallback;
+  try {
+    const res = await fetch(
+      `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
+      { headers: SB_HEADERS, signal: AbortSignal.timeout(10000) }
+    );
+    if (!res.ok) return fallback;
+    const rows = await res.json();
+    if (!rows?.[0]?.value) return fallback;
+    let parsed = JSON.parse(rows[0].value);
+    while (typeof parsed === "string" && parsed.length > 0) {
+      try { parsed = JSON.parse(parsed); } catch { break; }
+    }
+    return parsed;
+  } catch {
+    return fallback;
+  }
 }
 
-async function getMarketplaceData() {
-  const store = getKVStore();
+async function svKvSet(key, value) {
+  if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
+  const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
+    method: "POST",
+    headers: SB_HEADERS,
+    body: JSON.stringify({ key, value: JSON.stringify(value) }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`kv_upsert_failed_${res.status}`);
+}
+
+function createServerKV() {
+  return { kvGet: svKvGet, kvSet: svKvSet };
+}
+
+async function getMarketplaceData(kvGet) {
   const [products, sales, clicks, marketers, campaigns] = await Promise.all([
-    store.kvGet("marketplace:products"),
-    store.kvGet("marketplace:sales"),
-    store.kvGet("marketplace:clicks"),
-    store.kvGet("marketplace:marketers"),
-    store.kvGet("marketplace:site_campaigns"),
+    kvGet("marketplace:products", []),
+    kvGet("marketplace:sales", []),
+    kvGet("marketplace:clicks", []),
+    kvGet("marketplace:marketers", []),
+    kvGet("marketplace:site_campaigns", []),
   ]);
   return {
     products: Array.isArray(products) ? products : [],
@@ -63,12 +81,12 @@ async function getMarketplaceData() {
 
 registerJob("autonomous-growth-cycle", {
   description: "Run Luna autonomous growth cycle for all approved products",
-  intervalMs: 6 * 60 * 60 * 1000, // every 6 hours
+  intervalMs: 6 * 60 * 60 * 1000,
   maxDurationMs: 120000,
   async fn({ kvGet, kvSet, now }) {
-    const data = await getMarketplaceData();
+    const data = await getMarketplaceData(kvGet);
     const results = [];
-    
+
     for (const product of data.products.filter(p => p.status === "approved")) {
       try {
         const result = await runGrowthCycle({
@@ -87,17 +105,17 @@ registerJob("autonomous-growth-cycle", {
         results.push({ productId: product.id, ok: false, error: String(e) });
       }
     }
-    
+
     return { ok: true, cycle: "autonomous-growth-cycle", results, timestamp: now };
   },
 });
 
 registerJob("daily-trend-scan", {
   description: "Scan trends and detect emerging opportunities across all products",
-  intervalMs: 24 * 60 * 60 * 1000, // daily
+  intervalMs: 24 * 60 * 60 * 1000,
   maxDurationMs: 60000,
   async fn({ kvGet, kvSet, now }) {
-    const data = await getMarketplaceData();
+    const data = await getMarketplaceData(kvGet);
     const result = runDailyTrendScan({
       products: data.products,
       sales: data.sales,
@@ -111,10 +129,11 @@ registerJob("daily-trend-scan", {
 
 registerJob("site-campaign-cycle", {
   description: "Run official site campaign cycle (official-site scope)",
-  intervalMs: 24 * 60 * 60 * 1000, // daily at 9 AM via cron
+  intervalMs: 24 * 60 * 60 * 1000,
   maxDurationMs: 60000,
   async fn({ kvGet, kvSet, now }) {
     try {
+      const { runSiteCampaignCycle } = await import("../api/autopilot.mjs");
       const result = await runSiteCampaignCycle(ORIGIN);
       return { ok: true, ...result };
     } catch (e) {
@@ -125,10 +144,11 @@ registerJob("site-campaign-cycle", {
 
 registerJob("brand-pulse-publish", {
   description: "Publish Luna brand pulse to site feed (self-promotion)",
-  intervalMs: 6 * 60 * 60 * 1000, // every 6 hours for site feed
+  intervalMs: 6 * 60 * 60 * 1000,
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
+      const { publishBrandPulse } = await import("../api/autopilot.mjs");
       const result = await publishBrandPulse(ORIGIN, { webOnly: true });
       return { ok: true, ...result };
     } catch (e) {
@@ -139,10 +159,11 @@ registerJob("brand-pulse-publish", {
 
 registerJob("brand-pulse-external", {
   description: "Publish Luna brand pulse to external channels (optional)",
-  intervalMs: 24 * 60 * 60 * 1000, // daily for external
+  intervalMs: 24 * 60 * 60 * 1000,
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
+      const { publishBrandPulse } = await import("../api/autopilot.mjs");
       const result = await publishBrandPulse(ORIGIN, { webOnly: false });
       return { ok: true, ...result };
     } catch (e) {
@@ -153,10 +174,10 @@ registerJob("brand-pulse-external", {
 
 registerJob("opportunity-discovery", {
   description: "Discover growth opportunities for all studios",
-  intervalMs: 60 * 60 * 1000, // every hour
+  intervalMs: 60 * 60 * 1000,
   maxDurationMs: 60000,
   async fn({ kvGet, kvSet, now }) {
-    const data = await getMarketplaceData();
+    const data = await getMarketplaceData(kvGet);
     const opportunities = discoverOpportunities({
       products: data.products,
       sales: data.sales,
@@ -164,7 +185,7 @@ registerJob("opportunity-discovery", {
       views: [],
       now,
     });
-    
+
     await kvSet("growth:opportunities:latest", {
       timestamp: now,
       opportunities: opportunities.opportunities,
@@ -172,17 +193,18 @@ registerJob("opportunity-discovery", {
       declining: opportunities.declining,
       summary: opportunities.summary,
     });
-    
+
     return { ok: true, opportunityCount: opportunities.opportunities.length };
   },
 });
 
 registerJob("brand-pulse-freshness", {
   description: "Ensure brand pulse feed stays fresh (visitor-triggered backup)",
-  intervalMs: 6 * 60 * 60 * 1000, // every 6 hours
+  intervalMs: 6 * 60 * 60 * 1000,
   maxDurationMs: 30000,
   async fn({ kvGet, kvSet, now }) {
     try {
+      const { ensureBrandPulseFresh } = await import("../api/autopilot.mjs");
       const result = await ensureBrandPulseFresh(ORIGIN);
       return { ok: true, ...result };
     } catch (e) {
@@ -193,7 +215,7 @@ registerJob("brand-pulse-freshness", {
 
 export const AUTONOMOUS_JOBS = [
   "autonomous-growth-cycle",
-  "daily-trend-scan", 
+  "daily-trend-scan",
   "site-campaign-cycle",
   "brand-pulse-publish",
   "brand-pulse-external",
@@ -201,13 +223,13 @@ export const AUTONOMOUS_JOBS = [
   "brand-pulse-freshness",
 ];
 
-export async function runAllDueAutonomousJobs() {
-  const { kvGet, kvSet } = getKVStore();
+export async function runAllDueAutonomousJobs(opts = {}) {
+  const { kvGet = svKvGet, kvSet = svKvSet } = opts;
   return runDueJobs({ kvGet, kvSet });
 }
 
-export async function getAutonomousJobStatus() {
-  const { kvGet } = getKVStore();
+export async function getAutonomousJobStatus(opts = {}) {
+  const { kvGet = svKvGet } = opts;
   const statuses = [];
   for (const id of AUTONOMOUS_JOBS) {
     try {

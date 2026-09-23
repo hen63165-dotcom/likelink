@@ -521,6 +521,82 @@ function renderOwnerReportHtml(r) {
 </body></html>`;
 }
 
+function renderWeeklyReportHtml(r) {
+  const t = r.traffic, rev = r.revenue.all, om = r.ownerMoney.lifetime;
+  const v = r.visitors || {};
+  const noTraffic = !r.dataIntegrity.hasAnyTraffic;
+  const noSales = !r.dataIntegrity.hasAnySales;
+  const row = (label, value) => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:14px">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;font-size:14px;font-weight:bold;text-align:left">${value}</td></tr>`;
+  const salesLine = noSales
+    ? "<b>עדיין אין מכירות מאומתות.</b>"
+    : `מכירות מאומתות בשבוע: <b>${r.funnel.verifiedSales.week}</b> · סה"כ: <b>${r.funnel.verifiedSales.all}</b>`;
+  const trafficLine = noTraffic
+    ? "<b>לא נמדרה תנועה בתקופה שנבדקה.</b>"
+    : `קליקים: <b>${t.week.clicks}</b> השבוע · <b>${t.all.clicks}</b> סה"כ`;
+  const visitorsLine = v && v.measured
+    ? `☁️ מבקרות ייחודיות שבועי: <b>${v.uniqueWeek || 0}</b> · סה"KB: <b>${v.uniqueAll || 0}</b>`
+    : "מבקרות: טרם נאספו נתוני תעודת ענן לתקופה זו.";
+  const statusLine = r.growthBrain?.distributionBlocked
+    ? 'הפצה חסומה — אין ערוץ מורשה מחובר. הקמפיינים נשארו PREPARED עד שיחובר ערוץ.'
+    : 'האתר הרשמי פעיל — קמפיינים ו-URLs מפתחים נחשפים מיד, ללא אסימונים חיצוניים.';
+  return `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f5f5f5;font-family:Arial,sans-serif">
+<div style="max-width:640px;margin:24px auto;background:#fff;border-radius:12px;padding:28px">
+  <h1 style="color:#6C4CF1;margin:0 0 4px">📊 הדוח השבועי של LikeLink</h1>
+  <p style="color:#888;font-size:12px;margin:0 0 18px">${new Date(r.generatedAt).toLocaleString("he-IL", { timeZone: r.timezone })}</p>
+
+  <h3 style="margin:16px 0 6px">🧪 בדיקת השבוע — איך אתר שלך מתבצע לבד?</h3>
+  <p style="font-size:14px;line-height:1.7">${trafficLine}</p>
+
+  <h3 style="margin:16px 0 6px">☁️ מבקרות (תעודת ענן)</h3>
+  <p style="font-size:14px;line-height:1.7">${visitorsLine}</p>
+
+  <h3 style="margin:16px 0 6px">💰 הכנסות מאומתות</h3>
+  <table style="width:100%;border-collapse:collapse">
+    ${row("הכנסה גולמית (שבוע)", he(rev.grossRevenue))}
+    ${row("העמלה (Owner)", he(rev.commission))}
+    ${row("חלק היוצר", he(rev.creatorShare))}
+    ${row("EARNED", he(om.earned))}
+    ${row("PAID", he(om.paid))}
+    ${row("PENDING", he(om.pending))}
+  </table>
+
+  <h3 style="margin:16px 0 6px">📈 ההזדמנות השבועית (Growth Brain)</h3>
+  <p style="font-size:14px;line-height:1.7">
+    ${r.growthBrain?.selectedProduct ? `מוצר: <b>${r.growthBrain.selectedProduct.title}</b>` : "אין מוצר נבחר"} · ציון: <b>${r.growthBrain?.score ?? "—"}</b><br>
+    סיבות: ${(r.growthBrain?.reasons || ["אין נתונים"]).join(" · ")}
+  </p>
+  <p style="font-size:14px;line-height:1.7">${statusLine}</p>
+
+  <h3 style="margin:16px 0 6px">🔏 שרשרת אמינות (VERITAS)</h3>
+  <p style="font-size:14px;line-height:1.7">
+    ${r.veritas?.valid === true ? "✅ שלמות הענן מאומתת" : r.veritas?.valid === false ? "⚠️ שלמות הענן לא תקינה" : "טרם נרשמו פעולות"}
+    · רשומות: <b>${r.veritas?.count ?? 0}</b>
+    ${r.veritas?.last ? `· עדכון אחרון: ${new Date(r.veritas.last).toLocaleString("he-IL", { timeZone: r.timezone })}` : ""}
+  </p>
+
+  <h3 style="margin:16px 0 6px">אוטונומיית בריאות</h3>
+  <p style="font-size:14px;line-height:1.7">
+    כשלי Autopilot (שבוע): <b>${r.issues.autopilotFailuresLastWeek}</b><br>
+    פעולות חסומות אבטחתית (שבוע): <b>${r.issues.securityBlockedLastWeek}</b><br>
+    ערוצי AutoPilot פעילים: <b>${r.traffic.channelsActive}</b><br>
+    Google Feed: <b>${r.googleStatus.status}</b>
+  </p>
+
+  <h3 style="margin:16px 0 6px">מה צריך לעשות?</h3>
+  <ul style="font-size:14px;line-height:1.7">
+    ${r.googleStatus.merchantCenterOAuth === "ACTION_REQUIRED" ? "<li>🔗 התחברי ל-Google Merchant Center פעם אחת (OAuth) כדי שהמוצרים יופיעו ב-Google Shopping</li>" : ""}
+    ${!r.dataIntegrity.hasAnySales ? "<li>🎯 הוסיפי מוצר עם URL שירות — כל לחיצה נספרת</li>" : ""}
+    ${r.traffic.channelsActive === 0 ? "<li>📲 חברי ערוץ (Telegram/WhatsApp) באוטופייל לשיווק אוטומטי</li>" : ""}
+  </ul>
+
+  <p style="font-size:11px;color:#999;margin-top:20px;border-top:1px solid #eee;padding-top:12px">
+    כל המספרים מגיעים מנתוני אמת מאומתים בלבד. שלבים שטרם נמדדו מסומנים ככאלה — ולא מוצגים כאפס עסקי.
+  </p>
+</div>
+</body></html>`;
+}
+
 /**
  * Send the daily Owner report — called from the EXISTING daily cron
  * (fire-and-forget; never breaks the host function).
@@ -528,13 +604,12 @@ function renderOwnerReportHtml(r) {
  * Idempotent per day via a kv marker (a cron retry can never double-send).
  */
 export async function sendOwnerDailyReport({ force = false } = {}) {
-  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase(); // Resend compares the recipient case-sensitively against the account owner email — HEN63165@ vs hen63165@ rejected with 403
+  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
   if (!ownerEmail || !ownerEmail.includes("@")) {
     return { ok: false, skipped: "owner_email_not_configured" };
   }
   if (!SB_URL || !SB_KEY) return { ok: false, skipped: "supabase_not_configured" };
 
-  // Once-per-day guard (Israel-time date as the marker).
   const today = todayKey();
   const lastSent = await kvGet(LAST_SENT_KEY, null);
   if (!force && lastSent === today) return { ok: false, skipped: "already_sent_today" };
@@ -550,5 +625,42 @@ export async function sendOwnerDailyReport({ force = false } = {}) {
     try { await kvSet(LAST_SENT_KEY, today); } catch { /* best-effort */ }
   }
   return { ok: Boolean(res.ok), reason: res.reason || null, detail: res.detail || null };
+}
+
+/**
+ * Send the WEEKLY Owner report — experiment review, strategy optimization,
+ * content audit, SEO audit, growth report. Called from the weekly cron.
+ * Idempotent per week via a kv marker.
+ */
+export async function sendWeeklyReport({ force = false } = {}) {
+  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+  if (!ownerEmail || !ownerEmail.includes("@")) {
+    return { ok: false, skipped: "owner_email_not_configured" };
+  }
+  if (!SB_URL || !SB_KEY) return { ok: false, skipped: "supabase_not_configured" };
+
+  const thisWeek = weekKey();
+  const lastSentKey = `analytics:owner_report:last_sent_week:${thisWeek}`;
+  const lastSent = await kvGet(lastSentKey, null);
+  if (!force && lastSent === thisWeek) return { ok: false, skipped: "already_sent_this_week" };
+
+  const report = await buildOwnerReport();
+  const res = await sendViaResend({
+    to: ownerEmail,
+    subject: `LikeLink — דוח שבועי (${thisWeek})`,
+    html: renderWeeklyReportHtml(report),
+    from: process.env.OWNER_REPORT_FROM || process.env.RECEIPT_FROM || undefined,
+  });
+  if (res.ok) {
+    try { await kvSet(lastSentKey, thisWeek); } catch { /* best-effort */ }
+  }
+  return { ok: Boolean(res.ok), reason: res.reason || null, detail: res.detail || null };
+}
+
+function weekKey() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const weekNum = Math.ceil((d.getMonth() * 30 + d.getDate()) / 7);
+  return `${year}-W${weekNum}`;
 }
 
