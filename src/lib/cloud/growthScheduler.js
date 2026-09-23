@@ -66,7 +66,7 @@ export function getJobs() {
  * Execute a single job by id.
  * Pure execution — no provider-specific logic.
  */
-export async function executeJob(id, { kvGet, kvSet, skipAudit = false } = {}) {
+export async function executeJob(id, { kvGet, kvSet, skipAudit = false, force = false } = {}) {
   const job = JOB_REGISTRY.get(id);
   if (!job) return { ok: false, error: "job_not_found", id };
 
@@ -80,7 +80,7 @@ export async function executeJob(id, { kvGet, kvSet, skipAudit = false } = {}) {
       return { ok: false, error: "already_running", id, startedAt: currentState.startedAt };
     }
     // Check if already ran within interval (skip if too soon)
-    if (currentState.lastRunAt && now - currentState.lastRunAt < job.intervalMs && currentState.state === JOB_STATE.SUCCESS) {
+    if (!force && currentState.lastRunAt && now - currentState.lastRunAt < job.intervalMs && currentState.state === JOB_STATE.SUCCESS) {
       return { ok: false, error: "too_soon", id, lastRunAt: currentState.lastRunAt, nextRunAt: currentState.lastRunAt + job.intervalMs };
     }
   } catch {
@@ -158,7 +158,7 @@ export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false
       const notRunning = state.state !== JOB_STATE.RUNNING || now - (state.startedAt || 0) >= job.maxDurationMs;
 
       if ((isDue || force) && notRunning) {
-        const result = await executeJob(id, { kvGet, kvSet, now });
+        const result = await executeJob(id, { kvGet, kvSet, now, force });
         results.push({ id, ...result });
       }
     } catch (e) {
