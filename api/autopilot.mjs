@@ -1341,7 +1341,8 @@ export default async function handler(req, res) {
     }
     let autonomousJobs = { ok: false, skipped: "not_run" };
     try {
-      autonomousJobs = await runAllDueAutonomousJobs();
+      const force = url.searchParams.get("force") === "true";
+      autonomousJobs = await runAllDueAutonomousJobs({ force });
     } catch (e) {
       autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
     }

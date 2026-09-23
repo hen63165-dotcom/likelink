@@ -145,8 +145,9 @@ export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
 /**
  * Run ALL registered jobs that are due.
  */
-export async function runDueJobs({ kvGet, kvSet, now = Date.now() } = {}) {
+export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false } = {}) {
   const results = [];
+
   for (const [id, job] of JOB_REGISTRY) {
     try {
       const stateKey = `growth:job:${id}`;
@@ -154,7 +155,7 @@ export async function runDueJobs({ kvGet, kvSet, now = Date.now() } = {}) {
       const isDue = !state.lastRunAt || now - state.lastRunAt >= job.intervalMs;
       const notRunning = state.state !== JOB_STATE.RUNNING || now - (state.startedAt || 0) >= job.maxDurationMs;
 
-      if (isDue && notRunning) {
+      if ((isDue || force) && notRunning) {
         const result = await executeJob(id, { kvGet, kvSet, now });
         results.push({ id, ...result });
       }
