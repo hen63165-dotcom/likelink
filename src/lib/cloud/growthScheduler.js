@@ -66,7 +66,7 @@ export function getJobs() {
  * Execute a single job by id.
  * Pure execution — no provider-specific logic.
  */
-export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
+export async function executeJob(id, { kvGet, kvSet, skipAudit = false } = {}) {
   const job = JOB_REGISTRY.get(id);
   if (!job) return { ok: false, error: "job_not_found", id };
 
@@ -132,12 +132,14 @@ export async function executeJob(id, { kvGet, kvSet, auditLog = true } = {}) {
   }
 
   // Audit log
-  auditLog(
-    result.ok ? "growth.job.success" : (isSkipped ? "growth.job.skipped" : "growth.job.failure"),
-    { type: "system", id: "growth-scheduler" },
-    { type: "job", id },
-    { result: result.ok ? "success" : (isSkipped ? result.skipped : result.error), durationMs: finalRecord.durationMs }
-  );
+  if (!skipAudit) {
+    auditLog(
+      result.ok ? "growth.job.success" : (isSkipped ? "growth.job.skipped" : "growth.job.failure"),
+      { type: "system", id: "growth-scheduler" },
+      { type: "job", id },
+      { result: result.ok ? "success" : (isSkipped ? result.skipped : result.error), durationMs: finalRecord.durationMs }
+    );
+  }
 
   return { ...result, durationMs: finalRecord.durationMs };
 }
