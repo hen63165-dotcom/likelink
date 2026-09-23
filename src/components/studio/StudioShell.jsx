@@ -39,7 +39,7 @@ import {
 } from "../../lib/monetization.js";
 import { PAYOUT_METHODS, PAYOUT_LABELS } from "../../constants/keys.js";
 import { money } from "../../utils/helpers.js";
-import { buildActivityFeed } from "../../lib/studioActivity.js";
+import { buildActivityFeed, getActivity } from "../../lib/studioActivity.js";
 import { EmptyState, Button, LabeledInput, Toast, LoadingScreen } from "../ui/index.jsx";
 import { AnalyticsDashboard } from "../sell/AnalyticsDashboard";
 import AutoPilot from "../sell/AutoPilot";
@@ -125,9 +125,16 @@ function NavItem({ item, active, onClick }) {
 function ActivityStrip() {
   const { lang } = useI18n();
   const { activityFeed, clicks, sales, notifications } = useMarketplace();
+  // Read the device log fresh on mount (actions may have been logged by
+  // components outside this provider, e.g. the floating Luna assistant).
+  const [localLog, setLocalLog] = useState(() => getActivity(30));
+  useEffect(() => { setLocalLog(getActivity(30)); }, [activityFeed]);
   const items = useMemo(
-    () => buildActivityFeed({ activity: activityFeed, clicks, sales, notifications, limit: 8 }),
-    [activityFeed, clicks, sales, notifications]
+    () => buildActivityFeed({
+      activity: [...(activityFeed || []), ...localLog],
+      clicks, sales, notifications, limit: 8,
+    }),
+    [activityFeed, localLog, clicks, sales, notifications]
   );
   if (!items.length) return null;
   return (

@@ -67,6 +67,13 @@ test("buildActivityFeed merges local actions with marketplace records newest-fir
   assert.deepEqual(feed.map((e) => e.id), ["s1", "a1", "c1", "n1"]);
 });
 
+test("buildActivityFeed dedupes the same entry coming from two sources", () => {
+  const dup = { id: "same-1", label: "same action", ts: 500 };
+  const feed = buildActivityFeed({ activity: [dup, dup, { ...dup }], limit: 10 });
+  assert.equal(feed.length, 1);
+  assert.equal(feed[0].id, "same-1");
+});
+
 test("buildActivityFeed tolerates missing/empty inputs", () => {
   assert.deepEqual(buildActivityFeed(), []);
   assert.deepEqual(buildActivityFeed({ limit: 5 }), []);

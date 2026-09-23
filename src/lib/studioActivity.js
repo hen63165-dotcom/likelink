@@ -88,21 +88,29 @@ export function clearActivity() {
  */
 export function buildActivityFeed({ activity = [], clicks = [], sales = [], notifications = [], limit = 12 } = {}) {
   const items = [];
+  const seen = new Set();
+  const push = (item) => {
+    if (!item) return;
+    const id = String(item.id || `${item.kind}-${item.ts}-${item.label}`).slice(0, 120);
+    if (seen.has(id)) return;
+    seen.add(id);
+    items.push(item);
+  };
   for (const a of (Array.isArray(activity) ? activity : [])) {
     if (!a) continue;
-    items.push({ id: a.id || `a-${a.ts}`, ts: a.ts || 0, label: a.label || a.type, kind: "action" });
+    push({ id: a.id || `a-${a.ts}`, ts: a.ts || 0, label: a.label || a.type, kind: "action" });
   }
   for (const c of (Array.isArray(clicks) ? clicks : [])) {
     if (!c) continue;
-    items.push({ id: c.id || `c-${c.ts}`, ts: c.ts || 0, label: c.label || "click", kind: "click" });
+    push({ id: c.id || `c-${c.ts}`, ts: c.ts || 0, label: c.label || "click", kind: "click" });
   }
   for (const s of (Array.isArray(sales) ? sales : [])) {
     if (!s) continue;
-    items.push({ id: s.id || `s-${s.ts}`, ts: s.ts || 0, label: s.label || "sale", kind: "sale" });
+    push({ id: s.id || `s-${s.ts}`, ts: s.ts || 0, label: s.label || "sale", kind: "sale" });
   }
   for (const n of (Array.isArray(notifications) ? notifications : [])) {
     if (!n) continue;
-    items.push({ id: n.id || `n-${n.ts}`, ts: n.ts || 0, label: n.title || n.message || "update", kind: "notice" });
+    push({ id: n.id || `n-${n.ts}`, ts: n.ts || 0, label: n.title || n.message || "update", kind: "notice" });
   }
   items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   const n = Math.max(1, Math.min(60, Number(limit) || 12));
