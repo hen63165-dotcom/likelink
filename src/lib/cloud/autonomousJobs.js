@@ -14,6 +14,7 @@
 import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthScheduler.js";
 import { runGrowthCycle, runDailyTrendScan, detectOpportunities } from "./lunaGrowth.js";
 import { discoverOpportunities as discoverOpportunitiesLegacy } from "./selfGrowth.js";
+import { ingestProducts, normalizeProduct, validateProduct, qualityFilter, findNewProducts, buildHookEngine, isProductStale } from "./affiliatePipeline.js";
 
 const ORIGIN = "https://likelink2.vercel.app";
 
@@ -213,10 +214,140 @@ registerJob("brand-pulse-freshness", {
   },
 });
 
+registerJob("affiliate-product-import", {
+  description: "Import new affiliate products from live catalog into marketplace KV (idempotent)",
+  intervalMs: 6 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const SINGLE_OWNER_ID = process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+
+    const ingestResult = ingestProducts({ marketerId: SINGLE_OWNER_ID });
+    if (!ingestResult.ok) return { ok: false, error: ingestResult.error };
+
+    const { candidates, owner } = ingestResult;
+
+    const existingProducts = await kvGet("marketplace:products", []);
+    const existingList = Array.isArray(existingProducts) ? existingProducts : [];
+
+    const normalized = candidates.map((c) => normalizeProduct(c));
+
+    const existingMarketers = await kvGet("marketplace:marketers", []);
+    const marketerList = Array.isArray(existingMarketers) ? existingMarketers : [];
+    const hasOwnerMarketer = marketerList.some((m) => m && String(m.id) === owner);
+
+    const { newProducts, duplicates } = findNewProducts(normalized, existingList);
+
+    const validated = [];
+    const rejected = [];
+
+    for (const p of newProducts) {
+      const v = validateProduct(p, { marketerExists: hasOwnerMarketer });
+      const q = qualityFilter(p, {
+        clicks: await kvGet("marketplace:clicks", []),
+        sales: await kvGet("marketplace:sales", []),
+      });
+
+      if (v.valid && q.eligible) {
+        validated.push(p);
+
+        const contentPack = buildHookEngine(p, {
+          clicks: await kvGet("marketplace:clicks", []),
+          sales: await kvGet("marketplace:sales", []),
+          lang: "he",
+        });
+
+        await kvSet(`affiliate:content:${p.id}`, contentPack);
+      } else {
+        rejected.push({ id: p.id, title: p.title, reason: v.reason || q.reasons[0] });
+      }
+    }
+
+    if (validated.length > 0) {
+      const merged = [...existingList, ...validated];
+      await kvSet("marketplace:products", merged);
+    }
+
+    await kvSet("affiliate:import:last-run", {
+      timestamp: now,
+      ingested: normalized.length,
+      new: validated.length,
+      rejected: rejected.length,
+      duplicates: duplicates.length,
+      owner,
+    });
+
+    return {
+      ok: true,
+      ingested: normalized.length,
+      imported: validated.length,
+      rejected: rejected.length,
+      duplicates: duplicates.length,
+      newIds: validated.map((p) => p.id),
+    };
+  },
+});
+
+registerJob("affiliate-product-rotation", {
+  description: "Evaluate and rotate stale/unavailable affiliate products; preserve analytics",
+  intervalMs: 24 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const [productsRow, clicksRow, salesRow] = await Promise.all([
+      kvGet("marketplace:products", []),
+      kvGet("marketplace:clicks", []),
+      kvGet("marketplace:sales", []),
+    ]);
+
+    const products = Array.isArray(productsRow) ? productsRow : [];
+    const clicks = Array.isArray(clicksRow) ? clicksRow : [];
+    const sales = Array.isArray(salesRow) ? salesRow : [];
+
+    const staleResults = [];
+    const archived = [];
+    const kept = [];
+
+    for (const p of products) {
+      const staleness = isProductStale(p, { clicks, sales, now });
+
+      if (staleness.stale && staleness.ageDays > 14) {
+        archived.push({ id: p.id, reasons: staleness.reasons, ageDays: staleness.ageDays });
+        staleResults.push({ id: p.id, stale: true, reasons: staleness.reasons });
+      } else {
+        kept.push(p);
+        if (staleness.stale) staleResults.push({ id: p.id, stale: true, reasons: staleness.reasons });
+      }
+    }
+
+    if (archived.length > 0) {
+      const archivedKey = `affiliate:archived:${new Date(now).toISOString().slice(0, 10)}`;
+      const existingArchive = await kvGet(archivedKey, []);
+      await kvSet(archivedKey, [
+        ...(Array.isArray(existingArchive) ? existingArchive : []),
+        ...archived.map((a) => ({ ...a, archivedAt: now })),
+      ]);
+    }
+
+    if (archived.length > 0) {
+      await kvSet("marketplace:products", kept);
+    }
+
+    return {
+      ok: true,
+      totalProducts: products.length,
+      archived: archived.length,
+      kept: kept.length,
+      staleDetected: staleResults.length,
+      details: staleResults,
+    };
+  },
+});
+
 export const AUTONOMOUS_JOBS = [
   "autonomous-growth-cycle",
   "daily-trend-scan",
   "site-campaign-cycle",
+  "affiliate-product-import",
+  "affiliate-product-rotation",
   "brand-pulse-publish",
   "brand-pulse-external",
   "opportunity-discovery",
