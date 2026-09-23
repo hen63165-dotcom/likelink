@@ -12,6 +12,7 @@ import { lunaHook } from "../../lib/ambassador.js";
 import { composeLunaFace } from "../../lib/cloud/lunaFace.js";
 import { lunaPersona, lunaPitch, personaPitch } from "../../lib/lunaAvatar.js";
 import { sanitizeInput } from "../../lib/security.js";
+import { pushActivitySafe } from "../../lib/studioActivitySafe.js";
 import { LunaAvatar } from "./LunaAvatar";
 import { fetchCloudHome } from "../../lib/cloud/home.js";
 import { runIntelligenceTask, intelligenceMessage, intelligenceStatus, inspectIntelligence, resumeIntelligenceJob } from "../../lib/cloud/intelligenceClient.js";
@@ -38,7 +39,9 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
   }, [open]);
   async function resumeJob(jobId) {
     setLuna({ status: "running", text: "" });
+    pushActivitySafe("luna.resume", "לונה המשיכה משימה שנשמרה ✨");
     const r = await resumeIntelligenceJob(jobId);
+    if (r.ok) pushActivitySafe("luna.success", "לונה השלימה משימה בהצלחה ✅");
     setLuna({ status: r.job?.status || "failed", text: r.ok ? r.result.text : intelligenceMessage(r.job?.errorCode || r.error) });
   }
 
@@ -49,11 +52,15 @@ export default function LunaAssistant({ marketer, onOpenStudio, onOpenCampaign }
       ? `מוצר: ${spotlight.title}${spotlight.price ? `, מחיר: ${spotlight.price} ₪` : ""}`
       : "הצעתי לי רעיון לפוסט קצר לקידום הסטודיו שלי";
     setLuna({ status: "running", text: "" });
+    pushActivitySafe("luna.ask", "ביקשת רעיון קידום מלונה ✨");
     const r = await runIntelligenceTask({
       operation: "luna.suggest", modality: "text",
       content: { kind: "text", text: draft },
     });
-    if (r.ok && r.result?.text) setLuna({ status: "completed", text: r.result.text });
+    if (r.ok && r.result?.text) {
+      pushActivitySafe("luna.success", "לונה החזירה רעיון קידום ✅");
+      setLuna({ status: "completed", text: r.result.text });
+    }
     else setLuna({ status: r.job?.status || "failed", text: intelligenceMessage(r.job?.errorCode || r.error) });
   }
 

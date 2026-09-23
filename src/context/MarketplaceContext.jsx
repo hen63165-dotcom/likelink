@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { storage } from "../lib/storage.js";
+import { recordActivity, getActivity } from "../lib/studioActivity.js";
 import { supabase } from "../lib/supabaseClient.js";
 import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth.js";
 import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, PAYOUT_DEFAULT, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys.js";
@@ -116,6 +117,20 @@ export function MarketplaceProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [settings, setSettings] = useState({ platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT });
   const [sessionMarketerId, setSessionMarketerId] = useState(null);
+  // Local Studio activity feed (real actions performed on this device).
+  // Bumped every time an action is recorded so Overview re-renders live.
+  const [activityTick, setActivityTick] = useState(0);
+  const [activityFeed, setActivityFeed] = useState(() => getActivity(30));
+
+  const pushActivity = useCallback((type, label, meta) => {
+    try {
+      recordActivity(type, label, meta);
+      setActivityFeed(getActivity(30));
+      setActivityTick((t) => t + 1);
+    } catch {
+      // activity is best-effort
+    }
+  }, []);
   const [favorites, setFavorites] = useState([]);
   const [collections, setCollections] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -325,6 +340,7 @@ export function MarketplaceProvider({ children }) {
   }, []);
 
   const toggleFavorite = useCallback(async (productId) => {
+    pushActivity("favorite.toggle", "סימנת מוצר במועדפים ⭐", { productId });
     setFavorites((prev) => {
       const next = prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId];
       setJSON(K.favorites, next, false);
@@ -343,12 +359,13 @@ export function MarketplaceProvider({ children }) {
   }, []);
 
   const toggleFollow = useCallback(async (marketerId) => {
+    pushActivity("creator.follow", "עקבת אחרי יוצר/ת 💜", { marketerId });
     setFollowing((prev) => {
       const next = prev.includes(marketerId) ? prev.filter((id) => id !== marketerId) : [...prev, marketerId];
       setJSON(K.following, next, false);
       return next;
     });
-  }, []);
+  }, [pushActivity]);
 
   const currentMarketer = useMemo(
     () => marketers.find((m) => m.id === sessionMarketerId) || null,
@@ -357,6 +374,8 @@ export function MarketplaceProvider({ children }) {
 
   const recordClick = useCallback(
     async (product) => {
+      if (!product || !product.id) return;
+      pushActivity("product.click", `פתחת דיל: ${String(product.title || product.id).slice(0, 80)}`, { productId: product.id });
       // Traffic source truth — recorded ONLY when actually available
       // (utm params / referral param / referrer host). Never guessed.
       let src = null;
@@ -406,7 +425,7 @@ export function MarketplaceProvider({ children }) {
   // ignore the type field see zero change; analytics counts views separately.
   const recordProductView = useCallback(
     async (product) => {
-      if (!product?.id) return;
+      if (!product?.id) return; pushActivity('product.view', 'צפית במוצר', { productId: product.id });
       // Dedupe per session: one view per product per browser session (honest metric).
       try {
         const seen = JSON.parse(sessionStorage.getItem("ll_viewed") || "[]");
@@ -563,7 +582,7 @@ export function MarketplaceProvider({ children }) {
           clicks: 0,
           createdAt: Date.now(),
         };
-        await persistProducts([...products, p]);
+        await persistProducts([...products, p]); pushActivity('product.add', 'הוספת מוצר חדש', { productId: p.id });
 
         // Convenience (best-effort, never blocks save): if no manual image was
         // provided, try to auto-pull an Open Graph preview image from the link.
@@ -722,11 +741,11 @@ export function MarketplaceProvider({ children }) {
       },
     }),
     [
-      loading, marketers, products, clicks, sales, payouts, charges, notifications, settings, sessionMarketerId,
+      loading, marketers, products, clicks, sales, payouts, charges, notifications, settings, sessionMarketerId, activityFeed, activityTick, pushActivity,
       favorites, collections, following, introSeen, toast, currentMarketer,
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
-      persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections,
-      toggleFollow, recordClick, recordProductView, t,
+      persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
+      toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t,
     ]
   );
 

@@ -39,6 +39,7 @@ import {
 } from "../../lib/monetization.js";
 import { PAYOUT_METHODS, PAYOUT_LABELS } from "../../constants/keys.js";
 import { money } from "../../utils/helpers.js";
+import { buildActivityFeed } from "../../lib/studioActivity.js";
 import { EmptyState, Button, LabeledInput, Toast, LoadingScreen } from "../ui/index.jsx";
 import { AnalyticsDashboard } from "../sell/AnalyticsDashboard";
 import AutoPilot from "../sell/AutoPilot";
@@ -117,6 +118,32 @@ function NavItem({ item, active, onClick }) {
         </span>
       )}
     </button>
+  );
+}
+
+/** Recent activity strip — REAL events only. */
+function ActivityStrip() {
+  const { lang } = useI18n();
+  const { activityFeed, clicks, sales, notifications } = useMarketplace();
+  const items = useMemo(
+    () => buildActivityFeed({ activity: activityFeed, clicks, sales, notifications, limit: 8 }),
+    [activityFeed, clicks, sales, notifications]
+  );
+  if (!items.length) return null;
+  return (
+    <div className="ll-card rounded-xl p-3">
+      <p className="text-xs font-bold mb-2" style={{ color: "var(--text)" }}>
+        {lang === "he" ? "תנועה אחרונה · פעולות אמיתיות" : "Recent activity"}
+      </p>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((it) => (
+          <li key={it.id} className="flex items-center gap-2 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+            <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "var(--accent)" }} />
+            <span className="truncate">{it.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -239,6 +266,8 @@ const OverviewPanel = ({ onNavigate }) => {
 
       {/* Growth Pipeline Strip */}
       <GrowthPipelineStrip />
+
+      <ActivityStrip />
     </div>
   );
 };
@@ -264,8 +293,9 @@ function AuthGate({ onNavigate, feature }) {
 
 function LunaPanel({ onNavigate }) {
   const { lang } = useI18n();
+  // Luna works for visitors too (local Luna fallbacks + honest cloud state).
+  // Only revenue/creation tools require login. AuthGate stays for those.
   const { currentMarketer: marketer } = useMarketplace();
-  if (!marketer) return <AuthGate onNavigate={onNavigate} feature={lang === "he" ? "לונה" : "Luna"} />;
   return (
     <div className="space-y-4">
       <div className="ll-card rounded-2xl p-5">
@@ -657,14 +687,26 @@ function RecommendationsPanel({ onNavigate }) {
 function UgcPanel({ onNavigate }) {
   const { lang } = useI18n();
   const { currentMarketer: marketer, sales, products, marketers } = useMarketplace();
-  if (!marketer) return <AuthGate onNavigate={onNavigate} feature={lang === "he" ? "תוכן הקהילה" : "UGC"} />;
-  const mine = (products || []).filter((p) => p.marketerId === marketer.id);
+  const scope = marketer
+    ? { label: lang === "he" ? "התוכן שלך" : "Your content", mine: (products || []).filter((p) => p.marketerId === marketer.id) }
+    : { label: lang === "he" ? "תוכן הקהילה" : "Community content", mine: (products || []).filter((p) => p?.status === "approved") };
+  const mine = scope.mine;
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
-        {lang === "he" ? "UGC — ביצועי תוכן קהילה אמיתיים" : "UGC — real community performance"}
+        {lang === "he" ? `UGC — ${scope.label} (אמיתי)` : `UGC — real ${scope.label}`}
       </h3>
-      <SellerEngagement marketer={marketer} sales={sales || []} products={mine} marketers={marketers || []} />
+      <SellerEngagement marketer={marketer || { id: "__visitor__", name: lang === "he" ? "אורח/ת" : "Visitor" }} sales={sales || []} products={mine} marketers={marketers || []} />
+      {!marketer && (
+        <div className="ll-card rounded-xl p-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+          {lang === "he"
+            ? "מחוברת? התחברי כדי לראות את הדירוג, הרצף והתגים האישיים שלך."
+            : "Log in to see your personal rank, streak and badges."}{" "}
+          <button type="button" onClick={() => onNavigate(VIEW_IDS.PRODUCTS)} className="underline font-bold" style={{ color: "var(--accent)" }}>
+            {lang === "he" ? "מעבר להתחברות" : "Go to login"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
