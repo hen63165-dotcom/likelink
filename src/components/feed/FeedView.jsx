@@ -5,7 +5,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useCart } from "../../context/CartContext";
 import { useVideos } from "../../context/VideoContext";
-import { getTopCreatorIds, normalizeImageUrl, money } from "../../utils/helpers.js";
+import { getTopCreatorIds, normalizeImageUrl, money, trackOutboundClick, trackProductView } from "../../utils/helpers.js";
 import { trackClick } from "../../lib/analytics.js";
 import { isPublicCatalogProduct } from "../../lib/cloud/catalog.js";
 import { buildUserProfile, getPersonalizedFeed, getTrendingProducts, getCreatorRecommendations, getFeedBadges } from "../../lib/recommendations.js";
@@ -255,6 +255,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   async function handleGetDeal(p) {
     await recordClick(p);
     trackClick(p.id, p.marketerId, "feed");
+    trackOutboundClick(p.id, p.marketerId, p.affiliateUrl, "feed");
     window.open(p.affiliateUrl, "_blank", "noopener,noreferrer");
     showToast(t("toast.openingDeal"));
   }
@@ -776,25 +777,26 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           {visible.map((p, i) => {
-            const b = feedBadges.get(p.id) || null;
-            const isTrust = b?.variant === "trust";
-            return (
-              <div key={p.id} style={isTrust ? { gridColumn: "span 2" } : undefined}>
-                <ProductCard
-                  p={p}
-                  marketer={getMarketer(p.marketerId)}
-                  isTop={topIds.has(p.marketerId)}
-                  lang={lang}
-                  isFav={favorites.includes(p.id)}
-                  onToggleFavorite={() => toggleFavorite(p.id)}
-                  onOpen={() => setActive(p)}
-                  onAddToCart={handleAddToCart}
-                  index={i}
-                  badge={b}
-                />
-              </div>
-            );
-          })}
+             if (i === 0) trackProductView(p.id, p.marketerId, "feed_impress");
+             const b = feedBadges.get(p.id) || null;
+             const isTrust = b?.variant === "trust";
+             return (
+               <div key={p.id} style={isTrust ? { gridColumn: "span 2" } : undefined}>
+                 <ProductCard
+                   p={p}
+                   marketer={getMarketer(p.marketerId)}
+                   isTop={topIds.has(p.marketerId)}
+                   lang={lang}
+                   isFav={favorites.includes(p.id)}
+                   onToggleFavorite={() => toggleFavorite(p.id)}
+                   onOpen={() => { trackProductView(p.id, p.marketerId, "feed_modal"); setActive(p); }}
+                   onAddToCart={handleAddToCart}
+                   index={i}
+                   badge={b}
+                 />
+               </div>
+             );
+           })}
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -807,7 +809,7 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
               lang={lang}
               isFav={favorites.includes(p.id)}
               onToggleFavorite={() => toggleFavorite(p.id)}
-              onOpen={() => setActive(p)}
+              onOpen={() => { trackProductView(p.id, p.marketerId, "feed_stream"); setActive(p); }}
               index={i}
               badge={feedBadges.get(p.id) || null}
             />

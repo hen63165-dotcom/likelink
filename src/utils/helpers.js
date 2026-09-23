@@ -286,3 +286,36 @@ export function formatDate(ts) {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   return day + "/" + month + "/" + d.getFullYear();
 }
+
+/** Track a product view via the server-side measurement endpoint. */
+export function trackProductView(productId, marketerId, source = "feed") {
+  if (!productId) return null;
+  try {
+    fetch("/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "product_view", productId, marketerId: marketerId || null, source }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Tracking is best-effort and must never break the shopping experience.
+  }
+  return null;
+}
+
+/** Track an outbound affiliate click via the server-side measurement endpoint. */
+export function trackOutboundClick(productId, marketerId, affiliateUrl, source = "feed") {
+  if (!productId || !affiliateUrl) return null;
+  try {
+    fetch("/api/track", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "outbound_click", productId, marketerId: marketerId || null, affiliateUrl, source }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Tracking is best-effort and must never block the outbound click.
+  }
+  return null;
+}
+
