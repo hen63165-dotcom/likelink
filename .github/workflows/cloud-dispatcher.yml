@@ -1,0 +1,22 @@
+name: LikeLink2 cloud dispatcher
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    steps:
+      - name: Trigger due cloud jobs
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$AUTOPILOT_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 90             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://likelink2.vercel.app/api/autopilot?cron=light"
