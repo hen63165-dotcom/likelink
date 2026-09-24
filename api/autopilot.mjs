@@ -1,27 +1,4 @@
-import { readBody } from "./_utils/readBody.mjs";
-import { originFromRequest } from "./_utils/origin.mjs";
-// Vercel Serverless Function — AutoPilot 🚀
-//
-// Likelink's built-in self-publishing automation engine ("Make/Zapier inside
-// your studio"). Each creator configures channels + a caption template + a
-// posting frequency; a Vercel Cron job hits this function every 30 minutes,
-// picks the next product from the creator's pool, generates a polished
-// caption (optionally AI-polished via OpenAI) and publishes it to every
-// connected channel — fully automatic, no third-party tools needed.
-//
-// Modes (JSON body):
-//   { mode: "get",  marketerId }              → fetch config + recent logs
-//   { mode: "save", marketerId, config }      → save/pause/resume automation
-//   { mode: "run",  marketerId }              → force-publish one post now
-// Cron (GET, x-vercel-cron header or ?secret=): runs ALL due automations.
-//
-// Storage: Supabase `kv` table under key "marketplace:autopilot" (same store
-// the rest of the platform uses).
-
-import { jsonCors } from "./_utils/cors.js";
-import { verifyToken } from "./_utils/authVerify.js";
-import { audit } from "./_utils/audit.js";
-
+let readBody, verifyToken, audit;
 let lunaHook, buildCampaign, selectOpportunity;
 let appendVeritas, verifyVeritas, veritasSummary;
 let createIntelligenceCore;
@@ -30,8 +7,11 @@ let runAllDueAutonomousJobs, getAutonomousJobStatus;
 let processPendingPayouts;
 
 async function loadAllDeps() {
-  if (lunaHook) return;
+  if (readBody) return;
   const [
+    bodyMod,
+    authMod,
+    auditMod,
     ambassador,
     campaign,
     growth,
@@ -41,6 +21,9 @@ async function loadAllDeps() {
     autonomousJobs,
     payouts,
   ] = await Promise.all([
+    import("./_utils/readBody.mjs"),
+    import("./_utils/authVerify.js"),
+    import("./_utils/audit.js"),
     import("../src/lib/ambassador.js"),
     import("../src/lib/cloud/campaign.js"),
     import("../src/lib/cloud/growth.js"),
@@ -50,6 +33,9 @@ async function loadAllDeps() {
     import("../src/lib/cloud/autonomousJobs.js"),
     import("./payouts/process.mjs"),
   ]);
+  readBody = bodyMod.readBody;
+  verifyToken = authMod.verifyToken;
+  audit = auditMod.audit;
   lunaHook = ambassador.lunaHook;
   buildCampaign = campaign.buildCampaign;
   selectOpportunity = growth.selectOpportunity;
@@ -217,10 +203,23 @@ const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function json(res, obj, status = 200, req) {
-  jsonCors(res, obj, status, req, {
-    allowMethods: ["POST", "GET", "OPTIONS"],
-    allowHeaders: ["content-type"],
-  });
+  const h = req?.headers;
+  const getHeader = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]) || "";
+  const requestOrigin = String(getHeader("origin") || getHeader("Origin") || "").trim().toLowerCase();
+  const allowed = requestOrigin === "https://likelink2.vercel.app" ||
+    /^https:\/\/likelink2(-[a-z0-9-]+)?\.vercel\.app$/.test(requestOrigin) ||
+    requestOrigin.startsWith("http://localhost:") ||
+    requestOrigin.startsWith("http://127.0.0.1:");
+  res.status(status);
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+  if (allowed) {
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.json(obj);
 }
 
 // ─── kv storage (same conventions as src/lib/storage.js) ───────────────────
