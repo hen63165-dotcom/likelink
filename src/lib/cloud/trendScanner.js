@@ -29,10 +29,10 @@ const SEASONAL_BOOST = {
 };
 
 const TIME_URGENCY = {
-  morning: "הטבות הבוקר החמות — עד הצהריים",
-  afternoon: "פריטים שנמכרים עכשיו — מלאי מוגבל",
-  evening: "קניית ערב מושלמת — משלוח מהיר",
-  night: "דילי לילה — רק עד חצות",
+  morning: "גילוי מוצרים לפי שעות הבוקר",
+  afternoon: "גילוי מוצרים לפי שעות אחר הצהריים",
+  evening: "גילוי מוצרים לפי שעות הערב",
+  night: "גילוי מוצרים לפי שעות הלילה",
 };
 
 export function getCurrentTrendContext(now = new Date()) {
@@ -81,12 +81,12 @@ export function trendBoost(product, context) {
   const daysSinceCreated = (Date.now() - (product.createdAt || Date.now())) / 86400000;
   if (daysSinceCreated < 7) {
     boost *= 1.4;
-    reasons.push("חדש!");
+    reasons.push("חדש לפי תאריך המוצר");
   }
 
   if (product.price && product.price > 0 && product.price < 100) {
     boost *= 1.2;
-    reasons.push("מחיר אימפולס");
+    reasons.push("מחיר מתחת ל-₪100");
   }
 
   return { boost, reasons };
