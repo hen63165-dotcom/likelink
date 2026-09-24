@@ -706,7 +706,7 @@ function pickProduct(cfg, pool) {
   return items[0];
 }
 
-async function runOne(store, marketerId, cfg, origin) {
+export async function runOne(store, marketerId, cfg, origin) {
   const marketer = (store.__marketers || []).find((m) => m.id === marketerId);
   const allProducts = store.__products || [];
   const pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved");
