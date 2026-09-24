@@ -4,6 +4,7 @@ import { selectOpportunity } from "./growth.js";
 import { generateDailyTrendReport } from "./trendScanner.js";
 import { appendVeritas } from "./veritas.js";
 import { generateProductStory } from "./storyEngine.js";
+import { CONNECTION_STATE } from "./connectionManager.js";
 
 const CLOUD_CYCLE_KEY = "cloud_autopilot:meta";
 const SITE_FEED_KEY = "site_campaign:feed";
@@ -14,7 +15,7 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
   const webOnly = Boolean(opts.webOnly);
   const force = Boolean(opts.force);
   const now = Date.now();
-  const [productsRow, clicksRow, salesRow, campaignsRow, marketersRow, metaRow] =
+  const [productsRow, clicksRow, salesRow, campaignsRow, marketersRow, metaRow, connectionStatesRow] =
     await Promise.all([
       kvGet("marketplace:products", []),
       kvGet("marketplace:clicks", []),
@@ -22,12 +23,15 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
       kvGet("marketplace:site_campaigns", []),
       kvGet("marketplace:marketers", []),
       kvGet(CLOUD_CYCLE_KEY),
+      kvGet("marketplace:connection_states", []),
     ]);
   const productsList = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
   const clicksList = Array.isArray(clicksRow) ? clicksRow : [];
   const salesList = Array.isArray(salesRow) ? salesRow : [];
   const campaignsList = Array.isArray(campaignsRow) ? campaignsRow : [];
   const marketersList = Array.isArray(marketersRow) ? marketersRow.filter(m => m && m.id) : [];
+  const connectionStates = Array.isArray(connectionStatesRow) ? connectionStatesRow : [];
+  const connectionByProvider = new Map(connectionStates.filter(c => c && c.provider).map(c => [String(c.provider), c]));
   const meta = metaRow || {};
   const lastRunAt = webOnly ? (meta.webRunAt || 0) : (meta.runAt || 0);
   const cooldownMs = webOnly ? 6 * 3600 * 1000 : 24 * 3600 * 1000;
@@ -39,7 +43,7 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
     for (const p of productsList) { if (!p.marketerId) p.marketerId = SINGLE_OWNER_ID; }
   }
   const trendReport = generateDailyTrendReport(productsList, new Date(now));
-  const channelStates = marketersList.filter(m => m && m.enabled).flatMap(m => (m.channels || []).map(ch => ({ provider: String(ch.type || "unknown"), connected: true, authorized: true })));
+  const channelStates = [{ provider: "owned_web", connected: true, authorized: true, verified: true }, ...marketersList.filter(m => m && m.enabled).flatMap(m => (m.channels || []).map(ch => { const provider = String(ch.type || "unknown"); const state = connectionByProvider.get(provider); const verified = Boolean(state && (state.state === CONNECTION_STATE.CONNECTED || state.state === CONNECTION_STATE.READY) && state.lastVerified); return { provider, connected: verified, authorized: verified, verified }; }))];
   const decision = selectOpportunity({ approved: productsList, sales: salesList, clicks: clicksList, campaigns: campaignsList, channelStates, marketers: marketersList, now });
   const selected = decision.selected || null;
   let campaign = null; let campaignId = null;
@@ -53,7 +57,7 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
   const hookText = campaign?.chosenHook?.text || lunaText || "";
   const priceStr = (selected && Number(selected.price) > 0) ? ` · ${selected.price} ₪` : "";
   const trackedUrl = campaign?.trackedUrl || (selected ? `${origin}/p/${selected.id}?utm_source=likelink_cloud&utm_medium=autopilot&utm_campaign=cloud_growth` : "");
-  const urgency = trendReport.context?.urgency || "משלוח מהיר לכל הגולנים";
+  const urgency = trendReport.context?.urgency || "גילוי מוצרים לפי הקשר זמן — ללא טענת דחיפות";
   const feedText = selected
     ? `${hookText}\n\n${selected.title}${priceStr}\n${trackedUrl}\n\n${urgency}\n\n💜 פותחים סטודיו חינם · ${origin}/?utm_source=likelink_cloud&utm_medium=autopilot`
     : `${(trendReport.context?.story || "🤖 הענן של לייקלין עובד לטובתך — מוצרים חמים כבר דולפים לפרסום.")}\n\n💜 פותחים סטודיו חינם · ${origin}/?utm_source=likelink_cloud&utm_medium=autopilot`;
