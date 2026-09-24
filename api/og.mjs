@@ -54,12 +54,60 @@ export default async function handler(req, res) {
   // redirected, never served the React app.
   if (url.searchParams.get("mode") === "r") {
     const target = url.searchParams.get("u") || "";
-    void url.searchParams.get("ref");
+    const productId = String(url.searchParams.get("pid") || "").slice(0, 80);
+    const marketerId = String(url.searchParams.get("mid") || "").slice(0, 80) || null;
+    const source = String(url.searchParams.get("src") || "affiliate").slice(0, 80);
     if (!target) { res.status(400); res.end("Missing destination (u)."); return; }
     let dest;
     try { dest = new URL(target); } catch { res.status(400); res.end("Invalid destination (u)."); return; }
     if (dest.protocol !== "http:" && dest.protocol !== "https:") { res.status(400); res.end("Invalid destination protocol."); return; }
     if (dest.origin === url.origin && dest.pathname.replace(/\/$/, "") === "/r") { res.status(400); res.end("Redirect loop."); return; }
+
+    // Server-side affiliate click ledger: persist the click before redirecting.
+    // This makes AliExpress outbound attribution reliable even when the browser
+    // closes immediately after the tap.
+    if (productId) {
+      try {
+        const sbUrl = process.env.VITE_SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (sbUrl && sbKey) {
+          const key = "marketplace:clicks";
+          const read = await fetch(
+            `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
+            { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` }, signal: AbortSignal.timeout(3500) }
+          );
+          const rows = await read.json();
+          let clicks = [];
+          try { clicks = rows?.[0]?.value ? JSON.parse(rows[0].value) : []; } catch { clicks = []; }
+          if (!Array.isArray(clicks)) clicks = [];
+          const event = {
+            id: `out-${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "outbound_click",
+            productId,
+            marketerId,
+            affiliateUrl: dest.toString(),
+            source,
+            ref: String(url.searchParams.get("ref") || "").slice(0, 80) || null,
+            ts: Date.now(),
+          };
+          const write = await fetch(`${sbUrl}/rest/v1/kv?on_conflict=key`, {
+            method: "POST",
+            headers: {
+              apikey: sbKey,
+              Authorization: `Bearer ${sbKey}`,
+              "content-type": "application/json",
+              Prefer: "resolution=merge-duplicates",
+            },
+            body: JSON.stringify({ key, value: JSON.stringify([...clicks.slice(-4999), event]) }),
+            signal: AbortSignal.timeout(3500),
+          });
+          if (!write.ok) console.warn("[affiliate-redirect] click ledger write failed", write.status);
+        }
+      } catch (error) {
+        console.warn("[affiliate-redirect] click ledger unavailable", error?.message || error);
+      }
+    }
+
     sendRedirect(res, dest.toString(), 302);
     return;
   }
