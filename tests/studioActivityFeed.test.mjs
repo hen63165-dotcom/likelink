@@ -11,13 +11,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
 
 const SHELL = read("src/components/studio/StudioShell.jsx");
+const HOME = read("src/components/studio/StudioHome.jsx");
 const CTX = read("src/context/MarketplaceContext.jsx");
 const LUNA = read("src/components/ambassador/LunaAssistant.jsx");
 
-test("Overview renders the real activity strip from the marketplace feed", () => {
-  assert.ok(SHELL.includes("ActivityStrip"), "StudioShell must define ActivityStrip");
-  assert.ok(SHELL.includes("<ActivityStrip />"), "Overview must render <ActivityStrip />");
-  assert.ok(SHELL.includes("buildActivityFeed"), "strip must merge via buildActivityFeed");
+test("Overview renders the real activity feed from the marketplace feed", () => {
+  assert.ok(SHELL.includes("<StudioHome"), "Overview must render <StudioHome />");
+  assert.ok(HOME.includes("buildActivityFeed"), "home activity must merge via buildActivityFeed");
+  assert.ok(HOME.includes("activityFeed"), "home must read the real marketplace activityFeed");
   assert.ok(CTX.includes("activityFeed"), "MarketplaceContext must expose activityFeed");
   assert.ok(CTX.includes("pushActivity"), "MarketplaceContext must expose pushActivity");
 });

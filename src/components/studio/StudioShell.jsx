@@ -52,6 +52,8 @@ import AvatarStudio from "../ambassador/AvatarStudio";
 import AutoVideoStudio from "../video/AutoVideoStudio";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
+import StudioHome from "./StudioHome";
+import { fetchAutonomousJobStatus } from "../../lib/cloud/autonomousJobsClient.js";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
 import LunaOpportunityHero from "./LunaOpportunityHero";
@@ -160,12 +162,7 @@ function ActivityStrip() {
   );
 }
 
-const OverviewPanel = ({ onNavigate }) => (
-  <>
-    <ActivityStrip />
-    <CreatorCommandCenter onNavigate={onNavigate} />
-  </>
-);
+const OverviewPanel = ({ onNavigate }) => <StudioHome onNavigate={onNavigate} />;
 
 /** Truthful auth gate — routes to the real login/registration flow (SellView). */
 function AuthGate({ onNavigate, feature }) {
@@ -1027,9 +1024,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     let cancelled = false;
     const fetchStatus = async () => {
       try {
-        const res = await fetch("/api/autopilot?mode=autonomous-jobs-status", { headers: { accept: "application/json" } });
-        if (!res.ok) return;
-        const data = await res.json().catch(() => null);
+        const data = await fetchAutonomousJobStatus().catch(() => null);
         if (!cancelled && data?.jobs) {
           setAutonomousJobs(data.jobs);
           setLastAutonomousCheck(Date.now());
@@ -1284,7 +1279,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
             />
           ) : (
             <>
-              {activeView && (
+              {activeView && view !== VIEW_IDS.OVERVIEW && (
                 <div className="mb-5 min-w-0">
                   <h2 className="ll-page-title">
                     {lang === "he" ? activeView.he : activeView.en}
