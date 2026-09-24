@@ -53,7 +53,7 @@ const SIGNED_KEYS = new Set(["marketplace:sales".toUpperCase()]);
 const SIGN_SECRET =
   process.env.STORE_SIGN_SECRET ||
   process.env.ADMIN_SESSION_SECRET ||
-  "likelink-store-sign-v1";
+  "";
 
 const MAX_VALUE_BYTES = 4_000_000; // ~4MB safety cap per kv value
 const MAX_KEY_LEN = 120;
@@ -193,6 +193,7 @@ async function isAdminToken(token) {
 // SAME way the signer did (key|marketerId|productId|saleAmount|commissionAmount|ts)
 // and ensure the signature is fresh (≤ SIG_WINDOW_MS).
 async function verifySaleSignature({ key, sale, sig, sigTs }) {
+  if (!SIGN_SECRET) return false;
   if (!sale || typeof sale !== "object" || !sig || !sigTs) return false;
   const now = Date.now();
   if (now - Number(sigTs) > SIG_WINDOW_MS || Number(sigTs) > now + 60_000) return false;
@@ -247,6 +248,10 @@ async function kvGet(key) {
 }
 
 async function signSaleHandler(req, res) {
+  if (!SIGN_SECRET) {
+    json(res, { ok: false, error: "store_sign_secret_not_configured" }, 503, req);
+    return;
+  }
   let body;
   try {
     body = await readBody(req);
