@@ -806,6 +806,31 @@ export default async function handler(req, res) {
     }
   }
 
+  // Read authenticated UGC assets for the owner's studio. Metadata only; no provider secrets.
+  if (req.method === "GET" && new URL(req.url, "https://x").searchParams.get("mode") === "ugc-assets") {
+    const authHeader = getHeader(req, "authorization") || "";
+    const token = String(authHeader).replace(/^Bearer\\s+/i, "").trim();
+    const actor = await verifyToken(token);
+    if (!actor?.id) { json(res, { ok: false, error: "unauthenticated" }, 401, req); return; }
+    try {
+      const productId = new URL(req.url, "https://x").searchParams.get("productId");
+      const productsRow = await kvGet("marketplace:products", []);
+      const products = Array.isArray(productsRow) ? productsRow : [];
+      const owned = products.filter((p) => String(p?.marketerId) === String(actor.id) && p?.status === "approved");
+      const targets = productId ? owned.filter((p) => String(p.id) === String(productId)) : owned.slice(0, 8);
+      const results = [];
+      for (const product of targets) {
+        const assets = await kvGet("ugc:assets:" + product.id, []);
+        results.push({ productId: product.id, title: product.title, assets: (Array.isArray(assets) ? assets : []).slice(0, 6) });
+      }
+      json(res, { ok: true, products: results }, 200, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: "ugc_assets_read_failed", detail: String(e?.message || e).slice(0, 160) }, 500, req);
+      return;
+    }
+  }
+
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
   // Merged endpoint dispatch (12-function Hobby limit): /api/sign-sale lands
