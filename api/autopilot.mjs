@@ -28,6 +28,7 @@ import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/v
 import { createIntelligenceCore } from "./_utils/intelligenceCore.mjs";
 import { runCloudAutopilotCycle, getCloudCycleStatus } from "../src/lib/cloud/cloudAutopilot.js";
 import { runAllDueAutonomousJobs, getAutonomousJobStatus } from "../src/lib/cloud/autonomousJobs.js";
+import { processPendingPayouts } from "./payouts/process.mjs";
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
@@ -1370,7 +1371,7 @@ export default async function handler(req, res) {
     // WEEKLY cron: experiment review, strategy optimization, content audit,
     // SEO audit, growth report. Runs the full daily pipeline PLUS a weekly
     // report. Falls through to the daily cycle below.
-    const isWeekly = cronMode === "weekly";
+    const isWeekly = cronMode === "weekly" || new Date().getUTCDay() === 1;
 
     // Owner-report self-test hook: `?testReport=1` on the cron path awaits the
     // send and returns Resend's exact result — used to diagnose delivery
@@ -1392,6 +1393,16 @@ export default async function handler(req, res) {
     } catch (e) {
       autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
+    // Daily payout processing stays inside the single Hobby-safe cloud cron.
+    // The payout processor is server-only and idempotent; failures are reported
+    // truthfully and never converted into false success.
+    let payoutRun = { ok: false, skipped: "not_run" };
+    try {
+      payoutRun = await processPendingPayouts();
+    } catch (e) {
+      payoutRun = { ok: false, error: String(e.message || e).slice(0, 160) };
+    }
+
     // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
     // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
     import("./_utils/analytics.js")
