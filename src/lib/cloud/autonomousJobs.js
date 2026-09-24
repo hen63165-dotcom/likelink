@@ -201,7 +201,7 @@ registerJob("opportunity-discovery", {
 
 registerJob("autonomous-ugc-distribution", {
   description: "Cloud-only UGC generation plus verified external distribution for the oldest approved products",
-  intervalMs: 6 * 60 * 60 * 1000,
+  intervalMs: 60 * 60 * 1000,
   maxDurationMs: 120000,
   async fn({ kvGet, kvSet, now }) {
     if (!process.env.OPENAI_API_KEY) return { ok: false, status: "BLOCKED", reason: "ugc_ai_not_configured" };
@@ -277,20 +277,43 @@ registerJob("autonomous-ugc-distribution", {
             }
           }
 
-          // Keep the publishing runner server-side and avoid a static circular
-          // import: autopilot imports this job registry, so resolve runOne only
-          // when the distribution job actually executes.
-          const { runOne } = await import("../../../api/autopilot.mjs");
+          // External publication happens only after a completed real video exists.
+          // This prevents a queued Veo job from being mislabeled as a published video.
+          const completedAssets = await kvGet("ugc:assets:" + selected.id, []);
+          const completedVideo = Array.isArray(completedAssets)
+            ? completedAssets.find((a) => a?.videoStatus === "completed" && a?.videoUrl)
+            : null;
+
+          if (!completedVideo) {
+            const entry = {
+              marketerId: marketer.id,
+              productId: selected.id,
+              creativeAngle: angle.id,
+              ugc: ugc.skipped || "generated",
+              ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED",
+              status: "WAITING_FOR_VIDEO",
+              channels: [],
+              ts: now,
+            };
+            results.push(entry);
+            await kvSet("growth:ugc-distribution:" + marketer.id, entry);
+            continue;
+          }
+
+          // Keep the publishing runner server-side and pin this run to the exact
+          // selected product so rotation and creative state cannot drift.
           const { runOne } = await import("../../../api/autopilot.mjs");
           const store = { ...autopilot, __marketers: marketers, __products: products };
-          const run = await runOne(store, marketer.id, cfg, ORIGIN);
+          const publishCfg = { ...cfg, productIds: [selected.id] };
+          const run = await runOne(store, marketer.id, publishCfg, ORIGIN);
+          const published = Boolean(run.ok && (run.results || []).some((item) => item?.ok));
           const entry = {
             marketerId: marketer.id,
             productId: selected.id,
             creativeAngle: angle.id,
             ugc: ugc.skipped || "generated",
-            ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED",
-            status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED",
+            ugcVideo: "COMPLETED",
+            status: published ? "PUBLISHED" : "NOT_PUBLISHED",
             channels: run.results || [],
             ts: now,
           };
