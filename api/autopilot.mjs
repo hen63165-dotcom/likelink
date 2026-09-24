@@ -880,7 +880,8 @@ export async function runOne(store, marketerId, cfg, origin) {
       else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, publishProduct);
       else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
       else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
-      await markChannelVerified(ch.type);\n      results.push({ channel: ch.type, ok: true });
+      await markChannelVerified(ch.type);
+      results.push({ channel: ch.type, ok: true });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
     }
@@ -1124,7 +1125,7 @@ const BRAND_PULSE_STORIES_HE = [
     "אפשר להכין תוכן ולשתף אותו ידנית, או להפעיל AutoPilot לאחר חיבור ערוץ אמיתי.",
     "כל פרסום חיצוני מקבל סטטוס לפי תוצאת הערוץ.",
   ].join("\n"),
-
+];
 
 export async function publishBrandPulse(origin, opts = {}) {
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
