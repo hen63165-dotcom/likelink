@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity, BarChart3, Bot, CheckCircle2, Clapperboard, ExternalLink,
   FileText, Megaphone, Package, Radio, Send, ShieldCheck, Sparkles,
@@ -29,6 +29,8 @@ function RealBadge({ children, muted = false }) {
 export default function CreatorCommandCenter({ onNavigate }) {
   const { lang } = useI18n();
   const { products, sales, clicks, activityFeed, currentMarketer } = useMarketplace();
+  const [ugcAsset, setUgcAsset] = useState(null);
+  const [ugcLoading, setUgcLoading] = useState(false);
   const he = lang === "he";
   const list = Array.isArray(products) ? products : [];
   const orders = Array.isArray(sales) ? sales : [];
@@ -39,6 +41,29 @@ export default function CreatorCommandCenter({ onNavigate }) {
   const live = useMemo(() => list.filter(p => p?.status === "active" || p?.status === "published").length, [list]);
   const topProducts = useMemo(() => [...list].sort((a,b) => (Number(b?.clicks)||0) - (Number(a?.clicks)||0)).slice(0, 4), [list]);
   const recent = useMemo(() => (Array.isArray(activityFeed) ? activityFeed : []).slice(0, 5), [activityFeed]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUgc = async () => {
+      if (!currentMarketer || !topProducts[0]?.id) return;
+      setUgcLoading(true);
+      try {
+        const token = typeof window !== "undefined" ? window.__likelink?.token || "" : "";
+        const res = await fetch(`/api/store?mode=ugc-assets&productId=${encodeURIComponent(topProducts[0].id)}`, {
+          headers: token ? { authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && data.ok) {
+          const assets = data.products?.[0]?.assets || [];
+          setUgcAsset(assets[0] || null);
+        }
+      } catch {} finally {
+        if (!cancelled) setUgcLoading(false);
+      }
+    };
+    loadUgc();
+    return () => { cancelled = true; };
+  }, [currentMarketer, topProducts[0]?.id]);
 
   const action = (view) => onNavigate?.(view);
 
@@ -69,6 +94,22 @@ export default function CreatorCommandCenter({ onNavigate }) {
         <Metric icon={Activity} value={clickList.length} label={he ? "קליקים אמיתיים" : "Real clicks"} tone="cyan" />
         <Metric icon={BarChart3} value={money(revenue, lang)} label={he ? "הכנסות שנרשמו" : "Recorded revenue"} tone="violet" />
         <Metric icon={ShieldCheck} value={`${verified}/${list.length}`} label={he ? "מוצרים מאומתים" : "Trust verified"} tone="green" />
+      </section>
+
+      <section className="ll-command-ugc-strip">
+        <div className="ll-command-ugc-copy">
+          <div className="ll-command-kicker"><Sparkles size={13} /> UGC CREATOR LAB</div>
+          <h3>{he ? "Luna + דוגמנית AI → תוכן שמוכן להפצה" : "Luna + AI creator → distribution-ready content"}</h3>
+          <p>{he ? "התמונה והווידאו נוצרים רק ממוצר אמיתי. אם כבר נוצר asset הוא מופיע כאן; אחרת זה מצב ריק אמיתי עם כניסה ישירה לסטודיו UGC." : "Media is generated only from a real product. If an asset exists it appears here; otherwise this is a truthful empty state with a direct path to UGC Studio."}</p>
+          <div className="ll-command-ugc-actions">
+            <button onClick={() => action("ugc")}><Bot size={15}/>{he ? "פתיחת UGC Studio" : "Open UGC Studio"}</button>
+            <RealBadge muted={!ugcAsset}>{ugcAsset ? (he ? "נוצר בענן" : "Cloud asset ready") : (he ? "עדיין לא נוצר UGC" : "No UGC asset yet")}</RealBadge>
+          </div>
+        </div>
+        <div className="ll-command-ugc-media">
+          {ugcAsset?.imageUrl ? <img src={ugcAsset.imageUrl} alt="" /> : <div className="ll-command-ugc-empty">{ugcLoading ? (he ? "טוען מצב ענן…" : "Loading cloud state…") : (he ? "אין עדיין תמונת UGC אמיתית" : "No real UGC image yet")}<span>{he ? "המערכת לא מייצרת תמונת דמו כדי למלא מקום." : "The system does not create demo media just to fill the space."}</span></div>}
+          {ugcAsset?.videoUrl && <span className="ll-command-ugc-video"><Video size={12}/> VIDEO READY</span>}
+        </div>
       </section>
 
       <section className="ll-command-grid">
