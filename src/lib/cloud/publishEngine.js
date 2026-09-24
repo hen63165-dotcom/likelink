@@ -511,11 +511,11 @@ export async function publishProductIntent(ctx, opts = {}) {
 export function computeBrandChannelsConfigured(store = {}) {
   const channels = listConnectionStates(store);
   const hasConnected = channels.some((c) =>
-    c.state === CONNECTION_STATE.CONNECTED || c.state === CONNECTION_STATE.READY
+    (c.state === CONNECTION_STATE.CONNECTED || c.state === CONNECTION_STATE.READY) && c.lastVerified
   );
   const hasReadyProvider = SOCIAL_CHANNEL_TYPES.some((p) => {
     const conn = getConnectionState(store, p);
-    return conn && (conn.state === CONNECTION_STATE.CONNECTED || conn.state === CONNECTION_STATE.READY);
+    return conn && (conn.state === CONNECTION_STATE.CONNECTED || conn.state === CONNECTION_STATE.READY) && conn.lastVerified;
   });
 
   return {
