@@ -136,7 +136,7 @@ test("computeBrandChannelsConfigured with no connections returns false", () => {
 test("computeBrandChannelsConfigured with real connections returns true", () => {
   const store = {
     "marketplace:connection_states": [
-      { provider: "telegram", state: CONNECTION_STATE.CONNECTED },
+      { provider: "telegram", state: CONNECTION_STATE.CONNECTED, lastVerified: Date.now() },
     ],
   };
   const result = computeBrandChannelsConfigured(store);
