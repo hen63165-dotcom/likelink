@@ -18,17 +18,51 @@ import { originFromRequest } from "./_utils/origin.mjs";
 // Storage: Supabase `kv` table under key "marketplace:autopilot" (same store
 // the rest of the platform uses).
 
-import { lunaHook } from "../src/lib/ambassador.js";
 import { jsonCors } from "./_utils/cors.js";
 import { verifyToken } from "./_utils/authVerify.js";
 import { audit } from "./_utils/audit.js";
-import { buildCampaign } from "../src/lib/cloud/campaign.js";
-import { selectOpportunity } from "../src/lib/cloud/growth.js";
-import { appendVeritas, verifyVeritas, veritasSummary } from "../src/lib/cloud/veritas.js";
-import { createIntelligenceCore } from "./_utils/intelligenceCore.mjs";
-import { runCloudAutopilotCycle, getCloudCycleStatus } from "../src/lib/cloud/cloudAutopilot.js";
-import { runAllDueAutonomousJobs, getAutonomousJobStatus } from "../src/lib/cloud/autonomousJobs.js";
-import { processPendingPayouts } from "./payouts/process.mjs";
+
+let lunaHook, buildCampaign, selectOpportunity;
+let appendVeritas, verifyVeritas, veritasSummary;
+let createIntelligenceCore;
+let runCloudAutopilotCycle, getCloudCycleStatus;
+let runAllDueAutonomousJobs, getAutonomousJobStatus;
+let processPendingPayouts;
+
+async function loadAllDeps() {
+  if (lunaHook) return;
+  const [
+    ambassador,
+    campaign,
+    growth,
+    veritas,
+    intelligence,
+    cloudAutopilot,
+    autonomousJobs,
+    payouts,
+  ] = await Promise.all([
+    import("../src/lib/ambassador.js"),
+    import("../src/lib/cloud/campaign.js"),
+    import("../src/lib/cloud/growth.js"),
+    import("../src/lib/cloud/veritas.js"),
+    import("./_utils/intelligenceCore.mjs"),
+    import("../src/lib/cloud/cloudAutopilot.js"),
+    import("../src/lib/cloud/autonomousJobs.js"),
+    import("./payouts/process.mjs"),
+  ]);
+  lunaHook = ambassador.lunaHook;
+  buildCampaign = campaign.buildCampaign;
+  selectOpportunity = growth.selectOpportunity;
+  appendVeritas = veritas.appendVeritas;
+  verifyVeritas = veritas.verifyVeritas;
+  veritasSummary = veritas.veritasSummary;
+  createIntelligenceCore = intelligence.createIntelligenceCore;
+  runCloudAutopilotCycle = cloudAutopilot.runCloudAutopilotCycle;
+  getCloudCycleStatus = cloudAutopilot.getCloudCycleStatus;
+  runAllDueAutonomousJobs = autonomousJobs.runAllDueAutonomousJobs;
+  getAutonomousJobStatus = autonomousJobs.getAutonomousJobStatus;
+  processPendingPayouts = payouts.processPendingPayouts;
+}
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
@@ -1374,6 +1408,7 @@ export default async function handler(req, res) {
   const testReport = url.searchParams.get("testReport") === "1";
 
   if (isCron) {
+    await loadAllDeps();
     const _r = await runDue(origin);
 
     // LIGHT cron (every 15 min): queue processing + health check only.
@@ -1510,10 +1545,12 @@ export default async function handler(req, res) {
   const queryMode = url.searchParams.get("mode") || url.searchParams.get("action");
   if (queryMode === "status") {
     try {
-      const [jobs, cloud] = await Promise.all([
-        getAutonomousJobStatus(),
-        getCloudCycleStatus({ kvGet, origin }),
+      const [jobsMod, cloudMod] = await Promise.all([
+        import("../src/lib/cloud/autonomousJobs.js"),
+        import("../src/lib/cloud/cloudAutopilot.js"),
       ]);
+      const jobs = await jobsMod.getAutonomousJobStatus();
+      const cloud = await cloudMod.getCloudCycleStatus({ kvGet, origin });
       const lastRuns = (Array.isArray(jobs) ? jobs : [])
         .map((j) => j?.lastRunAt)
         .filter(Boolean)
@@ -1543,6 +1580,13 @@ export default async function handler(req, res) {
       json(res, { ok: false, error: String(e.message || e).slice(0, 160) }, 500, req);
       return;
     }
+  }
+
+  try {
+    await loadAllDeps();
+  } catch (e) {
+    json(res, { ok: false, error: "autopilot_dependency_import_failed", detail: String(e?.message || e).slice(0, 500) }, 500, req);
+    return;
   }
 
   let body;
