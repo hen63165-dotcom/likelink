@@ -1090,7 +1090,10 @@ export default async function handler(req, res) {
       const productsRow = await kvGet("marketplace:products", []);
       const product = (Array.isArray(productsRow) ? productsRow : []).find((p) => String(p?.id) === productId);
       if (!product || product.status !== "approved") { json(res, { ok: false, error: "product_not_approved" }, 403, req); return; }
-      if (String(product.marketerId) !== String(actor.id)) {
+      const marketersRow = await kvGet("marketplace:marketers", []);
+      const marketer = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => String(m?.id) === String(product.marketerId));
+      const ownedBySession = marketer && String(marketer.email || "").trim().toLowerCase() === String(actor.email || "").trim().toLowerCase();
+      if (!ownedBySession) {
         let isAdmin = false;
         try { isAdmin = await verifyAdminToken(token); } catch {}
         if (!isAdmin) { json(res, { ok: false, error: "ownership_mismatch" }, 403, req); return; }
