@@ -870,6 +870,125 @@ export default async function handler(req, res) {
     return;
   }
 
+  // ─── UGC model asset generation ────────────────────────────────────────────
+  // Generates an original synthetic model image from REAL approved product data.
+  // Requires a server-side OPENAI_API_KEY. The generated asset is stored in
+  // Supabase Storage and recorded in KV. No real-person identity is used.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "ugc-model") {
+    if (passport && !rateAllow("ugc-model", passport.hash, 6)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
+    const authHeader = getHeader(req, "authorization") || "";
+    const token = String(authHeader).replace(/^Bearer\s+/i, "").trim();
+    const authUser = await verifyToken(token);
+    if (!authUser?.id) {
+      json(res, { ok: false, error: "unauthenticated" }, 401, req);
+      return;
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      json(res, { ok: false, error: "ugc_ai_not_configured", nextAction: "configure_openai_api_key" }, 503, req);
+      return;
+    }
+    let body = {};
+    try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400, req); return; }
+    const productId = String(body?.productId || "").trim();
+    const characterType = String(body?.characterType || "ai_female_model").trim();
+    if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
+
+    const [productsRow, marketersRow] = await Promise.all([
+      kvGet("marketplace:products", []),
+      kvGet("marketplace:marketers", []),
+    ]);
+    const product = (Array.isArray(productsRow) ? productsRow : []).find((p) => String(p?.id) === productId);
+    const marketer = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => m?.id === product?.marketerId);
+    if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
+    if (product.status !== "approved") { json(res, { ok: false, error: "product_not_approved" }, 403, req); return; }
+    if (!marketer || String(marketer.email || "").toLowerCase() !== String(authUser.email || "").toLowerCase()) {
+      json(res, { ok: false, error: "ownership_mismatch" }, 403, req);
+      return;
+    }
+
+    const modelMap = {
+      ai_female_model: "original adult female fashion/lifestyle model",
+      ai_female_creator: "original adult female creator",
+      ai_female_influencer: "original adult female lifestyle creator",
+    };
+    const modelRole = modelMap[characterType] || modelMap.ai_female_model;
+    const title = String(product.title || "the product").slice(0, 180);
+    const category = String(product.category || "general").slice(0, 80);
+    const description = String(product.description || "").slice(0, 500);
+    const prompt = [
+      "Create a photorealistic vertical UGC product photograph for a commerce platform.",
+      `Use an ${modelRole}; the person must be fully synthetic and not resemble any real or famous person.`,
+      "Show the person naturally presenting/using the product in a believable everyday setting.",
+      `Product name: ${title}.`,
+      `Category: ${category}.`,
+      description ? `Verified product description: ${description}.` : "",
+      "Do not invent brand claims, testimonials, awards, discounts, scarcity, medical claims, or product features.",
+      "Clean premium social-media composition, natural lighting, realistic hands, realistic proportions, no celebrity likeness, no logos unless the product itself visibly has one.",
+      "9:16 portrait composition, subject and product clearly visible, no text overlay.",
+    ].filter(Boolean).join("\n");
+
+    try {
+      const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: JSON.stringify({ model: "gpt-image-1", prompt, size: "1024x1536", quality: "high", output_format: "png" }),
+        signal: AbortSignal.timeout(60000),
+      });
+      const payload = await openaiRes.json().catch(() => ({}));
+      if (!openaiRes.ok) {
+        json(res, { ok: false, error: "ugc_generation_failed", providerStatus: openaiRes.status, detail: String(payload?.error?.message || "").slice(0, 180) }, 502, req);
+        return;
+      }
+      const b64 = payload?.data?.[0]?.b64_json;
+      if (!b64) {
+        json(res, { ok: false, error: "ugc_generation_no_image" }, 502, req);
+        return;
+      }
+
+      const bytes = Buffer.from(b64, "base64");
+      const path = `ugc/${productId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+      const bucket = "product-images";
+      const upload = await fetch(`${SB_URL}/storage/v1/object/${bucket}/${path}`, {
+        method: "POST",
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`,
+          "Content-Type": "image/png",
+          "x-upsert": "false",
+          "cache-control": "31536000",
+        },
+        body: bytes,
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!upload.ok) {
+        json(res, { ok: false, error: "ugc_storage_failed", detail: `storage_${upload.status}` }, 502, req);
+        return;
+      }
+      const imageUrl = `${SB_URL}/storage/v1/object/public/${bucket}/${path}`;
+      const asset = {
+        id: `ugc_${productId}_${Date.now()}`,
+        productId,
+        marketerId: product.marketerId,
+        characterType,
+        imageUrl,
+        source: "openai_images",
+        synthetic: true,
+        disclosed: true,
+        createdAt: Date.now(),
+      };
+      const existing = await kvGet(`ugc:assets:${productId}`, []);
+      await kvSet(`ugc:assets:${productId}`, [asset, ...(Array.isArray(existing) ? existing : [])].slice(0, 20));
+      json(res, { ok: true, imageUrl, asset }, 200, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: "ugc_generation_error", detail: String(e?.message || e).slice(0, 180) }, 500, req);
+      return;
+    }
+  }
+
   // ─── Publish mode — one-click external publishing ──────────────────────────
   // Reuses existing autopilot channel infrastructure (api/autopilot.mjs).
   // NO new provider code — delegates to existing /api/autopilot mode:"run".
