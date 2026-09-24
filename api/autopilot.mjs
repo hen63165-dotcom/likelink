@@ -389,16 +389,31 @@ export async function aiPolish(text, product) {
 
 // ─── channel dispatchers ────────────────────────────────────────────────────
 
-async function checkChannelConnection(store, channelType) {
+async function checkChannelConnection(store, channelType, channel = {}) {
   try {
     const raw = await kvGet("marketplace:connection_states");
     const list = Array.isArray(raw) ? raw : [];
     const state = list.find((c) => c && c.provider === channelType);
-    if (!state) return "NOT_CONNECTED";
-    if (state.state === "CONNECTED" && state.lastVerified) return "READY";
-    if (state.state === "DEGRADED" && state.lastVerified) return "DEGRADED";
-    if (state.state === "EXPIRED" || state.state === "REAUTH_REQUIRED" || state.state === "BLOCKED" || state.state === "ERROR" || state.state === "UNAVAILABLE") return "BLOCKED";
-    return "NOT_CONNECTED";
+    if (state?.state === "EXPIRED" || state?.state === "REAUTH_REQUIRED" || state?.state === "BLOCKED" || state?.state === "ERROR" || state?.state === "UNAVAILABLE") return "BLOCKED";
+    if (state?.state === "DEGRADED" && state?.lastVerified) return "DEGRADED";
+    if (state?.state === "CONNECTED" && state?.lastVerified) return "READY";
+    const configured = {
+      telegram: Boolean(channel.botToken && channel.chatId),
+      webhook: Boolean(channel.url),
+      facebook: Boolean(channel.pageId && channel.pageToken),
+      instagram: Boolean(channel.igUserId && channel.token),
+      whatsapp: Boolean(channel.phoneNumberId && channel.token && channel.chatId),
+      x: Boolean(channel.bearer),
+      linkedin: Boolean(channel.personUrn && channel.token),
+      discord: Boolean(channel.url),
+      slack: Boolean(channel.url),
+      mastodon: Boolean(channel.token),
+      bluesky: Boolean(channel.handle && channel.token),
+      reddit: Boolean(channel.subreddit && channel.clientId && channel.clientSecret && channel.token),
+      pinterest: Boolean(channel.boardId && channel.token),
+      wordpress: Boolean(channel.wpUrl && channel.wpUser && channel.wpPass),
+    }[channelType];
+    return configured ? "READY" : "NOT_CONNECTED";
   } catch {
     return "NOT_CONNECTED";
   }
@@ -697,7 +712,7 @@ async function runOne(store, marketerId, cfg, origin) {
 
   const results = [];
   for (const ch of cfg.channels || []) {
-    const connStatus = await checkChannelConnection(store, ch.type);
+    const connStatus = await checkChannelConnection(store, ch.type, ch);
     if (connStatus === "BLOCKED") {
       results.push({ channel: ch.type, ok: false, detail: "connection_blocked_or_expired" });
       continue;
@@ -799,7 +814,7 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
 
   const results = [];
   for (const ch of cfg.channels) {
-    const connStatus = await checkChannelConnection(store, ch.type);
+    const connStatus = await checkChannelConnection(store, ch.type, ch);
     if (connStatus === "BLOCKED") {
       results.push({ channel: ch.type, ok: false, detail: "connection_blocked_or_expired" });
       continue;
