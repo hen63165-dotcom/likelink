@@ -223,20 +223,40 @@ function App() {
     );
   }
 
-  // Landing / unknown routes — dark premium Studio is the default experience,
-  // replacing the old cream/beige marketplace as the primary surface.
+  // Public home/feed is the shopper-first front door.
+  // Creator Studio remains a dedicated route (/sell or /studio/*), so visitors
+  // immediately see discovery, products, creators and shoppable media instead
+  // of an internal command center.
   if (route.type === "landing" || tab === "feed") {
     return (
-      <>
-        <StudioShell
-          view={route.view || undefined}
-          onNavigate={(v) => {
-            if (v === "overview" || !v) navigate("/");
-            else navigate(`/studio/${v}`);
-          }}
+      <AppShell>
+        <TopBar
+          tab={tab}
+          feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onScreenshotSearch={() => setScreenshotOpen(true)}
+          activeNav={activeNav}
+          onNavChange={setActiveNav}
         />
+        <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
+          <Suspense fallback={<LoadingScreen />}>
+            <FeedView
+              navigate={navigate}
+              query={searchQuery}
+              setQuery={setSearchQuery}
+              activeNav={activeNav}
+            />
+          </Suspense>
+        </main>
+        <BottomNav tab={tab} setTab={setTab} />
         <Toast message={toast?.msg} />
-      </>
+        <ScreenshotSearchModal
+          isOpen={screenshotOpen}
+          onClose={() => setScreenshotOpen(false)}
+        />
+        <FloatingAIHelper />
+      </AppShell>
     );
   }
 
