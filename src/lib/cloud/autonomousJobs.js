@@ -199,6 +199,52 @@ registerJob("opportunity-discovery", {
   },
 });
 
+registerJob("autonomous-ugc-distribution", {
+  description: "Cloud-only UGC generation plus verified external distribution through AutoPilot",
+  intervalMs: 6 * 60 * 60 * 1000,
+  maxDurationMs: 120000,
+  async fn({ kvGet, kvSet, now }) {
+    if (!process.env.OPENAI_API_KEY) return { ok: false, status: 'BLOCKED', reason: 'ugc_ai_not_configured' };
+    const [productsRow, marketersRow, autopilotRow] = await Promise.all([
+      kvGet("marketplace:products", []),
+      kvGet("marketplace:marketers", []),
+      kvGet("marketplace:autopilot", {}),
+    ]);
+    const products = Array.isArray(productsRow) ? productsRow : [];
+    const marketers = Array.isArray(marketersRow) ? marketersRow : [];
+    const autopilot = autopilotRow && typeof autopilotRow === "object" ? autopilotRow : {};
+    const results = [];
+    const { generateCloudUgcAsset } = await import("./ugcEngine.js");
+    const { runOne } = await import("../../../api/autopilot.mjs");
+    for (const marketer of marketers.filter((m) => m?.id).slice(0, 3)) {
+      const cfg = autopilot[marketer.id];
+      if (!cfg?.enabled || !Array.isArray(cfg.channels) || !cfg.channels.length) {
+        results.push({ marketerId: marketer.id, status: "NO_EXTERNAL_CHANNEL_CONFIG" });
+        continue;
+      }
+      const pool = products.filter((p) => p?.status === "approved" && String(p.marketerId) === String(marketer.id));
+      if (!pool.length) { results.push({ marketerId: marketer.id, status: "NO_APPROVED_PRODUCTS" }); continue; }
+      let selected = pool[0];
+      let oldest = Number.MAX_SAFE_INTEGER;
+      for (const p of pool) {
+        const assets = await kvGet("ugc:assets:" + p.id, []);
+        const latest = Array.isArray(assets) ? Number(assets[0]?.createdAt || 0) : 0;
+        if (latest < oldest) { oldest = latest; selected = p; }
+      }
+      const ugc = await generateCloudUgcAsset({ product: selected, characterType: cfg.ugcCharacterType || "ai_female_model" });
+      if (!ugc.ok && ugc.skipped !== "fresh_asset") {
+        results.push({ marketerId: marketer.id, productId: selected.id, status: "UGC_FAILED", error: ugc.error });
+        continue;
+      }
+      const store = { ...autopilot, __marketers: marketers, __products: products };
+      const run = await runOne(store, marketer.id, cfg, ORIGIN);
+      const entry = { marketerId: marketer.id, productId: selected.id, ugc: ugc.skipped || "generated", status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED", channels: run.results || [], ts: now };
+      results.push(entry);
+      await kvSet("growth:ugc-distribution:" + marketer.id, entry);
+    }
+    return { ok: true, cycle: "autonomous-ugc-distribution", timestamp: now, results, rule: "No external success is recorded without a real channel response." };
+  },
+});
 registerJob("brand-pulse-freshness", {
   description: "Ensure brand pulse feed stays fresh (visitor-triggered backup)",
   intervalMs: 6 * 60 * 60 * 1000,
@@ -355,6 +401,7 @@ export const AUTONOMOUS_JOBS = [
   "brand-pulse-external",
   "opportunity-discovery",
   "brand-pulse-freshness",
+  "autonomous-ugc-distribution",
 ];
 
 export async function runAllDueAutonomousJobs(opts = {}) {
