@@ -989,6 +989,90 @@ export default async function handler(req, res) {
     }
   }
 
+  // ─── UGC video pipeline (cloud-only, asynchronous) ─────────────────────────
+  // Uses the real AI video provider configured on the server. The client never
+  // receives provider credentials. A provider outage/unavailability is reported
+  // honestly; no fake video URL or publication status is created.
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "ugc-video-queue") {
+    if (passport && !rateAllow("ugc-video-queue", passport.hash, 4)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
+    const authHeader = getHeader(req, "authorization") || "";
+    const token = String(authHeader).replace(/^Bearer\s+/i, "").trim();
+    const actor = await verifyToken(token);
+    if (!actor?.id) { json(res, { ok: false, error: "unauthenticated" }, 401, req); return; }
+
+    try {
+      const body = await readBody(req);
+      const productId = String(body?.productId || "").trim();
+      const assetId = String(body?.assetId || "").trim();
+      const characterType = String(body?.characterType || "ai_female_model").trim();
+      if (!productId || !assetId) { json(res, { ok: false, error: "missing_product_or_asset" }, 400, req); return; }
+
+      const productsRow = await kvGet("marketplace:products", []);
+      const product = (Array.isArray(productsRow) ? productsRow : []).find((p) => String(p?.id) === productId);
+      if (!product || product.status !== "approved") { json(res, { ok: false, error: "product_not_approved" }, 403, req); return; }
+
+      const marketersRow = await kvGet("marketplace:marketers", []);
+      const marketer = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => String(m?.id) === String(product.marketerId));
+      let isAdmin = false;
+      try { isAdmin = await verifyAdminToken(token); } catch {}
+      if ((!marketer || String(marketer.email || "").toLowerCase() !== String(actor.email || "").toLowerCase()) && !isAdmin) {
+        audit.logApiForbidden({ type: "ugc_video_ownership", productId, actorId: actor.id }, { type: "ugc-video-queue" }, { _req: req });
+        json(res, { ok: false, error: "ownership_mismatch" }, 403, req);
+        return;
+      }
+
+      const { queueCloudUgcVideo } = await import("../src/lib/cloud/ugcEngine.js");
+      const assets = await kvGet("ugc:assets:" + productId, []);
+      const asset = (Array.isArray(assets) ? assets : []).find((a) => a?.id === assetId);
+      if (!asset?.imageUrl) { json(res, { ok: false, error: "ugc_asset_not_found" }, 404, req); return; }
+
+      const result = await queueCloudUgcVideo({ product, asset, characterType });
+      json(res, result, result.ok ? 200 : 502, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: "ugc_video_queue_error", detail: String(e?.message || e).slice(0, 180) }, 500, req);
+      return;
+    }
+  }
+
+  if (new URL(req.url, "https://x").searchParams.get("mode") === "ugc-video-status") {
+    if (passport && !rateAllow("ugc-video-status", passport.hash, 30)) {
+      json(res, { ok: false, error: "rate_limited" }, 429, req);
+      return;
+    }
+    const authHeader = getHeader(req, "authorization") || "";
+    const token = String(authHeader).replace(/^Bearer\s+/i, "").trim();
+    const actor = await verifyToken(token);
+    if (!actor?.id) { json(res, { ok: false, error: "unauthenticated" }, 401, req); return; }
+
+    try {
+      const body = await readBody(req);
+      const productId = String(body?.productId || "").trim();
+      const videoJobId = String(body?.videoJobId || "").trim();
+      if (!productId || !videoJobId) { json(res, { ok: false, error: "missing_video_job" }, 400, req); return; }
+
+      const productsRow = await kvGet("marketplace:products", []);
+      const product = (Array.isArray(productsRow) ? productsRow : []).find((p) => String(p?.id) === productId);
+      if (!product || product.status !== "approved") { json(res, { ok: false, error: "product_not_approved" }, 403, req); return; }
+      if (String(product.marketerId) !== String(actor.id)) {
+        let isAdmin = false;
+        try { isAdmin = await verifyAdminToken(token); } catch {}
+        if (!isAdmin) { json(res, { ok: false, error: "ownership_mismatch" }, 403, req); return; }
+      }
+
+      const { pollCloudUgcVideo } = await import("../src/lib/cloud/ugcEngine.js");
+      const result = await pollCloudUgcVideo({ productId, videoJobId });
+      json(res, result, result.ok ? 200 : 502, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: "ugc_video_status_error", detail: String(e?.message || e).slice(0, 180) }, 500, req);
+      return;
+    }
+  }
+
   // ─── Publish mode — one-click external publishing ──────────────────────────
   // Reuses existing autopilot channel infrastructure (api/autopilot.mjs).
   // NO new provider code — delegates to existing /api/autopilot mode:"run".
