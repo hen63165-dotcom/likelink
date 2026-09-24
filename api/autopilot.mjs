@@ -1288,9 +1288,13 @@ export default async function handler(req, res) {
 
   // ── CRON: publish for every enabled creator whose slot is due ──
   const url = new URL(req.url, origin);
+  const bearer = String(getH("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+  const configuredAutopilotSecret = String(process.env.AUTOPILOT_SECRET || "").trim();
+  const validBearerCron = Boolean(configuredAutopilotSecret) && bearer === configuredAutopilotSecret;
   const isCron =
     req.method === "GET" &&
     (Boolean(getH("x-vercel-cron")) ||
+      validBearerCron ||
       url.searchParams.get("secret") === process.env.AUTOPILOT_SECRET);
   const cronMode = url.searchParams.get("cron") || "daily";
   const testReport = url.searchParams.get("testReport") === "1";
