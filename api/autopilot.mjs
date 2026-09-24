@@ -1478,7 +1478,7 @@ export default async function handler(req, res) {
     if (cronMode === "light") {
       let autonomousJobs = { ok: false, skipped: "not_run" };
       try {
-        autonomousJobs = await runAllDueAutonomousJobs();
+        autonomousJobs = await runAllDueAutonomousJobs({ maxJobs: 2 });
       } catch (e) {
         autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
       }
