@@ -62,7 +62,8 @@ export default function CreatorCommandCenter({ onNavigate }) {
       }
     };
     loadUgc();
-    return () => { cancelled = true; };
+    const interval = setInterval(loadUgc, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [currentMarketer, topProducts[0]?.id]);
 
   const action = (view) => onNavigate?.(view);
@@ -107,8 +108,19 @@ export default function CreatorCommandCenter({ onNavigate }) {
           </div>
         </div>
         <div className="ll-command-ugc-media">
-          {ugcAsset?.imageUrl ? <img src={ugcAsset.imageUrl} alt="" /> : <div className="ll-command-ugc-empty">{ugcLoading ? (he ? "טוען מצב ענן…" : "Loading cloud state…") : (he ? "אין עדיין תמונת UGC אמיתית" : "No real UGC image yet")}<span>{he ? "המערכת לא מייצרת תמונת דמו כדי למלא מקום." : "The system does not create demo media just to fill the space."}</span></div>}
-          {ugcAsset?.videoUrl && <span className="ll-command-ugc-video"><Video size={12}/> VIDEO READY</span>}
+          {ugcAsset?.videoUrl ? (
+            <>
+              <video src={ugcAsset.videoUrl} controls playsInline preload="metadata" aria-label={he ? "וידאו UGC אמיתי" : "Real UGC video"} />
+              <span className="ll-command-ugc-video"><Video size={12}/> VIDEO READY</span>
+            </>
+          ) : ugcAsset?.imageUrl ? (
+            <>
+              <img src={ugcAsset.imageUrl} alt="" />
+              {ugcAsset?.videoJobId && <span className="ll-command-ugc-video"><Video size={12}/> {ugcAsset.videoStatus || "VIDEO PROCESSING"}</span>}
+            </>
+          ) : (
+            <div className="ll-command-ugc-empty">{ugcLoading ? (he ? "טוען מצב ענן…" : "Loading cloud state…") : (he ? "אין עדיין UGC אמיתי" : "No real UGC yet")}<span>{he ? "המערכת לא מייצרת מדיה מדומה כדי למלא מקום. פתחי את UGC Studio כדי ליצור וידאו אמיתי בענן." : "The system does not create demo media just to fill space. Open UGC Studio to create a real cloud video."}</span></div>
+          )}
         </div>
       </section>
 
