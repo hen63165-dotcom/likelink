@@ -3,8 +3,10 @@ import { ArrowLeft, Share2, Zap, Wallet, Trophy } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { shareProduct } from "../../lib/native.js";
+import { productPath } from "../../lib/acquisition.js";
 import { updatePageSEO, getProductSEO, getDefaultSEO } from "../../lib/seo.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
+import ShareBar from "./ShareBar";
 
 /**
  * ProductShowcase — public viral page for a single product.
@@ -165,14 +167,14 @@ export default function ProductShowcase({ product, owner, navigate }) {
           </a>
         </div>
 
-        <button
-          type="button"
-          onClick={handleShare}
-          className="tap w-full mt-3 py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold"
-          style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-        >
-          <Share2 size={14} /> {L("שתפי את העמוד הזה", "Share this page")}
-        </button>
+        <ShareBar
+          path={productPath(product.id)}
+          title={`${product.title} | LikeLink`}
+          text={L("מוצר לבדיקה", "Product to check")}
+          productId={product.id}
+          marketerId={owner.id}
+          compact
+        />
       </div>
     </div>
   );

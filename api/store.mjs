@@ -1613,13 +1613,44 @@ export default async function handler(req, res) {
     }
     try {
       const bodyRc = await readBody(req).catch(() => ({}));
+      const rawType = String(bodyRc?.type || "").slice(0, 40);
+      const SITE_EVENT_TYPES = new Set([
+        "landing_view", "content_view", "cta_click", "share_started", "share_completed", "share_target",
+        "creator_landing_view", "creator_cta_click", "creator_signup_started", "studio_opened", "creator_lead",
+        "merchant_landing_view", "merchant_cta_click", "merchant_signup_started", "merchant_lead", "referral_visit",
+      ]);
+      if (bodyRc?.siteEvent === true) {
+        if (!SITE_EVENT_TYPES.has(rawType)) { json(res, { ok: false, error: "invalid_site_event" }, 400, req); return; }
+        const now = Date.now();
+        const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
+        const ua = String(getHeader(req, "user-agent") || "").slice(0, 200);
+        const ref = String(bodyRc?.ref || bodyRc?.source || "").slice(0, 80) || null;
+        const event = {
+          id: `site-${now}-${Math.random().toString(36).slice(2, 8)}`,
+          type: rawType,
+          page: bodyRc?.page ? String(bodyRc.page).slice(0, 200) : null,
+          target: bodyRc?.target ? String(bodyRc.target).slice(0, 24) : null,
+          productId: bodyRc?.productId ? String(bodyRc.productId).slice(0, 80) : null,
+          marketerId: bodyRc?.marketerId ? String(bodyRc.marketerId).slice(0, 80) : null,
+          storyId: bodyRc?.storyId ? String(bodyRc.storyId).slice(0, 80) : null,
+          ref,
+          utm_source: bodyRc?.utm_source ? String(bodyRc.utm_source).slice(0, 120) : null,
+          utm_medium: bodyRc?.utm_medium ? String(bodyRc.utm_medium).slice(0, 120) : null,
+          utm_campaign: bodyRc?.utm_campaign ? String(bodyRc.utm_campaign).slice(0, 120) : null,
+          utm_content: bodyRc?.utm_content ? String(bodyRc.utm_content).slice(0, 120) : null,
+          language: String(bodyRc?.language || "he").slice(0, 8),
+          ip: ip.slice(0, 45), ua, ts: now,
+        };
+        const existingEvents = (await kvGet("marketplace:events")) || [];
+        const eventList = Array.isArray(existingEvents) ? existingEvents : [];
+        await kvSet("marketplace:events", [...eventList.slice(-4999), event]);
+        json(res, { ok: true, mode: "record-click", type: rawType, eventId: event.id, stored: true }, 200, req);
+        return;
+      }
       const productId = String(bodyRc?.productId || "").slice(0, 80);
       if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
-      // Event type: "product_view" (impression, does NOT count as a click),
-      // "outbound_click" (default — the authoritative click counter) or
-      // "lead_capture" (creator/merchant expressed interest).
+      // Product events: views never count as outbound clicks.
       const TRACK_TYPES = new Set(["product_view", "outbound_click", "lead_capture"]);
-      const rawType = String(bodyRc?.type || "").slice(0, 40);
       const type = TRACK_TYPES.has(rawType) ? rawType : "outbound_click";
       const isClick = type !== "product_view";
 

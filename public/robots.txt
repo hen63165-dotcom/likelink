@@ -6,10 +6,12 @@
 # Sitemap domain: https://likelink2.vercel.app
 # ============================================================
 
-User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /api/
+  User-agent: *
+  Allow: /
+  Disallow: /admin
+  Disallow: /api/
+  Disallow: /studio
+  Disallow: /sell
 
 # --- Standard search engines ---
 User-agent: Googlebot

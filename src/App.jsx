@@ -27,6 +27,9 @@ const FeedView = lazy(() => import("./components/feed/FeedView"));
 const SellView = lazy(() => import("./components/sell/SellView"));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
 const ProductShowcase = lazy(() => import("./components/public/ProductShowcase"));
+const CreatorAcquisition = lazy(() => import("./components/public/CreatorAcquisition"));
+const MerchantAcquisition = lazy(() => import("./components/public/MerchantAcquisition"));
+const DiscoveryPage = lazy(() => import("./components/public/DiscoveryPage"));
 const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
 export default function AppRoot() {
@@ -81,7 +84,7 @@ function App() {
 
   // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
   useEffect(() => {
-    if (route.type === "creator" || route.type === "product") return;
+    if (["creator", "product", "creators", "merchants", "discover"].includes(route.type)) return;
     if (tab === "admin") {
       updatePageSEO(getDefaultSEO("admin"));
       setNoIndex("admin");
@@ -146,6 +149,19 @@ function App() {
   }
 
   if (loading) return <LoadingScreen />;
+
+  // Public acquisition + discovery surfaces — real catalog only.
+  if (route.type === "creators" || route.type === "merchants" || route.type === "discover") {
+    const PublicPage = route.type === "creators" ? CreatorAcquisition : route.type === "merchants" ? MerchantAcquisition : DiscoveryPage;
+    return (
+      <AppShell>
+        <Suspense fallback={<LoadingScreen />}>
+          <PublicPage category={route.category} navigate={navigate} />
+        </Suspense>
+        <Toast message={toast?.msg} />
+      </AppShell>
+    );
+  }
 
   // Creator Profile Route
   if (route.type === "creator") {

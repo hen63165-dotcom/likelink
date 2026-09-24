@@ -136,11 +136,18 @@ async function sitemapHandler(req, res) {
     }
   } catch { /* ignore growth sitemap errors */ }
 
-  const urls = [
+    const publicCategories = [...new Set(publicProducts.map((p) => p.category).filter(Boolean))];
+    const eligibleCreatorIds = new Set(publicProducts.map((p) => p.marketerId));
+    const publicMarketers = (marketers || []).filter((m) => m?.slug && eligibleCreatorIds.has(m.id));
+    const urls = [
     { loc: `${origin}/`, priority: "1.0", changefreq: "daily" },
     { loc: `${origin}/feed`, priority: "0.9", changefreq: "daily" },
+    { loc: `${origin}/creators`, priority: "0.8", changefreq: "weekly" },
+    { loc: `${origin}/merchants`, priority: "0.7", changefreq: "weekly" },
+    { loc: `${origin}/discover`, priority: "0.8", changefreq: "daily" },
     // Studio/admin are noindex in-app — omit from sitemap intentionally.
-    ...marketers.filter((m) => m?.slug).map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
+    ...publicMarketers.map((m) => ({ loc: `${origin}/u/${encodeURIComponent(m.slug)}`, lastmod: m.updatedAt ? new Date(m.updatedAt).toISOString() : now, priority: "0.8", changefreq: "weekly" })),
+    ...publicCategories.map((c) => ({ loc: `${origin}/discover/${encodeURIComponent(c)}`, priority: "0.5", changefreq: "weekly" })),
     ...publicProducts.map((p) => ({ loc: `${origin}/p/${encodeURIComponent(p.id)}`, lastmod: p.updatedAt ? new Date(p.updatedAt).toISOString() : now, priority: "0.6", changefreq: "daily" })),
     ...publicProducts.filter((p) => /^https?:/i.test(String(p.image || ""))).map((p) => ({ loc: `${origin}/story/${encodeURIComponent(p.id)}`, lastmod: now, priority: "0.5", changefreq: "weekly" })),
     ...growthUrls.slice(0, 50),
