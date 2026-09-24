@@ -519,7 +519,7 @@ export function computeBrandChannelsConfigured(store = {}) {
   });
 
   return {
-    configured: hasConnected || hasReadyProvider || channels.length > 0,
+    configured: hasConnected || hasReadyProvider,
     connectedChannels: channels.filter((c) =>
       c.state === CONNECTION_STATE.CONNECTED || c.state === CONNECTION_STATE.READY
     ),
