@@ -394,14 +394,13 @@ async function checkChannelConnection(store, channelType) {
     const raw = await kvGet("marketplace:connection_states");
     const list = Array.isArray(raw) ? raw : [];
     const state = list.find((c) => c && c.provider === channelType);
-    if (!state) return "READY";
-    if (state.state === "CONNECTED") return "READY";
-    if (state.state === "DEGRADED") return "DEGRADED";
-    if (state.state === "EXPIRED" || state.state === "REAUTH_REQUIRED") return "BLOCKED";
-    if (state.state === "BLOCKED" || state.state === "ERROR") return "BLOCKED";
-    return "BLOCKED";
+    if (!state) return "NOT_CONNECTED";
+    if (state.state === "CONNECTED" && state.lastVerified) return "READY";
+    if (state.state === "DEGRADED" && state.lastVerified) return "DEGRADED";
+    if (state.state === "EXPIRED" || state.state === "REAUTH_REQUIRED" || state.state === "BLOCKED" || state.state === "ERROR" || state.state === "UNAVAILABLE") return "BLOCKED";
+    return "NOT_CONNECTED";
   } catch {
-    return "READY";
+    return "NOT_CONNECTED";
   }
 }
 
