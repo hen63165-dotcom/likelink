@@ -257,7 +257,8 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
     await recordClick(p);
     trackClick(p.id, p.marketerId, "feed");
     trackOutboundClick(p.id, p.marketerId, p.affiliateUrl, "feed");
-    window.open(p.affiliateUrl, "_blank", "noopener,noreferrer");
+    const trackedUrl = `/r?u=${encodeURIComponent(p.affiliateUrl)}&pid=${encodeURIComponent(p.id)}&mid=${encodeURIComponent(p.marketerId || "")}&src=feed`;
+    window.open(trackedUrl, "_blank", "noopener,noreferrer");
     showToast(t("toast.openingDeal"));
   }
 
