@@ -17,6 +17,17 @@ export class ErrorBoundary extends React.Component {
     return { error, recovered: true };
   }
 
+  componentDidMount() {
+    // Clear a previous one-time recovery marker after a clean boot.
+    // This prevents reload loops while still allowing the next real failure
+    // to trigger the automatic stale-cache/service-worker recovery.
+    try {
+      window.setTimeout(() => {
+        try { sessionStorage.removeItem("likelink:auto-recovery"); } catch {}
+      }, 20000);
+    } catch {}
+  }
+
   componentDidCatch(error, info) {
     console.error("Likelink error boundary caught:", error, info);
     try {
@@ -29,6 +40,26 @@ export class ErrorBoundary extends React.Component {
       }
     } catch {
       /* no-op */
+    }
+
+    // A stale service-worker/cache can leave a valid deployment running with
+    // incompatible client chunks. Recover once automatically before exposing
+    // the generic error screen to the visitor.
+    try {
+      const key = "likelink:auto-recovery";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        Promise.all([
+          caches?.keys?.().then((names) => Promise.all(names.map((name) => caches.delete(name)))).catch(() => {}),
+          navigator?.serviceWorker?.getRegistrations?.()
+            .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
+            .catch(() => {}),
+        ]).finally(() => {
+          try { window.location.reload(); } catch {}
+        });
+      }
+    } catch {
+      /* recovery is best-effort and must never throw */
     }
   }
 
