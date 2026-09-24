@@ -276,7 +276,7 @@ const OverviewPanel = ({ onNavigate }) => {
       {/* Luna Cloud Status + Growth Pipeline (real execution state) */}
       <div className="grid gap-4 lg:grid-cols-2">
         <LunaStatusCard />
-        <GrowthShowcaseDemo />
+        <GrowthShowcaseDemo onNavigate={onNavigate} />
       </div>
 
       {/* Growth Pipeline Strip */}
