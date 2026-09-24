@@ -124,6 +124,24 @@ async function sendPayPalPayout(payout, recipientEmail) {
   return { ok: false, note: `PayPal rejected (${res.status})` };
 }
 
+async function reconcilePayPalPayout(base, payout) {
+  if (!payout?.reference) return { ok: false, status: "unknown" };
+  const token = await getPayPalAccessToken();
+  if (!token) return { ok: false, status: "credentials_missing" };
+  try {
+    const res = await fetch(`${base}/v1/payments/payouts/${encodeURIComponent(payout.reference)}?fields=batch_header`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(12000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: "lookup_failed", httpStatus: res.status };
+    const status = String(data?.batch_header?.batch_status || "").toUpperCase();
+    return { ok: true, status };
+  } catch {
+    return { ok: false, status: "lookup_error" };
+  }
+}
+
 // ─── main processor ────────────────────────────────────────────────────────
 
 export async function processPendingPayouts() {
@@ -144,25 +162,37 @@ export async function processPendingPayouts() {
     p.status === "pending" ||
     (p.status === "processing" && !p.reference && Date.now() - (p.claimedAt || 0) > STALE_MS);
 
-  // Auto-heal: a "processing" payout WITH a batch reference means PayPal
-  // already accepted the batch — the previous run just died before saving.
-  // Mark it paid instead of ever re-sending that money.
-  const healed = [];
-  const healedPayouts = payouts.map((p) => {
-    if (p.status === "processing" && p.reference && Date.now() - (p.claimedAt || 0) > STALE_MS) {
-      healed.push(p.id);
-      return { ...p, status: "paid", paidAt: Date.now(), note: `${p.note || ""} (auto-healed from processing)`.trim() };
+  // Reconcile previously submitted PayPal batches before claiming anything new.
+  // "processing" is not treated as paid until PayPal reports a terminal success.
+  const reconciled = [];
+  const reconciledPayouts = [];
+  for (const p of payouts) {
+    if (p.status !== "processing" || !p.reference) {
+      reconciledPayouts.push(p);
+      continue;
     }
-    return p;
-  });
-
-  const pending = healedPayouts.filter(isClaimable);
-  if (pending.length === 0 && healed.length === 0) {
-    return { ok: true, processed: 0, message: "No pending payouts" };
+    const secret = process.env.PAYPAL_ENV === "live" ? PAYPAL_API : (String(process.env.PAYPAL_CLIENT_SECRET || "").includes("sandbox") ? SANDBOX_API : PAYPAL_API);
+    const check = await reconcilePayPalPayout(secret, p);
+    const state = String(check.status || "").toUpperCase();
+    if (check.ok && ["SUCCESS", "COMPLETED"].includes(state)) {
+      reconciled.push({ payoutId: p.id, status: "paid", paypalStatus: state });
+      reconciledPayouts.push({ ...p, status: "paid", paidAt: Date.now(), paypalStatus: state });
+    } else if (check.ok && ["FAILED", "DENIED", "BLOCKED", "RETURNED", "REFUNDED"].includes(state)) {
+      reconciled.push({ payoutId: p.id, status: "failed", paypalStatus: state });
+      reconciledPayouts.push({ ...p, status: "failed", paidAt: null, paypalStatus: state, note: `PayPal batch terminal status: ${state}` });
+    } else {
+      reconciledPayouts.push({ ...p, paypalStatus: state || p.paypalStatus || "UNKNOWN" });
+    }
   }
 
-  const results = healed.map((id) => ({ payoutId: id, healed: true }));
-  const updatedPayouts = [...healedPayouts];
+  const pending = reconciledPayouts.filter(isClaimable);
+  if (pending.length === 0 && reconciled.length === 0) {
+    if (JSON.stringify(reconciledPayouts) !== JSON.stringify(payouts)) await kvSet(PAYOUTS_KEY, reconciledPayouts);
+    return { ok: true, processed: 0, reconciled, message: "No pending payouts" };
+  }
+
+  const results = [...reconciled];
+  const updatedPayouts = [...reconciledPayouts];
 
   for (const payout of pending) {
     const marketer = marketers.find((m) => m.id === payout.marketerId);
@@ -203,9 +233,9 @@ export async function processPendingPayouts() {
     if (idx !== -1) {
       updatedPayouts[idx] = {
         ...updatedPayouts[idx],
-        status: result.ok ? "paid" : "failed",
+        status: result.ok && method === "paypal" ? "processing" : (result.ok ? "paid" : "failed"),
         reference: result.reference || updatedPayouts[idx].reference,
-        paidAt: result.ok ? Date.now() : null,
+        paidAt: result.ok && method !== "paypal" ? Date.now() : null,
         note: result.note,
       };
     }
