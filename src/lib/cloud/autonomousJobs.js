@@ -200,11 +200,11 @@ registerJob("opportunity-discovery", {
 });
 
 registerJob("autonomous-ugc-distribution", {
-  description: "Cloud-only UGC generation plus verified external distribution through AutoPilot",
+  description: "Cloud-only UGC generation plus verified external distribution for the oldest approved products",
   intervalMs: 6 * 60 * 60 * 1000,
   maxDurationMs: 120000,
   async fn({ kvGet, kvSet, now }) {
-    if (!process.env.OPENAI_API_KEY) return { ok: false, status: 'BLOCKED', reason: 'ugc_ai_not_configured' };
+    if (!process.env.OPENAI_API_KEY) return { ok: false, status: "BLOCKED", reason: "ugc_ai_not_configured" };
     const [productsRow, marketersRow, autopilotRow] = await Promise.all([
       kvGet("marketplace:products", []),
       kvGet("marketplace:marketers", []),
@@ -214,49 +214,98 @@ registerJob("autonomous-ugc-distribution", {
     const marketers = Array.isArray(marketersRow) ? marketersRow : [];
     const autopilot = autopilotRow && typeof autopilotRow === "object" ? autopilotRow : {};
     const results = [];
-    const { generateCloudUgcAsset } = await import("./ugcEngine.js");
-    const { runOne } = await import("../../../api/autopilot.mjs");
+    const creativeAngles = [
+      { id: "curiosity", hook: "רגע — למה כולם שמים לב לזה?" },
+      { id: "problem-solution", hook: "אם גם את נתקלת בזה, תראי את זה." },
+      { id: "emotional-roi", hook: "לפני שקונים, הנה הדבר שבאמת שווה לבדוק." },
+      { id: "reality-tea", hook: "בלי הייפ — הנה מה שבאמת רואים." },
+    ];
+
     for (const marketer of marketers.filter((m) => m?.id).slice(0, 3)) {
       const cfg = autopilot[marketer.id];
       if (!cfg?.enabled || !Array.isArray(cfg.channels) || !cfg.channels.length) {
         results.push({ marketerId: marketer.id, status: "NO_EXTERNAL_CHANNEL_CONFIG" });
         continue;
       }
+
       const pool = products.filter((p) => p?.status === "approved" && String(p.marketerId) === String(marketer.id));
-      if (!pool.length) { results.push({ marketerId: marketer.id, status: "NO_APPROVED_PRODUCTS" }); continue; }
-      let selected = pool[0];
-      let oldest = Number.MAX_SAFE_INTEGER;
-      for (const p of pool) {
-        const assets = await kvGet("ugc:assets:" + p.id, []);
-        const latest = Array.isArray(assets) ? Number(assets[0]?.createdAt || 0) : 0;
-        if (latest < oldest) { oldest = latest; selected = p; }
-      }
-      const ugc = await generateCloudUgcAsset({ product: selected, characterType: cfg.ugcCharacterType || "ai_female_model" });
-      if (!ugc.ok && ugc.skipped !== "fresh_asset") {
-        results.push({ marketerId: marketer.id, productId: selected.id, status: "UGC_FAILED", error: ugc.error });
+      if (!pool.length) {
+        results.push({ marketerId: marketer.id, status: "NO_APPROVED_PRODUCTS" });
         continue;
       }
 
-      // Queue cloud video when a current video provider is configured.
-      // Image-only UGC remains valid; video is never faked when the provider is absent.
-      let ugcVideo = null;
-      try {
-        const asset = ugc.asset || null;
-        if (asset?.imageUrl) {
-          const { queueCloudUgcVideo } = await import("./ugcEngine.js");
-          ugcVideo = await queueCloudUgcVideo({ product: selected, asset });
-        }
-      } catch (e) {
-        ugcVideo = { ok: false, error: String(e?.message || e).slice(0, 180) };
+      // Process up to 3 products per cycle. The selection is oldest-first,
+      // so every approved affiliate product gets its turn without flooding.
+      const ranked = [];
+      for (const p of pool) {
+        const assets = await kvGet("ugc:assets:" + p.id, []);
+        const latest = Array.isArray(assets) ? Number(assets[0]?.createdAt || 0) : 0;
+        ranked.push({ product: p, latest });
       }
+      ranked.sort((a, b) => a.latest - b.latest);
 
-      const store = { ...autopilot, __marketers: marketers, __products: products };
-      const run = await runOne(store, marketer.id, cfg, ORIGIN);
-      const entry = { marketerId: marketer.id, productId: selected.id, ugc: ugc.skipped || "generated", ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED", status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED", channels: run.results || [], ts: now };
-      results.push(entry);
-      await kvSet("growth:ugc-distribution:" + marketer.id, entry);
+      const batch = ranked.slice(0, 3);
+      for (let index = 0; index < batch.length; index++) {
+        const selected = batch[index].product;
+        const angle = creativeAngles[(Math.floor(Number(now) / 21600000) + index) % creativeAngles.length];
+
+        try {
+          const { generateCloudUgcAsset, queueCloudUgcVideo } = await import("./ugcEngine.js");
+          const ugc = await generateCloudUgcAsset({
+            product: selected,
+            characterType: cfg.ugcCharacterType || "ai_female_model",
+            creativeAngle: angle.id,
+          });
+
+          if (!ugc.ok && ugc.skipped !== "fresh_asset") {
+            results.push({ marketerId: marketer.id, productId: selected.id, status: "UGC_FAILED", error: ugc.error });
+            continue;
+          }
+
+          const asset = ugc.asset || null;
+          let ugcVideo = null;
+          if (asset?.imageUrl) {
+            try {
+              ugcVideo = await queueCloudUgcVideo({
+                product: selected,
+                asset,
+                creativeAngle: angle.id,
+                hookText: angle.hook,
+              });
+            } catch (e) {
+              ugcVideo = { ok: false, error: String(e?.message || e).slice(0, 180) };
+            }
+          }
+
+          // runOne rotates by the same "oldest published" history, so after
+          // each real result the next product becomes eligible on the next call.
+          const store = { ...autopilot, __marketers: marketers, __products: products };
+          const run = await runOne(store, marketer.id, cfg, ORIGIN);
+          const entry = {
+            marketerId: marketer.id,
+            productId: selected.id,
+            creativeAngle: angle.id,
+            ugc: ugc.skipped || "generated",
+            ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED",
+            status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED",
+            channels: run.results || [],
+            ts: now,
+          };
+          results.push(entry);
+          await kvSet("growth:ugc-distribution:" + marketer.id, entry);
+        } catch (e) {
+          results.push({ marketerId: marketer.id, productId: selected.id, status: "FAILED", error: String(e?.message || e).slice(0, 180) });
+        }
+      }
     }
-    return { ok: true, cycle: "autonomous-ugc-distribution", timestamp: now, results, rule: "No external success is recorded without a real channel response." };
+
+    return {
+      ok: true,
+      cycle: "autonomous-ugc-distribution",
+      timestamp: now,
+      results,
+      rule: "No external success is recorded without a real channel response.",
+    };
   },
 });
 registerJob("autonomous-ugc-video-poll", {
