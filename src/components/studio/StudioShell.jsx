@@ -57,6 +57,7 @@ import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
 import LunaOpportunityHero from "./LunaOpportunityHero";
 import CreatorGrowthWorkspace from "./CreatorGrowthWorkspace";
 import CreatorInbox from "./CreatorInbox";
+import CreatorCommandCenter from "./CreatorCommandCenter";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -158,136 +159,11 @@ function ActivityStrip() {
   );
 }
 
-const OverviewPanel = ({ onNavigate }) => {
-  const { lang } = useI18n();
-  const { products, sales, clicks, loading, error } = useMarketplace();
-  const myProducts = Array.isArray(products) ? products : [];
-  const mySales = Array.isArray(sales) ? sales : [];
-  const myClicks = Array.isArray(clicks) ? clicks : [];
-  const revenue = useMemo(
-    () => mySales.reduce((s, x) => s + (Number(x.amount) || 0), 0),
-    [mySales],
-  );
-  const liveCount = useMemo(
-    () => myProducts.filter((p) => p.status === "active" || p.status === "published").length,
-    [myProducts],
-  );
-  const trustReady = useMemo(
-    () => myProducts.filter((p) => p.trust?.verified || p.trustLevel === TRUST_STATE.VERIFIED).length,
-    [myProducts],
-  );
+const OverviewPanel = ({ onNavigate }) => (
+  <CreatorCommandCenter onNavigate={onNavigate} />
+);
 
-  const stats = [
-    { label: lang === "he" ? "מוצרים חיים" : "Live products", value: String(liveCount), icon: Package },
-    { label: lang === "he" ? "הכנסות מאומתות" : "Verified revenue", value: money(revenue || 0, lang), icon: BarChart3 },
-    { label: lang === "he" ? "לחיצות" : "Clicks", value: String(myClicks.length), icon: Activity },
-    { label: lang === "he" ? "מוצרים מאומתים" : "Trust verified", value: `${trustReady}/${myProducts.length}`, icon: ShieldCheck },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <LunaOpportunityHero
-        onAddProduct={() => onNavigate(VIEW_IDS.PRODUCTS)}
-        onCreateContent={() => onNavigate(VIEW_IDS.VIDEO)}
-      />
-      {error && (
-        <div className="rounded-xl px-4 py-3 text-sm" style={{ background: "var(--danger-subtle)", color: "var(--danger)" }}>
-          {String(error.message || error)}
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className="ll-stat-card">
-              <div className="ll-stat-icon">
-                <Icon size={17} />
-              </div>
-              <div className="ll-stat-value">{loading ? "…" : s.value}</div>
-              <div className="ll-stat-label">{s.label}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="ll-card rounded-2xl p-5">
-          <h3 className="ll-grad-text text-lg font-bold">
-            {lang === "he" ? "מרכז הפעולות שלך" : "Your action center"}
-          </h3>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {lang === "he"
-              ? "הכל מחובר למערכות האמיתיות שלך — אין נתוני דמו."
-              : "Everything wired to your real systems — no demo data."}
-          </p>
-          <div className="mt-4 space-y-2">
-            {[
-              { label: lang === "he" ? "לונה — מרכז הבקרה" : "Luna — command center", view: VIEW_IDS.LUNA, icon: Sparkles },
-              { label: lang === "he" ? "מוצרים" : "Products", view: VIEW_IDS.PRODUCTS, icon: Package },
-              { label: lang === "he" ? "AI Video" : "AI Video", view: VIEW_IDS.VIDEO, icon: Clapperboard },
-              { label: lang === "he" ? "פרסום" : "Publishing", view: VIEW_IDS.PUBLISHING, icon: Send },
-            ].map((a) => {
-              const Icon = a.icon;
-              return (
-                <button
-                  key={a.view}
-                  onClick={() => onNavigate(a.view)}
-                  className="ll-nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"
-                  style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}
-                >
-                  <Icon size={16} className="text-[var(--accent)]" />
-                  {a.label}
-                  <ChevronLeft size={15} className="mr-auto rotate-180 text-[var(--text-faint)]" />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="ll-card rounded-2xl p-5">
-          <h3 className="text-lg font-bold text-[var(--text)]">
-            {lang === "he" ? "פעילות אחרונה" : "Recent activity"}
-          </h3>
-          {loading ? (
-            <div className="mt-4 space-y-2">{[0, 1, 2].map((i) => (
-              <div key={i} className="h-9 animate-pulse rounded-lg" style={{ background: "var(--bg-subtle)" }} />
-            ))}</div>
-          ) : mySales.length === 0 ? (
-            <EmptyState
-              icon={Activity}
-              title={lang === "he" ? "אין עדיין הזמנות" : "No orders yet"}
-              body={lang === "he" ? "כשיגיעו הזמנות אמיתיות הן יופיעו כאן מיד."
-                : "Real orders will appear here the moment they arrive."}
-            />
-          ) : (
-            <div className="mt-4 space-y-2">
-              {mySales.slice(0, 5).map((s, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--bg-subtle)" }}>
-                  <span className="truncate text-sm text-[var(--text-secondary)]">
-                    {s.productName || s.productTitle || (lang === "he" ? "הזמנה" : "Order")}
-                  </span>
-                  <span className="text-sm font-bold text-[var(--accent)]">{money(Number(s.amount) || 0, lang)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Luna Cloud Status + Growth Pipeline (real execution state) */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <LunaStatusCard />
-        <GrowthShowcaseDemo onNavigate={onNavigate} />
-      </div>
-
-      {/* Growth Pipeline Strip */}
-      <GrowthPipelineStrip />
-
-      <ActivityStrip />
-    </div>
-  );
-};
-
-/** Truthful auth gate — routes to the real login/registration flow (SellView). */
+** Truthful auth gate — routes to the real login/registration flow (SellView). */
 function AuthGate({ onNavigate, feature }) {
   const { lang } = useI18n();
   return (
