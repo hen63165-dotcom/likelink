@@ -13,61 +13,160 @@
     }
   },
   "crons": [
-    { "path": "/api/autopilot?cron=daily", "schedule": "0 9 * * *" },
-    { "path": "/api/autopilot?cron=weekly", "schedule": "0 8 * * 1" },
-    { "path": "/api/price-watch", "schedule": "0 3 * * *" },
-    { "path": "/api/payouts/process", "schedule": "0 2 * * *" }
+    {
+      "path": "/api/autopilot?cron=daily",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/price-watch",
+      "schedule": "0 3 * * *"
+    }
   ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/google-feed?kind=sitemap" },
-    { "source": "/google-feed.xml", "destination": "/api/google-feed?kind=google" },
-    { "source": "/r", "destination": "/api/og?mode=r" },
-    { "source": "/api/r", "destination": "/api/og?mode=r" },
-    { "source": "/api/sitemap", "destination": "/api/google-feed?kind=sitemap" },
-    { "source": "/u/:slug", "destination": "/api/og?slug=:slug" },
-    { "source": "/p/:id", "destination": "/api/og?id=:id" },
-    { "source": "/grow/:id", "destination": "/api/og?mode=growth&id=:id" },
-    { "source": "/story/:id", "destination": "/api/google-feed?kind=story&id=:id" },
-    { "source": "/api/sign-sale", "destination": "/api/store?mode=sign-sale" },
-    { "source": "/api/fetch-product-info", "destination": "/api/og?mode=fetch" },
-    { "source": "/feed", "destination": "/" },
-    { "source": "/creators", "destination": "/" },
-    { "source": "/creators/:path*", "destination": "/" },
-    { "source": "/merchants", "destination": "/" },
-    { "source": "/merchants/:path*", "destination": "/" },
-    { "source": "/discover", "destination": "/" },
-    { "source": "/discover/:path*", "destination": "/" },
-    { "source": "/feed/:path*", "destination": "/" },
-    { "source": "/studio", "destination": "/" },
-    { "source": "/studio/:path*", "destination": "/" },
-    { "source": "/sell", "destination": "/" },
-    { "source": "/admin", "destination": "/" },
-    { "source": "/admin/:path*", "destination": "/" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/google-feed?kind=sitemap"
+    },
+    {
+      "source": "/google-feed.xml",
+      "destination": "/api/google-feed?kind=google"
+    },
+    {
+      "source": "/r",
+      "destination": "/api/og?mode=r"
+    },
+    {
+      "source": "/api/r",
+      "destination": "/api/og?mode=r"
+    },
+    {
+      "source": "/api/sitemap",
+      "destination": "/api/google-feed?kind=sitemap"
+    },
+    {
+      "source": "/u/:slug",
+      "destination": "/api/og?slug=:slug"
+    },
+    {
+      "source": "/p/:id",
+      "destination": "/api/og?id=:id"
+    },
+    {
+      "source": "/grow/:id",
+      "destination": "/api/og?mode=growth&id=:id"
+    },
+    {
+      "source": "/story/:id",
+      "destination": "/api/google-feed?kind=story&id=:id"
+    },
+    {
+      "source": "/api/sign-sale",
+      "destination": "/api/store?mode=sign-sale"
+    },
+    {
+      "source": "/api/fetch-product-info",
+      "destination": "/api/og?mode=fetch"
+    },
+    {
+      "source": "/feed",
+      "destination": "/"
+    },
+    {
+      "source": "/creators",
+      "destination": "/"
+    },
+    {
+      "source": "/creators/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/merchants",
+      "destination": "/"
+    },
+    {
+      "source": "/merchants/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/discover",
+      "destination": "/"
+    },
+    {
+      "source": "/discover/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/feed/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/studio",
+      "destination": "/"
+    },
+    {
+      "source": "/studio/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/sell",
+      "destination": "/"
+    },
+    {
+      "source": "/admin",
+      "destination": "/"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/(robots.txt|sitemap.xml|manifest.json)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" },
-        { "key": "X-DNS-Prefetch-Control", "value": "on" }
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        }
       ]
     }
   ]
 }
-
