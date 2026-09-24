@@ -223,11 +223,22 @@ function App() {
     );
   }
 
-  // Public home/feed is the shopper-first front door.
-  // Creator Studio remains a dedicated route (/sell or /studio/*), so visitors
-  // immediately see discovery, products, creators and shoppable media instead
-  // of an internal command center.
-  if (route.type === "landing" || tab === "feed") {
+  // The root is the premium Studio command center. Public acquisition/discovery
+  // remains available through the dedicated routes (/discover, /creators, /merchants)
+  // while /feed stays the shopper-facing marketplace surface.
+  if (route.type === "landing") {
+    return (
+      <>
+        <StudioShell
+          view={route.view}
+          onNavigate={(v) => navigate(`/studio/${v}`)}
+        />
+        <Toast message={toast?.msg} />
+      </>
+    );
+  }
+
+  if (tab === "feed") {
     return (
       <AppShell>
         <TopBar
