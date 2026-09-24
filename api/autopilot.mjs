@@ -712,6 +712,15 @@ async function runOne(store, marketerId, cfg, origin) {
   const pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved");
   const product = pickProduct(cfg, pool);
 
+  // If a real UGC asset exists for this product, use it for image-capable
+  // external channels while keeping the canonical product record untouched.
+  let publishProduct = product;
+  try {
+    const ugcAssets = await kvGet(`ugc:assets:${product?.id}`, []);
+    const latestUgc = Array.isArray(ugcAssets) ? ugcAssets.find((a) => a?.imageUrl && a?.synthetic === true) : null;
+    if (latestUgc) publishProduct = { ...product, image: latestUgc.imageUrl, ugcImage: latestUgc.imageUrl };
+  } catch { /* UGC is an optional amplifier; never block normal publishing */ }
+
   if (!product) {
     cfg.logs = [
       { ts: Date.now(), ok: false, channel: "-", detail: "no products in pool", text: "" },
