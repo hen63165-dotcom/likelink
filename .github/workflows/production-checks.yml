@@ -29,7 +29,7 @@ jobs:
             -X POST \
             -H "content-type: application/json" \
             --data '{"action":"status"}' \
-            "https://likelink2.vercel.app/api/autopilot")
+            "https://likelink2.vercel.app/api/autopilot?mode=status")
           echo "$response"
           echo "$response" | grep -q '"scheduler"' 
           echo "$response" | grep -q '"queue"' 
