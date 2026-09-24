@@ -1362,7 +1362,7 @@ export default async function handler(req, res) {
 
   // ── CRON: publish for every enabled creator whose slot is due ──
   const url = new URL(req.url, origin);
-  const bearer = String(getH("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+  const bearer = String(getH("authorization") || "").replace(/^Bearer\s+/i, "").trim();
   const configuredAutopilotSecret = String(process.env.AUTOPILOT_SECRET || "").trim();
   const validBearerCron = Boolean(configuredAutopilotSecret) && bearer === configuredAutopilotSecret;
   const isCron =
@@ -1512,11 +1512,51 @@ export default async function handler(req, res) {
   }
 
   const { mode, marketerId } = body || {};
+  const requestedMode = mode || body?.action;
+
+  // Structured production status — read-only and safe for external verification.
+  // It reports persisted scheduler/cloud state, never credentials or channel secrets.
+  if (requestedMode === "status") {
+    try {
+      const [jobs, cloud] = await Promise.all([
+        getAutonomousJobStatus(),
+        getCloudCycleStatus({ kvGet, origin }),
+      ]);
+      const lastRuns = (Array.isArray(jobs) ? jobs : [])
+        .map((j) => j?.lastRunAt)
+        .filter(Boolean)
+        .map(Number)
+        .filter(Number.isFinite);
+      const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
+      const dueJobs = (Array.isArray(jobs) ? jobs : []).filter((j) => {
+        const next = Number(j?.nextRunAt || 0);
+        return next > 0 && next <= Date.now();
+      });
+      json(res, {
+        ok: true,
+        scheduler: {
+          state: "ACTIVE",
+          lastRun: lastRun ? new Date(lastRun).toISOString() : null,
+          jobCount: Array.isArray(jobs) ? jobs.length : 0,
+          dueCount: dueJobs.length,
+        },
+        queue: {
+          jobs: Array.isArray(jobs) ? jobs : [],
+          dueCount: dueJobs.length,
+        },
+        cloud,
+      }, 200, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e).slice(0, 160) }, 500, req);
+      return;
+    }
+  }
 
   // Browser tick — any visitor (throttled client-side) nudges due posts out.
   // Needs no secrets and no marketerId: it only publishes what creators
   // already scheduled. Must run BEFORE the marketerId check (tick sends none).
-  if (mode === "tick") {
+  if (requestedMode === "tick") {
     if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500, req); return; }
     // One creator per ping: the visiting audience IS the scheduler. Many small,
     // fast invocations (<15s each) drain the queue — no invocation ever gets
@@ -1530,7 +1570,7 @@ export default async function handler(req, res) {
   // auto-published activity (product title + channels + event) so the site
   // can show a live "everything runs by itself" ticker to every visitor.
   // This is the on-site viral loop: real activity, happening visibly.
-  if (mode === "public-feed") {
+  if (requestedMode === "public-feed") {
     let events = [];
     try {
       if (SB_URL && SB_KEY) {
@@ -1563,7 +1603,7 @@ export default async function handler(req, res) {
 
   // Autonomous job status — for Studio dashboard / Luna command center
   // Shows cloud scheduler health: last run, next run, failures, queue depth
-  if (mode === "autonomous-jobs-status") {
+  if (requestedMode === "autonomous-jobs-status") {
     try {
       const status = await getAutonomousJobStatus();
       json(res, { ok: true, jobs: status }, 200, req);
@@ -1597,13 +1637,13 @@ export default async function handler(req, res) {
 
   const store = await kvGet(KV_KEY);
 
-  if (mode === "get") {
+  if (requestedMode === "get") {
     const cfg = store[marketerId] || null;
     json(res, { ok: true, config: cfg ? publicCfg(cfg) : null }, 200, req);
     return;
   }
 
-  if (mode === "save") {
+  if (requestedMode === "save") {
     const prev = store[marketerId] || {};
     store[marketerId] = sanitizeConfig(prev, body.config || {});
     try {
@@ -1615,7 +1655,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (mode === "run") {
+  if (requestedMode === "run") {
     const cfg = store[marketerId];
     if (!cfg) { json(res, { ok: false, error: "not_configured" }, 404, req); return; }
     const [marketersRow, productsRow] = await Promise.all([
@@ -1636,7 +1676,7 @@ export default async function handler(req, res) {
   // Fired automatically right after a product is created/approved. Public yet
   // harmless: it can only announce a REAL approved product to the channels its
   // own creator connected, exactly ONCE (idempotent by product id).
-  if (mode === "announce") {
+  if (requestedMode === "announce") {
     const { productId } = body || {};
     if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(String(productId))) { json(res, { ok: false, error: "invalid_productId" }, 400, req); return; }
