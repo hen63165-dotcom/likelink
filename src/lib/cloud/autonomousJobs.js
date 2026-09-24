@@ -540,22 +540,28 @@ export async function runAllDueAutonomousJobs(opts = {}) {
 
 export async function getAutonomousJobStatus(opts = {}) {
   const { kvGet = svKvGet } = opts;
-  const statuses = [];
-  for (const id of AUTONOMOUS_JOBS) {
-    try {
-      const stateKey = `growth:job:${id}`;
-      const state = (await kvGet(stateKey)) || {};
-      statuses.push({
-        id,
-        state: state.state || "PENDING",
-        lastRunAt: state.lastRunAt || null,
-        nextRunAt: state.nextRunAt || null,
-        durationMs: state.durationMs || null,
-        result: state.result || null,
-      });
-    } catch {
-      statuses.push({ id, state: "unknown" });
-    }
-  }
+
+  // Status is an observability endpoint and must never serialize KV reads.
+  // svKvGet has a 10s upstream timeout; reading 11 jobs sequentially could
+  // consume the entire Vercel invocation when Supabase is slow/unreachable.
+  // Read all job states concurrently and isolate failures per job instead.
+  const statuses = await Promise.all(
+    AUTONOMOUS_JOBS.map(async (id) => {
+      try {
+        const stateKey = `growth:job:${id}`;
+        const state = (await kvGet(stateKey)) || {};
+        return {
+          id,
+          state: state.state || "PENDING",
+          lastRunAt: state.lastRunAt || null,
+          nextRunAt: state.nextRunAt || null,
+          durationMs: state.durationMs || null,
+          result: state.result || null,
+        };
+      } catch {
+        return { id, state: "unknown" };
+      }
+    })
+  );
   return statuses;
 }
