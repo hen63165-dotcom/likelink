@@ -94,6 +94,24 @@ function wrap(name, value) {
  * Item shaping
  * ------------------------------------------------------------------------- */
 
+export function isDirectMerchantProduct(product, baseUrl = DEFAULT_BASE_URL) {
+  if (!product || product.merchantEligible !== true) return false;
+  const checkout = toText(
+    product.checkoutUrl ||
+    product.directCheckoutUrl ||
+    product.purchaseUrl ||
+    product.paymentUrl
+  );
+  if (!isAbsoluteHttpUrl(checkout)) return false;
+  try {
+    const checkoutOrigin = new URL(checkout).origin;
+    const siteOrigin = new URL(baseUrl).origin;
+    return checkoutOrigin === siteOrigin;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Build the ordered list of Google feed items. Only products the admin approved
  * (status === "approved") with valid creator attribution, a title and a link
@@ -110,6 +128,9 @@ export function collectFeedItems({
 
   return (products || [])
     .filter((p) => p && p.status === "approved")
+    // Google Merchant must contain only products LikeLink can sell directly.
+    // Affiliate-only products are intentionally quarantined from this feed.
+    .filter((p) => isDirectMerchantProduct(p, baseUrl))
     // Fail-closed attribution: marketerId must resolve to a known creator.
     .filter((p) => p.marketerId && byMarketer.has(p.marketerId))
     .filter((p) => toText(p.title))
