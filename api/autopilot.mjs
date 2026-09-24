@@ -771,10 +771,15 @@ async function runOne(store, marketerId, cfg, origin) {
   }
 
   const anyOk = results.some((r) => r.ok);
-  cfg.lastRunAt = Date.now();
-  // Smart scheduling: respect the interval but never post at night (IL time).
-  cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
-  cfg.runCount = (cfg.runCount || 0) + 1;
+  // Only consume the normal publishing slot after a real channel succeeded.
+  // Failed external requests stay retryable instead of being recorded as success.
+  if (anyOk) {
+    cfg.lastRunAt = Date.now();
+    cfg.nextRunAt = nextSmartRun(cfg.intervalMinutes);
+    cfg.runCount = (cfg.runCount || 0) + 1;
+  } else {
+    cfg.nextRunAt = Date.now() + Math.max(15, Math.min(Number(cfg.intervalMinutes) || 60, 60)) * 60000;
+  }
   // "No product left behind" memory — pickProduct() picks the item whose
   // most recent post is oldest (or that was never posted).
   cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
@@ -790,7 +795,7 @@ async function runOne(store, marketerId, cfg, origin) {
     ...(cfg.logs || []),
   ].slice(0, MAX_LOGS_PER_CREATOR);
 
-  return { ok: true, text, results };
+  return { ok: anyOk, text, results };
 }
 
 // ─── 🚨 Price-Drop Flash — פוסט מיידי כשהקמעונאי מוריד מחיר ────────────────
