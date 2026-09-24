@@ -43,7 +43,7 @@ export const CHARACTER_PRESETS = {
     languages: ["he", "en"],
     voiceAvailable: false,
     visualStyle: "studio_light",
-    allowedUse: "ugc_demo",
+    allowedUse: "ugc_production",
     syntheticDisclosure: true,
   },
   [CHARACTER_TYPES.AI_FEMALE_MODEL]: {
@@ -109,7 +109,7 @@ export const CHARACTER_PRESETS = {
   [CHARACTER_TYPES.UGC_CREATOR]: {
     id: CHARACTER_TYPES.UGC_CREATOR,
     name: { he: "לונה", en: "Luna" },
-    persona: { he: "יוצרת UGC אמיתית — המלצות כנות", en: "Authentic UGC creator — honest recommendations" },
+    persona: { he: "יוצרת UGC סינתטית — תוכן שקוף המבוסס על מוצר מאומת", en: "Synthetic UGC creator — transparent content based on a verified product" },
     style: "authentic_phone",
     ageRange: "20-30",
     languages: ["he", "en"],
