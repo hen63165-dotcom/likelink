@@ -277,8 +277,10 @@ registerJob("autonomous-ugc-distribution", {
             }
           }
 
-          // runOne rotates by the same "oldest published" history, so after
-          // each real result the next product becomes eligible on the next call.
+          // Keep the publishing runner server-side and avoid a static circular
+          // import: autopilot imports this job registry, so resolve runOne only
+          // when the distribution job actually executes.
+          const { runOne } = await import("../../../api/autopilot.mjs");
           const store = { ...autopilot, __marketers: marketers, __products: products };
           const run = await runOne(store, marketer.id, cfg, ORIGIN);
           const entry = {
