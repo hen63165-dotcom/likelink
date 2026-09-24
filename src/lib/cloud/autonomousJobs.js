@@ -534,8 +534,8 @@ export const AUTONOMOUS_JOBS = [
 ];
 
 export async function runAllDueAutonomousJobs(opts = {}) {
-  const { kvGet = svKvGet, kvSet = svKvSet, force = false } = opts;
-  return runDueJobs({ kvGet, kvSet, force });
+  const { kvGet = svKvGet, kvSet = svKvSet, force = false, maxJobs = Infinity } = opts;
+  return runDueJobs({ kvGet, kvSet, force, maxJobs });
 }
 
 export async function getAutonomousJobStatus(opts = {}) {

@@ -147,10 +147,13 @@ export async function executeJob(id, { kvGet, kvSet, skipAudit = false, force = 
 /**
  * Run ALL registered jobs that are due.
  */
-export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false } = {}) {
+export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false, maxJobs = Infinity } = {}) {
   const results = [];
+  const limit = Number.isFinite(Number(maxJobs)) ? Math.max(1, Number(maxJobs)) : Infinity;
+  let executed = 0;
 
   for (const [id, job] of JOB_REGISTRY) {
+    if (executed >= limit) break;
     try {
       const stateKey = `growth:job:${id}`;
       const state = (await kvGet(stateKey)) || {};
@@ -160,6 +163,7 @@ export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false
       if ((isDue || force) && notRunning) {
         const result = await executeJob(id, { kvGet, kvSet, now, force });
         results.push({ id, ...result });
+        executed++;
       }
     } catch (e) {
       results.push({ id, ok: false, error: String(e.message || e) });
