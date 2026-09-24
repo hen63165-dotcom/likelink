@@ -259,6 +259,45 @@ registerJob("autonomous-ugc-distribution", {
     return { ok: true, cycle: "autonomous-ugc-distribution", timestamp: now, results, rule: "No external success is recorded without a real channel response." };
   },
 });
+registerJob("autonomous-ugc-video-poll", {
+  description: "Poll persisted Google Veo 3.1 long-running UGC jobs and store completed cloud videos",
+  intervalMs: 15 * 60 * 1000,
+  maxDurationMs: 110000,
+  async fn({ kvGet, kvSet, now }) {
+    if (!process.env.GEMINI_API_KEY) return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured" };
+    const productsRow = await kvGet("marketplace:products", []);
+    const products = Array.isArray(productsRow) ? productsRow : [];
+    const { pollCloudUgcVideo } = await import("./ugcEngine.js");
+    const results = [];
+    let polled = 0;
+    for (const product of products.filter((p) => p?.status === "approved").slice(0, 30)) {
+      const assets = await kvGet("ugc:assets:" + product.id, []);
+      const list = Array.isArray(assets) ? assets : [];
+      for (const asset of list.slice(0, 6)) {
+        const status = String(asset?.videoStatus || "");
+        const jobId = String(asset?.videoJobId || "");
+        if (!jobId || !["queued", "running"].includes(status)) continue;
+        if (polled >= 12) break;
+        polled++;
+        try {
+          const result = await pollCloudUgcVideo({ productId: product.id, videoJobId: jobId });
+          results.push({
+            productId: product.id,
+            assetId: asset.id,
+            status: result.status || (result.ok ? "completed" : "failed"),
+            error: result.ok ? null : (result.error || null),
+          });
+        } catch (e) {
+          results.push({ productId: product.id, assetId: asset.id, status: "failed", error: String(e?.message || e).slice(0, 180) });
+        }
+      }
+      if (polled >= 12) break;
+    }
+    await kvSet("growth:job:autonomous-ugc-video-poll:last", { ts: now, polled, results: results.slice(-20) });
+    return { ok: true, cycle: "autonomous-ugc-video-poll", timestamp: now, polled, results };
+  },
+});
+
 registerJob("brand-pulse-freshness", {
   description: "Ensure brand pulse feed stays fresh (visitor-triggered backup)",
   intervalMs: 6 * 60 * 60 * 1000,
@@ -416,6 +455,7 @@ export const AUTONOMOUS_JOBS = [
   "opportunity-discovery",
   "brand-pulse-freshness",
   "autonomous-ugc-distribution",
+  "autonomous-ugc-video-poll",
 ];
 
 export async function runAllDueAutonomousJobs(opts = {}) {
