@@ -55,6 +55,31 @@ export default function UGCCampaignStudio({ onNavigate }) {
   const token = () => typeof window !== "undefined" ? window.__likelink?.token || "" : "";
   const authHeaders = () => ({ "content-type": "application/json", ...(token() ? { authorization: `Bearer ${token()}` } : {}) });
 
+  const queueVideoForAsset = async (assetToQueue, silent = false) => {
+    if (!selected || !assetToQueue?.id) return null;
+    if (!silent) { setVideoBusy(true); setMessage(""); }
+    try {
+      const res = await fetch("/api/store?mode=ugc-video-queue", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ productId: selected.id, assetId: assetToQueue.id, characterType }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.detail || data.error || "ugc_video_queue_failed");
+      const nextAsset = data.asset || assetToQueue;
+      setAsset(nextAsset);
+      setVideoStatus(nextAsset.videoStatus || data.status || "queued");
+      setVideoProgress(Number(nextAsset.videoProgress || 0));
+      if (!silent) showToast?.(he ? "וידאו UGC נכנס לתור הענן" : "UGC video entered the cloud queue");
+      return nextAsset;
+    } catch (e) {
+      if (!silent) setMessage(String(e?.message || "ugc_video_queue_failed"));
+      return null;
+    } finally {
+      if (!silent) setVideoBusy(false);
+    }
+  };
+
   const generate = async () => {
     if (!selected || !marketer) return;
     setBusy(true); setMessage("");
@@ -78,6 +103,12 @@ export default function UGCCampaignStudio({ onNavigate }) {
         angleStats: {},
       }));
       showToast?.(he ? "Luna יצרה UGC סינתטי אמיתי ושמרה אותו בענן" : "Luna created real synthetic UGC and stored it in the cloud");
+      if (nextAsset?.id && !nextAsset?.videoUrl && !nextAsset?.videoJobId) {
+        const queued = await queueVideoForAsset(nextAsset, true);
+        if (!queued && nextAsset) {
+          setVideoStatus("BLOCKED");
+        }
+      }
     } catch (e) {
       setMessage(String(e?.message || "ugc_model_failed"));
     } finally {
@@ -86,26 +117,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
   };
 
   const queueVideo = async () => {
-    if (!selected || !asset?.id) return;
-    setVideoBusy(true); setMessage("");
-    try {
-      const res = await fetch("/api/store?mode=ugc-video-queue", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ productId: selected.id, assetId: asset.id, characterType }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.detail || data.error || "ugc_video_queue_failed");
-      const nextAsset = data.asset || {};
-      setAsset(nextAsset);
-      setVideoStatus(nextAsset.videoStatus || data.status || "queued");
-      setVideoProgress(Number(nextAsset.videoProgress || 0));
-      showToast?.(he ? "וידאו UGC נכנס לתור הענן" : "UGC video entered the cloud queue");
-    } catch (e) {
-      setMessage(String(e?.message || "ugc_video_queue_failed"));
-    } finally {
-      setVideoBusy(false);
-    }
+    await queueVideoForAsset(asset, false);
   };
 
   useEffect(() => {
