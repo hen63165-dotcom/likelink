@@ -1,4 +1,3 @@
-import { originFromRequest } from "./_utils/origin.mjs";
 let readBody, verifyToken, audit;
 let lunaHook, buildCampaign, selectOpportunity;
 let appendVeritas, verifyVeritas, veritasSummary;
@@ -1387,12 +1386,72 @@ async function runGrowthCycle() {
 }
 
 export default async function handler(req, res) {
+  // Lightweight observability path: no cloud/autopilot imports, no auth modules,
+  // no scheduler initialization. This must stay independently bootable so
+  // production health checks cannot be taken down by a heavy dependency.
+  if (req.method === "POST" || req.method === "GET") {
+    const statusUrl = new URL(req.url, "https://likelink2.vercel.app");
+    if (statusUrl.searchParams.get("mode") === "status" || statusUrl.searchParams.get("action") === "status") {
+      const jobIds = [
+        "autonomous-growth-cycle","daily-trend-scan","site-campaign-cycle",
+        "affiliate-product-import","affiliate-product-rotation","brand-pulse-publish",
+        "brand-pulse-external","opportunity-discovery","brand-pulse-freshness",
+        "autonomous-ugc-distribution","autonomous-ugc-video-poll",
+      ];
+      const readKV = async (key, fallback) => {
+        const sbUrl = process.env.VITE_SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        if (!sbUrl || !sbKey) return fallback;
+        try {
+          const r = await fetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`, {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+            signal: AbortSignal.timeout(8000),
+          });
+          if (!r.ok) return fallback;
+          const rows = await r.json();
+          return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
+        } catch { return fallback; }
+      };
+      const jobs = await Promise.all(jobIds.map(async (id) => {
+        const state = await readKV(`growth:job:${id}`, {});
+        return {
+          id,
+          state: state?.state || "PENDING",
+          lastRunAt: state?.lastRunAt || null,
+          nextRunAt: state?.nextRunAt || null,
+          durationMs: state?.durationMs || null,
+          result: state?.result || null,
+        };
+      }));
+      const cloudMeta = await readKV("cloud:cycle:last", {});
+      const feed = await readKV("marketplace:site_feed", []);
+      const feedList = Array.isArray(feed) ? feed : [];
+      const latest = feedList[0] || null;
+      const lastRuns = jobs.map(j => Number(j.lastRunAt || 0)).filter(Number.isFinite).filter(Boolean);
+      const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
+      const dueCount = jobs.filter(j => Number(j.nextRunAt || 0) > 0 && Number(j.nextRunAt) <= Date.now()).length;
+      json(res, {
+        ok: true,
+        scheduler: { state: "ACTIVE", lastRun: lastRun ? new Date(lastRun).toISOString() : null, jobCount: jobs.length, dueCount },
+        queue: { jobs, dueCount },
+        cloud: {
+          ok: true,
+          lastRunAt: cloudMeta?.runAt || null,
+          lastRunIso: cloudMeta?.runAt ? new Date(cloudMeta.runAt).toISOString() : null,
+          lastSelected: cloudMeta?.lastSelectedId ? { id: cloudMeta.lastSelectedId, ts: cloudMeta.lastRunAt || null } : null,
+          feed: { latest, entryCount: feedList.length, latestEntryAt: latest?.ts ? new Date(latest.ts).toISOString() : null },
+          origin: "https://likelink2.vercel.app",
+        },
+      }, 200, req);
+      return;
+    }
+  }
   if (req.method === "OPTIONS") { json(res, { ok: true }, 200, req); return; }
   const h = req.headers;
   const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
   // Public origin: single source of truth (api/_utils/origin.mjs). Never a
   // legacy/unknown Host header — falls back to production.
-  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || "https://likelink2.vercel.app";
 
   // ── CRON: publish for every enabled creator whose slot is due ──
   const url = new URL(req.url, origin);
