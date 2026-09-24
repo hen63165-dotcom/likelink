@@ -94,61 +94,76 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
   return { ok: true, asset };
 }
 
-/** Queue a real Sora UGC clip using the generated model image as reference. */
+/** Queue a real Google Veo 3.1 image-to-video UGC clip.
+ * Gemini credentials stay server-side. The job is asynchronous and persisted
+ * in KV so the browser is not the execution layer.
+ */
 export async function queueCloudUgcVideo({ product, asset } = {}) {
   if (!product?.id || !asset?.imageUrl) return { ok: false, error: "ugc_image_required" };
-  const config = assertServerConfig();
-  if (!config.ok) return config;
-
+  if (!process.env.GEMINI_API_KEY) {
+    return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
+  }
   if (asset.videoUrl) return { ok: true, skipped: "video_exists", asset };
-  if (asset.videoJobId && ["queued", "in_progress", "completed"].includes(String(asset.videoStatus || ""))) {
+  if (asset.videoJobId && ["queued", "running", "completed"].includes(String(asset.videoStatus || ""))) {
     return { ok: true, skipped: "video_already_queued", asset };
   }
 
   const imageResponse = await fetch(asset.imageUrl, { signal: AbortSignal.timeout(20000) });
   if (!imageResponse.ok) return { ok: false, error: "ugc_reference_fetch_failed", providerStatus: imageResponse.status };
-  const imageBytes = await imageResponse.arrayBuffer();
+  const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+  const mimeType = imageResponse.headers.get("content-type") || "image/png";
 
-  const form = new FormData();
-  form.append("model", process.env.OPENAI_VIDEO_MODEL || "sora-2");
-  form.append(
-    "prompt",
-    [
-      "Create a polished 9:16 UGC commerce video featuring the same synthetic adult creator and the verified product shown in the reference image.",
-      "Natural handheld social-video feel, subtle movement, believable product presentation, premium lighting.",
-      "Do not add invented claims, reviews, discounts, scarcity, medical claims, logos, or fake social proof.",
-      "The person is synthetic and not a real or famous person. Keep the product identity consistent with the reference.",
-      "No text overlay. Make the clip suitable for an organic social post.",
-    ].join("\n")
-  );
-  form.append("seconds", process.env.OPENAI_VIDEO_SECONDS || "8");
-  form.append("size", process.env.OPENAI_VIDEO_SIZE || "720x1280");
-  form.append("input_reference", new Blob([imageBytes], { type: imageResponse.headers.get("content-type") || "image/png" }), "ugc-reference.png");
+  const prompt = [
+    "Create an 8-second premium vertical UGC commerce video from the supplied reference image.",
+    "Keep the same original synthetic adult creator and the same verified product identity.",
+    "Natural handheld social-video movement, subtle presenter motion, believable product presentation, premium lighting.",
+    "Do not invent product features, testimonials, discounts, scarcity, awards, medical claims, or social proof.",
+    "No celebrity likeness and no real-person identity. No text overlay.",
+    "The output is intended for an organic social post and must remain faithful to the verified catalog product.",
+  ].join("\n");
 
-  const response = await fetch(OPENAI_BASE + "/videos", {
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning", {
     method: "POST",
-    headers: { authorization: "Bearer " + process.env.OPENAI_API_KEY },
-    body: form,
+    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      instances: [{
+        prompt,
+        image: { inlineData: { mimeType, data: imageBytes.toString("base64") } },
+      }],
+      parameters: {
+        aspectRatio: "9:16",
+        resolution: process.env.GEMINI_VIDEO_RESOLUTION || "720p",
+      },
+    }),
     signal: AbortSignal.timeout(30000),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
+  if (!response.ok || !payload?.name) {
     return { ok: false, error: "ugc_video_queue_failed", providerStatus: response.status, detail: String(payload?.error?.message || "").slice(0, 180) };
   }
 
-  const updated = { ...asset, videoProvider: "openai_sora", videoJobId: payload.id || null, videoStatus: payload.status || "queued", videoQueuedAt: Date.now() };
+  const updated = {
+    ...asset,
+    videoProvider: "google_veo_3_1",
+    videoJobId: payload.name,
+    videoStatus: "queued",
+    videoProgress: 0,
+    videoQueuedAt: Date.now(),
+    videoError: null,
+  };
   await replaceAsset(product.id, updated);
-  return { ok: true, asset: updated, status: payload.status || "queued" };
+  return { ok: true, asset: updated, status: "queued", provider: "google_veo_3_1" };
 }
 
-/** Poll a Sora job and persist the finished MP4 to Supabase Storage. */
+/** Poll a Google Veo long-running operation and persist the finished MP4. */
 export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
   if (!productId || !videoJobId) return { ok: false, error: "missing_video_job" };
-  const config = assertServerConfig();
-  if (!config.ok) return config;
+  if (!process.env.GEMINI_API_KEY) {
+    return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
+  }
 
-  const response = await fetch(OPENAI_BASE + "/videos/" + encodeURIComponent(videoJobId), {
-    headers: { authorization: "Bearer " + process.env.OPENAI_API_KEY },
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/" + videoJobId, {
+    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
     signal: AbortSignal.timeout(20000),
   });
   const payload = await response.json().catch(() => ({}));
@@ -161,15 +176,28 @@ export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
   const asset = list.find((a) => a?.videoJobId === videoJobId);
   if (!asset) return { ok: false, error: "ugc_asset_not_found" };
 
-  const status = String(payload.status || "unknown");
-  if (status !== "completed") {
-    const updated = { ...asset, videoStatus: status, videoProgress: Number(payload.progress || 0), videoError: payload.error || null };
+  if (!payload.done) {
+    const updated = { ...asset, videoStatus: "running", videoProgress: Number(payload?.metadata?.progress || asset.videoProgress || 0) };
     await replaceAsset(productId, updated);
-    return { ok: true, status, asset: updated };
+    return { ok: true, status: "running", asset: updated };
   }
 
-  const content = await fetch(OPENAI_BASE + "/videos/" + encodeURIComponent(videoJobId) + "/content", {
-    headers: { authorization: "Bearer " + process.env.OPENAI_API_KEY },
+  const operationError = payload?.error;
+  if (operationError) {
+    const updated = { ...asset, videoStatus: "failed", videoError: String(operationError.message || operationError).slice(0, 300) };
+    await replaceAsset(productId, updated);
+    return { ok: false, error: "ugc_video_generation_failed", detail: updated.videoError, asset: updated };
+  }
+
+  const videoUri = payload?.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+  if (!videoUri) {
+    const updated = { ...asset, videoStatus: "failed", videoError: "video_uri_missing" };
+    await replaceAsset(productId, updated);
+    return { ok: false, error: "video_uri_missing", asset: updated };
+  }
+
+  const content = await fetch(videoUri, {
+    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
     signal: AbortSignal.timeout(60000),
   });
   if (!content.ok) {
