@@ -1503,6 +1503,48 @@ export default async function handler(req, res) {
   // ── Studio API ──
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
 
+  // Observability status may be requested through the query string as well as JSON.
+  // This deliberately avoids depending on request-body parsing for production
+  // health checks, because a read-only status probe must remain reliable even
+  // when a platform/client has already normalized or consumed the request body.
+  const queryMode = url.searchParams.get("mode") || url.searchParams.get("action");
+  if (queryMode === "status") {
+    try {
+      const [jobs, cloud] = await Promise.all([
+        getAutonomousJobStatus(),
+        getCloudCycleStatus({ kvGet, origin }),
+      ]);
+      const lastRuns = (Array.isArray(jobs) ? jobs : [])
+        .map((j) => j?.lastRunAt)
+        .filter(Boolean)
+        .map(Number)
+        .filter(Number.isFinite);
+      const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
+      const dueJobs = (Array.isArray(jobs) ? jobs : []).filter((j) => {
+        const next = Number(j?.nextRunAt || 0);
+        return next > 0 && next <= Date.now();
+      });
+      json(res, {
+        ok: true,
+        scheduler: {
+          state: "ACTIVE",
+          lastRun: lastRun ? new Date(lastRun).toISOString() : null,
+          jobCount: Array.isArray(jobs) ? jobs.length : 0,
+          dueCount: dueJobs.length,
+        },
+        queue: {
+          jobs: Array.isArray(jobs) ? jobs : [],
+          dueCount: dueJobs.length,
+        },
+        cloud,
+      }, 200, req);
+      return;
+    } catch (e) {
+      json(res, { ok: false, error: String(e.message || e).slice(0, 160) }, 500, req);
+      return;
+    }
+  }
+
   let body;
   try {
     body = await readBody(req);
