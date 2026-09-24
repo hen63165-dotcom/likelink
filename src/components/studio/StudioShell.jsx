@@ -161,7 +161,10 @@ function ActivityStrip() {
 }
 
 const OverviewPanel = ({ onNavigate }) => (
-  <CreatorCommandCenter onNavigate={onNavigate} />
+  <>
+    <ActivityStrip />
+    <CreatorCommandCenter onNavigate={onNavigate} />
+  </>
 );
 
 /** Truthful auth gate — routes to the real login/registration flow (SellView). */
@@ -577,6 +580,60 @@ function RecommendationsPanel({ onNavigate }) {
 }
 
 function UgcPanel({ onNavigate }) {
+  const { lang } = useI18n();
+  const { products = [], currentMarketer } = useMarketplace();
+  const community = useMemo(
+    () => (products || []).filter((p) =>
+      p && (p.status === "approved" || p.status === "active" || p.status === "published") &&
+      (p.ugcImage || p.image || p.assets?.some?.((a) => a?.imageUrl || a?.videoUrl))
+    ).slice(0, 6),
+    [products]
+  );
+
+  // Visitors get a real community preview instead of an authentication dead-end.
+  // Creation/publishing still requires the real seller flow inside UGCCampaignStudio.
+  if (!currentMarketer) {
+    return (
+      <div className="space-y-4">
+        <div className="ll-card rounded-2xl p-5">
+          <div className="flex items-center gap-2 text-xs font-black" style={{ color: "var(--accent)" }}>
+            <Users size={14} /> UGC · {lang === "he" ? "תוכן קהילה" : "Community content"}
+          </div>
+          <h3 className="mt-2 text-xl font-bold" style={{ color: "var(--text)" }}>
+            {lang === "he" ? "תוכן UGC אמיתי מהקהילה" : "Real UGC from the community"}
+          </h3>
+          <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+            {lang === "he"
+              ? "מבקרות יכולות לצפות בתוכן קיים. יצירת תוכן חדש מתחילה רק אחרי התחברות לחשבון יוצר."
+              : "Visitors can view existing content. New creation starts after signing in to a creator account."}
+          </p>
+        </div>
+        {community.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {community.map((p) => {
+              const media = p.ugcImage || p.image || p.assets?.find?.((a) => a?.imageUrl)?.imageUrl;
+              return (
+                <button key={p.id} onClick={() => onNavigate?.("products")} className="ll-card overflow-hidden text-start">
+                  {media && <img src={media} alt="" className="aspect-video w-full object-cover" />}
+                  <div className="p-3">
+                    <strong className="block truncate" style={{ color: "var(--text)" }}>{p.title}</strong>
+                    <span className="mt-1 block text-[10px]" style={{ color: "var(--text-faint)" }}>
+                      {lang === "he" ? "תוכן קהילה · מוצר אמיתי" : "Community content · real product"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="ll-card rounded-2xl p-6 text-center" style={{ color: "var(--text-secondary)" }}>
+            {lang === "he" ? "אין עדיין תוכן קהילה אמיתי להצגה." : "No real community content is available yet."}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return <UGCCampaignStudio onNavigate={onNavigate} />;
 }
 
@@ -1161,7 +1218,8 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
               {lang === "he" ? "עברית · RTL" : "Hebrew-first"}
             </span>
             {/* Luna Site Agent Heartbeat */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+            <div className="ll-stat-card hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl">
+              <span className="ll-stat-icon" style={{ width: 28, height: 28, marginBottom: 0 }}><Activity size={13} /></span>
               <span className="text-[10px] font-bold" style={{ color: "var(--accent)" }}>
                 {lang === "he" ? "לונה" : "Luna"}
               </span>
@@ -1170,6 +1228,12 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
                 {autonomousJobs.length > 0
                   ? (lang === "he" ? `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} פעיל` : `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} active`)
                   : (lang === "he" ? "מרכז בקרה פעיל" : "Command center active")}
+              </span>
+              <span className="ll-stat-value text-[10px]" style={{ fontSize: "0.75rem", marginBottom: 0 }}>
+                {autonomousJobs.length || 0}
+              </span>
+              <span className="ll-stat-label" style={{ fontSize: "9px", marginBottom: 0 }}>
+                {lang === "he" ? "משימות" : "jobs"}
               </span>
               <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
                 {lastAutonomousCheck ? new Date(lastAutonomousCheck).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (lang === "he" ? "מתחבר…" : "Connecting…")}
