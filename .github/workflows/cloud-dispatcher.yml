@@ -1,4 +1,5 @@
 name: LikeLink2 cloud dispatcher
+# Production env refresh: keep this workflow as the canonical cloud trigger.
 
 on:
   schedule:
