@@ -95,7 +95,7 @@ function App() {
       setNoIndex("studio");
       return;
     }
-    updatePageSEO(getDefaultSEO(tab === "feed" ? "feed" : "home"));
+    updatePageSEO(getDefaultSEO(route.type === "landing" ? "home" : tab === "feed" ? "feed" : "home"));
   }, [tab, route.type]);
 
   useEffect(() => {
