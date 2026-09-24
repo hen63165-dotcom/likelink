@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Package, Sparkles, Clapperboard, UserCog, FileText,
   Megaphone, TrendingUp, Send, BarChart3, ShieldCheck, Bot, Lightbulb,
   Settings, LogOut, Moon, Sun, Languages, ChevronLeft, Store, Copy,
-  Activity, Menu, Brain, AlertCircle, CheckCircle,
+  Activity, Menu, Brain, AlertCircle, CheckCircle, MessageCircle,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -55,6 +55,8 @@ import LunaStatusCard from "./LunaStatusCard";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
 import LunaOpportunityHero from "./LunaOpportunityHero";
+import CreatorGrowthWorkspace from "./CreatorGrowthWorkspace";
+import CreatorInbox from "./CreatorInbox";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -66,6 +68,7 @@ const VIEW_IDS = {
   PRODUCTS: "products",
   PRODUCT_INTELLIGENCE: "product-intelligence",
   SELF_MARKETING: "self-marketing",
+  INBOX: "inbox",
   UGC: "ugc",
   VIDEO: "video",
   CREATOR_LAB: "creator-lab",
@@ -990,6 +993,7 @@ const NAV_SECTIONS = [
     id: "grow",
     items: [
       { view: VIEW_IDS.SELF_MARKETING, icon: Megaphone, he: "שיווק עצמי", en: "Self-Marketing" },
+      { view: VIEW_IDS.INBOX, icon: MessageCircle, he: "מסרים", en: "Messages" },
       { view: VIEW_IDS.CAMPAIGNS, icon: Send, he: "קמפיינים", en: "Campaigns" },
       { view: VIEW_IDS.TRENDS, icon: TrendingUp, he: "טרנדים", en: "Trends" },
       { view: VIEW_IDS.PUBLISHING, icon: Send, he: "פרסום", en: "Publishing" },
@@ -1034,8 +1038,12 @@ const VIEW_SUBTITLES = {
     en: "Analysis from the real marketing and content engines — no demo data.",
   },
   [VIEW_IDS.SELF_MARKETING]: {
-    he: "שיווק LikeLink2 עצמו — אותות אמיתיים, בחירת זווית ופרסום מותר.",
-    en: "LikeLink2 marketing itself — real signals, angle selection, allowed channels.",
+    he: "פרסום וקידום עצמי — מוצר אמיתי, אישור ושיתוף ללא הבדקות.",
+    en: "Creator self-promotion — real products, approval and sharing without fake publication.",
+  },
+  [VIEW_IDS.INBOX]: {
+    he: "שיחות משתתפים, ממוקדות ושמורות מקומית במכשיר.",
+    en: "Participant-only conversations, focused and stored locally on this device.",
   },
   [VIEW_IDS.UGC]: {
     he: "ביצועי קהילה אמיתיים מהמכירות והמוצרים שלך.",
@@ -1248,7 +1256,8 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
         </Suspense>
       );
       case VIEW_IDS.PRODUCT_INTELLIGENCE: return <IntelligencePanel highlight="product" />;
-      case VIEW_IDS.SELF_MARKETING: return <IntelligencePanel highlight="self" />;
+      case VIEW_IDS.SELF_MARKETING: return <><CreatorGrowthWorkspace onNavigate={navigate} /><IntelligencePanel highlight="self" /></>;
+      case VIEW_IDS.INBOX: return <CreatorInbox onNavigate={navigate} />;
       case VIEW_IDS.UGC: return <UgcPanel onNavigate={navigate} />;
       case VIEW_IDS.VIDEO: return <VideoPanel onNavigate={navigate} />;
       case VIEW_IDS.CREATOR_LAB: return <CreatorLabPanel onNavigate={navigate} />;

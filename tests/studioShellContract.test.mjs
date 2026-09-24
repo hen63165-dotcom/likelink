@@ -35,6 +35,7 @@ const REQUIRED_VIEWS = [
   "products",
   "product-intelligence",
   "self-marketing",
+  "inbox",
   "ugc",
   "video",
   "creator-lab",
@@ -189,10 +190,14 @@ test("every Studio panel is wired to a real existing implementation", () => {
     "GrowthOS",
     "AnalyticsDashboard",
     "AutoPilot",
+    "CreatorGrowthWorkspace",
+    "CreatorInbox",
   ];
   for (const mod of realModules) {
     assert.ok(SHELL.includes(mod), `StudioShell must reuse the real ${mod} implementation`);
   }
+  assert.ok(SHELL.includes("CreatorGrowthWorkspace"), "self-marketing must render the real creator growth workspace");
+  assert.ok(SHELL.includes("CreatorInbox"), "Messages must render the participant-scoped inbox");
   assert.ok(!/from\s+["'][^"']*mocks?\//.test(SHELL), "StudioShell must not import from a mock layer");
   assert.ok(!/\bMOCK_|\bFAKE_|\bDUMMY_/.test(SHELL), "StudioShell must not define mock/fake/dummy data");
 });
