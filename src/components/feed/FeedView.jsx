@@ -21,6 +21,7 @@ import TrendingBar from "./TrendingBar";
 import StudioFeed from "./StudioFeed";
 import KineticWord from "../ui/KineticWord";
 import StoryRings from "./StoryRings";
+import PublicGrowthShowcase from "./PublicGrowthShowcase";
 import { LunaAvatar } from "../ambassador/LunaAvatar";
 import { composeLunaFace } from "../../lib/cloud/lunaFace.js";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
@@ -488,6 +489,8 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
           </div>
         </section>
       )}
+
+      <PublicGrowthShowcase marketers={marketers} products={products} videos={allVideos} navigate={navigate} onPlay={setPlayReel} />
 
       {/* Public Reels rail — רילס של יוצרות, מוכנים לצפייה בקנייה ישירה */}
       {allVideos.length > 0 && (
