@@ -461,7 +461,25 @@ async function sendWebhook(ch, payload) {
   if (!res.ok) throw new Error(`webhook_${res.status}`);
 }
 
-async function sendFacebook(ch, text, link) {
+async function sendFacebook(ch, text, link, product) {
+  const videoUrl = product?.videoUrl || product?.ugcVideo;
+  if (videoUrl && String(videoUrl).startsWith("http")) {
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.pageId)}/videos`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          file_url: videoUrl,
+          description: `${text}\\n${link}`,
+          access_token: ch.pageToken,
+        }),
+        signal: AbortSignal.timeout(20000),
+      }
+    );
+    if (!res.ok) throw new Error(`facebook_video_${res.status}`);
+    return;
+  }
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.pageId)}/feed`,
     {
@@ -815,7 +833,7 @@ export async function runOne(store, marketerId, cfg, origin) {
       if (ch.type === "telegram") await sendTelegram(ch, chText);
       else if (ch.type === "webhook")
         await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-autopilot" });
-      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
+      else if (ch.type === "facebook") await sendFacebook(ch, chText, link, publishProduct);
       else if (ch.type === "discord") await sendDiscord(ch, chText);
       else if (ch.type === "slack") await sendSlack(ch, chText);
       else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
@@ -844,9 +862,11 @@ export async function runOne(store, marketerId, cfg, origin) {
   } else {
     cfg.nextRunAt = Date.now() + Math.max(15, Math.min(Number(cfg.intervalMinutes) || 60, 60)) * 60000;
   }
-  // "No product left behind" memory — pickProduct() picks the item whose
-  // most recent post is oldest (or that was never posted).
-  cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
+  // Failed external publication must not consume the product's rotation slot.
+  // The same product remains first in line for a verified retry.
+  if (anyOk) {
+    cfg.history = [{ productId: product.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
+  }
   cfg.logs = [
     {
       ts: Date.now(),
