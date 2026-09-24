@@ -419,6 +419,27 @@ async function checkChannelConnection(store, channelType, channel = {}) {
   }
 }
 
+async function markChannelVerified(provider) {
+  try {
+    const raw = await kvGet("marketplace:connection_states");
+    const list = Array.isArray(raw) ? raw : [];
+    const now = Date.now();
+    const next = list.filter((entry) => entry?.provider !== provider);
+    next.push({
+      provider,
+      state: "CONNECTED",
+      lastVerified: now,
+      lastSuccess: now,
+      updatedAt: now,
+      lastError: null,
+      recoveryAction: null,
+    });
+    await kvSet("marketplace:connection_states", next.slice(-200));
+  } catch {
+    // Publishing itself succeeded; verification persistence is best-effort.
+  }
+}
+
 async function sendTelegram(ch, text) {
   const res = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMessage`, {
     method: "POST",
@@ -743,7 +764,7 @@ async function runOne(store, marketerId, cfg, origin) {
       else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
       else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
       else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
-      results.push({ channel: ch.type, ok: true });
+      await markChannelVerified(ch.type);\n      results.push({ channel: ch.type, ok: true });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
     }
