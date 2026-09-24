@@ -516,6 +516,49 @@ async function sendWhatsApp(ch, text, link) {
 // Instagram Graph API — 2-step publish (container → publish). Requires an
 // image, so it's skipped gracefully when the product has none.
 async function sendInstagram(ch, text, link, product) {
+  const videoUrl = product?.videoUrl || product?.ugcVideo;
+  if (videoUrl && String(videoUrl).startsWith("http")) {
+    const container = await fetch(
+      `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.igUserId)}/media`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          media_type: "REELS",
+          video_url: videoUrl,
+          caption: `${text}\\n${link}`,
+          access_token: ch.token,
+        }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+    if (!container.ok) throw new Error(`instagram_reel_container_${container.status}`);
+    const { id } = await container.json();
+    let ready = false;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const status = await fetch(
+        `https://graph.facebook.com/v19.0/${encodeURIComponent(id)}?fields=status_code&access_token=${encodeURIComponent(ch.token)}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      const state = await status.json().catch(() => ({}));
+      if (state?.status_code === "FINISHED") { ready = true; break; }
+      if (state?.status_code === "ERROR") throw new Error("instagram_reel_processing_failed");
+    }
+    if (!ready) throw new Error("instagram_reel_processing_timeout");
+    const publish = await fetch(
+      `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.igUserId)}/media_publish`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ creation_id: id, access_token: ch.token }),
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+    if (!publish.ok) throw new Error(`instagram_reel_publish_${publish.status}`);
+    return;
+  }
+
   const imageUrl = product?.image
     ? String(product.image).startsWith("http")
       ? product.image
@@ -718,8 +761,19 @@ export async function runOne(store, marketerId, cfg, origin) {
   let publishProduct = product;
   try {
     const ugcAssets = await kvGet(`ugc:assets:${product?.id}`, []);
-    const latestUgc = Array.isArray(ugcAssets) ? ugcAssets.find((a) => a?.imageUrl && a?.synthetic === true) : null;
-    if (latestUgc) publishProduct = { ...product, image: latestUgc.imageUrl, ugcImage: latestUgc.imageUrl };
+    const latestUgc = Array.isArray(ugcAssets)
+      ? ugcAssets.find((a) => a?.videoUrl && a?.videoStatus === "completed" && a?.synthetic === true)
+        || ugcAssets.find((a) => a?.imageUrl && a?.synthetic === true)
+      : null;
+    if (latestUgc) {
+      publishProduct = {
+        ...product,
+        image: latestUgc.imageUrl || product.image,
+        ugcImage: latestUgc.imageUrl || null,
+        videoUrl: latestUgc.videoUrl || null,
+        ugcVideo: latestUgc.videoUrl || null,
+      };
+    }
   } catch { /* UGC is an optional amplifier; never block normal publishing */ }
 
   if (!product) {
@@ -765,13 +819,13 @@ export async function runOne(store, marketerId, cfg, origin) {
       else if (ch.type === "discord") await sendDiscord(ch, chText);
       else if (ch.type === "slack") await sendSlack(ch, chText);
       else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
-      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
+      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, publishProduct);
       else if (ch.type === "x") await sendX(ch, chText, link);
       else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
       else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
       else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
       else if (ch.type === "reddit") await sendReddit(ch, chText, link);
-      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
+      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, publishProduct);
       else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
       else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
       await markChannelVerified(ch.type);\n      results.push({ channel: ch.type, ok: true });
