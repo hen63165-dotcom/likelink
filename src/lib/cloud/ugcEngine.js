@@ -7,6 +7,12 @@
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENAI_BASE = "https://api.openai.com/v1";
+const CREATIVE_ANGLES = [
+  { id: "curiosity", name: "Curiosity reveal", hook: "רגע — למה כולם שמים לב לזה?" },
+  { id: "problem-solution", name: "Problem → solution", hook: "אם גם את נתקלת בזה, תראי את זה." },
+  { id: "emotional-roi", name: "Emotional ROI", hook: "לפני שקונים, הנה הדבר שבאמת שווה לבדוק." },
+  { id: "reality-tea", name: "Reality / honest take", hook: "בלי הייפ — הנה מה שבאמת רואים." },
+];
 const MODEL_ROLES = {
   ai_female_model: "original adult female fashion/lifestyle model",
   ai_female_creator: "original adult female creator",
@@ -19,7 +25,7 @@ function assertServerConfig() {
   return { ok: true };
 }
 
-function productPrompt(product, characterType) {
+function productPrompt(product, characterType, creativeAngle = "") {
   const role = MODEL_ROLES[characterType] || MODEL_ROLES.ai_female_model;
   const title = String(product.title).slice(0, 180);
   const category = String(product.category || "general").slice(0, 80);
@@ -32,12 +38,14 @@ function productPrompt(product, characterType) {
     "Verified category: " + category + ".",
     description ? "Verified catalog description: " + description + "." : "",
     "Do not invent product features, testimonials, discounts, scarcity, awards, medical claims, or social proof.",
+    "Creative direction: " + (creativeAngle || "curiosity reveal") + ".",
+    "Build the visual around curiosity, authentic creator energy, and a clear reason to keep watching.",
     "Premium social-media composition, natural lighting, realistic anatomy and hands, product clearly visible.",
     "No celebrity likeness, no real-person identity, no text overlay. Portrait 9:16 composition.",
   ].filter(Boolean).join("\n");
 }
 
-export async function generateCloudUgcAsset({ product, characterType = "ai_female_model", force = false } = {}) {
+export async function generateCloudUgcAsset({ product, characterType = "ai_female_model", creativeAngle = "", force = false } = {}) {
   if (!product?.id || !product?.title) return { ok: false, error: "invalid_product" };
   if (product.status !== "approved") return { ok: false, error: "product_not_approved" };
   if (!product.marketerId) return { ok: false, error: "product_owner_missing" };
@@ -54,7 +62,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
     headers: { "content-type": "application/json", authorization: "Bearer " + process.env.OPENAI_API_KEY },
     body: JSON.stringify({
       model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-      prompt: productPrompt(product, characterType),
+      prompt: productPrompt(product, characterType, creativeAngle),
       size: "1024x1536",
       quality: "high",
       output_format: "png",
@@ -80,6 +88,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
     productId: product.id,
     marketerId: product.marketerId,
     characterType,
+    creativeAngle: creativeAngle || CREATIVE_ANGLES[0].id,
     imageUrl,
     source: "openai_images",
     synthetic: true,
@@ -98,7 +107,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
  * Gemini credentials stay server-side. The job is asynchronous and persisted
  * in KV so the browser is not the execution layer.
  */
-export async function queueCloudUgcVideo({ product, asset } = {}) {
+export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", hookText = "" } = {}) {
   if (!product?.id || !asset?.imageUrl) return { ok: false, error: "ugc_image_required" };
   if (!process.env.GEMINI_API_KEY) {
     return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
@@ -113,8 +122,15 @@ export async function queueCloudUgcVideo({ product, asset } = {}) {
   const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
   const mimeType = imageResponse.headers.get("content-type") || "image/png";
 
+  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;
+  const angleMeta = CREATIVE_ANGLES.find((x) => x.id === angle) || CREATIVE_ANGLES[0];
+  const hook = hookText || angleMeta.hook;
   const prompt = [
     "Create an 8-second premium vertical UGC commerce video from the supplied reference image.",
+    "Creative angle: " + angleMeta.name + ".",
+    "Open with a natural creator-style visual hook in the first 1-2 seconds: " + hook,
+    "Use fast, intentional visual pacing with a curiosity beat, product close-up, and a clean payoff.",
+    "If spoken audio is generated, keep it natural and concise; never invent product claims or testimonials.",
     "Keep the same original synthetic adult creator and the same verified product identity.",
     "Natural handheld social-video movement, subtle presenter motion, believable product presentation, premium lighting.",
     "Do not invent product features, testimonials, discounts, scarcity, awards, medical claims, or social proof.",
