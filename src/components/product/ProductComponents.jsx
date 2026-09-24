@@ -53,7 +53,8 @@ export const WhatsAppShareButton = memo(function WhatsAppShareButton({ p, market
     const enMessage = `💎 ${brandName} presents luxury collection: ${productTitle} - ${price}. Curated minimalist essentials. Discover via Likelink! 🛍️`;
     const message = lang === "he" ? heMessage : enMessage;
 
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message + " " + p.affiliateUrl)}`;
+    const trackedUrl = `${window.location.origin}/r?u=${encodeURIComponent(p.affiliateUrl)}&pid=${encodeURIComponent(p.id)}&mid=${encodeURIComponent(p.marketerId || "")}&src=whatsapp`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message + " " + trackedUrl)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
