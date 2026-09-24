@@ -163,7 +163,7 @@ const OverviewPanel = ({ onNavigate }) => (
   <CreatorCommandCenter onNavigate={onNavigate} />
 );
 
-** Truthful auth gate — routes to the real login/registration flow (SellView). */
+/** Truthful auth gate — routes to the real login/registration flow (SellView). */
 function AuthGate({ onNavigate, feature }) {
   const { lang } = useI18n();
   return (
