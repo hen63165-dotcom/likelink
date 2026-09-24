@@ -407,8 +407,9 @@ function smartCaption(product, link, tags, runCount) {
 // Central AI path: the existing aiPolish behavior becomes an orchestrator task.
 // Same silent-fallback contract as before — automation must never break — but
 // now with one central route, server-side keys, validation and job records.
-const __core = createIntelligenceCore();
+let __core;
 export async function aiPolish(text, product) {
+  if (!__core) __core = createIntelligenceCore();
   try {
     if (!product?.marketerId) return text;
     const result = await __core.runForMarketer(product.marketerId, {
