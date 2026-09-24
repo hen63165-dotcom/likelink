@@ -58,6 +58,7 @@ import LunaOpportunityHero from "./LunaOpportunityHero";
 import CreatorGrowthWorkspace from "./CreatorGrowthWorkspace";
 import CreatorInbox from "./CreatorInbox";
 import CreatorCommandCenter from "./CreatorCommandCenter";
+import UGCCampaignStudio from "./UGCCampaignStudio";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -576,30 +577,7 @@ function RecommendationsPanel({ onNavigate }) {
 }
 
 function UgcPanel({ onNavigate }) {
-  const { lang } = useI18n();
-  const { currentMarketer: marketer, sales, products, marketers } = useMarketplace();
-  const scope = marketer
-    ? { label: lang === "he" ? "התוכן שלך" : "Your content", mine: (products || []).filter((p) => p.marketerId === marketer.id) }
-    : { label: lang === "he" ? "תוכן הקהילה" : "Community content", mine: (products || []).filter((p) => p?.status === "approved") };
-  const mine = scope.mine;
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
-        {lang === "he" ? `UGC — ${scope.label} (אמיתי)` : `UGC — real ${scope.label}`}
-      </h3>
-      <SellerEngagement marketer={marketer || { id: "__visitor__", name: lang === "he" ? "אורח/ת" : "Visitor" }} sales={sales || []} products={mine} marketers={marketers || []} />
-      {!marketer && (
-        <div className="ll-card rounded-xl p-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-          {lang === "he"
-            ? "מחוברת? התחברי כדי לראות את הדירוג, הרצף והתגים האישיים שלך."
-            : "Log in to see your personal rank, streak and badges."}{" "}
-          <button type="button" onClick={() => onNavigate(VIEW_IDS.PRODUCTS)} className="underline font-bold" style={{ color: "var(--accent)" }}>
-            {lang === "he" ? "מעבר להתחברות" : "Go to login"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  return <UGCCampaignStudio onNavigate={onNavigate} />;
 }
 
 function TrendsPanel() {
