@@ -23,3 +23,14 @@ jobs:
       - run: npm test
       - run: npm audit --audit-level=high
       - run: npm run build
+      - run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body --silent --show-error --max-time 30 \
+            -X POST \
+            -H "content-type: application/json" \
+            --data '{"action":"status"}' \
+            "https://likelink2.vercel.app/api/autopilot")
+          echo "$response"
+          echo "$response" | grep -q '"scheduler"' 
+          echo "$response" | grep -q '"queue"' 
+          echo "$response" | grep -q '"jobCount"'
