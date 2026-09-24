@@ -9,7 +9,7 @@
   "trailingSlash": false,
   "functions": {
     "api/**/*.mjs": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   },
   "crons": [
