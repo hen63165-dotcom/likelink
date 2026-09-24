@@ -281,6 +281,7 @@ registerJob("autonomous-ugc-distribution", {
           // import: autopilot imports this job registry, so resolve runOne only
           // when the distribution job actually executes.
           const { runOne } = await import("../../../api/autopilot.mjs");
+          const { runOne } = await import("../../../api/autopilot.mjs");
           const store = { ...autopilot, __marketers: marketers, __products: products };
           const run = await runOne(store, marketer.id, cfg, ORIGIN);
           const entry = {
