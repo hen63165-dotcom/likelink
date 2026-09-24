@@ -236,9 +236,23 @@ registerJob("autonomous-ugc-distribution", {
         results.push({ marketerId: marketer.id, productId: selected.id, status: "UGC_FAILED", error: ugc.error });
         continue;
       }
+
+      // Queue cloud video when a current video provider is configured.
+      // Image-only UGC remains valid; video is never faked when the provider is absent.
+      let ugcVideo = null;
+      try {
+        const asset = ugc.asset || null;
+        if (asset?.imageUrl) {
+          const { queueCloudUgcVideo } = await import("./ugcEngine.js");
+          ugcVideo = await queueCloudUgcVideo({ product: selected, asset });
+        }
+      } catch (e) {
+        ugcVideo = { ok: false, error: String(e?.message || e).slice(0, 180) };
+      }
+
       const store = { ...autopilot, __marketers: marketers, __products: products };
       const run = await runOne(store, marketer.id, cfg, ORIGIN);
-      const entry = { marketerId: marketer.id, productId: selected.id, ugc: ugc.skipped || "generated", status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED", channels: run.results || [], ts: now };
+      const entry = { marketerId: marketer.id, productId: selected.id, ugc: ugc.skipped || "generated", ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED", status: run.ok ? "PUBLISHED" : "NOT_PUBLISHED", channels: run.results || [], ts: now };
       results.push(entry);
       await kvSet("growth:ugc-distribution:" + marketer.id, entry);
     }
