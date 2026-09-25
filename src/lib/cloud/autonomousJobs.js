@@ -258,6 +258,7 @@ registerJob("autonomous-ugc-distribution", {
             product: selected,
             characterType: cfg.ugcCharacterType || "ai_female_model",
             creativeAngle: angle.id,
+            style: creativeStyle,
           });
 
           if (!ugc.ok && ugc.skipped !== "fresh_asset") {
@@ -292,6 +293,7 @@ registerJob("autonomous-ugc-distribution", {
               marketerId: marketer.id,
               productId: selected.id,
               creativeAngle: angle.id,
+              creativeStyle,
               ugc: ugc.skipped || "generated",
               ugcVideo: ugcVideo ? (ugcVideo.ok ? (ugcVideo.status || "QUEUED") : ugcVideo.error) : "NOT_REQUESTED",
               status: "WAITING_FOR_VIDEO",
@@ -314,6 +316,7 @@ registerJob("autonomous-ugc-distribution", {
             marketerId: marketer.id,
             productId: selected.id,
             creativeAngle: angle.id,
+            creativeStyle,
             ugc: ugc.skipped || "generated",
             ugcVideo: "COMPLETED",
             status: published ? "PUBLISHED" : "NOT_PUBLISHED",
