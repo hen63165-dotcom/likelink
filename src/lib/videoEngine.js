@@ -333,6 +333,7 @@ function drawOverlay(ctx, o, W, H, t) {
 export async function generateProductReel({
   images = [], title = "", price = 0, hook = "",
   cta = "לרכישה 👉 הלינק בפרופיל", storeName = "Likelink", palette = "dark",
+  creatorWorld = "ugc",
   onProgress = () => {}, mime = pickRecorderMime(),
 } = {}) {
   if (!canRecordVideo()) throw new Error("video_not_supported");
