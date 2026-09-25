@@ -165,9 +165,37 @@ export default async function handler(req, res) {
   // Center feed, so /api/google-feed keeps working unchanged for Merchant
   // Center's scheduled fetch and the in-app Admin download button.
   const kind = new URL(req.url, "https://x").searchParams.get("kind");
-  if (kind === "sitemap") return sitemapHandler(req, res);
+  if (kind === "sitemap") return sitemapHandler(req, res);\n  if (kind === "discover") return discoveryFeedHandler(req, res);
   if (kind === "story") return storyHandler(req, res);
   return googleFeedHandler(req, res);
+}
+
+// ─── Open discovery syndication ─────────────────────────────────────────────
+// One existing serverless function serves multiple public discovery formats.
+// This avoids adding functions while making the public catalog consumable by
+// RSS readers, discovery engines, directories and other lawful aggregators.
+async function discoveryFeedHandler(req, res) {
+  const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
+  const [products, marketers] = await Promise.all([getProducts(), getMarketers()]);
+  const marketerIds = new Set((marketers || []).map((m) => m?.id).filter(Boolean));
+  const items = (products || [])
+    .filter((p) => p?.id && p?.status === "approved" && p?.marketerId && marketerIds.has(p.marketerId))
+    .slice(0, 100)
+    .map((p) => {
+      const owner = (marketers || []).find((m) => m?.id === p.marketerId);
+      const link = owner?.slug
+        ? `${origin}/u/${encodeURIComponent(owner.slug)}?product=${encodeURIComponent(p.id)}`
+        : `${origin}/p/${encodeURIComponent(p.id)}`;
+      const title = xmlEscape(p.title || p.name || "LikeLink discovery");
+      const desc = xmlEscape(String(p.description || lunaHook(p.id) || "גילוי חדש ב-LikeLink").slice(0, 700));
+      const image = /^https?:\\/\\//i.test(String(p.image || "")) ? String(p.image).trim() : "";
+      return `<item><title>${title}</title><link>${xmlEscape(link)}</link><guid isPermaLink="true">${xmlEscape(link)}</guid><description>${desc}</description>${image ? `<enclosure url="${xmlEscape(image)}" type="image/jpeg" />` : ""}<pubDate>${new Date(p.updatedAt || p.createdAt || Date.now()).toUTCString()}</pubDate></item>`;
+    });
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>LikeLink Discover</title><link>${xmlEscape(origin)}/discover</link><description>גילויים אמיתיים מהקטלוג הציבורי של LikeLink</description><language>he</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items.join("")}</channel></rss>`;
+  res.status(200);
+  res.setHeader("content-type", "application/rss+xml; charset=utf-8");
+  res.setHeader("cache-control", "public, max-age=900, s-maxage=900");
+  res.end(body);
 }
 
 // ─── /story/:id — Luna's Google Web Story per product ───────────────────────
