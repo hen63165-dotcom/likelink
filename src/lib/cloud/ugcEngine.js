@@ -6,6 +6,7 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
 const OPENAI_BASE = "https://api.openai.com/v1";
 const CREATIVE_ANGLES = [
   { id: "curiosity", name: "Curiosity reveal", hook: "רגע — למה כולם שמים לב לזה?" },
@@ -127,7 +128,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
  */
 export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", hookText = "", style = "ugc" } = {}) {
   if (!product?.id || !asset?.imageUrl) return { ok: false, error: "ugc_image_required" };
-  if (!process.env.GEMINI_API_KEY) {
+  if (!GEMINI_KEY) {
     return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
   }
   if (asset.videoUrl) return { ok: true, skipped: "video_exists", asset };
@@ -158,7 +159,7 @@ export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", h
 
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+    headers: { "content-type": "application/json", "x-goog-api-key": GEMINI_KEY },
     body: JSON.stringify({
       instances: [{
         prompt,
@@ -197,7 +198,7 @@ export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
   }
 
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/" + videoJobId, {
-    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
+    headers: { "x-goog-api-key": GEMINI_KEY },
     signal: AbortSignal.timeout(20000),
   });
   const payload = await response.json().catch(() => ({}));
@@ -231,11 +232,11 @@ export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
   }
 
   const content = await fetch(videoUri, {
-    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
+    headers: { "x-goog-api-key": GEMINI_KEY },
     signal: AbortSignal.timeout(60000),
   });
   if (!content.ok) {
-    const updated = { ...asset, videoStatus: "completed", videoError: "video_content_download_failed" };
+    const updated = { ...asset, videoStatus: "failed", videoError: "video_content_download_failed" };
     await replaceAsset(productId, updated);
     return { ok: false, error: "video_content_download_failed", providerStatus: content.status };
   }
