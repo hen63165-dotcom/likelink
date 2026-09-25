@@ -28,6 +28,10 @@
       "destination": "/api/google-feed?kind=sitemap"
     },
     {
+      "source": "/discover.xml",
+      "destination": "/api/google-feed?kind=discover"
+    },
+    {
       "source": "/google-feed.xml",
       "destination": "/api/google-feed?kind=google"
     },
