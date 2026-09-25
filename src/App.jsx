@@ -60,6 +60,21 @@ export default function AppRoot() {
 }
 
 function App() {
+  // Canonicalize project preview URLs in the live app. The browser can otherwise
+  // stay on an old immutable Vercel deployment URL with different Preview env
+  // values/code. Production is the single customer-facing surface.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = window.location.hostname;
+    const isLikelinkPreviewHost =
+      host.endsWith(".vercel.app") &&
+      host !== "likelink2.vercel.app" &&
+      (host.startsWith("likelink2-") || host.startsWith("likelink2-git-"));
+    if (!isLikelinkPreviewHost) return;
+    const target = `https://likelink2.vercel.app${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.replace(target);
+  }, []);
+
   const { lang, setLang } = useI18n();
   const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
   const { clearCart } = useCart();
