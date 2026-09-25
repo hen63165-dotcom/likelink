@@ -6,9 +6,10 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-import { geminiFetch, getGeminiApiKey } from "./geminiGateway.js";\nconst GEMINI_KEY = getGeminiApiKey();
-const GEMINI_KEY = GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
-const OPENAI_BASE = "https://api.openai.com/v1";
+import { geminiFetch, getGeminiApiKey } from "./geminiGateway.js";
+const GEMINI_KEY = getGeminiApiKey();
+
+
 const CREATIVE_ANGLES = [
   { id: "curiosity", name: "Curiosity reveal", hook: "רגע — למה כולם שמים לב לזה?" },
   { id: "problem-solution", name: "Problem → solution", hook: "אם גם את נתקלת בזה, תראי את זה." },
@@ -77,24 +78,24 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
   const recent = list.find((a) => a?.imageUrl && a?.synthetic === true && Number(a.createdAt || 0) > Date.now() - 86400000);
   if (recent && !force) return { ok: true, skipped: "fresh_asset", asset: recent };
 
-  const response = await fetch(OPENAI_BASE + "/images/generations", {
+  const imageResult = await geminiFetch("/models/gemini-3.1-flash-image:generateContent", {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: "Bearer " + process.env.OPENAI_API_KEY },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-      prompt: productPrompt(product, characterType, creativeAngle),
-      size: "1024x1536",
-      quality: "high",
-      output_format: "png",
+      contents: [{ parts: [{ text: productPrompt(product, characterType, creativeAngle) }] }],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        responseFormat: { image: { aspectRatio: "9:16", imageSize: process.env.GEMINI_IMAGE_SIZE || "1K" } }
+      }
     }),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(90000),
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    return { ok: false, error: "ugc_generation_failed", providerStatus: response.status, detail: String(payload?.error?.message || "").slice(0, 180) };
+  const payload = imageResult.payload || {};
+  if (!imageResult.ok) {
+    return { ok:false, error:"ugc_generation_failed", providerStatus:imageResult.status, detail:String(payload?.error?.message || "").slice(0,180) };
   }
 
-  const b64 = payload?.data?.[0]?.b64_json;
+  const b64 = payload?.candidates?.[0]?.content?.parts?.find((p) => p?.inlineData?.data)?.inlineData?.data;
   if (!b64) return { ok: false, error: "ugc_generation_no_image" };
   const bytes = Buffer.from(b64, "base64");
   const path = "ugc/" + product.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".png";
@@ -110,7 +111,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
     characterType,
     creativeAngle: creativeAngle || CREATIVE_ANGLES[0].id,
     imageUrl,
-    source: "openai_images",
+    source: "gemini_3_1_flash_image",
     synthetic: true,
     disclosed: true,
     videoProvider: null,
@@ -142,12 +143,14 @@ export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", h
   const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
   const mimeType = imageResponse.headers.get("content-type") || "image/png";
 
-  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;\n  const styleMeta = CREATIVE_STYLES[style] || CREATIVE_STYLES.ugc;
+  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;
+  const styleMeta = CREATIVE_STYLES[style] || CREATIVE_STYLES.ugc;
   const angleMeta = CREATIVE_ANGLES.find((x) => x.id === angle) || CREATIVE_ANGLES[0];
   const hook = hookText || angleMeta.hook;
   const prompt = [
     "Create an 8-second premium vertical commerce video from the supplied reference image.",
-    "Creative angle: " + angleMeta.name + ".",\n    "Creative style: " + styleMeta.label + ". " + styleMeta.prompt,
+    "Creative angle: " + angleMeta.name + ".",
+    "Creative style: " + styleMeta.label + ". " + styleMeta.prompt,
     "Open with a natural creator-style visual hook in the first 1-2 seconds: " + hook,
     "Use fast, intentional visual pacing with a curiosity beat, product close-up, and a clean payoff.",
     "If spoken audio is generated, keep it natural and concise; never invent product claims or testimonials.",
