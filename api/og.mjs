@@ -119,6 +119,45 @@ export default async function handler(req, res) {
     return fetchProductInfoHandler(req, res);
   }
 
+  // ─── /api/og?mode=image — same-origin image proxy for first-party video rendering.
+  // Strict allowlist prevents this endpoint from becoming an open SSRF proxy.
+  if (url.searchParams.get("mode") === "image") {
+    const raw = url.searchParams.get("u") || "";
+    let target;
+    try { target = new URL(raw); } catch {
+      res.status(400); res.end("Invalid image URL."); return;
+    }
+    const allowedHost =
+      target.origin === origin ||
+      /(^|\\.)alicdn\\.com$/i.test(target.hostname) ||
+      /(^|\\.)aliexpress-media\\.com$/i.test(target.hostname) ||
+      /(^|\\.)supabase\\.(co|in)$/i.test(target.hostname) ||
+      /(^|\\.)supabase-storage\\.com$/i.test(target.hostname);
+    if (!allowedHost || !["http:","https:"].includes(target.protocol)) {
+      res.status(403); res.end("Image host not allowed."); return;
+    }
+    try {
+      const upstream = await fetch(target.href, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(10000),
+        headers: { "user-agent": "Mozilla/5.0", accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8" },
+      });
+      if (!upstream.ok) { res.status(upstream.status); res.end("Image fetch failed."); return; }
+      const type = String(upstream.headers.get("content-type") || "").toLowerCase();
+      if (!type.startsWith("image/")) { res.status(415); res.end("Not an image."); return; }
+      const bytes = Buffer.from(await upstream.arrayBuffer());
+      if (!bytes.length || bytes.length > 8 * 1024 * 1024) { res.status(413); res.end("Image too large."); return; }
+      res.status(200);
+      res.setHeader("content-type", type.split(";")[0]);
+      res.setHeader("cache-control", "public, max-age=86400, s-maxage=86400");
+      res.setHeader("access-control-allow-origin", origin);
+      res.end(bytes);
+      return;
+    } catch {
+      res.status(502); res.end("Image proxy failed."); return;
+    }
+  }
+
   // ─── /grow/:id — Growth content OG previews ───────────────────────────────
   // Dispatched by vercel.json: /grow/:id → /api/og?mode=growth&id=:id
   if (url.searchParams.get("mode") === "growth") {
