@@ -11,7 +11,7 @@
  * source is empty, the card shows a truthful empty state with a working
  * button to the screen that fixes it. No demo data.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Home, Package, Users, Sparkles, Heart, MessageCircle, TrendingUp, Settings,
   Play, ArrowLeft, Clapperboard, Megaphone, Send, ShieldCheck, Bot, Activity,
@@ -23,6 +23,9 @@ import { fetchAutonomousJobStatus } from "../../lib/cloud/autonomousJobsClient.j
 import { buildActivityFeed, getActivity } from "../../lib/studioActivity.js";
 import { money } from "../../utils/helpers";
 import { isAuthorized } from "./homeAuth.js";
+import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
+import { uploadReelVideo } from "../../lib/uploadVideo.js";
+import { useVideos } from "../../context/VideoContext";
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const fmt = (n) => new Intl.NumberFormat("he-IL").format(n);
@@ -99,6 +102,77 @@ function Ring({ percent }) {
     </svg>
   );
 }
+
+function LiveReelMedia({ product, hero = false }) {
+  const [url, setUrl] = useState("");
+  const [state, setState] = useState("idle");
+  const started = useRef(false);
+  const { videos, addVideo } = useVideos();
+  const existing = useMemo(() => (videos || [])
+    .filter((v) => String(v?.productId || v?.productTags?.[0]?.productId || "") === String(product?.id || "") && typeof v?.videoUrl === "string")
+    .sort((a, b) => Number(b?.createdAt || 0) - Number(a?.createdAt || 0))[0], [videos, product?.id]);
+
+  useEffect(() => {
+    if (existing?.videoUrl) {
+      setUrl(existing.videoUrl);
+      setState("ready");
+    }
+  }, [existing?.videoUrl]);
+
+  useEffect(() => {
+    if (!product?.id || existing?.videoUrl || started.current || !product?.image || !canRecordVideo()) return;
+    const node = document.getElementById(`ll-overview-reel-${product.id}`);
+    if (!node) return;
+    const observer = new IntersectionObserver(async (entries) => {
+      if (!entries.some((e) => e.isIntersecting) || started.current) return;
+      started.current = true;
+      observer.disconnect();
+      setState("rendering");
+      try {
+        const result = await generateProductReel({
+          images: [product.image],
+          title: product.title || "",
+          price: Number(product.price) || 0,
+          hook: `✨ ${product.title || "המוצר"} · LikeLink UGC`,
+          cta: "לרכישה · לפרטים",
+          storeName: "LikeLink",
+          palette: hero ? "gold" : "dark",
+        });
+        const remote = await uploadReelVideo(result.blob);
+        const finalUrl = remote || result.url;
+        setUrl(finalUrl);
+        setState("ready");
+        addVideo({
+          title: `UGC Reel · ${product.title || "Product"}`,
+          videoUrl: finalUrl,
+          marketerId: product.marketerId,
+          productId: product.id,
+          productTags: [{ productId: product.id }],
+          source: "likelink_overview_ugc",
+          public: Boolean(remote),
+        });
+      } catch {
+        setState("fallback");
+      }
+    }, { rootMargin: "500px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [product?.id, product?.image, existing?.videoUrl, addVideo, hero]);
+
+  return (
+    <div id={`ll-overview-reel-${product?.id}`} className="relative h-full w-full overflow-hidden">
+      {url ? (
+        <video src={url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
+      ) : (
+        <img src={product?.image || ""} alt={product?.title || ""} loading="lazy" className="h-full w-full object-cover" />
+      )}
+      <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
+        {state === "ready" ? "● UGC REEL" : state === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
+      </span>
+    </div>
+  );
+}
+
 export default function StudioHome({ onNavigate }) {
   const { lang } = useI18n();
   const he = lang === "he";
@@ -240,7 +314,7 @@ export default function StudioHome({ onNavigate }) {
         <section className="sh-hero">
           <div className="sh-hero-media">
             {ugc?.videoUrl ? (
-              <video src={ugc.videoUrl} controls playsInline preload="metadata" aria-label={t("וידאו UGC", "UGC video")} />
+              <video src={ugc.videoUrl} controls playsInline autoPlay muted loop preload="metadata" aria-label={t("וידאו UGC", "UGC video")} />
             ) : ugc?.imageUrl ? (
               <img src={ugc.imageUrl} alt={heroProduct?.title || ""} />
             ) : heroProduct?.image ? (
@@ -295,7 +369,7 @@ export default function StudioHome({ onNavigate }) {
               {topProducts.map((p) => (
                 <button key={p.id} type="button" className="sh-product" onClick={go("products")}>
                   <div className="sh-product-img">
-                    {p.image ? <img src={p.image} alt="" loading="lazy" /> : <Package size={22} />}
+                    <LiveReelMedia product={p} />
                     <span className={isAuthorized(p) ? "is-live" : ""}>{isAuthorized(p) ? "LIVE" : t("ממתין", "PENDING")}</span>
                   </div>
                   <strong>{p.title}</strong>
@@ -337,7 +411,7 @@ export default function StudioHome({ onNavigate }) {
             <div className="sh-mini-products">
               {popular.map((p) => (
                 <button key={p.id} type="button" onClick={go("products")} title={p.title}>
-                  {p.image ? <img src={p.image} alt="" loading="lazy" /> : <Package size={18} />}
+                  <LiveReelMedia product={p} />
                   <span>{p.title}</span>
                 </button>
               ))}
