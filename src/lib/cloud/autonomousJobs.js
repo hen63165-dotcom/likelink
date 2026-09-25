@@ -316,7 +316,7 @@ registerJob("autonomous-ugc-distribution", {
   intervalMs: 60 * 60 * 1000,
   maxDurationMs: 120000,
   async fn({ kvGet, kvSet, now }) {
-    if (!process.env.OPENAI_API_KEY) return { ok: false, status: "BLOCKED", reason: "ugc_ai_not_configured" };
+    
     const [productsRow, marketersRow, autopilotRow] = await Promise.all([
       kvGet("marketplace:products", []),
       kvGet("marketplace:marketers", []),
@@ -512,11 +512,11 @@ function CREATIVE_MATRIX(product, trend) {
 }
 
 registerJob("autonomous-ugc-video-poll", {
-  description: "Poll persisted Google Veo 3.1 long-running UGC jobs and store completed cloud videos",
+  description: "Poll persisted LikeLink first-party motion jobs and store completed creative assets",
   intervalMs: 15 * 60 * 1000,
   maxDurationMs: 110000,
   async fn({ kvGet, kvSet, now }) {
-    if (!isGeminiConfigured()) return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured" };
+    
     const productsRow = await kvGet("marketplace:products", []);
     const products = Array.isArray(productsRow) ? productsRow : [];
     const { pollCloudUgcVideo } = await import("./ugcEngine.js");
