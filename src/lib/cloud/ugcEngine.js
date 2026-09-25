@@ -13,6 +13,24 @@ const CREATIVE_ANGLES = [
   { id: "emotional-roi", name: "Emotional ROI", hook: "לפני שקונים, הנה הדבר שבאמת שווה לבדוק." },
   { id: "reality-tea", name: "Reality / honest take", hook: "בלי הייפ — הנה מה שבאמת רואים." },
 ];
+const CREATIVE_STYLES = Object.freeze({
+  ugc: {
+    id: "ugc",
+    label: "UGC / creator",
+    prompt: "Authentic handheld creator energy, immediate curiosity, natural product demo, no fake testimonial."
+  },
+  cinematic3d: {
+    id: "cinematic3d",
+    label: "Cinematic 3D",
+    prompt: "Original family-friendly cinematic 3D animation with expressive stylized characters, premium lighting and playful storytelling. Do not imitate or reference any named studio or copyrighted character."
+  },
+  product_story: {
+    id: "product_story",
+    label: "Product story",
+    prompt: "Premium product-first micro-story with macro details, satisfying reveal, clear use moment and visual payoff."
+  }
+});
+
 const MODEL_ROLES = {
   ai_female_model: "original adult female fashion/lifestyle model",
   ai_female_creator: "original adult female creator",
@@ -107,7 +125,7 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
  * Gemini credentials stay server-side. The job is asynchronous and persisted
  * in KV so the browser is not the execution layer.
  */
-export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", hookText = "" } = {}) {
+export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", hookText = "", style = "ugc" } = {}) {
   if (!product?.id || !asset?.imageUrl) return { ok: false, error: "ugc_image_required" };
   if (!process.env.GEMINI_API_KEY) {
     return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
@@ -122,12 +140,12 @@ export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", h
   const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
   const mimeType = imageResponse.headers.get("content-type") || "image/png";
 
-  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;
+  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;\n  const styleMeta = CREATIVE_STYLES[style] || CREATIVE_STYLES.ugc;
   const angleMeta = CREATIVE_ANGLES.find((x) => x.id === angle) || CREATIVE_ANGLES[0];
   const hook = hookText || angleMeta.hook;
   const prompt = [
-    "Create an 8-second premium vertical UGC commerce video from the supplied reference image.",
-    "Creative angle: " + angleMeta.name + ".",
+    "Create an 8-second premium vertical commerce video from the supplied reference image.",
+    "Creative angle: " + angleMeta.name + ".",\n    "Creative style: " + styleMeta.label + ". " + styleMeta.prompt,
     "Open with a natural creator-style visual hook in the first 1-2 seconds: " + hook,
     "Use fast, intentional visual pacing with a curiosity beat, product close-up, and a clean payoff.",
     "If spoken audio is generated, keep it natural and concise; never invent product claims or testimonials.",
@@ -304,4 +322,17 @@ async function kvSet(key, value) {
   if (!res.ok) throw new Error("kv_upsert_failed_" + res.status);
 }
 
-export default { generateCloudUgcAsset, queueCloudUgcVideo, pollCloudUgcVideo };
+export function buildCreativeMatrix(product) {
+  return CREATIVE_ANGLES.flatMap((angle) =>
+    Object.keys(CREATIVE_STYLES).map((style) => ({
+      productId: product?.id || null,
+      angle: angle.id,
+      style,
+      hook: angle.hook,
+      label: CREATIVE_STYLES[style].label,
+      status: "READY_TO_GENERATE",
+    }))
+  );
+}
+
+export default { generateCloudUgcAsset, queueCloudUgcVideo, pollCloudUgcVideo, buildCreativeMatrix };
