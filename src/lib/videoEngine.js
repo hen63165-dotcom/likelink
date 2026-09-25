@@ -368,8 +368,8 @@ export async function generateProductReel({
     drawBackground(ctx, W, H, pal);
     const img = segs[segIndex];
     if (img) drawImageSeg(ctx, img, t, W, H);
-    drawOverlay(ctx, { pal, title, price, hook, cta, storeName, creatorWorld }, W, H, t);
     drawProductFrame(ctx, img, W, H, t, pal);
+    drawOverlay(ctx, { pal, title, price, hook, cta, storeName, creatorWorld }, W, H, t);
   };
 
   rec.start(200);
