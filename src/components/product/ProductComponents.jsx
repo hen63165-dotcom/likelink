@@ -116,30 +116,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
  */
-export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
-  const [failed, setFailed] = useState(false);
-  const { ref: revealRef, revealStyle } = useScrollReveal();
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const rawSrc = p?.image || "";
-  const normalized = normalizeImageUrl(rawSrc, origin);
-  const src = normalized || DEFAULT_PRODUCT_IMAGE;
-  const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
 
-  return (
-    <div ref={revealRef} style={{ ...revealStyle }} className={`relative w-full h-full overflow-hidden bg-stone-100 ${className}`}>
-      <img
-        src={finalSrc}
-        alt={p?.title || "Luxury item"}
-        onError={() => setFailed(true)}
-        loading="lazy"
-        decoding="async"
-        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-      />
-      {/* Subtle luxury vignette effect on image hover */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-    </div>
-  );
-});
 
 /**
  * Premium WhatsApp Share Button with tailored bi-lingual copywriting.
