@@ -160,7 +160,7 @@ export function SheetModal({ onClose, title, children, maxHeight = "88vh" }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: "var(--overlay)" }}
       onClick={onClose}
     >
@@ -170,7 +170,7 @@ export function SheetModal({ onClose, title, children, maxHeight = "88vh" }) {
         exit={{ y: "100%", opacity: 0.8 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-app rounded-t-3xl sm:rounded-2xl overflow-hidden flex flex-col shadow-elevated"
+        className="relative z-[1001] w-full max-w-app rounded-t-3xl sm:rounded-2xl overflow-hidden flex flex-col shadow-elevated"
         style={{ background: "var(--bg-elevated)", maxHeight }}
       >
         {title && (
