@@ -2,9 +2,15 @@
 export function isPublicVideo(video) {
   if (!video || typeof video.id !== "string" || !video.id.trim() || video.public !== true) return false;
   if (typeof video.videoUrl !== "string") return false;
+  if (video.videoStatus === "available_as_motion_svg") return false;
+  if (/\.svg(?:$|[?#])/i.test(video.videoUrl)) return false;
   try {
     const url = new URL(video.videoUrl);
-    return ["https:", "http:"].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password;
+    if (!["https:", "http:"].includes(url.protocol) || !url.hostname || url.username || url.password) return false;
+    const path = url.pathname.toLowerCase();
+    const isVideoFile = /\.(mp4|webm|mov|m4v|ogv)$/.test(path);
+    const isKnownVideoHost = /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)vimeo\.com$/.test(url.hostname);
+    return isVideoFile || isKnownVideoHost;
   } catch {
     return false;
   }
