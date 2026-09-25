@@ -357,7 +357,8 @@ export async function generateProductReel({
   const imgs = [];
   for (const src of images) imgs.push(await loadImageSafe(src));
   const usable = imgs.filter(Boolean);
-  const segs = usable.length ? usable : [null]; // null → כרטיס טקסט בלבד
+  if (!usable.length) throw new Error("product_image_unavailable");
+  const segs = usable;
   const finalMs = segs.length * REEL.perImageMs;
   const pal = PALETTES[palette] || PALETTES.dark;
 
