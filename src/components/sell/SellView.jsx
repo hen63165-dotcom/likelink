@@ -950,7 +950,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
     if (submitting) return;
     setErr("");
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
     if (password.trim().length < 6) return setErr(t("auth.errPassword"));
     if (mode === "signup" && !name.trim()) return setErr(t("auth.errName"));
     setSubmitting(true);
@@ -970,13 +970,23 @@ function AuthGate({ marketers, onLogin, onSignup }) {
 
   const handleForgot = async () => {
     const cleanEmail = String(email || "").trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes("@")) return setErr(t("auth.errEmail"));
-    if (authConfigured) {
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
+    if (!authConfigured) return setErr("שירות האימות אינו מוגדר כרגע.");
+    setSubmitting(true);
+    setErr("");
+    try {
       const res = await resetPassword(cleanEmail);
-      if (!res.ok) return setErr(res.error || "Reset failed");
-      return setErr("✓ Password reset email sent");
+      if (!res.ok) {
+        const msg = String(res.error || "").toLowerCase();
+        if (msg.includes("rate") || msg.includes("too many")) return setErr("נשלחו יותר מדי בקשות. נסי שוב בעוד כמה דקות.");
+        return setErr("לא ניתן לשלוח כרגע איפוס סיסמה. בדקי את הכתובת ונסי שוב.");
+      }
+      return setErr("✓ אם קיים חשבון עם הכתובת הזו, נשלח אליו קישור לאיפוס סיסמה.");
+    } catch {
+      setErr("לא ניתן לשלוח כרגע איפוס סיסמה. נסי שוב.");
+    } finally {
+      setSubmitting(false);
     }
-    setErr("No account found for this email");
   };
 
   return (
@@ -1003,7 +1013,15 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       </div>
       <div className="w-full mt-5 flex flex-col gap-3 text-left">
         {mode === "signup" && <LabeledInput label={t("auth.yourName")} value={name} onChange={setName} placeholder={t("auth.yourNamePh")} />}
-        <LabeledInput label={t("auth.email")} value={email} onChange={setEmail} placeholder={t("auth.emailPh")} />
+        <LabeledInput
+          label={t("auth.email")}
+          value={email}
+          onChange={(value) => { setEmail(value); if (err) setErr(""); }}
+          placeholder={t("auth.emailPh")}
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+/>
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-secondary">{t("auth.password")}</span>
           <div className="relative">
@@ -1013,6 +1031,8 @@ function AuthGate({ marketers, onLogin, onSignup }) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("auth.passwordPh")}
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              inputMode="text"
+              spellCheck={false}
               className="input-field w-full px-3.5 py-2.5 text-sm pe-10"
             />
             <button
