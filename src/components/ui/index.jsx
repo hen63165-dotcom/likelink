@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { useI18n } from "../../lib/LangContext";
 
 export function Toast({ message }) {
@@ -155,14 +156,15 @@ export function LabeledTextarea({ label, value, onChange, placeholder }) {
 }
 
 export function SheetModal({ onClose, title, children, maxHeight = "88vh" }) {
-  return (
+  const content = (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: "var(--overlay)" }}
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "var(--overlay)", zIndex: 99999 }}
       onClick={onClose}
+      role="presentation"
     >
       <motion.div
         initial={{ y: "100%", opacity: 0.8 }}
@@ -170,16 +172,29 @@ export function SheetModal({ onClose, title, children, maxHeight = "88vh" }) {
         exit={{ y: "100%", opacity: 0.8 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative z-[1001] w-full max-w-app rounded-t-3xl sm:rounded-2xl overflow-hidden flex flex-col shadow-elevated"
-        style={{ background: "var(--bg-elevated)", maxHeight }}
+        className="relative w-full max-w-app rounded-t-3xl sm:rounded-2xl overflow-hidden flex flex-col shadow-elevated"
+        style={{ background: "var(--bg-elevated)", maxHeight, zIndex: 100000 }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || "Dialog"}
       >
         {title && (
           <div className="flex items-center justify-between p-5 pb-2 shrink-0">
             <p className="disp text-lg font-semibold">{title}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="tap rounded-lg px-3 py-2 text-sm"
+              aria-label="Close"
+            >
+              ×
+            </button>
           </div>
         )}
         {children}
       </motion.div>
     </motion.div>
   );
+  if (typeof document === "undefined") return null;
+  return createPortal(content, document.body);
 }
