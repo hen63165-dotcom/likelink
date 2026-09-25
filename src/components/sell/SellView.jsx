@@ -119,6 +119,32 @@ export default function SellView({ navigate }) {
   const paypalFlow = buildBusinessPayPalFlow({ sellerName: marketer?.name || "Seller", email: marketer?.payPalEmail || "", amount: payout.pendingPayout || 0 });
   const storeHealth = scoreStoreHealth({ marketer, products, sales, paypalConnected: Boolean(marketer?.payPalEmail) });
 
+  const quickLaunchReady = mine.some((p) => p.status === "approved") && Boolean(marketer?.id);
+  const quickLaunchProduct = mine.find((p) => p.status === "approved") || mine[0] || null;
+
+  async function handleQuickLaunch() {
+    if (!quickLaunchProduct) {
+      setShowForm(true);
+      showToast(lang === "he" ? "בואי נתחיל ממוצר אחד — דקה אחת ואת באוויר." : "Start with one product — you’ll be live in a minute.");
+      return;
+    }
+    try {
+      showToast(lang === "he" ? "לונה מכינה את ההשקה…" : "Luna is preparing your launch…");
+      const autoConfig = await getAutoPilotConfig(marketer?.id).catch(() => null);
+      const result = await launchProduct(quickLaunchProduct, {
+        marketer,
+        products: mine,
+        clicks,
+        config: autoConfig,
+      });
+      showToast(result?.ok
+        ? (lang === "he" ? "ההשקה הוכנה — בדקי את הסטטוס בסטודיו." : "Launch prepared — check Studio status.")
+        : (lang === "he" ? "ההשקה נעצרה בבדיקה בטוחה." : "Launch paused by a safety check."));
+    } catch {
+      showToast(lang === "he" ? "לונה עצרה את ההשקה — אפשר לנסות שוב." : "Luna paused the launch — try again.");
+    }
+  }
+
   async function handleShare() {
     if (navigator.share) {
       try {
@@ -185,6 +211,29 @@ export default function SellView({ navigate }) {
           aria-label={t("common.logOut")}
         >
           <LogOut size={15} />
+        </button>
+      </div>
+
+      <div className="mb-5 rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(108,76,241,.18), rgba(197,168,128,.14))", border: "1px solid rgba(108,76,241,.24)" }}>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--accent)", color: "#fff" }}>✦</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-extrabold">{lang === "he" ? "הסטודיו שלך, מוכן להפעלה" : "Your Studio, ready to launch"}</p>
+            <p className="text-[11px] mt-1 text-muted">
+              {quickLaunchReady
+                ? (lang === "he" ? "מוצר מאושר קיים — לונה יכולה להכין את ההשקה במקום לעבור מסך־מסך." : "An approved product is ready — Luna can prepare the launch in one step.")
+                : (lang === "he" ? "הוסיפי מוצר אחד. משם לונה תוביל את ההכנה, התוכן והמדידה." : "Add one product. Luna will guide setup, content and measurement.")}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleQuickLaunch}
+          className="tap w-full mt-3 rounded-xl py-3 text-xs font-extrabold"
+          style={{ background: "var(--text)", color: "var(--bg)" }}
+        >
+          {quickLaunchReady
+            ? (lang === "he" ? "🚀 הפעלה מהירה עם לונה" : "🚀 Quick launch with Luna")
+            : (lang === "he" ? "＋ הוספת מוצר והתחלה" : "＋ Add product & start")}
         </button>
       </div>
 
