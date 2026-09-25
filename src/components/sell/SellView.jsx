@@ -944,15 +944,27 @@ function AuthGate({ marketers, onLogin, onSignup }) {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit() {
-    if (!email.trim() || !email.includes("@")) return setErr(t("auth.errEmail"));
+  async function submit() {
+    if (submitting) return;
+    setErr("");
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
     if (password.trim().length < 6) return setErr(t("auth.errPassword"));
-    if (mode === "signup") {
-      if (!name.trim()) return setErr(t("auth.errName"));
-      onSignup(name.trim(), email.trim(), password.trim());
-    } else {
-      onLogin(email.trim(), password.trim());
+    if (mode === "signup" && !name.trim()) return setErr(t("auth.errName"));
+    setSubmitting(true);
+    try {
+      const result = mode === "signup" ? await onSignup(name.trim(), cleanEmail, password.trim()) : await onLogin(cleanEmail, password.trim());
+      if (result?.ok === false) {
+        if (result.error === "EMAIL_ALREADY_REGISTERED") setErr("הכתובת כבר משויכת לחשבון. עברי ל«כניסה» או השתמשי באיפוס סיסמה.");
+        else if (result.error === "STUDIO_EMAIL_ALREADY_LINKED") setErr("לכתובת הזו כבר קיים סטודיו. עברי ל«כניסה» כדי להמשיך.");
+        else setErr(result.error || t(mode === "signup" ? "auth.errPassword" : "auth.errLogin"));
+      }
+    } catch {
+      setErr("אירעה שגיאה מאובטחת בתהליך. נסי שוב.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -1019,7 +1031,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
           )}
         </div>
         {err && <p className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
-        <Button onClick={submit}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
+        <Button onClick={submit} disabled={submitting}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
       </div>
       <p className="text-[11px] text-muted mt-4 max-w-[280px]">{t("auth.note")}</p>
     </div>
