@@ -1,5 +1,12 @@
+import { getAiHealth } from "./likelinkIntelligence.js";
+
 const DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
+/**
+ * Compatibility adapter only.
+ * LikeLink Intelligence Core is the default AI and does not require Gemini.
+ * Gemini is optional infrastructure, never a prerequisite for core operation.
+ */
 export function getGeminiApiKey() {
   return String(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "").trim();
 }
@@ -14,7 +21,7 @@ export function getGeminiBaseUrl() {
 
 export async function geminiFetch(path, options = {}) {
   const key = getGeminiApiKey();
-  if (!key) return { ok:false, configured:false, status:503, payload:{error:{message:"gemini_api_key_missing"}} };
+  if (!key) return { ok:false, configured:false, status:503, payload:{error:{message:"optional_gemini_not_configured"}} };
   const response = await fetch(getGeminiBaseUrl()+"/"+String(path).replace(/^\//,""), {
     ...options,
     headers: { ...(options.headers||{}), "x-goog-api-key": key }
@@ -24,7 +31,18 @@ export async function geminiFetch(path, options = {}) {
 }
 
 export async function getGeminiHealth() {
-  if (!isGeminiConfigured()) return {ok:false,configured:false,provider:"google_gemini",videoProvider:"google_veo_3_1",reason:"gemini_api_key_missing"};
+  const core = getAiHealth();
+  if (!isGeminiConfigured()) {
+    return { ...core, gemini: { configured:false, status:"OPTIONAL_NOT_CONFIGURED" } };
+  }
   const r=await geminiFetch("/models",{method:"GET",signal:AbortSignal.timeout(10000)});
-  return {ok:r.ok,configured:true,provider:"google_gemini",videoProvider:"google_veo_3_1",providerStatus:r.status,reason:r.ok?null:String(r.payload?.error?.message||"gemini_provider_unreachable").slice(0,180)};
+  return {
+    ...core,
+    gemini: {
+      configured:true,
+      status:r.ok ? "AVAILABLE" : "UNAVAILABLE",
+      providerStatus:r.status,
+      reason:r.ok?null:String(r.payload?.error?.message||"optional_gemini_unreachable").slice(0,180)
+    }
+  };
 }
