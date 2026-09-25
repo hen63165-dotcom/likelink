@@ -162,12 +162,31 @@ function LiveReelMedia({ product, hero = false }) {
   return (
     <div id={`ll-overview-reel-${product?.id}`} className="relative h-full w-full overflow-hidden">
       {url ? (
-        <video src={url} autoPlay muted loop playsInline preload="metadata" className="h-full w-full object-cover" />
+        <video
+          src={url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          onError={() => { setUrl(""); setState("fallback"); }}
+        />
+      ) : product?.image ? (
+        <img
+          src={product.image}
+          alt={product?.title || ""}
+          loading="lazy"
+          className="h-full w-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+        />
       ) : (
-        <img src={product?.image || ""} alt={product?.title || ""} loading="lazy" className="h-full w-full object-cover" />
+        <div className="h-full w-full grid place-items-center text-white/60 bg-black/30 text-xs font-bold">
+          LikeLink
+        </div>
       )}
       <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-        {state === "ready" ? "● UGC REEL" : state === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
+        {state === "ready" && url ? "● UGC REEL" : state === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
       </span>
     </div>
   );
