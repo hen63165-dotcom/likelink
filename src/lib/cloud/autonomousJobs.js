@@ -248,6 +248,9 @@ registerJob("autonomous-ugc-distribution", {
       for (let index = 0; index < batch.length; index++) {
         const selected = batch[index].product;
         const angle = creativeAngles[(Math.floor(Number(now) / 21600000) + index) % creativeAngles.length];
+          const creativeStyle = ["ugc", "cinematic3d", "product_story"][
+            (Math.floor(Number(now) / 21600000) + index) % 3
+          ];
 
         try {
           const { generateCloudUgcAsset, queueCloudUgcVideo } = await import("./ugcEngine.js");
