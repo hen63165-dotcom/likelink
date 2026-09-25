@@ -12,7 +12,7 @@
  *   • הגבלת גודל cache עם ניקוי ישן-ביותר
  */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = `likelink-shell-${VERSION}`;
 const ASSET_CACHE = `likelink-assets-${VERSION}`;
 const IMG_CACHE = `likelink-img-${VERSION}`;
