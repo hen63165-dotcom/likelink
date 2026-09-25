@@ -15,6 +15,7 @@ import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthSchedule
 import { runGrowthCycle, runDailyTrendScan, detectOpportunities } from "./lunaGrowth.js";
 import { discoverOpportunities as discoverOpportunitiesLegacy } from "./selfGrowth.js";
 import { ingestProducts, normalizeProduct, validateProduct, qualityFilter, findNewProducts, buildHookEngine, isProductStale } from "./affiliatePipeline.js";
+import { isGeminiConfigured } from "./geminiGateway.js";
 
 const ORIGIN = "https://likelink2.vercel.app";
 
@@ -515,7 +516,7 @@ registerJob("autonomous-ugc-video-poll", {
   intervalMs: 15 * 60 * 1000,
   maxDurationMs: 110000,
   async fn({ kvGet, kvSet, now }) {
-    if (!process.env.GEMINI_API_KEY) return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured" };
+    if (!isGeminiConfigured()) return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured" };
     const productsRow = await kvGet("marketplace:products", []);
     const products = Array.isArray(productsRow) ? productsRow : [];
     const { pollCloudUgcVideo } = await import("./ugcEngine.js");
