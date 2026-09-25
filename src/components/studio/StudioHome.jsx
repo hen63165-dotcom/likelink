@@ -134,16 +134,24 @@ function LiveReelMedia({ product, hero = false }) {
       observer.disconnect();
       setState("rendering");
       try {
-        const result = await generateProductReel({
-          images: [product.image],
-          title: product.title || "",
-          price: Number(product.price) || 0,
-          hook: `✨ ${product.title || "המוצר"} · LikeLink UGC`,
-          cta: "לרכישה · לפרטים",
-          storeName: "LikeLink",
-          palette: hero ? "gold" : "dark",
-        });
-        const remote = await uploadReelVideo(result.blob);
+        const withTimeout = (promise, ms) =>
+          Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("reel_timeout")), ms)),
+          ]);
+        const result = await withTimeout(
+          generateProductReel({
+            images: [product.image],
+            title: product.title || "",
+            price: Number(product.price) || 0,
+            hook: `✨ ${product.title || "המוצר"} · LikeLink UGC`,
+            cta: "לרכישה · לפרטים",
+            storeName: "LikeLink",
+            palette: hero ? "gold" : "dark",
+          }),
+          25000,
+        );
+        const remote = await withTimeout(uploadReelVideo(result.blob), 20000);
         const finalUrl = remote || result.url;
         if (remote) {
           setUrl(remote);
@@ -196,7 +204,13 @@ function LiveReelMedia({ product, hero = false }) {
         </div>
       )}
       <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-        {state === "ready" && url ? "● UGC REEL · CLOUD" : state === "rendering" ? "◌ CREATING REEL" : state === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : "UGC READY SOON"}
+        {state === "ready" && url
+          ? "● סרטון UGC · בענן"
+          : state === "rendering"
+            ? "◌ יוצרת סרטון…"
+            : state === "preview"
+              ? "תצוגה מקדימה · טרם פורסם"
+              : "סרטון UGC בקרוב"}
       </span>
     </div>
   );
