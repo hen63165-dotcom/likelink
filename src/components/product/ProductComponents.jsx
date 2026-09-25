@@ -28,7 +28,13 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
   const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
 
   const existing = videos
-    .filter((v) => String(v?.productTags?.[0]?.productId || v?.productId || "") === String(p?.id || "") && typeof v?.videoUrl === "string")
+    .filter((v) => {
+      const sameProduct = String(v?.productTags?.[0]?.productId || v?.productId || "") === String(p?.id || "");
+      const url = String(v?.videoUrl || "");
+      const status = String(v?.videoStatus || "");
+      const playable = /\.(mp4|webm|mov|m4v|ogv)(?:$|[?#])/i.test(url) && status !== "available_as_motion_svg";
+      return sameProduct && playable;
+    })
     .sort((a, b) => {
       const aU = /ugc/i.test(String(a?.source || "")) ? 0 : 1;
       const bU = /ugc/i.test(String(b?.source || "")) ? 0 : 1;
@@ -75,6 +81,8 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
           public: Boolean(remoteUrl),
         });
       } catch (e) {
+        console.error("[LikeLink] product reel generation failed", e);
+        setAutoVideo("");
         setAutoStatus("fallback");
       }
     }, { rootMargin: "300px" });
@@ -106,7 +114,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
         />
       )}
       <div className="absolute top-2 start-2 z-10 rounded-full px-2 py-1 text-[9px] font-black backdrop-blur-md" style={{ background: "rgba(5,8,17,.78)", color: "#fff" }}>
-        {autoStatus === "ready" ? "● REEL · UGC" : autoStatus === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
+        {autoStatus === "ready" && autoVideo ? "● REEL · UGC" : autoStatus === "rendering" ? "◌ CREATING REEL" : "UGC READY SOON"}
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
     </div>
