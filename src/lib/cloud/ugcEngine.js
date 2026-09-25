@@ -6,8 +6,7 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-import { geminiFetch, getGeminiApiKey } from "./geminiGateway.js";
-const GEMINI_KEY = getGeminiApiKey();
+import { generateFirstPartyCreatorSvg, buildCreativePlan } from "./likelinkIntelligence.js";
 
 
 const CREATIVE_ANGLES = [
@@ -41,7 +40,6 @@ const MODEL_ROLES = {
 };
 
 function assertServerConfig() {
-  if (!GEMINI_KEY) return { ok: false, error: "ugc_ai_not_configured", nextAction: "configure_gemini_api_key", provider: "google_gemini" };
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
   return { ok: true };
 }
@@ -66,7 +64,7 @@ function productPrompt(product, characterType, creativeAngle = "") {
   ].filter(Boolean).join("\n");
 }
 
-export async function generateCloudUgcAsset({ product, characterType = "ai_female_model", creativeAngle = "", force = false } = {}) {
+export async function generateCloudUgcAsset({ product, characterType = "ai_female_model", creativeAngle = "", force = false, style = "ugc" } = {}) {
   if (!product?.id || !product?.title) return { ok: false, error: "invalid_product" };
   if (product.status !== "approved") return { ok: false, error: "product_not_approved" };
   if (!product.marketerId) return { ok: false, error: "product_owner_missing" };
@@ -78,29 +76,12 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
   const recent = list.find((a) => a?.imageUrl && a?.synthetic === true && Number(a.createdAt || 0) > Date.now() - 86400000);
   if (recent && !force) return { ok: true, skipped: "fresh_asset", asset: recent };
 
-  const imageResult = await geminiFetch("/models/gemini-3.1-flash-image:generateContent", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: productPrompt(product, characterType, creativeAngle) }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE"],
-        responseFormat: { image: { aspectRatio: "9:16", imageSize: process.env.GEMINI_IMAGE_SIZE || "1K" } }
-      }
-    }),
-    signal: AbortSignal.timeout(90000),
-  });
-  const payload = imageResult.payload || {};
-  if (!imageResult.ok) {
-    return { ok:false, error:"ugc_generation_failed", providerStatus:imageResult.status, detail:String(payload?.error?.message || "").slice(0,180) };
-  }
-
-  const b64 = payload?.candidates?.[0]?.content?.parts?.find((p) => p?.inlineData?.data)?.inlineData?.data;
-  if (!b64) return { ok: false, error: "ugc_generation_no_image" };
-  const bytes = Buffer.from(b64, "base64");
-  const path = "ugc/" + product.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".png";
+  const plan = buildCreativePlan(product, { trend: creativeAngle });
+  const svg = generateFirstPartyCreatorSvg(product, { hook: plan.hook });
+  const bytes = Buffer.from(svg, "utf8");
+  const path = "ugc/" + product.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".svg";
   const bucket = "product-images";
-  const upload = await uploadBytes(bucket, path, bytes, "image/png");
+  const upload = await uploadBytes(bucket, path, bytes, "image/svg+xml");
   if (!upload.ok) return upload;
 
   const imageUrl = publicStorageUrl(bucket, path);
@@ -109,89 +90,30 @@ export async function generateCloudUgcAsset({ product, characterType = "ai_femal
     productId: product.id,
     marketerId: product.marketerId,
     characterType,
-    creativeAngle: creativeAngle || CREATIVE_ANGLES[0].id,
+    creativeAngle: creativeAngle || plan.angle,
+    creativeStyle: style,
     imageUrl,
-    source: "gemini_3_1_flash_image",
+    source: "likelink_intelligence_core",
     synthetic: true,
     disclosed: true,
-    videoProvider: null,
+    videoProvider: "likelink_first_party_motion",
     videoJobId: null,
-    videoStatus: null,
-    videoUrl: null,
+    videoStatus: "available_as_motion_svg",
+    videoUrl: imageUrl,
     createdAt: Date.now(),
+    engine: "likelink-intelligence-core",
   };
   await kvSet("ugc:assets:" + product.id, [asset, ...list].slice(0, 20));
   return { ok: true, asset };
 }
 
-/** Queue a real Google Veo 3.1 image-to-video UGC clip.
- * Gemini credentials stay server-side. The job is asynchronous and persisted
- * in KV so the browser is not the execution layer.
+/** First-party motion is represented by the generated SVG asset.
+ * No external video provider is required or claimed.
  */
-export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", hookText = "", style = "ugc" } = {}) {
+export async function queueCloudUgcVideo({ product, asset } = {}) {
   if (!product?.id || !asset?.imageUrl) return { ok: false, error: "ugc_image_required" };
-  if (!GEMINI_KEY) {
-    return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
-  }
-  if (asset.videoUrl) return { ok: true, skipped: "video_exists", asset };
-  if (asset.videoJobId && ["queued", "running", "completed"].includes(String(asset.videoStatus || ""))) {
-    return { ok: true, skipped: "video_already_queued", asset };
-  }
-
-  const imageResponse = await fetch(asset.imageUrl, { signal: AbortSignal.timeout(20000) });
-  if (!imageResponse.ok) return { ok: false, error: "ugc_reference_fetch_failed", providerStatus: imageResponse.status };
-  const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
-  const mimeType = imageResponse.headers.get("content-type") || "image/png";
-
-  const angle = creativeAngle || asset.creativeAngle || CREATIVE_ANGLES[0].id;
-  const styleMeta = CREATIVE_STYLES[style] || CREATIVE_STYLES.ugc;
-  const angleMeta = CREATIVE_ANGLES.find((x) => x.id === angle) || CREATIVE_ANGLES[0];
-  const hook = hookText || angleMeta.hook;
-  const prompt = [
-    "Create an 8-second premium vertical commerce video from the supplied reference image.",
-    "Creative angle: " + angleMeta.name + ".",
-    "Creative style: " + styleMeta.label + ". " + styleMeta.prompt,
-    "Open with a natural creator-style visual hook in the first 1-2 seconds: " + hook,
-    "Use fast, intentional visual pacing with a curiosity beat, product close-up, and a clean payoff.",
-    "If spoken audio is generated, keep it natural and concise; never invent product claims or testimonials.",
-    "Keep the same original synthetic adult creator and the same verified product identity.",
-    "Natural handheld social-video movement, subtle presenter motion, believable product presentation, premium lighting.",
-    "Do not invent product features, testimonials, discounts, scarcity, awards, medical claims, or social proof.",
-    "No celebrity likeness and no real-person identity. No text overlay.",
-    "The output is intended for an organic social post and must remain faithful to the verified catalog product.",
-  ].join("\n");
-
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": GEMINI_KEY },
-    body: JSON.stringify({
-      instances: [{
-        prompt,
-        image: { inlineData: { mimeType, data: imageBytes.toString("base64") } },
-      }],
-      parameters: {
-        aspectRatio: "9:16",
-        resolution: process.env.GEMINI_VIDEO_RESOLUTION || "720p",
-      },
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload?.name) {
-    return { ok: false, error: "ugc_video_queue_failed", providerStatus: response.status, detail: String(payload?.error?.message || "").slice(0, 180) };
-  }
-
-  const updated = {
-    ...asset,
-    videoProvider: "google_veo_3_1",
-    videoJobId: payload.name,
-    videoStatus: "queued",
-    videoProgress: 0,
-    videoQueuedAt: Date.now(),
-    videoError: null,
-  };
-  await replaceAsset(product.id, updated);
-  return { ok: true, asset: updated, status: "queued", provider: "google_veo_3_1" };
+  if (asset.videoUrl) return { ok: true, skipped: "first_party_motion_exists", asset };
+  return { ok: false, error: "first_party_motion_missing" };
 }
 
 /** Poll a Google Veo long-running operation and persist the finished MP4. */
@@ -265,79 +187,10 @@ export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
 async function replaceAsset(productId, updated) {
   const existing = await kvGet("ugc:assets:" + productId, []);
   const list = Array.isArray(existing) ? existing : [];
-  const next = list.map((a) => (a?.id === updated.id ? updated : a));
-  if (!next.some((a) => a?.id === updated.id)) next.unshift(updated);
-  await kvSet("ugc:assets:" + productId, next.slice(0, 20));
+  const next = list.map((a) => (a?.id === update/** No external video polling exists in first-party mode. */
+export async function pollCloudUgcVideo({ productId } = {}) {
+  if (!productId) return { ok: false, error: "missing_product" };
+  return { ok: false, error: "first_party_motion_is_synchronous" };
 }
 
-async function uploadBytes(bucket, path, bytes, contentType) {
-  try {
-    const upload = await fetch(SB_URL + "/storage/v1/object/" + bucket + "/" + path, {
-      method: "POST",
-      headers: {
-        apikey: SB_KEY,
-        Authorization: "Bearer " + SB_KEY,
-        "Content-Type": contentType,
-        "x-upsert": "false",
-        "cache-control": "31536000",
-      },
-      body: bytes,
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!upload.ok) return { ok: false, error: "ugc_storage_failed", detail: "storage_" + upload.status };
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: "ugc_storage_error", detail: String(e?.message || e).slice(0, 180) };
-  }
-}
 
-function publicStorageUrl(bucket, path) {
-  return SB_URL + "/storage/v1/object/public/" + bucket + "/" + path;
-}
-
-async function kvGet(key, fallback = null) {
-  if (!SB_URL || !SB_KEY) return fallback;
-  try {
-    const res = await fetch(SB_URL + "/rest/v1/kv?key=eq." + encodeURIComponent(key) + "&select=value", {
-      headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return fallback;
-    const rows = await res.json();
-    if (!rows?.[0]?.value) return fallback;
-    let value = JSON.parse(rows[0].value);
-    while (typeof value === "string") { try { value = JSON.parse(value); } catch { break; } }
-    return value;
-  } catch { return fallback; }
-}
-
-async function kvSet(key, value) {
-  if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
-  const res = await fetch(SB_URL + "/rest/v1/kv?on_conflict=key", {
-    method: "POST",
-    headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      "content-type": "application/json",
-      Prefer: "resolution=merge-duplicates",
-    },
-    body: JSON.stringify({ key, value: JSON.stringify(value) }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error("kv_upsert_failed_" + res.status);
-}
-
-export function buildCreativeMatrix(product) {
-  return CREATIVE_ANGLES.flatMap((angle) =>
-    Object.keys(CREATIVE_STYLES).map((style) => ({
-      productId: product?.id || null,
-      angle: angle.id,
-      style,
-      hook: angle.hook,
-      label: CREATIVE_STYLES[style].label,
-      status: "READY_TO_GENERATE",
-    }))
-  );
-}
-
-export default { generateCloudUgcAsset, queueCloudUgcVideo, pollCloudUgcVideo, buildCreativeMatrix };
