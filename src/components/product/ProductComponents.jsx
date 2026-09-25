@@ -475,6 +475,7 @@ export const ProductModal = memo(function ProductModal({
             >
               {lang === "he" ? "שמרי לעגלת LikeLink" : "Save to LikeLink cart"}
             </button>
+          )}
 
           {product.affiliateUrl && (
             <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-center">
