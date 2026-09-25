@@ -22,14 +22,18 @@ export const authConfigured = supabaseConfigured;
 export async function signUpSeller({ email, password }) {
   if (!authConfigured) return { ok: false, error: "Supabase Auth not configured (missing .env)." };
   const { data, error } = await supabase.auth.signUp({ email, password });
-  return error ? { ok: false, error: error.message } : { ok: true, data };
+  return error
+    ? { ok: false, error: error.message, code: error.code || error.name || null }
+    : { ok: true, data };
 }
 
 /** Sign in an existing seller. */
 export async function signInSeller({ email, password }) {
   if (!authConfigured) return { ok: false, error: "Supabase Auth not configured (missing .env)." };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  return error ? { ok: false, error: error.message } : { ok: true, data };
+  return error
+    ? { ok: false, error: error.message, code: error.code || error.name || null }
+    : { ok: true, data };
 }
 
 /** Send a password reset email (Supabase). Returns { ok, error }. */
