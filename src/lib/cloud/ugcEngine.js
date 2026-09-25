@@ -116,72 +116,10 @@ export async function queueCloudUgcVideo({ product, asset } = {}) {
   return { ok: false, error: "first_party_motion_missing" };
 }
 
-/** Poll a Google Veo long-running operation and persist the finished MP4. */
-export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
-  if (!productId || !videoJobId) return { ok: false, error: "missing_video_job" };
-  if (!GEMINI_KEY) {
-    return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
-  }
-
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/" + videoJobId, {
-    headers: { "x-goog-api-key": GEMINI_KEY },
-    signal: AbortSignal.timeout(20000),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    return { ok: false, error: "ugc_video_status_failed", providerStatus: response.status, detail: String(payload?.error?.message || "").slice(0, 180) };
-  }
-
-  const existing = await kvGet("ugc:assets:" + productId, []);
-  const list = Array.isArray(existing) ? existing : [];
-  const asset = list.find((a) => a?.videoJobId === videoJobId);
-  if (!asset) return { ok: false, error: "ugc_asset_not_found" };
-
-  if (!payload.done) {
-    const updated = { ...asset, videoStatus: "running", videoProgress: Number(payload?.metadata?.progress || asset.videoProgress || 0) };
-    await replaceAsset(productId, updated);
-    return { ok: true, status: "running", asset: updated };
-  }
-
-  const operationError = payload?.error;
-  if (operationError) {
-    const updated = { ...asset, videoStatus: "failed", videoError: String(operationError.message || operationError).slice(0, 300) };
-    await replaceAsset(productId, updated);
-    return { ok: false, error: "ugc_video_generation_failed", detail: updated.videoError, asset: updated };
-  }
-
-  const videoUri = payload?.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
-  if (!videoUri) {
-    const updated = { ...asset, videoStatus: "failed", videoError: "video_uri_missing" };
-    await replaceAsset(productId, updated);
-    return { ok: false, error: "video_uri_missing", asset: updated };
-  }
-
-  const content = await fetch(videoUri, {
-    headers: { "x-goog-api-key": GEMINI_KEY },
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!content.ok) {
-    const updated = { ...asset, videoStatus: "failed", videoError: "video_content_download_failed" };
-    await replaceAsset(productId, updated);
-    return { ok: false, error: "video_content_download_failed", providerStatus: content.status };
-  }
-
-  const videoBytes = Buffer.from(await content.arrayBuffer());
-  const path = "ugc/" + productId + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".mp4";
-  const upload = await uploadBytes("product-images", path, videoBytes, "video/mp4");
-  if (!upload.ok) return upload;
-
-  const updated = {
-    ...asset,
-    videoStatus: "completed",
-    videoProgress: 100,
-    videoUrl: publicStorageUrl("product-images", path),
-    videoCompletedAt: Date.now(),
-    videoError: null,
-  };
-  await replaceAsset(productId, updated);
-  return { ok: true, status: "completed", asset: updated };
+/** First-party motion has no external polling operation. */
+export async function pollCloudUgcVideo({ productId } = {}) {
+  if (!productId) return { ok: false, error: "missing_product" };
+  return { ok: false, error: "first_party_motion_is_synchronous" };
 }
 
 async function replaceAsset(productId, updated) {
