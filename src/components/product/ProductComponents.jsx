@@ -111,17 +111,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
     </div>
   );
-});ort React, { memo, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ImageOff, Heart, Star, ShoppingBag, Share2, Sparkles, ShieldCheck } from "lucide-react";
-import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers.js";
-import { useI18n } from "../../lib/LangContext";
-import { useCart } from "../../context/CartContext";
-import { Badge } from "../ui";
-import { useScrollReveal } from "../../hooks/useScrollReveal.js";
-import { useVideos } from "../../context/VideoContext";
-import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
-import { uploadReelVideo } from "../../lib/uploadVideo.js";
+})
 
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
