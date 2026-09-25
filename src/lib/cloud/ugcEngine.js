@@ -6,7 +6,8 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
+const GEMINI_KEY = GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
+const GEMINI_KEY = GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
 const OPENAI_BASE = "https://api.openai.com/v1";
 const CREATIVE_ANGLES = [
   { id: "curiosity", name: "Curiosity reveal", hook: "רגע — למה כולם שמים לב לזה?" },
@@ -193,7 +194,7 @@ export async function queueCloudUgcVideo({ product, asset, creativeAngle = "", h
 /** Poll a Google Veo long-running operation and persist the finished MP4. */
 export async function pollCloudUgcVideo({ productId, videoJobId } = {}) {
   if (!productId || !videoJobId) return { ok: false, error: "missing_video_job" };
-  if (!process.env.GEMINI_API_KEY) {
+  if (!GEMINI_KEY) {
     return { ok: false, error: "ugc_video_not_configured", nextAction: "configure_gemini_api_key", provider: "google_veo_3_1" };
   }
 
