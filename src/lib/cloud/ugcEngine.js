@@ -1,5 +1,5 @@
 /** Cloud-only UGC media engine. Server secrets only.
- * Generates an original synthetic creator image and queues a real Sora video
+ * Generates an original synthetic creator image and queues a real Gemini/Veo video
  * from that image. No browser-side secrets, no real-person impersonation,
  * and no fabricated publication/traffic claims.
  */
@@ -41,7 +41,7 @@ const MODEL_ROLES = {
 };
 
 function assertServerConfig() {
-  if (!process.env.OPENAI_API_KEY) return { ok: false, error: "ugc_ai_not_configured" };
+  if (!GEMINI_KEY) return { ok: false, error: "ugc_ai_not_configured", nextAction: "configure_gemini_api_key", provider: "google_gemini" };
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
   return { ok: true };
 }
