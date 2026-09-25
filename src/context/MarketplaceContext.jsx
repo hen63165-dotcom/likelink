@@ -516,21 +516,24 @@ export function MarketplaceProvider({ children }) {
         if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
         if (authConfigured) {
           const res = await signUpSeller({ email: cleanEmail, password });
-          if (!res.ok) return showToast(res.error || t("auth.errPassword"));
-          // Ensure a profiles row exists so RLS + isAdmin() (src/lib/auth.js) have a record.
-          if (supabase && res.data?.user?.id) {
-            await supabase
+          if (!res.ok) {
+            const code = String(res.code || "").toLowerCase();
+            const message = String(res.error || "").toLowerCase();
+            const duplicate = code === "user_already_exists" || code === "email_exists" || message.includes("already registered") || message.includes("already exists");
+            return { ok: false, error: duplicate ? "EMAIL_ALREADY_REGISTERED" : (res.error || t("auth.errPassword")) };
+          }
+          const createdUser = res.data?.user || null;
+          const identities = Array.isArray(createdUser?.identities) ? createdUser.identities : null;
+          if (createdUser && identities && identities.length === 0) return { ok: false, error: "EMAIL_ALREADY_REGISTERED" };
+          if (supabase && createdUser?.id) {
+            const { error: profileError } = await supabase
               .from("profiles")
-              .upsert({ id: res.data.user.id, is_admin: false }, { onConflict: "id" })
-              .catch(() => {});
+              .upsert({ id: createdUser.id, is_admin: false }, { onConflict: "id" });
+            if (profileError) console.error("[Likelink] profile bootstrap failed", profileError);
           }
         }
-        const existing = marketers.find((m) => m.email.toLowerCase() === cleanEmail);
-        if (existing) {
-          await persistSession(existing.id);
-          showToast(`${t("sell.welcomeBack")} ${existing.name.split(" ")[0]}`);
-          return;
-        }
+        const existing = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail);
+        if (existing) return { ok: false, error: "STUDIO_EMAIL_ALREADY_LINKED" };
         const m = {
           id: uid(),
           name: cleanName,
@@ -554,6 +557,7 @@ export function MarketplaceProvider({ children }) {
           linkMarketer(res.data.user.id, m.id).catch(() => {});
         }
         showToast(t("sell.studioCreated"));
+        return { ok: true };
       },
       onLogout: async () => {
         if (authConfigured) await signOutSeller();
