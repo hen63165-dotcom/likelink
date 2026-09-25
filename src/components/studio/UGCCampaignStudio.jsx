@@ -106,7 +106,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
       const remoteUrl = await uploadReelVideo(result.blob);
       const url = remoteUrl || result.url;
       const item = {
-        status: "ready",
+        status: remoteUrl ? "ready" : "preview",
         url,
         remote: Boolean(remoteUrl),
         mime: result.mime,
@@ -218,8 +218,8 @@ export default function UGCCampaignStudio({ onNavigate }) {
     );
   }
 
-  const totalReady = Object.values(renders).filter((x) => x?.status === "ready").length;
-  const styleReady = Object.values(renders).filter((x) => x?.status === "ready" && x.style === activeStyle).length;
+  const totalReady = Object.values(renders).filter((x) => x?.status === "ready" && x?.remote).length;
+  const styleReady = Object.values(renders).filter((x) => x?.status === "ready" && x?.remote && x.style === activeStyle).length;
 
   return (
     <div className="ll-ugc-studio space-y-5" dir={he ? "rtl" : "ltr"} data-testid="ugc-campaign-studio">
@@ -313,7 +313,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
                     <div className="flex h-full items-center justify-center"><Clapperboard size={28} style={{ color: "var(--text-faint)" }} /></div>
                   )}
                   <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-                    {media?.status === "ready" ? (activeStyle === "ugc" ? "UGC · READY" : "CINEMATIC · READY") : (busyAll ? "RENDERING" : "READY TO GENERATE")}
+                    {media?.status === "ready" && media?.remote ? (activeStyle === "ugc" ? "UGC · CLOUD READY" : "3D MOTION · CLOUD READY") : media?.status === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : (busyAll ? "RENDERING" : "READY TO GENERATE")}
                   </div>
                 </div>
                 <div className="p-4">
