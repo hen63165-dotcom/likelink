@@ -256,6 +256,28 @@ export default function FeedView({ navigate, query, setQuery, activeNav }) {
   async function handleGetDeal(p) {
     await recordClick(p);
     trackClick(p.id, p.marketerId, "feed");
+
+    // One-click commerce: direct LikeLink checkout stays on-site; affiliate
+    // products use the tracked outbound path. Never pretend an affiliate item
+    // is a LikeLink checkout.
+    const checkout = p?.checkoutUrl || p?.directCheckoutUrl || p?.purchaseUrl || p?.paymentUrl;
+    const sameOriginCheckout = (() => {
+      try {
+        return Boolean(checkout) && new URL(checkout).origin === window.location.origin;
+      } catch { return false; }
+    })();
+
+    if (sameOriginCheckout) {
+      window.location.assign(checkout);
+      showToast(lang === "he" ? "פותחת תשלום מאובטח ב-LikeLink…" : "Opening secure LikeLink checkout…");
+      return;
+    }
+
+    if (!p?.affiliateUrl) {
+      showToast(lang === "he" ? "הקישור לרכישה עדיין לא זמין" : "Purchase link is not available yet");
+      return;
+    }
+
     trackOutboundClick(p.id, p.marketerId, p.affiliateUrl, "feed");
     const trackedUrl = `/r?u=${encodeURIComponent(p.affiliateUrl)}&pid=${encodeURIComponent(p.id)}&mid=${encodeURIComponent(p.marketerId || "")}&src=feed`;
     window.open(trackedUrl, "_blank", "noopener,noreferrer");
