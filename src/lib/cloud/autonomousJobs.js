@@ -199,6 +199,117 @@ registerJob("opportunity-discovery", {
   },
 });
 
+registerJob("autonomous-ugc-video-production", {
+  description: "Continuously create persisted Veo videos for approved products, independent of social publishing",
+  intervalMs: 60 * 60 * 1000,
+  maxDurationMs: 110000,
+  async fn({ kvGet, kvSet, now }) {
+    if (!process.env.GEMINI_API_KEY) {
+      return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured", provider: "google_veo_3_1" };
+    }
+
+    const productsRow = await kvGet("marketplace:products", []);
+    const products = Array.isArray(productsRow)
+      ? productsRow.filter((p) => p?.status === "approved" && p?.id && p?.image)
+      : [];
+
+    const styles = ["ugc", "cinematic3d", "product_story"];
+    const angles = [
+      { id: "curiosity", hook: "רגע — למה כולם שמים לב לזה?" },
+      { id: "problem-solution", hook: "אם גם את נתקלת בזה, תראי את זה." },
+      { id: "reality-tea", hook: "בלי הייפ — הנה מה שבאמת רואים." },
+      { id: "emotional-roi", hook: "לפני שקונים, הנה הדבר שבאמת שווה לבדוק." },
+    ];
+
+    const results = [];
+    let queued = 0;
+
+    for (const product of products.slice(0, 6)) {
+      if (queued >= 3) break;
+
+      try {
+        const assetsRow = await kvGet("ugc:assets:" + product.id, []);
+        const assets = Array.isArray(assetsRow) ? assetsRow : [];
+        const completed = assets.find((a) => a?.videoStatus === "completed" && a?.videoUrl);
+        const active = assets.find((a) => a?.videoJobId && ["queued", "running"].includes(String(a.videoStatus || "")));
+
+        if (completed || active) {
+          results.push({
+            productId: product.id,
+            status: completed ? "ALREADY_COMPLETED" : "ALREADY_RUNNING",
+            videoUrl: completed?.videoUrl || null,
+          });
+          continue;
+        }
+
+        let asset = assets.find((a) => a?.imageUrl && a?.synthetic === true);
+        if (!asset) {
+          asset = {
+            id: "catalog_video_" + product.id + "_" + now,
+            productId: product.id,
+            marketerId: product.marketerId || null,
+            characterType: null,
+            creativeAngle: angles[(queued + Math.floor(now / 21600000)) % angles.length].id,
+            imageUrl: String(product.image),
+            source: "verified_catalog_image",
+            synthetic: false,
+            disclosed: false,
+            videoProvider: null,
+            videoJobId: null,
+            videoStatus: null,
+            videoUrl: null,
+            createdAt: now,
+          };
+          await kvSet("ugc:assets:" + product.id, [asset, ...assets].slice(0, 20));
+        }
+
+        const angle = angles[(queued + Math.floor(now / 21600000)) % angles.length];
+        const style = styles[(queued + Math.floor(now / 21600000)) % styles.length];
+        const { queueCloudUgcVideo } = await import("./ugcEngine.js");
+        const result = await queueCloudUgcVideo({
+          product,
+          asset,
+          creativeAngle: angle.id,
+          hookText: angle.hook,
+          style,
+        });
+
+        results.push({
+          productId: product.id,
+          status: result.ok ? (result.status || "QUEUED") : "FAILED",
+          error: result.ok ? null : result.error,
+          provider: result.provider || "google_veo_3_1",
+          style,
+        });
+
+        if (result.ok && !result.skipped) queued++;
+      } catch (e) {
+        results.push({
+          productId: product.id,
+          status: "FAILED",
+          error: String(e?.message || e).slice(0, 180),
+        });
+      }
+    }
+
+    await kvSet("growth:video-production:last", {
+      ts: now,
+      queued,
+      inspected: results.length,
+      results: results.slice(-20),
+    });
+
+    return {
+      ok: true,
+      cycle: "autonomous-ugc-video-production",
+      timestamp: now,
+      queued,
+      inspected: results.length,
+      results,
+    };
+  },
+});
+
 registerJob("autonomous-ugc-distribution", {
   description: "Cloud-only UGC generation plus verified external distribution for the oldest approved products",
   intervalMs: 60 * 60 * 1000,
@@ -275,6 +386,7 @@ registerJob("autonomous-ugc-distribution", {
                 asset,
                 creativeAngle: angle.id,
                 hookText: angle.hook,
+                style: creativeStyle,
               });
             } catch (e) {
               ugcVideo = { ok: false, error: String(e?.message || e).slice(0, 180) };
@@ -593,6 +705,7 @@ export const AUTONOMOUS_JOBS = [
   "brand-pulse-external",
   "opportunity-discovery",
   "brand-pulse-freshness",
+  "autonomous-ugc-video-production",
   "autonomous-ugc-distribution",
   "autonomous-ugc-video-poll",
 ];
