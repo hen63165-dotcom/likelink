@@ -369,6 +369,14 @@ export const ProductModal = memo(function ProductModal({
   onGetDeal,
 }) {
   const { t, categoryLabel } = useI18n();
+  const { addItem, setIsOpen } = useCart();
+  const checkout = product?.checkoutUrl || product?.directCheckoutUrl || product?.purchaseUrl || product?.paymentUrl;
+  const isDirectCheckout = (() => {
+    try {
+      return Boolean(checkout) && new URL(checkout).origin === window.location.origin;
+    } catch { return false; }
+  })();
+  const trendLabel = product?.trendTopic || product?.trendName || product?.trend?.name || "";
   
   if (!product) return null;
 
@@ -437,8 +445,37 @@ export const ProductModal = memo(function ProductModal({
             style={{ background: "var(--accent, #C5A880)" }}
           >
             <ShieldCheck size={18} />
-            <span>{t("feed.getDeal") || "Get the Deal"}</span>
+            <span>{isDirectCheckout
+              ? (lang === "he" ? "קנייה עכשיו · תשלום ב-LikeLink" : "Buy now · LikeLink checkout")
+              : (t("feed.getDeal") || "Get the Deal")}</span>
           </motion.button>
+
+          {!isDirectCheckout && product?.affiliateUrl && (
+            <p className="text-[10px] text-center text-stone-400 dark:text-stone-500 mt-2">
+              {lang === "he" ? "קישור שותף · העמלה אינה משנה את המחיר שלך" : "Affiliate link · your price is not increased"}
+            </p>
+          )}
+
+          {trendLabel && (
+            <div className="mt-4 rounded-xl px-3 py-2.5 text-[11px] font-semibold"
+              style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
+              ✦ {lang === "he" ? "למה עכשיו" : "Why now"} · {trendLabel}
+            </div>
+          )}
+
+          {!isDirectCheckout && product?.price > 0 && product?.affiliateUrl && (
+            <button
+              type="button"
+              onClick={() => {
+                addItem(product, marketer);
+                setIsOpen(true);
+              }}
+              className="tap w-full mt-2 py-3 rounded-2xl border text-xs font-bold"
+              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+            >
+              {lang === "he" ? "שמרי לעגלת LikeLink" : "Save to LikeLink cart"}
+            </button>
+          />
 
           {product.affiliateUrl && (
             <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-center">
