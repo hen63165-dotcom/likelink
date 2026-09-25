@@ -30,7 +30,7 @@ const CHANNELS = [
 
 const VIDEO_STYLES = [
   { id: "ugc", label: "UGC", palette: "dark", badge: "יוצרת · 9:16" },
-  { id: "cinematic3d", label: "3D Cinematic", palette: "gold", badge: "אנימציה מקורית · 9:16" },
+  { id: "cinematic3d", label: "Cinematic Motion", palette: "gold", badge: "תנועת מוצר מקורית · 9:16" },
 ];
 
 function modelLabel(type, he) {
@@ -269,7 +269,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
           ))}
           <Button onClick={() => renderAll(activeStyle)} disabled={busyAll || !canRecordVideo()}>
             {busyAll ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
-            {he ? `הפקת ${activeStyle === "ugc" ? "UGC" : "3D"} לכל המוצרים` : `Generate ${activeStyle === "ugc" ? "UGC" : "3D"} for every product`}
+            {he ? `הפקת ${activeStyle === "ugc" ? "UGC" : "Cinematic Motion"} לכל המוצרים` : `Generate ${activeStyle === "ugc" ? "UGC" : "Cinematic Motion"} for every product`}
           </Button>
         </div>
 
@@ -313,7 +313,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
                     <div className="flex h-full items-center justify-center"><Clapperboard size={28} style={{ color: "var(--text-faint)" }} /></div>
                   )}
                   <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-                    {media?.status === "ready" ? (activeStyle === "ugc" ? "UGC · READY" : "3D · READY") : (busyAll ? "RENDERING" : "READY TO GENERATE")}
+                    {media?.status === "ready" ? (activeStyle === "ugc" ? "UGC · READY" : "CINEMATIC · READY") : (busyAll ? "RENDERING" : "READY TO GENERATE")}
                   </div>
                 </div>
                 <div className="p-4">
