@@ -340,6 +340,64 @@ registerJob("autonomous-ugc-distribution", {
     };
   },
 });
+registerJob("autonomous-creative-refresh", {
+  description: "Continuously rotate product creative using freshness, trend, novelty and performance signals",
+  intervalMs: 6 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const productsRow = await kvGet("marketplace:products", []);
+    const products = Array.isArray(productsRow) ? productsRow.filter((p) => p?.status === "approved") : [];
+    const trendRow = await kvGet("trend:radar", []);
+    const trends = Array.isArray(trendRow) ? trendRow : [];
+    const results = [];
+    const styles = ["ugc", "cinematic3d", "product_story"];
+    for (const product of products.slice(0, 100)) {
+      const history = await kvGet("creative:history:" + product.id, []);
+      const used = Array.isArray(history) ? history : [];
+      const trend = trends.find((t) => String(t?.category || "").toLowerCase() === String(product.category || "").toLowerCase())
+        || trends[0] || null;
+      const recentKeys = new Set(used.filter(x => Number(x.ts || 0) > now - 7 * 86400000).map(x => x.key));
+      const candidates = CREATIVE_MATRIX(product, trend);
+      const fresh = candidates.filter(x => !recentKeys.has(x.key));
+      const ranked = (fresh.length ? fresh : candidates)
+        .sort((a,b) => (Number(b.trendScore||0)+Number(b.novelty||0)) - (Number(a.trendScore||0)+Number(a.novelty||0)));
+      const selected = ranked[0];
+      if (!selected) continue;
+      used.unshift({...selected, ts: now});
+      await kvSet("creative:history:" + product.id, used.slice(0, 60));
+      results.push({ productId: product.id, selected, historySize: used.length });
+    }
+    await kvSet("growth:creative-refresh:last", { ts: now, products: results.length, results: results.slice(0, 100) });
+    return { ok: true, cycle: "autonomous-creative-refresh", timestamp: now, products: results.length, results };
+  },
+});
+
+function CREATIVE_MATRIX(product, trend) {
+  const trendName = String(trend?.name || trend?.topic || "").slice(0, 120);
+  const trendScore = Math.min(100, Number(trend?.score || trend?.trendScore || 0));
+  const base = [
+    ["curiosity","ugc","רגע — למה כולם שמים לב לזה?"],
+    ["problem-solution","ugc","אם גם את נתקלת בזה, תראי את זה."],
+    ["reality-tea","ugc","בלי הייפ — הנה מה שבאמת רואים."],
+    ["emotional-roi","ugc","לפני שקונים, הנה הדבר שבאמת שווה לבדוק."],
+    ["curiosity","cinematic3d","חכי לראות מה קורה כשזה מתחיל."],
+    ["problem-solution","cinematic3d","הבעיה נראית אחרת אחרי זה."],
+    ["curiosity","product_story","יש סיבה שהמוצר הזה תופס את העין."],
+    ["reality-tea","product_story","בואי נבדוק את הדבר שאף אחד לא מראה."],
+    ["problem-solution","product_story","זה הרגע שבו מבינים בשביל מה זה נוצר."]
+  ];
+  return base.map(([angle, style, hook], i) => ({
+    productId: product?.id,
+    angle,
+    style,
+    hook: trendName ? hook + " " + trendName : hook,
+    trend: trendName || null,
+    trendScore,
+    novelty: 100 - (i * 7),
+    key: [product?.id, angle, style, trendName].join(":"),
+  }));
+}
+
 registerJob("autonomous-ugc-video-poll", {
   description: "Poll persisted Google Veo 3.1 long-running UGC jobs and store completed cloud videos",
   intervalMs: 15 * 60 * 1000,
