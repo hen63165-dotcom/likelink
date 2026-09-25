@@ -1,4 +1,4 @@
-import React, { memo, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageOff, Heart, Star, ShoppingBag, Share2, Sparkles, ShieldCheck } from "lucide-react";
 import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers.js";
@@ -6,6 +6,122 @@ import { useI18n } from "../../lib/LangContext";
 import { useCart } from "../../context/CartContext";
 import { Badge } from "../ui";
 import { useScrollReveal } from "../../hooks/useScrollReveal.js";
+import { useVideos } from "../../context/VideoContext";
+import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
+import { uploadReelVideo } from "../../lib/uploadVideo.js";
+
+/** 
+ * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
+ */
+export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  const [autoStatus, setAutoStatus] = useState("idle");
+  const [autoVideo, setAutoVideo] = useState("");
+  const hostRef = useRef(null);
+  const startedRef = useRef(false);
+  const { ref: revealRef, revealStyle } = useScrollReveal();
+  const { videos, addVideo } = useVideos();
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const rawSrc = p?.image || "";
+  const normalized = normalizeImageUrl(rawSrc, origin);
+  const src = normalized || DEFAULT_PRODUCT_IMAGE;
+  const finalSrc = failed ? DEFAULT_PRODUCT_IMAGE : src;
+
+  const existing = videos
+    .filter((v) => String(v?.productTags?.[0]?.productId || v?.productId || "") === String(p?.id || "") && typeof v?.videoUrl === "string")
+    .sort((a, b) => {
+      const aU = /ugc/i.test(String(a?.source || "")) ? 0 : 1;
+      const bU = /ugc/i.test(String(b?.source || "")) ? 0 : 1;
+      return aU - bU || (b?.createdAt || 0) - (a?.createdAt || 0);
+    })[0];
+
+  useEffect(() => {
+    if (existing?.videoUrl) {
+      setAutoVideo(existing.videoUrl);
+      setAutoStatus("ready");
+    }
+  }, [existing?.videoUrl]);
+
+  useEffect(() => {
+    const node = hostRef.current;
+    if (!node || startedRef.current || existing?.videoUrl || !p?.id || !normalized || !canRecordVideo()) return;
+    const observer = new IntersectionObserver(async (entries) => {
+      if (!entries.some((e) => e.isIntersecting) || startedRef.current) return;
+      startedRef.current = true;
+      observer.disconnect();
+      setAutoStatus("rendering");
+      try {
+        const result = await generateProductReel({
+          images: [normalized],
+          title: p.title || "",
+          price: Number(p.price) || 0,
+          hook: `✨ ${p.title || "המוצר"} · UGC LikeLink`,
+          cta: "לרכישה · הלינק במוצר",
+          storeName: "LikeLink",
+          palette: "dark",
+        });
+        const remoteUrl = await uploadReelVideo(result.blob);
+        const url = remoteUrl || result.url;
+        setAutoVideo(url);
+        setAutoStatus("ready");
+        addVideo({
+          title: `UGC · ${p.title || "Product"}`,
+          description: "LikeLink first-party product reel",
+          videoUrl: url,
+          marketerId: p.marketerId,
+          productId: p.id,
+          productTags: [{ productId: p.id }],
+          source: "likelink_auto_ugc",
+          public: Boolean(remoteUrl),
+        });
+      } catch (e) {
+        setAutoStatus("fallback");
+      }
+    }, { rootMargin: "300px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [p?.id, normalized, existing?.videoUrl, addVideo]);
+
+  return (
+    <div ref={(node) => { hostRef.current = node; revealRef.current = node; }} style={{ ...revealStyle }} className={`relative w-full h-full overflow-hidden bg-stone-100 ${className}`}>
+      {autoVideo ? (
+        <video
+          src={autoVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="w-full h-full object-cover"
+          aria-label={`${p?.title || "Product"} LikeLink reel`}
+        />
+      ) : (
+        <img
+          src={finalSrc}
+          alt={p?.title || "Luxury item"}
+          onError={() => setFailed(true)}
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+        />
+      )}
+      <div className="absolute top-2 start-2 z-10 rounded-full px-2 py-1 text-[9px] font-black backdrop-blur-md" style={{ background: "rgba(5,8,17,.78)", color: "#fff" }}>
+        {autoStatus === "ready" ? "● REEL · UGC" : autoStatus === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+    </div>
+  );
+});ort React, { memo, useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ImageOff, Heart, Star, ShoppingBag, Share2, Sparkles, ShieldCheck } from "lucide-react";
+import { money, DEFAULT_PRODUCT_IMAGE, normalizeImageUrl } from "../../utils/helpers.js";
+import { useI18n } from "../../lib/LangContext";
+import { useCart } from "../../context/CartContext";
+import { Badge } from "../ui";
+import { useScrollReveal } from "../../hooks/useScrollReveal.js";
+import { useVideos } from "../../context/VideoContext";
+import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
+import { uploadReelVideo } from "../../lib/uploadVideo.js";
 
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
