@@ -109,7 +109,12 @@ function LiveReelMedia({ product, hero = false }) {
   const started = useRef(false);
   const { videos, addVideo } = useVideos();
   const existing = useMemo(() => (videos || [])
-    .filter((v) => String(v?.productId || v?.productTags?.[0]?.productId || "") === String(product?.id || "") && typeof v?.videoUrl === "string")
+    .filter((v) => {
+      const same = String(v?.productId || v?.productTags?.[0]?.productId || "") === String(product?.id || "");
+      const u = String(v?.videoUrl || "");
+      const persisted = /^https?:\/\//i.test(u) && !/available_as_motion_svg/i.test(String(v?.videoStatus || ""));
+      return same && persisted && /\.(mp4|webm|mov|m4v|ogv)(?:$|[?#])/i.test(u);
+    })
     .sort((a, b) => Number(b?.createdAt || 0) - Number(a?.createdAt || 0))[0], [videos, product?.id]);
 
   useEffect(() => {
@@ -140,8 +145,13 @@ function LiveReelMedia({ product, hero = false }) {
         });
         const remote = await uploadReelVideo(result.blob);
         const finalUrl = remote || result.url;
-        setUrl(finalUrl);
-        setState("ready");
+        if (remote) {
+          setUrl(remote);
+          setState("ready");
+        } else {
+          setUrl("");
+          setState("preview");
+        }
         addVideo({
           title: `UGC Reel · ${product.title || "Product"}`,
           videoUrl: finalUrl,
@@ -186,7 +196,7 @@ function LiveReelMedia({ product, hero = false }) {
         </div>
       )}
       <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-        {state === "ready" && url ? "● UGC REEL" : state === "rendering" ? "◌ CREATING REEL" : "▶ UGC REEL"}
+        {state === "ready" && url ? "● UGC REEL · CLOUD" : state === "rendering" ? "◌ CREATING REEL" : state === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : "UGC READY SOON"}
       </span>
     </div>
   );
