@@ -6,7 +6,7 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GEMINI_KEY = GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
+import { geminiFetch, getGeminiApiKey } from "./geminiGateway.js";\nconst GEMINI_KEY = getGeminiApiKey();
 const GEMINI_KEY = GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VEO_API_KEY || "";
 const OPENAI_BASE = "https://api.openai.com/v1";
 const CREATIVE_ANGLES = [
