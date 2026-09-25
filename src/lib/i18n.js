@@ -156,6 +156,7 @@ export const translations = {
       errNoStudio: "לא נמצא סטודיו עם האימייל הזה — נסי ליצור אחד",
       createBtn: "יצירת הסטודיו שלי",
       enterBtn: "כניסה לסטודיו",
+      forgot: "שכחתי סיסמה",
       note: "כניסה מאובטחת דרך Supabase כשמוגדר — אחרת במצב דמו מקומי. כמה שניות והסטודיו מוכן.",
     },
     form: {
@@ -233,7 +234,7 @@ export const translations = {
     onboarding: {
       title: "ברוכה הבאה לסטודיו",
       subtitle: "שלושה צעדים, ואת בפנים",
-      step1: "פותחים סטודיו — בלי סיסמה, פחות מדקה",
+      step1: "פותחים סטודיו — הרשמה מאובטחת, פחות מדקה",
       step2: "מדביקים קישור שותפות ומפרסמים מוצר",
       step3: "משתפים את הדף האישי שלכן בכל הרשתות — קונים מגיעים לכאן, לא מתפזרים",
       cta: "בואי נתחיל",
@@ -471,6 +472,7 @@ export const translations = {
       errNoStudio: "No studio found with that email — try creating one",
       createBtn: "Create my studio",
       enterBtn: "Enter studio",
+      forgot: "Forgot password?",
       note: "Secure sign-in via Supabase when configured — otherwise a local demo mode. Your studio is ready in seconds.",
     },
     form: {
@@ -548,7 +550,7 @@ export const translations = {
         onboarding: {
       title: "Welcome to the studio",
       subtitle: "Three steps and you're in",
-      step1: "Open a studio — no password, under a minute",
+      step1: "Open a studio — secure signup, under a minute",
       step2: "Paste an affiliate link and publish a product",
       step3: "Share your personal page everywhere — buyers land straight on your products",
       cta: "Let's go",
