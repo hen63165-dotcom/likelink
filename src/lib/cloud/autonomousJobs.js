@@ -15,7 +15,6 @@ import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthSchedule
 import { runGrowthCycle, runDailyTrendScan, detectOpportunities } from "./lunaGrowth.js";
 import { discoverOpportunities as discoverOpportunitiesLegacy } from "./selfGrowth.js";
 import { ingestProducts, normalizeProduct, validateProduct, qualityFilter, findNewProducts, buildHookEngine, isProductStale } from "./affiliatePipeline.js";
-import { isGeminiConfigured } from "./geminiGateway.js";
 
 const ORIGIN = "https://likelink2.vercel.app";
 
@@ -308,7 +307,7 @@ registerJob("autonomous-ugc-video-production", {
 });
 
 registerJob("autonomous-ugc-distribution", {
-  description: "Cloud-only UGC generation plus verified external distribution for the oldest approved products",
+  description: "Cloud-only first-party creative generation plus verified external distribution for the oldest approved products",
   intervalMs: 60 * 60 * 1000,
   maxDurationMs: 120000,
   async fn({ kvGet, kvSet, now }) {
@@ -394,7 +393,7 @@ registerJob("autonomous-ugc-distribution", {
           // This prevents a queued Veo job from being mislabeled as a published video.
           const completedAssets = await kvGet("ugc:assets:" + selected.id, []);
           const completedVideo = Array.isArray(completedAssets)
-            ? completedAssets.find((a) => a?.videoStatus === "completed" && a?.videoUrl)
+            ? completedAssets.find((a) => a?.videoUrl && (a?.videoStatus === "completed" || a?.videoStatus === "available_as_motion_svg"))
             : null;
 
           if (!completedVideo) {
@@ -427,7 +426,7 @@ registerJob("autonomous-ugc-distribution", {
             creativeAngle: angle.id,
             creativeStyle,
             ugc: ugc.skipped || "generated",
-            ugcVideo: "COMPLETED",
+            ugcVideo: completedVideo.videoStatus === "available_as_motion_svg" ? "FIRST_PARTY_MOTION_READY" : "COMPLETED",
             status: published ? "PUBLISHED" : "NOT_PUBLISHED",
             channels: run.results || [],
             ts: now,
