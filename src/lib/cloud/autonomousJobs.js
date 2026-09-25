@@ -201,14 +201,10 @@ registerJob("opportunity-discovery", {
 });
 
 registerJob("autonomous-ugc-video-production", {
-  description: "Continuously create persisted Veo videos for approved products, independent of social publishing",
+  description: "Continuously create first-party LikeLink creative assets for approved products, independent of social publishing",
   intervalMs: 60 * 60 * 1000,
   maxDurationMs: 110000,
   async fn({ kvGet, kvSet, now }) {
-    if (!process.env.GEMINI_API_KEY) {
-      return { ok: false, status: "BLOCKED", reason: "ugc_video_not_configured", provider: "google_veo_3_1" };
-    }
-
     const productsRow = await kvGet("marketplace:products", []);
     const products = Array.isArray(productsRow)
       ? productsRow.filter((p) => p?.status === "approved" && p?.id && p?.image)
@@ -279,7 +275,7 @@ registerJob("autonomous-ugc-video-production", {
           productId: product.id,
           status: result.ok ? (result.status || "QUEUED") : "FAILED",
           error: result.ok ? null : result.error,
-          provider: result.provider || "google_veo_3_1",
+          provider: result.provider || "likelink_first_party",
           style,
         });
 
