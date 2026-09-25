@@ -78,18 +78,95 @@ export function pickRecorderMime() {
 function loadImageSafe(src) {
   return new Promise((resolve) => {
     if (!src || typeof Image === "undefined") return resolve(null);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    const timer = setTimeout(() => resolve(null), 4000);
-    img.onload = () => { clearTimeout(timer); resolve(img); };
-    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    const candidates = [];
+    const absolute = (() => { try { return new URL(src, window.location.origin).toString(); } catch { return src; } })();
+    candidates.push(absolute);
     try {
-      img.src = src;
-    } catch {
-      clearTimeout(timer);
-      resolve(null);
-    }
+      const u = new URL(absolute);
+      if (u.origin !== window.location.origin && /^https?:$/.test(u.protocol)) {
+        candidates.push(`/api/og?mode=image&u=${encodeURIComponent(absolute)}`);
+      }
+    } catch { /* keep direct candidate */ }
+
+    let index = 0;
+    const tryNext = () => {
+      if (index >= candidates.length) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const timer = setTimeout(() => { img.src = ""; tryNext(); }, 7000);
+      img.onload = () => { clearTimeout(timer); resolve(img); };
+      img.onerror = () => { clearTimeout(timer); tryNext(); };
+      try { img.src = candidates[index++]; } catch { clearTimeout(timer); tryNext(); }
+    };
+    tryNext();
   });
+}
+
+/** Original LikeLink creator animation — stylized synthetic character, not a real person. */
+function drawCreator(ctx, W, H, t, world = "pixar") {
+  const bob = Math.sin(t * Math.PI * 2) * 10;
+  const sway = Math.sin(t * Math.PI * 2 + 1) * 8;
+  const cx = W * 0.18;
+  const cy = H * 0.55 + bob;
+  const skin = world === "pixar" ? "#F4C7A1" : "#E8B58E";
+  const hair = world === "pixar" ? "#3A241A" : "#241812";
+  const outfit = world === "pixar" ? "#8B5CF6" : "#1F2937";
+
+  ctx.save();
+  ctx.translate(sway, 0);
+  // body
+  ctx.fillStyle = outfit;
+  ctx.beginPath(); ctx.roundRect(cx - 105, cy + 120, 210, 280, 72); ctx.fill();
+  // neck + face
+  ctx.fillStyle = skin;
+  ctx.fillRect(cx - 28, cy + 55, 56, 70);
+  ctx.beginPath(); ctx.arc(cx, cy, 105, 0, Math.PI * 2); ctx.fill();
+  // hair
+  ctx.fillStyle = hair;
+  ctx.beginPath(); ctx.arc(cx, cy - 18, 112, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx - 92, cy + 10, 42, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 92, cy + 20, 46, 0, Math.PI * 2); ctx.fill();
+  // eyes
+  ctx.fillStyle = "#20150F";
+  ctx.beginPath(); ctx.ellipse(cx - 38, cy - 8, 13, 20, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 38, cy - 8, 13, 20, 0, 0, Math.PI * 2); ctx.fill();
+  // smile
+  ctx.strokeStyle = "#8A3F3F"; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.arc(cx, cy + 28, 34, 0.15, Math.PI - 0.15); ctx.stroke();
+  // arm pointing to product
+  ctx.strokeStyle = skin; ctx.lineWidth = 42; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(cx + 85, cy + 190); ctx.lineTo(W * 0.37, H * 0.60); ctx.stroke();
+  // phone in hand
+  ctx.fillStyle = "#111827";
+  roundedRect(ctx, W * 0.34, H * 0.56, 100, 170, 20); ctx.fill();
+  ctx.fillStyle = "#EDE9FE";
+  roundedRect(ctx, W * 0.35 + 10, H * 0.56 + 12, 80, 120, 14); ctx.fill();
+  ctx.restore();
+}
+
+/** Product card inside the creator reel. */
+function drawProductFrame(ctx, img, W, H, t, pal) {
+  const x = W * 0.34, y = H * 0.25, w = W * 0.58, h = H * 0.50;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 35;
+  roundedRect(ctx, x, y, w, h, 42);
+  ctx.fillStyle = "rgba(255,255,255,.10)"; ctx.fill();
+  ctx.shadowBlur = 0;
+  if (img) {
+    ctx.save();
+    roundedRect(ctx, x + 18, y + 18, w - 36, h - 36, 30); ctx.clip();
+    const iw = img.naturalWidth || 600, ih = img.naturalHeight || 800;
+    const cover = Math.max((w - 36) / iw, (h - 36) / ih);
+    const zoom = 1 + Math.sin(t * Math.PI) * 0.05;
+    const dw = iw * cover * zoom, dh = ih * cover * zoom;
+    ctx.drawImage(img, x + w/2 - dw/2, y + h/2 - dh/2, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fill();
+    ctx.fillStyle = pal.text; ctx.font = "700 34px system-ui";
+    ctx.textAlign = "center"; ctx.fillText("LIKE LINK", x + w/2, y + h/2);
+  }
+  ctx.restore();
 }
 
 /** מלבן עם פינות מעוגלות */
@@ -184,7 +261,7 @@ function drawWrapped(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
 
 /** שכבת-על: מותג + שם חנות + הוק + מחיר + CTA */
 function drawOverlay(ctx, o, W, H, t) {
-  const { pal, title, price, hook, cta, storeName } = o;
+  const { pal, title, price, hook, cta, storeName, creatorWorld = "pixar" } = o;
   const fade = Math.min(1, t / 0.45);
   ctx.globalAlpha = fade;
   ctx.textAlign = "center";
@@ -231,6 +308,12 @@ function drawOverlay(ctx, o, W, H, t) {
   ctx.fill();
   ctx.fillStyle = pal.accentText;
   ctx.fillText(cta, W / 2, 1128);
+  // Original synthetic creator + disclosure.
+  drawCreator(ctx, W, H, t, creatorWorld);
+  ctx.textAlign = "center";
+  ctx.font = `800 ${Math.round(W * 0.026)}px ${FONT}`;
+  ctx.fillStyle = "rgba(255,255,255,.82)";
+  ctx.fillText("דמות יוצרת סינתטית · נוצר ב-LikeLink", W * 0.50, H * 0.92);
   ctx.globalAlpha = 1;
 }
 
@@ -285,7 +368,8 @@ export async function generateProductReel({
     drawBackground(ctx, W, H, pal);
     const img = segs[segIndex];
     if (img) drawImageSeg(ctx, img, t, W, H);
-    drawOverlay(ctx, { pal, title, price, hook, cta, storeName }, W, H, t);
+    drawOverlay(ctx, { pal, title, price, hook, cta, storeName, creatorWorld }, W, H, t);
+    drawProductFrame(ctx, img, W, H, t, pal);
   };
 
   rec.start(200);
