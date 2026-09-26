@@ -465,7 +465,7 @@ export default function StudioHome({ onNavigate }) {
         </Card>
         <Card title={t("ערוצי מותג", "Brand channels")} action={go("publishing")} actionLabel={t("ניהול ערוצים", "Manage")}>
           <div className="sh-channel-list">
-            <button type="button" onClick={go("publishing")}><Send size={14} /><span>{t("פרסום פנימי (LikeLink)", "Internal publishing")}</span><em className="ok">{t("פעיל", "Active")}</em></button>
+            <button type="button" onClick={go("publishing")}><Send size={14} /><span>{t("פרסום פנימי (LikeLink)", "Internal publishing")}</span><em className="ok">{t("זמין לפרסום מיידי", "Ready for instant publishing")}</em></button>
             <button type="button" onClick={go("autopilot")}><Bot size={14} /><span>AutoPilot</span><em>{t("דורש ערוץ מאומת", "Needs verified channel")}</em></button>
             <button type="button" onClick={go("campaigns")}><Megaphone size={14} /><span>{t("קמפיינים", "Campaigns")}</span><em>{t("לבנייה", "Build")}</em></button>
           </div>
