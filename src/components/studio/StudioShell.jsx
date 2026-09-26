@@ -53,7 +53,7 @@ import AutoVideoStudio from "../video/AutoVideoStudio";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
-import { fetchAutonomousJobStatus } from "../../lib/cloud/autonomousJobsClient.js";
+import { fetchPlatformStatus, PLATFORM_STATE, PLATFORM_STATE_LABEL, PLATFORM_STATE_COLOR } from "../../lib/cloud/lunaStatus.js";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
 import LunaOpportunityHero from "./LunaOpportunityHero";
@@ -183,7 +183,7 @@ function AuthGate({ onNavigate, feature }) {
   );
 }
 
-function LunaPanel({ onNavigate }) {
+function LunaPanel({ onNavigate, platform }) {
   const { lang } = useI18n();
   // Luna works for visitors too (local Luna fallbacks + honest cloud state).
   // Only revenue/creation tools require login. AuthGate stays for those.
@@ -200,6 +200,9 @@ function LunaPanel({ onNavigate }) {
             : "Luna is wired to your real cloud: ideas, intelligence tasks and real status — only on your click."}
         </p>
       </div>
+      {/* Truthful execution panel: scheduler state, what really got published,
+          real channel connections and a real cloud retry for failures. */}
+      <LunaStatusCard status={platform} />
       <LunaAssistant
         marketer={marketer}
         onOpenStudio={() => onNavigate(VIEW_IDS.CREATOR_LAB)}
@@ -1016,20 +1019,21 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     Object.values(VIEW_IDS).includes(initialView) ? initialView : VIEW_IDS.OVERVIEW
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [autonomousJobs, setAutonomousJobs] = useState([]);
-  const [lastAutonomousCheck, setLastAutonomousCheck] = useState(0);
+  const [platform, setPlatform] = useState(null);
+  const [lastPlatformCheck, setLastPlatformCheck] = useState(0);
 
-  // Fetch autonomous job status for Luna site agent heartbeat
+  // One truthful poll for the whole shell: real scheduler state, the real
+  // autonomous job queue, the server publication log and the channel
+  // connections the cloud actually has credentials for. Nothing is assumed —
+  // while no answer arrived the header shows the OFFLINE state.
   useEffect(() => {
     let cancelled = false;
     const fetchStatus = async () => {
-      try {
-        const data = await fetchAutonomousJobStatus().catch(() => null);
-        if (!cancelled && data?.jobs) {
-          setAutonomousJobs(data.jobs);
-          setLastAutonomousCheck(Date.now());
-        }
-      } catch { /* offline or unavailable */ }
+      const next = await fetchPlatformStatus();
+      if (!cancelled) {
+        setPlatform(next);
+        setLastPlatformCheck(Date.now());
+      }
     };
     fetchStatus();
     const interval = setInterval(fetchStatus, 60000); // poll every minute
@@ -1155,7 +1159,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
   function renderView() {
     switch (view) {
       case VIEW_IDS.OVERVIEW: return <OverviewPanel onNavigate={navigate} />;
-      case VIEW_IDS.LUNA: return <LunaPanel onNavigate={navigate} />;
+      case VIEW_IDS.LUNA: return <LunaPanel onNavigate={navigate} platform={platform} />;
       case VIEW_IDS.PRODUCTS: return (
         <Suspense fallback={<LoadingScreen />}>
           <SellView />
@@ -1212,28 +1216,51 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
             <span className="hidden text-[10px] sm:inline" style={{ color: "var(--text-faint)" }}>
               {lang === "he" ? "עברית · RTL" : "Hebrew-first"}
             </span>
-            {/* Luna Site Agent Heartbeat */}
-            <div className="ll-stat-card hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl">
-              <span className="ll-stat-icon" style={{ width: 28, height: 28, marginBottom: 0 }}><Activity size={13} /></span>
-              <span className="text-[10px] font-bold" style={{ color: "var(--accent)" }}>
-                {lang === "he" ? "לונה" : "Luna"}
-              </span>
-              <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--success)" }} />
-              <span className="text-[10px] text-[var(--text-secondary)]">
-                {autonomousJobs.length > 0
-                  ? (lang === "he" ? `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} פעיל` : `${autonomousJobs.filter(j => j.state === "COMPLETED").length}/${autonomousJobs.length} active`)
-                  : (lang === "he" ? "מרכז בקרה פעיל" : "Command center active")}
-              </span>
-              <span className="ll-stat-value text-[10px]" style={{ fontSize: "0.75rem", marginBottom: 0 }}>
-                {autonomousJobs.length || 0}
-              </span>
-              <span className="ll-stat-label" style={{ fontSize: "9px", marginBottom: 0 }}>
-                {lang === "he" ? "משימות" : "jobs"}
-              </span>
-              <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
-                {lastAutonomousCheck ? new Date(lastAutonomousCheck).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (lang === "he" ? "מתחבר…" : "Connecting…")}
-              </span>
-            </div>
+            {/* Luna command-center state — reported by the cloud, never fixed */}
+            {(() => {
+              const pState = platform?.state || PLATFORM_STATE.OFFLINE;
+              const pColor = PLATFORM_STATE_COLOR[pState] || "var(--text-faint)";
+              const pLabel = PLATFORM_STATE_LABEL[pState]?.[lang === "he" ? "he" : "en"] || pState;
+              const jobs = platform?.jobs;
+              return (
+                <button
+                  type="button"
+                  onClick={() => navigate(VIEW_IDS.LUNA)}
+                  className="ll-stat-card hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl"
+                  style={{ border: `1px solid ${pColor}` }}
+                  title={platform?.scheduler?.reason
+                    ? `${pState} · ${platform.scheduler.reason}`
+                    : `${pState} · no cloud answer yet`}
+                >
+                  <span className="ll-stat-icon" style={{ width: 28, height: 28, marginBottom: 0, color: pColor }}><Activity size={13} /></span>
+                  <span className="text-[10px] font-bold" style={{ color: "var(--accent)" }}>
+                    {lang === "he" ? "לונה" : "Luna"}
+                  </span>
+                  <span
+                    className={`inline-block h-2 w-2 rounded-full${pState === PLATFORM_STATE.ACTIVE ? " animate-pulse" : ""}`}
+                    style={{ background: pColor }}
+                  />
+                  <span className="text-[10px] font-extrabold" style={{ color: pColor }}>
+                    {pLabel}
+                  </span>
+                  {jobs ? (
+                    <>
+                      <span className="ll-stat-value text-[10px]" style={{ fontSize: "0.75rem", marginBottom: 0 }}>
+                        {jobs.total}
+                      </span>
+                      <span className="ll-stat-label" style={{ fontSize: "9px", marginBottom: 0 }}>
+                        {jobs.failed > 0
+                          ? (lang === "he" ? `משימות · ${jobs.failed} נכשלו` : `jobs · ${jobs.failed} failed`)
+                          : (lang === "he" ? "משימות" : "jobs")}
+                      </span>
+                    </>
+                  ) : null}
+                  <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
+                    {lastPlatformCheck ? new Date(lastPlatformCheck).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : (lang === "he" ? "בודק…" : "checking…")}
+                  </span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       </header>

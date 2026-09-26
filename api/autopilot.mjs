@@ -254,6 +254,54 @@ async function kvSet(key, value) {
   if (!res.ok) throw new Error(`kv_upsert_failed_${res.status}`);
 }
 
+// ─── truthful scheduler report ───────────────────────────────────────────────
+
+/**
+ * The scheduler is ACTIVE only when jobs really exist in the cloud queue and
+ * none of them reports a failure. Anything else is reported as it is:
+ *   REQUIRES_CONNECTION → no persistence layer configured, nothing can run
+ *   WAITING             → queue registered but no job has been created yet
+ *   FAILED              → at least one job ended in a failed state
+ */
+export function buildSchedulerReport(jobs, persistenceOverride = null) {
+  const list = Array.isArray(jobs) ? jobs : [];
+  const states = list.map((j) => String(j?.state || "").toLowerCase());
+  const lastRuns = list.map((j) => Number(j?.lastRunAt) || 0).filter(Boolean);
+  const nextRuns = list.map((j) => Number(j?.nextRunAt) || 0).filter(Boolean);
+  const now = Date.now();
+  const due = list.filter((j) => Number(j?.nextRunAt || 0) > 0 && Number(j.nextRunAt) <= now);
+  const failedCount = states.filter((s) => s === "failed").length;
+  const runningCount = states.filter((s) => s === "running").length;
+  const persistence = persistenceOverride || (SB_URL && SB_KEY ? "connected" : "not_configured");
+  const state =
+    persistence !== "connected" ? "REQUIRES_CONNECTION"
+      : !list.length ? "WAITING"
+        : failedCount ? "FAILED"
+          : "ACTIVE";
+  // The reason is part of the answer, not a UI guess: the dashboard renders this
+  // code verbatim, so a red light can never be explained as "queue idle".
+  // The vocabulary is locked by tests/lunaStatusTruth.test.mjs.
+  const reason =
+    state === "REQUIRES_CONNECTION" ? "persistence_not_configured"
+      : failedCount ? "job_failed"
+        : !list.length ? "queue_empty"
+          : (due.length || runningCount) ? "jobs_due_or_running"
+            : "jobs_registered";
+  return {
+    state,
+    reason,
+    lastRun: lastRuns.length ? new Date(Math.max(...lastRuns)).toISOString() : null,
+    nextRun: nextRuns.length ? new Date(Math.min(...nextRuns)).toISOString() : null,
+    jobCount: list.length,
+    dueCount: due.length,
+    failedCount,
+    runningCount,
+    successCount: states.filter((s) => s === "success").length,
+    pendingCount: states.filter((s) => s === "pending" || !s).length,
+    persistence,
+  };
+}
+
 // ─── content generation ─────────────────────────────────────────────────────
 
 function renderTemplate(tpl, p, link) {
@@ -483,6 +531,9 @@ async function sendTelegram(ch, text) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`telegram_${res.status}`);
+  // Return the provider message id so the publish log can prove the post exists.
+  const data = await res.json().catch(() => null);
+  return data?.result?.message_id != null ? String(data.result.message_id) : null;
 }
 
 async function sendWebhook(ch, payload) {
@@ -651,6 +702,9 @@ async function sendX(ch, text, link) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`x_${res.status}`);
+  // X returns the created tweet id — keep it as the publication proof.
+  const data = await res.json().catch(() => null);
+  return data?.data?.id != null ? String(data.data.id) : null;
 }
 
 // LinkedIn — post an article share as a member/company via UGC Posts API
@@ -690,6 +744,8 @@ async function sendMastodon(ch, text, link) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`mastodon_${res.status}`);
+  const data = await res.json().catch(() => null);
+  return data?.id != null ? String(data.id) : null;
 }
 
 // Bluesky (AT Protocol) — app-password login then post
@@ -1127,6 +1183,132 @@ const BRAND_PULSE_STORIES_HE = [
   ].join("\n"),
 ];
 
+// ── Publication log ──────────────────────────────────────────────────────────
+// Every publish attempt is persisted with a TRUTHFUL state so the Studio, the
+// CEO dashboard and the public home page can show exactly what went out, on
+// which channel, with which provider id — or exactly what failed / what is
+// waiting for a connection. Secrets are never stored here.
+const PUBLISH_LOG_KEY = "publish:log";
+const PUBLISH_LOG_MAX = 60;
+
+export const PUBLICATION_STATE = {
+  PUBLISHED: "PUBLISHED",
+  PENDING: "PENDING",
+  FAILED: "FAILED",
+  REQUIRES_CONNECTION: "REQUIRES_CONNECTION",
+};
+
+async function readPublishLog() {
+  try {
+    const rows = await kvGet(PUBLISH_LOG_KEY);
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+async function recordPublication(entry = {}) {
+  const now = Date.now();
+  const rec = {
+    id: `pub_${now}_${Math.random().toString(36).slice(2, 8)}`,
+    contentId: String(entry.contentId || "").slice(0, 120) || null,
+    contentType: String(entry.contentType || "brand_pulse").slice(0, 40),
+    brandId: entry.brandId ? String(entry.brandId).slice(0, 80) : "platform",
+    productId: entry.productId ? String(entry.productId).slice(0, 80) : null,
+    channel: String(entry.channel || "unknown").slice(0, 40),
+    status: PUBLICATION_STATE[entry.status] || PUBLICATION_STATE.PENDING,
+    publishedAt: new Date(now).toISOString(),
+    externalId: entry.externalId ? String(entry.externalId).slice(0, 120) : null,
+    error: entry.error ? String(entry.error).slice(0, 200) : null,
+    attempts: Number(entry.attempts) > 0 ? Number(entry.attempts) : 1,
+    attemptOf: entry.attemptOf ? String(entry.attemptOf).slice(0, 80) : null,
+    text: entry.text ? String(entry.text).slice(0, 1200) : null,
+    link: entry.link ? String(entry.link).slice(0, 400) : null,
+  };
+  try {
+    const next = [rec, ...(await readPublishLog())].slice(0, PUBLISH_LOG_MAX);
+    await kvSet(PUBLISH_LOG_KEY, next);
+  } catch { /* the log is best-effort — never break a real publish */ }
+  return rec;
+}
+
+/** Public projection of the log: no post copy, no identifiers beyond ids. */
+function publicPublications(rows = [], limit = 24) {
+  return (Array.isArray(rows) ? rows : []).slice(0, limit).map((r) => ({
+    id: r.id,
+    contentId: r.contentId || null,
+    contentType: r.contentType || null,
+    brandId: r.brandId || "platform",
+    productId: r.productId || null,
+    channel: r.channel || null,
+    status: r.status || PUBLICATION_STATE.PENDING,
+    publishedAt: r.publishedAt || null,
+    externalId: r.externalId || null,
+    error: r.error || null,
+    attempts: Number(r.attempts) || 1,
+    attemptOf: r.attemptOf || null,
+  }));
+}
+
+// ── cron heartbeat ───────────────────────────────────────────────────────────
+// The only honest proof that the schedule itself fires: every real cron
+// invocation stamps this key. The dashboard reads it instead of probing a
+// made-up endpoint, so "the schedule is not running" is only ever said when a
+// beat really is missing or stale.
+const CRON_BEAT_KEY = "cron:beat";
+// vercel.json schedules the autopilot cron daily → two missed days is stale.
+const CRON_BEAT_STALE_MS = 2 * 24 * 3600 * 1000;
+
+async function recordCronBeat(mode) {
+  const now = Date.now();
+  const prev = (await readCronBeatRaw()) || {};
+  const row = {
+    lastBeatAt: now,
+    lastMode: String(mode || "daily").slice(0, 20),
+    beats: (Number(prev.beats) || 0) + 1,
+    modes: { ...(prev.modes && typeof prev.modes === "object" ? prev.modes : {}), [String(mode || "daily")]: now },
+  };
+  try { await kvSet(CRON_BEAT_KEY, row); } catch { /* best-effort */ }
+  return row;
+}
+
+async function readCronBeatRaw() {
+  try {
+    const row = await kvGet(CRON_BEAT_KEY);
+    return row && typeof row === "object" ? row : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Public cron truth. `lastBeatAt: null` really means "never observed". */
+async function buildCronReport() {
+  const row = await readCronBeatRaw();
+  const lastBeatAt = Number(row?.lastBeatAt) || null;
+  return {
+    lastBeatAt,
+    lastBeatIso: lastBeatAt ? new Date(lastBeatAt).toISOString() : null,
+    lastMode: row?.lastMode || null,
+    beats: Number(row?.beats) || 0,
+    staleAfterMs: CRON_BEAT_STALE_MS,
+    stale: lastBeatAt ? Date.now() - lastBeatAt > CRON_BEAT_STALE_MS : true,
+    everRun: Boolean(lastBeatAt),
+  };
+}
+
+/**
+ * Truthful channel availability for the PLATFORM (brand) account. External
+ * channels are opt-in through env credentials; the site's own feed is always
+ * available, so the platform can always publish to itself.
+ */
+function platformChannelAvailability() {
+  return [
+    { provider: "web", connected: true, verified: true, scope: "platform", channelLabel: "לוגו האתר · Site feed" },
+    { provider: "telegram", connected: Boolean(process.env.BRAND_TELEGRAM_BOT && process.env.BRAND_TELEGRAM_CHAT), verified: Boolean(process.env.BRAND_TELEGRAM_BOT && process.env.BRAND_TELEGRAM_CHAT), scope: "platform", channelLabel: "Telegram" },
+    { provider: "webhook", connected: Boolean(process.env.BRAND_WEBHOOK_URL), verified: Boolean(process.env.BRAND_WEBHOOK_URL), scope: "platform", channelLabel: "Webhook" },
+  ];
+}
+
 export async function publishBrandPulse(origin, opts = {}) {
   if (!SB_URL || !SB_KEY) return { ok: false, error: "supabase_not_configured" };
   const store = await kvGet(KV_KEY);
@@ -1175,28 +1357,61 @@ export async function publishBrandPulse(origin, opts = {}) {
     : `${story}\n\n💜 פותחים סטודיו חינם · ${link}`;
 
   const results = [];
+  const pulseContentId = `pulse_${(meta.run || 0) + 1}`;
   for (const ch of (isWebOnly ? [] : channels)) {
+    let externalId = null;
+    let failure = null;
     try {
       if (ch.type === "telegram") {
-        await sendTelegram(ch, text);
+        externalId = await sendTelegram(ch, text);
       } else if (ch.type === "webhook") {
         await sendWebhook(ch, { text, source: "likelink-brand-pulse", link });
       }
-      results.push({ channel: ch.type, ok: true });
+      results.push({ channel: ch.type, ok: true, externalId });
     } catch (e) {
-      results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+      failure = String(e.message || e);
+      results.push({ channel: ch.type, ok: false, detail: failure });
     }
+    // Persist the truthful outcome of THIS channel attempt.
+    await recordPublication({
+      contentId: pulseContentId,
+      contentType: "luna_pulse",
+      productId: spotlight?.id || null,
+      channel: ch.type,
+      status: failure ? PUBLICATION_STATE.FAILED : PUBLICATION_STATE.PUBLISHED,
+      externalId,
+      error: failure,
+      text,
+      link,
+    });
+  }
+  // No external channel configured is not a failure — it is a connection the
+  // owner still has to make. Say so, in the log the CEO dashboard reads.
+  if (!isWebOnly && !channels.length) {
+    await recordPublication({
+      contentId: pulseContentId,
+      contentType: "luna_pulse",
+      productId: spotlight?.id || null,
+      channel: "external",
+      status: PUBLICATION_STATE.REQUIRES_CONNECTION,
+      error: "no_external_channel_configured",
+      text,
+      link,
+    });
   }
 
   // 🎀 SELF-PUBLISH (dependency-free): the official site itself is the channel.
   // Luna's brand story is appended to a public web feed (brand_pulse:posts) —
   // rendered on likelink2.vercel.app for every visitor, always, no secrets.
   let webPublished = false;
+  let webPostId = null;
   try {
     const feed = (await kvGet(BRAND_POSTS_KEY)) || [];
     const list = Array.isArray(feed) ? feed : [];
+    webPostId = `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     list.push({
-      id: `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: webPostId,
+      contentId: pulseContentId,
       ts: Date.now(),
       text,
       link,
@@ -1206,10 +1421,21 @@ export async function publishBrandPulse(origin, opts = {}) {
     while (list.length > 30) list.shift(); // cap, append-only otherwise
     await kvSet(BRAND_POSTS_KEY, list);
     webPublished = true;
-    results.push({ channel: "web", ok: true });
+    results.push({ channel: "web", ok: true, externalId: webPostId });
   } catch (e) {
     results.push({ channel: "web", ok: false, detail: String(e.message || e) });
   }
+  await recordPublication({
+    contentId: pulseContentId,
+    contentType: "luna_pulse",
+    productId: spotlight?.id || null,
+    channel: "web",
+    status: webPublished ? PUBLICATION_STATE.PUBLISHED : PUBLICATION_STATE.FAILED,
+    externalId: webPostId,
+    error: webPublished ? null : "site_feed_write_failed",
+    text,
+    link,
+  });
 
   const anyOk = results.some((r) => r.ok) || isWebOnly; // web self-publish always counts
   if (anyOk) {
@@ -1431,11 +1657,18 @@ export default async function handler(req, res) {
       const latest = feedList[0] || null;
       const lastRuns = jobs.map(j => Number(j.lastRunAt || 0)).filter(Number.isFinite).filter(Boolean);
       const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
-      const dueCount = jobs.filter(j => Number(j.nextRunAt || 0) > 0 && Number(j.nextRunAt) <= Date.now()).length;
+      // Truthful state for the growth-job queue too: the same rules as the
+      // main status mode — no credentials means nothing can run.
+      const jobsPersistence = process.env.VITE_SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY)
+        ? "connected"
+        : "not_configured";
+      const report = buildSchedulerReport(jobs, jobsPersistence);
       json(res, {
         ok: true,
-        scheduler: { state: "ACTIVE", lastRun: lastRun ? new Date(lastRun).toISOString() : null, jobCount: jobs.length, dueCount },
-        queue: { jobs, dueCount },
+        scheduler: report,
+        cloudConfigured: jobsPersistence === "connected",
+        queue: { jobs, dueCount: report.dueCount },
+        lastRun: lastRun ? new Date(lastRun).toISOString() : null,
         cloud: {
           ok: true,
           lastRunAt: cloudMeta?.runAt || null,
@@ -1470,6 +1703,9 @@ export default async function handler(req, res) {
 
   if (isCron) {
     await loadAllDeps();
+    // Stamp the schedule's own heartbeat — the evidence the dashboard shows
+    // instead of a guess. Best-effort: a KV hiccup must never break the run.
+    try { await recordCronBeat(cronMode); } catch { /* non-fatal */ }
     const _r = await runDue(origin);
 
     // LIGHT cron (every 15 min): queue processing + health check only.
@@ -1612,27 +1848,18 @@ export default async function handler(req, res) {
       ]);
       const jobs = await jobsMod.getAutonomousJobStatus();
       const cloud = await cloudMod.getCloudCycleStatus({ kvGet, origin });
-      const lastRuns = (Array.isArray(jobs) ? jobs : [])
-        .map((j) => j?.lastRunAt)
-        .filter(Boolean)
-        .map(Number)
-        .filter(Number.isFinite);
-      const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
-      const dueJobs = (Array.isArray(jobs) ? jobs : []).filter((j) => {
-        const next = Number(j?.nextRunAt || 0);
-        return next > 0 && next <= Date.now();
-      });
+      const report = buildSchedulerReport(jobs);
+      const publications = publicPublications(await readPublishLog());
       json(res, {
         ok: true,
-        scheduler: {
-          state: "ACTIVE",
-          lastRun: lastRun ? new Date(lastRun).toISOString() : null,
-          jobCount: Array.isArray(jobs) ? jobs.length : 0,
-          dueCount: dueJobs.length,
-        },
+        scheduler: report,
+        cloudConfigured: report.persistence === "connected",
+        publications,
+        connections: platformChannelAvailability(),
+        cron: await buildCronReport(),
         queue: {
           jobs: Array.isArray(jobs) ? jobs : [],
-          dueCount: dueJobs.length,
+          dueCount: report.dueCount,
         },
         cloud,
       }, 200, req);
@@ -1669,27 +1896,18 @@ export default async function handler(req, res) {
         getAutonomousJobStatus(),
         getCloudCycleStatus({ kvGet, origin }),
       ]);
-      const lastRuns = (Array.isArray(jobs) ? jobs : [])
-        .map((j) => j?.lastRunAt)
-        .filter(Boolean)
-        .map(Number)
-        .filter(Number.isFinite);
-      const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
-      const dueJobs = (Array.isArray(jobs) ? jobs : []).filter((j) => {
-        const next = Number(j?.nextRunAt || 0);
-        return next > 0 && next <= Date.now();
-      });
+      const report = buildSchedulerReport(jobs);
+      const publications = publicPublications(await readPublishLog());
       json(res, {
         ok: true,
-        scheduler: {
-          state: "ACTIVE",
-          lastRun: lastRun ? new Date(lastRun).toISOString() : null,
-          jobCount: Array.isArray(jobs) ? jobs.length : 0,
-          dueCount: dueJobs.length,
-        },
+        scheduler: report,
+        cloudConfigured: report.persistence === "connected",
+        publications,
+        connections: platformChannelAvailability(),
+        cron: await buildCronReport(),
         queue: {
           jobs: Array.isArray(jobs) ? jobs : [],
-          dueCount: dueJobs.length,
+          dueCount: report.dueCount,
         },
         cloud,
       }, 200, req);
@@ -1744,7 +1962,89 @@ export default async function handler(req, res) {
         events = events.slice(0, 12);
       }
     } catch { /* best-effort */ }
-    json(res, { ok: true, events }, 200, req);
+    const publications = publicPublications(await readPublishLog());
+    json(res, { ok: true, events, publications, connections: platformChannelAvailability() }, 200, req);
+    return;
+  }
+
+  // Retry a FAILED publication once, using only channels the platform really
+  // has credentials for. Requires a verified session; never invents success:
+  // the new record carries the provider id or the new error, and links back to
+  // the attempt it replaces (attemptOf / attempts).
+  if (requestedMode === "retry-publication") {
+    if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 503, req); return; }
+    const authHeader = String(getH("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    const authUser = await verifyToken(authHeader);
+    if (!authUser || (!authUser.id && !authUser.email)) {
+      json(res, { ok: false, error: "unauthenticated" }, 401, req);
+      return;
+    }
+    const pubId = String(body?.publicationId || "");
+    const rows = await readPublishLog();
+    const target = rows.find((r) => r && r.id === pubId);
+    if (!target) { json(res, { ok: false, error: "publication_not_found" }, 404, req); return; }
+    if (target.status !== PUBLICATION_STATE.FAILED) {
+      json(res, { ok: false, error: "not_retryable", status: target.status }, 409, req);
+      return;
+    }
+    if (!target.text || !target.link) {
+      json(res, { ok: false, error: "retry_payload_missing" }, 409, req);
+      return;
+    }
+    let externalId = null;
+    let failure = null;
+    try {
+      if (target.channel === "telegram") {
+        if (!process.env.BRAND_TELEGRAM_BOT || !process.env.BRAND_TELEGRAM_CHAT) throw new Error("telegram_not_connected");
+        externalId = await sendTelegram(
+          { botToken: process.env.BRAND_TELEGRAM_BOT, chatId: process.env.BRAND_TELEGRAM_CHAT },
+          target.text
+        );
+      } else if (target.channel === "webhook") {
+        if (!process.env.BRAND_WEBHOOK_URL) throw new Error("webhook_not_connected");
+        await sendWebhook({ url: process.env.BRAND_WEBHOOK_URL }, { text: target.text, source: "likelink-brand-pulse", link: target.link });
+      } else if (target.channel === "web") {
+        // The site feed is a real channel: re-append the same stored post.
+        const feedRows = (await kvGet(BRAND_POSTS_KEY)) || [];
+        const list = Array.isArray(feedRows) ? feedRows : [];
+        externalId = `bp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        list.push({
+          id: externalId,
+          contentId: target.contentId,
+          ts: Date.now(),
+          text: target.text,
+          link: target.link,
+          spotlight: null,
+          channels: ["web"],
+          retryOf: target.id,
+        });
+        while (list.length > 30) list.shift();
+        await kvSet(BRAND_POSTS_KEY, list);
+      } else {
+        throw new Error("channel_not_retryable");
+      }
+    } catch (e) {
+      failure = String(e?.message || e).slice(0, 200);
+    }
+    const again = await recordPublication({
+      contentId: target.contentId,
+      contentType: target.contentType,
+      brandId: target.brandId,
+      productId: target.productId,
+      channel: target.channel,
+      status: failure ? PUBLICATION_STATE.FAILED : PUBLICATION_STATE.PUBLISHED,
+      externalId,
+      error: failure,
+      attempts: (Number(target.attempts) || 1) + 1,
+      attemptOf: target.id,
+      text: target.text,
+      link: target.link,
+    });
+    json(res, {
+      ok: !failure,
+      publication: publicPublications([again])[0],
+      error: failure || undefined,
+    }, failure ? 502 : 200, req);
     return;
   }
 

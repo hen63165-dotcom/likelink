@@ -91,6 +91,50 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
   try {
     const ledgerRow = await kvGet("marketplace:veritas", []);
     const ledger = Array.isArray(ledgerRow) ? ledgerRow : [];
+/**
+ * Public AI activity feed — POST { mode: "public-feed" }. NO auth.
+ * Returns the real marketplace event stream (verified sales, new products,
+ * campaign publications, commission payouts) PLUS the truthful publication log
+ * and the real channel connection states. Returns null only when the request
+ * itself failed — callers must treat null as "unknown", never as "empty".
+ */
+export async function getPublicFeed({ limit = 12, signal } = {}) {
+  const { url, headers } = requestInit();
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ mode: "public-feed", limit }),
+    signal,
+  });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data || data.ok !== true) return null;
+  return {
+    events: Array.isArray(data.events) ? data.events : [],
+    publications: Array.isArray(data.publications) ? data.publications : [],
+    connections: Array.isArray(data.connections) ? data.connections : [],
+  };
+}
+
+/**
+ * Retry ONE failed publication, using only channels the cloud really has
+ * credentials for. Requires a verified session; the response is the new
+ * truthful record (provider id on success, error on failure).
+ */
+export async function retryPublication({ token, publicationId, signal } = {}) {
+  if (!token) return { ok: false, error: "unauthenticated" };
+  const { url, headers } = requestInit(token);
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ mode: "retry-publication", publicationId }),
+    signal,
+  });
+  const data = await res.json().catch(() => null);
+  return data || { ok: false, error: `retry_unreachable_${res.status}` };
+}
+
+
     const entry = {
       type: "cloud_autopilot_cycle", ts: new Date(now).toISOString(),
       cycleKind: webOnly ? "web_selfheal" : "daily",
