@@ -1665,6 +1665,21 @@ export default async function handler(req, res) {
       const feed = await readKV("marketplace:site_feed", []);
       const feedList = Array.isArray(feed) ? feed : [];
       const latest = feedList[0] || null;
+      // Cron beat read inline (no heavy imports): same key + same stale rule
+      // as buildCronReport, so this path agrees on NEVER_RUN vs OVERDUE.
+      const beatRow = await readKV("cron:beat", null);
+      const beatAt = Number(beatRow?.lastBeatAt) || null;
+      const cron = {
+        lastBeatAt: beatAt,
+        lastBeatIso: beatAt ? new Date(beatAt).toISOString() : null,
+        lastMode: beatRow?.lastMode || null,
+        beats: Number(beatRow?.beats) || 0,
+        staleAfterMs: CRON_BEAT_STALE_MS,
+        stale: beatAt ? Date.now() - beatAt > CRON_BEAT_STALE_MS : true,
+        everRun: Boolean(beatAt),
+      };
+      // Publish log read inline (no heavy imports): truthful rows only.
+      const publishRows = await readKV(PUBLISH_LOG_KEY, []);
       const lastRuns = jobs.map(j => Number(j.lastRunAt || 0)).filter(Number.isFinite).filter(Boolean);
       const lastRun = lastRuns.length ? Math.max(...lastRuns) : null;
       // Truthful state for the growth-job queue too: the same rules as the
@@ -1677,6 +1692,9 @@ export default async function handler(req, res) {
         ok: true,
         scheduler: report,
         cloudConfigured: jobsPersistence === "connected",
+        publications: publicPublications(publishRows),
+        connections: platformChannelAvailability(),
+        cron,
         queue: {
           jobs,
           dueCount: report.dueCount,
@@ -1685,6 +1703,8 @@ export default async function handler(req, res) {
           overdue: report.overdue,
           nextFireAt: report.nextFireAt,
         },
+        // The tab reports its own heartbeat; the server never invents one.
+        heartbeat: null,
         lastRun: lastRun ? new Date(lastRun).toISOString() : null,
         cloud: {
           ok: true,

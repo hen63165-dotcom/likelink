@@ -311,6 +311,11 @@ test("lightweight status path exposes queue-derived scheduler surfaces", () => {
   // The GET/fast path builds its queue inline — it must carry the same
   // additive surfaces as the POST path so production agrees on OVERDUE.
   assert.match(api, /queue: \{\n\s*jobs,\n\s*dueCount: report\.dueCount,\n\s*lastFireAt: report\.lastFireAt,/);
+  // And the same path must carry the cron beat + publications + connections
+  // the control room renders — read inline under the same keys, no new fn.
+  assert.match(api, /const beatRow = await readKV\("cron:beat", null\)/);
+  assert.match(api, /const publishRows = await readKV\(PUBLISH_LOG_KEY, \[\]\)/);
+  assert.match(api, /publications: publicPublications\(publishRows\),\n\s*connections: platformChannelAvailability\(\),\n\s*cron,/);
 });
 
 // ── No claims about infrastructure that does not exist ──────────────────────
