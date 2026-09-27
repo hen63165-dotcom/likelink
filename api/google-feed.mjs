@@ -165,7 +165,11 @@ export default async function handler(req, res) {
   // Center feed, so /api/google-feed keeps working unchanged for Merchant
   // Center's scheduled fetch and the in-app Admin download button.
   const kind = new URL(req.url, "https://x").searchParams.get("kind");
-  if (kind === "sitemap") return sitemapHandler(req, res);\n  if (kind === "discover") return discoveryFeedHandler(req, res);
+  // One dispatcher, one real line per branch — a literal escape sequence here
+  // once shipped as source text and took the whole function (and with it
+  // sitemap.xml, discover.xml and the Merchant feed) down with a 500.
+  if (kind === "sitemap") return sitemapHandler(req, res);
+  if (kind === "discover") return discoveryFeedHandler(req, res);
   if (kind === "story") return storyHandler(req, res);
   return googleFeedHandler(req, res);
 }
@@ -188,7 +192,7 @@ async function discoveryFeedHandler(req, res) {
         : `${origin}/p/${encodeURIComponent(p.id)}`;
       const title = xmlEscape(p.title || p.name || "LikeLink discovery");
       const desc = xmlEscape(String(p.description || lunaHook(p.id) || "גילוי חדש ב-LikeLink").slice(0, 700));
-      const image = /^https?:\\/\\//i.test(String(p.image || "")) ? String(p.image).trim() : "";
+      const image = /^https?:\/\//i.test(String(p.image || "")) ? String(p.image).trim() : "";
       return `<item><title>${title}</title><link>${xmlEscape(link)}</link><guid isPermaLink="true">${xmlEscape(link)}</guid><description>${desc}</description>${image ? `<enclosure url="${xmlEscape(image)}" type="image/jpeg" />` : ""}<pubDate>${new Date(p.updatedAt || p.createdAt || Date.now()).toUTCString()}</pubDate></item>`;
     });
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>LikeLink Discover</title><link>${xmlEscape(origin)}/discover</link><description>גילויים אמיתיים מהקטלוג הציבורי של LikeLink</description><language>he</language><lastBuildDate>${new Date().toUTCString()}</lastBuildDate>${items.join("")}</channel></rss>`;

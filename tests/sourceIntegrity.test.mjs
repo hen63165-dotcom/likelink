@@ -6,7 +6,9 @@
 // test fails if any raw NUL byte or BOM ever re-enters a source file.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -46,4 +48,46 @@ test("no source file contains raw NUL bytes or a stray BOM mid-file", () => {
     }
   }
   assert.deepEqual(offenders, [], `encoding corruption found:\n${offenders.join("\n")}`);
+});
+
+test("every serverless function and source module actually parses as ESM", () => {
+  // A previous edit shipped a literal escape sequence as source text inside
+  // api/google-feed.mjs (`...res);\n  if (kind === "discover")...`). The whole
+  // function then failed to load, so /sitemap.xml, /discover.xml and the
+  // Merchant feed all answered 500 in production while every test still passed
+  // — because nothing ever parsed the api/ sources. This test closes that hole.
+  const files = [];
+  const collect = (dir) => {
+    let entries = [];
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) { collect(full); continue; }
+      if (/\.(mjs|js)$/.test(e.name)) files.push(full);
+    }
+  };
+  collect(path.join(ROOT, "api"));
+  assert.ok(files.length > 0, "the api/ folder must contain shipped entry points");
+
+  // Parsing must be ESM (these files use import/export and top-level await).
+  // Copying each file to a temporary .mjs and running `node --check` is a real
+  // parse by the same engine that will run it in production.
+  const tmpDir = mkdtempSync(path.join(tmpdir(), "llparse-"));
+  const probe = path.join(tmpDir, "probe.mjs");
+  const broken = [];
+  for (const file of files) {
+    const rel = path.relative(ROOT, file);
+    writeFileSync(probe, readFileSync(file), "utf8");
+    try {
+      execFileSync(process.execPath, ["--check", probe], { stdio: "pipe" });
+    } catch (e) {
+      const detail = String(e.stderr || e.stdout || e.message)
+        .split(/\r?\n/)
+        .filter((l) => l.trim() && !l.includes("at ") && !/^Node\.js/.test(l))
+        .slice(0, 2)
+        .join(" | ");
+      broken.push(`${rel}: ${detail}`);
+    }
+  }
+  assert.deepEqual(broken, [], `api sources that cannot be parsed:\n${broken.join("\n")}`);
 });
