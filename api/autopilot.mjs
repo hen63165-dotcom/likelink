@@ -1630,11 +1630,18 @@ export default async function handler(req, res) {
   if (req.method === "POST" || req.method === "GET") {
     const statusUrl = new URL(req.url, "https://likelink2.vercel.app");
     if (statusUrl.searchParams.get("mode") === "status" || statusUrl.searchParams.get("action") === "status") {
-      const jobIds = [
+      // The DURABLE job state is the source of truth: enumerate every
+      // `growth:job:*` row that really exists in the cloud and union it with
+      // the manifest, so this path can never silently hide a job that the main
+      // path reports. The manifest below must stay identical to
+      // AUTONOMOUS_JOBS in src/lib/cloud/autonomousJobs.js — a test locks it
+      // (a hardcoded list already drifted once and hid a real job).
+      const MANIFEST_JOB_IDS = [
         "autonomous-growth-cycle","daily-trend-scan","site-campaign-cycle",
         "affiliate-product-import","affiliate-product-rotation","brand-pulse-publish",
         "brand-pulse-external","opportunity-discovery","brand-pulse-freshness",
-        "autonomous-ugc-distribution","autonomous-ugc-video-poll",
+        "autonomous-ugc-video-production","autonomous-ugc-distribution",
+        "autonomous-ugc-video-poll",
       ];
       const readKV = async (key, fallback) => {
         const sbUrl = process.env.VITE_SUPABASE_URL;
@@ -1650,6 +1657,28 @@ export default async function handler(req, res) {
           return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
         } catch { return fallback; }
       };
+      // Real registered job ids straight from the persistence layer. Failure
+      // degrades to the manifest only — never to an invented list.
+      const enumerateJobIds = async () => {
+        const sbUrl = process.env.VITE_SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        if (!sbUrl || !sbKey) return [];
+        try {
+          const r = await fetch(`${sbUrl}/rest/v1/kv?key=like.${encodeURIComponent("growth:job:%")}&select=key`, {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+            signal: AbortSignal.timeout(8000),
+          });
+          if (!r.ok) return [];
+          const rows = await r.json();
+          return (Array.isArray(rows) ? rows : [])
+            .map((row) => String(row?.key || ""))
+            .filter((k) => k.startsWith("growth:job:"))
+            .map((k) => k.slice("growth:job:".length))
+            .filter(Boolean);
+        } catch { return []; }
+      };
+      const discovered = await enumerateJobIds();
+      const jobIds = [...new Set([...discovered, ...MANIFEST_JOB_IDS])];
       const jobs = await Promise.all(jobIds.map(async (id) => {
         const state = await readKV(`growth:job:${id}`, {});
         return {

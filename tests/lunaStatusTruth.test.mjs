@@ -318,6 +318,23 @@ test("lightweight status path exposes queue-derived scheduler surfaces", () => {
   assert.match(api, /publications: publicPublications\(publishRows\),\n\s*connections: platformChannelAvailability\(\),\n\s*cron,/);
 });
 
+test("the lightweight status manifest can never again hide a registered job", async () => {
+  const { AUTONOMOUS_JOBS } = await import("../src/lib/cloud/autonomousJobs.js");
+  const api = read("api/autopilot.mjs");
+  const block = api.match(/const MANIFEST_JOB_IDS = \[([\s\S]*?)\];/);
+  assert.ok(block, "the lightweight path must declare its job manifest");
+  const listed = [...block[1].matchAll(/"([a-z0-9-]+)"/g)].map((m) => m[1]);
+  // Every job the registry really registers must appear in the fast path.
+  // A missing id silently under-reports the queue (this happened once).
+  for (const id of AUTONOMOUS_JOBS) {
+    assert.ok(listed.includes(id), `${id} is registered but missing from the lightweight status manifest`);
+  }
+  // And the platform-badge manifest must not invent job ids either.
+  for (const id of listed) {
+    assert.ok(AUTONOMOUS_JOBS.includes(id), `${id} is listed by the fast path but is not a registered job`);
+  }
+});
+
 // ── No claims about infrastructure that does not exist ──────────────────────
 
 test("every /api path the status module calls is a function that exists", () => {
