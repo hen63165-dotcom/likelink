@@ -302,7 +302,7 @@ export function recordLunaHeartbeat(kind = "tick") {
 }
 
 async function postAutopilot(body, timeoutMs = 20000) {
-  const res = await fetch("/api/autopilot", {
+  const res = await fetch("/api/autopilot?mode=status", {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(body),
@@ -420,7 +420,7 @@ export async function retryPublication(record) {
   if (!id) return { ok: false, error: "no_publication_id" };
   const token = typeof window !== "undefined" ? (window.LL_AUTH_TOKEN || "") : "";
   try {
-    const res = await fetch("/api/autopilot", {
+    const res = await fetch("/api/autopilot?mode=status", {
       method: "POST",
       headers: {
         "content-type": "application/json",
