@@ -26,7 +26,7 @@ import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js"
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, getPayPalSubscriptionStatus } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { verifyProduct, isDiscoveryEligible, trustGateReport } from "../src/lib/cloud/trustVerification.js";
@@ -562,6 +562,24 @@ async function subsAuthHandler(req, res, sub, body) {
       const all = (await kvGet(SUBS_KEY, [])) || [];
       let mine = await subsFindOwn(all, authId);
       let expiredNow = false;
+      // Self-heal path: if PAYPAL_WEBHOOK_ID isn't configured yet, the real
+      // BILLING.SUBSCRIPTION.ACTIVATED webhook is correctly rejected
+      // fail-closed and never activates the record. Rather than leave a
+      // paying customer stuck on "pending" forever, ask PayPal directly for
+      // the real status on every check. Read-only against PayPal; local
+      // write only happens once we get PayPal's own confirmed status.
+      if (mine && mine.status === "pending" && mine.paypalSubscriptionId) {
+        const live = await getPayPalSubscriptionStatus(mine.paypalSubscriptionId);
+        if (live === "ACTIVE") {
+          mine = commerce.activateSubscription(mine);
+          await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
+        } else if (live === "CANCELLED" || live === "EXPIRED" || live === "SUSPENDED") {
+          mine = { ...mine, status: live.toLowerCase() };
+          await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
+        }
+        // Any other live status (e.g. APPROVAL_PENDING, or lookup failed) —
+        // leave as "pending" and let the next check try again. Never guess.
+      }
       if (mine && mine.expiresAt && new Date(mine.expiresAt).getTime() < Date.now()) {
         mine = { ...mine, status: "expired" };
         expiredNow = true;

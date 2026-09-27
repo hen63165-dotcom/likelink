@@ -51,6 +51,28 @@ export async function getPayPalToken() {
   }
 }
 
+// Direct status check against PayPal's own Subscriptions API. This is the
+// fallback path for accounts that haven't configured PAYPAL_WEBHOOK_ID yet:
+// without it, BILLING.SUBSCRIPTION.ACTIVATED webhooks are correctly rejected
+// (fail-closed) and a paid subscription would otherwise stay "pending"
+// forever. Read-only, no money moves, safe to call on every status check.
+export async function getPayPalSubscriptionStatus(paypalSubscriptionId) {
+  if (!paypalSubscriptionId) return null;
+  const token = await getPayPalToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${paypalBase()}/v1/billing/subscriptions/${encodeURIComponent(paypalSubscriptionId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data?.status || null; // e.g. 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'SUSPENDED' | 'APPROVAL_PENDING'
+  } catch {
+    return null;
+  }
+}
+
 // ── SELF-PROVISIONING BILLING PLANS (zero-touch) ─────────────────────────────
 // The cloud creates its own PayPal Billing Plans on demand using the existing
 // server PayPal credentials. No owner has to run a script or paste plan IDs.
