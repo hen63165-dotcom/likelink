@@ -107,6 +107,7 @@ function LiveReelMedia({ product, hero = false }) {
   const [url, setUrl] = useState("");
   const [state, setState] = useState("idle");
   const started = useRef(false);
+  const beatRef = useRef(false);
   const { videos, addVideo } = useVideos();
   const existing = useMemo(() => (videos || [])
     .filter((v) => {
@@ -132,6 +133,15 @@ function LiveReelMedia({ product, hero = false }) {
       if (!entries.some((e) => e.isIntersecting) || started.current) return;
       started.current = true;
       observer.disconnect();
+      // Real sweep work started in this tab: the video sweep is genuinely
+      // rendering. Stamp the heartbeat from the work itself, not a timer.
+      if (!beatRef.current) {
+        beatRef.current = true;
+        try {
+          const { recordLunaHeartbeat } = await import("../../lib/cloud/lunaStatus.js");
+          recordLunaHeartbeat("sweep");
+        } catch { /* heartbeat is best-effort */ }
+      }
       setState("rendering");
       try {
         const withTimeout = (promise, ms) =>

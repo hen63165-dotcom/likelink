@@ -24,6 +24,7 @@ import { rankByTrend } from '../../lib/cloud/trends.js';
 import { generateContentPack } from '../../lib/cloud/contentStudio.js';
 import { verifyProduct, TRUST_STATE, isDiscoveryEligible, trustGateReport } from '../../lib/cloud/trustVerification.js';
 import { runGrowthCycle, diagnoseProduct } from '../../lib/cloud/lunaGrowth.js';
+import { recordLunaHeartbeat } from '../../lib/cloud/lunaStatus.js';
 import { suggestPrice, scoreStoreHealth } from '../../lib/aiStudio.js';
 import { fetchProductInfo } from '../../lib/productInfo.js';
 import { canRecordVideo } from '../../lib/videoEngine.js';
@@ -178,6 +179,8 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   // פרסום מוצר לערוצים מחוברים או LikeLink2 פנימי
   const handlePublish = useCallback(async (product, provider = null) => {
     if (!product) return;
+    // Real publishing work: creator-initiated publish for a real product.
+    try { recordLunaHeartbeat("publishing"); } catch { /* best-effort */ }
     setPublishing(true);
     setPublishResult(null);
     try {
@@ -222,6 +225,8 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
   // Trust verification — calls the server-side verify endpoint
   const handleVerify = useCallback(async (product) => {
     if (!product) return;
+    // Real discovery work: ownership/provenance verification for a product.
+    try { recordLunaHeartbeat("discovery"); } catch { /* best-effort */ }
     setVerifying(true);
     setVerificationResult(null);
     try {

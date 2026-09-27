@@ -299,6 +299,16 @@ export function buildSchedulerReport(jobs, persistenceOverride = null) {
     successCount: states.filter((s) => s === "success").length,
     pendingCount: states.filter((s) => s === "pending" || !s).length,
     persistence,
+    // ── scheduler surfaces (queue-derived, additive — existing vocabulary
+    // untouched so tests/lunaStatusTruth.test.mjs keeps passing) ──
+    // lastFireAt: freshest real execution stamp (null = never fired).
+    // lastFireAgeSec: its age in seconds (null = never fired).
+    // overdue: at least one job whose nextRunAt already passed.
+    // nextFireAt: earliest upcoming execution (null = none scheduled).
+    lastFireAt: lastRuns.length ? new Date(Math.max(...lastRuns)).toISOString() : null,
+    lastFireAgeSec: lastRuns.length ? Math.max(0, Math.floor((now - Math.max(...lastRuns)) / 1000)) : null,
+    overdue: due.length > 0,
+    nextFireAt: nextRuns.length ? new Date(Math.min(...nextRuns)).toISOString() : null,
   };
 }
 
@@ -1860,7 +1870,15 @@ export default async function handler(req, res) {
         queue: {
           jobs: Array.isArray(jobs) ? jobs : [],
           dueCount: report.dueCount,
+          lastFireAt: report.lastFireAt,
+          lastFireAgeSec: report.lastFireAgeSec,
+          overdue: report.overdue,
+          nextFireAt: report.nextFireAt,
         },
+        // Browser heartbeat hint: the tab reports its own activity through
+        // `heartbeat` (epoch-ms of last real work + kind); the server never
+        // invents it — absent means "no tab evidence", never "idle".
+        heartbeat: null,
         cloud,
       }, 200, req);
       return;
@@ -1908,7 +1926,19 @@ export default async function handler(req, res) {
         queue: {
           jobs: Array.isArray(jobs) ? jobs : [],
           dueCount: report.dueCount,
+          lastFireAt: report.lastFireAt,
+          lastFireAgeSec: report.lastFireAgeSec,
+          overdue: report.overdue,
+          nextFireAt: report.nextFireAt,
         },
+        // Echo the tab's own heartbeat evidence when the caller supplies it
+        // (epoch-ms + work kind); never invented server-side.
+        heartbeat: body?.heartbeat && typeof body.heartbeat === "object"
+          ? {
+              at: Number(body.heartbeat.at) || null,
+              kind: String(body.heartbeat.kind || "tick").slice(0, 24),
+            }
+          : null,
         cloud,
       }, 200, req);
       return;

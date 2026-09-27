@@ -7,10 +7,23 @@
  * queue or a failed run are reported as REQUIRES_CONNECTION / WAITING / FAILED —
  * never as a green light.
  *
- * Sources (all existing, no new serverless function):
+ * Layers (all existing, no new serverless function):
  *   • POST /api/autopilot { mode: "status" }         → scheduler + cloud cycle
  *   • POST /api/autopilot { mode: "public-feed" }    → real publication events
+ *   • browser heartbeat                             → tab activity recorded only
+ *     while real work (sweep/scroll/discovery/UGC/publish) is active
  */
+
+export const LUNA_STATE = {
+  NEVER_RUN: "NEVER_RUN",
+  WAITING: "WAITING",
+  RUNNING: "RUNNING",
+  ACTIVE: "ACTIVE",
+  STALE: "STALE",
+  OVERDUE: "OVERDUE",
+  UNREACHABLE: "UNREACHABLE",
+  ERROR: "ERROR",
+};
 
 export const PLATFORM_STATE = {
   ACTIVE: "ACTIVE",
@@ -42,6 +55,10 @@ const norm = (v) => String(v || "").toLowerCase();
  * Derive the honest scheduler state from what the cloud actually reports.
  * `cloudConfigured` is false when the persistence layer has no credentials —
  * in that case nothing can run and we say so.
+ *
+ * Kept for backward compatibility — new code should prefer deriveLunaStatus()
+ * which also distinguishes NEVER_RUN / RUNNING / STALE / OVERDUE /
+ * UNREACHABLE / ERROR from the same evidence.
  */
 export function deriveSchedulerState({ cloudConfigured = true, jobs = [], failedCount = null } = {}) {
   if (!cloudConfigured) return PLATFORM_STATE.REQUIRES_CONNECTION;
@@ -49,6 +66,120 @@ export function deriveSchedulerState({ cloudConfigured = true, jobs = [], failed
   if (!list.length) return failedCount > 0 ? PLATFORM_STATE.FAILED : PLATFORM_STATE.WAITING;
   if (list.some((j) => norm(j?.state) === "failed")) return PLATFORM_STATE.FAILED;
   return PLATFORM_STATE.ACTIVE;
+}
+
+// ── Luna autonomous truth ────────────────────────────────────────────────
+// The scheduler report (server) only distinguishes REQUIRES_CONNECTION /
+// WAITING / FAILED / ACTIVE. Luna's control room needs the full lifecycle,
+// derived from the SAME evidence plus the cron beat and the browser
+// heartbeat — never from a guess:
+//
+//   no answer from the cloud            → UNREACHABLE
+//   answer flagged an exception         → ERROR
+//   cloud has no persistence            → WAITING (with reason
+//                                          persistence_not_configured; the
+//                                          coarse PLATFORM_STATE maps this to
+//                                          REQUIRES_CONNECTION for compat)
+//   queue empty + cron never fired       → NEVER_RUN
+//   queue empty + cron fired before      → WAITING
+//   job running / due now                → RUNNING
+//   cron beat overdue vs its own cadence → OVERDUE
+//   last real signal older than STALE_MS → STALE
+//   otherwise (jobs registered, fresh)   → ACTIVE
+//
+// Timing inputs are raw epoch-ms (or null when unknown). ACTIVE is returned
+// only when at least one real signal exists — a missing heartbeat alone can
+// never keep a stale ACTIVE alive.
+
+/** A browser tab counts as "present" for this long after real work. */
+export const LUNA_HEARTBEAT_FRESH_MS = 5 * 60 * 1000;
+/** No real cloud signal for this long → the panel admits it is STALE. */
+export const LUNA_STALE_AFTER_MS = 2 * 24 * 3600 * 1000;
+
+function numOrNull(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function heartbeatFresh(heartbeatAt, now = Date.now()) {
+  const beat = numOrNull(heartbeatAt);
+  if (!beat) return false;
+  return Number(now) - beat <= LUNA_HEARTBEAT_FRESH_MS;
+}
+
+/**
+ * Full Luna lifecycle state from real evidence only.
+ *
+ * @param {object} input
+ * @param {boolean} [input.ok]            cloud answered at all
+ * @param {boolean} [input.error]         cloud answered with an exception
+ * @param {boolean} [input.cloudConfigured] persistence layer present
+ * @param {Array}   [input.jobs]          raw queue rows (state/lastRunAt/…)
+ * @param {object}  [input.cron]          { everRun, stale, lastBeatAt }
+ * @param {number}  [input.heartbeatAt]   browser heartbeat epoch-ms (null = none)
+ * @param {number}  [input.now]           clock (injectable for tests)
+ */
+export function deriveLunaStatus({
+  ok = true,
+  error = false,
+  cloudConfigured = true,
+  jobs = [],
+  cron = null,
+  heartbeatAt = null,
+  now = Date.now(),
+} = {}) {
+  if (!ok) return LUNA_STATE.UNREACHABLE;
+  if (error) return LUNA_STATE.ERROR;
+  if (!cloudConfigured) return LUNA_STATE.WAITING;
+  const list = Array.isArray(jobs) ? jobs : [];
+  const failed = list.some((j) => norm(j?.state) === "failed");
+  if (failed) return LUNA_STATE.ERROR;
+  const running = list.some((j) => norm(j?.state) === "running");
+  const due = list.some((j) => {
+    const next = Number(j?.nextRunAt) || 0;
+    return next > 0 && next <= Number(now);
+  });
+  if (running || due) return LUNA_STATE.RUNNING;
+  const everRun = Boolean(cron?.everRun);
+  const cronStale = cron ? Boolean(cron.stale) : true;
+  if (!list.length && !everRun && !numOrNull(heartbeatAt)) return LUNA_STATE.NEVER_RUN;
+  if (!list.length) return LUNA_STATE.WAITING;
+  // A known cadence that stopped firing is OVERDUE — said only when the
+  // beat itself is stale, never from a missing endpoint.
+  if (cronStale && everRun) return LUNA_STATE.OVERDUE;
+  const signals = [
+    numOrNull(heartbeatAt),
+    numOrNull(cron?.lastBeatAt),
+    ...list.map((j) => numOrNull(j?.lastRunAt)),
+  ].filter(Boolean);
+  if (!signals.length) return LUNA_STATE.WAITING;
+  const freshest = Math.max(...signals);
+  if (Number(now) - freshest > LUNA_STALE_AFTER_MS) return LUNA_STATE.STALE;
+  return LUNA_STATE.ACTIVE;
+}
+
+/**
+ * Map the granular Luna state back onto the coarse 5-state platform badge
+ * the existing card and header render. No information is invented: ERROR
+ * collapses to FAILED, RUNNING/STALE/OVERDUE/NEVER_RUN collapse to the
+ * closest honest coarse state.
+ */
+export function lunaToPlatformState(luna) {
+  switch (luna) {
+    case LUNA_STATE.ACTIVE:
+    case LUNA_STATE.RUNNING:
+      return PLATFORM_STATE.ACTIVE;
+    case LUNA_STATE.ERROR:
+      return PLATFORM_STATE.FAILED;
+    case LUNA_STATE.WAITING:
+    case LUNA_STATE.NEVER_RUN:
+    case LUNA_STATE.STALE:
+    case LUNA_STATE.OVERDUE:
+      return PLATFORM_STATE.WAITING;
+    case LUNA_STATE.UNREACHABLE:
+    default:
+      return PLATFORM_STATE.OFFLINE;
+  }
 }
 
 /**
@@ -85,17 +216,89 @@ export function summarizeJobs(jobs) {
   const count = (s) => list.filter((j) => j.state === s).length;
   const lastRunAt = list.map((j) => Number(j?.lastRunAt) || 0).filter(Boolean).reduce((a, b) => Math.max(a, b), 0) || null;
   const nextRunAt = list.map((j) => Number(j?.nextRunAt) || 0).filter(Boolean).reduce((a, b) => Math.min(a, b), 0) || null;
+  const lastRuns = list.map((j) => Number(j?.lastRunAt) || 0).filter(Boolean);
+  const nextRuns = list.map((j) => Number(j?.nextRunAt) || 0).filter(Boolean);
+  const now = Date.now();
+  const due = list.filter((j) => Number(j?.nextRunAt || 0) > 0 && Number(j.nextRunAt) <= now);
+  const failed = count("failed");
+  const running = count("running");
   return {
     jobs: list,
     total: list.length,
     success: count("success"),
-    failed: count("failed"),
-    running: count("running"),
+    failed,
+    running,
     pending: count("pending"),
     skipped: count("skipped"),
     lastRunAt,
     nextRunAt,
+    // ── scheduler surfaces (queue-derived, never guessed) ──
+    // lastFireAt: freshest real execution stamp in the queue (null = never).
+    // lastFireAgeSec: its age in seconds (null when never fired).
+    // overdue: jobs whose nextRunAt already passed (same rule the server uses).
+    // nextFireAt: earliest upcoming execution (null when none scheduled).
+    lastFireAt: lastRuns.length ? Math.max(...lastRuns) : null,
+    lastFireAgeSec: lastRuns.length ? Math.max(0, Math.floor((now - Math.max(...lastRuns)) / 1000)) : null,
+    overdue: due.length > 0,
+    overdueCount: due.length,
+    nextFireAt: nextRuns.length ? Math.min(...nextRuns) : null,
   };
+}
+
+// ── browser/tab heartbeat ───────────────────────────────────────────────
+// Recorded ONLY while real sweep/scroll/discovery/UGC/publishing work is
+// active in this tab: the caller must invoke recordLunaHeartbeat(kind) from
+// the real work handler (scroll sweep, discovery run, UGC render, publish),
+// never on a bare timer. Visibility-gated: a hidden tab never beats.
+// Stored in-memory + localStorage so a reload keeps the last real signal
+// without inventing a fresh one.
+
+const LUNA_HEARTBEAT_KEY = "likelink:luna:heartbeat";
+const LUNA_HEARTBEAT_KINDS = new Set(["sweep", "scroll", "discovery", "ugc", "publishing", "tick"]);
+
+function readStoredHeartbeat() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(LUNA_HEARTBEAT_KEY);
+    if (!raw) return null;
+    const row = JSON.parse(raw);
+    const at = Number(row?.at) || 0;
+    return at > 0 ? { at, kind: String(row?.kind || "tick").slice(0, 24) } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Last real-activity heartbeat ({ at, kind } or null = never). Never beats by itself. */
+export function getBrowserHeartbeat() {
+  return readStoredHeartbeat();
+}
+
+function tabVisible() {
+  try {
+    if (typeof document === "undefined" || !("visibilityState" in document)) return true;
+    return document.visibilityState === "visible";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Stamp a heartbeat for real work. No-op (returns null) when the tab is
+ * hidden, when no DOM exists (SSR/tests), or for an unknown work kind —
+ * so ACTIVE can never be held alive by a background timer.
+ */
+export function recordLunaHeartbeat(kind = "tick") {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    if (!LUNA_HEARTBEAT_KINDS.has(String(kind))) return readStoredHeartbeat();
+    if (!tabVisible()) return readStoredHeartbeat();
+    const row = { at: Date.now(), kind: String(kind) };
+    window.localStorage.setItem(LUNA_HEARTBEAT_KEY, JSON.stringify(row));
+    return row;
+  } catch {
+    return readStoredHeartbeat();
+  }
 }
 
 async function postAutopilot(body, timeoutMs = 20000) {
@@ -118,6 +321,8 @@ export async function fetchPlatformStatus() {
   const out = {
     ok: false,
     state: PLATFORM_STATE.OFFLINE,
+    luna: LUNA_STATE.UNREACHABLE,
+    lunaReason: "scheduler_unreachable",
     scheduler: null,
     cloud: null,
     events: [],
@@ -128,6 +333,8 @@ export async function fetchPlatformStatus() {
     jobs: summarizeJobs([]),
     cron: null,
     heartbeat: null,
+    browserHeartbeat: null,
+    browserHeartbeatFresh: false,
     error: null,
   };
   let status = null;
@@ -154,8 +361,30 @@ export async function fetchPlatformStatus() {
       jobs: out.jobs.jobs,
       failedCount: out.jobs.failed,
     });
+    // Granular Luna lifecycle from the same evidence + the tab heartbeat.
+    // The heartbeat can only lift toward ACTIVE while real tab work happened;
+    // without cloud evidence Luna stays honest (NEVER_RUN/WAITING/…).
+    const beat = readStoredHeartbeat();
+    out.browserHeartbeat = beat;
+    out.browserHeartbeatFresh = heartbeatFresh(beat?.at, Date.now());
+    out.luna = deriveLunaStatus({
+      ok: true,
+      error: false,
+      cloudConfigured: status.cloudConfigured !== false,
+      jobs: out.jobs.jobs,
+      cron: out.cron,
+      heartbeatAt: beat?.at ?? null,
+    });
+    // Surface the heartbeat's own freshness/overdue detail for the room:
+    // overdue mirrors the queue, stale mirrors the cron beat.
+    out.heartbeatFresh = out.browserHeartbeatFresh;
+    out.cronOverdue = Boolean(out.cron?.everRun && out.cron?.stale);
+    out.queueOverdue = out.jobs.overdue;
+    out.lunaReason = schedulerReasonFor(out.state, out.scheduler);
   } else {
     out.error = (status && status.__error) || "status_unreachable";
+    out.luna = LUNA_STATE.UNREACHABLE;
+    out.lunaReason = "scheduler_unreachable";
   }
   // Keep a heartbeat view for the card, but built from real recorded beats —
   // never from the existence of an endpoint nobody implements.
@@ -172,7 +401,11 @@ export async function fetchPlatformStatus() {
     out.logEmpty = out.publications.length === 0;
   }
   // Nothing answered at all: the only honest label left is OFFLINE.
-  if (!out.ok && !out.events.length) out.state = PLATFORM_STATE.OFFLINE;
+  if (!out.ok && !out.events.length) {
+    out.state = PLATFORM_STATE.OFFLINE;
+    out.luna = LUNA_STATE.UNREACHABLE;
+    out.lunaReason = "scheduler_unreachable";
+  }
   return out;
 }
 

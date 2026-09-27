@@ -21,8 +21,10 @@ import {
   PLATFORM_STATE_LABEL,
   PLATFORM_STATE_COLOR,
   PUBLICATION_STATE,
+  LUNA_STATE,
   fetchPlatformStatus,
   retryPublication,
+  recordLunaHeartbeat,
   schedulerReasonFor,
   isRetryableChannel,
   timeAgo,
@@ -36,6 +38,17 @@ const REASON_TEXT = {
   job_failed: { he: "משימה נכשלה — נדרש בירור", en: "A job failed — needs review" },
   persistence_not_configured: { he: "אין הגדרת אחסון בענן — אף משימה לא יכולה לרוץ", en: "No cloud persistence configured — nothing can run" },
   scheduler_unreachable: { he: "לוח הזמנים לא הגיב", en: "Scheduler did not answer" },
+};
+
+const LUNA_TEXT = {
+  [LUNA_STATE.NEVER_RUN]: { he: "לונה מעולם לא רצה — אין עדיין שום עדות לפעילות", en: "Luna never ran — no evidence of any run yet" },
+  [LUNA_STATE.WAITING]: { he: "לונה ממתינה — התור רשום אך אין עבודה פעילה", en: "Luna waiting — queue registered, no active work" },
+  [LUNA_STATE.RUNNING]: { he: "לונה מריצה עבודה ממש עכשיו", en: "Luna is running work right now" },
+  [LUNA_STATE.ACTIVE]: { he: "לונה פעילה — האות האחרון אומת מהענן", en: "Luna active — last signal verified from the cloud" },
+  [LUNA_STATE.STALE]: { he: "האות האחרון התיישן — ייתכן שהפעילות נפסקה", en: "Last signal is stale — activity may have stopped" },
+  [LUNA_STATE.OVERDUE]: { he: "התזמון באיחור — ריצת cron צפויה לא הגיעה", en: "Schedule overdue — an expected cron run did not arrive" },
+  [LUNA_STATE.UNREACHABLE]: { he: "לונה אינה נגישה — אין תשובה מהענן", en: "Luna unreachable — no answer from the cloud" },
+  [LUNA_STATE.ERROR]: { he: "שגיאה — נדרש בירור לפני המשך", en: "Error — needs review before continuing" },
 };
 
 const PUB_LABEL = {
@@ -84,6 +97,7 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
 
   const load = useCallback(async () => {
     setLoading(true);
+    try { recordLunaHeartbeat('tick'); } catch {}
     const next = await fetchPlatformStatus();
     setOwnStatus(next);
     setLoading(false);
@@ -163,13 +177,41 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
         </button>
       </div>
 
-      {/* Why this state — never a bare colour with no explanation, and never a
-          neutral excuse beside a red or grey light. */}
-      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-        {REASON_TEXT[schedulerReasonFor(state, status?.scheduler)]?.[lang === "he" ? "he" : "en"]
+      {/* Why this state — Luna lifecycle first, scheduler reason second. Never a
+          bare colour with no explanation, and never a neutral excuse beside a
+          red or grey light. */}
+      <p className="mb-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        {LUNA_TEXT[status?.luna]?.[lang === "he" ? "he" : "en"]
           || t("ממתין לתשובה מהענן", "Waiting for the cloud answer")}
         {status?.error ? ` · ${status.error}` : ""}
       </p>
+      <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+        {REASON_TEXT[schedulerReasonFor(state, status?.scheduler)]?.[lang === "he" ? "he" : "en"]
+          || t("ממתין לתשובה מהענן", "Waiting for the cloud answer")}
+      </p>
+      {/* Scheduler surfaces — queue-derived truth: last fire, age, overdue,
+          next fire, and tab heartbeat freshness. Null means "never/unknown",
+          never a guess. */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5 text-[10px]" style={{ color: "var(--text-faint)" }}>
+        <span>
+          {t("ירי אחרון", "Last fire")}: {status?.scheduler?.lastFireAt || status?.queue?.lastFireAt
+            ? timeAgo(status.scheduler?.lastFireAt || status.queue?.lastFireAt, lang)
+            : t("מעולם לא", "never")}
+        </span>
+        <span>·</span>
+        <span>
+          {t("באיחור", "Overdue")}: {(status?.scheduler?.overdue || status?.queue?.overdue || status?.jobs?.overdue)
+            ? t("כן", "yes")
+            : t("לא", "no")}
+        </span>
+        <span>·</span>
+        <span>
+          {t("הטאב", "Tab")}: {status?.browserHeartbeatFresh
+            ? t("פעיל", "active")
+            : t("אין עדות", "no evidence")}
+        </span>
+      </div>
+
 
       <div className="mb-4 grid grid-cols-5 gap-2">
         <Metric value={jobs.success} label={t("הצליחו", "Success")} color="var(--success)" />

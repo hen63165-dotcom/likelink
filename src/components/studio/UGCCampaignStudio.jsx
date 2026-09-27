@@ -10,6 +10,7 @@ import { useVideos } from "../../context/VideoContext";
 import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
 import { uploadReelVideo } from "../../lib/uploadVideo.js";
 import { buildCampaign } from "../../lib/cloud/campaign.js";
+import { recordLunaHeartbeat } from "../../lib/cloud/lunaStatus.js";
 import { CHARACTER_PRESETS, CHARACTER_TYPES } from "../../lib/cloud/characters.js";
 
 const MODEL_TYPES = [
@@ -93,6 +94,8 @@ export default function UGCCampaignStudio({ onNavigate }) {
     }
 
     try {
+      // Real UGC work started: first-party reel render for a real product.
+      try { recordLunaHeartbeat("ugc"); } catch { /* best-effort */ }
       const result = await generateProductReel({
         images,
         title: product.title || "",
@@ -171,6 +174,8 @@ export default function UGCCampaignStudio({ onNavigate }) {
   async function publish(provider) {
     if (!selected) return;
     setMessage("");
+    // Real publishing work: the creator pressed publish for a real product.
+    try { recordLunaHeartbeat("publishing"); } catch { /* best-effort */ }
     try {
       const token = typeof window !== "undefined" ? window.__likelink?.token || "" : "";
       const res = await fetch("/api/store?mode=publish", {

@@ -18,7 +18,13 @@ import path from "node:path";
 import {
   PLATFORM_STATE,
   PUBLICATION_STATE,
+  LUNA_STATE,
   deriveSchedulerState,
+  deriveLunaStatus,
+  lunaToPlatformState,
+  heartbeatFresh,
+  getBrowserHeartbeat,
+  recordLunaHeartbeat,
   schedulerReasonFor,
   summarizeJobs,
   summarizePublications,
@@ -41,6 +47,80 @@ test("scheduler state is derived only from real cloud answers", () => {
   assert.equal(deriveSchedulerState({ cloudConfigured: true, jobs: [{ state: "success" }, { state: "failed" }] }), PLATFORM_STATE.FAILED);
   // Real registered jobs, none failed → ACTIVE (the only case allowed to be green).
   assert.equal(deriveSchedulerState({ cloudConfigured: true, jobs: [{ state: "success" }, { state: "pending" }] }), PLATFORM_STATE.ACTIVE);
+});
+
+test("luna lifecycle distinguishes never-run / running / overdue / stale / unreachable", () => {
+  const NOW = Date.now();
+  const fresh = NOW - 60_000;
+  const old = NOW - 3 * 24 * 3600_000;
+  // No answer at all → UNREACHABLE (the card renders OFFLINE, never ACTIVE).
+  assert.equal(deriveLunaStatus({ ok: false }), LUNA_STATE.UNREACHABLE);
+  assert.equal(lunaToPlatformState(LUNA_STATE.UNREACHABLE), PLATFORM_STATE.OFFLINE);
+  // An exception behind a 200 → ERROR, never ACTIVE.
+  assert.equal(deriveLunaStatus({ ok: true, error: true }), LUNA_STATE.ERROR);
+  // Nothing ever ran anywhere: empty queue, cron never fired, no tab work.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [], cron: { everRun: false, stale: true, lastBeatAt: null }, heartbeatAt: null, now: NOW }),
+    LUNA_STATE.NEVER_RUN
+  );
+  // A job running right now → RUNNING (maps to the green coarse badge).
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "running", lastRunAt: fresh }], cron: { everRun: true, stale: false, lastBeatAt: fresh }, heartbeatAt: fresh, now: NOW }),
+    LUNA_STATE.RUNNING
+  );
+  assert.equal(lunaToPlatformState(LUNA_STATE.RUNNING), PLATFORM_STATE.ACTIVE);
+  // A due job (nextRunAt passed) counts as running work, not idle.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: fresh, nextRunAt: NOW - 1000 }], cron: { everRun: true, stale: false, lastBeatAt: fresh }, now: NOW }),
+    LUNA_STATE.RUNNING
+  );
+  // Known cadence that stopped firing → OVERDUE.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: old }], cron: { everRun: true, stale: true, lastBeatAt: old }, heartbeatAt: null, now: NOW }),
+    LUNA_STATE.OVERDUE
+  );
+  // Fresh evidence → ACTIVE; a heartbeat alone without cloud evidence is NOT enough.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: fresh }], cron: { everRun: true, stale: false, lastBeatAt: fresh }, heartbeatAt: null, now: NOW }),
+    LUNA_STATE.ACTIVE
+  );
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [], cron: { everRun: true, stale: false, lastBeatAt: fresh }, heartbeatAt: fresh, now: NOW }),
+    LUNA_STATE.WAITING
+  );
+  // Everything real but ancient → STALE, never ACTIVE on cached state.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: old }], cron: { everRun: true, stale: false, lastBeatAt: old }, heartbeatAt: old, now: NOW }),
+    LUNA_STATE.STALE
+  );
+});
+
+test("queue summary exposes last-fire / overdue / next-fire surfaces without guessing", () => {
+  const NOW = Date.now();
+  const s = summarizeJobs([
+    { id: "a", state: "success", lastRunAt: NOW - 3600_000, nextRunAt: NOW + 3600_000 },
+    { id: "b", state: "pending", nextRunAt: NOW - 1000 },
+  ]);
+  assert.equal(s.lastFireAt, NOW - 3600_000);
+  assert.ok(s.lastFireAgeSec >= 3590 && s.lastFireAgeSec <= 3610, "age tracks the real stamp");
+  assert.equal(s.overdue, true, "a passed nextRunAt is overdue");
+  assert.equal(s.overdueCount, 1);
+  assert.equal(s.nextFireAt, NOW - 1000, "earliest upcoming (incl. due) execution");
+  const empty = summarizeJobs([]);
+  assert.equal(empty.lastFireAt, null, "never fired stays null, not zero");
+  assert.equal(empty.lastFireAgeSec, null);
+  assert.equal(empty.overdue, false);
+  assert.equal(empty.nextFireAt, null);
+});
+
+test("browser heartbeat only records real work in a visible tab", () => {
+  // Node has no DOM: no heartbeat can be invented here.
+  assert.equal(getBrowserHeartbeat(), null);
+  assert.equal(recordLunaHeartbeat("sweep"), null);
+  assert.equal(recordLunaHeartbeat("bogus-kind"), null);
+  assert.equal(heartbeatFresh(Date.now()), true);
+  assert.equal(heartbeatFresh(Date.now() - 10 * 60_1000), false, "a 10-minute-old beat is not fresh");
+  assert.equal(heartbeatFresh(null), false, "no beat is never fresh");
 });
 
 test("job summary counts real states and never invents a run", () => {
