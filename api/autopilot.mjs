@@ -1677,7 +1677,14 @@ export default async function handler(req, res) {
         ok: true,
         scheduler: report,
         cloudConfigured: jobsPersistence === "connected",
-        queue: { jobs, dueCount: report.dueCount },
+        queue: {
+          jobs,
+          dueCount: report.dueCount,
+          lastFireAt: report.lastFireAt,
+          lastFireAgeSec: report.lastFireAgeSec,
+          overdue: report.overdue,
+          nextFireAt: report.nextFireAt,
+        },
         lastRun: lastRun ? new Date(lastRun).toISOString() : null,
         cloud: {
           ok: true,

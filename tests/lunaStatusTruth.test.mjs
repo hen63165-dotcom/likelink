@@ -306,6 +306,13 @@ test("the server report itself returns truthful state + reason for real inputs",
 
 
 
+test("lightweight status path exposes queue-derived scheduler surfaces", () => {
+  const api = read("api/autopilot.mjs");
+  // The GET/fast path builds its queue inline — it must carry the same
+  // additive surfaces as the POST path so production agrees on OVERDUE.
+  assert.match(api, /queue: \{\n\s*jobs,\n\s*dueCount: report\.dueCount,\n\s*lastFireAt: report\.lastFireAt,/);
+});
+
 // ── No claims about infrastructure that does not exist ──────────────────────
 
 test("every /api path the status module calls is a function that exists", () => {
