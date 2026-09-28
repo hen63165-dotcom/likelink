@@ -61,6 +61,7 @@ import CreatorGrowthWorkspace from "./CreatorGrowthWorkspace";
 import CreatorInbox from "./CreatorInbox";
 import CreatorCommandCenter from "./CreatorCommandCenter";
 import UGCCampaignStudio from "./UGCCampaignStudio";
+import AdsStudio from "../ads/AdsStudio.jsx";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -85,6 +86,7 @@ const VIEW_IDS = {
   AUTOPILOT: "autopilot",
   RECOMMENDATIONS: "recommendations",
   SETTINGS: "settings",
+  ADS: "ads",
 };
 
 const TIERS = {
@@ -579,6 +581,13 @@ function RecommendationsPanel({ onNavigate }) {
   );
 }
 
+function AdsPanel() {
+  const { lang } = useI18n();
+  const { currentMarketer: marketer } = useMarketplace();
+  if (!marketer) return <AuthGate onNavigate={() => {}} feature={lang === "he" ? "מודעות LikeLink2" : "LikeLink2 Ads OS"} />;
+  return <AdsStudio />;
+}
+
 function UgcPanel({ onNavigate }) {
   const { lang } = useI18n();
   const { products = [], currentMarketer } = useMarketplace();
@@ -909,6 +918,7 @@ const NAV_SECTIONS = [
       { view: VIEW_IDS.TRENDS, icon: TrendingUp, he: "טרנדים", en: "Trends" },
       { view: VIEW_IDS.PUBLISHING, icon: Send, he: "פרסום", en: "Publishing" },
       { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים", en: "Performance" },
+      { view: VIEW_IDS.ADS, icon: Megaphone, he: "מודעות LikeLink2", en: "LikeLink2 Ads" },
     ],
   },
   {
@@ -1003,6 +1013,10 @@ const VIEW_SUBTITLES = {
   [VIEW_IDS.SETTINGS]: {
     he: "חשבון, שפה, ערכת נושא, תשלומים ובריאות המערכת.",
     en: "Account, language, theme, payouts and system health.",
+  },
+  [VIEW_IDS.ADS]: {
+    he: "מערכת מודעות LikeLink2 עם אפשרויות מותאמות אישית — קמפיינים אוטונומיים וסטטוס בזמן אמת.",
+    en: "LikeLink2 Ads OS with personalized campaigns and real-time status — autonomous ad management.",
   },
 };
 
@@ -1179,6 +1193,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
       case VIEW_IDS.TRUST: return <TrustPanel onNavigate={navigate} />;
       case VIEW_IDS.AUTOPILOT: return <AutoPilotPanel onNavigate={navigate} />;
       case VIEW_IDS.RECOMMENDATIONS: return <RecommendationsPanel onNavigate={navigate} />;
+      case VIEW_IDS.ADS: return <AdsPanel />;
       case VIEW_IDS.SETTINGS: return <SettingsPanel onExit={() => navigate(VIEW_IDS.OVERVIEW)} />;
       default: return <OverviewPanel onNavigate={navigate} />;
     }

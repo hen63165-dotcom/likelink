@@ -155,6 +155,29 @@ export function LabeledTextarea({ label, value, onChange, placeholder }) {
   );
 }
 
+export function LabeledSelect({ label, value, options, onChange, placeholder, error, required }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-xs font-medium text-secondary">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input-field w-full px-3.5 py-2.5 text-sm bg-[var(--bg-elevated)]"
+        style={{ color: "var(--text)" }}
+        required={required}
+      >
+        {placeholder && <option value="" disabled>{placeholder}</option>}
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value} style={{ background: "var(--bg-elevated)", color: "var(--text)" }}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      {error && <span className="text-xs" style={{ color: "var(--danger)" }}>{error}</span>}
+    </label>
+  );
+}
+
 export function SheetModal({ onClose, title, children, maxHeight = "88vh" }) {
   const content = (
     <motion.div
