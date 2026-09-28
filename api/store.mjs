@@ -2176,3 +2176,5 @@ export default async function handler(req, res) {
     json(res, { ok: false, error: String(e.message || e) }, 500, req);
   }
 }
+
+export { kvGet, kvSet, kvDelete };
