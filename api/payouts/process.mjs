@@ -1,5 +1,7 @@
 import { readBody } from "../_utils/readBody.mjs";
-import { originFromRequest } from "../_utils/origin.mjs";
+import { paypalBase, getPayPalToken } from "../_utils/paypal.js";
+import { isAuthorizedCron } from "../_utils/cronAuth.mjs";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
 // Vercel Serverless Function — Payouts Processor 💰
 //
 // Daily cron (02:00 UTC) that scans all pending payouts and processes them
@@ -8,7 +10,7 @@ import { originFromRequest } from "../_utils/origin.mjs";
 //   - "bank"   → marked as "recorded" for manual bank transfer by the owner
 //   - "other"  → recorded with the creator's paymentNote for manual handling
 //
-// Cron auth: x-vercel-cron header OR ?secret=PAYOUTS_SECRET
+// Auth: Authorization: Bearer CRON_SECRET | PAYOUTS_SECRET (POST may also send { secret })
 //
 // Storage: kv "marketplace:payouts" → [ { id, marketerId, amount, method, status, ... } ]
 
@@ -18,8 +20,6 @@ const MARKETERS_KEY = "marketplace:marketers";
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const PAYPAL_API = "https://api-m.paypal.com";
-const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 
 function json(res, obj, status = 200) {
   res.status(status);
@@ -29,20 +29,25 @@ function json(res, obj, status = 200) {
 }
 
 async function kvGet(key, fallback = null) {
+  // A failed read returns the fallback but marks the key (kvReadGuard) so
+  // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
-      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function kvSet(key, value) {
+  assertKvWritable(key);
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
@@ -59,36 +64,17 @@ async function kvSet(key, value) {
 
 // ─── PayPal Mass Payouts ───────────────────────────────────────────────────
 
+// Token + endpoint come from the shared PayPal helper so payouts always hit
+// the same environment (sandbox/live) as checkout and subscriptions.
 async function getPayPalAccessToken() {
-  const id = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
-  const secret = process.env.PAYPAL_CLIENT_SECRET;
-  if (!id || !secret) return null;
-  // Endpoint selection: PAYPAL_ENV=live forces production. Otherwise the
-  // credential is auto-detected — PayPal sandbox secrets contain "sandbox".
-  const base =
-    String(process.env.PAYPAL_ENV || "").trim().toLowerCase() === "live"
-      ? PAYPAL_API
-      : String(secret).includes("sandbox")
-        ? SANDBOX_API
-        : PAYPAL_API;
-  const res = await fetch(`${base}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + btoa(`${id}:${secret}`),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.access_token || null;
+  return getPayPalToken();
 }
 
 async function sendPayPalPayout(payout, recipientEmail) {
   const token = await getPayPalAccessToken();
   if (!token) return { ok: false, note: "PayPal credentials missing" };
 
-  const res = await fetch(`${PAYPAL_API}/v1/payments/payouts`, {
+  const res = await fetch(`${paypalBase()}/v1/payments/payouts`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -171,8 +157,7 @@ export async function processPendingPayouts() {
       reconciledPayouts.push(p);
       continue;
     }
-    const secret = process.env.PAYPAL_ENV === "live" ? PAYPAL_API : (String(process.env.PAYPAL_CLIENT_SECRET || "").includes("sandbox") ? SANDBOX_API : PAYPAL_API);
-    const check = await reconcilePayPalPayout(secret, p);
+    const check = await reconcilePayPalPayout(paypalBase(), p);
     const state = String(check.status || "").toUpperCase();
     if (check.ok && ["SUCCESS", "COMPLETED"].includes(state)) {
       reconciled.push({ payoutId: p.id, status: "paid", paypalStatus: state });
@@ -209,8 +194,10 @@ export async function processPendingPayouts() {
 
     let result;
     if (method === "paypal") {
-      const email = marketer?.payPalEmail ||
-        (typeof payout.recipient === "string" ? payout.recipient : payout.recipient?.payPalEmail);
+      // The recipient captured on the payout record wins; the live marketer
+      // record is only a fallback for older payouts without one.
+      const email = (typeof payout.recipient === "string" ? payout.recipient : payout.recipient?.payPalEmail) ||
+        marketer?.payPalEmail;
       if (!email) {
         result = { ok: false, note: "No PayPal email for creator" };
       } else {
@@ -257,14 +244,8 @@ export async function processPendingPayouts() {
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
 
-  const h = req.headers;
-  const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
-
-  const url = new URL(req.url, process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req));
-  const isCron =
-    req.method === "GET" &&
-    (Boolean(getH("x-vercel-cron")) ||
-      url.searchParams.get("secret") === process.env.PAYOUTS_SECRET);
+  // Bearer CRON_SECRET / PAYOUTS_SECRET only (x-vercel-cron and ?secret= are spoofable/leaky).
+  const isCron = req.method === "GET" && isAuthorizedCron(req, [process.env.PAYOUTS_SECRET]);
 
   if (isCron) {
     if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
@@ -285,7 +266,10 @@ export default async function handler(req, res) {
       json(res, { ok: false, error: "bad_json" }, 400);
       return;
     }
-    if (body?.secret !== process.env.PAYOUTS_SECRET) {
+    // Fail closed: with PAYOUTS_SECRET unset, undefined === undefined must
+    // never authorize a payout run.
+    const payoutsSecret = String(process.env.PAYOUTS_SECRET || "");
+    if (!payoutsSecret || !(isAuthorizedCron(req, [payoutsSecret]) || String(body?.secret || "") === payoutsSecret)) {
       json(res, { ok: false, error: "unauthorized" }, 401);
       return;
     }

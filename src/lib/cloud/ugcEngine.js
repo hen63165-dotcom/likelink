@@ -7,33 +7,33 @@ const SB_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 import { generateFirstPartyCreatorSvg, buildCreativePlan } from "./likelinkIntelligence.js";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "./kvReadGuard.js";
 
 function configOk() {
   return Boolean(SB_URL && SB_KEY);
 }
 
+// A failed read returns the fallback but marks the key (kvReadGuard) so the
+// asset list is never overwritten with only the newest asset.
 async function kvGet(key, fallback = []) {
   if (!configOk()) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    if (!res.ok) return fallback;
-    const rows = await res.json();
-    if (!rows?.[0]?.value) return fallback;
-    let value = JSON.parse(rows[0].value);
-    while (typeof value === "string") {
-      try { value = JSON.parse(value); } catch { break; }
-    }
-    return value;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function kvSet(key, value) {
   if (!configOk()) throw new Error("supabase_not_configured");
+  assertKvWritable(key);
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: {

@@ -1,3 +1,6 @@
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
+import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
+
 let readBody, verifyToken, audit;
 let lunaHook, buildCampaign, selectOpportunity;
 let appendVeritas, verifyVeritas, veritasSummary;
@@ -52,6 +55,10 @@ async function loadAllDeps() {
 
 const SITE_CAMPAIGNS_KEY = "marketplace:site_campaigns";
 const VERITAS_KEY = "marketplace:veritas";
+// Once-per-day guard for the heavy daily pipeline (several authenticated
+// schedulers may call it: Vercel Cron + the GitHub daily workflow).
+const DAILY_RUN_KEY = "cron:daily:last";
+const DAILY_MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
 
 /**
  * Record a VERITAS pulse — append-only integrity ledger.
@@ -224,22 +231,27 @@ function json(res, obj, status = 200, req) {
 
 // ─── kv storage (same conventions as src/lib/storage.js) ───────────────────
 
+// Missing row → {}. A failed read also returns {} but marks the key, so the
+// kvSet below refuses to write that {} back over every creator's config.
 async function kvGet(key) {
   if (!SB_URL || !SB_KEY) return null;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : {};
   } catch {
+    noteKvReadFailed(key);
     return {};
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : {};
 }
 
 async function kvSet(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
+  assertKvWritable(key);
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: {
@@ -1641,7 +1653,7 @@ export default async function handler(req, res) {
         "affiliate-product-import","affiliate-product-rotation","brand-pulse-publish",
         "brand-pulse-external","opportunity-discovery","brand-pulse-freshness",
         "autonomous-ugc-video-production","autonomous-ugc-distribution",
-        "autonomous-ugc-video-poll",
+        "autonomous-ugc-video-poll","autonomous-creative-refresh",
       ];
       const readKV = async (key, fallback) => {
         const sbUrl = process.env.VITE_SUPABASE_URL;
@@ -1690,8 +1702,11 @@ export default async function handler(req, res) {
           result: state?.result || null,
         };
       }));
-      const cloudMeta = await readKV("cloud:cycle:last", {});
-      const feed = await readKV("marketplace:site_feed", []);
+      // Same keys src/lib/cloud/cloudAutopilot.js writes (CLOUD_CYCLE_KEY /
+      // SITE_FEED_KEY) — the old names were never written, so this path always
+      // reported the cloud cycle as "never run".
+      const cloudMeta = await readKV("cloud_autopilot:meta", {});
+      const feed = await readKV("site_campaign:feed", []);
       const feedList = Array.isArray(feed) ? feed : [];
       const latest = feedList[0] || null;
       // Cron beat read inline (no heavy imports): same key + same stale rule
@@ -1756,14 +1771,9 @@ export default async function handler(req, res) {
 
   // ── CRON: publish for every enabled creator whose slot is due ──
   const url = new URL(req.url, origin);
-  const bearer = String(getH("authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  const configuredAutopilotSecret = String(process.env.AUTOPILOT_SECRET || "").trim();
-  const validBearerCron = Boolean(configuredAutopilotSecret) && bearer === configuredAutopilotSecret;
-  const isCron =
-    req.method === "GET" &&
-    (Boolean(getH("x-vercel-cron")) ||
-      validBearerCron ||
-      url.searchParams.get("secret") === process.env.AUTOPILOT_SECRET);
+  // Vercel Cron → Bearer CRON_SECRET; GitHub cloud-dispatcher → Bearer AUTOPILOT_SECRET.
+  // The spoofable x-vercel-cron header and ?secret= are not accepted.
+  const isCron = req.method === "GET" && isAuthorizedCron(req, [process.env.AUTOPILOT_SECRET]);
   const cronMode = url.searchParams.get("cron") || "daily";
   const testReport = url.searchParams.get("testReport") === "1";
 
@@ -1813,40 +1823,58 @@ export default async function handler(req, res) {
     }
 
     // ── DAILY cron (default / cron=daily): full pipeline ──
-    // Official Site Campaign cycle — awaited on the SAME daily cron so the
-    // cycle reliably completes: Vercel freezes the invocation once the
-    // response is flushed, so fire-and-forget would silently drop it (this
-    // shipped with zero site campaigns in production). The cycle is bounded
-    // (a few kv reads + at most one write) and idempotent — the response
-    // stays well under the 60s limit. Its result rides along so the state is
-    // observable on every tick.
+    // Two authenticated callers can trigger it (Vercel Cron with CRON_SECRET
+    // and the GitHub daily workflow with AUTOPILOT_SECRET) — the pipeline runs
+    // at most once per ~20h so a creator never gets duplicate posts/payout runs.
+    const force = url.searchParams.get("force") === "true";
+    if (!force && !testReport) {
+      const lastDaily = await kvGet(DAILY_RUN_KEY);
+      const lastAt = Number(lastDaily?.at) || 0;
+      if (lastAt && Date.now() - lastAt < DAILY_MIN_INTERVAL_MS) {
+        json(res, { ..._r, cron: cronMode, daily: { skipped: "already_ran", lastRunAt: new Date(lastAt).toISOString() } }, 200, req);
+        return;
+      }
+    }
+    // Time budget (maxDuration is 300s): every step below checks it and is
+    // reported as { skipped: "time_budget" } instead of being killed mid-write.
+    const dailyStart = Date.now();
+    const DAILY_BUDGET_MS = 240000;
+    const overBudget = () => Date.now() - dailyStart > DAILY_BUDGET_MS;
+    const budgetSkip = { ok: false, skipped: "time_budget" };
+
+    // Payouts run FIRST: creators' money must never be starved by the long
+    // content cycles. The processor is server-only and idempotent (stable
+    // PayPal batch ids); failures are reported truthfully.
+    let payoutRun = { ok: false, skipped: "not_run" };
+    try {
+      payoutRun = await processPendingPayouts();
+    } catch (e) {
+      payoutRun = { ok: false, error: String(e.message || e).slice(0, 160) };
+    }
+
+    // Official Site Campaign cycle — awaited (Vercel freezes the invocation
+    // once the response is flushed, so fire-and-forget would silently drop it).
     let siteCycle = { ok: false, skipped: "not_run" };
     try {
-      siteCycle = await runSiteCampaignCycle(origin);
+      siteCycle = overBudget() ? budgetSkip : await runSiteCampaignCycle(origin);
     } catch (e) {
       siteCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
-    // Cloud Growth Cycle — LikeLink self-promotion (FREE core capability).
-    // Runs on the SAME daily cron, idempotent, bounded (a few kv reads +
-    // at most 2 writes). Its result rides along so the state is observable.
+    // Cloud Growth Cycle — LikeLink self-promotion (idempotent, bounded).
     let growthCycle = { ok: false, skipped: "not_run" };
     try {
-      growthCycle = await runGrowthCycle();
+      growthCycle = overBudget() ? budgetSkip : await runGrowthCycle();
     } catch (e) {
       growthCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
-    // Cloud Autopilot Cycle — full verified pipeline (trends + growth brain +
-    // campaign + feed + veritas). Runs after the content asset cycle so both
-    // run on the same cron tick; the feed is the public "what's hot now" surface.
+    // Cloud Autopilot Cycle — trends + growth brain + campaign + feed + veritas.
     let cloudCycle = { ok: false, skipped: "not_run" };
     try {
-      cloudCycle = await runCloudAutopilotCycle({ kvGet, kvSet, origin, env: process.env }, {});
+      cloudCycle = overBudget() ? budgetSkip : await runCloudAutopilotCycle({ kvGet, kvSet, origin, env: process.env }, {});
     } catch (e) {
      cloudCycle = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
-    // WEEKLY cron: experiment review, strategy optimization, content audit,
-    // SEO audit, growth report. Runs the full daily pipeline PLUS a weekly
-    // report. Falls through to the daily cycle below.
+    // WEEKLY cron: the full daily pipeline PLUS the weekly growth report.
     const isWeekly = cronMode === "weekly" || new Date().getUTCDay() === 1;
 
     // Owner-report self-test hook: `?testReport=1` on the cron path awaits the
@@ -1864,37 +1892,40 @@ export default async function handler(req, res) {
     }
     let autonomousJobs = { ok: false, skipped: "not_run" };
     try {
-      const force = url.searchParams.get("force") === "true";
-      autonomousJobs = await runAllDueAutonomousJobs({ force });
+      autonomousJobs = overBudget() ? budgetSkip : await runAllDueAutonomousJobs({ force });
     } catch (e) {
       autonomousJobs = { ok: false, error: String(e.message || e).slice(0, 120) };
     }
-    // Daily payout processing stays inside the single Hobby-safe cloud cron.
-    // The payout processor is server-only and idempotent; failures are reported
-    // truthfully and never converted into false success.
-    let payoutRun = { ok: false, skipped: "not_run" };
-    try {
-      payoutRun = await processPendingPayouts();
-    } catch (e) {
-      payoutRun = { ok: false, error: String(e.message || e).slice(0, 160) };
-    }
 
-    // Daily Owner Cloud Report — fire-and-forget on the existing daily cron.
-    // Never breaks autopilot; skips itself unless OWNER_EMAIL is configured.
-    import("./_utils/analytics.js")
-      .then(({ sendOwnerDailyReport }) => sendOwnerDailyReport())
-      .catch(() => {});
+    // Daily Owner Cloud Report — AWAITED: a fire-and-forget send is dropped
+    // when Vercel freezes the function after the response. Skips itself
+    // unless OWNER_EMAIL is configured; never breaks the pipeline.
+    let ownerReport = { ok: false, skipped: "not_run" };
+    try {
+      if (overBudget()) ownerReport = budgetSkip;
+      else {
+        const { sendOwnerDailyReport } = await import("./_utils/analytics.js");
+        ownerReport = await sendOwnerDailyReport();
+      }
+    } catch (e) {
+      ownerReport = { ok: false, error: String(e.message || e).slice(0, 120) };
+    }
     // WEEKLY: also send the weekly growth report.
-    let weeklyReport = { ok: false, skipped: isWeekly ? "not_weekly" : "n/a" };
+    let weeklyReport = { ok: false, skipped: isWeekly ? "not_run" : "not_weekly" };
     if (isWeekly) {
       try {
-        const { sendWeeklyReport } = await import("./_utils/analytics.js");
-        weeklyReport = await sendWeeklyReport({ force: true });
+        if (overBudget()) weeklyReport = budgetSkip;
+        else {
+          const { sendWeeklyReport } = await import("./_utils/analytics.js");
+          weeklyReport = await sendWeeklyReport({ force: true });
+        }
       } catch (e) {
         weeklyReport = { ok: false, error: String(e.message || e).slice(0, 120) };
       }
     }
-    json(res, { ..._r, siteCycle, growthCycle, cloudCycle, autonomousJobs, weeklyReport, cron: cronMode }, 200, req);
+    // Completion marker for the once-per-day guard above (best-effort).
+    try { await kvSet(DAILY_RUN_KEY, { at: Date.now(), mode: cronMode, durationMs: Date.now() - dailyStart }); } catch { /* next run retries */ }
+    json(res, { ..._r, siteCycle, growthCycle, cloudCycle, autonomousJobs, payoutRun, ownerReport, weeklyReport, cron: cronMode, durationMs: Date.now() - dailyStart }, 200, req);
     return;
   }
 

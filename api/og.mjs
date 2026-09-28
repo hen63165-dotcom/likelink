@@ -13,6 +13,7 @@
 // Merged from the previous /api/creator-og and /api/product-og endpoints.
 
 import { originFromRequest } from "./_utils/origin.mjs";
+import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
 
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
@@ -45,6 +46,45 @@ function sendRedirect(res, target, status = 302) {
   res.end();
 }
 
+// Hebrew interstitial for /r links whose destination is not a catalog product
+// link (or is broken) — the visitor decides, the server never auto-redirects.
+function sendRedirectPage(res, status, heading, destination) {
+  const host = destination ? (() => { try { return new URL(destination).hostname; } catch { return ""; } })() : "";
+  const body = destination
+    ? `<p>הקישור הזה לא שייך למוצר בקטלוג של LikeLink ומוביל אל <strong dir="ltr">${escapeHtml(host)}</strong>.</p><p><a rel="nofollow noopener noreferrer" href="${escapeHtml(destination)}">להמשיך לאתר החיצוני</a></p>`
+    : `<p>אפשר לחזור לקטלוג ולבחור מוצר מחדש.</p>`;
+  res.status(status);
+  res.setHeader("content-type", "text/html; charset=utf-8");
+  res.setHeader("cache-control", "no-store, max-age=0");
+  res.setHeader("x-robots-tag", "noindex, nofollow");
+  res.end(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>LikeLink</title></head><body style="margin:0;font-family:system-ui,sans-serif;background:#0b0d1a;color:#f4f6ff;display:flex;align-items:center;justify-content:center;min-height:100vh"><main style="max-width:460px;padding:24px;text-align:center;line-height:1.6"><h1 style="font-size:20px">${escapeHtml(heading)}</h1>${body}<p><a href="/" style="color:#9aa3c7">חזרה ל-LikeLink</a></p></main></body></html>`);
+}
+
+// Strict kv read: { value } on success (undefined when the row is missing),
+// { failed:true } on any network/HTTP/parse failure.
+async function readKvStrict(sbUrl, sbKey, key, timeoutMs = 5000) {
+  try {
+    const r = await fetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`, {
+      headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) return { failed: true };
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return { failed: true };
+    if (!rows[0]?.value) return { value: undefined };
+    let v = JSON.parse(rows[0].value);
+    while (typeof v === "string" && v.length) { try { v = JSON.parse(v); } catch { break; } }
+    return { value: v };
+  } catch {
+    return { failed: true };
+  }
+}
+
+// JSON-LD inside <script>: a "</script>" in any stored field must not end the tag.
+function jsonLdSafe(obj) {
+  return JSON.stringify(obj).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+}
+
 export default async function handler(req, res) {
   const origin = requestOrigin(req);
   const url = new URL(req.url, origin);
@@ -57,34 +97,52 @@ export default async function handler(req, res) {
     const productId = String(url.searchParams.get("pid") || "").slice(0, 80);
     const marketerId = String(url.searchParams.get("mid") || "").slice(0, 80) || null;
     const source = String(url.searchParams.get("src") || "affiliate").slice(0, 80);
-    if (!target) { res.status(400); res.end("Missing destination (u)."); return; }
+    const sbUrl = process.env.VITE_SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // Not an open redirect: the destination must be a product link that exists
+    // in the catalog (by pid, or the exact stored affiliateUrl). Anything else
+    // gets an explicit "you are leaving LikeLink" page instead of a silent 302.
+    const catalog = sbUrl && sbKey ? await readKvStrict(sbUrl, sbKey, "marketplace:products", 3500) : { failed: true };
+    const products = Array.isArray(catalog.value) ? catalog.value : [];
+    const byPid = productId ? products.find((p) => p && String(p.id) === productId) : null;
+    const storedTarget = byPid && /^https?:\/\//i.test(String(byPid.affiliateUrl || "")) ? String(byPid.affiliateUrl) : "";
+    const destRaw = storedTarget || target;
+    if (!destRaw) { sendRedirectPage(res, 400, "הקישור חסר יעד", null); return; }
     let dest;
-    try { dest = new URL(target); } catch { res.status(400); res.end("Invalid destination (u)."); return; }
-    if (dest.protocol !== "http:" && dest.protocol !== "https:") { res.status(400); res.end("Invalid destination protocol."); return; }
-    if (dest.origin === url.origin && dest.pathname.replace(/\/$/, "") === "/r") { res.status(400); res.end("Redirect loop."); return; }
+    try { dest = new URL(destRaw); } catch { sendRedirectPage(res, 400, "הקישור לא תקין", null); return; }
+    if (dest.protocol !== "http:" && dest.protocol !== "https:") { sendRedirectPage(res, 400, "הקישור לא תקין", null); return; }
+    if (dest.origin === url.origin && dest.pathname.replace(/\/$/, "") === "/r") { sendRedirectPage(res, 400, "הקישור לא תקין", null); return; }
+    const knownDestination = Boolean(storedTarget) ||
+      products.some((p) => p && String(p.affiliateUrl || "") === dest.href) ||
+      products.some((p) => p && String(p.affiliateUrl || "") === target);
+    if (!knownDestination) {
+      sendRedirectPage(res, 200, "הקישור מוביל לאתר חיצוני", dest.href);
+      return;
+    }
+    const clickProductId = productId || String(products.find((p) => p && (String(p.affiliateUrl || "") === dest.href || String(p.affiliateUrl || "") === target))?.id || "");
 
     // Server-side affiliate click ledger: persist the click before redirecting.
     // This makes AliExpress outbound attribution reliable even when the browser
     // closes immediately after the tap.
-    if (productId) {
+    if (clickProductId && sbUrl && sbKey) {
       try {
-        const sbUrl = process.env.VITE_SUPABASE_URL;
-        const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (sbUrl && sbKey) {
+        {
           const key = "marketplace:clicks";
-          const read = await fetch(
-            `${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
-            { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` }, signal: AbortSignal.timeout(3500) }
-          );
-          const rows = await read.json();
-          let clicks = [];
-          try { clicks = rows?.[0]?.value ? JSON.parse(rows[0].value) : []; } catch { clicks = []; }
-          if (!Array.isArray(clicks)) clicks = [];
+          // Never rewrite the 5,000-entry ledger from a failed/garbled read —
+          // skip the ledger write instead (the redirect still happens).
+          const ledger = await readKvStrict(sbUrl, sbKey, key, 3500);
+          if (ledger.failed) throw new Error("click_ledger_read_failed");
+          const clicks = ledger.value === undefined ? [] : ledger.value;
+          if (!Array.isArray(clicks)) throw new Error("click_ledger_not_array");
+          const productId = clickProductId;
+          // Attribution comes from the catalog, not from the (editable) ?mid= param.
+          const catalogOwner = products.find((p) => p && String(p.id) === productId)?.marketerId;
           const event = {
             id: `out-${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             type: "outbound_click",
             productId,
-            marketerId,
+            marketerId: catalogOwner ? String(catalogOwner) : marketerId,
             affiliateUrl: dest.toString(),
             source,
             ref: String(url.searchParams.get("ref") || "").slice(0, 80) || null,
@@ -129,10 +187,10 @@ export default async function handler(req, res) {
     }
     const allowedHost =
       target.origin === origin ||
-      /(^|\\.)alicdn\\.com$/i.test(target.hostname) ||
-      /(^|\\.)aliexpress-media\\.com$/i.test(target.hostname) ||
-      /(^|\\.)supabase\\.(co|in)$/i.test(target.hostname) ||
-      /(^|\\.)supabase-storage\\.com$/i.test(target.hostname);
+      /(^|\.)alicdn\.com$/i.test(target.hostname) ||
+      /(^|\.)aliexpress-media\.com$/i.test(target.hostname) ||
+      /(^|\.)supabase\.(co|in)$/i.test(target.hostname) ||
+      /(^|\.)supabase-storage\.com$/i.test(target.hostname);
     if (!allowedHost || !["http:","https:"].includes(target.protocol)) {
       res.status(403); res.end("Image host not allowed."); return;
     }
@@ -181,7 +239,7 @@ export default async function handler(req, res) {
       const gDesc = growthAsset.lunaStory || growthAsset.hooks?.[0]?.text || growthAsset.title || "";
       const gImage = growthAsset.product?.image || `${origin}/luna-face.svg`;
       const gUrl = `${origin}/grow/${encodeURIComponent(growthId)}`;
-      const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(gTitle)}</title><meta property="og:title" content="${escapeHtml(gTitle)}"><meta property="og:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta property="og:image" content="${escapeHtml(gImage)}"><meta property="og:url" content="${escapeHtml(gUrl)}"><meta property="og:type" content="article"><meta property="og:site_name" content="LikeLink"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(gTitle)}"><meta name="twitter:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta name="twitter:image" content="${escapeHtml(gImage)}"><link rel="canonical" content="${escapeHtml(gUrl)}"></head><body></body></html>`;
+      const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(gTitle)}</title><meta property="og:title" content="${escapeHtml(gTitle)}"><meta property="og:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta property="og:image" content="${escapeHtml(gImage)}"><meta property="og:url" content="${escapeHtml(gUrl)}"><meta property="og:type" content="article"><meta property="og:site_name" content="LikeLink"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(gTitle)}"><meta name="twitter:description" content="${escapeHtml(gDesc.slice(0, 200))}"><meta name="twitter:image" content="${escapeHtml(gImage)}"><link rel="canonical" href="${escapeHtml(gUrl)}"></head><body></body></html>`;
       res.status(200);
       res.setHeader("content-type", "text/html; charset=utf-8");
       res.setHeader("cache-control", "public, max-age=3600");
@@ -309,7 +367,7 @@ export default async function handler(req, res) {
     const pageUrl = `${origin}/p/${encodeURIComponent(productId)}`;
     const robots = attributable ? "index,follow" : "noindex,nofollow";
     const jsonLd = attributable
-      ? JSON.stringify({
+      ? jsonLdSafe({
           "@context": "https://schema.org",
           "@type": "Product",
           name: product.title,
@@ -333,18 +391,18 @@ export default async function handler(req, res) {
 <meta charset="utf-8" />
 <title>${title}</title>
 <meta name="robots" content="${robots}" />
-<link rel="canonical" href="${pageUrl}" />
+<link rel="canonical" href="${escapeHtml(pageUrl)}" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${description}" />
-<meta property="og:image" content="${productImage}" />
+<meta property="og:image" content="${escapeHtml(productImage)}" />
 <meta property="og:image:alt" content="${escapeHtml(product?.title || "Likelink")}" />
-<meta property="og:url" content="${pageUrl}" />
+<meta property="og:url" content="${escapeHtml(pageUrl)}" />
 <meta property="og:type" content="product" />
 <meta property="og:site_name" content="Likelink" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${description}" />
-<meta name="twitter:image" content="${productImage}" />
+<meta name="twitter:image" content="${escapeHtml(productImage)}" />
 ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 </head>
 <body style="margin:0;background:#f7f5f2;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#6f6b63">
@@ -360,7 +418,7 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
   }
 
   // --- Creator profile card (slug param) ---
-  const jsonLd = JSON.stringify({
+  const jsonLd = jsonLdSafe({
     "@context": "https://schema.org",
     "@type": "ProfilePage",
     mainEntity: {
@@ -380,13 +438,13 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 <title>${escapeHtml(title)}</title>
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
-<meta property="og:image" content="${image}">
+<meta property="og:image" content="${escapeHtml(image)}">
 <meta property="og:type" content="profile">
-<meta property="og:url" content="${url.href}">
+<meta property="og:url" content="${escapeHtml(url.href)}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
-<meta name="twitter:image" content="${image}">
+<meta name="twitter:image" content="${escapeHtml(image)}">
 <script type="application/ld+json">${jsonLd}</script>
 </head>
 <body></body>
@@ -513,18 +571,14 @@ async function fetchProductInfoHandler(req, res) {
   if (!target) { fpiJson(res, { ok: false, error: "missing url" }); return; }
 
   let t;
-  try { t = new URL(target); } catch { fpiJson(res, { ok: false, error: "invalid url" }); return; }
-  if (t.protocol !== "http:" && t.protocol !== "https:") {
-    fpiJson(res, { ok: false, error: "invalid url protocol" });
-    return;
-  }
+  try { t = checkUrlSyntax(target); } catch { fpiJson(res, { ok: false, error: "invalid url" }); return; }
 
   // Ladder: try each strategy until one returns parseable content.
   let lastError = "fetch or parse error";
   for (const strategy of FPI_STRATEGIES) {
     try {
-      const fetchRes = await fetch(t.href, {
-        redirect: "follow",
+      // safeFetch: no internal/private hosts, every redirect hop re-validated.
+      const fetchRes = await safeFetch(t.href, {
         signal: AbortSignal.timeout(12000),
         headers: strategy.headers,
       });

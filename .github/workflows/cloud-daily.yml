@@ -1,0 +1,52 @@
+name: LikeLink2 cloud daily
+# The daily autopilot pipeline and the price watch, authenticated with the
+# existing AUTOPILOT_SECRET repository secret.
+#
+# Vercel Cron (vercel.json) authenticates only with `Authorization: Bearer
+# $CRON_SECRET`; until CRON_SECRET is set in Vercel those invocations are
+# rejected (401), so this workflow keeps the daily work running. When both
+# fire, the autopilot daily pipeline runs at most once per ~20h (server-side
+# guard) and the price watch never re-announces a drop.
+
+on:
+  schedule:
+    - cron: "10 9 * * *"   # autopilot daily pipeline
+    - cron: "10 3 * * *"   # price watch
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "daily | price-watch"
+        required: false
+        default: "daily"
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Autopilot daily pipeline
+        if: github.event.schedule == '10 9 * * *' || (github.event_name == 'workflow_dispatch' && inputs.target != 'price-watch')
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$AUTOPILOT_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 320 \
+            -H "Authorization: Bearer $AUTOPILOT_SECRET" \
+            -o daily.json "https://likelink2.vercel.app/api/autopilot?cron=daily"
+          head -c 4000 daily.json; echo
+
+      - name: Price watch
+        if: github.event.schedule == '10 3 * * *' || (github.event_name == 'workflow_dispatch' && inputs.target == 'price-watch')
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$AUTOPILOT_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -H "Authorization: Bearer $AUTOPILOT_SECRET" \
+            -o price-watch.json "https://likelink2.vercel.app/api/price-watch"
+          head -c 4000 price-watch.json; echo

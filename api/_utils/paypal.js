@@ -13,10 +13,13 @@
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 
+// THE single sandbox/live switch for every PayPal call (checkout, capture,
+// subscriptions, payouts): PAYPAL_ENV=sandbox|live wins; otherwise the
+// credential decides (PayPal sandbox secrets contain "sandbox").
 export function paypalBase() {
-  if (String(process.env.PAYPAL_ENV || "").trim().toLowerCase() === "sandbox") {
-    return SANDBOX_API;
-  }
+  const env = String(process.env.PAYPAL_ENV || "").trim().toLowerCase();
+  if (env === "sandbox") return SANDBOX_API;
+  if (env === "live") return PAYPAL_API;
   const secret = process.env.PAYPAL_CLIENT_SECRET || "";
   return secret.toLowerCase().includes("sandbox") ? SANDBOX_API : PAYPAL_API;
 }
@@ -56,6 +59,30 @@ export async function getPayPalToken() {
 // without it, BILLING.SUBSCRIPTION.ACTIVATED webhooks are correctly rejected
 // (fail-closed) and a paid subscription would otherwise stay "pending"
 // forever. Read-only, no money moves, safe to call on every status check.
+/**
+ * Full server-side view of a PayPal subscription: { status, planId, customId }
+ * (null when it cannot be read). Activation must check all three — a status
+ * alone would let someone attach any ACTIVE subscription id (e.g. a cheaper
+ * plan's, or someone else's) to their account.
+ */
+export async function getPayPalSubscriptionDetails(paypalSubscriptionId) {
+  if (!paypalSubscriptionId) return null;
+  const token = await getPayPalToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${paypalBase()}/v1/billing/subscriptions/${encodeURIComponent(paypalSubscriptionId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (!data) return null;
+    return { status: data.status || null, planId: data.plan_id || null, customId: data.custom_id || null };
+  } catch {
+    return null;
+  }
+}
+
 export async function getPayPalSubscriptionStatus(paypalSubscriptionId) {
   if (!paypalSubscriptionId) return null;
   const token = await getPayPalToken();

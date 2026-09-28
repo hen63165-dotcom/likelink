@@ -6,16 +6,17 @@ import { originFromRequest } from "../_utils/origin.mjs";
 // marketplace (per-seller split), and creates pending payouts automatically.
 //
 // POST /api/checkout/capture-order
-// Body: { orderId, items: [{ productId, marketerId, title, price, quantity }] }
+// Body: { orderId }  (items/prices come from the server record checkout:order:<orderId>)
 // Returns: { ok, captureId, sales, total, status }
 //
 // GET /api/checkout/capture-order?token=<PAYPAL_TOKEN>&PayerID=<...>
 // (Redirect target from PayPal — processes the return and captures)
 
 import { isApprovedOrigin } from "../_utils/cors.js";
+import { paypalBase, getPayPalToken } from "../_utils/paypal.js";
+import { captureMatchesOrder } from "../_utils/checkoutCatalog.mjs";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
 
-const PAYPAL_API = "https://api-m.paypal.com";
-const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 const SALES_KEY = "marketplace:sales";
 const PAYOUTS_KEY = "marketplace:payouts";
 const MARKETERS_KEY = "marketplace:marketers";
@@ -42,47 +43,29 @@ function html(res, body, status = 200) {
   res.end(body);
 }
 
-function paypalBase() {
-  const secret = process.env.PAYPAL_CLIENT_SECRET || "";
-  if (String(process.env.PAYPAL_ENV || "").trim().toLowerCase() === "live") {
-    return PAYPAL_API;
-  }
-  return String(secret).includes("sandbox") ? SANDBOX_API : PAYPAL_API;
-}
-
-async function getAccessToken() {
-  const id = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
-  const secret = process.env.PAYPAL_CLIENT_SECRET;
-  if (!id || !secret) return null;
-  const res = await fetch(`${paypalBase()}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + Buffer.from(`${id}:${secret}`).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.access_token || null;
-}
+// PayPal token + endpoint: the shared helper (one sandbox/live switch).
+const getAccessToken = getPayPalToken;
 
 async function kvGet(key, fallback = null) {
+  // A failed read returns the fallback but marks the key (kvReadGuard) so
+  // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function kvSet(key, value) {
+  assertKvWritable(key);
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
@@ -141,13 +124,28 @@ export default async function handler(req, res) {
 
   let body;
   try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
-  const { orderId, buyerEmail = "", items = [] } = body;
-  if (!orderId) { json(res, { ok: false, error: "missing_orderId" }, 400); return; }
-  if (!Array.isArray(items) || items.length === 0) { json(res, { ok: false, error: "empty_items" }, 400); return; }
-  if (buyerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(buyerEmail).trim())) {
-    json(res, { ok: false, error: "invalid_buyer_email" }, 400);
+  const { orderId } = body || {};
+  if (!orderId || !/^[A-Za-z0-9-]{6,64}$/.test(String(orderId))) { json(res, { ok: false, error: "missing_orderId" }, 400); return; }
+  // Storage is checked BEFORE any money moves: a capture that cannot be
+  // recorded would take the buyer's money with no sale behind it.
+  if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 503); return; }
+
+  // The server-priced record written by create-order is the ONLY source of
+  // what was bought, for how much, and which creator is credited.
+  const recordKey = `checkout:order:${orderId}`;
+  const record = await kvGet(recordKey, null);
+  try { assertKvWritable(recordKey); } catch { json(res, { ok: false, error: "storage_unavailable" }, 503); return; }
+  if (!record || !Array.isArray(record.lines) || !record.lines.length) { json(res, { ok: false, error: "order_not_found" }, 404); return; }
+
+  // Anti-fraud idempotency: the SAME PayPal order can never create two sales
+  // (e.g. the buyer's return URL fires twice).
+  const currentSales = (await kvGet(SALES_KEY, [])) || [];
+  try { assertKvWritable(SALES_KEY); } catch { json(res, { ok: false, error: "storage_unavailable" }, 503); return; }
+  if (Array.isArray(currentSales) && currentSales.some((s) => s && s.orderId === orderId)) {
+    json(res, { ok: true, alreadyRecorded: true, orderId });
     return;
   }
+
   const token = await getAccessToken();
   if (!token) { json(res, { ok: false, error: "paypal_not_configured" }, 503); return; }
   let capture;
@@ -155,35 +153,44 @@ export default async function handler(req, res) {
     const captureRes = await fetch(`${paypalBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, signal: AbortSignal.timeout(15000),
     });
-    if (!captureRes.ok) { const err = await captureRes.text(); json(res, { ok: false, error: "capture_failed", detail: err.slice(0, 200) }, 502); return; }
+    if (!captureRes.ok) {
+      console.warn("[capture] PayPal capture rejected", captureRes.status, (await captureRes.text().catch(() => "")).slice(0, 200));
+      json(res, { ok: false, error: "capture_failed" }, 502);
+      return;
+    }
     capture = await captureRes.json();
-  } catch (e) { json(res, { ok: false, error: "capture_failed", detail: String(e.message || e).slice(0, 200) }, 500); return; }
-  if (capture.status !== "COMPLETED") { json(res, { ok: false, error: "payment_not_completed", status: capture.status }, 402); return; }
-  const captureId = capture.purchase_units?.[0]?.payments?.captures?.[0]?.id || orderId;
-  const settings = (await kvGet(SETTINGS_KEY, {})) || {};
-  const platformFeePercent = Number(settings.platformFeePercent ?? 15);
-  const currentSales = (await kvGet(SALES_KEY, [])) || [];
-  // Anti-fraud idempotency: the SAME PayPal order can never create two sales
-  // (e.g. the buyer's return URL fires twice). Already recorded → acknowledge
-  // without double-recording sales or auto-created payouts.
-  if (Array.isArray(currentSales) && currentSales.some((s) => s && s.orderId === orderId)) {
-    json(res, { ok: true, alreadyRecorded: true, orderId, captureId, status: capture.status });
+  } catch (e) {
+    console.warn("[capture] PayPal capture error", String(e?.message || e).slice(0, 200));
+    json(res, { ok: false, error: "capture_failed" }, 502);
     return;
   }
+  if (capture.status !== "COMPLETED") { json(res, { ok: false, error: "payment_not_completed", status: capture.status }, 402); return; }
+  const captureId = capture.purchase_units?.[0]?.payments?.captures?.[0]?.id || orderId;
+  // What PayPal actually charged must equal the stored server-priced total.
+  if (!captureMatchesOrder(capture, record)) {
+    console.error("[capture] amount/currency mismatch", orderId, JSON.stringify(capture.purchase_units?.[0]?.payments?.captures?.[0]?.amount || {}));
+    try { await kvSet(recordKey, { ...record, status: "AMOUNT_MISMATCH", captureId, checkedAt: Date.now() }); } catch { /* logged above */ }
+    json(res, { ok: false, error: "payment_amount_mismatch", captureId, recoveryRequired: true }, 409);
+    return;
+  }
+
+  const settings = (await kvGet(SETTINGS_KEY, {})) || {};
+  const platformFeePercent = Number(settings.platformFeePercent ?? 15);
   const currentPayouts = (await kvGet(PAYOUTS_KEY, [])) || [];
   const marketers = (await kvGet(MARKETERS_KEY, [])) || [];
+  const buyerEmail = String(record.buyerEmail || "").trim();
   const sales = [];
   const payoutsToUpdate = [...currentPayouts];
   const sellerNetMap = {};
   const now = Date.now();
-  for (const item of items) {
-    const qty = Math.max(1, Number(item.quantity || 1));
-    const saleAmount = Number(item.price || 0) * qty;
+  for (const line of record.lines) {
+    const qty = Math.max(1, Number(line.quantity || 1));
+    const saleAmount = Math.round(Number(line.unitPrice || 0) * qty * 100) / 100;
     const fee = Math.round(saleAmount * (platformFeePercent / 100) * 100) / 100;
     const net = Math.round((saleAmount - fee) * 100) / 100;
-    const sale = { id: uid(), orderId, captureId, productId: item.productId || null, marketerId: item.marketerId || null, title: String(item.title || "Order").slice(0, 120), saleAmount, commissionAmount: saleAmount, platformFee: fee, marketerNet: net, quantity: qty, ts: now };
+    const sale = { id: uid(), orderId, captureId, productId: line.productId || null, marketerId: line.marketerId || null, title: String(line.title || "Order").slice(0, 120), saleAmount, commissionAmount: saleAmount, platformFee: fee, marketerNet: net, quantity: qty, ts: now, source: "paypal_checkout" };
     sales.push(sale); currentSales.push(sale);
-    if (item.marketerId && net > 0) sellerNetMap[item.marketerId] = (sellerNetMap[item.marketerId] || 0) + net;
+    if (line.marketerId && net > 0) sellerNetMap[line.marketerId] = (sellerNetMap[line.marketerId] || 0) + net;
   }
   for (const [marketerId, netAmount] of Object.entries(sellerNetMap)) {
     if (netAmount <= 0) continue;
@@ -191,6 +198,7 @@ export default async function handler(req, res) {
     payoutsToUpdate.push({ id: uid(), marketerId, amount: Math.round(netAmount * 100) / 100, status: "pending", method: marketer?.paymentMethod || "paypal", recipient: { payPalEmail: marketer?.payPalEmail || "", bank: marketer?.bankDetails || {} }, source: "checkout", orderId, ts: now, paidAt: null, note: `Auto-created from PayPal checkout ${orderId}` });
   }
   try { await Promise.all([kvSet(SALES_KEY, currentSales), kvSet(PAYOUTS_KEY, payoutsToUpdate)]); } catch (e) {
+    console.error("[capture] captured but not recorded", orderId, captureId, String(e?.message || e));
     json(res, {
       ok: false,
       error: "payment_captured_persistence_failed",
@@ -199,13 +207,27 @@ export default async function handler(req, res) {
     }, 503);
     return;
   }
+  try { await kvSet(recordKey, { ...record, status: "CAPTURED", captureId, capturedAt: now }); } catch { /* sales are the source of truth */ }
   const sellerPayoutDetails = Object.entries(sellerNetMap).map(([id, amt]) => {
     const m = marketers.find((mk) => mk.id === id);
     return { marketerId: id, net: Math.round(amt * 100) / 100, sellerEmail: m?.payPalEmail || m?.email || "", sellerName: m?.name || "" };
   });
-  fetch(`${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : ""}/api/invoice/send`, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ orderId, buyerEmail: String(buyerEmail).trim(), items: sales.map((s) => ({ title: s.title, price: s.saleAmount / s.quantity, quantity: s.quantity })), total: sales.reduce((s, x) => s + x.saleAmount, 0), platformFee: sales.reduce((s, x) => s + x.platformFee, 0), sellerPayouts: sellerPayoutDetails, currency: "ILS" }),
-  }).catch(() => {});
-  json(res, { ok: true, captureId, sales, total: sales.reduce((s, x) => s + x.saleAmount, 0).toFixed(2), platformFees: sales.reduce((s, x) => s + x.platformFee, 0).toFixed(2), sellerPayouts: sellerPayoutDetails.map((s) => ({ marketerId: s.marketerId, net: s.net })), status: capture.status });
+  // Receipt email: awaited (bounded) because a fire-and-forget request is
+  // dropped once the response is sent. Sent to the public origin, never
+  // VERCEL_URL (deployment URLs can sit behind Vercel Authentication).
+  let receipt = { ok: false, skipped: "no_buyer_email" };
+  if (buyerEmail) {
+    try {
+      const r = await fetch(`${origin}/api/invoice/send`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(process.env.STORE_SIGN_SECRET ? { authorization: `Bearer ${process.env.STORE_SIGN_SECRET}` } : {}) },
+        body: JSON.stringify({ orderId, buyerEmail, items: sales.map((s) => ({ title: s.title, price: s.saleAmount / s.quantity, quantity: s.quantity })), total: sales.reduce((s, x) => s + x.saleAmount, 0), platformFee: sales.reduce((s, x) => s + x.platformFee, 0), sellerPayouts: sellerPayoutDetails, currency: "ILS" }),
+        signal: AbortSignal.timeout(8000),
+      });
+      receipt = { ok: r.ok, status: r.status };
+    } catch (e) {
+      receipt = { ok: false, error: String(e?.message || e).slice(0, 80) };
+    }
+  }
+  json(res, { ok: true, captureId, sales, total: sales.reduce((s, x) => s + x.saleAmount, 0).toFixed(2), platformFees: sales.reduce((s, x) => s + x.platformFee, 0).toFixed(2), sellerPayouts: sellerPayoutDetails.map((s) => ({ marketerId: s.marketerId, net: s.net })), status: capture.status, receipt: { sent: Boolean(receipt.ok) } });
 }

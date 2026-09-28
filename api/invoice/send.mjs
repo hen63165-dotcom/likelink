@@ -1,5 +1,6 @@
 import { readBody } from "../_utils/readBody.mjs";
 import { PRODUCTION_ORIGIN, hostOf } from "../_utils/origin.mjs";
+import { isAuthorizedCron } from "../_utils/cronAuth.mjs";
 // Vercel Serverless Function - Automated Invoice & Receipt Email
 //
 // Sends professional HTML receipt to buyer after payment via Resend API.
@@ -41,7 +42,7 @@ function generateReceiptHtml({ orderId, buyerName, items, total, currency, busin
     <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:left;font-size:14px;font-family:monospace">${money(it.price, currency)}</td>
     <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:left;font-size:14px;font-family:monospace">${money((it.price || 0) * (it.quantity || 1), currency)}</td>
   </tr>`).join("");
-  return "<!DOCTYPE html><html lang='he' dir='rtl'><head><meta charset='utf-8'><title>Receipt " + orderId + "</title></head><body style='margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif'><div style='max-width:600px;margin:24px auto;background:#fff;border-radius:12px;padding:32px'><h1 style='color:#6C4CF1'>Payment Receipt</h1><p>Order: " + orderId + "</p><p>Date: " + date + "</p><p>Business: " + escapeHtml(businessName || "Likelink") + "</p>" + (businessId ? "<p>ID: " + escapeHtml(businessId) + "</p>" : "") + (buyerName ? "<p>Buyer: " + escapeHtml(buyerName) + "</p>" : "") + "<table style='width:100%;border-collapse:collapse'><thead><tr style='background:#f0f0f0'><th style='padding:10px;text-align:right'>Item</th><th style='padding:10px'>Qty</th><th style='padding:10px'>Price</th><th style='padding:10px'>Total</th></tr></thead><tbody>" + rows + "</tbody></table><div style='text-align:right;margin-top:16px;font-size:18px;font-weight:bold;color:#6C4CF1'>" + money(total, currency) + "</div><p style='font-size:11px;color:#999;margin-top:24px'>Official payment confirmation.</p></div></body></html>";
+  return "<!DOCTYPE html><html lang='he' dir='rtl'><head><meta charset='utf-8'><title>Receipt " + escapeHtml(orderId) + "</title></head><body style='margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif'><div style='max-width:600px;margin:24px auto;background:#fff;border-radius:12px;padding:32px'><h1 style='color:#6C4CF1'>Payment Receipt</h1><p>Order: " + escapeHtml(orderId) + "</p><p>Date: " + date + "</p><p>Business: " + escapeHtml(businessName || "Likelink") + "</p>" + (businessId ? "<p>ID: " + escapeHtml(businessId) + "</p>" : "") + (buyerName ? "<p>Buyer: " + escapeHtml(buyerName) + "</p>" : "") + "<table style='width:100%;border-collapse:collapse'><thead><tr style='background:#f0f0f0'><th style='padding:10px;text-align:right'>Item</th><th style='padding:10px'>Qty</th><th style='padding:10px'>Price</th><th style='padding:10px'>Total</th></tr></thead><tbody>" + rows + "</tbody></table><div style='text-align:right;margin-top:16px;font-size:18px;font-weight:bold;color:#6C4CF1'>" + money(total, currency) + "</div><p style='font-size:11px;color:#999;margin-top:24px'>Official payment confirmation.</p></div></body></html>";
 }
 
 // Exported so Cloud Analytics (api/_utils/analytics.js) reuses the SAME email
@@ -67,6 +68,9 @@ export async function sendViaResend({ to, subject, html, from }) {
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") { json(res, { ok: true }); return; }
   if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405); return; }
+  // Server-to-server only (capture-order sends Bearer STORE_SIGN_SECRET): a
+  // public endpoint would let anyone send mail from our verified domain.
+  if (!isAuthorizedCron(req, [process.env.STORE_SIGN_SECRET])) { json(res, { ok: false, error: "unauthorized" }, 401); return; }
   let body;
   try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400); return; }
   const { orderId, buyerEmail, buyerName, items = [], total = 0, platformFee = 0, sellerPayouts = [], currency = "ILS" } = body;
@@ -82,7 +86,7 @@ export default async function handler(req, res) {
   if (Array.isArray(sellerPayouts) && sellerPayouts.length > 0) {
     for (const sp of sellerPayouts) {
       if (sp.sellerEmail && sp.sellerEmail.includes("@")) {
-        var sellerHtml = "<div style='font-family:Arial;max-width:480px;margin:0 auto;padding:24px'><h2 style='color:#6C4CF1'>New Sale!</h2><p>You have a new sale.</p><div style='background:#f0f0f0;border-radius:8px;padding:16px'><p><strong>Order:</strong> " + orderId + "</p><p><strong>Your payout:</strong> " + money(sp.net, currency) + "</p></div><p style='font-size:12px;color:#888'>Payment will be sent to your PayPal automatically.</p></div>";
+        var sellerHtml = "<div style='font-family:Arial;max-width:480px;margin:0 auto;padding:24px'><h2 style='color:#6C4CF1'>New Sale!</h2><p>You have a new sale.</p><div style='background:#f0f0f0;border-radius:8px;padding:16px'><p><strong>Order:</strong> " + escapeHtml(orderId) + "</p><p><strong>Your payout:</strong> " + money(sp.net, currency) + "</p></div><p style='font-size:12px;color:#888'>Payment will be sent to your PayPal automatically.</p></div>";
         var r = await sendViaResend({ to: sp.sellerEmail, subject: "New Sale - Order #" + orderId, html: sellerHtml });
         results.sellers.push({ email: sp.sellerEmail, ...r });
       }

@@ -12,7 +12,7 @@ permissions:
 jobs:
   dispatch:
     runs-on: ubuntu-slim
-    timeout-minutes: 2
+    timeout-minutes: 4
     steps:
       - name: Trigger due cloud jobs
         env:
@@ -20,4 +20,4 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$AUTOPILOT_SECRET"
-          curl --fail-with-body --silent --show-error --max-time 90             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://likelink2.vercel.app/api/autopilot?cron=light"
+          curl --fail-with-body --silent --show-error --max-time 200             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://likelink2.vercel.app/api/autopilot?cron=light"

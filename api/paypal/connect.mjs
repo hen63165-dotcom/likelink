@@ -40,7 +40,9 @@ export default async function handler(req, res) {
   json(res, {
     ok: true,
     verified: false,
-    message: "PayPal email saved. Account verification is still required before payout.",
+    // Honest: this endpoint only validates the format; the studio saves the
+    // email through the owner-scoped store write.
+    message: "PayPal email format is valid. It is saved to the studio profile by the owner; account verification is still required before payout.",
     email: email.trim().toLowerCase(),
   });
 }

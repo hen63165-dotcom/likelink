@@ -228,7 +228,8 @@ async function storyHandler(req, res) {
       ) || null;
   } catch { /* handled below */ }
 
-  const image = product && /^https?:/i.test(String(product.image || "")) ? String(product.image).trim() : "";
+  // Escaped once here: every use below is an HTML attribute (stored XSS guard).
+  const image = product && /^https?:/i.test(String(product.image || "")) ? xmlEscape(String(product.image).trim()) : "";
   if (!product || !image) {
     res.status(404);
     res.setHeader("content-type", "text/html; charset=utf-8");

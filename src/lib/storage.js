@@ -20,6 +20,7 @@
  */
 
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
+import { getSessionToken } from "./auth.js";
 
 const PREFIX = "sch:";
 const scoped = (key, shared) => PREFIX + (shared ? "shared:" : "local:") + key;
@@ -88,7 +89,10 @@ async function serverSet(key, value, opts = {}) {
   if (opts.sigTs) payload.sigTs = opts.sigTs;
   if (opts.action) payload.action = opts.action;
 
-  const token = readAdminToken();
+  // Admin token when the admin panel is unlocked, else the creator's verified
+  // Supabase session. The server merges only what this identity may change
+  // (api/_utils/storeWritePolicy.mjs); anonymous shoppers can still log clicks.
+  const token = readAdminToken() || (await getSessionToken().catch(() => null)) || "";
   const headers = { "content-type": "application/json" };
   if (token) headers.authorization = `Bearer ${token}`;
 

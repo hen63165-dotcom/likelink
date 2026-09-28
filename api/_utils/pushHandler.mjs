@@ -20,6 +20,8 @@ const VAPID_KEY = "marketplace:vapid";
 const SUBS_KEY = "marketplace:pushsubs";
 
 import { isApprovedOrigin } from "./cors.js";
+import { verifyToken } from "./authVerify.js";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
 
 // 🔒 Fail loud: server writes use the SERVICE ROLE key only. Never fall back
 // to the anon key — the guards below return 500 when it is missing.
@@ -27,20 +29,25 @@ const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function kvGet(key, fallback) {
+  // A failed read returns the fallback but marks the key (kvReadGuard) so
+  // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function kvSet(key, value) {
+  assertKvWritable(key);
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: {
@@ -119,8 +126,14 @@ export default async function handler(req, res) {
     const url = new URL(req.url, "https://x");
     if (url.searchParams.get("publicKey")) {
       if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
-      const keys = await ensureVapidKeys();
-      json(res, { ok: true, publicKey: keys.publicKey });
+      // A failed read never regenerates the VAPID pair (kvReadGuard refuses the
+      // write) — that would silently break every existing subscription.
+      try {
+        const keys = await ensureVapidKeys();
+        json(res, { ok: true, publicKey: keys.publicKey });
+      } catch {
+        json(res, { ok: false, error: "push_unavailable" }, 503);
+      }
       return;
     }
     json(res, { ok: false, error: "bad_request" }, 400);
@@ -145,6 +158,17 @@ export default async function handler(req, res) {
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
 
   if (mode === "subscribe") {
+    // Only the signed-in owner of the studio may register devices for it —
+    // otherwise anyone could push a creator's real phones out of the list.
+    const token = String(req.headers?.authorization || req.headers?.Authorization || "").replace(/^Bearer\s+/i, "").trim();
+    const actor = token ? await verifyToken(token) : null;
+    if (!actor?.email) { json(res, { ok: false, error: "authentication_required" }, 401); return; }
+    const marketers = await kvGet("marketplace:marketers", []);
+    const owner = (Array.isArray(marketers) ? marketers : []).find((m) => m && String(m.id) === String(marketerId));
+    if (!owner || String(owner.email || "").trim().toLowerCase() !== String(actor.email).trim().toLowerCase()) {
+      json(res, { ok: false, error: "not_owner" }, 403);
+      return;
+    }
     const subs = await kvGet(SUBS_KEY, {});
     const list = Array.isArray(subs[marketerId]) ? subs[marketerId] : [];
     subs[marketerId] = [...list.filter((s) => s.endpoint !== subscription.endpoint), subscription].slice(-5);

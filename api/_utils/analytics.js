@@ -394,7 +394,11 @@ export async function buildOwnerReport() {
         revenuePipeline: "CONFIGURED", // PayPal checkout + idempotent verifiable capture
         emailReport: emailOk ? "ACTIVE" : "EMAIL_CONFIG_REQUIRED",
         socialChannels,
-        googleFeed: "LIVE",
+        // Measured, not asserted: the Merchant feed only lists approved,
+        // merchant-eligible products (src/lib/googleFeed.js gate).
+        googleFeed: (Array.isArray(products) ? products : []).some((p) => p?.status === "approved" && p?.merchantEligible === true)
+          ? "LIVE"
+          : "EMPTY_NO_ELIGIBLE_PRODUCTS",
         migration: "OWNER_ONE_TIME_ACTION", // cloud_identity.sql (SAFE, not executed)
         ownerActions: actions,
         summary: emailOk
@@ -405,7 +409,7 @@ export async function buildOwnerReport() {
     // ── VERITAS integrity ledger — tamper-proof chain of every cloud action ──
     veritas: await (async () => {
       try {
-        const { veritasSummary } = await import("../src/lib/cloud/veritas.js");
+        const { veritasSummary } = await import("../../src/lib/cloud/veritas.js");
         const summary = veritasSummary(Array.isArray(veritasLedger) ? veritasLedger : [], 8);
         return {
           valid: summary.valid,

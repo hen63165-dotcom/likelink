@@ -12,9 +12,12 @@
 import crypto from "crypto";
 
 const ADMIN_CODE = process.env.ADMIN_CODE || "";
+// Fail closed: with neither ADMIN_SESSION_SECRET nor ADMIN_CODE configured the
+// derived secret would be a public constant (anyone could mint admin tokens),
+// so no token is issued or accepted at all.
 const SECRET =
   process.env.ADMIN_SESSION_SECRET ||
-  crypto.createHash("sha256").update(`likelink:${ADMIN_CODE}:admin-session`).digest("hex");
+  (ADMIN_CODE ? crypto.createHash("sha256").update(`likelink:${ADMIN_CODE}:admin-session`).digest("hex") : "");
 
 const TTL_MS = 8 * 60 * 60 * 1000; // 8h admin session
 
@@ -29,6 +32,7 @@ function sign(payload) {
 
 /** Issue a fresh admin session token (same shape as the old /api/admin/auth token). */
 export function makeAdminToken() {
+  if (!SECRET) throw new Error("admin_auth_not_configured");
   const payload = b64url(JSON.stringify({ exp: Date.now() + TTL_MS, v: 1 }));
   return `${payload}.${sign(payload)}`;
 }
@@ -36,6 +40,7 @@ export function makeAdminToken() {
 /** Verify + decode an admin token in constant time. Returns payload or null. */
 export function verifyAdminToken(token) {
   try {
+    if (!SECRET) return null;
     const [payload, sig] = String(token || "").split(".");
     if (!payload || !sig) return null;
     const expected = sign(payload);

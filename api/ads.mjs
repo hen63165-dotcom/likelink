@@ -9,6 +9,7 @@
 import { readBody } from "./_utils/readBody.mjs";
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
+import { verifyToken } from "./_utils/authVerify.js";
 import { audit } from "./_utils/audit.js";
 import { kvGet, kvSet, kvDelete } from "./store.mjs";
 import {
@@ -156,6 +157,44 @@ async function setLunaDecisions(decisions) {
   await kvSet(LUNA_DECISIONS_KV_KEY, decisions);
 }
 
+// Modes buyers/visitors hit without a studio session (tracking + ad serving).
+const PUBLIC_ADS_MODES = new Set(["event", "placements", "contextual", "sponsored-unit", "health"]);
+
+async function readBodyCached(req) {
+  if (req.__adsBody === undefined) {
+    const parsed = await readBody(req).catch(() => null);
+    req.__adsBody = parsed && typeof parsed === "object" ? parsed : {};
+  }
+  return req.__adsBody;
+}
+
+async function readCampaignId(req) {
+  const fromHeader = getHeader(req, "x-campaign-id");
+  if (fromHeader) return String(fromHeader);
+  const url = new URL(req.url, "https://x");
+  const fromQuery = url.searchParams.get("campaignId") || url.searchParams.get("id");
+  if (fromQuery) return String(fromQuery);
+  if (req.method !== "POST") return "";
+  const body = await readBodyCached(req);
+  return String(body.campaignId || body.id || "");
+}
+
+async function resolveAdsIdentity(req) {
+  const anonymous = { authenticated: false, isAdmin: false, marketerId: "" };
+  const token = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return anonymous;
+  let isAdmin = false;
+  try { isAdmin = Boolean(await verifyAdminToken(token)); } catch { isAdmin = false; }
+  if (isAdmin) return { authenticated: true, isAdmin: true, marketerId: "" };
+  const user = await verifyToken(token);
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (!email) return anonymous;
+  const marketers = await kvGet("marketplace:marketers");
+  const marketer = (Array.isArray(marketers) ? marketers : [])
+    .find((m) => String(m?.email || "").trim().toLowerCase() === email);
+  return { authenticated: true, isAdmin: false, marketerId: marketer ? String(marketer.id) : "" };
+}
+
 function generateId(prefix = "id") {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -188,13 +227,27 @@ export default async function adsHandler(req, res) {
     return;
   }
 
+  // Browsers omit Origin on same-origin GETs; only a present, foreign Origin
+  // is refused. Authorization comes from the verified token below.
   const origin = getHeader(req, "origin");
-  if (!isApprovedOrigin(origin)) {
+  if (origin && !isApprovedOrigin(origin)) {
     json(res, { ok: false, error: "origin_not_allowed" }, 403, req);
     return;
   }
 
   const action = new URL(req.url, "https://x").searchParams.get("mode") || "list";
+
+  // Identity: verified Supabase session (→ the marketer with the same email)
+  // or an admin token. The client-supplied x-marketer-id header is honoured
+  // only for admins (to scope a view); creators are always scoped to themselves.
+  const adsIdentity = await resolveAdsIdentity(req);
+  if (!PUBLIC_ADS_MODES.has(action) && !adsIdentity.isAdmin && !adsIdentity.marketerId) {
+    json(res, { ok: false, error: adsIdentity.authenticated ? "marketer_not_found" : "authentication_required" }, 401, req);
+    return;
+  }
+  const scopeMarketerId = adsIdentity.isAdmin
+    ? String(getHeader(req, "x-marketer-id") || "")
+    : adsIdentity.marketerId;
   const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
 
   try {
@@ -202,7 +255,7 @@ export default async function adsHandler(req, res) {
       // === CAMPAIGN MANAGEMENT ===
       case "list": {
         const campaigns = await getCampaigns();
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const filtered = marketerId
           ? campaigns.filter((c) => c.marketerId === marketerId)
           : campaigns;
@@ -210,16 +263,25 @@ export default async function adsHandler(req, res) {
         break;
       }
 
+      case "creatives": {
+        const allCreatives = await getCreatives();
+        const own = scopeMarketerId
+          ? allCreatives.filter((c) => c.marketerId === scopeMarketerId)
+          : allCreatives;
+        json(res, { ok: true, creatives: own.slice(-100).reverse() }, 200, req);
+        break;
+      }
+
       case "create": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id") || body.marketerId;
+        const marketerId = scopeMarketerId || (adsIdentity.isAdmin ? String(body.marketerId || "") : "");
         if (!marketerId) {
           json(res, { ok: false, error: "marketer_id_required" }, 401, req);
           return;
@@ -238,23 +300,30 @@ export default async function adsHandler(req, res) {
           json(res, { ok: false, error: "product_not_found" }, 404, req);
           return;
         }
+        if (!adsIdentity.isAdmin && String(product.marketerId) !== String(marketerId)) {
+          json(res, { ok: false, error: "not_owner" }, 403, req);
+          return;
+        }
 
         // Validate campaign data
-        const validation = validateCampaign(body, { tier: body.tier || "starter", marketerId });
+        // Tier is never taken from the client (admins may set it explicitly).
+        const campaignTier = adsIdentity.isAdmin && isValidTier(body.tier) ? body.tier : "starter";
+        const validation = validateCampaign(body, { tier: campaignTier, marketerId });
         if (!validation.valid) {
           json(res, { ok: false, errors: validation.errors }, 400, req);
           return;
         }
 
-        const limits = getTierLimits(body.tier || "starter");
+        const limits = getTierLimits(campaignTier);
         const campaigns = await getCampaigns();
-        if (!canCreateCampaign(campaigns.length, body.tier || "starter")) {
+        const ownCampaignCount = campaigns.filter((c) => c.marketerId === marketerId).length;
+        if (!canCreateCampaign(ownCampaignCount, campaignTier)) {
           json(
             res,
             {
               ok: false,
               error: `campaign_limit_exceeded`,
-              details: `Maximum ${limits.maxCampaigns} campaigns allowed for ${body.tier || "starter"} tier`,
+              details: `Maximum ${limits.maxCampaigns} campaigns allowed for ${campaignTier} tier`,
             },
             403,
             req
@@ -262,7 +331,7 @@ export default async function adsHandler(req, res) {
           return;
         }
 
-        const campaignResult = createCampaign(body, { tier: body.tier || "starter", marketerId });
+        const campaignResult = createCampaign(body, { tier: campaignTier, marketerId });
         if (!campaignResult.ok) {
           json(res, { ok: false, errors: campaignResult.errors }, 400, req);
           return;
@@ -283,7 +352,7 @@ export default async function adsHandler(req, res) {
       }
 
       case "get": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
@@ -296,7 +365,7 @@ export default async function adsHandler(req, res) {
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         if (marketerId && campaign.marketerId !== marketerId) {
           json(res, { ok: false, error: "unauthorized" }, 403, req);
           return;
@@ -309,7 +378,7 @@ export default async function adsHandler(req, res) {
       case "update": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
@@ -321,7 +390,7 @@ export default async function adsHandler(req, res) {
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const index = campaigns.findIndex((c) => c.id === campaignId);
         if (index === -1) {
@@ -387,13 +456,13 @@ export default async function adsHandler(req, res) {
       }
 
       case "delete": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const index = campaigns.findIndex((c) => c.id === campaignId);
         if (index === -1) {
@@ -436,13 +505,13 @@ export default async function adsHandler(req, res) {
       }
 
       case "activate": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const index = campaigns.findIndex((c) => c.id === campaignId);
         if (index === -1) {
@@ -485,13 +554,13 @@ export default async function adsHandler(req, res) {
       }
 
       case "pause": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const index = campaigns.findIndex((c) => c.id === campaignId);
         if (index === -1) {
@@ -534,13 +603,13 @@ export default async function adsHandler(req, res) {
       }
 
       case "complete": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const index = campaigns.findIndex((c) => c.id === campaignId);
         if (index === -1) {
@@ -586,13 +655,13 @@ export default async function adsHandler(req, res) {
       case "creative-generate": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id") || body.marketerId;
+        const marketerId = scopeMarketerId || (adsIdentity.isAdmin ? String(body.marketerId || "") : "");
         if (!marketerId) {
           json(res, { ok: false, error: "marketer_id_required" }, 401, req);
           return;
@@ -608,6 +677,10 @@ export default async function adsHandler(req, res) {
         const product = products.find((p) => p.id === productId);
         if (!product) {
           json(res, { ok: false, error: "product_not_found" }, 404, req);
+          return;
+        }
+        if (!adsIdentity.isAdmin && String(product.marketerId) !== String(marketerId)) {
+          json(res, { ok: false, error: "not_owner" }, 403, req);
           return;
         }
 
@@ -654,7 +727,7 @@ export default async function adsHandler(req, res) {
           }
         }
 
-        const trackedUrl = body.trackedUrl || product.affiliateUrl || product.url || "";
+        const trackedUrl = (adsIdentity.isAdmin && body.trackedUrl) || product.affiliateUrl || product.url || "";
         const creative = generateCreative(product, type, placementId, {
           marketerId,
           trackedUrl,
@@ -690,7 +763,7 @@ export default async function adsHandler(req, res) {
             creativeId: creative.id,
             productId: product.id,
             campaignId: campaignId || null,
-            type,
+            creativeType: type,
             placementId,
           },
           { type: "ads_creative" },
@@ -704,13 +777,13 @@ export default async function adsHandler(req, res) {
       case "creative-pack": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id") || body.marketerId;
+        const marketerId = scopeMarketerId || (adsIdentity.isAdmin ? String(body.marketerId || "") : "");
         if (!marketerId) {
           json(res, { ok: false, error: "marketer_id_required" }, 401, req);
           return;
@@ -726,6 +799,10 @@ export default async function adsHandler(req, res) {
         const product = products.find((p) => p.id === productId);
         if (!product) {
           json(res, { ok: false, error: "product_not_found" }, 404, req);
+          return;
+        }
+        if (!adsIdentity.isAdmin && String(product.marketerId) !== String(marketerId)) {
+          json(res, { ok: false, error: "not_owner" }, 403, req);
           return;
         }
 
@@ -775,7 +852,7 @@ export default async function adsHandler(req, res) {
           }
         }
 
-        const trackedUrl = body.trackedUrl || product.affiliateUrl || product.url || "";
+        const trackedUrl = (adsIdentity.isAdmin && body.trackedUrl) || product.affiliateUrl || product.url || "";
         const pack = buildCreativePack(product, placementId, types, {
           marketerId,
           trackedUrl,
@@ -835,7 +912,14 @@ export default async function adsHandler(req, res) {
 
         let body;
         try {
-          body = await readBody(req);
+          if (req.method === "GET") {
+            // Tracking pixel: the event fields arrive as query parameters.
+            const params = Object.fromEntries(new URL(req.url, "https://x").searchParams);
+            delete params.mode;
+            body = params;
+          } else {
+            body = await readBodyCached(req);
+          }
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
@@ -854,7 +938,7 @@ export default async function adsHandler(req, res) {
         const [campaigns, creatives, products, placements] = await Promise.all([
           getCampaigns(),
           getCreatives(),
-          kvGet("marketplace:products") || [],
+          kvGet("marketplace:products").then((v) => (Array.isArray(v) ? v : [])),
           getPlacements(),
         ]);
 
@@ -946,7 +1030,7 @@ export default async function adsHandler(req, res) {
 
       // === ANALYTICS & INSIGHTS ===
       case "analytics": {
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const creatives = await getCreatives();
         const events = await getEvents();
@@ -1092,7 +1176,7 @@ export default async function adsHandler(req, res) {
       }
 
       case "luna": {
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const creatives = await getCreatives();
         const events = await getEvents();
@@ -1145,7 +1229,7 @@ export default async function adsHandler(req, res) {
       case "contextual": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
@@ -1214,7 +1298,7 @@ export default async function adsHandler(req, res) {
       case "sponsored-unit": {
         let body;
         try {
-          body = await readBody(req);
+          body = await readBodyCached(req);
         } catch (e) {
           json(res, { ok: false, error: "invalid_json" }, 400, req);
           return;
@@ -1322,13 +1406,13 @@ export default async function adsHandler(req, res) {
 
       // === LUNA DECISIONS ===
       case "luna-decision": {
-        const campaignId = getHeader(req, "x-campaign-id");
+        const campaignId = await readCampaignId(req);
         if (!campaignId) {
           json(res, { ok: false, error: "campaign_id_required" }, 400, req);
           return;
         }
 
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const campaign = campaigns.find((c) => c.id === campaignId);
         if (!campaign) {
@@ -1382,7 +1466,7 @@ export default async function adsHandler(req, res) {
       }
 
       case "luna-insights": {
-        const marketerId = getHeader(req, "x-marketer-id");
+        const marketerId = scopeMarketerId;
         const campaigns = await getCampaigns();
         const creatives = await getCreatives();
         const events = await getEvents();

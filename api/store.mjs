@@ -1,6 +1,9 @@
 import { intelligenceHandler } from "./_utils/intelligenceHandler.mjs";
 
 import { readBody } from "./_utils/readBody.mjs";
+import { originFromRequest } from "./_utils/origin.mjs";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
+import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
 // Vercel Serverless Function — Store API 🔐
 //
@@ -26,7 +29,7 @@ import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js"
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, getPayPalSubscriptionStatus } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { verifyProduct, isDiscoveryEligible, trustGateReport } from "../src/lib/cloud/trustVerification.js";
@@ -49,6 +52,16 @@ const SENSITIVE_KEYS = new Set([
 // Keys that a creator writes from her own studio browser via a signed path:
 // sales self-reports go through /api/sign-sale (threshold + rate-limit + HMAC).
 const SIGNED_KEYS = new Set(["marketplace:sales".toUpperCase()]);
+
+// A verified Supabase user owns a marketer record when the emails match
+// (case-insensitive). This is the single ownership rule for owner-scoped writes.
+function normEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+function actorOwnsMarketer(actor, marketer) {
+  const actorEmail = normEmail(actor?.email);
+  return Boolean(actorEmail && marketer && normEmail(marketer.email) === actorEmail);
+}
 
 const SIGN_SECRET =
   process.env.STORE_SIGN_SECRET ||
@@ -146,6 +159,7 @@ async function autoBootstrapCatalog(req) {
 
 async function kvSet(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
+  assertKvWritable(key);
   if (key === 'marketplace:subscriptions') {
     const r = await fetch(`${SB_URL}/rest/v1/rpc/financial_legacy_subscriptions`, {
       method: 'POST', headers: { apikey: SB_KEY, authorization: `Bearer ${SB_KEY}`, 'content-type': 'application/json' },
@@ -227,24 +241,22 @@ const SIGN_MAX_SALE = 100000;   // ₪ per sale
 const SIGN_MAX_PER_IP_MIN = 15; // signed sales per IP per 60s window
 const signWindow = new Map();   // ip → [ts] (per-lambda sliding window)
 
+// Returns null for a missing row AND for a failed read — but a failed read
+// marks the key (kvReadGuard) so kvSet refuses to overwrite it with a fallback.
 async function kvGet(key) {
   if (!SB_URL || !SB_KEY) return null;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    if (!rows?.[0]?.value) return null;
-    let parsed = JSON.parse(rows[0].value);
-    // LEGACY: if the stored value is a double-serialized JSON string, unwrap once
-    while (typeof parsed === "string" && parsed.length > 0) {
-      try { parsed = JSON.parse(parsed); } catch { break; }
-    }
-    return parsed;
   } catch {
+    noteKvReadFailed(key);
     return null;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : null;
 }
 
 async function signSaleHandler(req, res) {
@@ -284,9 +296,19 @@ async function signSaleHandler(req, res) {
   const product = Array.isArray(prods) ? prods.find((p) => p && p.id === productId) : null;
   if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
   if (product.marketerId !== marketerId) { json(res, { ok: false, error: "not_owner" }, 403, req); return; }
-  if (!Array.isArray(mks) || !mks.some((m) => m && m.id === marketerId)) {
+  const signMarketer = Array.isArray(mks) ? mks.find((m) => m && m.id === marketerId) : null;
+  if (!signMarketer) {
     json(res, { ok: false, error: "marketer_not_found" }, 404, req);
     return;
+  }
+  // Caller identity: only the signed-in owner of that studio (or an admin)
+  // may get a sale signed — never an anonymous caller.
+  const signToken = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const signIsAdmin = signToken ? await isAdminToken(signToken) : false;
+  if (!signIsAdmin) {
+    const signActor = signToken ? await verifyToken(signToken) : null;
+    if (!signActor?.email) { json(res, { ok: false, error: "authentication_required" }, 401, req); return; }
+    if (!actorOwnsMarketer(signActor, signMarketer)) { json(res, { ok: false, error: "not_owner" }, 403, req); return; }
   }
 
   // Rate limit (per IP, sliding 60s window).
@@ -510,9 +532,13 @@ async function subsHandler(req, res) {
       const renewDays = (s) => (s?.billingPeriod === "yearly" ? 365 : 30);
       let updated = all;
       switch (String(event.event_type)) {
+        // CREATED fires before the buyer approves or pays — it is acknowledged
+        // but never activates anything. Only ACTIVATED (signature-verified, and
+        // bound to the subscription id our own checkout created) unlocks a plan.
         case "BILLING.SUBSCRIPTION.ACTIVATED":
-        case "BILLING.SUBSCRIPTION.CREATED":
           updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? activateSubscription(s) : s));
+          break;
+        case "BILLING.SUBSCRIPTION.CREATED":
           break;
         case "BILLING.SUBSCRIPTION.CANCELLED":
           updated = all.map((s) => (s.paypalSubscriptionId === paypalSubId ? cancelSubscription(s) : s));
@@ -569,10 +595,23 @@ async function subsAuthHandler(req, res, sub, body) {
       // the real status on every check. Read-only against PayPal; local
       // write only happens once we get PayPal's own confirmed status.
       if (mine && mine.status === "pending" && mine.paypalSubscriptionId) {
-        const live = await getPayPalSubscriptionStatus(mine.paypalSubscriptionId);
-        if (live === "ACTIVE") {
+        const details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        const live = details?.status || null;
+        // Activate only a subscription PayPal says is ACTIVE, that was created
+        // for THIS user (custom_id) and on THIS plan/period (plan_id).
+        const expectedPlanId = live === "ACTIVE"
+          ? await resolvePayPalPlanId(mine.planId, mine.billingPeriod, { kvGet, kvSet }).catch(() => null)
+          : null;
+        const verified = live === "ACTIVE" &&
+          String(details?.customId || "") === authId &&
+          Boolean(expectedPlanId) && String(details?.planId || "") === String(expectedPlanId);
+        if (verified) {
           mine = commerce.activateSubscription(mine);
           await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
+        } else if (live === "ACTIVE") {
+          // PayPal says active but it is not provably this user's plan — stay
+          // pending (never unlock a plan on unverified data).
+          mine = { ...mine, verification: "mismatch" };
         } else if (live === "CANCELLED" || live === "EXPIRED" || live === "SUSPENDED") {
           mine = { ...mine, status: live.toLowerCase() };
           await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
@@ -597,7 +636,8 @@ async function subsAuthHandler(req, res, sub, body) {
       const paypalPlanId = await resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet });
       if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
       const origin = getHeader(req, "origin");
-      const base = isApprovedOrigin(origin) ? origin : `https://${process.env.VERCEL_URL || "likelink2.vercel.app"}`;
+      // Never VERCEL_URL: deployment URLs can sit behind Vercel Authentication.
+      const base = isApprovedOrigin(origin) ? origin : originFromRequest(req);
       const result = await createPayPalSubscription({
         paypalPlanId,
         returnUrl: `${base}/studio?sub=return`,
@@ -625,7 +665,10 @@ async function subsAuthHandler(req, res, sub, body) {
         return json(res, { ok: true, subscription: existing, existing: true }, 200, req);
       }
       const superseded = all.map((s) => (s.userId === authId && (s.status === "pending" || s.status === "active") ? { ...s, status: "cancelled", supersededBy: planId, cancelledAt: new Date().toISOString() } : s));
-      const record = commerce.createSubscription({ planId, userId: authId, billingPeriod, paypalSubscriptionId: body.paypalSubscriptionId || null });
+      // A client-supplied PayPal subscription id is never accepted here: it
+      // could point at someone else's (or a cheaper) ACTIVE subscription.
+      // Real ids come only from the server-side checkout above.
+      const record = commerce.createSubscription({ planId, userId: authId, billingPeriod, paypalSubscriptionId: null });
       record.authEmail = String(authUser.email || "");
       await kvSet(SUBS_KEY, [...superseded, record]);
       return json(res, { ok: true, subscription: record }, 200, req);
@@ -839,14 +882,21 @@ export default async function handler(req, res) {
   // Read authenticated UGC assets for the owner's studio. Metadata only; no provider secrets.
   if (req.method === "GET" && new URL(req.url, "https://x").searchParams.get("mode") === "ugc-assets") {
     const authHeader = getHeader(req, "authorization") || "";
-    const token = String(authHeader).replace(/^Bearer\\s+/i, "").trim();
+    const token = String(authHeader).replace(/^Bearer\s+/i, "").trim();
     const actor = await verifyToken(token);
     if (!actor?.id) { json(res, { ok: false, error: "unauthenticated" }, 401, req); return; }
     try {
       const productId = new URL(req.url, "https://x").searchParams.get("productId");
       const productsRow = await kvGet("marketplace:products", []);
       const products = Array.isArray(productsRow) ? productsRow : [];
-      const owned = products.filter((p) => String(p?.marketerId) === String(actor.id) && p?.status === "approved");
+      // Ownership through the marketer's email (auth ids ≠ marketer ids).
+      const ugcMarketersRow = await kvGet("marketplace:marketers", []);
+      const myMarketerIds = new Set(
+        (Array.isArray(ugcMarketersRow) ? ugcMarketersRow : [])
+          .filter((m) => actorOwnsMarketer(actor, m))
+          .map((m) => String(m.id))
+      );
+      const owned = products.filter((p) => myMarketerIds.has(String(p?.marketerId)) && p?.status === "approved");
       const targets = productId ? owned.filter((p) => String(p.id) === String(productId)) : owned.slice(0, 8);
       const results = [];
       for (const product of targets) {
@@ -1172,8 +1222,14 @@ export default async function handler(req, res) {
         return;
       }
 
-      // Ownership check: actor must own the product (or be admin)
-      const isOwner = actor?.id && String(product.marketerId) === String(actor.id);
+      // Ownership check: actor must own the product (or be admin).
+      // product.marketerId is a marketer-record id while actor.id is a Supabase
+      // auth id, so ownership is resolved through the marketer's email — the
+      // same rule the other owner-scoped modes use.
+      const publishMarketersRow = await kvGet("marketplace:marketers", []);
+      const publishMarketers = Array.isArray(publishMarketersRow) ? publishMarketersRow : [];
+      const productMarketer = publishMarketers.find((m) => m && String(m.id) === String(product.marketerId));
+      const isOwner = Boolean(actorOwnsMarketer(actor, productMarketer));
       let isAdmin = false;
       if (token) {
         try { isAdmin = await verifyAdminToken(token); } catch {}
@@ -1186,9 +1242,9 @@ export default async function handler(req, res) {
 
       const marketerId = product.marketerId;
 
-      const origin = getHeader(req, "origin");
-      const isProductionOrigin = typeof origin && origin && origin !== "https://x";
-      const baseUrl = isProductionOrigin ? origin : "https://likelink2.vercel.app";
+      // Never derive a server-to-server target from the caller's Origin header
+      // (the caller's token is forwarded to it below).
+      const baseUrl = originFromRequest(req);
       const publicUrl = `${baseUrl}/p/${encodeURIComponent(product.id)}`;
       const idemKey = idempotencyKey || `publish:${product.id}:${provider || "internal"}:${Date.now()}`;
       const publishLogKey = `publish:log:${product.id}`;
@@ -1315,7 +1371,6 @@ export default async function handler(req, res) {
 
       // Delegate to existing /api/autopilot mode:"run" endpoint
       // This reuses ALL existing channel dispatchers (sendTelegram, sendFacebook, etc.)
-      const autopilotUrl = `${SB_URL ? `https://${new URL(SB_URL).hostname}` : baseUrl}/api/autopilot`;
       let autopilotResult;
       try {
         const autopilotRes = await fetch(`${baseUrl}/api/autopilot`, {
@@ -1520,7 +1575,7 @@ export default async function handler(req, res) {
         const productsRow = await kvGet("marketplace:products", []);
         const allProducts = Array.isArray(productsRow) ? productsRow : [];
         const approved = allProducts.filter((p) => p && p.status === "approved");
-        const { runMarketingCycle, runDailyMarketingScan, analyzeMarketingPerformance } = require('./src/lib/cloud/marketing.js');
+        const { runDailyMarketingScan } = await import("../src/lib/cloud/marketing.js");
         const scan = runDailyMarketingScan({ products: approved, sales: [], clicks: [], views: [], now: Date.now() });
         json(res, { ok: true, scan, campaigns: scan.highPriorityOpportunities }, 200, req);
         return;
@@ -1530,17 +1585,17 @@ export default async function handler(req, res) {
         const allProducts = Array.isArray(productsRow) ? productsRow : [];
         const product = allProducts.find((p) => p && String(p.id) === String(productId));
         if (!product) { json(res, { ok: false, error: "product_not_found" }, 404, req); return; }
-        const { runMarketingCycle } = require('./src/lib/cloud/marketing.js');
+        const { runMarketingCycle } = await import("../src/lib/cloud/marketing.js");
         const marketersRow = await kvGet("marketplace:marketers", []);
         const marketers = Array.isArray(marketersRow) ? marketersRow : [];
-        const actor = isStoreAdmin ? { id: "admin", authenticated: true } : actor || { id: product.marketerId, authenticated: true };
+        const cycleActor = isStoreAdmin ? { id: "admin", authenticated: true } : actor;
         const cycle = runMarketingCycle({
           product,
           products: allProducts,
           sales: [],
           clicks: [],
           views: [],
-          actor,
+          actor: cycleActor,
           marketer: product.marketerId,
           language: "he",
           provider: "likelink2_internal",
@@ -1552,7 +1607,7 @@ export default async function handler(req, res) {
       if (action === "analyze") {
         const productsRow = await kvGet("marketplace:products", []);
         const allProducts = Array.isArray(productsRow) ? productsRow : [];
-        const { analyzeMarketingPerformance } = require('./src/lib/cloud/marketing.js');
+        const { analyzeMarketingPerformance } = await import("../src/lib/cloud/marketing.js");
         const analysis = analyzeMarketingPerformance(allProducts, 24 * 60 * 60 * 1000);
         json(res, { ok: true, analysis }, 200, req);
         return;
@@ -1722,6 +1777,13 @@ export default async function handler(req, res) {
   // deployment or when the KV store has stale data. Idempotent and safe.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "force-bootstrap") {
     if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
+    // Replaces the whole catalog + marketer list — admin only.
+    const bootstrapToken = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    if (!bootstrapToken || !(await isAdminToken(bootstrapToken))) {
+      audit.logApiForbidden({ type: "non-admin" }, { type: "mode", key: "force-bootstrap" }, { _req: req });
+      json(res, { ok: false, error: "admin_required" }, 403, req);
+      return;
+    }
     try {
       const { SEED_PRODUCTS, SEED_MARKETERS } = await import("../src/data/seed.js");
       const seedProducts = Array.isArray(SEED_PRODUCTS) ? SEED_PRODUCTS : [];
@@ -2107,12 +2169,13 @@ export default async function handler(req, res) {
   const isSensitive = SENSITIVE_KEYS.has(keyUpper);
   const isSigned = SIGNED_KEYS.has(keyUpper);
 
+  // Identity for this write: admin token, else a verified Supabase session.
+  const writeToken = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const writeIsAdmin = writeToken ? await isAdminToken(writeToken) : false;
+
   // Sensitive keys (settings / payouts) require an admin token.
   if (isSensitive && !isDelete) {
-    const auth = getHeader(req, "authorization");
-    const token = String(auth).replace(/^Bearer\s+/i, "");
-    const admin = await isAdminToken(token);
-    if (!admin) {
+    if (!writeIsAdmin) {
       audit.logApiForbidden({ type: "anonymous" }, { type: "key", key: normalizedKey }, { _req: req });
       json(res, { ok: false, error: "admin_required" }, 403, req);
       return;
@@ -2163,14 +2226,60 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Non-admin writes never replace a stored value: the server merges what
+    // the caller is allowed to change (storeWritePolicy) into what is stored.
+    let valueToWrite = value;
+    if (!writeIsAdmin) {
+      if (!isSigned && !BROWSER_WRITE_POLICIES[normalizedKey]) {
+        audit.logApiForbidden({ type: "non-admin" }, { type: "key", key: normalizedKey }, { _req: req });
+        json(res, { ok: false, error: "server_only_key" }, 403, req);
+        return;
+      }
+      const storedValue = await kvGet(normalizedKey);
+      try { assertKvWritable(normalizedKey); } catch {
+        json(res, { ok: false, error: "kv_read_failed" }, 503, req);
+        return;
+      }
+      if (isSigned) {
+        // Only the one signed sale is appended; the rest of the array is ignored.
+        const submitted = (Array.isArray(parseStoreValue(value)) ? parseStoreValue(value) : []).find((s) => s && s.id === sale?.id);
+        // The signed fields always win over whatever the array item carries.
+        const merged = mergeSignedSale(storedValue, submitted ? { ...submitted, ...sale } : null);
+        if (!merged.ok) { json(res, { ok: false, error: merged.error }, 403, req); return; }
+        valueToWrite = JSON.stringify(merged.value);
+      } else {
+        const actor = writeToken ? await verifyToken(writeToken) : null;
+        const marketersForOwnership = normalizedKey === "marketplace:marketers"
+          ? storedValue
+          : await kvGet("marketplace:marketers");
+        const result = applyStoreWritePolicy(normalizedKey, storedValue, value, {
+          ownedMarketerIds: ownedMarketerIdsFor(actor, Array.isArray(marketersForOwnership) ? marketersForOwnership : []),
+          actorEmail: actor?.email || "",
+          now: Date.now(),
+        });
+        if (!result.ok) { json(res, { ok: false, error: result.error }, 400, req); return; }
+        if (result.rejected) {
+          audit.logApiForbidden({ type: actor ? "not_owner" : "anonymous", rejected: result.rejected }, { type: "key", key: normalizedKey }, { _req: req });
+        }
+        // Creating a record the caller may not own is an explicit error (never
+        // a silent "saved"): a creator without a valid session learns to sign
+        // in again; nothing is written.
+        if (result.rejectedCreates) {
+          json(res, { ok: false, error: actor ? "not_owner" : "authentication_required" }, actor ? 403 : 401, req);
+          return;
+        }
+        valueToWrite = JSON.stringify(result.value);
+      }
+    }
+
     // Size cap
-    const valueBytes = Buffer.byteLength(JSON.stringify(value), "utf8");
+    const valueBytes = Buffer.byteLength(typeof valueToWrite === "string" ? valueToWrite : JSON.stringify(valueToWrite), "utf8");
     if (valueBytes > MAX_VALUE_BYTES) {
       json(res, { ok: false, error: "value_too_large" }, 413, req);
       return;
     }
 
-    await kvSet(normalizedKey, value);
+    await kvSet(normalizedKey, valueToWrite);
     json(res, { ok: true, key: normalizedKey }, 200, req);
   } catch (e) {
     json(res, { ok: false, error: String(e.message || e) }, 500, req);

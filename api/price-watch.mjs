@@ -6,12 +6,14 @@
 // about it) or rises significantly.
 //
 // Cron: daily 03:00 UTC via vercel.json. Also runnable manually:
-//   GET /api/price-watch?secret=PRICE_WATCH_SECRET
+//   GET /api/price-watch  with  Authorization: Bearer PRICE_WATCH_SECRET
 //
 // Storage: kv "marketplace:pricehistory"  → { [productId]: [{ ts, price }] }
 //          kv "marketplace:notifications" → append price-drop notifications
 
 import { originFromRequest } from "./_utils/origin.mjs";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
+import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
 const HISTORY_KEY = "marketplace:pricehistory";
 const NOTIFS_KEY = "marketplace:notifications";
@@ -26,20 +28,25 @@ const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function kvGet(key, fallback) {
+  // A failed read returns the fallback but marks the key (kvReadGuard) so
+  // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) }
     );
-    const rows = await res.json();
-    return rows?.[0]?.value ? JSON.parse(rows[0].value) : fallback;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function kvSet(key, value) {
+  assertKvWritable(key);
   if (!SB_URL || !SB_KEY) throw new Error("misconfigured: service role key missing");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
@@ -102,20 +109,59 @@ function findPrice(node) {
   return null;
 }
 
-function extractPrice(html) {
+function findCurrency(node) {
+  if (!node || typeof node !== "object") return null;
+  for (const n of Array.isArray(node) ? node : [node]) {
+    if (!n || typeof n !== "object") continue;
+    if (typeof n.priceCurrency === "string" && n.priceCurrency) return n.priceCurrency;
+    for (const v of Object.values(n)) {
+      const r = findCurrency(v);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+/** { raw, currency } — currency is null when the page does not declare one. */
+export function extractPrice(html) {
   const metaP = getMeta(html, "og:price:amount") || getMeta(html, "product:price:amount");
-  if (metaP) return metaP;
+  if (metaP) {
+    const currency = getMeta(html, "og:price:currency") || getMeta(html, "product:price:currency");
+    return { raw: metaP, currency: currency || null };
+  }
   const ld = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
   if (ld) {
     for (const chunk of ld[1].split("</script>")) {
       try {
         const root = JSON.parse(chunk.trim());
         const p = findPrice(root);
-        if (p != null) return String(p);
+        if (p != null) return { raw: String(p), currency: findCurrency(root) };
       } catch { /* malformed JSON-LD */ }
     }
   }
   return null;
+}
+
+/**
+ * Parse a scraped price string: "1,299.00" → 1299, "1.299,00" → 1299,
+ * "249,90" → 249.9, "₪ 1,299" → 1299. Returns null when unparseable.
+ */
+export function parsePriceNumber(raw) {
+  let s = String(raw ?? "").replace(/[^\d.,]/g, "");
+  if (!s) return null;
+  const lastDot = s.lastIndexOf(".");
+  const lastComma = s.lastIndexOf(",");
+  if (lastDot !== -1 && lastComma !== -1) {
+    // Both present: the right-most separator is the decimal point.
+    const dec = lastDot > lastComma ? "." : ",";
+    const thou = dec === "." ? "," : ".";
+    s = s.split(thou).join("").replace(dec, ".");
+  } else if (lastComma !== -1) {
+    // Commas only: "1,299" / "12,345,678" are thousands; "249,90" is decimal.
+    s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.split(",").join("") : s.replace(",", ".");
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 async function fetchLivePrice(url) {
@@ -131,23 +177,20 @@ async function fetchLivePrice(url) {
     });
     if (!res.ok) return null;
     const html = await res.text();
-    const raw = extractPrice(html);
-    if (raw == null) return null;
-    const n = parseFloat(String(raw).replace(/[^\d.,]/g, "").replace(",", "."));
-    return Number.isFinite(n) && n > 0 ? n : null;
+    const found = extractPrice(html);
+    if (!found) return null;
+    const price = parsePriceNumber(found.raw);
+    return price == null ? null : { price, currency: found.currency ? String(found.currency).toUpperCase() : null };
   } catch {
     return null;
   }
 }
 
 export default async function handler(req, res) {
-  const h = req.headers;
-  const getH = (n) => (typeof h?.get === "function" ? h.get(n) : h?.[n]);
-  const url = new URL(req.url, "https://x");
-  const isCron =
-    req.method === "GET" &&
-    (Boolean(getH("x-vercel-cron")) ||
-      url.searchParams.get("secret") === process.env.PRICE_WATCH_SECRET);
+  // Vercel Cron → Bearer CRON_SECRET; GitHub daily workflow → Bearer
+  // AUTOPILOT_SECRET (the platform's machine secret); manual → PRICE_WATCH_SECRET.
+  const isCron = req.method === "GET" &&
+    isAuthorizedCron(req, [process.env.PRICE_WATCH_SECRET, process.env.AUTOPILOT_SECRET]);
 
   if (!isCron) { json(res, { ok: false, error: "unauthorized" }, 401); return; }
   if (!SB_URL || !SB_KEY) { json(res, { ok: false, error: "supabase_not_configured" }, 500); return; }
@@ -158,6 +201,15 @@ export default async function handler(req, res) {
     kvGet(NOTIFS_KEY, []),
     kvGet(ANNOUNCED_KEY, {}),
   ]);
+  // A failed read would reset history/announced and re-announce every drop to
+  // creators' channels — stop before doing anything (kvReadGuard).
+  try {
+    for (const key of ["marketplace:products", HISTORY_KEY, NOTIFS_KEY, ANNOUNCED_KEY]) assertKvWritable(key);
+  } catch (e) {
+    json(res, { ok: false, error: "storage_read_failed", key: e?.key || null }, 503);
+    return;
+  }
+
   const products = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
   const notifications = Array.isArray(notifsRow) ? notifsRow : [];
   const announced = announcedRow && typeof announcedRow === "object" ? announcedRow : {};
@@ -179,11 +231,19 @@ export default async function handler(req, res) {
 
   for (const p of pool) {
     if (Date.now() - startTime > MAX_RUN_MS) break;
-    const live = await fetchLivePrice(p.affiliateUrl);
-    if (live == null) {
+    const livePrice = await fetchLivePrice(p.affiliateUrl);
+    if (livePrice == null) {
       checked.push({ productId: p.id, ok: false });
       continue;
     }
+    // A USD retailer price is not comparable with an ILS listing — never
+    // report a "drop" across currencies.
+    const listedCurrency = String(p.currency || "ILS").toUpperCase();
+    if (livePrice.currency && livePrice.currency !== listedCurrency) {
+      checked.push({ productId: p.id, ok: false, reason: "currency_mismatch", currency: livePrice.currency });
+      continue;
+    }
+    const live = livePrice.price;
 
     const entries = history[p.id] || [];
     const last = entries.length ? entries[entries.length - 1].price : p.price;
@@ -221,12 +281,19 @@ export default async function handler(req, res) {
     checked.push({ productId: p.id, ok: true, live, last: last ?? null });
   }
 
-  await Promise.all([kvSet(HISTORY_KEY, history), kvSet(NOTIFS_KEY, notifications.slice(-500))]);
+  // The announced map is persisted too — otherwise every nightly run re-finds
+  // the same drops and re-posts them to creators' channels.
+  await Promise.all([
+    kvSet(HISTORY_KEY, history),
+    kvSet(NOTIFS_KEY, notifications.slice(-500)),
+    kvSet(ANNOUNCED_KEY, announced),
+  ]);
 
   // 📬 Web Push — real phone notification per creator with a price drop
   try {
     const { sendPushToMarketer } = await import("./_utils/pushHandler.mjs");
-    const drops = notifications.slice(-newNotifications);
+    // slice(-0) would return EVERY stored notification — only this run's drops.
+    const drops = newNotifications > 0 ? notifications.slice(-newNotifications) : [];
     for (const n of drops) {
       if (Date.now() - startTime > MAX_RUN_MS) break;
       if (n.type !== "price_drop") continue;

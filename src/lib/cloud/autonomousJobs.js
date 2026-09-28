@@ -12,6 +12,10 @@
  */
 
 import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthScheduler.js";
+import { noteKvReadFailed, readKvResponse, assertKvWritable } from "./kvReadGuard.js";
+
+// Marker set on products added by the affiliate-product-import job.
+export const AFFILIATE_IMPORT_SOURCE = "affiliate-pipeline";
 import { runGrowthCycle, runDailyTrendScan, detectOpportunities } from "./lunaGrowth.js";
 import { discoverOpportunities as discoverOpportunitiesLegacy } from "./selfGrowth.js";
 import { ingestProducts, normalizeProduct, validateProduct, qualityFilter, findNewProducts, buildHookEngine, isProductStale } from "./affiliatePipeline.js";
@@ -19,7 +23,8 @@ import { ingestProducts, normalizeProduct, validateProduct, qualityFilter, findN
 const ORIGIN = "https://likelink2.vercel.app";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// Server writes use the service role only — never the public anon key.
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const SB_HEADERS = {
   apikey: SB_KEY,
@@ -28,28 +33,27 @@ const SB_HEADERS = {
   Prefer: "resolution=merge-duplicates",
 };
 
+// A failed read returns the fallback but marks the key (kvReadGuard): the
+// import/rotation jobs can then never write "catalog = imports only".
 async function svKvGet(key, fallback) {
   if (!SB_URL || !SB_KEY) return fallback;
+  let res;
   try {
-    const res = await fetch(
+    res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
       { headers: SB_HEADERS, signal: AbortSignal.timeout(10000) }
     );
-    if (!res.ok) return fallback;
-    const rows = await res.json();
-    if (!rows?.[0]?.value) return fallback;
-    let parsed = JSON.parse(rows[0].value);
-    while (typeof parsed === "string" && parsed.length > 0) {
-      try { parsed = JSON.parse(parsed); } catch { break; }
-    }
-    return parsed;
   } catch {
+    noteKvReadFailed(key);
     return fallback;
   }
+  const row = await readKvResponse(key, res);
+  return row.found ? row.value : fallback;
 }
 
 async function svKvSet(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
+  assertKvWritable(key);
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
     method: "POST",
     headers: SB_HEADERS,
@@ -610,7 +614,10 @@ registerJob("affiliate-product-import", {
     }
 
     if (validated.length > 0) {
-      const merged = [...existingList, ...validated];
+      // Mark pipeline imports so the rotation job can never touch products a
+      // creator added by hand.
+      const marked = validated.map((p) => ({ ...p, importSource: AFFILIATE_IMPORT_SOURCE }));
+      const merged = [...existingList, ...marked];
       await kvSet("marketplace:products", merged);
     }
 
@@ -656,6 +663,11 @@ registerJob("affiliate-product-rotation", {
     const kept = [];
 
     for (const p of products) {
+      // Only products this pipeline imported are candidates for rotation.
+      if (p?.importSource !== AFFILIATE_IMPORT_SOURCE) {
+        kept.push(p);
+        continue;
+      }
       const staleness = isProductStale(p, { clicks, sales, now });
 
       if (staleness.stale && staleness.ageDays > 14) {
@@ -704,6 +716,8 @@ export const AUTONOMOUS_JOBS = [
   "autonomous-ugc-video-production",
   "autonomous-ugc-distribution",
   "autonomous-ugc-video-poll",
+  // Registered above — must be listed so status reports it (it was hidden).
+  "autonomous-creative-refresh",
 ];
 
 export async function runAllDueAutonomousJobs(opts = {}) {
