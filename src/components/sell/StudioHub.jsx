@@ -185,14 +185,13 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     setPublishResult(null);
     try {
       const body = {
-        mode: 'publish',
         productId: product.id,
       };
       if (provider) {
         body.provider = provider;
       }
 
-      const response = await fetch('/api/store', {
+      const response = await fetch('/api/store?mode=publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${window.__likelink?.token || ''}` },
         body: JSON.stringify(body),
