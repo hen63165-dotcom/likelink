@@ -285,6 +285,30 @@ test("/api/store: a failed catalog read refuses the write instead of overwriting
   assert.equal(kv.get("marketplace:products"), before);
 });
 
+// ── image proxy allowlist (used by the reel renderer) ───────────────────────
+test("image proxy serves catalog image hosts and refuses everything else", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (/^https:\/\/(images\.unsplash\.com|ae01\.alicdn\.com)\//.test(String(url))) {
+      return new Response(new Uint8Array([137, 80, 78, 71]), { status: 200, headers: { "content-type": "image/png" } });
+    }
+    return realFetch(url, init);
+  };
+  try {
+    const { default: og } = await import("../api/og.mjs");
+    for (const img of ["https://images.unsplash.com/photo-1?w=900", "https://ae01.alicdn.com/kf/x.jpg"]) {
+      const res = mockRes();
+      await og(mockReq({ method: "GET", url: "/api/og?mode=image&u=" + encodeURIComponent(img) }), res);
+      assert.equal(res.statusCode, 200, img);
+    }
+    const blocked = mockRes();
+    await og(mockReq({ method: "GET", url: "/api/og?mode=image&u=" + encodeURIComponent("https://evil.example/x.png") }), blocked);
+    assert.equal(blocked.statusCode, 403);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 // ── /r affiliate forwarder ───────────────────────────────────────────────────
 test("/r redirects only to catalog destinations; anything else gets an interstitial", async () => {
   kv.set("marketplace:products", JSON.stringify([{ id: "p1", marketerId: "m1", affiliateUrl: "https://www.aliexpress.com/item/1.html", status: "approved" }]));

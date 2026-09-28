@@ -190,7 +190,10 @@ export default async function handler(req, res) {
       /(^|\.)alicdn\.com$/i.test(target.hostname) ||
       /(^|\.)aliexpress-media\.com$/i.test(target.hostname) ||
       /(^|\.)supabase\.(co|in)$/i.test(target.hostname) ||
-      /(^|\.)supabase-storage\.com$/i.test(target.hostname);
+      /(^|\.)supabase-storage\.com$/i.test(target.hostname) ||
+      // The catalog's own product photos are hosted here (fixed public image
+      // CDN; the response must still be an image/* under 8MB).
+      /^images\.unsplash\.com$/i.test(target.hostname);
     if (!allowedHost || !["http:","https:"].includes(target.protocol)) {
       res.status(403); res.end("Image host not allowed."); return;
     }
