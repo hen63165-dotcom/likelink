@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Image, Video, Layout, Palette, Sparkles, Download, Trash2, Copy, Eye, Plus, Minus } from "lucide-react";
-import { CREATIVE_FORMAT, CREATIVE_TYPE, PLACEMENT, FORMAT_LABELS_HE, TYPE_LABELS_HE, PLACEMENT_LABELS_HE, getAvailableCreativeTypesForPlacement } from "../../lib/ads/types.js";
+import { CREATIVE_FORMAT, CREATIVE_TYPE, PLACEMENT, FORMAT_LABELS_HE, TYPE_LABELS_HE, PLACEMENT_LABELS_HE } from "../../lib/ads/types.js";
 import { generateCreative, buildCreativePack, getAvailableCreativeTypesForPlacement as getTypesForPlacement, getRecommendedCreativeTypeForPlacement } from "../../lib/ads/creativeStudio.js";
 import { EmptyState, Button, LabeledInput, LabeledSelect, Toast } from "../ui/index.jsx";
 

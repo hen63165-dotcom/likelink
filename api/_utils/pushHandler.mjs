@@ -1,4 +1,4 @@
-import { readBody } from "./_utils/readBody.mjs";
+import { readBody } from "./readBody.mjs";
 // Vercel Serverless Function — Web Push 📬
 //
 // Zero-config push infrastructure:
@@ -14,12 +14,12 @@ import { readBody } from "./_utils/readBody.mjs";
 // (price-watch) so creators get real phone notifications when prices drop.
 
 import webpush from "web-push";
-import { originFromRequest } from "./_utils/origin.mjs";
+import { originFromRequest } from "./origin.mjs";
 
 const VAPID_KEY = "marketplace:vapid";
 const SUBS_KEY = "marketplace:pushsubs";
 
-import { isApprovedOrigin } from "./_utils/cors.js";
+import { isApprovedOrigin } from "./cors.js";
 
 // 🔒 Fail loud: server writes use the SERVICE ROLE key only. Never fall back
 // to the anon key — the guards below return 500 when it is missing.

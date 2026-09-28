@@ -225,7 +225,7 @@ export default async function handler(req, res) {
 
   // 📬 Web Push — real phone notification per creator with a price drop
   try {
-    const { sendPushToMarketer } = await import("./push.mjs");
+    const { sendPushToMarketer } = await import("./_utils/pushHandler.mjs");
     const drops = notifications.slice(-newNotifications);
     for (const n of drops) {
       if (Date.now() - startTime > MAX_RUN_MS) break;

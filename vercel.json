@@ -64,6 +64,10 @@
       "destination": "/api/google-feed?kind=story&id=:id"
     },
     {
+      "source": "/api/push",
+      "destination": "/api/store?mode=push"
+    },
+    {
       "source": "/api/sign-sale",
       "destination": "/api/store?mode=sign-sale"
     },

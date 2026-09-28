@@ -652,6 +652,10 @@ export default async function handler(req, res) {
     const { financialHandler } = await import('./_utils/financialHandler.mjs');
     return financialHandler(req, res);
   }
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'push') {
+    const { default: pushHandler } = await import('./_utils/pushHandler.mjs');
+    return pushHandler(req, res);
+  }
   if (new URL(req.url, "https://x").searchParams.get("mode") === "intelligence") {
     return intelligenceHandler(req, res);
   }
