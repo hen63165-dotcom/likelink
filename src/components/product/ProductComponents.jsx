@@ -9,6 +9,7 @@ import { useScrollReveal } from "../../hooks/useScrollReveal.js";
 import { useVideos } from "../../context/VideoContext";
 import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
 import { uploadReelVideo } from "../../lib/uploadVideo.js";
+import { useOptionalMarketplace } from "../../context/MarketplaceContext";
 
 /** 
  * Luxury ProductThumb with advanced loading and bulletproof fallback handling.
@@ -21,6 +22,12 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
   const startedRef = useRef(false);
   const { ref: revealRef, revealStyle } = useScrollReveal();
   const { videos, addVideo } = useVideos();
+  // Only the product's own creator may render + publish a reel for it (the
+  // store accepts videos only from their owner). Buyers just see the photo or
+  // an already-published video — never a render running in their browser.
+  const market = useOptionalMarketplace();
+  const isOwnerViewer = Boolean(market?.currentMarketer?.id && p?.marketerId && String(market.currentMarketer.id) === String(p.marketerId));
+  const [autoSource, setAutoSource] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const rawSrc = p?.image || "";
   const normalized = normalizeImageUrl(rawSrc, origin);
@@ -44,13 +51,14 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
   useEffect(() => {
     if (existing?.videoUrl) {
       setAutoVideo(existing.videoUrl);
+      setAutoSource(String(existing.source || ""));
       setAutoStatus("ready");
     }
-  }, [existing?.videoUrl]);
+  }, [existing?.videoUrl, existing?.source]);
 
   useEffect(() => {
     const node = hostRef.current;
-    if (!node || startedRef.current || existing?.videoUrl || !p?.id || !normalized || !canRecordVideo()) return;
+    if (!node || startedRef.current || existing?.videoUrl || !p?.id || !normalized || !isOwnerViewer || !canRecordVideo()) return;
     const observer = new IntersectionObserver(async (entries) => {
       if (!entries.some((e) => e.isIntersecting) || startedRef.current) return;
       startedRef.current = true;
@@ -61,7 +69,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
           images: [normalized],
           title: p.title || "",
           price: Number(p.price) || 0,
-          hook: `✨ ${p.title || "המוצר"} · UGC LikeLink`,
+          hook: `✨ ${p.title || "המוצר"} · LikeLink`,
           cta: "לרכישה · הלינק במוצר",
           storeName: "LikeLink",
           palette: "dark",
@@ -70,6 +78,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
         const url = remoteUrl || result.url;
         if (remoteUrl) {
           setAutoVideo(remoteUrl);
+          setAutoSource("likelink_auto_ugc");
           setAutoStatus("ready");
         } else {
           setAutoVideo("");
@@ -77,7 +86,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
         }
         addVideo({
           title: `UGC · ${p.title || "Product"}`,
-          description: "LikeLink first-party product reel",
+          description: "Product motion reel rendered from the product photo (LikeLink first-party)",
           videoUrl: url,
           marketerId: p.marketerId,
           productId: p.id,
@@ -93,7 +102,7 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
     }, { rootMargin: "300px" });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [p?.id, normalized, existing?.videoUrl, addVideo]);
+  }, [p?.id, normalized, existing?.videoUrl, addVideo, isOwnerViewer]);
 
   return (
     <div ref={(node) => { hostRef.current = node; revealRef.current = node; }} style={{ ...revealStyle }} className={`relative w-full h-full overflow-hidden bg-stone-100 ${className}`}>
@@ -118,9 +127,18 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
           className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
         />
       )}
-      <div className="absolute top-2 start-2 z-10 rounded-full px-2 py-1 text-[9px] font-black backdrop-blur-md" style={{ background: "rgba(5,8,17,.78)", color: "#fff" }}>
-        {autoStatus === "ready" && autoVideo ? "● UGC REEL · CLOUD" : autoStatus === "rendering" ? "◌ CREATING REEL" : autoStatus === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : "UGC READY SOON"}
-      </div>
+      {/* Truthful badge: only for a real video or a render really running now.
+          An auto reel is the product photo animated in the browser — never
+          presented as filmed UGC. A plain photo gets no badge at all. */}
+      {(autoVideo || autoStatus === "rendering" || autoStatus === "preview") && (
+        <div className="absolute top-2 start-2 z-10 rounded-full px-2 py-1 text-[9px] font-black backdrop-blur-md" style={{ background: "rgba(5,8,17,.78)", color: "#fff" }}>
+          {autoStatus === "rendering"
+            ? "◌ מכינה ריל מתמונת המוצר"
+            : autoStatus === "preview"
+              ? "תצוגה מקומית · לא פורסם"
+              : /likelink_auto/i.test(autoSource) ? "● ריל מוצר · מונפש מהתמונה" : "● וידאו מוצר"}
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
     </div>
   );

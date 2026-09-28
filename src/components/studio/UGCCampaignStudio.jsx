@@ -11,6 +11,8 @@ import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
 import { uploadReelVideo } from "../../lib/uploadVideo.js";
 import { buildCampaign } from "../../lib/cloud/campaign.js";
 import { recordLunaHeartbeat } from "../../lib/cloud/lunaStatus.js";
+import { getSessionToken } from "../../lib/auth.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import { CHARACTER_PRESETS, CHARACTER_TYPES } from "../../lib/cloud/characters.js";
 
 const MODEL_TYPES = [
@@ -30,7 +32,7 @@ const CHANNELS = [
 ];
 
 const VIDEO_STYLES = [
-  { id: "ugc", label: "UGC", palette: "dark", badge: "יוצרת · 9:16" },
+  { id: "ugc", label: "UGC", palette: "dark", badge: "סגנון UGC מתמונת המוצר · 9:16" },
   { id: "cinematic3d", label: "Cinematic Motion", palette: "gold", badge: "תנועת מוצר מקורית · 9:16" },
 ];
 
@@ -139,15 +141,26 @@ export default function UGCCampaignStudio({ onNavigate }) {
     setBusyAll(true);
     setMessage("");
     const queue = mine.slice();
+    const outcome = { ready: 0, preview: 0, skipped: 0, error: 0 };
     setProgress({ done: 0, total: queue.length, current: "", itemProgress: 0 });
     for (const product of queue) {
-      await renderOne(product, styleId);
+      const item = await renderOne(product, styleId);
+      if (item?.status === "ready" && item?.remote) outcome.ready++;
+      else if (item?.status === "preview") outcome.preview++;
+      else if (item?.status === "skipped") outcome.skipped++;
+      else outcome.error++;
       setProgress((v) => ({ ...v, done: v.done + 1, current: product.title || "" }));
       // Yield between products so the Studio stays responsive.
       await new Promise((resolve) => setTimeout(resolve, 80));
     }
     setBusyAll(false);
-    showToast?.(he ? `נוצרו ${queue.length} סרטוני ${styleId === "ugc" ? "UGC" : "3D"} אמיתיים ונשמרו בפיד` : `${queue.length} real ${styleId === "ugc" ? "UGC" : "3D"} videos generated and saved`);
+    // Report exactly what happened to each product — only cloud-saved reels
+    // count as saved; local previews, skips and failures are named as such.
+    const styleName = styleId === "ugc" ? "UGC" : "Cinematic Motion";
+    const parts = he
+      ? [`${outcome.ready} ריילים (${styleName}) נשמרו בענן`, outcome.preview ? `${outcome.preview} תצוגה מקומית בלבד` : "", outcome.skipped ? `${outcome.skipped} דולגו (אין תמונה)` : "", outcome.error ? `${outcome.error} נכשלו` : ""]
+      : [`${outcome.ready} ${styleName} reels saved to the cloud`, outcome.preview ? `${outcome.preview} local preview only` : "", outcome.skipped ? `${outcome.skipped} skipped (no image)` : "", outcome.error ? `${outcome.error} failed` : ""];
+    showToast?.(parts.filter(Boolean).join(" · "));
   };
 
   // On entering UGC, automatically build the complete first-party UGC set once.
@@ -177,7 +190,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
     // Real publishing work: the creator pressed publish for a real product.
     try { recordLunaHeartbeat("publishing"); } catch { /* best-effort */ }
     try {
-      const token = typeof window !== "undefined" ? window.__likelink?.token || "" : "";
+      const token = await getSessionToken();
       const res = await fetch("/api/store?mode=publish", {
         method: "POST",
         headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -194,10 +207,15 @@ export default function UGCCampaignStudio({ onNavigate }) {
         setMessage(he ? `נדרש חיבור אמיתי ל-${provider}. המערכת לא מסמנת פרסום כהצלחה ללא אישור מהערוץ.` : `A real ${provider} connection is required; publication is only marked after channel confirmation.`);
         return;
       }
-      setMessage(data.publishedUrl || data.status || "PUBLISHED");
+      if (data.status !== "PUBLISHED") {
+        // Accepted but not yet confirmed by the channel — never report success.
+        setMessage(he ? "הבקשה התקבלה — הפרסום יסומן רק אחרי אישור מהערוץ" : "Accepted — marked published only after channel confirmation");
+        return;
+      }
+      setMessage(data.publishedUrl || (he ? "פורסם" : "Published"));
       showToast?.(he ? `הפרסום ל-${provider || "LikeLink"} אושר לפי התוצאה האמיתית` : `Publication to ${provider || "LikeLink"} was confirmed`);
     } catch (e) {
-      setMessage(String(e?.message || "publish_failed"));
+      setMessage(he ? toHebrewError(e?.message, "הפרסום נכשל") : String(e?.message || "Publish failed"));
     }
   }
 
@@ -263,6 +281,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
             <div className="flex items-center gap-2 text-sm font-bold" style={{ color: "var(--text)" }}><UserRound size={16} /> {modelLabel(characterType, he)}</div>
             <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>{he ? model?.persona?.he : model?.persona?.en}</div>
             <div className="mt-2 text-[10px] font-bold" style={{ color: "var(--accent)" }}>{he ? "דמות סינתטית מקורית — לא אדם אמיתי" : "Original synthetic character — not a real person"}</div>
+            <div className="mt-1 text-[10px]" style={{ color: "var(--text-muted)" }}>{he ? "הדמות עדיין לא מופיעה בסרטון: הריל נוצר מתמונות המוצר בלבד." : "The character does not appear in the video yet: reels are built from the product photos only."}</div>
           </div>
         </div>
 

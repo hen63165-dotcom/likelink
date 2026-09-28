@@ -21,6 +21,8 @@ import { installGlobalErrorHealing } from "./lib/autoHeal.js";
 import { startAutoPilotSwarm } from "./lib/autopilotTick.js";
 import FloatingAIHelper from "./components/FloatingAIHelper";
 import { capturePayPalCheckout } from "./lib/paymentFlow.js";
+import { toHebrewError } from "./lib/errorMessages.js";
+import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
 const FeedView = lazy(() => import("./components/feed/FeedView"));
@@ -51,6 +53,8 @@ export default function AppRoot() {
                 <App />
               </ErrorBoundary>
               <Cart />
+              {/* Completes the forgot-password e-mail flow (sets a new password). */}
+              <PasswordRecovery />
             </VideoProvider>
           </CartProvider>
         </MarketplaceProvider>
@@ -129,15 +133,17 @@ function App() {
       return;
     }
 
-    capturePayPalCheckout({ orderId, items: pendingItems.items, buyerEmail: pendingItems.buyerEmail })
+    capturePayPalCheckout({ orderId })
       .then((result) => {
         if (!result.ok) throw new Error(result.error || "capture_failed");
         sessionStorage.removeItem("likelink_pending_checkout");
         clearCart();
         window.history.replaceState({}, "", "/");
-        showToast("התשלום הצליח וההזמנה נקלטה");
+        showToast(result.alreadyRecorded ? "ההזמנה כבר נקלטה" : "התשלום הצליח וההזמנה נקלטה");
       })
-      .catch(() => showToast("התשלום אושר, אך קליטת ההזמנה נכשלה. יש לפנות לתמיכה."));
+      // The exact reason: "not charged" and "charged but not recorded" are
+      // very different situations for the buyer.
+      .catch((e) => showToast(`${toHebrewError(e?.message, "קליטת התשלום נכשלה")} (הזמנה ${orderId})`));
   }, [clearCart, showToast]);
 
   useEffect(() => {

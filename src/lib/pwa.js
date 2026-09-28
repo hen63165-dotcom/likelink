@@ -106,11 +106,16 @@ export async function subscribeToPush(marketerId) {
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
     }
-    await fetch("/api/push", {
+    // The server registers devices only for the signed-in studio owner.
+    const { getSessionToken } = await import("./auth.js");
+    const token = await getSessionToken().catch(() => null);
+    const saved = await fetch("/api/push", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ mode: "subscribe", marketerId, subscription: sub.toJSON() }),
     });
+    const data = await saved.json().catch(() => ({}));
+    if (!saved.ok || !data.ok) return { ok: false, reason: data.error || `http_${saved.status}` };
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: String(e.message || e) };

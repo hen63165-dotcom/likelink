@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Brain, Target, Zap, Share2, Activity, ChevronRight } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { TREND_STATES, TREND_STATE_LABELS, TREND_STATE_COLORS, createTrend, trendIsActive, summarizeTrend } from "../../lib/cloud/trendRadar.js";
-import { evaluateOpportunity, OPPORTUNITY_DECISIONS, OPPORTUNITY_DECISION_LABELS, selectBestOpportunity } from "../../lib/cloud/opportunityEngine.js";
+import { evaluateOpportunity, OPPORTUNITY_DECISIONS, OPPORTUNITY_DECISION_LABELS, OPPORTUNITY_DECISION_COLORS, selectBestOpportunity } from "../../lib/cloud/opportunityEngine.js";
 import { createCreativeVariant, CREATIVE_TYPES, CREATIVE_STATUS } from "../../lib/cloud/creativeMutation.js";
 import { resolveDistributionState, DISTRIBUTION_STATES, getBestFallback } from "../../lib/cloud/distributionIntelligence.js";
 import { computeWinningPatterns, recordPerformanceEvent } from "../../lib/cloud/growthLearning.js";
@@ -33,23 +33,50 @@ export default function GrowthOS({ products = [], events = [], channels = ["web"
     [products]
   );
 
+  // Trend state comes from MEASURED activity (clicks/views in the last 24h vs
+  // the 24h before) — never from a product's position in the list. No
+  // activity at all is reported as INSUFFICIENT_DATA, not as a trend.
   const trends = useMemo(() => {
     if (!approved.length) return [];
     const now = Date.now();
-    return approved.slice(0, 5).map((p, idx) =>
-      createTrend({
-        state: idx === 0 ? TREND_STATES.ACCELERATING : idx < 3 ? TREND_STATES.RISING : TREND_STATES.DETECTED,
-        category: p.category,
-        platform: "likelink_feed",
-        signal: "category_momentum",
-        keywords: [p.category],
-        relatedProducts: [p.id],
-        confidence: "ESTIMATED",
-        evidence: `internal_catalog:${approved.length}`,
-        expiresAt: now + 24 * 60 * 60 * 1000,
-      })
-    );
-  }, [approved]);
+    const DAY = 24 * 60 * 60 * 1000;
+    const counts = new Map();
+    for (const e of Array.isArray(events) ? events : []) {
+      const id = e?.productId;
+      const ts = Number(e?.ts);
+      if (!id || !Number.isFinite(ts) || ts < now - 2 * DAY || ts > now + 60000) continue;
+      const c = counts.get(id) || { recent: 0, prev: 0 };
+      if (ts >= now - DAY) c.recent++; else c.prev++;
+      counts.set(id, c);
+    }
+    return approved
+      .map((p) => ({ p, c: counts.get(p.id) || { recent: 0, prev: 0 } }))
+      .sort((a, b) => b.c.recent - a.c.recent)
+      .slice(0, 5)
+      .map(({ p, c }) => {
+        const measured = c.recent + c.prev > 0;
+        const state = !measured
+          ? TREND_STATES.INSUFFICIENT_DATA
+          : c.recent >= 3 && c.recent > c.prev * 1.5
+            ? TREND_STATES.ACCELERATING
+            : c.recent > c.prev
+              ? TREND_STATES.RISING
+              : c.recent < c.prev
+                ? TREND_STATES.DECLINING
+                : TREND_STATES.DETECTED;
+        return createTrend({
+          state,
+          category: p.category,
+          platform: "likelink_feed",
+          signal: "product_activity_24h",
+          keywords: [p.category],
+          relatedProducts: [p.id],
+          confidence: measured ? "MEASURED" : "INSUFFICIENT",
+          evidence: `activity_24h:${c.recent},prev_24h:${c.prev}`,
+          expiresAt: now + DAY,
+        });
+      });
+  }, [approved, events]);
 
   const opportunities = useMemo(() => {
     if (!selectedProduct || !trends.length) return [];

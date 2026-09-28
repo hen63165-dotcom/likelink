@@ -96,26 +96,21 @@ export function buildPayPalStandardCheckoutUrl({
  * @param {string} cancelUrl  where PayPal redirects on cancel
  * @returns {Promise<{ ok: boolean, orderId?: string, approvalUrl?: string, mock?: boolean, error?: string }>}
  */
-export function createPayPalCheckout({ items = [], buyerEmail = "", returnUrl = "/", cancelUrl = "/" }) {
+export function createPayPalCheckout({ items = [], buyerEmail = "" }) {
+  // Only WHICH products and HOW MANY: the server prices the cart from the
+  // catalog and builds the PayPal return/cancel URLs itself.
   return fetch("/api/checkout/create-order", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       items: items.map((it) => ({
-        title: it.product?.title || it.title || "Product",
-        price: Number(it.product?.price || it.price || 0),
+        productId: it.product?.id || it.productId || null,
         quantity: Math.max(1, Number(it.quantity || 1)),
-        productId: it.product?.id || null,
-        marketerId: it.marketer?.id || null,
-        sellerName: it.marketer?.name || "",
       })),
       buyerEmail,
-      returnUrl,
-      cancelUrl,
-      custom: items.map((it) => `${it.marketer?.id || "guest"}:${it.product?.id || "x"}`).join(","),
     }),
     signal: AbortSignal.timeout(15000),
-  }).then((r) => r.json());
+  }).then((r) => r.json().catch(() => ({ ok: false, error: `http_${r.status}` })));
 }
 
 /**
@@ -126,21 +121,13 @@ export function createPayPalCheckout({ items = [], buyerEmail = "", returnUrl = 
  * @param {Array}  items    cart items for sale recording
  * @returns {Promise<{ ok: boolean, captureId?: string, sales?: [], total?: string, error?: string }>}
  */
-export function capturePayPalCheckout({ orderId, items = [], buyerEmail = "" }) {
+export function capturePayPalCheckout({ orderId }) {
+  // The server records the sale from its own priced order record — the
+  // browser only identifies which PayPal order to capture.
   return fetch("/api/checkout/capture-order", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      orderId,
-      items: items.map((it) => ({
-        productId: it.product?.id || null,
-        marketerId: it.marketer?.id || null,
-        title: it.product?.title || it.title || "Product",
-        price: Number(it.product?.price || it.price || 0),
-        quantity: Math.max(1, Number(it.quantity || 1)),
-      })),
-      buyerEmail,
-    }),
-    signal: AbortSignal.timeout(20000),
-  }).then((r) => r.json());
+    body: JSON.stringify({ orderId }),
+    signal: AbortSignal.timeout(30000),
+  }).then((r) => r.json().catch(() => ({ ok: false, error: `http_${r.status}` })));
 }

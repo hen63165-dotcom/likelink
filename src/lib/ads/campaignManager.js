@@ -59,7 +59,7 @@ export function validateCampaign(data) {
   if (!data.productId || typeof data.productId !== "string") {
     errors.push("מזהה מוצר חובה");
   }
-  if (!data.objective || !Object.values({...require("./types.js").CAMPAIGN_OBJECTIVE}).includes(data.objective)) {
+  if (!data.objective || !Object.values(CAMPAIGN_OBJECTIVE).includes(data.objective)) {
     errors.push("מטרה לא תקינה");
   }
   if (data.budget !== undefined && (typeof data.budget !== "number" || data.budget <= 0)) {
@@ -77,7 +77,7 @@ export function validateCampaign(data) {
   if (data.startDate && data.endDate && new Date(data.startDate) >= new Date(data.endDate)) {
     errors.push("תאריך סיום חייב להיות אחרי תאריך התחלה");
   }
-  if (data.tier && !Object.values(require("./types.js").CAMPAIGN_TIER).includes(data.tier)) {
+  if (data.tier && !Object.values(CAMPAIGN_TIER).includes(data.tier)) {
     errors.push("דרגה לא תקינה");
   }
   return { valid: errors.length === 0, errors };
@@ -106,7 +106,7 @@ export function createCampaign(data, { tier = "starter", marketerId } = {}) {
     startDate: data.startDate ? new Date(data.startDate).getTime() : now,
     endDate: data.endDate ? new Date(data.endDate).getTime() : null,
     targeting: data.targeting || {},
-    placements: Array.isArray(data.placements) ? data.placements.filter(p => require("./types.js").isValidPlacement(p)) : ["feed_sponsored", "search_sponsored"],
+    placements: Array.isArray(data.placements) ? data.placements.filter(p => isValidPlacement(p)) : ["feed_sponsored", "search_sponsored"],
     creatives: [],
     tracking: {
       utmSource: "likelink_ads",
@@ -155,11 +155,11 @@ export function updateCampaign(campaign, updates) {
   for (const key of allowedFields) {
     if (updates[key] !== undefined && updates[key] !== campaign[key]) {
       // Validate specific fields
-      if (key === "status" && !Object.values(require("./types.js").CAMPAIGN_STATUS).includes(updates[key])) {
+      if (key === "status" && !Object.values(CAMPAIGN_STATUS).includes(updates[key])) {
         throw new Error(`סטטוס לא תקין: ${updates[key]}`);
       }
       if (key === "placements" && Array.isArray(updates[key])) {
-        const invalid = updates[key].filter(p => !require("./types.js").isValidPlacement(p));
+        const invalid = updates[key].filter(p => !isValidPlacement(p));
         if (invalid.length) throw new Error(`מיקומים לא תקינים: ${invalid.join(", ")}`);
       }
       updated[key] = updates[key];

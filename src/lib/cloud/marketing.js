@@ -284,10 +284,13 @@ function publishMarketingContent(content, actor, provider = null, channel = null
     contentType: 'marketing',
     provider: provider || 'likelink2_internal',
     channel: channel || 'native_luna',
-    status: 'PUBLISHED',
+    // Nothing is sent to any channel here — this is a prepared draft, never
+    // reported as published.
+    status: 'DRAFT',
     content: content,
     actorId: actor?.id || null,
-    publishedAt: new Date().toISOString(),
+    publishedAt: null,
+    createdAt: new Date().toISOString(),
     idempotencyKey: `marketing:${content.product.id}:${provider || 'internal'}:${Date.now()}`,
     marketingMetadata: {
       angle: content.angle,

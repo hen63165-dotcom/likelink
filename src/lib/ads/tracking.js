@@ -20,7 +20,7 @@ function generateSessionId() {
 }
 
 export function createAdEvent(eventData) {
-  const allowedTypes = Object.values(require("./types.js").AD_EVENT);
+  const allowedTypes = Object.values(AD_EVENT);
   if (!allowedTypes.includes(eventData.type)) {
     return { ok: false, error: "סוג אירוע לא תקין" };
   }
@@ -79,8 +79,8 @@ export function createCreativeRenderCompleteEvent(data) {
 }
 
 function getSessionId(req) {
-  // In real implementation, would read from cookie/header
-  return data.sessionId || generateSessionId();
+  // Session id supplied with the event, else a fresh one.
+  return req?.sessionId || generateSessionId();
 }
 
 export function buildAttributionChain(event, campaigns, creatives) {
@@ -244,7 +244,7 @@ export function createSessionIfNeeded(existingSessionId) {
 }
 
 export function buildTrackingPixelUrl(eventType, params = {}) {
-  const base = "/api/ads/track";
+  const base = "/api/ads?mode=event";
   const url = new URL(base, typeof window !== "undefined" ? window.location.origin : "https://likelink2.vercel.app");
   url.searchParams.set("type", eventType);
   for (const [key, value] of Object.entries(params)) {
@@ -278,7 +278,7 @@ export function sendBeacon(payload) {
 
   try {
     const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-    const url = "/api/ads/track";
+    const url = "/api/ads?mode=event";
     navigator.sendBeacon(url, blob);
     return Promise.resolve(true);
   } catch {

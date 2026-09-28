@@ -25,9 +25,20 @@ import { generateContentPack } from '../../lib/cloud/contentStudio.js';
 import { verifyProduct, TRUST_STATE, isDiscoveryEligible, trustGateReport } from '../../lib/cloud/trustVerification.js';
 import { runGrowthCycle, diagnoseProduct } from '../../lib/cloud/lunaGrowth.js';
 import { recordLunaHeartbeat } from '../../lib/cloud/lunaStatus.js';
+import { getSessionToken } from '../../lib/auth.js';
+import { toHebrewError } from '../../lib/errorMessages.js';
 import { suggestPrice, scoreStoreHealth } from '../../lib/aiStudio.js';
 import { fetchProductInfo } from '../../lib/productInfo.js';
 import { canRecordVideo } from '../../lib/videoEngine.js';
+import { getLanguageCapability, getSupportedLanguages, getUnsupportedLanguages } from '../../lib/cloud/languageCapabilities.js';
+import { createTrend } from '../../lib/cloud/trendRadar.js';
+import { evaluateOpportunity } from '../../lib/cloud/opportunityEngine.js';
+import { createCreativeVariant } from '../../lib/cloud/creativeMutation.js';
+import { resolveDistributionState } from '../../lib/cloud/distributionIntelligence.js';
+import { computeWinningPatterns } from '../../lib/cloud/growthLearning.js';
+import { buildEditSpec } from '../../lib/cloud/videoEditing.js';
+import { generateVoiceoverScript } from '../../lib/cloud/voiceoverScript.js';
+import AutoPilot from './AutoPilot';
 import { money } from '../../utils/helpers.js';
 import { ProductThumb } from '../product/ProductComponents.jsx';
 import { EmptyState } from '../ui/index.jsx';
@@ -110,7 +121,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     } catch (e) {
       setCapabilities(prev => ({
         ...prev,
-        intelligence: { status: CAPABILITY_STATUS.FAILED, error: e.message || 'שגיאה בחילוץ מידע' }
+        intelligence: { status: CAPABILITY_STATUS.FAILED, error: toHebrewError(e?.message, 'שגיאה בחילוץ מידע') }
       }));
     }
   }, []);
@@ -129,7 +140,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     } catch (e) {
       setCapabilities(prev => ({
         ...prev,
-        content: { status: CAPABILITY_STATUS.FAILED, error: e.message || 'שגיאה ביצירת תוכן' }
+        content: { status: CAPABILITY_STATUS.FAILED, error: toHebrewError(e?.message, 'שגיאה ביצירת תוכן') }
       }));
     }
   }, [showToast]);
@@ -160,7 +171,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
       const isRetryable = retryCount < 2;
       setLaunchResult({
         ok: false,
-        error: e.message || 'לא ידוע',
+        error: toHebrewError(e?.message, 'ההשקה נכשלה'),
         retryable: isRetryable,
         retryCount,
         steps: [],
@@ -170,7 +181,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         setTimeout(() => handleLaunch(product, retryCount + 1), 1500 * (retryCount + 1));
         return;
       }
-      showToast?.('שגיאה בהשקה: ' + (e.message || 'לא ידוע'));
+      showToast?.(toHebrewError(e?.message, 'ההשקה נכשלה — נסי שוב בעוד רגע'));
     } finally {
       setLaunching(false);
     }
@@ -191,12 +202,14 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         body.provider = provider;
       }
 
+      const token = await getSessionToken();
       const response = await fetch('/api/store?mode=publish', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${window.__likelink?.token || ''}` },
+        headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` }));
+      if (!result.ok) result.error = toHebrewError(result.error, 'הפרסום נכשל');
       setPublishResult(result);
       if (result.ok) {
         if (result.status === 'PUBLISHED' && result.provider === 'likelink2') {
@@ -208,14 +221,16 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
         } else if (result.status === 'CONNECT_REQUIRED') {
           showToast?.('התחבר לשירות חיצוני דרך ההגדרות');
         } else {
-          showToast?.('המוצר פורסם בהצלחה 🚀');
+          // Any other ok status is not a confirmed publication — say so.
+          showToast?.('הבקשה התקבלה — הסטטוס יתעדכן כשהערוץ יאשר');
         }
       } else {
-        showToast?.(result.error || 'שגיאה בפרסום');
+        showToast?.(result.error);
       }
     } catch (e) {
-      setPublishResult({ ok: false, error: e.message || 'שגיאה בפרסום' });
-      showToast?.('שגיאה בפרסום: ' + (e.message || 'לא ידוע'));
+      const msg = toHebrewError(e?.message, 'הפרסום נכשל');
+      setPublishResult({ ok: false, error: msg });
+      showToast?.(msg);
     } finally {
       setPublishing(false);
     }
@@ -230,15 +245,17 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
     setVerificationResult(null);
     try {
       const body = { productId: product.id };
+      const token = await getSessionToken();
       const response = await fetch('/api/store?mode=verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', authorization: 'Bearer ' + (window.__likelink?.token || '') },
+        headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` }));
+      if (!result.ok) result.error = toHebrewError(result.error, 'האימות נכשל');
       setVerificationResult(result);
     } catch (e) {
-      setVerificationResult({ ok: false, error: String(e.message || e) });
+      setVerificationResult({ ok: false, error: toHebrewError(e?.message, 'האימות נכשל') });
     } finally {
       setVerifying(false);
     }
@@ -485,6 +502,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
             copyToClipboard={copyToClipboard}
             clearSelection={clearSelection}
             selectProduct={selectProduct}
+            setActiveTab={setActiveTab}
           />
         )}
 
@@ -530,7 +548,7 @@ export default function StudioHub({ marketer, products, sales, clicks, onLaunchC
 
         {/* AutoPilot */}
         {activeTab === 'autopilot' && (
-          <AutoPilotTab product={product} marketer={marketer} CAPABILITY_STATUS={CAPABILITY_STATUS} Zap={Zap} Loader2={Loader2} />
+          <AutoPilotTab marketer={marketer} products={myProducts} showToast={showToast} Zap={Zap} />
         )}
 
         {/* AI Recommendations */}
@@ -571,7 +589,7 @@ const DashboardTab = ({
   product, marketer, myProducts, productTrends, sales, clicks,
   studioHealth, CAPABILITY_STATUS, Loader2, Lightbulb, Rocket,
   TrendingUp, Share2, Copy, generateWhatsappMessage, openWhatsapp,
-  copyToClipboard, clearSelection, selectProduct
+  copyToClipboard, clearSelection, selectProduct, setActiveTab
 }) => {
   const [loadingStates, setLoadingStates] = React.useState({});
 
@@ -823,15 +841,8 @@ const UGCTab = ({ product, marketer, canRecord, CAPABILITY_STATUS, Video, Loader
 
 // Reach/Performance tab
 const ReachPerformanceTab = ({ product, marketer, sales, clicks, myProducts, BarChart2, Globe }) => {
-  const [reachData, setReachData] = React.useState(null);
-
-  React.useEffect(() => {
-    if (!product || !sales || !clicks) return;
-    try {
-      const { getReachMetrics } = require('../../lib/cloud/discovery.js');
-      setReachData(getReachMetrics({ product, sales, clicks }));
-    } catch (e) { /* best-effort */ }
-  }, [product, sales, clicks]);
+  // No verified reach source exists yet — the fallback below says so honestly.
+  const reachData = null;
 
   const allClicks = myProducts.reduce((sum, p) => sum + (p.clicks || 0), 0);
   const allSales = sales.filter(s => s.marketerId === marketer?.id).length;
@@ -876,64 +887,19 @@ const ReachPerformanceTab = ({ product, marketer, sales, clicks, myProducts, Bar
 };
 
 // AutoPilot tab
-const AutoPilotTab = ({ product, marketer, CAPABILITY_STATUS, Zap, Loader2 }) => {
-  const [config, setConfig] = React.useState(null);
-  const [status, setStatus] = React.useState({ overall: 'IDLE' });
-
-  React.useEffect(() => {
-    try {
-      const { getAutoPilotConfig } = require('../../lib/cloud/autoPilot.js');
-      const cfg = getAutoPilotConfig(marketer);
-      setConfig(cfg);
-    } catch (e) { /* best-effort */ }
-  }, [marketer]);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm font-semibold flex items-center gap-2"><Zap size={16} style={{ color: '#00C896' }} />AutoPilot</p>
-
-      {config && (
-        <>
-          <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted">STATUS</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#00C89620', color: '#00C896' }}>
-                {status.overall}
-              </span>
-            </div>
-            <p className="text-[11px] text-muted">אוטומציה של פרסום והתפתחות המוצר על בסיס ביצועים אמיתיים.</p>
-          </div>
-
-          <div className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-            <p className="text-xs font-semibold text-muted mb-2">CONFIGURATION</p>
-            <div className="flex flex-col gap-1 text-[11px]">
-              <div className="flex justify-between"><span className="text-muted">קצב פרסום</span><span>{config.rate || 'בפעילות'}</span></div>
-              <div className="flex justify-between"><span className="text-muted">שעת פיקה</span><span>{config.peakHour !== undefined ? config.peakHour + ':00' : 'אוטומטי'}</span></div>
-              <div className="flex justify-between"><span className="text-muted">יעד קליקים/יום</span><span>{config.target || 'ללא הגבלה'}</span></div>
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="rounded-xl p-3" style={{ background: 'var(--bg-subtle)' }}>
-        <p className="text-[10px] text-muted">AutoPilot מפעיל את ההשקה וההתפשטות באופן אוטונומי, רק כשיש לך מוצרים מאושרים ופעילים.</p>
-      </div>
-    </div>
-  );
-};
+const AutoPilotTab = ({ marketer, products, showToast, Zap }) => (
+  <div className="flex flex-col gap-4">
+    <p className="text-sm font-semibold flex items-center gap-2"><Zap size={16} style={{ color: '#00C896' }} />AutoPilot</p>
+    {/* The real AutoPilot panel: loads and saves the creator's actual cloud config. */}
+    <AutoPilot marketer={marketer} products={products} showToast={showToast} />
+  </div>
+);
 
 // AI Recommendations tab
 const RecommendationsTab = ({ product, marketer, myProducts, sales, Brain, Target }) => {
-  const [recommendations, setRecommendations] = React.useState(null);
-
-  React.useEffect(() => {
-    try {
-      const { getAIRecommendations } = require('../../lib/cloud/intelligenceContext.mjs');
-      if (product) {
-        setRecommendations(getAIRecommendations({ product, marketer, myProducts, sales }));
-      }
-    } catch (e) { /* best-effort */ }
-  }, [product, marketer, myProducts, sales]);
+  // No recommendation engine is wired to this tab yet — never show a fake
+  // "loading" state that can never resolve.
+  const recommendations = null;
 
   if (!product) {
     return (
@@ -967,7 +933,7 @@ const RecommendationsTab = ({ product, marketer, myProducts, sales, Brain, Targe
           ))}
         </div>
       ) : (
-        <p className="text-xs text-muted">טוען המלצות...</p>
+        <p className="text-xs text-muted">המלצות AI עדיין לא זמינות בלשונית הזו.</p>
       )}
     </div>
   );
@@ -1032,16 +998,8 @@ const TopProductsTab = ({ myProducts, productTrends, sales, clicks, PieChart }) 
 
 // Community tab
 const CommunityTab = ({ marketer, myProducts, sales, Users, Share2 }) => {
-  const [communityData, setCommunityData] = React.useState(null);
-
-  React.useEffect(() => {
-    try {
-      const { getCommunityMetrics } = require('../../lib/cloud/social.js');
-      if (marketer) {
-        setCommunityData(getCommunityMetrics(marketer));
-      }
-    } catch (e) { /* best-effort */ }
-  }, [marketer]);
+  // No verified community metrics source exists yet — the stats block stays hidden.
+  const communityData = null;
 
   const myLink = `${window.location.origin}/u/${marketer?.slug || marketer?.id}`;
   const communityProducts = myProducts.filter(p => p.boostedUntil && p.boostedUntil > Date.now());
@@ -1672,17 +1630,12 @@ const GrowthOSTab = ({ product, marketer, products, clicks, sales, showToast }) 
   React.useEffect(() => {
     if (!product) return;
     try {
-      const { createTrend } = require('../../lib/cloud/trendRadar.js');
-      const { evaluateOpportunity } = require('../../lib/cloud/opportunityEngine.js');
-      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
       const trend = createTrend({ state: 'RISING', category: product.category, platform: 'likelink_feed', signal: 'category_momentum', confidence: 'ESTIMATED' });
       const opp = evaluateOpportunity({ product, trend, creativeAvailability: true, connectionStates: { web: 'CONNECTED' } });
       setOpportunity(opp);
       const cv = createCreativeVariant({ product, trend, language: 'he', creativeType: 'post' });
       setCreative(cv);
-      const { resolveDistributionState } = require('../../lib/cloud/distributionIntelligence.js');
       setDistribution({ state: resolveDistributionState({ intent: 'share', provider: 'web' }), channel: 'web' });
-      const { computeWinningPatterns } = require('../../lib/cloud/growthLearning.js');
       setLearning(computeWinningPatterns(clicks || []));
     } catch (e) {
       // best-effort — growth OS is additive
@@ -1797,8 +1750,6 @@ const VideoEditingTab = ({ product }) => {
   React.useEffect(() => {
     if (!product) return;
     try {
-      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
-      const { buildEditSpec } = require('../../lib/cloud/videoEditing.js');
       const cv = createCreativeVariant({ product, language: 'he', creativeType: 'reel' });
       if (cv) setSpec(buildEditSpec({ creative: cv, product }));
     } catch (e) { /* best-effort */ }
@@ -1837,7 +1788,6 @@ const VoiceoverTab = ({ product, creative }) => {
   React.useEffect(() => {
     if (!product || !creative) return;
     try {
-      const { generateVoiceoverScript } = require('../../lib/cloud/voiceoverScript.js');
       setVoiceover(generateVoiceoverScript({ creative, product }));
     } catch (e) { /* best-effort */ }
   }, [product, creative]);
@@ -1868,7 +1818,6 @@ const LanguageCapabilitiesTab = ({ product }) => {
   const [caps, setCaps] = React.useState({});
   React.useEffect(() => {
     try {
-      const { getLanguageCapability, getSupportedLanguages, getUnsupportedLanguages } = require('../../lib/cloud/languageCapabilities.js');
       const supported = getSupportedLanguages();
       const unsupported = getUnsupportedLanguages();
       setCaps({ supported, unsupported, he: getLanguageCapability('he'), en: getLanguageCapability('en') });
@@ -1909,10 +1858,6 @@ const VideoUGCTab = ({ product, marketer, canRecord, CAPABILITY_STATUS, Video, L
   React.useEffect(() => {
     if (!product) return;
     try {
-      const { createCreativeVariant } = require('../../lib/cloud/creativeMutation.js');
-      const { buildEditSpec } = require('../../lib/cloud/videoEditing.js');
-      const { generateVoiceoverScript } = require('../../lib/cloud/voiceoverScript.js');
-      const { getLanguageCapability } = require('../../lib/cloud/languageCapabilities.js');
 
       const cv = createCreativeVariant({ product, language: 'he', creativeType: 'reel' });
       if (cv) {

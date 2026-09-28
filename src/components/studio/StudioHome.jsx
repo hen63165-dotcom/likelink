@@ -18,11 +18,12 @@ import {
   Eye, Search, Target, PenTool, Radio, LineChart, Link2, BookOpen, Gauge,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
-import { useMarketplace } from "../../context/MarketplaceContext";
+import { useMarketplace, useOptionalMarketplace } from "../../context/MarketplaceContext";
 import { fetchAutonomousJobStatus } from "../../lib/cloud/autonomousJobsClient.js";
 import { buildActivityFeed, getActivity } from "../../lib/studioActivity.js";
 import { money } from "../../utils/helpers";
 import { isAuthorized } from "./homeAuth.js";
+import { getSessionToken } from "../../lib/auth.js";
 import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
 import { uploadReelVideo } from "../../lib/uploadVideo.js";
 import { useVideos } from "../../context/VideoContext";
@@ -109,6 +110,10 @@ function LiveReelMedia({ product, hero = false }) {
   const started = useRef(false);
   const beatRef = useRef(false);
   const { videos, addVideo } = useVideos();
+  // Render + publish only for the creator who owns the product (the store
+  // accepts videos only from their owner); others see the photo or a real video.
+  const market = useOptionalMarketplace();
+  const isOwnerViewer = Boolean(market?.currentMarketer?.id && product?.marketerId && String(market.currentMarketer.id) === String(product.marketerId));
   const existing = useMemo(() => (videos || [])
     .filter((v) => {
       const same = String(v?.productId || v?.productTags?.[0]?.productId || "") === String(product?.id || "");
@@ -126,7 +131,7 @@ function LiveReelMedia({ product, hero = false }) {
   }, [existing?.videoUrl]);
 
   useEffect(() => {
-    if (!product?.id || existing?.videoUrl || started.current || !product?.image || !canRecordVideo()) return;
+    if (!product?.id || existing?.videoUrl || started.current || !product?.image || !isOwnerViewer || !canRecordVideo()) return;
     const node = document.getElementById(`ll-overview-reel-${product.id}`);
     if (!node) return;
     const observer = new IntersectionObserver(async (entries) => {
@@ -154,7 +159,7 @@ function LiveReelMedia({ product, hero = false }) {
             images: [product.image],
             title: product.title || "",
             price: Number(product.price) || 0,
-            hook: `✨ ${product.title || "המוצר"} · LikeLink UGC`,
+            hook: `✨ ${product.title || "המוצר"} · LikeLink`,
             cta: "לרכישה · לפרטים",
             storeName: "LikeLink",
             palette: hero ? "gold" : "dark",
@@ -171,7 +176,8 @@ function LiveReelMedia({ product, hero = false }) {
           setState("preview");
         }
         addVideo({
-          title: `UGC Reel · ${product.title || "Product"}`,
+          title: `ריל מוצר · ${product.title || "Product"}`,
+          description: "Product motion reel rendered from the product photo (LikeLink first-party)",
           videoUrl: finalUrl,
           marketerId: product.marketerId,
           productId: product.id,
@@ -185,7 +191,7 @@ function LiveReelMedia({ product, hero = false }) {
     }, { rootMargin: "500px" });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [product?.id, product?.image, existing?.videoUrl, addVideo, hero]);
+  }, [product?.id, product?.image, existing?.videoUrl, addVideo, hero, isOwnerViewer]);
 
   return (
     <div id={`ll-overview-reel-${product?.id}`} className="relative h-full w-full overflow-hidden">
@@ -213,15 +219,17 @@ function LiveReelMedia({ product, hero = false }) {
           LikeLink
         </div>
       )}
-      <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-        {state === "ready" && url
-          ? "● סרטון UGC · בענן"
-          : state === "rendering"
-            ? "◌ יוצרת סרטון…"
+      {/* Truthful badge: a reel animated from the product photo is labelled as
+          such; a plain photo gets no badge (no "coming soon" promises). */}
+      {(url || state === "rendering" || state === "preview") && (
+        <span className="absolute right-2 top-2 rounded-full px-2 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
+          {state === "rendering"
+            ? "◌ מכינה ריל מתמונת המוצר…"
             : state === "preview"
               ? "תצוגה מקדימה · טרם פורסם"
-              : "סרטון UGC בקרוב"}
-      </span>
+              : /likelink_(overview|auto)/i.test(String(existing?.source || "likelink_overview")) ? "● ריל מוצר · מונפש מהתמונה" : "● וידאו מוצר"}
+        </span>
+      )}
     </div>
   );
 }
@@ -264,7 +272,7 @@ export default function StudioHome({ onNavigate }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const token = typeof window !== "undefined" ? window.__likelink?.token || "" : "";
+        const token = await getSessionToken();
         const res = await fetch(`/api/store?mode=ugc-assets&productId=${encodeURIComponent(heroProduct.id)}`, {
           headers: token ? { authorization: `Bearer ${token}` } : {},
         });

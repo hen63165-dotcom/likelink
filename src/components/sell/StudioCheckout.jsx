@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getAllPlans } from '../../lib/plans.js';
 import { fetchPlans, fetchMySubscription, startSubscriptionCheckout, cancelMySubscription } from '../../lib/commerce.js';
 import { getSessionToken } from '../../lib/auth.js';
+import { toHebrewError } from '../../lib/errorMessages.js';
 
 const messages = {
   UNAUTHENTICATED: 'נדרשת התחברות מאובטחת ל־LikeLink2.',
@@ -9,6 +10,15 @@ const messages = {
   PAYMENT_STORAGE_REQUIRED: 'התשלום טרם הופעל בענן. לא בוצע חיוב.',
   PAYMENT_RECONCILIATION_REQUIRED: 'ממתינים לאימות התשלום. אין לבצע תשלום נוסף; אפשר לרענן את הסטטוס.',
 };
+// Subscription status → Hebrew (the server's codes are never shown raw).
+const SUB_STATUS_HE = {
+  pending: 'ממתין לאישור התשלום מ-PayPal', active: 'פעיל', cancelled: 'בוטל',
+  expired: 'פג תוקף', suspended: 'מושהה',
+};
+function subscriptionError(code, fallback) {
+  const key = String(code || '').toUpperCase();
+  return messages[key] || toHebrewError(code, fallback);
+}
 const orderStatus = {
   CREATING: 'מכינים תשלום מאובטח', AWAITING_PAYMENT: 'ממתין לתשלום או לאישור מהמסילה',
   CAPTURED: 'התשלום אומת', REFUNDED: 'בוצע החזר', REFUND_PENDING: 'החזר בבדיקה',
@@ -28,7 +38,7 @@ export default function StudioCheckout() {
     if (!token) { setMessage(messages.UNAUTHENTICATED); return; }
     const r = await fetchMySubscription(token);
     if (r.ok) setSubscription(r.subscription || null);
-    else setMessage(messages[r.error] || 'לא ניתן לבדוק את המנוי כרגע. נסו לרענן.');
+    else setMessage(subscriptionError(r.error, 'לא ניתן לבדוק את המנוי כרגע. נסו לרענן.'));
   }
   useEffect(() => {
     let active = true;
@@ -52,7 +62,7 @@ export default function StudioCheckout() {
       const key = `${planId}:${period}`;
       keys.current[key] ||= crypto.randomUUID();
       const r = await startSubscriptionCheckout(token, planId, period);
-      if (!r.ok) { setMessage(r.error === 'paypal_not_configured' ? messages.PAYMENT_PROVIDER_REQUIRED : (r.error || 'לא ניתן להתחיל את התשלום.')); return; }
+      if (!r.ok) { setMessage(r.error === 'paypal_not_configured' ? messages.PAYMENT_PROVIDER_REQUIRED : subscriptionError(r.error, 'לא ניתן להתחיל את התשלום כרגע — לא בוצע חיוב.')); return; }
       if (r.approveUrl) window.location.assign(r.approveUrl);
       else { setMessage('התשלום נוצר אך חסר קישור אישור. לא הופעלה חבילה.'); await refresh(); }
     } catch { setMessage(messages.PAYMENT_RECONCILIATION_REQUIRED); }
@@ -76,9 +86,9 @@ export default function StudioCheckout() {
     </div>
     <p className="text-xs text-muted mt-3">אמצעי התשלום הזמינים יוצגו בדף המאובטח בהתאם למכשיר ולהגדרות הסליקה.</p>
     {catalogReady === false && <p role="status" className="text-sm mt-3">{messages.PAYMENT_PROVIDER_REQUIRED}</p>}
-    {subscription?.status && <p role="status" className="text-sm mt-3">מנוי נוכחי: {subscription.planId} · {subscription.billingPeriod === 'yearly' ? 'שנתי' : 'חודשי'} · {subscription.status}</p>}
+    {subscription?.status && <p role="status" className="text-sm mt-3">מנוי נוכחי: {(getAllPlans().find(p => p.id === subscription.planId)?.name?.he) || subscription.planId} · {subscription.billingPeriod === 'yearly' ? 'שנתי' : 'חודשי'} · {SUB_STATUS_HE[subscription.status] || subscription.status}{subscription.verification === 'mismatch' ? ' · התשלום ב-PayPal לא תואם למסלול — פני לתמיכה' : ''}</p>}
     {message && <p role="status" className="text-sm mt-3">{message}</p>}
     <button disabled={busy} className="tap underline text-sm my-3" onClick={() => refresh().catch(() => setMessage(messages.UNAUTHENTICATED))}>רענון מצב המנוי</button>
-    {subscription?.status === 'active' && <button disabled={busy} className="tap underline text-sm block" onClick={async () => { const token = await getSessionToken(); const r = await cancelMySubscription(token); setMessage(r.ok ? 'המנוי בוטל. הגישה תישאר לפי תנאי המנוי המאושר.' : (r.error || 'לא ניתן לבטל כרגע.')); await refresh(); }}>ביטול מנוי</button>}
+    {subscription?.status === 'active' && <button disabled={busy} className="tap underline text-sm block" onClick={async () => { const token = await getSessionToken(); const r = await cancelMySubscription(token); setMessage(r.ok ? 'המנוי בוטל. הגישה תישאר לפי תנאי המנוי המאושר.' : subscriptionError(r.error, 'לא ניתן לבטל כרגע.')); await refresh(); }}>ביטול מנוי</button>}
   </section>;
 }

@@ -33,7 +33,8 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import {
   verifyProduct, trustGateReport, TRUST_STATE,
 } from "../../lib/cloud/trustVerification.js";
-import { authConfigured, signOutSeller } from "../../lib/auth.js";
+import { authConfigured, signOutSeller, getSessionToken } from "../../lib/auth.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import {
   calculateMonetizationPotential, checkMonetizationEligibility,
 } from "../../lib/monetization.js";
@@ -108,6 +109,7 @@ function NavItem({ item, active, onClick }) {
   return (
     <button
       onClick={onClick}
+      aria-label={typeof item.label === "string" ? item.label : undefined}
       aria-current={active ? "page" : undefined}
       className={`ll-nav-item group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium${active ? " ll-nav-active" : ""}`}
     >
@@ -367,6 +369,23 @@ function CampaignsPanel({ onNavigate }) {
   );
 }
 
+// Publish outcome → honest Hebrew label. Only PUBLISHED means it is live.
+const PUBLISH_STATUS_HE = {
+  PUBLISHED: "פורסם ✅",
+  ASSISTED: "מוכן לפרסום ידני — העתיקי את התוכן לערוץ",
+  PROCESSING: "נשלח לערוצים המחוברים — ממתין לאישור",
+  CONNECT_REQUIRED: "צריך לחבר ערוץ חיצוני בהגדרות",
+  REQUIRES_CONNECTION: "צריך לחבר ערוץ חיצוני בהגדרות",
+  FAILED: "הפרסום נכשל",
+};
+
+function publishOutcomeText(result, lang) {
+  if (!result) return "";
+  if (!result.ok) return lang === "he" ? toHebrewError(result.error, "הפרסום נכשל") : String(result.error || "Publish failed");
+  if (lang !== "he") return `${result.status || "OK"}${result.provider ? ` · ${result.provider}` : ""}`;
+  return PUBLISH_STATUS_HE[result.status] || "הבקשה התקבלה";
+}
+
 /** Publishing — one-click publish per product through the REAL store API. */
 function PublishingPanel({ onNavigate }) {
   const { lang } = useI18n();
@@ -378,19 +397,19 @@ function PublishingPanel({ onNavigate }) {
   async function publish(product) {
     setBusy((b) => ({ ...b, [product.id]: true }));
     try {
-      const response = await fetch("/api/store", {
+      const token = await getSessionToken();
+      // mode must be in the query string — /api/store dispatches on ?mode=.
+      const response = await fetch("/api/store?mode=publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          authorization: `Bearer ${(typeof window !== "undefined" && window.__likelink?.token) || ""}`,
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ mode: "publish", productId: product.id }),
+        body: JSON.stringify({ productId: product.id }),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` }));
       setResults((r) => ({ ...r, [product.id]: result }));
-      showToast(result.ok
-        ? (result.status === "PUBLISHED" ? (lang === "he" ? "פורסם בהצלחה ✅" : "Published ✅") : String(result.status || "ok"))
-        : (result.error || (lang === "he" ? "הפרסום נכשל" : "Publish failed")));
+      showToast(publishOutcomeText(result, lang));
     } catch (e) {
       setResults((r) => ({ ...r, [product.id]: { ok: false, error: e?.message || "network_error" } }));
       showToast(lang === "he" ? "שגיאת רשת בפרסום" : "Network error while publishing");
@@ -428,8 +447,8 @@ function PublishingPanel({ onNavigate }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold" style={{ color: "var(--text)" }}>{p.title}</div>
                 {r && (
-                  <div className="mt-1 text-xs" style={{ color: r.ok ? "var(--success)" : "var(--danger)" }} dir="ltr">
-                    {r.ok ? `${r.status || "OK"}${r.provider ? ` · ${r.provider}` : ""}` : String(r.error || "failed")}
+                  <div className="mt-1 text-xs" style={{ color: r.ok && r.status === "PUBLISHED" ? "var(--success)" : r.ok ? "var(--text-muted)" : "var(--danger)" }}>
+                    {publishOutcomeText(r, lang)}
                   </div>
                 )}
               </div>
@@ -648,13 +667,14 @@ function UgcPanel({ onNavigate }) {
 
 function TrendsPanel() {
   const { lang } = useI18n();
-  const { products } = useMarketplace();
+  const { products, clicks } = useMarketplace();
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
         {lang === "he" ? "טרנדים — מנוע צמיחה אמיתי" : "Trends — the real growth OS"}
       </h3>
-      <GrowthOS products={products || []} channels={["web"]} lang={lang} />
+      {/* Real first-party click/view events drive the trend states. */}
+      <GrowthOS products={products || []} events={clicks || []} channels={["web"]} lang={lang} />
     </div>
   );
 }
@@ -855,6 +875,49 @@ function SettingsPanel({ onExit }) {
   );
 }
 
+// PayPal payout email for the signed-in seller. Shows "saved" only after the
+// server write resolves — a failed write surfaces a clear Hebrew message.
+function PayPalPanel({ marketer, onUpdateMarketer, showToast }) {
+  const { lang } = useI18n();
+  const [email, setEmail] = useState(marketer?.payPalEmail || "");
+  const [saving, setSaving] = useState(false);
+  const he = lang === "he";
+
+  if ((marketer?.paymentMethod || "paypal") !== "paypal") return null;
+
+  async function save() {
+    const clean = String(email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      showToast(he ? "כתובת האימייל של PayPal לא תקינה" : "Invalid PayPal email");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onUpdateMarketer(marketer.id, { payPalEmail: clean });
+      showToast(he ? "אימייל PayPal נשמר" : "PayPal email saved");
+    } catch {
+      showToast(he ? "השמירה נכשלה — נסי שוב בעוד רגע" : "Save failed — please try again");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <LabeledInput
+        label={he ? "אימייל PayPal לקבלת תשלומים" : "PayPal email for payouts"}
+        type="email"
+        value={email}
+        onChange={setEmail}
+        placeholder="name@example.com"
+      />
+      <Button variant="secondary" onClick={save} disabled={saving}>
+        {saving ? (he ? "שומרת…" : "Saving…") : (he ? "שמירה" : "Save")}
+      </Button>
+    </div>
+  );
+}
+
 function CloudHealthCard() {
   const { lang } = useI18n();
   const [health, setHealth] = useState(null);
@@ -862,11 +925,13 @@ function CloudHealthCard() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/store?mode=status", { headers: { accept: "application/json" } });
-        if (!res.ok) return;
-        const data = await res.json().catch(() => null);
-        if (!cancelled && data) setHealth(data);
-      } catch { /* offline or unavailable — card stays in the checking state */ }
+        // cloud-status is the real, read-only health endpoint of /api/store.
+        const res = await fetch("/api/store?mode=cloud-status", { headers: { accept: "application/json" } });
+        const data = res.ok ? await res.json().catch(() => null) : null;
+        if (!cancelled) setHealth(data || { ok: false, unreachable: true });
+      } catch {
+        if (!cancelled) setHealth({ ok: false, unreachable: true });
+      }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -883,7 +948,9 @@ function CloudHealthCard() {
           {he ? "בריאות המערכת" : "System health"}
         </span>
         <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
-          {health ? (ready ? (he ? "תקין" : "OK") : (he ? "מוגבל" : "Limited")) : (he ? "בודק…" : "Checking…")}
+          {health
+            ? (ready ? (he ? "תקין" : "OK") : health.unreachable ? (he ? "לא זמין כרגע" : "Unavailable") : (he ? "מוגבל" : "Limited"))
+            : (he ? "בודק…" : "Checking…")}
         </span>
       </div>
     </div>

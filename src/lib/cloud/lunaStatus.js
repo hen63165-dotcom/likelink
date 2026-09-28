@@ -302,7 +302,11 @@ export function recordLunaHeartbeat(kind = "tick") {
 }
 
 async function postAutopilot(body, timeoutMs = 20000) {
-  const res = await fetch("/api/autopilot?mode=status", {
+  // ?mode=status is answered by autopilot's fast read-only path, which ignores
+  // the body — so only a status request may use it; every other mode
+  // (public-feed, …) must reach the main dispatcher.
+  const endpoint = body?.mode === "status" ? "/api/autopilot?mode=status" : "/api/autopilot";
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(body),
@@ -418,9 +422,18 @@ export async function fetchPlatformStatus() {
 export async function retryPublication(record) {
   const id = typeof record === "string" ? record : record?.id;
   if (!id) return { ok: false, error: "no_publication_id" };
-  const token = typeof window !== "undefined" ? (window.LL_AUTH_TOKEN || "") : "";
+  // The retry endpoint requires the creator's verified Supabase session.
+  let token = "";
+  if (typeof window !== "undefined") {
+    try {
+      const { getSessionToken } = await import("../auth.js");
+      token = (await getSessionToken()) || "";
+    } catch { token = ""; }
+  }
   try {
-    const res = await fetch("/api/autopilot?mode=status", {
+    // Not ?mode=status: that fast path would answer with a status report and
+    // never run the retry.
+    const res = await fetch("/api/autopilot", {
       method: "POST",
       headers: {
         "content-type": "application/json",

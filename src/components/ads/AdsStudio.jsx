@@ -25,6 +25,8 @@ import {
 } from "../../lib/ads/nativeNetwork.js";
 import { buildAttributionReport, calculateAttribution } from "../../lib/ads/tracking.js";
 import { EmptyState, Button, LabeledInput, LabeledSelect, Toast } from "../ui/index.jsx";
+import { getSessionToken } from "../../lib/auth.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import CampaignList from "./CampaignList.jsx";
 import CreativeStudio from "./CreativeStudio.jsx";
 import AdsAnalytics from "./AdsAnalytics.jsx";
@@ -34,12 +36,27 @@ import LunaRecommendations from "./LunaRecommendations.jsx";
 const API_BASE = "/api/ads";
 const PLACEMENT_LABELS = getPlacementLabels("he");
 
-function apiFetch(path, options = {}) {
+// Every call carries the verified Supabase session; the server derives the
+// marketer from it (x-marketer-id is ignored for non-admins).
+async function apiFetch(path, options = {}) {
+  const token = await getSessionToken();
   const headers = {
     "Content-Type": "application/json",
     ...options.headers,
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
   };
-  return fetch(`${API_BASE}?mode=${path}`, { ...options, headers }).then((r) => r.json());
+  try {
+    const res = await fetch(`${API_BASE}?mode=${path}`, { ...options, headers });
+    return await res.json().catch(() => ({ ok: false, error: `http_${res.status}` }));
+  } catch (e) {
+    return { ok: false, error: String(e?.message || "network") };
+  }
+}
+
+// Server errors → one clear Hebrew sentence (validation lists are already Hebrew).
+function adsErrorText(result, fallback) {
+  if (Array.isArray(result?.errors) && result.errors.length) return result.errors.join(" · ");
+  return toHebrewError(result?.error, fallback);
 }
 
 function useAdsApi() {
@@ -196,7 +213,7 @@ function useAdsApi() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(context),
     });
-    return result.ok ? data.contextual : null;
+    return result.ok ? result.contextual : null;
   }, []);
 
   const getSponsoredUnit = useCallback(async (data) => {
@@ -220,6 +237,11 @@ function useAdsApi() {
     return result.ok ? result.luna : null;
   }, [marketerId]);
 
+  const listCreatives = useCallback(async () => {
+    const data = await apiFetch("creatives");
+    return data.ok ? data.creatives : [];
+  }, []);
+
   const getHealth = useCallback(async () => {
     const result = await apiFetch("health");
     return result.ok ? result.health : null;
@@ -232,7 +254,7 @@ function useAdsApi() {
     generateCreative: generateCreativeAction, generateCreativePack: generateCreativePackAction,
     recordEvent: recordEventAction,
     getAnalytics, getLuna, getPlacements, getContextual,
-    getSponsoredUnit, getLunaDecision, getHealth,
+    getSponsoredUnit, getLunaDecision, getHealth, listCreatives,
   };
 }
 
@@ -240,7 +262,12 @@ export default function AdsStudio() {
   const { lang } = useI18n();
   const { currentMarketer, products } = useMarketplace();
   const marketerId = currentMarketer?.id || null;
-  const tier = currentMarketer?.tier || "starter";
+  // The server assigns the tier; creators run on "starter".
+  const tier = "starter";
+  const myProducts = useMemo(
+    () => (products || []).filter((p) => p && p.marketerId === marketerId),
+    [products, marketerId]
+  );
 
   const [activeTab, setActiveTab] = useState("campaigns");
   const [campaigns, setCampaigns] = useState([]);
@@ -248,6 +275,8 @@ export default function AdsStudio() {
   const [analytics, setAnalytics] = useState(null);
   const [luna, setLuna] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [editingCampaign, setEditingCampaign] = useState(null);
+  const [busyId, setBusyId] = useState(null);
   const [showCreator, setShowCreator] = useState(false);
   const [showCreativeStudio, setShowCreativeStudio] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -258,37 +287,48 @@ export default function AdsStudio() {
   const api = useAdsApi();
 
   useEffect(() => {
-    refreshData();
-  }, []);
+    if (marketerId) refreshData();
+    else setLoading(false);
+  }, [marketerId]);
 
   async function refreshData() {
     setRefreshing(true);
     try {
-      const [campaignsData, analyticsData, lunaData, healthData] = await Promise.all([
+      const [campaignsData, analyticsData, lunaData, creativesData] = await Promise.all([
         api.listCampaigns(),
         api.getAnalytics(),
         api.getLuna(),
-        api.getHealth(),
+        api.listCreatives(),
       ]);
       setCampaigns(campaignsData);
       setAnalytics(analyticsData);
       setLuna(lunaData);
+      setCreatives(creativesData);
     } catch (e) {
-      setError(e.message);
+      setError(toHebrewError(e?.message, "טעינת נתוני המודעות נכשלה"));
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
+  }
+
+  // Numbers typed into the form arrive as strings ("" = not set).
+  function normalizeCampaignForm(data) {
+    const num = (v) => (v === "" || v === null || v === undefined ? undefined : Number(v));
+    const { tier: _ignoredTier, ...rest } = data || {};
+    return { ...rest, budget: num(data?.budget), dailyBudget: num(data?.dailyBudget) };
   }
 
   async function handleCreateCampaign(data) {
     setError(null);
-    const result = await api.createCampaign(data);
+    const result = await api.createCampaign(normalizeCampaignForm(data));
     if (result.ok) {
       setToast({ type: "success", msg: "קמפיין נוצר בהצלחה" });
       setShowCreator(false);
       await refreshData();
     } else {
-      const errMsg = result.error || "שגיאה ביצירת קמפיין";
+      const errMsg = adsErrorText(result, "שגיאה ביצירת קמפיין");
+      result.error = errMsg;
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
     }
@@ -297,12 +337,16 @@ export default function AdsStudio() {
 
   async function handleUpdateCampaign(id, updates) {
     setError(null);
-    const result = await api.updateCampaign(id, updates);
+    setBusyId(id);
+    const result = await api.updateCampaign(id, normalizeCampaignForm(updates));
+    setBusyId(null);
     if (result.ok) {
       setToast({ type: "success", msg: "קמפיין עודכן" });
+      setEditingCampaign(null);
       await refreshData();
     } else {
-      const errMsg = result.error || "שגיאה בעדכון קמפיין";
+      const errMsg = adsErrorText(result, "שגיאה בעדכון קמפיין");
+      result.error = errMsg;
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
     }
@@ -311,12 +355,15 @@ export default function AdsStudio() {
 
   async function handleDeleteCampaign(id) {
     setError(null);
+    if (typeof window !== "undefined" && !window.confirm("למחוק את הקמפיין? הפעולה אינה הפיכה.")) return null;
+    setBusyId(id);
     const result = await api.deleteCampaign(id);
+    setBusyId(null);
     if (result.ok) {
       setToast({ type: "success", msg: "קמפיין נמחק" });
       await refreshData();
     } else {
-      const errMsg = result.error || "שגיאה במחיקת קמפיין";
+      const errMsg = adsErrorText(result, "שגיאה במחיקת קמפיין");
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
     }
@@ -326,15 +373,19 @@ export default function AdsStudio() {
   async function handleToggleStatus(id, newStatus) {
     setError(null);
     let result;
+    setBusyId(id);
     if (newStatus === "active") result = await api.activateCampaign(id);
     else if (newStatus === "paused") result = await api.pauseCampaign(id);
     else if (newStatus === "completed") result = await api.completeCampaign(id);
+    else if (newStatus === "draft" || newStatus === "pending_review") result = await api.updateCampaign(id, { status: newStatus });
+    else result = { ok: false, error: "bad_request" };
+    setBusyId(null);
 
     if (result?.ok) {
       setToast({ type: "success", msg: "סטטוס עודכן" });
       await refreshData();
     } else {
-      const errMsg = result?.error || "שגיאה בשינוי סטטוס";
+      const errMsg = adsErrorText(result, "שגיאה בשינוי סטטוס");
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
     }
@@ -343,9 +394,9 @@ export default function AdsStudio() {
 
   async function handleGenerateCreative(productId, type, placementId, campaignId) {
     setError(null);
-    const product = products.find((p) => p.id === productId);
+    const product = myProducts.find((p) => p.id === productId);
     if (!product) {
-      const errMsg = "מוצר לא נמצא";
+      const errMsg = "בחרי אחד מהמוצרים שלך";
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
       return null;
@@ -358,7 +409,7 @@ export default function AdsStudio() {
       await refreshData();
       return result.creative;
     } else {
-      const errMsg = result.error || "שגיאה ביצירת קריאייטיב";
+      const errMsg = adsErrorText(result, "שגיאה ביצירת קריאייטיב");
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
       return null;
@@ -375,11 +426,52 @@ export default function AdsStudio() {
       await refreshData();
       return result.pack;
     } else {
-      const errMsg = result.error || "שגיאה ביצירת חבילת קריאייטיבים";
+      const errMsg = adsErrorText(result, "שגיאה ביצירת חבילת קריאייטיבים");
       setToast({ type: "error", msg: errMsg });
       setError(errMsg);
       return null;
     }
+  }
+
+  // Luna insight → a real campaign action (or open the campaign to edit it).
+  async function handleApplyInsight(insight) {
+    const campaign = campaigns.find((c) => c.id === insight?.campaignId);
+    if (!campaign) {
+      setToast({ type: "error", msg: "הקמפיין של ההמלצה לא נמצא" });
+      return;
+    }
+    if (insight.action === "pause_campaign") {
+      await handleToggleStatus(campaign.id, "paused");
+      return;
+    }
+    if (insight.action === "increase_budget_20_percent") {
+      const current = Number(campaign.dailyBudget) || 0;
+      if (current > 0) {
+        await handleUpdateCampaign(campaign.id, { dailyBudget: Math.round(current * 1.2 * 100) / 100 });
+        return;
+      }
+    }
+    if (insight.action === "test_new_creative" || insight.action === "test_creative_hook") {
+      setActiveTab("creative");
+      setToast({ type: "info", msg: "בחרי מוצר וצרי קריאייטיב חדש לקמפיין" });
+      return;
+    }
+    setEditingCampaign(campaign);
+    setToast({ type: "info", msg: "הקמפיין נפתח לעריכה כדי ליישם את ההמלצה" });
+  }
+
+  function handleOpportunity(opportunity) {
+    const type = opportunity?.type;
+    if (type === "creative_test") {
+      setActiveTab("creative");
+      return;
+    }
+    if (type === "new_campaign" || type === "product_add") {
+      setShowCreator(true);
+      return;
+    }
+    setActiveTab("campaigns");
+    setToast({ type: "info", msg: "בחרי קמפיין מהרשימה ולחצי \"עריכה\" כדי ליישם" });
   }
 
   async function handleRecordEvent(eventData) {
@@ -401,7 +493,8 @@ export default function AdsStudio() {
 
   const tierLimits = getTierLimits(tier);
   const activeCount = campaigns.filter((c) => c.status === "active").length;
-  const canCreateNew = activeCount < tierLimits.maxCampaigns;
+  // The server limit counts all of this marketer's campaigns.
+  const canCreateNew = campaigns.length < tierLimits.maxCampaigns;
 
   if (!marketerId) {
     return (
@@ -422,7 +515,7 @@ export default function AdsStudio() {
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            דרגה: {TIER_LABELS_HE[tier]} · קמפיינים: {activeCount}/{tierLimits.maxCampaigns}
+            דרגה: {TIER_LABELS_HE[tier]} · קמפיינים: {campaigns.length}/{tierLimits.maxCampaigns} · פעילים: {activeCount}
           </span>
           <Button variant="secondary" onClick={refreshData} disabled={refreshing}>
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> רענן
@@ -457,6 +550,15 @@ export default function AdsStudio() {
         })}
       </div>
 
+      {/* Honest scope note: campaigns are stored, but no buyer-facing ad
+          surface serves them yet, so metrics stay at zero until it does. */}
+      <div className="ll-card rounded-xl p-3" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+          שימי לב: הקמפיינים והקריאייטיבים נשמרים במערכת, אבל הצגת מודעות לקונים עדיין לא פעילה —
+          לכן המדדים יישארו 0 עד שההצגה תופעל. שום נתון כאן אינו מדומה.
+        </p>
+      </div>
+
       {/* Content */}
       {error && (
         <div className="ll-card rounded-xl p-3" style={{ background: "var(--danger-subtle)", border: "1px solid var(--danger)" }}>
@@ -471,29 +573,50 @@ export default function AdsStudio() {
         <CampaignList
           campaigns={campaigns}
           onToggleStatus={handleToggleStatus}
-          onEdit={setSelectedCampaign}
+          onEdit={(c) => (c ? setEditingCampaign(c) : setShowCreator(true))}
           onDelete={handleDeleteCampaign}
-          onView={setSelectedCampaign}
-          loadingAction={loading}
+          onView={(c) => setSelectedCampaign((cur) => (cur?.id === c?.id ? null : c))}
+          loadingAction={busyId}
         />
+      )}
+
+      {activeTab === "campaigns" && selectedCampaign && (
+        <div className="ll-card rounded-xl p-4 space-y-2" style={{ border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-sm" style={{ color: "var(--text)" }}>{selectedCampaign.name}</h4>
+            <Button variant="secondary" onClick={() => setSelectedCampaign(null)}>סגירה</Button>
+          </div>
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            סטטוס: {STATUS_LABELS_HE[selectedCampaign.status] || selectedCampaign.status} · מטרה: {OBJECTIVE_LABELS_HE[selectedCampaign.objective] || selectedCampaign.objective}
+          </p>
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            מוצר: {(myProducts.find((p) => p.id === selectedCampaign.productId) || {}).title || selectedCampaign.productId}
+            {" · "}תקציב יומי: {selectedCampaign.dailyBudget ? `₪${selectedCampaign.dailyBudget}` : "לא הוגדר"}
+            {" · "}קריאייטיבים: {(selectedCampaign.creatives || []).length}
+          </p>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            חשיפות: {selectedCampaign.metrics?.impressions || 0} · קליקים: {selectedCampaign.metrics?.clicks || 0} · רכישות: {selectedCampaign.metrics?.purchases || 0}
+          </p>
+        </div>
       )}
 
       {activeTab === "creative" && (
         <CreativeStudio
-          products={products}
+          products={myProducts}
           campaigns={campaigns}
+          creatives={creatives}
           onCreate={handleGenerateCreative}
           onGeneratePack={handleGenerateCreativePack}
-          onClose={() => setShowCreativeStudio(false)}
+          onClose={() => setActiveTab("campaigns")}
         />
       )}
 
       {activeTab === "analytics" && (
         <AdsAnalytics
           campaigns={campaigns}
-          analytics={analytics}
-          luna={luna}
-          onRefresh={refreshData}
+          events={[]}
+          creatives={creatives}
+          lunaInsights={analytics?.lunaInsights || []}
         />
       )}
 
@@ -501,11 +624,9 @@ export default function AdsStudio() {
         <LunaRecommendations
           campaigns={campaigns}
           creatives={creatives}
-          products={products}
-          insights={luna?.insights}
-          onApplyInsight={() => refreshData()}
-          onDismissInsight={() => refreshData()}
-          onActionOpportunity={() => refreshData()}
+          products={myProducts}
+          onApplyInsight={handleApplyInsight}
+          onActionOpportunity={handleOpportunity}
         />
       )}
 
@@ -546,9 +667,20 @@ export default function AdsStudio() {
           product={null}
           campaign={null}
           marketerTier={tier}
-          products={products}
+          products={myProducts}
           onSave={handleCreateCampaign}
           onClose={() => setShowCreator(false)}
+        />
+      )}
+
+      {editingCampaign && (
+        <CampaignCreator
+          product={null}
+          campaign={editingCampaign}
+          marketerTier={tier}
+          products={myProducts}
+          onSave={(data) => handleUpdateCampaign(editingCampaign.id, data)}
+          onClose={() => setEditingCampaign(null)}
         />
       )}
 

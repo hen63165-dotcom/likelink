@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Image, Video, Layout, Palette, Sparkles, Download, Trash2, Copy, Eye, Plus, Minus } from "lucide-react";
+import { Loader2, Image, Video, Layout, Palette, Sparkles, Download, Trash2, Copy, Eye, Plus, Minus } from "lucide-react";
 import { CREATIVE_FORMAT, CREATIVE_TYPE, PLACEMENT, FORMAT_LABELS_HE, TYPE_LABELS_HE, PLACEMENT_LABELS_HE } from "../../lib/ads/types.js";
 import { generateCreative, buildCreativePack, getAvailableCreativeTypesForPlacement as getTypesForPlacement, getRecommendedCreativeTypeForPlacement } from "../../lib/ads/creativeStudio.js";
 import { EmptyState, Button, LabeledInput, LabeledSelect, Toast } from "../ui/index.jsx";
@@ -123,13 +123,38 @@ function CreativeCard({ creative, index, onDelete, onCopyUrl, onPreview, isGener
   );
 }
 
-export default function CreativeStudio({ product, campaign, onGenerate, onGeneratePack, onClose }) {
+// Two ways to use this studio:
+//   • AdsStudio passes `products` / `campaigns` / `creatives` and the server
+//     handlers `onCreate(productId, type, placementId, campaignId)` and
+//     `onGeneratePack(productId, placementId, types, campaignId)` — creatives
+//     are generated and SAVED through /api/ads.
+//   • A single `product` (+ optional `campaign`) without handlers keeps the
+//     local, unsaved preview behaviour.
+export default function CreativeStudio({
+  product: fixedProduct, campaign: fixedCampaign, products = [], campaigns = [], creatives = [],
+  onCreate, onGenerate, onGeneratePack, onClose,
+}) {
   const [selectedType, setSelectedType] = useState("ugc");
   const [selectedPlacement, setSelectedPlacement] = useState("feed_sponsored");
+  const [selectedProductId, setSelectedProductId] = useState(fixedProduct?.id || products[0]?.id || "");
+  const [selectedCampaignId, setSelectedCampaignId] = useState(fixedCampaign?.id || "");
   const [generatedCreatives, setGeneratedCreatives] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [generatingPack, setGeneratingPack] = useState(false);
   const [toast, setToast] = useState(null);
+
+  const product = fixedProduct || products.find((p) => p.id === selectedProductId) || null;
+  const campaign = fixedCampaign || campaigns.find((c) => c.id === selectedCampaignId) || null;
+  const saveSingle = onCreate || onGenerate || null;
+  const productCampaigns = useMemo(
+    () => campaigns.filter((c) => !product || c.productId === product.id),
+    [campaigns, product]
+  );
+  // Creatives already saved on the server for this product, newest first.
+  const savedCreatives = useMemo(
+    () => (Array.isArray(creatives) ? creatives : []).filter((c) => product && c.productId === product.id),
+    [creatives, product]
+  );
 
   const availableTypes = useMemo(() => getTypesForPlacement(selectedPlacement), [selectedPlacement]);
   const recommendedType = useMemo(() => getRecommendedCreativeTypeForPlacement(selectedPlacement), [selectedPlacement]);
@@ -138,13 +163,19 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
     if (!product) return;
     setGenerating(true);
     try {
+      if (saveSingle) {
+        // Server path: the parent reports success/failure in its own toast.
+        const saved = await saveSingle(product.id, selectedType, selectedPlacement, campaign?.id || undefined);
+        if (saved) setGeneratedCreatives((prev) => [saved, ...prev]);
+        return;
+      }
       const creative = generateCreative(product, selectedType, selectedPlacement, {
         marketerId: campaign?.marketerId,
         lang: "he",
       });
       if (creative) {
         setGeneratedCreatives((prev) => [creative, ...prev]);
-        setToast({ type: "success", msg: "קריאייטיב נוצר בהצלחה" });
+        setToast({ type: "success", msg: "טיוטת קריאייטיב נוצרה (לא נשמרה)" });
       }
     } catch (e) {
       setToast({ type: "error", msg: `שגיאה: ${e.message}` });
@@ -157,14 +188,19 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
     if (!product) return;
     setGeneratingPack(true);
     try {
-      const types = availableTypes.filter(t => t !== selectedType);
-      const pack = buildCreativePack(product, selectedPlacement, [selectedType, ...types], {
+      const types = [selectedType, ...availableTypes.filter(t => t !== selectedType)];
+      if (onGeneratePack) {
+        const pack = await onGeneratePack(product.id, selectedPlacement, types, campaign?.id || undefined);
+        if (pack?.creatives?.length) setGeneratedCreatives((prev) => [...pack.creatives, ...prev]);
+        return;
+      }
+      const pack = buildCreativePack(product, selectedPlacement, types, {
         marketerId: campaign?.marketerId,
         lang: "he",
       });
       if (pack?.creatives?.length) {
         setGeneratedCreatives((prev) => [...pack.creatives, ...prev]);
-        setToast({ type: "success", msg: `חבילת ${pack.creatives.length} קריאייטיבים נוצרה` });
+        setToast({ type: "success", msg: `חבילת ${pack.creatives.length} טיוטות נוצרה (לא נשמרה)` });
       }
     } catch (e) {
       setToast({ type: "error", msg: `שגיאה: ${e.message}` });
@@ -173,8 +209,26 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
     }
   };
 
+  // Newly generated first, then what is already saved (deduplicated by id).
+  const shownCreatives = useMemo(() => {
+    const seen = new Set();
+    return [...generatedCreatives, ...savedCreatives].filter((c) => {
+      const id = c?.id;
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [generatedCreatives, savedCreatives]);
+
+  // Hides a creative from this session's list (saved creatives stay on the server).
   const handleDelete = (index) => {
-    setGeneratedCreatives((prev) => prev.filter((_, i) => i !== index));
+    const target = shownCreatives[index];
+    if (!generatedCreatives.includes(target)) {
+      setToast({ type: "info", msg: "הקריאייטיב שמור במערכת — אי אפשר למחוק אותו מכאן" });
+      return;
+    }
+    setGeneratedCreatives((prev) => prev.filter((c) => c !== target));
   };
 
   const handleCopyUrl = (url) => {
@@ -190,8 +244,8 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
     return (
       <EmptyState
         icon={Sparkles}
-        title="בחרי מוצר"
-        body="בחרי מוצר מהקטלוג כדי ליצור עבורו קריאייטיבים."
+        title="אין מוצרים ליצירת קריאייטיב"
+        body="קריאייטיבים נוצרים רק למוצרים שלך. הוסיפי מוצר בסטודיו ואז חזרי לכאן."
       />
     );
   }
@@ -206,7 +260,24 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
       </div>
 
       <div className="ll-card rounded-xl p-4">
-        <h4 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>מוצר: {product.title}</h4>
+        {fixedProduct ? (
+          <h4 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>מוצר: {product.title}</h4>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 mb-3">
+            <LabeledSelect
+              label="מוצר"
+              value={product.id}
+              options={products.map((p) => ({ value: p.id, label: p.title || p.id }))}
+              onChange={(id) => { setSelectedProductId(id); setSelectedCampaignId(""); setGeneratedCreatives([]); }}
+            />
+            <LabeledSelect
+              label="קמפיין (לא חובה)"
+              value={selectedCampaignId}
+              options={[{ value: "", label: "ללא קמפיין" }, ...productCampaigns.map((c) => ({ value: c.id, label: c.name || c.id }))]}
+              onChange={setSelectedCampaignId}
+            />
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-3">
           <LabeledSelect
             label="סוג קריאייטיב"
@@ -240,11 +311,11 @@ export default function CreativeStudio({ product, campaign, onGenerate, onGenera
         </div>
       </div>
 
-      {generatedCreatives.length > 0 && (
+      {shownCreatives.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-sm font-bold" style={{ color: "var(--text)" }}>קריאייטיבים שנוצרו ({generatedCreatives.length})</h4>
+          <h4 className="text-sm font-bold" style={{ color: "var(--text)" }}>קריאייטיבים למוצר ({shownCreatives.length})</h4>
           <div className="space-y-3">
-            {generatedCreatives.map((creative, index) => (
+            {shownCreatives.map((creative, index) => (
               <CreativeCard
                 key={creative.id || index}
                 creative={creative}

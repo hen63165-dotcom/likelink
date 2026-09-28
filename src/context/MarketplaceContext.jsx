@@ -2,9 +2,10 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { storage } from "../lib/storage.js";
 import { recordActivity, getActivity } from "../lib/studioActivity.js";
 import { supabase } from "../lib/supabaseClient.js";
-import { signUpSeller, signInSeller, signOutSeller, authConfigured } from "../lib/auth.js";
+import { signUpSeller, signInSeller, signOutSeller, authConfigured, getSessionToken } from "../lib/auth.js";
 import { K, PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, PAYOUT_METHOD, PAYOUT_DEFAULT, BOOST_PRICE, BOOST_DURATION_HOURS } from "../constants/keys.js";
 import { uid, slugify, uniqueSlug, isValidEmail, isSafeHttpUrl, isSafeImageUrl, clampNumber, injectAliExpressTracking, findProductsNeedingTracking, fetchOgImage } from "../utils/helpers.js";
+import { toHebrewError, authErrorHe } from "../lib/errorMessages.js";
 import { CATEGORY_KEYS } from "../lib/i18n.js";
 import { useI18n } from "../lib/LangContext";
 // SECURITY: NO seed fallback here. When the cloud is unreachable or empty, the
@@ -241,8 +242,12 @@ export function MarketplaceProvider({ children }) {
       // boundary). Falls back to localStorage for local-dev without Supabase.
       let activeMarketerId = sess?.marketerId || null;
       if (authConfigured) {
-        const resolved = await resolveCurrentMarketer(safeMarketers);
-        if (resolved?.marketerId) activeMarketerId = resolved.marketerId;
+        // With real auth only a VERIFIED session opens a studio. A stale id in
+        // localStorage without a session would show the studio while every
+        // save is refused by the server.
+        let resolved = null;
+        try { resolved = await resolveCurrentMarketer(safeMarketers); } catch { resolved = null; }
+        activeMarketerId = resolved?.marketerId || null;
       }
       setSessionMarketerId(activeMarketerId);
       setFavorites(toArr(fav));
@@ -403,19 +408,25 @@ export function MarketplaceProvider({ children }) {
       const nextProducts = products.map((p) =>
         p.id === product.id ? { ...p, clicks: (p.clicks || 0) + 1 } : p
       );
-      await persistClicks(nextClicks);
-      await persistProducts(nextProducts);
-      // Real-time buyer activity → seller notification (click = someone tapped their deal)
-      await persistNotifications([
-        {
-          id: uid(),
-          marketerId: product.marketerId,
-          kind: "click",
-          productId: product.id,
-          ts: Date.now(),
-        },
-        ...(notifications || []),
-      ].slice(0, 60));
+      // Tracking is best-effort and must NEVER block the buyer: callers await
+      // this before opening the deal, so a failed write is logged, not thrown.
+      try {
+        await persistClicks(nextClicks);
+        await persistProducts(nextProducts);
+        // Real-time buyer activity → seller notification (click = someone tapped their deal)
+        await persistNotifications([
+          {
+            id: uid(),
+            marketerId: product.marketerId,
+            kind: "click",
+            productId: product.id,
+            ts: Date.now(),
+          },
+          ...(notifications || []),
+        ].slice(0, 60));
+      } catch (e) {
+        console.warn("[Likelink] click tracking not saved", e?.message || e);
+      }
     },
     [clicks, products, notifications, persistClicks, persistProducts, persistNotifications]
   );
@@ -449,10 +460,42 @@ export function MarketplaceProvider({ children }) {
           ? { camp: new URLSearchParams(window.location.search).get("utm_campaign").slice(0, 80) }
           : {}),
       };
-      await persistClicks([...clicks, v]);
+      try { await persistClicks([...clicks, v]); } catch (e) { console.warn("[Likelink] view tracking not saved", e?.message || e); }
     },
     [clicks, persistClicks]
   );
+
+  // After a VERIFIED Supabase sign-in: open the user's studio, creating it when
+  // the account exists but the studio record was never finished (otherwise
+  // login says "no studio" and signup says "already registered" — a dead end).
+  const openStudioForVerifiedUser = useCallback(async (authUser, cleanEmail, nameHint) => {
+    let marketer = null;
+    try {
+      const resolved = await resolveCurrentMarketer(marketers);
+      marketer = resolved?.marketerId ? marketers.find((m) => m.id === resolved.marketerId) || null : null;
+    } catch { /* fall back to the email match below */ }
+    if (!marketer) marketer = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail) || null;
+    if (!marketer) {
+      const baseName = String(nameHint || cleanEmail.split("@")[0] || "Studio").trim().slice(0, 60) || "Studio";
+      marketer = {
+        id: uid(),
+        name: baseName,
+        email: cleanEmail,
+        trackingId: "",
+        slug: uniqueSlug(slugify(baseName), marketers.map((x) => x.slug).filter(Boolean)),
+        createdAt: Date.now(),
+      };
+      try {
+        await persistMarketers([...marketers, marketer]);
+      } catch (e) {
+        return { ok: false, error: toHebrewError(e?.message, "יצירת הסטודיו נכשלה — נסי שוב בעוד רגע") };
+      }
+      showToast(t("sell.studioCreated"));
+    }
+    await persistSession(marketer.id);
+    if (authUser?.id) linkMarketer(authUser.id, marketer.id).catch(() => {});
+    return { ok: true };
+  }, [marketers, persistMarketers, persistSession, showToast, t]);
 
   const value = useMemo(
     () => ({
@@ -485,55 +528,68 @@ export function MarketplaceProvider({ children }) {
       toggleFollow,
       recordClick,
       onLogin: async (email, password) => {
-        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return showToast("שגיאת הגדרת מערכת — פנה לתמיכה"); }
+        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return { ok: false, error: "שגיאת הגדרת מערכת — פני לתמיכה" }; }
         const cleanEmail = String(email || "").trim().toLowerCase();
-        if (!isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        if (!isValidEmail(cleanEmail)) return { ok: false, error: t("auth.errEmail") };
         // 🔒 Fail loud: login REQUIRES real auth. Never fall back to
         // email-only matching, even when Supabase Auth is not configured.
-        if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
+        if (!authConfigured) return { ok: false, error: "החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר" };
 
         // Authenticate first — Supabase Auth is the identity source.
         const res = await signInSeller({ email: cleanEmail, password });
-        if (!res.ok) return showToast(res.error || t("auth.errLogin"));
-
-        // Cloud identity resolution: profiles.marketer_id is the trusted link.
-        // Falls back to email match for legacy users, then auto-links server-side.
-        const resolved = await resolveCurrentMarketer(marketers);
-        const marketer = resolved?.marketerId
-          ? marketers.find((m) => m.id === resolved.marketerId) || null
-          : null;
-
-        if (!marketer) return showToast(t("auth.errNoStudio"));
-        await persistSession(marketer.id);
+        if (!res.ok) return { ok: false, error: authErrorHe(res, t("auth.errLogin")) };
+        return openStudioForVerifiedUser(res.data?.user, cleanEmail, "");
       },
       onSignup: async (name, email, password) => {
-        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return showToast("שגיאת הגדרת מערכת — פנה לתמיכה"); }
+        try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return { ok: false, error: "שגיאת הגדרת מערכת — פני לתמיכה" }; }
         const cleanName = String(name || "").trim().slice(0, 60);
         const cleanEmail = String(email || "").trim().toLowerCase();
-        if (!cleanName || !isValidEmail(cleanEmail)) return showToast(t("auth.errEmail"));
+        if (!cleanName || !isValidEmail(cleanEmail)) return { ok: false, error: t("auth.errEmail") };
         // 🔒 Fail loud: signup REQUIRES real auth. Never create a studio or a
         // session on email-only matching, even when Supabase Auth is missing.
-        if (!authConfigured) return showToast("החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר");
+        if (!authConfigured) return { ok: false, error: "החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר" };
+        let authUserId = null;
+        let hasSession = false;
         if (authConfigured) {
           const res = await signUpSeller({ email: cleanEmail, password });
-          if (!res.ok) {
-            const code = String(res.code || "").toLowerCase();
-            const message = String(res.error || "").toLowerCase();
-            const duplicate = code === "user_already_exists" || code === "email_exists" || message.includes("already registered") || message.includes("already exists");
-            return { ok: false, error: duplicate ? "EMAIL_ALREADY_REGISTERED" : (res.error || t("auth.errPassword")) };
-          }
-          const createdUser = res.data?.user || null;
+          const createdUser = res.ok ? (res.data?.user || null) : null;
           const identities = Array.isArray(createdUser?.identities) ? createdUser.identities : null;
-          if (createdUser && identities && identities.length === 0) return { ok: false, error: "EMAIL_ALREADY_REGISTERED" };
-          if (supabase && createdUser?.id) {
+          const duplicate = (!res.ok && /user_already_exists|email_exists|already registered|already exists/i.test(`${res.code || ""} ${res.error || ""}`)) ||
+            Boolean(createdUser && identities && identities.length === 0);
+          if (duplicate) {
+            // Existing account: the right password simply signs in (and creates
+            // the studio if an earlier signup never finished) — no dead end
+            // between "already registered" and "no studio for this email".
+            const login = await signInSeller({ email: cleanEmail, password });
+            if (login.ok) return openStudioForVerifiedUser(login.data?.user, cleanEmail, cleanName);
+            return { ok: false, error: "EMAIL_ALREADY_REGISTERED" };
+          }
+          if (!res.ok) return { ok: false, error: authErrorHe(res, t("auth.errPassword")) };
+          authUserId = createdUser?.id || null;
+          hasSession = Boolean(res.data?.session);
+          if (supabase && createdUser?.id && hasSession) {
+            // ON CONFLICT DO NOTHING: authenticated users have no UPDATE grant on
+            // profiles.is_admin, so a DO UPDATE upsert is always rejected.
             const { error: profileError } = await supabase
               .from("profiles")
-              .upsert({ id: createdUser.id, is_admin: false }, { onConflict: "id" });
+              .upsert({ id: createdUser.id, is_admin: false }, { onConflict: "id", ignoreDuplicates: true });
             if (profileError) console.error("[Likelink] profile bootstrap failed", profileError);
           }
         }
         const existing = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail);
-        if (existing) return { ok: false, error: "STUDIO_EMAIL_ALREADY_LINKED" };
+        if (!hasSession) {
+          // Email confirmation required: no verified session yet, so the studio
+          // is not opened (every save would be refused). The studio record is
+          // prepared now when possible and opens on the first verified login.
+          if (!existing) {
+            const pending = { id: uid(), name: cleanName, email: cleanEmail, trackingId: "", slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)), createdAt: Date.now() };
+            try { await persistMarketers([...marketers, pending]); } catch { /* created on first verified login instead */ }
+          }
+          return { ok: true, needsConfirmation: true };
+        }
+        // A verified new account whose email already has a studio (created
+        // before accounts were required) simply opens that studio.
+        if (existing) return openStudioForVerifiedUser({ id: authUserId }, cleanEmail, cleanName);
         const m = {
           id: uid(),
           name: cleanName,
@@ -553,8 +609,8 @@ export function MarketplaceProvider({ children }) {
         await persistSession(m.id);
         // Cloud identity: establish the trusted auth → marketer link server-side.
         // Failure is non-critical — login will use email fallback + auto-link.
-        if (authConfigured && res.data?.user?.id) {
-          linkMarketer(res.data.user.id, m.id).catch(() => {});
+        if (authConfigured && authUserId) {
+          linkMarketer(authUserId, m.id).catch(() => {});
         }
         showToast(t("sell.studioCreated"));
         return { ok: true };
@@ -620,9 +676,11 @@ export function MarketplaceProvider({ children }) {
       onLogSale: async (product, saleAmount, commissionAmount) => {
         if (!product) return null;
         // Balanced path: ask the server to validate + sign this self-report.
+        // The server signs only for the signed-in owner of the studio.
+        const signToken = await getSessionToken().catch(() => null);
         const signRes = await fetch("/api/sign-sale", {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", ...(signToken ? { authorization: `Bearer ${signToken}` } : {}) },
           body: JSON.stringify({
             productId: product.id,
             marketerId: product.marketerId,
@@ -750,6 +808,7 @@ export function MarketplaceProvider({ children }) {
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
       toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t,
+      openStudioForVerifiedUser,
     ]
   );
 
@@ -760,4 +819,10 @@ export function useMarketplace() {
   const ctx = useContext(MarketplaceContext);
   if (!ctx) throw new Error("useMarketplace must be used within MarketplaceProvider");
   return ctx;
+}
+
+/** Same context, but null (instead of throwing) outside the provider — for
+ *  shared leaf components such as product thumbnails. */
+export function useOptionalMarketplace() {
+  return useContext(MarketplaceContext);
 }

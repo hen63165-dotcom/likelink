@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { TrendingUp, TrendingDown, DollarSign, MousePointer, Eye, ShoppingCart, Target, BarChart3, LineChart, PieChart, Download, AlertCircle, CheckCircle } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, DollarSign, MousePointer, Eye, ShoppingCart, Target, BarChart3, LineChart, PieChart, Download, AlertCircle, CheckCircle } from "lucide-react";
 import { EmptyState, Button } from "../ui/index.jsx";
 
 function MetricCard({ label, value, change, icon: Icon, color = "var(--accent)", trend = "neutral" }) {

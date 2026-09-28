@@ -281,8 +281,6 @@ export function generateCreative(product, type, placement, options = {}) {
       return generateLifestyleCreative(product, placement, { ...options, trackedUrl });
     case "ugc_style":
       return generateUGCCreative(product, placement, { ...options, trackedUrl });
-    case "cinematic_motion":
-      return generateCinematicMotionCreative(product, placement, { ...options, trackedUrl });
     default:
       return generateUGCCreative(product, placement, { ...options, trackedUrl });
   }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { BarChart3, ChevronDown, ChevronUp, Play, Pause, Trash2, Edit, Eye, MoreVertical, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Plus, BarChart3, ChevronDown, ChevronUp, Play, Pause, Trash2, Edit, Eye, MoreVertical, AlertCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { CAMPAIGN_STATUS, STATUS_LABELS_HE, OBJECTIVE_LABELS_HE, TIER_LABELS_HE } from "../../lib/ads/types.js";
 import { EmptyState, Button, LabeledInput } from "../ui/index.jsx";
 
@@ -232,7 +232,7 @@ export default function CampaignList({ campaigns, onToggleStatus, onEdit, onDele
         icon={BarChart3}
         title="אין קמפיינים"
         body="צרו קמפיין ראשון כדי להתחיל לפרסם מוצרים ברשת המודעות של LikeLink."
-        action={<Button onClick={onEdit}><Campaign size={14} /> צור קמפיין חדש</Button>}
+        action={<Button onClick={onEdit}><Plus size={14} /> צור קמפיין חדש</Button>}
       />
     );
   }

@@ -41,6 +41,7 @@ import StudioCheckout from "./StudioCheckout";
 import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -183,13 +184,14 @@ export default function SellView({ navigate }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ marketerId: marketer.id, email }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ ok: false }));
       if (data.ok) {
-        onUpdateMarketer(marketer.id, { payPalEmail: email, paypalConnected: Boolean(data.verified) });
+        // "Saved" only after the server write really succeeded.
+        await onUpdateMarketer(marketer.id, { payPalEmail: email, paypalConnected: Boolean(data.verified) });
         setPaypalModal(false);
         showToast(data.verified ? t("sell.payPalConnected") : "האימייל נשמר; חשבון PayPal עדיין לא אומת");
       } else {
-        showToast(data.error || t("sell.payPalConnectFailed"));
+        showToast(toHebrewError(data.error, t("sell.payPalConnectFailed")));
       }
     } catch {
       showToast(t("sell.payPalConnectFailed"));
@@ -944,11 +946,14 @@ function AuthGate({ marketers, onLogin, onSignup }) {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
+  // Success/info messages are shown separately — never in the red error style.
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
     if (submitting) return;
     setErr("");
+    setNotice("");
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
     if (password.trim().length < 6) return setErr(t("auth.errPassword"));
@@ -956,8 +961,11 @@ function AuthGate({ marketers, onLogin, onSignup }) {
     setSubmitting(true);
     try {
       const result = mode === "signup" ? await onSignup(name.trim(), cleanEmail, password.trim()) : await onLogin(cleanEmail, password.trim());
-      if (result?.ok === false) {
-        if (result.error === "EMAIL_ALREADY_REGISTERED") setErr("הכתובת כבר משויכת לחשבון. עברי ל«כניסה» או השתמשי באיפוס סיסמה.");
+      if (result?.needsConfirmation) {
+        setMode("login");
+        setNotice("✓ נשלח אליך מייל לאימות הכתובת. אשרי אותו ואז התחברי כאן — הסטודיו יחכה לך.");
+      } else if (result?.ok === false) {
+        if (result.error === "EMAIL_ALREADY_REGISTERED") setErr("הכתובת כבר רשומה והסיסמה לא תואמת. עברי ל«כניסה» או השתמשי ב«שכחתי סיסמה».");
         else if (result.error === "STUDIO_EMAIL_ALREADY_LINKED") setErr("לכתובת הזו כבר קיים סטודיו. עברי ל«כניסה» כדי להמשיך.");
         else setErr(result.error || t(mode === "signup" ? "auth.errPassword" : "auth.errLogin"));
       }
@@ -974,6 +982,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
     if (!authConfigured) return setErr("שירות האימות אינו מוגדר כרגע.");
     setSubmitting(true);
     setErr("");
+    setNotice("");
     try {
       const res = await resetPassword(cleanEmail);
       if (!res.ok) {
@@ -981,7 +990,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
         if (msg.includes("rate") || msg.includes("too many")) return setErr("נשלחו יותר מדי בקשות. נסי שוב בעוד כמה דקות.");
         return setErr("לא ניתן לשלוח כרגע איפוס סיסמה. בדקי את הכתובת ונסי שוב.");
       }
-      return setErr("✓ אם קיים חשבון עם הכתובת הזו, נשלח אליו קישור לאיפוס סיסמה.");
+      return setNotice("✓ אם קיים חשבון עם הכתובת הזו, נשלח אליו קישור לאיפוס סיסמה. בדקי את תיבת הדואר (גם בספאם).");
     } catch {
       setErr("לא ניתן לשלוח כרגע איפוס סיסמה. נסי שוב.");
     } finally {
@@ -1000,7 +1009,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
         {["signup", "login"].map((m) => (
           <button
             key={m}
-            onClick={() => { setMode(m); setErr(""); }}
+            onClick={() => { setMode(m); setErr(""); setNotice(""); }}
             className="tap flex-1 py-2 rounded-full text-sm font-semibold transition-colors"
             style={{
               background: mode === m ? "var(--bg-elevated)" : "transparent",
@@ -1038,7 +1047,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
             <button
               type="button"
               onClick={() => setShowPw((s) => !s)}
-              aria-label={showPw ? "hide password" : "show password"}
+              aria-label={showPw ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
               className="tap absolute inset-y-0 end-2 flex items-center px-2 text-muted"
             >
               {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -1050,7 +1059,8 @@ function AuthGate({ marketers, onLogin, onSignup }) {
             </button>
           )}
         </div>
-        {err && <p className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
+        {err && <p role="alert" className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
+        {notice && <p role="status" className="text-xs" style={{ color: "var(--success)" }}>{notice}</p>}
         <Button onClick={submit} disabled={submitting}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
       </div>
       <p className="text-[11px] text-muted mt-4 max-w-[280px]">{t("auth.note")}</p>

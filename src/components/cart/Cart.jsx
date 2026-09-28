@@ -4,6 +4,7 @@ import { X, ShoppingBag, Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import { useI18n } from "../../lib/LangContext";
 import { money } from "../../utils/helpers.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import {
   createPayPalCheckout,
 } from "../../lib/paymentFlow.js";
@@ -20,13 +21,9 @@ export function Cart() {
       alert(t("cart.emailRequired", "נא להזין אימייל לקבלת הקבלה"));
       return;
     }
-    const origin = window.location.origin;
-    const returnUrl = `${origin}/?paypal_return=1`;
-    const cancelUrl = `${origin}/`;
-
     try {
       sessionStorage.setItem("likelink_pending_checkout", JSON.stringify({ items, buyerEmail: buyerEmail.trim() }));
-      const result = await createPayPalCheckout({ items, buyerEmail: buyerEmail.trim(), returnUrl, cancelUrl });
+      const result = await createPayPalCheckout({ items, buyerEmail: buyerEmail.trim() });
       if (result.ok && result.approvalUrl) {
         // Redirect buyer to PayPal for approval
         window.location.href = result.approvalUrl;
@@ -38,17 +35,9 @@ export function Cart() {
           paypal_order_failed:
             "PayPal דחה את יצירת ההזמנה. נסו שוב בעוד רגע — אם זה חוזר, פנו אלינו עם פרטי הסל.",
           empty_cart: "העגלה ריקה.",
-          invalid_buyer_email: "כתובת האימייל לא תקינה.",
           method_not_allowed: "שגיאת תקשורת עם שרת התשלום.",
         };
-        const human = reasons[result.error] || "";
-        alert(
-          t(
-            "cart.checkoutError",
-            human ||
-              `אתחול התשלום נכשל${result.error ? ` (${result.error})` : ""}. נסו שוב — אם זה חוזר, פנו אלינו.`
-          )
-        );
+        alert(reasons[result.error] || toHebrewError(result.error, "אתחול התשלום נכשל — לא חויבת. נסו שוב, ואם זה חוזר פנו אלינו."));
       }
     } catch (e) {
       alert(

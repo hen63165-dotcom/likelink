@@ -81,6 +81,11 @@ export function composeStudioPost({ pick, trend, format = "feed" } = {}) {
   };
 }
 
+function pickRandom(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "";
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function getHeatLevel(score) {
   if (score > 200) return "critical";
   if (score > 100) return "high";

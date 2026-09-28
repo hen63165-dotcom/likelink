@@ -7,6 +7,7 @@ import {
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { money } from "../../utils/helpers";
+import { getSessionToken } from "../../lib/auth.js";
 
 function Metric({ icon: Icon, value, label, tone = "accent" }) {
   return (
@@ -48,7 +49,7 @@ export default function CreatorCommandCenter({ onNavigate }) {
       if (!currentMarketer || !topProducts[0]?.id) return;
       setUgcLoading(true);
       try {
-        const token = typeof window !== "undefined" ? window.__likelink?.token || "" : "";
+        const token = await getSessionToken();
         const res = await fetch(`/api/store?mode=ugc-assets&productId=${encodeURIComponent(topProducts[0].id)}`, {
           headers: token ? { authorization: `Bearer ${token}` } : {},
         });

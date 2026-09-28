@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Sparkles, Zap, TrendingUp, Lightbulb, Target, AlertCircle, CheckCircle, ArrowRight, Play, Pause, Settings, Brain, BarChart3, DollarSign, MousePointer, Eye, ShoppingCart } from "lucide-react";
+import { X, Sparkles, Zap, TrendingUp, Lightbulb, Target, AlertCircle, CheckCircle, ArrowRight, Play, Pause, Settings, Brain, BarChart3, DollarSign, MousePointer, Eye, ShoppingCart } from "lucide-react";
 import { LUNA_DECISION, LUNA_DECISION_LABELS_HE } from "../../lib/ads/types.js";
 import { EmptyState, Button } from "../ui/index.jsx";
 
