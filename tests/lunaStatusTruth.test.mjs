@@ -424,3 +424,35 @@ test("the Luna card names content and errors in Hebrew and reads ISO run times",
   assert.equal(timeAgo(NOW - 26 * 3600_000, "he", NOW), "אתמול");
   assert.equal(timeAgo(null, "he", NOW), "—");
 });
+
+test("connected channels are named and a connected feed is never shown as disconnected", async () => {
+  // Real shape of POST /api/autopilot { mode: "public-feed" } → connections.
+  const feed = {
+    ok: true,
+    events: [],
+    publications: [],
+    connections: [
+      { provider: "web", connected: true, verified: true, scope: "platform", channelLabel: "לוגו האתר · Site feed" },
+      { provider: "telegram", connected: false, verified: false, scope: "platform", channelLabel: "Telegram" },
+    ],
+  };
+  const status = { ok: true, scheduler: { state: "ACTIVE" }, queue: { jobs: [] }, cloudConfigured: true };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init?.body || "{}");
+    const data = body.mode === "status" ? status : feed;
+    return { ok: true, status: 200, json: async () => data };
+  };
+  try {
+    const { fetchPlatformStatus } = await import("../src/lib/cloud/lunaStatus.js");
+    const out = await fetchPlatformStatus();
+    const web = out.connections.find((c) => c.provider === "web");
+    const tg = out.connections.find((c) => c.provider === "telegram");
+    assert.equal(web.state, "CONNECTED");
+    assert.equal(web.label, "פיד האתר");
+    assert.equal(tg.state, "REQUIRES_CONNECTION");
+    assert.ok(tg.label, "every chip has a name");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

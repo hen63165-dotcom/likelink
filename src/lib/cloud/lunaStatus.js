@@ -422,7 +422,14 @@ export async function fetchPlatformStatus() {
   if (feed && feed.ok) {
     out.events = Array.isArray(feed.events) ? feed.events : [];
     out.publications = Array.isArray(feed.publications) ? feed.publications : [];
-    out.connections = Array.isArray(feed.connections) ? feed.connections : [];
+    // The feed reports { provider, connected, channelLabel }; the card renders
+    // { label, state }. Map explicitly — otherwise every chip is unnamed and a
+    // connected channel (the site feed) is shown as not connected.
+    out.connections = (Array.isArray(feed.connections) ? feed.connections : []).map((c) => ({
+      ...c,
+      label: c?.label || channelLabel(c?.provider),
+      state: c?.state || (c?.connected === true ? "CONNECTED" : "REQUIRES_CONNECTION"),
+    }));
     out.publicationSummary = summarizePublications(out.publications);
     out.publicationsByContent = publicationsByContent(out.publications);
     out.logEmpty = out.publications.length === 0;
