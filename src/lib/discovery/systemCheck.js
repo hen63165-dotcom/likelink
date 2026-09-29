@@ -62,8 +62,17 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   // payments
   if (!p.payments?.paypalConfigured) {
     areas.push(area("payments", "תשלומים", COLOR.RED, "PayPal לא מוגדר בשרת — אין תשלום אפשרי", priv ? "להגדיר PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET" : "להשלים את חיבור PayPal בשרת"));
+  } else if (Number.isFinite(p.payments.plansTotal) && p.payments.plansConfigured === 0) {
+    // Credentials alone are not a working payment flow: without plan ids no
+    // paid subscription can start (sub=create → plan_not_configured).
+    areas.push(area("payments", "תשלומים", COLOR.RED, [
+      "PayPal מחובר, אבל אין אף מסלול מנוי מוגדר — הרשמה למסלול בתשלום נכשלת",
+      priv ? `מזהי מסלולים מוגדרים: 0/${p.payments.plansTotal}` : null,
+      p.payments.webhookConfigured ? null : "אין אימות Webhook — עדכוני מנוי מגיעים רק מבדיקה יזומה מול PayPal",
+    ], priv ? `להגדיר (מזהי Plan מ-PayPal): ${(p.payments.missingPlans || []).join(", ")}${p.payments.webhookConfigured ? "" : " · PAYPAL_WEBHOOK_ID"}` : "להשלים את הגדרת מסלולי המנוי ב-PayPal"));
   } else {
     const ev = ["PayPal מוגדר; מנוי נפתח רק אחרי אימות ACTIVE + custom_id + plan_id מול PayPal"];
+    if (priv && Number.isFinite(p.payments.plansTotal)) ev.push(`מזהי מסלולים מוגדרים: ${p.payments.plansConfigured}/${p.payments.plansTotal}`);
     if (priv && Number.isFinite(p.payments.pending)) ev.push(`${p.payments.pending} מנויים ממתינים לאימות · ${p.payments.active} פעילים`);
     areas.push(p.payments.webhookConfigured
       ? area("payments", "תשלומים", COLOR.GREEN, [...ev, "Webhook מאומת חתימה מוגדר"])

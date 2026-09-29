@@ -333,6 +333,20 @@ test("system check: RLS 'locked' needs proof; private fields in a public row are
   assert.notEqual(unknown.areas.find((a) => a.id === "security").color, "GREEN", "an unverified lock is never GREEN");
 });
 
+test("system check: PayPal credentials without plan ids are not a working payment flow", async () => {
+  const { evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
+  const payments = { paypalConfigured: true, webhookConfigured: false, plansTotal: 3, plansConfigured: 0, missingPlans: ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"] };
+  const owner = evaluateSystem({ payments }, { audience: "owner" }).areas.find((a) => a.id === "payments");
+  assert.equal(owner.color, "RED");
+  assert.match(owner.ownerAction, /PAYPAL_PLAN_STARTER/);
+  assert.match(owner.ownerAction, /PAYPAL_WEBHOOK_ID/);
+  const pub = evaluateSystem({ payments }, { audience: "public" }).areas.find((a) => a.id === "payments");
+  assert.equal(pub.color, "RED");
+  assert.doesNotMatch(JSON.stringify(pub), /[A-Z]+_(SECRET|ID|STARTER|PROFESSIONAL|ENTERPRISE)\b/);
+  const ready = evaluateSystem({ payments: { ...payments, plansConfigured: 3, missingPlans: [], webhookConfigured: true } }, { audience: "owner" }).areas.find((a) => a.id === "payments");
+  assert.equal(ready.color, "GREEN");
+});
+
 test("API: goal compiles + executes for the owner, fails closed for anonymous callers", async () => {
   kv.clear();
   put("marketplace:products", [product(1), product(2)]);

@@ -34,6 +34,7 @@ import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTru
 const RATE_WINDOW_MS = 60000;
 const RATE_MAX = 12;
 const SYSTEM_CHECK_CACHE_MS = 60000;
+const SUBSCRIPTION_PLAN_ENV = ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"];
 const SERVER_SECRETS = ["ADMIN_SESSION_SECRET", "STORE_SIGN_SECRET", "AUTOPILOT_SECRET", "CRON_SECRET", "PAYOUTS_SECRET", "PRICE_WATCH_SECRET", "CLOUD_PASSPORT_SECRET", "PAYPAL_WEBHOOK_ID"];
 
 function header(req, name) {
@@ -142,6 +143,10 @@ export function createDiscoveryHandler({
       payments: {
         paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
         webhookConfigured: Boolean(env.PAYPAL_WEBHOOK_ID),
+        // Monthly plan ids — without them sub=create answers plan_not_configured.
+        plansTotal: SUBSCRIPTION_PLAN_ENV.length,
+        plansConfigured: SUBSCRIPTION_PLAN_ENV.filter((k) => Boolean(env[k])).length,
+        missingPlans: SUBSCRIPTION_PLAN_ENV.filter((k) => !env[k]),
         pending: subList.filter((s) => s?.status === "pending").length,
         active: subList.filter((s) => s?.status === "active").length,
       },
