@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { Loader2, Image, Video, Layout, Palette, Sparkles, Download, Trash2, Copy, Eye, Plus, Minus } from "lucide-react";
 import { CREATIVE_FORMAT, CREATIVE_TYPE, PLACEMENT, FORMAT_LABELS_HE, TYPE_LABELS_HE, PLACEMENT_LABELS_HE } from "../../lib/ads/types.js";
-import { generateCreative, buildCreativePack, getAvailableCreativeTypesForPlacement as getTypesForPlacement, getRecommendedCreativeTypeForPlacement } from "../../lib/ads/creativeStudio.js";
+import {
+  generateCreative, buildCreativePack, getAvailableCreativeTypesForPlacement as getTypesForPlacement,
+  getRecommendedCreativeTypeForPlacement, creativeMediaState, creativeVideoUrl, CREATIVE_MEDIA_STATE,
+  CREATIVE_MEDIA_STATE_LABELS_HE,
+} from "../../lib/ads/creativeStudio.js";
 import { EmptyState, Button, LabeledInput, LabeledSelect, Toast } from "../ui/index.jsx";
 
 const TYPE_OPTIONS = [
@@ -23,28 +27,47 @@ const PLACEMENT_OPTIONS = [
   { value: "contextual_recommendation", label: "המלצה קונטקסטואלית" },
 ];
 
-function CreativeCard({ creative, index, onDelete, onCopyUrl, onPreview, isGenerating }) {
+const MEDIA_STATE_STYLE = {
+  [CREATIVE_MEDIA_STATE.PLAYABLE]: { background: "var(--success-subtle)", color: "var(--success)" },
+  [CREATIVE_MEDIA_STATE.RENDERING]: { background: "var(--warning-subtle)", color: "var(--warning)" },
+  [CREATIVE_MEDIA_STATE.READY_TO_ANIMATE]: { background: "var(--accent-subtle)", color: "var(--accent)" },
+  [CREATIVE_MEDIA_STATE.STATIC]: { background: "var(--success-subtle)", color: "var(--success)" },
+};
+
+function CreativeCard({ creative, index, onDelete, onCopyUrl, onPreview, isGenerating, canDelete }) {
   if (!creative) return null;
 
-  const formatLabels = FORMAT_LABELS_HE;
   const typeLabels = TYPE_LABELS_HE;
   const placementLabels = PLACEMENT_LABELS_HE;
+  // Media state comes from the real asset only (see creativeMediaState).
+  const mediaState = creativeMediaState(creative);
+  const videoUrl = creativeVideoUrl(creative);
+  const image = creative.assets?.primaryImage || "";
+  // The thumbnail badge names what is actually shown — a product photo is
+  // never labelled "video"/"reel" just because the creative's format is motion.
+  const thumbBadge = videoUrl
+    ? (FORMAT_LABELS_HE[creative.format] || "וידאו")
+    : creative.format === "image" ? FORMAT_LABELS_HE.image || "תמונה" : "תמונת מוצר";
 
   return (
     <div className="ll-card rounded-xl p-4 relative group" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden relative" style={{ background: "var(--bg-subtle)" }}>
-            {creative.assets?.primaryImage ? (
-              <img src={creative.assets.primaryImage} alt="" className="w-full h-full object-cover" />
+            {videoUrl ? (
+              <video src={videoUrl} className="w-full h-full object-cover" muted playsInline controls />
+            ) : image ? (
+              <img src={image} alt="תמונת המוצר" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center" style={{ color: "var(--text-faint)" }}>
-                {creative.format === "video" || creative.format === "reel" || creative.format === "story" ? <Video size={24} /> : <Image size={24} />}
+              <div className="w-full h-full flex items-center justify-center p-1 text-center text-[10px]" style={{ color: "var(--text-faint)" }}>
+                <Image size={20} />
               </div>
             )}
-            <div className="absolute bottom-1 right-1 rounded px-1 text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.7)", color: "white" }}>
-              {formatLabels[creative.format] || creative.format}
-            </div>
+            {(videoUrl || image) && (
+              <div className="absolute bottom-1 right-1 rounded px-1 text-[9px] font-bold" style={{ background: "rgba(0,0,0,0.7)", color: "white" }}>
+                {thumbBadge}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -55,36 +78,36 @@ function CreativeCard({ creative, index, onDelete, onCopyUrl, onPreview, isGener
               <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}>
                 {placementLabels[creative.placement] || creative.placement}
               </span>
-              {creative.renderStatus === "pending" && (
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--warning-subtle)", color: "var(--warning)" }}>
-                  ממתין לרינדור
-                </span>
-              )}
-              {creative.renderStatus === "ready" && (
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--success-subtle)", color: "var(--success)" }}>
-                  מוכן
-                </span>
-              )}
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={MEDIA_STATE_STYLE[mediaState]}>
+                {CREATIVE_MEDIA_STATE_LABELS_HE[mediaState]}
+              </span>
             </div>
             <p className="mt-1 text-sm line-clamp-2" style={{ color: "var(--text-secondary)" }}>{creative.copy?.body}</p>
-            <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              <span dir="ltr">ID: {creative.id}</span>
-              <span dir="ltr">מוצר: {creative.productId}</span>
-              {creative.metadata?.language && <span>{creative.metadata.language.toUpperCase()}</span>}
-            </div>
+            {mediaState === CREATIVE_MEDIA_STATE.READY_TO_ANIMATE && (
+              <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                הטקסט ותמונות המוצר מוכנים. סרטון עדיין לא נוצר — אפשר ליצור סרטון אמיתי מהמוצר בסטודיו הווידאו.
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button size="sm" variant="secondary" onClick={() => onPreview(creative)} disabled={isGenerating}>
-            <Eye size={13} /> תצוגה
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => onCopyUrl(creative.trackedUrl)} disabled={isGenerating}>
-            <Copy size={13} /> העתק לינק
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => onDelete(index)} disabled={isGenerating}>
-            <Trash2 size={13} />
-          </Button>
+        {/* Always visible — hover-only actions are unreachable on touch screens. */}
+        <div className="flex items-center gap-1 shrink-0">
+          {creative.trackedUrl ? (
+            <>
+              <Button size="sm" variant="secondary" onClick={() => onPreview(creative)} disabled={isGenerating}>
+                <Eye size={13} /> פתיחת הלינק
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => onCopyUrl(creative.trackedUrl)} disabled={isGenerating}>
+                <Copy size={13} /> העתקת לינק
+              </Button>
+            </>
+          ) : null}
+          {canDelete && (
+            <Button size="sm" variant="secondary" onClick={() => onDelete(index)} disabled={isGenerating}>
+              <Trash2 size={13} /> הסרת טיוטה
+            </Button>
+          )}
         </div>
       </div>
 
@@ -104,7 +127,9 @@ function CreativeCard({ creative, index, onDelete, onCopyUrl, onPreview, isGener
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-faint)" }}>לינק מעקב</p>
-            <p className="text-sm truncate" style={{ color: "var(--text-muted)" }} dir="ltr">{creative.trackedUrl?.slice(0, 50)}…</p>
+            <p className="text-sm truncate" style={{ color: "var(--text-muted)" }} dir="ltr">
+              {creative.trackedUrl ? `${creative.trackedUrl.slice(0, 50)}${creative.trackedUrl.length > 50 ? "…" : ""}` : "אין לינק למוצר"}
+            </p>
           </div>
         </div>
 
@@ -231,13 +256,18 @@ export default function CreativeStudio({
     setGeneratedCreatives((prev) => prev.filter((c) => c !== target));
   };
 
-  const handleCopyUrl = (url) => {
-    navigator.clipboard.writeText(url);
-    setToast({ type: "success", msg: "לינק הועתק" });
+  const handleCopyUrl = async (url) => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setToast({ type: "success", msg: "הלינק הועתק" });
+    } catch {
+      setToast({ type: "error", msg: "ההעתקה נכשלה — אפשר להעתיק את הלינק ידנית" });
+    }
   };
 
   const handlePreview = (creative) => {
-    window.open(creative.trackedUrl, "_blank");
+    if (creative?.trackedUrl) window.open(creative.trackedUrl, "_blank", "noopener,noreferrer");
   };
 
   if (!product) {
@@ -324,6 +354,7 @@ export default function CreativeStudio({
                 onCopyUrl={handleCopyUrl}
                 onPreview={handlePreview}
                 isGenerating={generating || generatingPack}
+                canDelete={generatedCreatives.includes(creative) && !saveSingle}
               />
             ))}
           </div>

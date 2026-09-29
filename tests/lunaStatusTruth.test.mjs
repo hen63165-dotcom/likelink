@@ -17,6 +17,7 @@ import path from "node:path";
 
 import {
   PLATFORM_STATE,
+  PLATFORM_STATE_LABEL,
   PUBLICATION_STATE,
   LUNA_STATE,
   deriveSchedulerState,
@@ -243,12 +244,43 @@ test("scheduler report carries a reason the UI can render verbatim", () => {
   }
   // …and the card keeps no wording the server can never send: dead reason codes
   // are how a stale "everything is fine" sentence survives a refactor.
-  // scheduler_unreachable is the one client-only code (no answer at all).
+  // Client-only codes: scheduler_unreachable (no answer at all) and
+  // jobs_overdue (derived from the same queue evidence once the grace window
+  // passed without a run — see schedulerReasonFor).
   assert.deepEqual(
     keys.slice().sort(),
-    [...codes, "scheduler_unreachable"].sort(),
+    [...codes, "scheduler_unreachable", "jobs_overdue"].sort(),
     "the card's reason table must match the server vocabulary exactly"
   );
+});
+
+test("a job left due past the grace window is OVERDUE, never a green ACTIVE", () => {
+  const NOW = Date.now();
+  const fresh = NOW - 60_000;
+  const hoursAgo = NOW - 3 * 3600_000;
+  const cron = { everRun: true, stale: false, lastBeatAt: hoursAgo };
+  // Just became due → the next dispatch picks it up.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: fresh, nextRunAt: NOW - 60_000 }], cron, now: NOW }),
+    LUNA_STATE.RUNNING
+  );
+  // Due for hours with nothing running → the trigger never came.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "success", lastRunAt: hoursAgo, nextRunAt: hoursAgo + 60_000 }], cron, now: NOW }),
+    LUNA_STATE.OVERDUE
+  );
+  // A job really running is still RUNNING even if another one is late.
+  assert.equal(
+    deriveLunaStatus({ ok: true, jobs: [{ state: "running" }, { state: "success", nextRunAt: hoursAgo }], cron, now: NOW }),
+    LUNA_STATE.RUNNING
+  );
+  // The coarse badge follows: OVERDUE/STALE are never shown as ACTIVE, and the
+  // reason says the run is late instead of "due or running now".
+  assert.equal(lunaToPlatformState(LUNA_STATE.OVERDUE), PLATFORM_STATE.OVERDUE);
+  assert.equal(lunaToPlatformState(LUNA_STATE.STALE), PLATFORM_STATE.OVERDUE);
+  assert.equal(schedulerReasonFor(PLATFORM_STATE.OVERDUE, { reason: "jobs_due_or_running" }), "jobs_overdue");
+  assert.ok(PLATFORM_STATE_LABEL[PLATFORM_STATE.OVERDUE].he, "the overdue badge needs Hebrew wording");
+  assert.doesNotMatch(PLATFORM_STATE_LABEL[PLATFORM_STATE.OVERDUE].he, /[A-Za-z]/, "no raw English in the Hebrew badge");
 });
 
 test("the UI never explains a red or grey light as 'queue idle'", () => {

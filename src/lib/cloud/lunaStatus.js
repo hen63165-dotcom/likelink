@@ -28,6 +28,7 @@ export const LUNA_STATE = {
 export const PLATFORM_STATE = {
   ACTIVE: "ACTIVE",
   WAITING: "WAITING",
+  OVERDUE: "OVERDUE",
   FAILED: "FAILED",
   REQUIRES_CONNECTION: "REQUIRES_CONNECTION",
   OFFLINE: "OFFLINE",
@@ -36,6 +37,7 @@ export const PLATFORM_STATE = {
 export const PLATFORM_STATE_LABEL = {
   [PLATFORM_STATE.ACTIVE]: { he: "פעיל בענן", en: "Active in cloud" },
   [PLATFORM_STATE.WAITING]: { he: "ממתין לתור", en: "Waiting for queue" },
+  [PLATFORM_STATE.OVERDUE]: { he: "באיחור · ממתין להפעלה", en: "Overdue · waiting to run" },
   [PLATFORM_STATE.FAILED]: { he: "נכשל — דורש בירור", en: "Failed — needs review" },
   [PLATFORM_STATE.REQUIRES_CONNECTION]: { he: "דורש חיבור", en: "Requires connection" },
   [PLATFORM_STATE.OFFLINE]: { he: "אינו זמין", en: "Unavailable" },
@@ -44,6 +46,7 @@ export const PLATFORM_STATE_LABEL = {
 export const PLATFORM_STATE_COLOR = {
   [PLATFORM_STATE.ACTIVE]: "var(--success)",
   [PLATFORM_STATE.WAITING]: "var(--warning, #f59e0b)",
+  [PLATFORM_STATE.OVERDUE]: "var(--warning, #f59e0b)",
   [PLATFORM_STATE.FAILED]: "var(--danger)",
   [PLATFORM_STATE.REQUIRES_CONNECTION]: "var(--warning, #f59e0b)",
   [PLATFORM_STATE.OFFLINE]: "var(--text-faint)",
@@ -95,6 +98,11 @@ export function deriveSchedulerState({ cloudConfigured = true, jobs = [], failed
 export const LUNA_HEARTBEAT_FRESH_MS = 5 * 60 * 1000;
 /** No real cloud signal for this long → the panel admits it is STALE. */
 export const LUNA_STALE_AFTER_MS = 2 * 24 * 3600 * 1000;
+/**
+ * A job whose nextRunAt passed is "about to run" only within this window
+ * (the cloud dispatcher fires every 15 min; two missed cycles = overdue).
+ */
+export const LUNA_DUE_GRACE_MS = 30 * 60 * 1000;
 
 function numOrNull(v) {
   const n = Number(v);
@@ -135,11 +143,15 @@ export function deriveLunaStatus({
   const failed = list.some((j) => norm(j?.state) === "failed");
   if (failed) return LUNA_STATE.ERROR;
   const running = list.some((j) => norm(j?.state) === "running");
-  const due = list.some((j) => {
-    const next = Number(j?.nextRunAt) || 0;
-    return next > 0 && next <= Number(now);
-  });
-  if (running || due) return LUNA_STATE.RUNNING;
+  if (running) return LUNA_STATE.RUNNING;
+  const dueAt = list
+    .map((j) => Number(j?.nextRunAt) || 0)
+    .filter((next) => next > 0 && next <= Number(now));
+  if (dueAt.length) {
+    // Just became due → the next dispatch picks it up (RUNNING). Waiting past
+    // the grace window means the expected trigger never came (OVERDUE).
+    return Number(now) - Math.min(...dueAt) > LUNA_DUE_GRACE_MS ? LUNA_STATE.OVERDUE : LUNA_STATE.RUNNING;
+  }
   const everRun = Boolean(cron?.everRun);
   const cronStale = cron ? Boolean(cron.stale) : true;
   if (!list.length && !everRun && !numOrNull(heartbeatAt)) return LUNA_STATE.NEVER_RUN;
@@ -171,10 +183,11 @@ export function lunaToPlatformState(luna) {
       return PLATFORM_STATE.ACTIVE;
     case LUNA_STATE.ERROR:
       return PLATFORM_STATE.FAILED;
+    case LUNA_STATE.OVERDUE:
+    case LUNA_STATE.STALE:
+      return PLATFORM_STATE.OVERDUE;
     case LUNA_STATE.WAITING:
     case LUNA_STATE.NEVER_RUN:
-    case LUNA_STATE.STALE:
-    case LUNA_STATE.OVERDUE:
       return PLATFORM_STATE.WAITING;
     case LUNA_STATE.UNREACHABLE:
     default:
@@ -189,6 +202,9 @@ export function lunaToPlatformState(luna) {
  * Keys match LunaStatusCard's REASON_TEXT vocabulary.
  */
 export function schedulerReasonFor(state, scheduler = null) {
+  // The server reason says "due or running" even hours after the trigger was
+  // missed — once the badge is OVERDUE the reason must say so too.
+  if (state === PLATFORM_STATE.OVERDUE) return "jobs_overdue";
   const explicit = scheduler?.reason;
   if (explicit) return explicit;
   switch (state) {
@@ -359,7 +375,9 @@ export async function fetchPlatformStatus() {
     out.cloud = status.cloud || null;
     // The schedule's own evidence: a timestamp written by real cron runs only.
     out.cron = status.cron || null;
-    out.jobs = summarizeJobs(status.queue?.jobs || []);
+    // "growth:job:<id>:last" bookkeeping rows surface in the queue scan with an
+    // id like "<id>:last" — they are not jobs, so they are never counted.
+    out.jobs = summarizeJobs((status.queue?.jobs || []).filter((j) => !String(j?.id || "").includes(":")));
     out.state = deriveSchedulerState({
       cloudConfigured: status.cloudConfigured !== false,
       jobs: out.jobs.jobs,
@@ -384,6 +402,11 @@ export async function fetchPlatformStatus() {
     out.heartbeatFresh = out.browserHeartbeatFresh;
     out.cronOverdue = Boolean(out.cron?.everRun && out.cron?.stale);
     out.queueOverdue = out.jobs.overdue;
+    // The coarse server state says ACTIVE whenever jobs exist; when the same
+    // evidence shows the schedule stopped firing, the badge must not stay green.
+    if (out.state === PLATFORM_STATE.ACTIVE && (out.luna === LUNA_STATE.OVERDUE || out.luna === LUNA_STATE.STALE)) {
+      out.state = PLATFORM_STATE.OVERDUE;
+    }
     out.lunaReason = schedulerReasonFor(out.state, out.scheduler);
   } else {
     out.error = (status && status.__error) || "status_unreachable";

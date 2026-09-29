@@ -33,11 +33,37 @@ import { Activity, AlertTriangle, RefreshCw, Repeat, ShieldAlert, CheckCircle2, 
 
 const REASON_TEXT = {
   jobs_due_or_running: { he: "משימות בתור או רצות ממש עכשיו", en: "Jobs due or running now" },
+  jobs_overdue: { he: "משימות מתוזמנות ממתינות — ההפעלה המתוכננת לא הגיעה בזמן", en: "Scheduled jobs are waiting — the planned run did not arrive on time" },
   jobs_registered: { he: "תור משימות רשום בענן", en: "Job queue registered in cloud" },
   queue_empty: { he: "התור ריק — אין עדיין משימות רשומות", en: "Queue empty — no jobs registered yet" },
   job_failed: { he: "משימה נכשלה — נדרש בירור", en: "A job failed — needs review" },
   persistence_not_configured: { he: "אין הגדרת אחסון בענן — אף משימה לא יכולה לרוץ", en: "No cloud persistence configured — nothing can run" },
   scheduler_unreachable: { he: "לוח הזמנים לא הגיב", en: "Scheduler did not answer" },
+};
+
+// Queue job ids / states are internal codes — the card shows Hebrew names.
+const JOB_LABEL = {
+  "autonomous-growth-cycle": { he: "מחזור צמיחה אוטונומי", en: "Autonomous growth cycle" },
+  "daily-trend-scan": { he: "סריקת טרנדים יומית", en: "Daily trend scan" },
+  "site-campaign-cycle": { he: "קמפיין האתר", en: "Site campaign" },
+  "affiliate-product-import": { he: "ייבוא מוצרי שותפים", en: "Affiliate product import" },
+  "affiliate-product-rotation": { he: "רענון מוצרי שותפים", en: "Affiliate product rotation" },
+  "brand-pulse-publish": { he: "פרסום דופק המותג", en: "Brand pulse publish" },
+  "brand-pulse-external": { he: "דופק המותג לערוצים חיצוניים", en: "Brand pulse to external channels" },
+  "brand-pulse-freshness": { he: "בדיקת עדכניות דופק המותג", en: "Brand pulse freshness" },
+  "opportunity-discovery": { he: "איתור הזדמנויות", en: "Opportunity discovery" },
+  "autonomous-ugc-video-production": { he: "הפקת סרטוני UGC", en: "UGC video production" },
+  "autonomous-ugc-distribution": { he: "הפצת תוכן UGC", en: "UGC distribution" },
+  "autonomous-ugc-video-poll": { he: "מעקב אחר סרטוני UGC", en: "UGC video status check" },
+  "autonomous-creative-refresh": { he: "רענון קריאייטיבים", en: "Creative refresh" },
+};
+
+const JOB_STATE_LABEL = {
+  success: { he: "הושלם", en: "Done" },
+  failed: { he: "נכשל", en: "Failed" },
+  running: { he: "רץ עכשיו", en: "Running" },
+  pending: { he: "ממתין", en: "Pending" },
+  skipped: { he: "דולג", en: "Skipped" },
 };
 
 const LUNA_TEXT = {
@@ -46,7 +72,7 @@ const LUNA_TEXT = {
   [LUNA_STATE.RUNNING]: { he: "לונה מריצה עבודה ממש עכשיו", en: "Luna is running work right now" },
   [LUNA_STATE.ACTIVE]: { he: "לונה פעילה — האות האחרון אומת מהענן", en: "Luna active — last signal verified from the cloud" },
   [LUNA_STATE.STALE]: { he: "האות האחרון התיישן — ייתכן שהפעילות נפסקה", en: "Last signal is stale — activity may have stopped" },
-  [LUNA_STATE.OVERDUE]: { he: "התזמון באיחור — ריצת cron צפויה לא הגיעה", en: "Schedule overdue — an expected cron run did not arrive" },
+  [LUNA_STATE.OVERDUE]: { he: "התזמון באיחור — ההפעלה המתוכננת לא הגיעה בזמן", en: "Schedule overdue — an expected run did not arrive" },
   [LUNA_STATE.UNREACHABLE]: { he: "לונה אינה נגישה — אין תשובה מהענן", en: "Luna unreachable — no answer from the cloud" },
   [LUNA_STATE.ERROR]: { he: "שגיאה — נדרש בירור לפני המשך", en: "Error — needs review before continuing" },
 };
@@ -331,12 +357,13 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
           </span>
           {(jobs.jobs || []).slice(0, 8).map((j) => (
             <div key={j.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5" style={{ background: "var(--bg-subtle)" }}>
-              <span className="truncate text-xs font-bold" style={{ color: "var(--text)" }}>{j.id}</span>
+              <span className="truncate text-xs font-bold" style={{ color: "var(--text)" }}>
+                {JOB_LABEL[j.id]?.[lang === "he" ? "he" : "en"] || t("משימה אוטונומית", "Autonomous job")}
+              </span>
               <Chip
                 color={j.state === "success" ? "var(--success)" : j.state === "failed" ? "var(--danger)" : j.state === "running" ? "var(--warning, #f59e0b)" : "var(--text-faint)"}
-                title={j.result ? String(j.result) : undefined}
               >
-                {j.state}
+                {JOB_STATE_LABEL[j.state]?.[lang === "he" ? "he" : "en"] || t("לא ידוע", "Unknown")}
                 {j.lastRunAt ? ` · ${timeAgo(j.lastRunAt, lang)}` : ""}
               </Chip>
             </div>

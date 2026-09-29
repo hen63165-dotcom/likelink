@@ -1310,9 +1310,10 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
                   onClick={() => navigate(VIEW_IDS.LUNA)}
                   className="ll-stat-card hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl"
                   style={{ border: `1px solid ${pColor}` }}
-                  title={platform?.scheduler?.reason
-                    ? `${pState} · ${platform.scheduler.reason}`
-                    : `${pState} · no cloud answer yet`}
+                  title={lang === "he"
+                    ? `לונה · ${pLabel}${platform?.scheduler ? "" : " · עדיין אין תשובה מהענן"}`
+                    : `Luna · ${pLabel}${platform?.scheduler ? "" : " · no cloud answer yet"}`}
+                  aria-label={lang === "he" ? `מצב לונה: ${pLabel}` : `Luna status: ${pLabel}`}
                 >
                   <span className="ll-stat-icon" style={{ width: 28, height: 28, marginBottom: 0, color: pColor }}><Activity size={13} /></span>
                   <span className="text-[10px] font-bold" style={{ color: "var(--accent)" }}>

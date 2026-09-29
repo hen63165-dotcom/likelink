@@ -263,6 +263,54 @@ function generateLifestyleCreative(product, placement, options = {}) {
   return creative;
 }
 
+// ── Truthful media state ────────────────────────────────────────────────
+// Ad creatives are generated as copy + the product's real photos. No
+// renderer produces their video: `renderStatus: "pending"` is only the
+// default written at creation. The UI therefore derives the media state from
+// the real asset, never from that flag:
+//   playable          a real video URL exists            → "מוכן לצפייה"
+//   rendering         a real render job is attached       → "בתהליך יצירה"
+//   ready_to_animate  motion format, no video, no job     → "מוכן ליצירת אנימציה"
+//   static            image creative (copy + photo)       → "מוכן · טקסט ותמונה"
+const MOTION_FORMATS = new Set(["video", "reel", "story"]);
+const ACTIVE_RENDER_JOB_STATES = new Set(["queued", "running", "processing"]);
+
+export const CREATIVE_MEDIA_STATE = Object.freeze({
+  PLAYABLE: "playable",
+  RENDERING: "rendering",
+  READY_TO_ANIMATE: "ready_to_animate",
+  STATIC: "static",
+});
+
+export const CREATIVE_MEDIA_STATE_LABELS_HE = Object.freeze({
+  [CREATIVE_MEDIA_STATE.PLAYABLE]: "מוכן לצפייה",
+  [CREATIVE_MEDIA_STATE.RENDERING]: "בתהליך יצירה",
+  [CREATIVE_MEDIA_STATE.READY_TO_ANIMATE]: "מוכן ליצירת אנימציה",
+  [CREATIVE_MEDIA_STATE.STATIC]: "מוכן · טקסט ותמונה",
+});
+
+function playableVideoUrl(creative) {
+  const url = String(creative?.assets?.video || "").trim();
+  return /^(https?:|blob:)/i.test(url) ? url : "";
+}
+
+export function isMotionCreative(creative) {
+  return MOTION_FORMATS.has(String(creative?.format || ""));
+}
+
+export function creativeMediaState(creative) {
+  if (playableVideoUrl(creative)) return CREATIVE_MEDIA_STATE.PLAYABLE;
+  const job = creative?.renderJob;
+  if (job && job.id && ACTIVE_RENDER_JOB_STATES.has(String(job.state || "").toLowerCase())) {
+    return CREATIVE_MEDIA_STATE.RENDERING;
+  }
+  return isMotionCreative(creative) ? CREATIVE_MEDIA_STATE.READY_TO_ANIMATE : CREATIVE_MEDIA_STATE.STATIC;
+}
+
+export function creativeVideoUrl(creative) {
+  return playableVideoUrl(creative);
+}
+
 export function generateCreative(product, type, placement, options = {}) {
   if (!product || !product.id) return null;
 
