@@ -30,6 +30,23 @@ import {
   timeAgo,
 } from "../../lib/cloud/lunaStatus.js";
 import { Activity, AlertTriangle, RefreshCw, Repeat, ShieldAlert, CheckCircle2, Clock } from "lucide-react";
+import { toHebrewError } from "../../lib/errorMessages.js";
+
+// Publication content ids ("pulse_27") and provider ids are internal — the
+// card names the content in Hebrew and never prints raw ids or error codes.
+function contentTitle(group, lang) {
+  const he = lang === "he";
+  const id = String(group?.contentId || "");
+  const num = id.match(/(\d+)$/)?.[1];
+  if (group?.contentType === "luna_pulse" || id.startsWith("pulse_")) {
+    return he ? `פוסט דופק המותג${num ? ` #${num}` : ""}` : `Brand pulse post${num ? ` #${num}` : ""}`;
+  }
+  return he ? "פרסום תוכן" : "Content publication";
+}
+
+function channelError(code, lang) {
+  return lang === "he" ? toHebrewError(code, "הפרסום לערוץ לא הושלם") : String(code || "");
+}
 
 const REASON_TEXT = {
   jobs_due_or_running: { he: "משימות בתור או רצות ממש עכשיו", en: "Jobs due or running now" },
@@ -154,11 +171,11 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
       setActionMsg({
         ok: true,
         text: p?.externalId
-          ? t(`הפורסם מחדש אושר בענן · מזהה ${p.externalId}`, `Republished and confirmed by the provider · id ${p.externalId}`)
-          : t("הפורסם מחדש בוצע בענן", "Retry executed in the cloud"),
+          ? t("הפרסום מחדש אושר בענן", "Republished and confirmed by the provider")
+          : t("הניסיון החוזר בוצע בענן — ממתין לאישור מהערוץ", "Retry executed in the cloud — awaiting channel confirmation"),
       });
     } else {
-      setActionMsg({ ok: false, text: t(`הניסיון חזר עם כשל: ${res?.error || "unknown"}`, `Retry came back failed: ${res?.error || "unknown"}`) });
+      setActionMsg({ ok: false, text: t(`הפרסום מחדש לא הצליח — ${channelError(res?.error, lang)}`, `Retry came back failed: ${res?.error || "no details"}`) });
     }
     await load();
     setBusyId(null);
@@ -220,7 +237,7 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
           never a guess. */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5 text-[10px]" style={{ color: "var(--text-faint)" }}>
         <span>
-          {t("ירי אחרון", "Last fire")}: {status?.scheduler?.lastFireAt || status?.queue?.lastFireAt
+          {t("הפעלה אחרונה", "Last run")}: {status?.scheduler?.lastFireAt || status?.queue?.lastFireAt
             ? timeAgo(status.scheduler?.lastFireAt || status.queue?.lastFireAt, lang)
             : t("מעולם לא", "never")}
         </span>
@@ -232,9 +249,9 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
         </span>
         <span>·</span>
         <span>
-          {t("הטאב", "Tab")}: {status?.browserHeartbeatFresh
-            ? t("פעיל", "active")
-            : t("אין עדות", "no evidence")}
+          {t("פעילות בדפדפן", "Browser activity")}: {status?.browserHeartbeatFresh
+            ? t("זוהתה", "detected")
+            : t("לא זוהתה", "none detected")}
         </span>
       </div>
 
@@ -262,8 +279,8 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
             key={`${c.provider}-${c.channelLabel || ""}`}
             color={c.state === "CONNECTED" ? "var(--success)" : "var(--warning, #f59e0b)"}
             title={c.state === "CONNECTED"
-              ? t("הענן אישר שיש עבורו credentials", "The cloud has credentials for it")
-              : t("אין לענן credentials עבורו — לא תתבצע הפצה דרכו", "The cloud has no credentials — nothing can be delivered through it")}
+              ? t("הענן אישר שיש עבורו פרטי התחברות", "The cloud has credentials for it")
+              : t("אין לענן פרטי התחברות עבורו — לא תתבצע הפצה דרכו", "The cloud has no credentials — nothing can be delivered through it")}
           >
             {c.state === "CONNECTED" ? <CheckCircle2 size={11} /> : <ShieldAlert size={11} />}
             {c.label}
@@ -310,7 +327,7 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
               <span className="text-[10px] font-extrabold" style={{ color: pubColor(g.status) }}>
                 {PUB_LABEL[g.status]?.[lang === "he" ? "he" : "en"] || g.status}
               </span>
-              <span className="text-xs font-bold" style={{ color: "var(--text)" }}>{g.contentId}</span>
+              <span className="text-xs font-bold" style={{ color: "var(--text)" }}>{contentTitle(g, lang)}</span>
               {g.latestAt && (
                 <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: "var(--text-faint)" }}>
                   <Clock size={9} />{timeAgo(Date.parse(g.latestAt), lang)}
@@ -319,9 +336,8 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {g.channels.map((c) => (
-                <Chip key={c.id || `${c.channel}-${c.at}`} color={pubColor(c.status)} title={c.error || undefined}>
+                <Chip key={c.id || `${c.channel}-${c.at}`} color={pubColor(c.status)} title={c.error ? channelError(c.error, lang) : undefined}>
                   {c.label} · {PUB_LABEL[c.status]?.[lang === "he" ? "he" : "en"] || c.status}
-                  {c.externalId ? ` · #${c.externalId}` : ""}
                   {c.attempts > 1 ? ` · ×${c.attempts}` : ""}
                 </Chip>
               ))}
@@ -342,7 +358,7 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
             {g.channels.filter((c) => c.error).map((c) => (
               <div key={`err-${c.id || c.channel}`} className="mt-1 flex items-start gap-1 text-[10px]" style={{ color: "var(--danger)" }}>
                 <AlertTriangle size={10} style={{ marginTop: 2, flex: "0 0 10px" }} />
-                {c.label}: {c.error}
+                {c.label}: {channelError(c.error, lang)}
               </div>
             ))}
           </div>
@@ -379,19 +395,20 @@ export default function LunaStatusCard({ status: externalStatus = null, onStatus
           )
           : !cron || !cron.everRun
             ? t(
-              "אין עדיין עדות לריצת cron מתוזמנת בענן — ייתכן שעדיין לא יצאה לפועל. נקרא ישירות מהענן, ללא נתוני דמו.",
+              "אין עדיין עדות להפעלה מתוזמנת בענן — ייתכן שעדיין לא יצאה לפועל. נקרא ישירות מהענן, ללא נתוני דמו.",
               "No evidence of a scheduled cron run yet — it may not have executed. Read directly from the cloud, no demo data."
             )
             : cron.stale
               ? t(
-                `ריצת ה-cron המתוזמנת האחרונה הייתה ${timeAgo(cron.lastBeatAt, lang)} — ייתכן שהתזמון הפסיק לרוץ.`,
+                `ההפעלה המתוזמנת האחרונה הייתה ${timeAgo(cron.lastBeatAt, lang)} — ייתכן שהתזמון הפסיק לרוץ.`,
                 `The last scheduled cron run was ${timeAgo(cron.lastBeatAt, lang)} — the schedule may have stopped firing.`
               )
               : t(
-                `תזמון ה-cron האחרון: ${timeAgo(cron.lastBeatAt, lang)} · נקרא ישירות מהענן, ללא נתוני דמו.`,
+                `ההפעלה המתוזמנת האחרונה: ${timeAgo(cron.lastBeatAt, lang)} · נקרא ישירות מהענן, ללא נתוני דמו.`,
                 `The cron schedule last ran ${timeAgo(cron.lastBeatAt, lang)} ago · read directly from the cloud, no demo data.`
               )}
-        {jobs.nextRunAt
+        {/* A nextRunAt in the past is an overdue job (stated above), not "next". */}
+        {jobs.nextRunAt && Number(jobs.nextRunAt) > Date.now()
           ? ` · ${t("משימה הבאה", "Next job")}: ${new Date(jobs.nextRunAt).toLocaleString(lang === "he" ? "he-IL" : "en-GB")}`
           : ""}
       </p>

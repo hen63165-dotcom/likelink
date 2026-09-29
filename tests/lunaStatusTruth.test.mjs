@@ -32,6 +32,7 @@ import {
   publicationsByContent,
   isRetryableChannel,
   channelLabel,
+  timeAgo,
 } from "../src/lib/cloud/lunaStatus.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -402,3 +403,24 @@ test("cron truth comes from recorded beats, not from probing an invented endpoin
   );
 });
 
+
+test("the Luna card names content and errors in Hebrew and reads ISO run times", () => {
+  const card = read("src/components/studio/LunaStatusCard.jsx");
+  // Raw ids / codes never reach the screen.
+  assert.doesNotMatch(card, />\s*\{g\.contentId\}/, "content ids like pulse_27 must be named, not printed");
+  assert.doesNotMatch(card, /res\?\.error \|\| "unknown"/, "a failed retry is explained in Hebrew, not as a raw code");
+  assert.doesNotMatch(card, /#\$\{c\.externalId\}/, "provider message ids are internal");
+  assert.doesNotMatch(card, /\{c\.label\}: \{c\.error\}/, "channel errors are translated, not printed as codes");
+  assert.doesNotMatch(card, /\{j\.id\}<|\{j\.state\}\n/, "queue job ids / states are shown in Hebrew");
+  // Hebrew copy carries no technical English.
+  for (const word of ["ה-cron", "credentials", "הטאב", "ירי אחרון"]) {
+    // Only the first (Hebrew) argument of t("he", "en") is checked.
+    const inHebrew = card.split('t("').slice(1).some((chunk) => chunk.split('"')[0].includes(word));
+    assert.ok(!inHebrew, `no "${word}" in Hebrew copy`);
+  }
+  // The scheduler reports lastFireAt as an ISO string — it must render as a time.
+  const NOW = Date.parse("2026-09-29T09:00:00Z");
+  assert.equal(timeAgo("2026-09-29T06:00:00Z", "he", NOW), "לפני 3 שע׳");
+  assert.equal(timeAgo(NOW - 26 * 3600_000, "he", NOW), "אתמול");
+  assert.equal(timeAgo(null, "he", NOW), "—");
+});

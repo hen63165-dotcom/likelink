@@ -504,7 +504,9 @@ export function publicationColor(state) {
 
 /** Human relative time without any invented precision. */
 export function timeAgo(ts, lang = "he", now = Date.now()) {
-  const t = Number(ts) || 0;
+  // The scheduler reports ISO strings (lastFireAt) while the queue uses epoch
+  // ms — accept both, so a real run is never shown as "—".
+  const t = typeof ts === "string" && !/^\d+$/.test(ts.trim()) ? Date.parse(ts) || 0 : Number(ts) || 0;
   if (!t) return "—";
   const diff = Math.max(0, now - t);
   const m = Math.floor(diff / 60000);
@@ -514,6 +516,7 @@ export function timeAgo(ts, lang = "he", now = Date.now()) {
   const h = Math.floor(m / 60);
   if (h < 24) return he ? `לפני ${h} שע׳` : `${h}h ago`;
   const d = Math.floor(h / 24);
+  if (d === 1) return he ? "אתמול" : "1d ago";
   return he ? `לפני ${d} ימים` : `${d}d ago`;
 }
 
