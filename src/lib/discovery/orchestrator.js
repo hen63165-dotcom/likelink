@@ -1,31 +1,45 @@
-// Discovery orchestrator — runs the engine against real data (kv injected).
+// Luna execution engine — runs compiled intents against real data (kv injected).
 //
-// Used by the API (/api/store?mode=discovery) and by the autonomous daily
-// sweep job. Guarantees:
-//   • idempotent: assets are rewritten only when the product's fingerprint
-//     changed; passport snapshots at most once per ~20h unless the score moved
-//   • duplicate-safe: the same command on the same unchanged data the same day
-//     is recorded once in the action log
-//   • fail-closed: a failed kv read blocks the write of that key (kvReadGuard
-//     in the injected kvSet); a failed write is reported, never hidden
-//   • truthful: only SAFE internal actions execute; approvals / blocked items
-//     are returned with the exact owner requirement, never performed
+// GOAL → INTENT → STATE → GAP → CAPABILITIES → ACTION GRAPH → EXECUTION →
+// PROOF → RESULT → MEMORY → LEARNING → NEXT ACTION.
+//
+// Guarantees:
+//   • only native INTERNAL capabilities with session permission execute on
+//     their own (LAW 06 / 14); everything else is returned with its owner action
+//   • every executed step is VERIFIED by re-reading what it wrote (LAW 01)
+//   • idempotent: assets rewrite only when the product fingerprint changed;
+//     passport snapshots at most once per ~20h unless the score moved
+//   • duplicate-safe action log per goal + data + day (LAW 08)
+//   • failures are classified, dead-lettered and never hide other work (LAW 09)
+//   • asset writes keep the previous version for rollback (LAW 13)
+//   • learning uses real score / click deltas only (LAW 12)
+//   • fail-closed: a failed kv read blocks that key's write (kvReadGuard)
 import {
-  buildPassport, buildChannelRegistry, planCommand, buildProductAssets, buildOpportunityGraph,
-  prioritize, LUNA_COMMANDS, OPPORTUNITY_STATUS, SAFETY,
+  buildPassport, buildChannelRegistry, buildProductAssets, buildOpportunityGraph, prioritize,
+  LUNA_COMMANDS, OPPORTUNITY_STATUS, SAFETY, heCount,
 } from "./engine.js";
-import { merchantStatus, stableHash, isPublicProduct, ORIGIN } from "./surfaces.js";
+import { merchantStatus, stableHash, isPublicProduct, ORIGIN, canonicalProduct, buildProductSeo, auditSeo } from "./surfaces.js";
+import { compileIntent, buildActionGraph, COMMAND_GOALS } from "./intent.js";
+import { CAPABILITIES, classifyFailure } from "./capabilities.js";
+import { evidence, TRUTH } from "./truth.js";
+import { auditRun } from "./laws.js";
 
 export const KEYS = Object.freeze({
   assets: (id) => `discovery:assets:${id}`,
   passport: (id) => `discovery:passport:${id}`,
   log: (scope) => `discovery:log:${scope}`,
+  memory: (scope) => `discovery:memory:${scope}`,
+  run: (scope) => `discovery:run:last:${scope}`,
+  deadLetter: "discovery:deadletter",
   sweep: "discovery:sweep:last",
 });
 
 const SNAPSHOT_MIN_MS = 20 * 60 * 60 * 1000;
 const LOG_CAP = 50;
+const MEMORY_CAP = 200;
+const DEAD_LETTER_CAP = 100;
 const HISTORY_CAP = 30;
+const STEP_TIMEOUT_MS = 8000;
 const DAY_MS = 86400000;
 
 const arr = (v) => (Array.isArray(v) ? v : []);
@@ -33,6 +47,14 @@ const arr = (v) => (Array.isArray(v) ? v : []);
 async function read(kvGet, key, fallback) {
   const v = await kvGet(key, fallback);
   return v == null ? fallback : v;
+}
+
+function withTimeout(promise, ms, label) {
+  let t;
+  return Promise.race([
+    promise.finally(() => clearTimeout(t)),
+    new Promise((_, reject) => { t = setTimeout(() => reject(new Error(`timeout:${label}`)), ms); }),
+  ]);
 }
 
 /** Channel env as BOOLEANS only — secret values never leave process.env. */
@@ -45,13 +67,14 @@ export function channelEnv(env = {}) {
 }
 
 export async function loadDiscoveryData(kvGet, { productIds = null } = {}) {
-  const [products, marketers, clicks, sales, collections, publications] = await Promise.all([
+  const [products, marketers, clicks, sales, collections, publications, brandPulse] = await Promise.all([
     read(kvGet, "marketplace:products", []),
     read(kvGet, "marketplace:marketers", []),
     read(kvGet, "marketplace:clicks", []),
     read(kvGet, "marketplace:sales", []),
     read(kvGet, "marketplace:collections", []),
     read(kvGet, "publish:log", []),
+    read(kvGet, "brand_pulse:posts", []),
   ]);
   const all = arr(products).filter((p) => p && p.id);
   const scope = productIds ? all.filter((p) => productIds.includes(String(p.id))) : all;
@@ -71,6 +94,7 @@ export async function loadDiscoveryData(kvGet, { productIds = null } = {}) {
     sales: arr(sales),
     collections: arr(collections),
     publications: arr(publications),
+    publicFeedIds: new Set(arr(brandPulse).map((p) => String(p?.id || "")).filter(Boolean)),
     perProduct: new Map(perProduct),
   };
 }
@@ -91,6 +115,7 @@ export function computePassports(data, { env = {}, origin = ORIGIN, now = Date.n
       clicks: data.clicks,
       sales: data.sales,
       publications: data.publications,
+      publicFeedIds: data.publicFeedIds,
       ugcAssets: extra.ugc || [],
       collections: data.collections,
       channels,
@@ -104,16 +129,22 @@ export function computePassports(data, { env = {}, origin = ORIGIN, now = Date.n
   return { passports, channels, merchantEligibleCount };
 }
 
-/** Persist assets only when the product changed (fingerprint). */
+/** Persist assets only when the product changed; keep the previous version (LAW 13). */
 async function persistAssets({ kvSet, product, data, channels, origin, now, stored }) {
   const assets = buildProductAssets(product, data.marketers, channels, origin, now);
   if (!assets.share) return { status: "blocked", reason: "למוצר חסרה כותרת — אין ממה לבנות חבילת שיתוף" };
+  if (stored?.share && stored.pinnedFor === assets.fingerprint) {
+    return { status: OPPORTUNITY_STATUS.UP_TO_DATE, reason: "שוחזרה ידנית גרסה קודמת — לונה לא דורסת אותה כל עוד המוצר לא השתנה", assets: stored };
+  }
   if (stored && stored.fingerprint === assets.fingerprint && stored.share) {
     return { status: OPPORTUNITY_STATUS.UP_TO_DATE, reason: "חבילת השיתוף כבר מעודכנת לנתוני המוצר", assets: stored };
   }
+  const next = stored
+    ? { ...assets, previous: { fingerprint: stored.fingerprint, generatedAt: stored.generatedAt, share: stored.share, drafts: stored.drafts } }
+    : { ...assets, previous: null };
   try {
-    await kvSet(KEYS.assets(product.id), assets);
-    return { status: OPPORTUNITY_STATUS.EXECUTED, reason: stored ? "חבילת השיתוף עודכנה לנתוני המוצר החדשים" : "נוצרה חבילת שיתוף עם לינק מעקב", assets };
+    await kvSet(KEYS.assets(product.id), next);
+    return { status: OPPORTUNITY_STATUS.EXECUTED, reason: stored ? "חבילת השיתוף עודכנה לנתוני המוצר החדשים" : "נוצרה חבילת שיתוף עם לינק מעקב", assets: next };
   } catch (e) {
     return { status: "failed", reason: "השמירה נכשלה — לא נשמר דבר", error: String(e?.message || e) };
   }
@@ -134,6 +165,7 @@ async function persistSnapshot({ kvSet, passport, previous, now }) {
     score: passport.score.score,
     components: passport.score.components.map((c) => ({ id: c.id, earned: c.earned, max: c.max })),
     merchantEligible: passport.merchant.eligible,
+    merchantReadiness: passport.merchant.readiness?.score ?? null,
     media: passport.media.state,
     clicks: passport.signals.clicks,
     history: [...history, { at: now, score: passport.score.score, clicks: passport.signals.clicks }].slice(-HISTORY_CAP),
@@ -146,22 +178,79 @@ async function persistSnapshot({ kvSet, passport, previous, now }) {
   }
 }
 
-function nextAction(plan) {
-  const top = plan.approvals[0] || plan.blocked.find((b) => b.channel !== "telegram" && b.channel !== "webhook") || plan.blocked[0] || plan.suggestions[0];
-  if (!top) return { he: "אין פעולה פתוחה — כל משטחי הגילוי הזמינים מוכנים", opportunityId: null };
-  return { he: `${top.what} — ${top.action}`, opportunityId: top.id, safety: top.safety };
+/** LAW 12 — learning from real deltas only; no deltas → says so. */
+function learn(before, after, data) {
+  const out = [];
+  for (const p of after) {
+    const prev = data.perProduct.get(p.productId)?.passport || null;
+    const b = before.find((x) => x.productId === p.productId);
+    if (b && p.score.score !== b.score.score) {
+      out.push({ productId: p.productId, he: `ציון הגילוי של "${p.title}" עלה מ-${b.score.score} ל-${p.score.score} בעקבות הפעולות של הריצה`, source: "score_delta" });
+    }
+    if (prev && Number.isFinite(prev.clicks) && p.signals.clicks > prev.clicks) {
+      const d = p.signals.clicks - prev.clicks;
+      out.push({ productId: p.productId, he: `${heCount(d, "קליק אמיתי חדש", "קליקים אמיתיים חדשים")} על "${p.title}" מאז הבדיקה הקודמת`, source: "click_delta" });
+    }
+  }
+  if (!out.length) out.push({ productId: null, he: "אין עדיין נתוני תוצאה חדשים ללמוד מהם — לונה לא מסיקה בלי ראיות", source: "none" });
+  return out;
+}
+
+async function appendCapped(kvGet, kvSet, key, entries, cap) {
+  if (!entries.length) return { written: false };
+  try {
+    const cur = arr(await read(kvGet, key, []));
+    await kvSet(key, [...cur, ...entries].slice(-cap));
+    return { written: true };
+  } catch (e) {
+    return { written: false, error: String(e?.message || e) };
+  }
+}
+
+/** Execute + verify one native internal step. */
+async function executeStep({ capability, product, passport, data, channels, origin, now, kvGet, kvSet }) {
+  if (capability === "create_share_asset") {
+    const stored = data.perProduct.get(String(product.id))?.assets || null;
+    const r = await persistAssets({ kvSet, product, data, channels, origin, now, stored });
+    if (r.status === "failed") throw new Error(r.error || "asset_write_failed");
+    if (r.status === "blocked") return { status: "blocked", result: r.reason };
+    data.perProduct.get(String(product.id)).assets = r.assets;
+    // Verification: read back what was written and compare fingerprints.
+    const back = await read(kvGet, KEYS.assets(product.id), null);
+    const ok = Boolean(back && back.fingerprint === r.assets.fingerprint && back.share);
+    return {
+      status: ok ? (r.status === OPPORTUNITY_STATUS.EXECUTED ? "executed" : "up_to_date") : "failed",
+      result: r.reason,
+      proof: ok
+        ? evidence({ state: TRUTH.VERIFIED, source: KEYS.assets(product.id), evidence: `נקרא חזרה עם טביעת האצבע ${back.fingerprint}`, verifiedAt: now })
+        : evidence({ state: TRUTH.UNVERIFIED, source: KEYS.assets(product.id), evidence: "הקריאה החוזרת לא תאמה את מה שנכתב" }),
+    };
+  }
+  if (capability === "verify_product_seo") {
+    const marketer = data.marketers.find((m) => m && m.id === product.marketerId) || null;
+    const c = canonicalProduct(product, marketer, origin);
+    const audit = auditSeo(c, buildProductSeo(c), { inSitemap: isPublicProduct(product, data.marketers) });
+    const failed = audit.checks.filter((x) => !x.ok);
+    return {
+      status: failed.length ? "blocked" : "up_to_date",
+      result: failed.length ? `נשאר לתקן בנתוני המוצר: ${failed.map((x) => x.he).join(", ")}` : "עמוד המוצר מגיש SEO מלא",
+      proof: failed.length ? null : evidence({ state: TRUTH.VERIFIED, source: "buildProductSeo (/p/:id)", evidence: `${audit.passed}/${audit.total} בדיקות עברו על ה-SEO המוגש`, verifiedAt: now }),
+    };
+  }
+  throw new Error(`no_executor:${capability}`);
+}
+
+function toItem(n) {
+  return { id: n.id, productId: n.productId, productTitle: n.productTitle, kind: n.capability, what: n.capabilityHe, action: n.reason, status: n.status, risk: n.risk, native: n.native, safety: n.status === "approval" || n.status === "owner" ? SAFETY.APPROVAL : n.status === "blocked" ? SAFETY.BLOCKED : SAFETY.SAFE };
 }
 
 /**
- * Run a Luna command for an owner scope.
- * @param scope { marketerIds: string[] | null (null = admin, all products), actor }
+ * Run a goal for an owner scope.
+ * @param scope { marketerIds: string[] | null (null = admin/owner, all products), actor }
+ * @param entitlement  canonical entitlement (entitlements.resolveEntitlement)
  */
-export async function runCommand({ kvGet, kvSet, command, productId = null, scope, env = {}, origin = ORIGIN, now = Date.now() }) {
-  const def = LUNA_COMMANDS[command];
-  if (!def) return { ok: false, error: "unknown_command" };
-  if (def.requiresProduct && !productId) return { ok: false, error: "product_id_required" };
-
-  const full = await loadDiscoveryData(kvGet);
+export async function runIntent({ kvGet, kvSet, goal, productId = null, scope, entitlement = null, env = {}, origin = ORIGIN, now = Date.now(), commandId = null }) {
+  const full = await loadDiscoveryData(kvGet, { productIds: [] });
   let owned = full.products;
   if (scope?.marketerIds) owned = owned.filter((p) => scope.marketerIds.includes(String(p.marketerId)));
   if (productId) {
@@ -172,97 +261,124 @@ export async function runCommand({ kvGet, kvSet, command, productId = null, scop
   if (!owned.length) return { ok: false, error: "no_products" };
 
   const data = await loadDiscoveryData(kvGet, { productIds: owned.map((p) => String(p.id)) });
-  const { passports, channels } = computePassports(data, { env, origin, now });
-  const plan = planCommand(command, passports, { now });
+  const before = computePassports(data, { env, origin, now });
+  const intent = compileIntent(goal, { productId, scopeProductIds: owned.map((p) => String(p.id)) });
+  const externalConnected = before.channels.some((c) => ["telegram", "webhook"].includes(c.provider) && c.connected);
+  const graph = buildActionGraph(intent, before.passports, { externalConnected, entitlement });
 
-  // ── SAFE execution (internal, additive, own namespace only) ──
-  const executed = [];
-  const byProduct = new Map();
-  for (const o of plan.execute) {
-    if (!byProduct.has(o.productId)) byProduct.set(o.productId, []);
-    byProduct.get(o.productId).push(o);
-  }
-  for (const [pid, opps] of byProduct) {
-    const product = data.scope.find((p) => String(p.id) === pid);
-    const stored = data.perProduct.get(pid)?.assets || null;
-    const needsAssets = opps.some((o) => o.kind === "share_asset" || o.kind === "content_drafts");
-    let assetResult = null;
-    if (needsAssets) {
-      assetResult = await persistAssets({ kvSet, product, data, channels, origin, now, stored });
-      data.perProduct.get(pid).assets = assetResult.assets || stored;
-    }
-    for (const o of opps) {
-      if (o.kind === "seo") {
-        const failed = passports.find((p) => p.productId === pid)?.seo.audit.checks.filter((c) => !c.ok) || [];
-        executed.push({
-          opportunityId: o.id, productId: pid, kind: o.kind,
-          status: failed.length ? OPPORTUNITY_STATUS.BLOCKED : OPPORTUNITY_STATUS.UP_TO_DATE,
-          result: failed.length
-            ? `עמוד המוצר נבנה מנתוני המוצר; נשאר לתקן בנתונים: ${failed.map((c) => c.he).join(", ")}`
-            : "עמוד המוצר מוגש עם כותרת, תיאור, נתונים מובנים ו-Open Graph תקינים",
-        });
-      } else {
-        executed.push({ opportunityId: o.id, productId: pid, kind: o.kind, status: assetResult.status, result: assetResult.reason, error: assetResult.error });
-      }
+  // ── EXECUTE the safe native steps (once per product + capability) ──
+  const steps = [];
+  const deadLetters = [];
+  const seen = new Set();
+  const runId = stableHash({ goal: intent.goal, productId, at: now, scope: scope?.marketerIds || "all" });
+  for (const n of graph.nodes.filter((x) => x.status === "safe")) {
+    const key = `${n.productId}:${n.capability}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const cap = CAPABILITIES[n.capability];
+    const product = data.scope.find((p) => String(p.id) === n.productId);
+    const passport = before.passports.find((p) => p.productId === n.productId);
+    const base = { id: key, productId: n.productId, capability: n.capability, kind: n.capability, permission: cap.permission, rollback: cap.rollback, verification: cap.verification };
+    try {
+      const r = await withTimeout(executeStep({ capability: n.capability, product, passport, data, channels: before.channels, origin, now, kvGet, kvSet }), STEP_TIMEOUT_MS, n.capability);
+      steps.push({ ...base, ...r });
+    } catch (e) {
+      const failure = classifyFailure(e);
+      const step = { ...base, status: "failed", result: "הפעולה נכשלה — שום דבר לא סומן כהצלחה", failure, error: String(e?.message || e).slice(0, 160), next: failure.selfRepair || "דורש בדיקה — נרשם לתיקון" };
+      steps.push(step);
+      deadLetters.push({ runId, at: now, step: key, capability: n.capability, productId: n.productId, failure, error: step.error });
     }
   }
 
-  // Recompute after execution so the returned passports reflect real state.
   const after = computePassports(data, { env, origin, now }).passports;
-  const snapshots = await Promise.all(after.map((p) => persistSnapshot({
-    kvSet, passport: p, previous: data.perProduct.get(p.productId)?.passport || null, now,
-  })));
+  const snapshots = await Promise.all(after.map((p) => persistSnapshot({ kvSet, passport: p, previous: data.perProduct.get(p.productId)?.passport || null, now })));
+  const learning = learn(before.passports, after, data);
+  const { evidenceNote, evidence: evidenceLevel } = prioritize(after, { now });
 
-  // ── Action log (duplicate-safe per command + data + day) ──
+  // ── NEXT ACTION: the highest-value open node (owner/approval before blocked) ──
+  const RANK = { owner: 0, approval: 1, client: 2, entitlement: 3, blocked: 4 };
+  const open = graph.nodes.filter((n) => n.status !== "done" && n.status !== "safe").sort((a, b) => (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9));
+  const nextNode = open[0] || null;
+  const next = nextNode
+    ? { he: `${nextNode.capabilityHe}${nextNode.productTitle ? ` · ${nextNode.productTitle}` : ""} — ${nextNode.reason}`, nodeId: nextNode.id, status: nextNode.status }
+    : { he: intent.analyzeOnly ? "הניתוח הושלם — ראי את ההזדמנויות למטה" : "כל המצב הנדרש למטרה הזו מתקיים", nodeId: null };
+
+  // ── RECORD: log (duplicate-safe), memory, run record, dead-letter ──
   const scopeKey = scope?.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
-  const entryId = stableHash({
-    command, productId: productId || null, day: Math.floor(now / DAY_MS),
-    fingerprints: after.map((p) => p.fingerprint).sort(),
-  });
+  const entryId = stableHash({ goal: intent.goal, productId: productId || null, day: Math.floor(now / DAY_MS), fingerprints: after.map((p) => p.fingerprint).sort() });
   const log = arr(await read(kvGet, KEYS.log(scopeKey), []));
   const duplicate = log.some((e) => e && e.id === entryId);
-  const entry = {
-    id: entryId,
-    at: now,
-    command,
-    productId: productId || null,
-    actor: scope?.actor || null,
-    products: after.length,
-    executed: executed.map((x) => ({ productId: x.productId, kind: x.kind, status: x.status })),
-    approvals: plan.approvals.length,
-    blocked: plan.blocked.length,
-    avgScore: Math.round(after.reduce((s, p) => s + p.score.score, 0) / after.length),
-  };
   let logWrite = { written: false, duplicate };
   if (!duplicate) {
     try {
-      await kvSet(KEYS.log(scopeKey), [...log, entry].slice(-LOG_CAP));
+      await kvSet(KEYS.log(scopeKey), [...log, {
+        id: entryId, at: now, goal: intent.goal, command: commandId, productId: productId || null, actor: scope?.actor || null,
+        products: after.length, executed: steps.map((x) => ({ productId: x.productId, kind: x.capability, status: x.status })),
+        approvals: graph.summary.approval + graph.summary.owner, blocked: graph.summary.blocked,
+        avgScore: Math.round(after.reduce((sum, p) => sum + p.score.score, 0) / after.length),
+      }].slice(-LOG_CAP));
       logWrite = { written: true, duplicate: false };
     } catch (e) {
       logWrite = { written: false, duplicate: false, error: String(e?.message || e) };
     }
   }
+  const memoryEntries = duplicate ? [] : [
+    { type: "goal", at: now, runId, text: intent.goal, outcome: intent.desiredOutcome, understood: intent.understood },
+    { type: "decision", at: now, runId, text: `${graph.nodes.length} צעדים: ${graph.summary.safe} בטוחים, ${graph.summary.owner + graph.summary.approval} דורשים אדם, ${graph.summary.blocked} חסומים`, evidence: evidenceNote },
+    ...steps.filter((x) => x.status !== "failed").map((x) => ({ type: "action", at: now, runId, capability: x.capability, productId: x.productId, text: x.result, proof: x.proof ? { state: x.proof.state, source: x.proof.source, evidence: x.proof.evidence } : null })),
+    ...steps.filter((x) => x.status === "failed").map((x) => ({ type: "failure", at: now, runId, capability: x.capability, productId: x.productId, text: x.result, failure: x.failure?.class, next: x.next })),
+    ...learning.map((l) => ({ type: "learning", at: now, runId, productId: l.productId, text: l.he, source: l.source })),
+    ...open.filter((n) => n.status === "blocked" || n.status === "approval").slice(0, 10).map((n) => ({ type: "constraint", at: now, runId, productId: n.productId, capability: n.capability, text: `${n.capabilityHe}: ${n.reason}` })),
+    { type: "next", at: now, runId, text: next.he },
+  ];
+  const [memoryWrite] = await Promise.all([
+    appendCapped(kvGet, kvSet, KEYS.memory(scopeKey), memoryEntries, MEMORY_CAP),
+    appendCapped(kvGet, kvSet, KEYS.deadLetter, deadLetters, DEAD_LETTER_CAP),
+  ]);
+  // A duplicate run (same goal, same data, same day) writes nothing at all.
+  if (!duplicate) {
+    try {
+      await kvSet(KEYS.run(scopeKey), { runId, at: now, goal: intent.goal, steps: steps.map(({ proof, ...s }) => ({ ...s, proofState: proof?.state || null })), summary: graph.summary, next });
+    } catch { /* the run record is best-effort; the log + memory above are the audit trail */ }
+  }
 
-  const graph = buildOpportunityGraph(after, channels);
-  return {
+  const passportsById = Object.fromEntries(after.map((p) => [p.productId, p]));
+  const result = {
     ok: true,
-    command,
-    label: def.he,
-    evidence: plan.evidence,
-    evidenceNote: plan.evidenceNote,
-    executed,
-    approvals: plan.approvals.slice(0, 20),
-    blocked: plan.blocked.slice(0, 20),
-    suggestions: plan.suggestions.slice(0, 10),
+    runId,
+    command: commandId,
+    label: commandId && LUNA_COMMANDS[commandId] ? LUNA_COMMANDS[commandId].he : intent.goal,
+    intent,
+    graph: { nodes: graph.nodes, edges: graph.edges, summary: graph.summary, native: graph.native, external: graph.external },
+    steps,
+    executed: steps.map((x) => ({ opportunityId: x.id, productId: x.productId, kind: x.capability, status: x.status, result: x.result, proof: x.proof || null, failure: x.failure || null, next: x.next || null })),
+    approvals: graph.nodes.filter((n) => n.status === "approval" || n.status === "owner").map(toItem).slice(0, 20),
+    blocked: graph.nodes.filter((n) => n.status === "blocked" || n.status === "entitlement").map(toItem).slice(0, 20),
+    suggestions: graph.nodes.filter((n) => n.status === "client").map(toItem).slice(0, 10),
     passports: after,
     assets: Object.fromEntries(after.map((p) => [p.productId, data.perProduct.get(p.productId)?.assets || null])),
-    channels,
-    graph: { counts: graph.counts },
-    next: nextAction(plan),
+    channels: before.channels,
+    opportunityGraph: { counts: buildOpportunityGraph(after, before.channels).counts },
+    learning,
+    next,
+    evidence: evidenceLevel,
+    evidenceNote,
+    entitlement: entitlement ? { plan: entitlement.plan, source: entitlement.source, maxProductsPerRun: entitlement.capabilities?.maxProductsPerRun ?? null } : null,
     log: { entryId, ...logWrite },
-    snapshots: { written: snapshots.filter((s) => s.written).length, failed: snapshots.filter((s) => s.error).length },
-    campaign: plan.campaign ? buildCampaignDraft(after, data, channels) : null,
+    memory: { written: Boolean(memoryWrite?.written), entries: memoryEntries.length },
+    deadLetters: deadLetters.length,
+    snapshots: { written: snapshots.filter((x) => x.written).length, failed: snapshots.filter((x) => x.error).length },
+    campaign: intent.outcomes.includes("campaign") ? buildCampaignDraft(after, data, before.channels) : null,
   };
+  result.laws = auditRun({ ...result, passports: Object.values(passportsById) });
+  return result;
+}
+
+/** The six named commands are compiled goals, not scripted workflows. */
+export async function runCommand({ command, ...rest }) {
+  if (!LUNA_COMMANDS[command]) return { ok: false, error: "unknown_command" };
+  if (LUNA_COMMANDS[command].requiresProduct && !rest.productId) return { ok: false, error: "product_id_required" };
+  return runIntent({ ...rest, goal: COMMAND_GOALS[command], commandId: command });
 }
 
 /** A campaign DRAFT: creative + share + channels. Paid spend is never automatic. */
@@ -281,23 +397,70 @@ function buildCampaignDraft(passports, data, channels) {
   };
 }
 
+/** LAW 13 — restore the previous share/content version of a product's assets. */
+export async function rollbackAssets({ kvGet, kvSet, productId, scope, now = Date.now() }) {
+  const products = arr(await read(kvGet, "marketplace:products", []));
+  const product = products.find((p) => p && String(p.id) === String(productId));
+  if (!product) return { ok: false, error: "product_not_found" };
+  if (scope?.marketerIds && !scope.marketerIds.includes(String(product.marketerId))) return { ok: false, error: "not_owner" };
+  const cur = await read(kvGet, KEYS.assets(productId), null);
+  if (!cur?.previous?.share) return { ok: false, error: "nothing_to_rollback" };
+  // pinnedFor: the product data this restore was chosen for — autonomous runs
+  // do not overwrite it until the product itself changes.
+  const productFp = cur.pinnedFor || cur.fingerprint;
+  const restored = { ...cur, share: cur.previous.share, drafts: cur.previous.drafts, fingerprint: cur.previous.fingerprint, generatedAt: cur.previous.generatedAt, restoredAt: now, pinnedFor: cur.previous.fingerprint === productFp ? null : productFp, previous: { fingerprint: cur.fingerprint, generatedAt: cur.generatedAt, share: cur.share, drafts: cur.drafts } };
+  try {
+    await kvSet(KEYS.assets(productId), restored);
+  } catch {
+    return { ok: false, error: "rollback_write_failed" };
+  }
+  const back = await read(kvGet, KEYS.assets(productId), null);
+  const ok = Boolean(back && back.fingerprint === restored.fingerprint);
+  const scopeKey = scope?.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
+  await appendCapped(kvGet, kvSet, KEYS.memory(scopeKey), [{ type: "action", at: now, capability: "rollback_assets", productId: String(productId), text: "חבילת השיתוף שוחזרה לגרסה הקודמת", proof: { state: ok ? "VERIFIED" : "UNVERIFIED", source: KEYS.assets(productId) } }], MEMORY_CAP);
+  return { ok, restoredFingerprint: restored.fingerprint, proof: ok ? evidence({ state: TRUTH.VERIFIED, source: KEYS.assets(productId), evidence: "נקרא חזרה אחרי השחזור", verifiedAt: now }) : null };
+}
+
+/** Structured memory → the five questions Luna must answer with evidence. */
+export async function memoryAnswer({ kvGet, scope, depth = 50 }) {
+  const scopeKey = scope?.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
+  const mem = arr(await read(kvGet, KEYS.memory(scopeKey), [])).slice(-depth);
+  const lastRun = await read(kvGet, KEYS.run(scopeKey), null);
+  const of = (t) => mem.filter((m) => m.type === t);
+  return {
+    ok: true,
+    tried: of("goal").slice(-5).reverse().map((m) => ({ at: m.at, text: m.text, outcome: m.outcome })),
+    happened: [...of("action"), ...of("failure")].slice(-10).reverse().map((m) => ({ at: m.at, type: m.type, text: m.text, proof: m.proof?.state || null, failure: m.failure || null })),
+    blocked: of("constraint").slice(-8).reverse().map((m) => ({ at: m.at, text: m.text })),
+    learned: of("learning").slice(-5).reverse().map((m) => ({ at: m.at, text: m.text, source: m.source })),
+    next: lastRun?.next || (of("next").slice(-1)[0] ? { he: of("next").slice(-1)[0].text } : null),
+    why: of("decision").slice(-1)[0] ? { text: of("decision").slice(-1)[0].text, evidence: of("decision").slice(-1)[0].evidence } : null,
+    entries: mem.length,
+  };
+}
+
 /** Daily autonomous sweep over every public product (idempotent). */
 export async function runSweep({ kvGet, kvSet, env = {}, origin = ORIGIN, now = Date.now() }) {
-  const base = await loadDiscoveryData(kvGet);
+  const base = await loadDiscoveryData(kvGet, { productIds: [] });
   const publicIds = base.products.filter((p) => isPublicProduct(p, base.marketers)).map((p) => String(p.id));
   const data = await loadDiscoveryData(kvGet, { productIds: publicIds });
-  const { passports, channels, merchantEligibleCount } = computePassports(data, { env, origin, now });
+  const { channels, merchantEligibleCount } = computePassports(data, { env, origin, now });
   let assetsWritten = 0; let assetsUpToDate = 0; let failures = 0;
+  const deadLetters = [];
   for (const product of data.scope) {
     const stored = data.perProduct.get(String(product.id))?.assets || null;
     const r = await persistAssets({ kvSet, product, data, channels, origin, now, stored });
     if (r.status === OPPORTUNITY_STATUS.EXECUTED) assetsWritten += 1;
     else if (r.status === OPPORTUNITY_STATUS.UP_TO_DATE) assetsUpToDate += 1;
-    else failures += 1;
+    else {
+      failures += 1;
+      if (r.status === "failed") deadLetters.push({ runId: "sweep", at: now, step: `${product.id}:create_share_asset`, capability: "create_share_asset", productId: String(product.id), failure: classifyFailure(r.error), error: r.error });
+    }
     if (r.assets) data.perProduct.get(String(product.id)).assets = r.assets;
   }
   const after = computePassports(data, { env, origin, now }).passports;
   const snaps = await Promise.all(after.map((p) => persistSnapshot({ kvSet, passport: p, previous: data.perProduct.get(p.productId)?.passport || null, now })));
+  await appendCapped(kvGet, kvSet, KEYS.deadLetter, deadLetters, DEAD_LETTER_CAP);
   const ranked = prioritize(after, { now });
   const counts = {};
   for (const p of after) for (const o of p.opportunities) counts[`${o.kind}:${o.status}`] = (counts[`${o.kind}:${o.status}`] || 0) + 1;
@@ -309,6 +472,7 @@ export async function runSweep({ kvGet, kvSet, env = {}, origin = ORIGIN, now = 
     failures,
     snapshotsWritten: snaps.filter((s) => s.written).length,
     avgScore: after.length ? Math.round(after.reduce((s, p) => s + p.score.score, 0) / after.length) : 0,
+    avgMerchantReadiness: after.length ? Math.round(after.reduce((s, p) => s + (p.merchant.readiness?.score || 0), 0) / after.length) : 0,
     merchantEligible: merchantEligibleCount,
     evidence: ranked.evidence,
     opportunityCounts: counts,
@@ -324,7 +488,7 @@ export async function runSweep({ kvGet, kvSet, env = {}, origin = ORIGIN, now = 
 
 /** Read-only public passport for an approved, attributed product. */
 export async function publicPassport({ kvGet, productId, env = {}, origin = ORIGIN, now = Date.now() }) {
-  const base = await loadDiscoveryData(kvGet);
+  const base = await loadDiscoveryData(kvGet, { productIds: [] });
   const product = base.products.find((p) => String(p.id) === String(productId));
   if (!product || !isPublicProduct(product, base.marketers)) return { ok: false, error: "product_not_found" };
   const data = await loadDiscoveryData(kvGet, { productIds: [String(product.id)] });
@@ -339,9 +503,10 @@ export async function publicPassport({ kvGet, productId, env = {}, origin = ORIG
       score: p.score,
       surfaces: p.surfaces,
       seo: p.seo,
-      merchant: { eligible: p.merchant.eligible, reasons: p.merchant.reasons },
+      merchant: { eligible: p.merchant.eligible, reasons: p.merchant.reasons, readiness: p.merchant.readiness },
       media: { state: p.media.state, synthetic: p.media.synthetic },
       tracking: { clicks: p.tracking.clicks, attached: Boolean(p.tracking.link) },
+      publications: { total: p.signals.publications, verified: p.signals.verifiedPublications, unverified: p.signals.unverifiedPublished },
       opportunities: p.opportunities.map((o) => ({ id: o.id, kind: o.kind, what: o.what, status: o.status, safety: o.safety })),
       previousScore: p.previousScore ?? null,
     },

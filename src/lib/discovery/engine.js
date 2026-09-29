@@ -14,6 +14,32 @@ import {
   merchantStatus, buildContentDrafts, buildShareAsset, buildChannelPayloads, isPublicProduct, ORIGIN,
 } from "./surfaces.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL, productMediaTruth } from "./mediaTruth.js";
+import { evidence, TRUTH } from "./truth.js";
+
+// ── Publication proof (LAW 04) ───────────────────────────────────────────
+/**
+ * A publish-log row is PUBLISHED only with proof:
+ *   web       → the post id exists in the public brand feed (verifiable public state)
+ *   external  → the provider returned its own message id (provider confirmation)
+ * "queued", "requested" or a bare local flag are never proof.
+ */
+export function verifyPublication(record = {}, { publicFeedIds = null, now = Date.now() } = {}) {
+  const status = String(record.status || "");
+  const at = Date.parse(record.publishedAt || "") || null;
+  if (status !== "PUBLISHED") {
+    return { verified: false, claim: status || "UNKNOWN", proof: evidence({ state: TRUTH.UNVERIFIED, source: "publish:log", evidence: `status ${status || "unknown"}` }) };
+  }
+  if (record.channel === "web") {
+    if (!publicFeedIds) return { verified: false, claim: status, proof: evidence({ state: TRUTH.OBSERVED, source: "publish:log", evidence: "נרשם כפורסם, הפיד הציבורי לא נבדק", verifiedAt: at }) };
+    const inFeed = Boolean(record.externalId && publicFeedIds.has(String(record.externalId)));
+    return inFeed
+      ? { verified: true, claim: status, proof: evidence({ state: TRUTH.VERIFIED, source: "brand_pulse:posts", evidence: `הפוסט ${record.externalId} קיים בפיד הציבורי`, verifiedAt: now }) }
+      : { verified: false, claim: status, proof: evidence({ state: TRUTH.UNVERIFIED, source: "brand_pulse:posts", evidence: "נרשם כפורסם אבל לא נמצא בפיד הציבורי" }) };
+  }
+  return record.externalId
+    ? { verified: true, claim: status, proof: evidence({ state: TRUTH.VERIFIED, source: `provider:${record.channel}`, evidence: "הספק החזיר מזהה הודעה", verifiedAt: at || now }) }
+    : { verified: false, claim: status, proof: evidence({ state: TRUTH.UNVERIFIED, source: `provider:${record.channel}`, evidence: "סומן כפורסם בלי אישור מהספק" }) };
+}
 
 export const ENGINE_VERSION = 1;
 
@@ -132,10 +158,11 @@ export function buildChannelRegistry({ env = {}, publications = [], merchantElig
 // ── Discovery Passport ───────────────────────────────────────────────────
 export const SURFACE_STATUS = Object.freeze({ LIVE: "live", MISSING: "missing", BLOCKED: "blocked", NOT_APPLICABLE: "not_applicable", READY: "ready", STALE: "stale" });
 
-function productSignals(productId, { clicks = [], sales = [], publications = [] }) {
+function productSignals(productId, { clicks = [], sales = [], publications = [], publicFeedIds = null }) {
   const mine = (clicks || []).filter((c) => c && String(c.productId) === productId);
   const mySales = (sales || []).filter((s) => s && String(s.productId || s.product) === productId);
   const myPubs = (publications || []).filter((p) => p && String(p.productId) === productId && p.status === "PUBLISHED");
+  const proofs = myPubs.map((p) => ({ channel: p.channel, ...verifyPublication(p, { publicFeedIds }) }));
   const lastClick = mine.reduce((m, c) => Math.max(m, Number(c.ts) || 0), 0) || null;
   const bySource = {};
   for (const c of mine) {
@@ -148,6 +175,9 @@ function productSignals(productId, { clicks = [], sales = [], publications = [] 
     clicksBySource: bySource,
     sales: mySales.length,
     publications: myPubs.length,
+    verifiedPublications: proofs.filter((x) => x.verified).length,
+    verifiedExternalPublications: proofs.filter((x) => x.verified && x.channel !== "web").length,
+    unverifiedPublished: proofs.filter((x) => !x.verified).length,
     lastPublishedAt: myPubs.reduce((m, p) => Math.max(m, Date.parse(p.publishedAt || 0) || 0), 0) || null,
   };
 }
@@ -159,6 +189,7 @@ function productSignals(productId, { clicks = [], sales = [], publications = [] 
 export function buildPassport({
   product, marketers = [], clicks = [], sales = [], publications = [], ugcAssets = [], collections = [],
   channels = [], duplicateTitle = false, storedAssets = null, previous = null, origin = ORIGIN, now = Date.now(),
+  publicFeedIds = null,
 } = {}) {
   const marketer = (marketers || []).find((m) => m && m.id === product?.marketerId) || null;
   const c = canonicalProduct(product, marketer, origin);
@@ -167,12 +198,14 @@ export function buildPassport({
   const seoAudit = auditSeo(c, seo, { duplicateTitle, inSitemap: isPublic });
   const merchant = merchantStatus(product, marketers, origin);
   const media = productMediaTruth(product, ugcAssets);
-  const signals = productSignals(c.id, { clicks, sales, publications });
+  const signals = productSignals(c.id, { clicks, sales, publications, publicFeedIds });
   const link = trackingLink(c);
   const inCollection = (collections || []).some((col) => Array.isArray(col?.productIds) && col.productIds.includes(c.id));
   const compare = Number(product?.originalPrice || product?.compareAtPrice || 0);
   const hasDeal = compare > 0 && c.price && compare > c.price;
-  const shareFresh = Boolean(storedAssets && storedAssets.fingerprint === c.fingerprint && storedAssets.share);
+  // A version the owner restored by hand stays "fresh" until the product changes (LAW 13).
+  const sharePinned = Boolean(storedAssets?.share && storedAssets.pinnedFor === c.fingerprint);
+  const shareFresh = Boolean(storedAssets && storedAssets.share && (storedAssets.fingerprint === c.fingerprint || sharePinned));
   const externalConnected = (channels || []).filter((ch) => ["telegram", "webhook"].includes(ch.provider) && ch.connected);
 
   const surfaces = [
@@ -185,10 +218,35 @@ export function buildPassport({
     { id: "seo", he: "SEO לעמוד המוצר", status: seoAudit.passed === seoAudit.total ? SURFACE_STATUS.LIVE : SURFACE_STATUS.MISSING, url: productPageUrl(c), evidence: `${seoAudit.passed}/${seoAudit.total} בדיקות עברו` },
     { id: "merchant", he: "Google Merchant", status: merchant.eligible ? SURFACE_STATUS.READY : SURFACE_STATUS.BLOCKED, url: merchant.eligible ? `${c.origin}/google-feed.xml` : "", evidence: merchant.eligible ? "זכאי לפיד" : merchant.reasons[0]?.he || "לא זכאי" },
     { id: "media", he: "מדיה", status: media.state === MEDIA_TRUTH.MISSING_MEDIA ? SURFACE_STATUS.MISSING : SURFACE_STATUS.LIVE, url: media.url, evidence: `${MEDIA_TRUTH_LABEL[media.state].he}${media.synthetic ? " · סינתטית" : ""}` },
-    { id: "share_asset", he: "חבילת שיתוף", status: shareFresh ? SURFACE_STATUS.READY : storedAssets ? SURFACE_STATUS.STALE : SURFACE_STATUS.MISSING, url: productPageUrl(c), evidence: shareFresh ? "מעודכנת לנתוני המוצר" : storedAssets ? "המוצר השתנה מאז שנוצרה" : "עדיין לא נוצרה" },
+    { id: "share_asset", he: "חבילת שיתוף", status: shareFresh ? SURFACE_STATUS.READY : storedAssets ? SURFACE_STATUS.STALE : SURFACE_STATUS.MISSING, url: productPageUrl(c), evidence: sharePinned ? "גרסה קודמת ששוחזרה ידנית" : shareFresh ? "מעודכנת לנתוני המוצר" : storedAssets ? "המוצר השתנה מאז שנוצרה" : "עדיין לא נוצרה" },
     { id: "tracking", he: "לינק מעקב", status: link ? SURFACE_STATUS.LIVE : SURFACE_STATUS.BLOCKED, url: link, evidence: link ? `נרשמו ${heCount(signals.clicks, "קליק אמיתי אחד", "קליקים אמיתיים")}` : "חסר לינק חנות במוצר" },
     { id: "distribution", he: "ערוצי הפצה חיצוניים", status: externalConnected.length ? SURFACE_STATUS.READY : SURFACE_STATUS.BLOCKED, url: "", evidence: externalConnected.length ? externalConnected.map((x) => x.label).join(", ") : "אין ערוץ חיצוני מחובר" },
   ];
+
+  // DiscoverySurface: every surface carries the same machine-readable flags
+  // and a truth record (source + evidence + timestamp) — no bare badges.
+  const SURFACE_SOURCE = {
+    product_page: "marketplace:products", creator_page: "marketplace:marketers", sitemap: "google-feed:sitemap",
+    internal_search: "public catalog", collection: "marketplace:collections", deal: "marketplace:products",
+    seo: "buildProductSeo (/p/:id)", merchant: "merchantStatus (feed rules)", media: "mediaTruth",
+    share_asset: "discovery:assets", tracking: "marketplace:clicks", distribution: "channel registry",
+  };
+  for (const sf of surfaces) {
+    const positive = ["live", "ready"].includes(sf.status);
+    sf.flags = {
+      available: sf.status !== "not_applicable",
+      eligible: sf.status !== "blocked",
+      connected: sf.id === "distribution" ? externalConnected.length > 0 : sf.status !== "blocked",
+      published: sf.id === "distribution" ? signals.verifiedExternalPublications > 0 : positive,
+      verified: positive,
+      interactions: sf.id === "tracking" ? signals.clicks : null,
+      conversions: sf.id === "tracking" ? signals.sales : null,
+      lastChecked: now,
+    };
+    sf.truth = positive
+      ? evidence({ state: TRUTH.OBSERVED, source: SURFACE_SOURCE[sf.id] || "discovery", evidence: sf.evidence, verifiedAt: now, ttlMs: 24 * 3600 * 1000 })
+      : evidence({ state: sf.status === "not_applicable" ? TRUTH.MISSING : TRUTH.UNVERIFIED, source: SURFACE_SOURCE[sf.id] || "discovery", evidence: sf.evidence });
+  }
 
   const passport = {
     version: ENGINE_VERSION,

@@ -154,10 +154,27 @@ export function merchantStatus(product = {}, marketers = [], origin = ORIGIN) {
   if (!(toNumber(product.price, 0) > 0)) reasons.push({ id: "no_price", he: "חסר מחיר" });
   if (!toText(product.description)) reasons.push({ id: "no_description", he: "חסר תיאור" });
   if (!isAbsoluteHttpUrl(product.image)) reasons.push({ id: "no_image", he: "חסרה תמונה" });
+  // Merchant Readiness Score — weights over the real feed requirements only.
+  const WEIGHTS = { not_approved: 10, no_attribution: 10, no_title: 10, no_price: 15, no_description: 10, no_image: 15, not_direct_checkout: 30 };
+  const lost = reasons.reduce((sum, r) => sum + (WEIGHTS[r.id] || 0), 0);
   return {
     eligible: reasons.length === 0,
     reasons,
     requiresOwner: reasons.some((r) => r.id === "not_direct_checkout"),
+    readiness: {
+      score: Math.max(0, 100 - lost),
+      met: Object.keys(WEIGHTS).filter((k) => !reasons.some((r) => r.id === k)),
+      missing: reasons.map((r) => r.id),
+      remediation: reasons.map((r) => ({
+        not_approved: "לאשר את המוצר בסטודיו",
+        no_attribution: "לשייך את המוצר ליוצר מאומת",
+        no_title: "להוסיף כותרת למוצר",
+        no_price: "להוסיף מחיר",
+        no_description: "להוסיף תיאור",
+        no_image: "להוסיף תמונת מוצר",
+        not_direct_checkout: "להפעיל מכירה ישירה באתר (החלטת בעלים) — אחרת המוצר נשאר מוצר שותפים",
+      }[r.id] || r.he)),
+    },
   };
 }
 

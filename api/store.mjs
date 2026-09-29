@@ -2,6 +2,7 @@ import { intelligenceHandler } from "./_utils/intelligenceHandler.mjs";
 
 import { readBody } from "./_utils/readBody.mjs";
 import { originFromRequest } from "./_utils/origin.mjs";
+import { resolveEntitlement, pickSubscription } from "../src/lib/discovery/entitlements.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
@@ -586,7 +587,10 @@ async function subsAuthHandler(req, res, sub, body) {
     // ── Own subscription state ──
     if (sub === "get") {
       const all = (await kvGet(SUBS_KEY, [])) || [];
-      let mine = await subsFindOwn(all, authId);
+      // An entitled record first, else the newest PENDING one — the pending
+      // record must be found or the self-heal below can never run (subsFindOwn
+      // only returns active/trial, which left paid-but-unverified users stuck).
+      let mine = pickSubscription(all, authId);
       let expiredNow = false;
       // Self-heal path: if PAYPAL_WEBHOOK_ID isn't configured yet, the real
       // BILLING.SUBSCRIPTION.ACTIVATED webhook is correctly rejected
@@ -624,7 +628,15 @@ async function subsAuthHandler(req, res, sub, body) {
         expiredNow = true;
         await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
       }
-      return json(res, { ok: true, subscription: mine || null, plan: mine && !expiredNow ? mine.planId : "free" }, 200, req);
+      // LAW 05: the plan comes only from the canonical entitlement resolver —
+      // a pending / expired / unverified record never unlocks a paid plan.
+      const ent = resolveEntitlement({ subscription: expiredNow ? { ...mine, status: "expired" } : mine, now: Date.now() });
+      return json(res, {
+        ok: true,
+        subscription: mine || null,
+        plan: ent.plan,
+        entitlement: { plan: ent.plan, status: ent.status, source: ent.source, effectiveAt: ent.effectiveAt, expiresAt: ent.expiresAt, providerRef: ent.providerRef, verifiedAt: ent.verifiedAt, reason: ent.reason },
+      }, 200, req);
     }
 
     // ── Real PayPal Billing checkout: returns the official approval URL ──

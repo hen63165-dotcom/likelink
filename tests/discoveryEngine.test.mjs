@@ -167,7 +167,7 @@ test("commands execute only safe actions and are idempotent + duplicate-safe", a
   const scope = { marketerIds: ["m-owner"], actor: "test" };
   const r1 = await runCommand({ kvGet, kvSet, command: "increase_exposure", scope });
   assert.equal(r1.ok, true);
-  assert.ok(r1.executed.some((e) => e.kind === "share_asset" && e.status === "executed"));
+  assert.ok(r1.executed.some((e) => e.kind === "create_share_asset" && e.status === "executed"));
   assert.ok(!r1.passports.some((p) => p.productId === "p3"), "another creator's product is never touched");
   assert.ok(r1.approvals.every((a) => a.safety === "approval"));
   assert.ok(!writes.some((k) => k.startsWith("marketplace:")), "products/marketers are never modified");
@@ -177,7 +177,7 @@ test("commands execute only safe actions and are idempotent + duplicate-safe", a
   const r2 = await runCommand({ kvGet, kvSet, command: "increase_exposure", scope });
   assert.equal(writes.length, 0, `unchanged data → no writes (first run wrote ${firstWrites})`);
   assert.equal(r2.log.duplicate, true);
-  assert.ok(r2.executed.filter((e) => e.kind === "share_asset").length === 0 || r2.executed.every((e) => e.status !== "executed"));
+  assert.ok(r2.executed.filter((e) => e.kind === "create_share_asset").length === 0 || r2.executed.every((e) => e.status !== "executed"));
 });
 
 test("a product edit makes the share asset stale and the next run refreshes it", async () => {
@@ -193,7 +193,7 @@ test("a product edit makes the share asset stale and the next run refreshes it",
   store.set("marketplace:products", products);
   const r = await runCommand({ kvGet, kvSet, command: "prepare_distribution", productId: "p1", scope });
   assert.notEqual(store.get("discovery:assets:p1").fingerprint, before);
-  assert.ok(r.executed.some((e) => e.kind === "share_asset" && e.status === "executed"));
+  assert.ok(r.executed.some((e) => e.kind === "create_share_asset" && e.status === "executed"));
   assert.match(store.get("discovery:assets:p1").share.text, /₪99/);
 });
 
@@ -220,7 +220,7 @@ test("API: public passport, fail-closed commands, owner scope, no secrets", asyn
 
   res = await call({ method: "POST", url: "/api/store?mode=discovery&action=command", token: "tok-owner", body: { command: "promote_product", productId: "p1" } });
   assert.equal(res.statusCode, 200);
-  assert.ok(res.body.executed.some((e) => e.kind === "share_asset" && e.status === "executed"));
+  assert.ok(res.body.executed.some((e) => e.kind === "create_share_asset" && e.status === "executed"));
   const assets = read("discovery:assets:p1");
   assert.ok(assets.share.trackingLink.includes("/r?pid=p1"));
   assert.equal(assets.provenance.fingerprint, assets.fingerprint);

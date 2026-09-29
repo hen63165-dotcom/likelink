@@ -84,6 +84,9 @@ const MESSAGES = {
   unknown_command: "לונה לא מכירה את הבקשה הזו",
   no_products: "אין עדיין מוצרים מאושרים בסטודיו שלך",
   unknown_action: "הבקשה לא נתמכת",
+  goal_required: "כתבי ללונה מה המטרה",
+  nothing_to_rollback: "אין גרסה קודמת לשחזר",
+  rollback_write_failed: "השחזור לא נשמר — הגרסה הנוכחית נשארה כמו שהייתה",
 };
 
 const GENERIC = "משהו השתבש — נסי שוב בעוד רגע";
