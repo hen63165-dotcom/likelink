@@ -16,6 +16,32 @@ function area(id, he, color, evidence, ownerAction = null) {
 }
 
 /**
+ * RLS verdict from anon-key probes (key column only). A missing row and a
+ * locked row look the same to anon, so "locked" is claimed only when the
+ * server-only row really exists AND a public control row is visible (proving
+ * the anon key works). Anything else is unverified (null), never a guess.
+ */
+export function classifyRlsProbe({ privateProbe = {}, controlProbe = {}, privateKeyExists = false } = {}) {
+  if (privateProbe.httpOk && privateProbe.rows > 0) return true;
+  if (!privateKeyExists) return null;
+  const controlOk = controlProbe.httpOk && controlProbe.rows > 0;
+  const privateHidden = privateProbe.reached && (privateProbe.httpOk ? privateProbe.rows === 0 : true);
+  return controlOk && privateHidden ? false : null;
+}
+
+const hasText = (v) => (typeof v === "string" ? v.trim() !== ""
+  : v && typeof v === "object" ? Object.values(v).some(hasText) : false);
+
+/** Private fields still carried by the publicly readable marketers row (counts only). */
+export function publicPiiCounts(marketers = []) {
+  const list = Array.isArray(marketers) ? marketers.filter(Boolean) : [];
+  return {
+    emails: list.filter((m) => hasText(m.email)).length,
+    payment: list.filter((m) => hasText(m.payPalEmail) || hasText(m.bankDetails)).length,
+  };
+}
+
+/**
  * @param {object} p probe results (see api/_utils/discoveryHandler.mjs → probeSystem)
  * @param {object} opts { audience: "public" | "owner", now }
  */
@@ -104,21 +130,28 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   // security
   const s = p.security || {};
   const missingSecrets = (s.secretsPresent || 0) < (s.secretsTotal || 0);
+  const exposedPayment = (s.publicPaymentDetails || 0) > 0;
+  const exposedEmail = (s.publicEmails || 0) > 0;
   // The public view keeps the honest color but never describes the gap itself.
   const sEv = priv ? [
-    s.rlsOpen === true ? "מפתח ציבורי (anon) יכול לקרוא מפתחות שרת בלבד בטבלת kv — ה-RLS פתוח" : s.rlsOpen === false ? "מפתח ציבורי לא יכול לקרוא מפתחות שרת בלבד" : "RLS לא נבדק",
+    s.rlsOpen === true ? "מפתח ציבורי (anon) יכול לקרוא מפתחות שרת בלבד בטבלת kv — ה-RLS פתוח" : s.rlsOpen === false ? "מפתח ציבורי לא יכול לקרוא מפתחות שרת בלבד (נבדק מול מפתח קיים + קריאת ביקורת ציבורית)" : "RLS לא אומת — הבדיקה לא הצליחה להבחין בין נעול לחסר",
+    exposedPayment ? `${s.publicPaymentDetails} רשומות יוצרים עם פרטי תשלום קריאות במפתח הציבורי (marketplace:marketers)` : null,
+    exposedEmail ? `${s.publicEmails} אימיילים של יוצרים קריאים במפתח הציבורי (marketplace:marketers)` : null,
     `${s.secretsPresent || 0}/${s.secretsTotal || 0} סודות שרת מוגדרים`,
     missingSecrets && (s.missing || []).length ? `חסרים (שמות בלבד): ${s.missing.join(", ")}` : null,
   ] : [
-    s.rlsOpen === true ? "נמצא פער הרשאות במסד הנתונים שממתין לאישור הבעלים" : s.rlsOpen === false ? "הרשאות מסד הנתונים נעולות" : "הרשאות מסד הנתונים לא נבדקו",
+    s.rlsOpen === true ? "נמצא פער הרשאות במסד הנתונים שממתין לאישור הבעלים" : s.rlsOpen === false ? "הרשאות מסד הנתונים נעולות" : "הרשאות מסד הנתונים לא אומתו",
+    exposedPayment || exposedEmail ? "נמצא פער פרטיות שממתין לתיקון" : null,
     missingSecrets ? "חלק מהגדרות האבטחה בשרת עדיין חסרות" : "הגדרות האבטחה בשרת קיימות",
   ];
   const sActions = [
     s.rlsOpen === true ? (priv ? "לאשר ולהחיל את supabase/migrations/20260928000000_kv_lockdown.sql" : "להחיל את נעילת הרשאות מסד הנתונים שהוכנה") : null,
+    exposedPayment || exposedEmail ? (priv ? "להגיש לציבור עותק מסונן של רשומות היוצרים (בלי email / payPalEmail / bankDetails) ולהוציא את marketplace:marketers מרשימת הקריאה הציבורית" : "לתקן את פער הפרטיות") : null,
     missingSecrets ? (priv ? `להגדיר: ${(s.missing || []).join(", ")}` : "להשלים סודות שרת חסרים") : null,
   ].filter(Boolean);
-  areas.push(area("security", "אבטחה", s.rlsOpen === true ? COLOR.RED : missingSecrets ? COLOR.YELLOW : COLOR.GREEN,
-    sEv, sActions.length ? sActions.join(" · ") : null));
+  const sColor = s.rlsOpen === true || exposedPayment ? COLOR.RED
+    : missingSecrets || exposedEmail || s.rlsOpen == null ? COLOR.YELLOW : COLOR.GREEN;
+  areas.push(area("security", "אבטחה", sColor, sEv, sActions.length ? sActions.join(" · ") : null));
 
   // deployment
   areas.push(p.deployment?.sha

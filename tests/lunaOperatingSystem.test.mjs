@@ -308,6 +308,31 @@ test("system check: every color has evidence; open RLS is RED; the public view h
   assert.match(owner, /kv_lockdown\.sql/);
 });
 
+test("system check: RLS 'locked' needs proof; private fields in a public row are reported", async () => {
+  const { classifyRlsProbe, publicPiiCounts, evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
+  const seen = { reached: true, httpOk: true, rows: 1 };
+  const hidden = { reached: true, httpOk: true, rows: 0 };
+  assert.equal(classifyRlsProbe({ privateProbe: seen, controlProbe: seen, privateKeyExists: true }), true, "anon sees a server-only row → open");
+  assert.equal(classifyRlsProbe({ privateProbe: hidden, controlProbe: seen, privateKeyExists: true }), false, "row exists, anon key works, row hidden → locked");
+  assert.equal(classifyRlsProbe({ privateProbe: hidden, controlProbe: seen, privateKeyExists: false }), null, "a missing row is not proof of a lock");
+  assert.equal(classifyRlsProbe({ privateProbe: hidden, controlProbe: hidden, privateKeyExists: true }), null, "a broken anon key is not proof of a lock");
+  assert.equal(classifyRlsProbe({ privateProbe: { reached: false }, controlProbe: seen, privateKeyExists: true }), null);
+
+  assert.deepEqual(publicPiiCounts([{ email: "a@b.c", bankDetails: { account: "", holder: "" } }, { email: "", payPalEmail: "p@q.r" }]), { emails: 1, payment: 1 });
+  const base = { db: { ok: true, ms: 1 }, auth: { reachable: true }, payments: { paypalConfigured: true, webhookConfigured: true }, deployment: { sha: "x" } };
+  const emailOnly = evaluateSystem({ ...base, security: { rlsOpen: false, publicEmails: 1, publicPaymentDetails: 0, secretsTotal: 1, secretsPresent: 1 } }, { audience: "owner" });
+  const sec = emailOnly.areas.find((a) => a.id === "security");
+  assert.equal(sec.color, "YELLOW");
+  assert.match(sec.evidence.join(" "), /אימיילים של יוצרים/);
+  assert.match(sec.ownerAction, /marketplace:marketers/);
+  const payment = evaluateSystem({ ...base, security: { rlsOpen: false, publicEmails: 1, publicPaymentDetails: 1, secretsTotal: 1, secretsPresent: 1 } }, { audience: "public" });
+  const pubSec = payment.areas.find((a) => a.id === "security");
+  assert.equal(pubSec.color, "RED", "public payment details are a real fault");
+  assert.doesNotMatch(JSON.stringify(pubSec), /marketplace:marketers|payPalEmail|bankDetails|אימייל/, "the public view does not describe the exposure");
+  const unknown = evaluateSystem({ ...base, security: { rlsOpen: null, secretsTotal: 1, secretsPresent: 1 } }, { audience: "owner" });
+  assert.notEqual(unknown.areas.find((a) => a.id === "security").color, "GREEN", "an unverified lock is never GREEN");
+});
+
 test("API: goal compiles + executes for the owner, fails closed for anonymous callers", async () => {
   kv.clear();
   put("marketplace:products", [product(1), product(2)]);

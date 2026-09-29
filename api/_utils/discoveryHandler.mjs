@@ -27,7 +27,7 @@ import {
 import { buildChannelRegistry, LUNA_COMMANDS, CHANNEL_STATE_LABEL, verifyPublication } from "../../src/lib/discovery/engine.js";
 import { merchantStatus } from "../../src/lib/discovery/surfaces.js";
 import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/entitlements.js";
-import { evaluateSystem } from "../../src/lib/discovery/systemCheck.js";
+import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 
@@ -103,25 +103,31 @@ export function createDiscoveryHandler({
     const dbRead = await timed(() => kvGet("marketplace:products", null));
     const data = await loadDiscoveryData(kvGet);
     const { passports, channels, merchantEligibleCount } = computePassports(data, { env, now: t });
-    const [authRes, rlsRes, storageRes, beat, daily, subs] = await Promise.all([
+    // RLS probes read with the PUBLIC key and select only the key column — no
+    // value is ever read. cron:beat is server-only; marketplace:products is a
+    // public control row (proves the anon key itself works); marketplace:marketers
+    // is public by design, so it is checked for private fields it still carries.
+    const anonRead = (key) => (sbUrl && anon
+      ? timed(() => safeFetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=key`, { apikey: anon, Authorization: `Bearer ${anon}` }))
+      : Promise.resolve({ ok: false }));
+    const [authRes, rlsRes, controlRes, marketerRes, storageRes, beat, daily, subs] = await Promise.all([
       sbUrl && anon ? timed(() => safeFetch(`${sbUrl}/auth/v1/settings`, { apikey: anon })) : Promise.resolve({ ok: false }),
-      // RLS probe: can the PUBLIC key read a server-only row? Only the key
-      // column is selected — no value is ever read.
-      sbUrl && anon ? timed(() => safeFetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent("marketplace:vapid")}&select=key`, { apikey: anon, Authorization: `Bearer ${anon}` })) : Promise.resolve({ ok: false }),
+      anonRead("cron:beat"),
+      anonRead("marketplace:products"),
+      anonRead("marketplace:marketers"),
       sbUrl && service ? timed(() => safeFetch(`${sbUrl}/storage/v1/bucket/product-images`, { apikey: service, Authorization: `Bearer ${service}` })) : Promise.resolve({ ok: false }),
       kvGet("cron:beat", null),
       kvGet("cron:daily:last", null),
       kvGet("marketplace:subscriptions", []),
     ]);
-    let rlsOpen = null;
-    if (rlsRes.ok && rlsRes.v) {
-      if (rlsRes.v.ok) {
-        const rows = await rlsRes.v.json().catch(() => []);
-        rlsOpen = Array.isArray(rows) && rows.length > 0;
-      } else {
-        rlsOpen = false;
-      }
-    }
+    const probeResult = async (r) => ({
+      reached: Boolean(r.ok && r.v),
+      httpOk: Boolean(r.ok && r.v?.ok),
+      rows: r.ok && r.v?.ok ? await r.v.json().then((x) => (Array.isArray(x) ? x.length : null)).catch(() => null) : null,
+    });
+    const [privateProbe, controlProbe, marketerProbe] = await Promise.all([probeResult(rlsRes), probeResult(controlRes), probeResult(marketerRes)]);
+    const rlsOpen = classifyRlsProbe({ privateProbe, controlProbe, privateKeyExists: beat != null });
+    const pii = marketerProbe.httpOk && marketerProbe.rows > 0 ? publicPiiCounts(data.marketers) : null;
     let jobs = [];
     try {
       const { AUTONOMOUS_JOBS } = await import("../../src/lib/cloud/autonomousJobs.js");
@@ -170,6 +176,8 @@ export function createDiscoveryHandler({
       channels: channels.map((c) => ({ provider: c.provider, label: c.label, connected: c.connected, stateHe: CHANNEL_STATE_LABEL[c.state] || "לא ידוע" })),
       security: {
         rlsOpen,
+        publicEmails: pii?.emails ?? null,
+        publicPaymentDetails: pii?.payment ?? null,
         secretsTotal: SERVER_SECRETS.length,
         secretsPresent: SERVER_SECRETS.filter((k) => Boolean(env[k])).length,
         missing: SERVER_SECRETS.filter((k) => !env[k]),
