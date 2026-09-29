@@ -187,6 +187,10 @@ function AuthGate({ onNavigate, feature }) {
   );
 }
 
+// Luna Discovery Center (goal → analysis → safe actions → approvals) — lazy so
+// the Studio shell stays light.
+const LunaDiscoveryCenter = lazy(() => import("./LunaDiscoveryCenter.jsx"));
+
 function LunaPanel({ onNavigate, platform }) {
   const { lang } = useI18n();
   // Luna works for visitors too (local Luna fallbacks + honest cloud state).
@@ -204,6 +208,9 @@ function LunaPanel({ onNavigate, platform }) {
             : "Luna is wired to your real cloud: ideas, intelligence tasks and real status — only on your click."}
         </p>
       </div>
+      <Suspense fallback={null}>
+        <LunaDiscoveryCenter onNavigate={onNavigate} />
+      </Suspense>
       {/* Truthful execution panel: scheduler state, what really got published,
           real channel connections and a real cloud retry for failures. */}
       <LunaStatusCard status={platform} />

@@ -549,6 +549,31 @@ registerJob("autonomous-ugc-video-poll", {
   },
 });
 
+// Luna Discovery sweep — the daily discovery loop over every public product:
+// passport + explainable score, idempotent share/content assets (rewritten
+// only when the product changed), score history for learning, and a summary
+// at discovery:sweep:last. Internal & additive only — never publishes
+// externally, never spends, never edits products.
+registerJob("discovery-sweep", {
+  description: "Luna discovery sweep: passports, scores and share assets for every public product",
+  intervalMs: 24 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const { runSweep } = await import("../discovery/orchestrator.js");
+    const env = typeof process !== "undefined" ? process.env : {};
+    const summary = await runSweep({ kvGet, kvSet, env, now });
+    return {
+      ok: summary.ok,
+      products: summary.products,
+      assetsWritten: summary.assetsWritten,
+      assetsUpToDate: summary.assetsUpToDate,
+      snapshotsWritten: summary.snapshotsWritten,
+      avgScore: summary.avgScore,
+      failures: summary.failures,
+    };
+  },
+});
+
 registerJob("brand-pulse-freshness", {
   description: "Ensure brand pulse feed stays fresh (visitor-triggered backup)",
   intervalMs: 6 * 60 * 60 * 1000,
@@ -718,6 +743,7 @@ export const AUTONOMOUS_JOBS = [
   "autonomous-ugc-video-poll",
   // Registered above — must be listed so status reports it (it was hidden).
   "autonomous-creative-refresh",
+  "discovery-sweep",
 ];
 
 export async function runAllDueAutonomousJobs(opts = {}) {

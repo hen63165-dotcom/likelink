@@ -152,19 +152,31 @@ export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false
   const limit = Number.isFinite(Number(maxJobs)) ? Math.max(1, Number(maxJobs)) : Infinity;
   let executed = 0;
 
+  // Fair scheduling: collect every due job first, then run the ones that have
+  // waited longest (never-run first). Iterating in registration order with a
+  // small maxJobs (the light cron runs 2) starved every job registered later —
+  // they stayed overdue for days while the first two ran every time.
+  const due = [];
   for (const [id, job] of JOB_REGISTRY) {
-    if (executed >= limit) break;
     try {
-      const stateKey = `growth:job:${id}`;
-      const state = (await kvGet(stateKey)) || {};
+      const state = (await kvGet(`growth:job:${id}`)) || {};
       const isDue = !state.lastRunAt || now - state.lastRunAt >= job.intervalMs;
       const notRunning = state.state !== JOB_STATE.RUNNING || now - (state.startedAt || 0) >= job.maxDurationMs;
-
       if ((isDue || force) && notRunning) {
-        const result = await executeJob(id, { kvGet, kvSet, now, force });
-        results.push({ id, ...result });
-        executed++;
+        due.push({ id, overdueSince: (state.lastRunAt || 0) + job.intervalMs });
       }
+    } catch (e) {
+      results.push({ id, ok: false, error: String(e.message || e) });
+    }
+  }
+  due.sort((a, b) => a.overdueSince - b.overdueSince);
+
+  for (const { id } of due) {
+    if (executed >= limit) break;
+    try {
+      const result = await executeJob(id, { kvGet, kvSet, now, force });
+      results.push({ id, ...result });
+      executed++;
     } catch (e) {
       results.push({ id, ok: false, error: String(e.message || e) });
     }

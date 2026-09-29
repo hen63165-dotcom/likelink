@@ -79,6 +79,11 @@ const MESSAGES = {
   storage_failed: "השמירה נכשלה — נסי שוב בעוד רגע",
   ugc_storage_failed: "שמירת הקובץ נכשלה — נסי שוב בעוד רגע",
   internal_server_error: "אירעה שגיאה בשרת — נסי שוב בעוד רגע",
+
+  // Luna discovery
+  unknown_command: "לונה לא מכירה את הבקשה הזו",
+  no_products: "אין עדיין מוצרים מאושרים בסטודיו שלך",
+  unknown_action: "הבקשה לא נתמכת",
 };
 
 const GENERIC = "משהו השתבש — נסי שוב בעוד רגע";

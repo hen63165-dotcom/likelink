@@ -699,6 +699,12 @@ export default async function handler(req, res) {
     const { default: pushHandler } = await import('./_utils/pushHandler.mjs');
     return pushHandler(req, res);
   }
+  // Luna Discovery Engine (passport / channels / owner commands) — merged
+  // here to stay within the 12-function Hobby limit.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
+    const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
+    return discoveryHandler(req, res);
+  }
   if (new URL(req.url, "https://x").searchParams.get("mode") === "intelligence") {
     return intelligenceHandler(req, res);
   }

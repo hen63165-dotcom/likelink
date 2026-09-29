@@ -73,6 +73,7 @@ const JOB_LABEL = {
   "autonomous-ugc-distribution": { he: "הפצת תוכן UGC", en: "UGC distribution" },
   "autonomous-ugc-video-poll": { he: "מעקב אחר סרטוני UGC", en: "UGC video status check" },
   "autonomous-creative-refresh": { he: "רענון קריאייטיבים", en: "Creative refresh" },
+  "discovery-sweep": { he: "סריקת גילוי יומית של לונה", en: "Luna daily discovery sweep" },
 };
 
 const JOB_STATE_LABEL = {

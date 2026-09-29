@@ -14,6 +14,7 @@
 
 import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
+import { canonicalProduct, buildProductSeo } from "../src/lib/discovery/surfaces.js";
 
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
@@ -357,11 +358,13 @@ export default async function handler(req, res) {
     } catch { /* fallback to generic card below */ }
 
     const attributable = Boolean(product && owner);
-    title = attributable
-      ? `${escapeHtml(product.title)} — קנייה בקליק`
-      : "Likelink — המוצר לא זמין";
+    // SEO comes from the Luna discovery surfaces (one canonical source of
+    // truth, real product fields only) — the same builder the discovery
+    // engine audits, so what is checked is exactly what is served.
+    const seo = attributable ? buildProductSeo(canonicalProduct(product, owner, origin)) : null;
+    title = attributable ? escapeHtml(seo.title) : "Likelink — המוצר לא זמין";
     description = attributable
-      ? `מומלץ על ידי ${escapeHtml(owner.name)} · נבחר בקליק בסטודיו של Likelink`
+      ? escapeHtml(seo.description)
       : "המוצר אינו זמין לאינדוקס או שחסרה בעלות מאומתת.";
     const productImage =
       attributable && product?.image && /^https?:/i.test(product.image)
@@ -369,30 +372,14 @@ export default async function handler(req, res) {
         : `${origin}/icons/icon-512.webp`;
     const pageUrl = `${origin}/p/${encodeURIComponent(productId)}`;
     const robots = attributable ? "index,follow" : "noindex,nofollow";
-    const jsonLd = attributable
-      ? jsonLdSafe({
-          "@context": "https://schema.org",
-          "@type": "Product",
-          name: product.title,
-          description: product.description || description,
-          image: productImage,
-          url: pageUrl,
-          brand: { "@type": "Brand", name: owner.name || "Likelink" },
-          offers: {
-            "@type": "Offer",
-            priceCurrency: product.currency || "ILS",
-            price: String(product.price ?? ""),
-            availability: "https://schema.org/InStock",
-            url: pageUrl,
-          },
-        })
-      : "";
+    const jsonLd = attributable && seo.jsonLd ? jsonLdSafe(seo.jsonLd) : "";
 
     const html = `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8" />
 <title>${title}</title>
+<meta name="description" content="${description}" />
 <meta name="robots" content="${robots}" />
 <link rel="canonical" href="${escapeHtml(pageUrl)}" />
 <meta property="og:title" content="${title}" />
