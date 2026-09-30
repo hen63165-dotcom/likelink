@@ -82,6 +82,12 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - Every affiliate share pack and product page carries a disclosure (`AFFILIATE_DISCLOSURE_HE`). `SHARE_FORMAT` bumps rebuild older packs once, keeping `previous`.
   - Passports carry `commerce` (`commerceRoute`: price is labelled catalog, stock UNVERIFIED, conversions verified only by a PayPal capture), `connections` (real, public-only) and `experiment` (A/B share variants `luna_share_a/b`). An experiment never names a winner without known exposures.
   - Crawlers get `renderProductBody`: the same content a person sees, with no crawler-only links.
+- **Native agentic capabilities** (`src/lib/discovery/campaigns.js`). All draft-only and native:
+  - `build_campaign` runs once per campaign goal (scope `run`). It takes real product ids and writes a draft to `discovery:campaigns:<scope>`, verified by read-back.
+  - `recruit_creator` is `OWNER_EXPLICIT`. LikeLink never sends: `deliverInvitation` refuses without owner-explicit permission and, even with it, only returns the text.
+  - `agent_commerce_readiness` checks the JSON-LD on `/p/:id`. Offers state the real seller, never merchant stock. The creator is not the brand. It is readiness, not a protocol connection.
+  - Creator matching uses real profile `tags`/`categories` only; without them it returns "insufficient data".
+  - `tests/negativeAuth.test.mjs` is the negative-auth suite: things that must be refused, proven by trying them with a network spy.
 - **Video truth:** anything LikeLink renders (`videoEngine.js` reels, the `likelink_*` sources) is `SYNTHETIC_ANIMATION`, never `REAL_VIDEO` and never titled UGC.
 - **Subscriptions:** ACTIVE records are reconciled with PayPal at most every 12h (`entitlements.reconcileActiveSubscription`). A cancellation keeps the paid period, and a failed lookup never revokes. Plans self-provision on the first `sub=create` (`paypal.js` `ensureBillingPlans` → `marketplace:paypal_plans`).
 - **Checkout:** `create-order` prices the cart from the catalog (`api/_utils/checkoutCatalog.mjs`) and stores `checkout:order:<paypalOrderId>`. `capture-order` records only that stored record and checks the captured amount against it. Never trust client prices or owners.

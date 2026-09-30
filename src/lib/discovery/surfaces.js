@@ -57,6 +57,9 @@ export function canonicalProduct(product = {}, marketer = null, origin = ORIGIN)
   // How the sale happens: a direct checkout on the site, or an affiliate
   // hand-off to an external merchant (which requires a disclosure).
   canonical.saleModel = isDirectMerchantProduct(product, base) ? "direct" : (canonical.affiliateUrl ? "affiliate" : "none");
+  // A real stock source (direct checkout only) — never inferred.
+  const stockRaw = product.stock ?? (typeof product.inStock === "boolean" ? (product.inStock ? 1 : 0) : null);
+  canonical.stock = stockRaw === null || stockRaw === "" || !Number.isFinite(Number(stockRaw)) ? null : Number(stockRaw);
   canonical.fingerprint = stableHash({
     id: canonical.id, title: canonical.title, description: canonical.description, price: canonical.price,
     currency: canonical.currency, image: canonical.image, category: canonical.category,
@@ -105,10 +108,16 @@ export function buildProductSeo(c) {
       ...(c.image ? { image: c.image } : {}),
       url,
       ...(c.category ? { category: c.category } : {}),
-      ...(c.brand || c.creator?.name ? { brand: { "@type": "Brand", name: c.brand || c.creator.name } } : {}),
-      ...(c.price
-        ? { offers: { "@type": "Offer", priceCurrency: c.currency, price: String(c.price), availability: "https://schema.org/InStock", url } }
-        : {}),
+      // Only a real brand — the recommending creator is not the brand.
+      ...(c.brand ? { brand: { "@type": "Brand", name: c.brand } } : {}),
+      ...(c.price ? { offers: agentOffer(c, url) } : {}),
+      // Agent-commerce readiness: facts an agent needs, stated plainly —
+      // how the sale happens, the disclosure, who recommends it.
+      additionalProperty: [
+        { "@type": "PropertyValue", name: "sale_model", value: c.saleModel },
+        c.saleModel === "affiliate" ? { "@type": "PropertyValue", name: "affiliate_disclosure", value: AFFILIATE_DISCLOSURE_HE } : null,
+        c.creator?.name ? { "@type": "PropertyValue", name: "recommended_by", value: c.creator.name } : null,
+      ].filter(Boolean),
     }
     : null;
   return {
@@ -119,6 +128,74 @@ export function buildProductSeo(c) {
     og: { title, description, image: c.image || `${c.origin}/icons/icon-512.webp`, url, type: "product" },
     jsonLd,
     provenance: { productId: c.id, fingerprint: c.fingerprint },
+  };
+}
+
+const TWO_LEVEL_SUFFIXES = new Set(["co.il", "org.il", "net.il", "co.uk", "org.uk", "com.au", "co.jp", "com.br", "com.tr", "com.cn"]);
+
+/** The merchant's registrable domain (s.click.aliexpress.com → aliexpress.com). */
+export function merchantHost(c) {
+  let host = "";
+  try { host = c?.affiliateUrl ? new URL(c.affiliateUrl).hostname.toLowerCase().replace(/^www\./, "") : ""; } catch { return ""; }
+  const parts = host.split(".").filter(Boolean);
+  if (parts.length <= 2) return host;
+  const lastTwo = parts.slice(-2).join(".");
+  return TWO_LEVEL_SUFFIXES.has(lastTwo) ? parts.slice(-3).join(".") : lastTwo;
+}
+
+/**
+ * The Offer, truthfully: the seller is the merchant who actually sells it
+ * (the external store for affiliate products, LikeLink for direct checkout).
+ * Availability is stated only when LikeLink has a real stock source — a
+ * merchant's stock is never claimed.
+ */
+function agentOffer(c, url) {
+  const host = merchantHost(c);
+  const seller = c.saleModel === "direct"
+    ? { "@type": "Organization", name: "LikeLink", url: c.origin }
+    : host ? { "@type": "Organization", name: host, url: `https://${host}` } : null;
+  const availability = c.saleModel === "direct" && Number.isFinite(c.stock)
+    ? (c.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock")
+    : null;
+  return {
+    "@type": "Offer",
+    priceCurrency: c.currency,
+    price: String(c.price),
+    url,
+    ...(seller ? { seller } : {}),
+    ...(availability ? { availability } : {}),
+  };
+}
+
+/**
+ * Agent-commerce READINESS (preparation for agent-to-agent commerce — not a
+ * claim of any protocol integration): does the served JSON-LD carry every
+ * fact an agent needs, all of them true?
+ */
+export function agentCommerceReadiness(c, seo = buildProductSeo(c)) {
+  const j = seo?.jsonLd || null;
+  const o = j?.offers || null;
+  const props = new Set((j?.additionalProperty || []).map((x) => x.name));
+  const checks = [
+    { id: "name", he: "שם מוצר", ok: Boolean(j?.name) },
+    { id: "description", he: "תיאור", ok: Boolean(j?.description) },
+    { id: "image", he: "תמונה", ok: Boolean(j?.image) },
+    { id: "price", he: "מחיר ומטבע", ok: Boolean(o?.price && o?.priceCurrency) },
+    { id: "seller", he: "מוכר", ok: Boolean(o?.seller?.name) },
+    { id: "offer_url", he: "כתובת ההצעה", ok: Boolean(o?.url) },
+    { id: "sale_model", he: "מודל מכירה", ok: props.has("sale_model") },
+    { id: "disclosure", he: "גילוי נאות", ok: c.saleModel !== "affiliate" || props.has("affiliate_disclosure") },
+    c.saleModel === "direct"
+      ? { id: "availability", he: "זמינות מלאי", ok: Boolean(o?.availability) }
+      : null,
+  ].filter(Boolean);
+  const missing = checks.filter((x) => !x.ok);
+  return {
+    ready: missing.length === 0,
+    passed: checks.length - missing.length,
+    total: checks.length,
+    missing: missing.map((x) => ({ id: x.id, he: x.he })),
+    availability: c.saleModel === "direct" ? (o?.availability ? "stated_from_stock" : "missing") : "not_stated_merchant_stock_unverified",
   };
 }
 
@@ -273,8 +350,7 @@ export function buildShareVariants(c, share) {
  * catalog price is labelled as such and stock is UNVERIFIED.
  */
 export function commerceRoute(c, { clicks = [], sales = [] } = {}) {
-  let host = "";
-  try { host = c.affiliateUrl ? new URL(c.affiliateUrl).hostname.replace(/^www\./, "") : ""; } catch { host = ""; }
+  const host = merchantHost(c);
   const outbound = (clicks || []).filter((x) => x && String(x.productId) === c.id && x.type === "outbound_click");
   const bySource = {};
   for (const x of outbound) { const k = String(x.source || "affiliate"); bySource[k] = (bySource[k] || 0) + 1; }

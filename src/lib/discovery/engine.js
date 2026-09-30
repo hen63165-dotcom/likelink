@@ -12,7 +12,7 @@
 import {
   canonicalProduct, productPageUrl, creatorPageUrl, trackingLink, buildProductSeo, auditSeo,
   merchantStatus, buildContentDrafts, buildShareAsset, buildChannelPayloads, isPublicProduct, ORIGIN,
-  SHARE_FORMAT, buildShareVariants, commerceRoute, productConnections,
+  SHARE_FORMAT, buildShareVariants, commerceRoute, productConnections, agentCommerceReadiness,
 } from "./surfaces.js";
 import { shareExperiment } from "./experiments.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL, productMediaTruth } from "./mediaTruth.js";
@@ -272,6 +272,8 @@ export function buildPassport({
     commerce: commerceRoute(c, { clicks, sales }),
     connections: productConnections(c, { products, marketers, collections }),
     experiment: shareExperiment(c.id, clicks),
+    // Readiness of the served JSON-LD for agent-to-agent commerce (preparation, not a connection).
+    agentCommerce: agentCommerceReadiness(c, seo),
   };
   passport.score = discoveryScore(passport, { externalConnected: externalConnected.length });
   if (previous && Number.isFinite(previous.score)) {

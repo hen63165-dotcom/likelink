@@ -437,6 +437,121 @@ function SystemCheckCard() {
   );
 }
 
+function NewBadge() {
+  return <span className="rounded-full px-1.5 py-0.5 text-[9px] font-extrabold" style={{ background: "var(--accent)", color: "#fff" }}>חדש</span>;
+}
+
+/**
+ * Native agentic tools (build_campaign, recruit_creator, agent commerce
+ * readiness) — drafts and checks only. Nothing here pays, sends or publishes.
+ */
+function AgenticTools({ marketer, mine, productId, focus, showToast, onUpdateMarketer }) {
+  const [goal, setGoal] = useState("");
+  const [busy, setBusy] = useState("");
+  const [campaign, setCampaign] = useState(null);
+  const [recruit, setRecruit] = useState(null);
+  const [topics, setTopics] = useState("");
+  const current = useMemo(() => [...new Set([marketer?.tags, marketer?.categories].flat().filter(Boolean).map(String))], [marketer?.tags, marketer?.categories]);
+  useEffect(() => { setTopics(current.join(", ")); }, [current]);
+
+  async function copy(text, done) {
+    try { await navigator.clipboard.writeText(text); showToast?.(done); } catch { showToast?.("ההעתקה נכשלה — אפשר לסמן ולהעתיק ידנית"); }
+  }
+  async function buildCampaign(e) {
+    e?.preventDefault?.();
+    if (!goal.trim()) { showToast?.("כתבי ללונה מה מטרת הקמפיין"); return; }
+    setBusy("campaign");
+    const ids = productId ? [productId] : mine.map((p) => p.id);
+    const data = await api("action=campaign", { method: "POST", body: { goal: goal.trim(), productIds: ids } });
+    setBusy("");
+    if (!data.ok) { showToast?.(toHebrewError(data.error, "בניית הקמפיין נכשלה")); return; }
+    setCampaign(data.campaign);
+    showToast?.(data.status === "up_to_date" ? "הטיוטה הזו כבר שמורה" : "טיוטת הקמפיין נשמרה ואומתה");
+  }
+  async function findCreators() {
+    if (!productId) { showToast?.("בחרי מוצר כדי שלונה תמצא יוצרות"); return; }
+    setBusy("recruit");
+    const data = await api("action=recruit", { method: "POST", body: { productId } });
+    setBusy("");
+    if (!data.ok) { showToast?.(toHebrewError(data.error, "חיפוש היוצרות נכשל")); return; }
+    setRecruit(data);
+  }
+  async function saveTopics() {
+    const list = [...new Set(topics.split(/[,،]/).map((x) => x.trim()).filter(Boolean))].slice(0, 12);
+    try {
+      await onUpdateMarketer?.(marketer.id, { tags: list });
+      showToast?.("תחומי התוכן נשמרו — לונה תתאים לפיהם");
+    } catch (e2) {
+      showToast?.(toHebrewError(e2?.message, "השמירה נכשלה"));
+    }
+  }
+
+  const ac = focus?.agentCommerce || null;
+  return (
+    <div className="space-y-3 rounded-xl p-3" style={{ border: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-1.5 text-xs font-extrabold" style={{ color: "var(--text)" }}>
+        <Sparkles size={13} style={{ color: "var(--accent)" }} /> כלים חדשים של לונה <NewBadge />
+      </div>
+
+      <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-subtle)" }}>
+        <div className="text-[11px] font-extrabold" style={{ color: "var(--text)" }}>תחומי התוכן שלי <span style={{ color: "var(--text-faint)" }}>(להתאמת יוצרות — נשמר בפרופיל הציבורי)</span></div>
+        <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+          <input value={topics} onChange={(e) => setTopics(e.target.value)} maxLength={200} placeholder="למשל: תכשיטים, אופנה, בית" className="input-field w-full px-3 py-2 text-xs" />
+          <div className="sm:w-32"><Button variant="secondary" onClick={saveTopics}>שמירה</Button></div>
+        </div>
+      </div>
+
+      <form onSubmit={buildCampaign} className="rounded-lg px-3 py-2" style={{ background: "var(--bg-subtle)" }}>
+        <div className="flex items-center gap-1.5 text-[11px] font-extrabold" style={{ color: "var(--text)" }}><Megaphone size={12} /> בניית קמפיין מהמטרה <NewBadge /></div>
+        <p className="mt-0.5 text-[10px]" style={{ color: "var(--text-faint)" }}>{productId ? "על המוצר שבחרת" : "על כל המוצרים שלך"} · טיוטה בלבד — שום תשלום או הודעה לא יוצאים</p>
+        <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+          <input value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} placeholder="למשל: קמפיין לשבועיים עם תקציב 500 ₪" className="input-field w-full px-3 py-2 text-xs" />
+          <div className="sm:w-32"><Button type="submit" disabled={busy === "campaign" || !goal.trim()}>{busy === "campaign" ? <Loader2 size={13} className="animate-spin" /> : null} בנייה</Button></div>
+        </div>
+        {campaign ? (
+          <div className="mt-2 space-y-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            <div className="font-bold" style={{ color: "var(--text)" }}>טיוטה {campaign.id} · {heCount(campaign.products.length, "מוצר אחד", "מוצרים")}</div>
+            <div>תקציב: {campaign.budget.amount ? `${campaign.budget.amount} ${campaign.budget.currency === "ILS" ? "₪" : campaign.budget.currency}` : "לא צוין במטרה"} · ציר זמן: {campaign.timeline.days ? `${campaign.timeline.days} ימים` : "לא צוין במטרה"}</div>
+            <div>יוצרות מתאימות: {campaign.creators.matches.length ? campaign.creators.matches.map((m) => m.name).join(", ") : campaign.creators.reason}</div>
+            {campaign.overPlanProductIds?.length ? <div>{heCount(campaign.overPlanProductIds.length, "מוצר אחד", "מוצרים")} מעבר למסלול שלך לא נכללו</div> : null}
+            <div>{campaign.paid?.requirement}</div>
+          </div>
+        ) : null}
+      </form>
+
+      <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-subtle)" }}>
+        <div className="flex items-center gap-1.5 text-[11px] font-extrabold" style={{ color: "var(--text)" }}><ShieldAlert size={12} /> גיוס יוצרות למוצר <NewBadge /></div>
+        <p className="mt-0.5 text-[10px]" style={{ color: "var(--text-faint)" }}>לונה מכינה טיוטת הזמנה בלבד — היא לעולם לא שולחת. את מעתיקה ושולחת בעצמך.</p>
+        <div className="mt-1.5 max-w-xs"><Button variant="secondary" disabled={busy === "recruit" || !productId} onClick={findCreators}>{busy === "recruit" ? <Loader2 size={13} className="animate-spin" /> : null} {productId ? "חיפוש יוצרות מתאימות" : "בחרי מוצר קודם"}</Button></div>
+        {recruit ? (
+          <div className="mt-2 space-y-1.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            <div>{recruit.candidates.reason}</div>
+            {recruit.drafts.map((d) => (
+              <div key={d.to?.id} className="rounded-lg px-2.5 py-2" style={{ border: "1px dashed var(--border)" }}>
+                <div className="font-bold" style={{ color: "var(--text)" }}>טיוטה ל{d.to?.name}</div>
+                <p className="mt-0.5 whitespace-pre-line">{d.text}</p>
+                <div className="mt-1 max-w-[12rem]"><Button variant="secondary" onClick={() => copy(d.text, "ההזמנה הועתקה — שלחי אותה בעצמך")}><Copy size={12} /> העתקת ההזמנה</Button></div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {ac ? (
+        <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: "var(--bg-subtle)" }}>
+          <div className="flex items-center gap-1.5 font-extrabold" style={{ color: "var(--text)" }}><Activity size={12} /> מוכנות למסחר בין סוכנים <NewBadge /></div>
+          <div className="mt-0.5" style={{ color: "var(--text-muted)" }}>
+            {ac.ready ? `הנתונים המובנים של "${focus.title}" מלאים (${ac.passed}/${ac.total})` : `חסר: ${ac.missing.map((x) => x.he).join(", ")}`}
+          </div>
+          <div className="mt-0.5" style={{ color: "var(--text-faint)" }}>
+            {ac.availability === "not_stated_merchant_stock_unverified" ? "זמינות המלאי לא מוצהרת — המלאי אצל המוכר לא מאומת. " : ""}הכנה בלבד — LikeLink לא מחוברת לאף פרוטוקול מסחר בין סוכנים.
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Structured memory: what Luna tried, what happened, what is blocked, what's next. */
 function MemoryCard({ refreshKey }) {
   const [mem, setMem] = useState(null);
@@ -480,7 +595,7 @@ function MemoryCard({ refreshKey }) {
 }
 
 export default function LunaDiscoveryCenter({ onNavigate }) {
-  const { currentMarketer: marketer, products, showToast } = useMarketplace();
+  const { currentMarketer: marketer, products, showToast, onUpdateMarketer } = useMarketplace();
   const mine = useMemo(
     () => (products || []).filter((p) => p && p.marketerId === marketer?.id && p.status === "approved"),
     [products, marketer?.id]
@@ -649,6 +764,10 @@ export default function LunaDiscoveryCenter({ onNavigate }) {
       )}
 
       {error && <p className="rounded-lg px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--danger)" }}>{error}</p>}
+
+      {mine.length > 0 ? (
+        <AgenticTools marketer={marketer} mine={mine} productId={productId} focus={focus} showToast={showToast} onUpdateMarketer={onUpdateMarketer} />
+      ) : null}
 
       {result && <DiscoveryResult result={result} passports={passports} channels={channels} />}
 

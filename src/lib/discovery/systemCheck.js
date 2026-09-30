@@ -180,6 +180,20 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
     ? area("public_pages", "עמודים ציבוריים", COLOR.GREEN, [`${pp.publicProducts} מוצרים ציבוריים עם עמוד /p/:id ב-sitemap`, pp.seoComplete != null ? `${pp.seoComplete} מהם עם SEO מלא` : null])
     : area("public_pages", "עמודים ציבוריים", COLOR.RED, "אין מוצרים ציבוריים", "לאשר מוצרים ולשייך אותם ליוצר"));
 
+  // agent commerce — READINESS of the served structured data for future
+  // agent-to-agent commerce. Never worded as "connected": no protocol is.
+  const ac = p.agentCommerce || null;
+  if (ac && Number.isFinite(ac.total)) {
+    const ev = [
+      `${ac.ready}/${ac.total} מוצרים ציבוריים עם נתונים מובנים מלאים ואמיתיים (מחיר, מוכר, מודל מכירה, גילוי נאות)`,
+      ac.availabilityUnstated ? `זמינות מלאי לא מוצהרת ב-${ac.availabilityUnstated} מוצרי שותפים — המלאי אצל המוכר לא מאומת, ולונה לא טוענת אותו` : null,
+      "הכנה בלבד — LikeLink לא מחוברת לאף פרוטוקול מסחר בין סוכנים",
+    ];
+    areas.push(area("agent_commerce", "מוכנות למסחר בין סוכנים",
+      ac.total > 0 && ac.ready === ac.total ? COLOR.GREEN : COLOR.YELLOW, ev,
+      ac.total === 0 ? "לאשר מוצרים ציבוריים" : ac.ready < ac.total && ac.topMissing ? `להשלים בנתוני המוצרים: ${ac.topMissing.he} (${ac.topMissing.count} מוצרים)` : null));
+  }
+
   // studio (UI) — the server cannot observe it
   areas.push(area("studio", "סטודיו", COLOR.UNVERIFIED, "ממשק הסטודיו נבדק בדפדפן, לא מהשרת"));
 

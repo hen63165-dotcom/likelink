@@ -87,6 +87,7 @@ const MESSAGES = {
   goal_required: "כתבי ללונה מה המטרה",
   nothing_to_rollback: "אין גרסה קודמת לשחזר",
   rollback_write_failed: "השחזור לא נשמר — הגרסה הנוכחית נשארה כמו שהייתה",
+  owner_explicit_required: "שליחה דורשת את האישור המפורש שלך — לונה לא שולחת הזמנות בעצמה",
 };
 
 const GENERIC = "משהו השתבש — נסי שוב בעוד רגע";

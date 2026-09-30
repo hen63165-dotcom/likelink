@@ -23,7 +23,7 @@ import { readBody } from "./readBody.mjs";
 import { jsonCors, isApprovedOrigin } from "./cors.js";
 import {
   runCommand, runIntent, publicPassport, loadDiscoveryData, computePassports, channelEnv, KEYS,
-  memoryAnswer, rollbackAssets,
+  memoryAnswer, rollbackAssets, createCampaign, listCampaigns, recruitForProduct,
 } from "../../src/lib/discovery/orchestrator.js";
 import { buildChannelRegistry, LUNA_COMMANDS, CHANNEL_STATE_LABEL, verifyPublication } from "../../src/lib/discovery/engine.js";
 import { merchantStatus } from "../../src/lib/discovery/surfaces.js";
@@ -33,7 +33,8 @@ import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
 import { getPayPalToken, getPayPalTokenStatus, paypalBase } from "./paypal.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
-import { listCapabilities } from "../../src/lib/discovery/capabilities.js";
+import { listCapabilities, PERMISSION } from "../../src/lib/discovery/capabilities.js";
+import { deliverInvitation } from "../../src/lib/discovery/campaigns.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 
 const RATE_WINDOW_MS = 60000;
@@ -278,6 +279,18 @@ export function createDiscoveryHandler({
       storage: await probeStorage({ storageRes, sbUrl, anon, service, t }),
       tracking: { clicks: data.clicks.length, lastClickAt: data.clicks.reduce((m, c) => Math.max(m, Number(c?.ts) || 0), 0) || null },
       publicPages: { publicProducts: passports.filter((p) => p.isPublic).length, seoComplete: passports.filter((p) => p.isPublic && p.seo.audit.passed === p.seo.audit.total).length },
+      agentCommerce: (() => {
+        const pub = passports.filter((p) => p.isPublic && p.agentCommerce);
+        const missing = {};
+        for (const p of pub) for (const m of p.agentCommerce.missing) missing[m.he] = (missing[m.he] || 0) + 1;
+        const top = Object.entries(missing).sort((a, b) => b[1] - a[1])[0] || null;
+        return {
+          total: pub.length,
+          ready: pub.filter((p) => p.agentCommerce.ready).length,
+          topMissing: top ? { he: top[0], count: top[1] } : null,
+          availabilityUnstated: pub.filter((p) => p.agentCommerce.availability === "not_stated_merchant_stock_unverified").length,
+        };
+      })(),
       channels: channels.map((c) => ({ provider: c.provider, label: c.label, connected: c.connected, stateHe: CHANNEL_STATE_LABEL[c.state] || "לא ידוע" })),
       security: {
         rlsOpen,
@@ -351,13 +364,17 @@ export function createDiscoveryHandler({
       }
 
       // ── owner-scoped ──
-      const ownerActions = new Set(["overview", "memory", "entitlement", "goal", "command", "rollback"]);
+      const ownerActions = new Set(["overview", "memory", "entitlement", "goal", "command", "rollback", "campaign", "campaigns", "recruit"]);
       if (!ownerActions.has(action)) { json(res, { ok: false, error: "unknown_action" }, 400, req); return; }
       const who = await identify(req);
       if (!who.ok) { json(res, { ok: false, error: who.error }, who.status, req); return; }
       const scope = { marketerIds: who.admin ? null : who.marketerIds, actor: who.actor };
       const scopeKey = scope.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
 
+      if (req.method === "GET" && action === "campaigns") {
+        json(res, { ok: true, campaigns: await listCampaigns({ kvGet, scope }) }, 200, req);
+        return;
+      }
       if (req.method === "GET" && action === "entitlement") {
         const ent = await entitlementFor(who);
         json(res, { ok: true, entitlement: ent }, 200, req);
@@ -397,6 +414,31 @@ export function createDiscoveryHandler({
       const body = (await readBody(req).catch(() => null)) || {};
       const productId = body.productId ? String(body.productId).slice(0, 120) : null;
 
+      if (action === "campaign") {
+        const goal = String(body.goal || "").trim().slice(0, 300);
+        if (!goal) { json(res, { ok: false, error: "goal_required" }, 400, req); return; }
+        const ids = (Array.isArray(body.productIds) ? body.productIds : productId ? [productId] : []).map((x) => String(x).slice(0, 120)).slice(0, 50);
+        if (!ids.length) { json(res, { ok: false, error: "product_id_required" }, 400, req); return; }
+        const entitlement = await entitlementFor(who);
+        const out = await createCampaign({ kvGet, kvSet, goal, productIds: ids, scope, entitlement, now: now() });
+        json(res, out, out.ok ? 200 : out.error === "not_owner" ? 403 : out.error === "product_not_found" ? 404 : 400, req);
+        return;
+      }
+      if (action === "recruit") {
+        if (!productId) { json(res, { ok: false, error: "product_id_required" }, 400, req); return; }
+        // recruit_creator is OWNER_EXPLICIT and draft-only: this API has no
+        // send path at all. A send request is refused (deliverInvitation needs
+        // explicit owner permission, which no API request can carry).
+        if (body.send === true || body.deliver === true) {
+          try { deliverInvitation(null, { permission: PERMISSION.SESSION }); } catch (e) {
+            json(res, { ok: false, error: e?.code || "owner_explicit_required" }, 403, req);
+            return;
+          }
+        }
+        const out = await recruitForProduct({ kvGet, productId, scope });
+        json(res, out, out.ok ? 200 : out.error === "not_owner" ? 403 : 404, req);
+        return;
+      }
       if (action === "rollback") {
         if (!productId) { json(res, { ok: false, error: "product_id_required" }, 400, req); return; }
         const out = await rollbackAssets({ kvGet, kvSet, productId, scope, now: now() });

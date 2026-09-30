@@ -18,7 +18,8 @@ import {
   buildPassport, buildChannelRegistry, buildProductAssets, buildOpportunityGraph, prioritize,
   LUNA_COMMANDS, OPPORTUNITY_STATUS, SAFETY, heCount,
 } from "./engine.js";
-import { merchantStatus, stableHash, isPublicProduct, ORIGIN, canonicalProduct, buildProductSeo, auditSeo } from "./surfaces.js";
+import { merchantStatus, stableHash, isPublicProduct, ORIGIN, canonicalProduct, buildProductSeo, auditSeo, agentCommerceReadiness } from "./surfaces.js";
+import { buildCampaign, recruitCreators } from "./campaigns.js";
 import { compileIntent, buildActionGraph, COMMAND_GOALS } from "./intent.js";
 import { CAPABILITIES, classifyFailure } from "./capabilities.js";
 import { evidence, TRUTH } from "./truth.js";
@@ -32,11 +33,13 @@ export const KEYS = Object.freeze({
   run: (scope) => `discovery:run:last:${scope}`,
   deadLetter: "discovery:deadletter",
   sweep: "discovery:sweep:last",
+  campaigns: (scope) => `discovery:campaigns:${scope}`,
 });
 
 const SNAPSHOT_MIN_MS = 20 * 60 * 60 * 1000;
 const LOG_CAP = 50;
 const MEMORY_CAP = 200;
+const CAMPAIGN_CAP = 30;
 const DEAD_LETTER_CAP = 100;
 const HISTORY_CAP = 30;
 const STEP_TIMEOUT_MS = 8000;
@@ -238,7 +241,64 @@ async function executeStep({ capability, product, passport, data, channels, orig
       proof: failed.length ? null : evidence({ state: TRUTH.VERIFIED, source: "buildProductSeo (/p/:id)", evidence: `${audit.passed}/${audit.total} בדיקות עברו על ה-SEO המוגש`, verifiedAt: now }),
     };
   }
+  if (capability === "agent_commerce_readiness") {
+    const marketer = data.marketers.find((m) => m && m.id === product.marketerId) || null;
+    const c = canonicalProduct(product, marketer, origin);
+    const r = agentCommerceReadiness(c, buildProductSeo(c));
+    return {
+      status: r.ready ? "up_to_date" : "blocked",
+      result: r.ready ? "הנתונים המובנים ב-/p/:id מוכנים למסחר בין סוכנים (הכנה — לא חיבור לפרוטוקול)" : `חסר בנתונים המובנים: ${r.missing.map((x) => x.he).join(", ")}`,
+      proof: r.ready ? evidence({ state: TRUTH.VERIFIED, source: "buildProductSeo JSON-LD (/p/:id)", evidence: `${r.passed}/${r.total} בדיקות מוכנות עברו`, verifiedAt: now }) : null,
+    };
+  }
   throw new Error(`no_executor:${capability}`);
+}
+
+/**
+ * build_campaign — goal + real product ids → a DRAFT campaign, persisted to
+ * a server-only key and VERIFIED by reading it back. Idempotent: the same
+ * goal/products/budget/timeline yields the same id and is not rewritten.
+ * Never triggers a payment or a send.
+ */
+export async function createCampaign({ kvGet, kvSet, goal, productIds, scope, entitlement = null, now = Date.now(), origin = ORIGIN, channels = [] }) {
+  const products = arr(await read(kvGet, "marketplace:products", []));
+  const marketers = arr(await read(kvGet, "marketplace:marketers", []));
+  const campaign = buildCampaign({ goal, productIds, products, marketers, ownerIds: scope?.marketerIds || null, entitlement, now, origin });
+  if (!campaign.products.length) {
+    return { ok: false, error: campaign.unknownProductIds.length ? "product_not_found" : campaign.notOwnedProductIds.length ? "not_owner" : "no_products", campaign };
+  }
+  campaign.organicChannels = arr(channels).filter((c) => c.connected).map((c) => c.provider);
+  campaign.paid = { status: "REQUIRES_APPROVAL", requirement: "קמפיין ממומן מוציא כסף — דורש חשבון מודעות מחובר ואישור בעלים" };
+  const scopeKey = scope?.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
+  const key = KEYS.campaigns(scopeKey);
+  const list = arr(await read(kvGet, key, []));
+  const existing = list.find((x) => x && x.id === campaign.id);
+  if (!existing) await kvSet(key, [...list.filter((x) => x && x.id !== campaign.id), campaign].slice(-CAMPAIGN_CAP));
+  const back = arr(await read(kvGet, key, [])).find((x) => x && x.id === campaign.id);
+  const ok = Boolean(back && back.fingerprint === campaign.fingerprint);
+  return {
+    ok,
+    status: ok ? (existing ? "up_to_date" : "executed") : "failed",
+    campaign: back || campaign,
+    proof: ok
+      ? evidence({ state: TRUTH.VERIFIED, source: key, evidence: `הטיוטה ${campaign.id} נקראה חזרה עם אותה טביעת אצבע`, verifiedAt: now })
+      : evidence({ state: TRUTH.UNVERIFIED, source: key, evidence: "הקריאה החוזרת לא מצאה את הטיוטה" }),
+  };
+}
+
+export async function listCampaigns({ kvGet, scope }) {
+  const scopeKey = scope?.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
+  return arr(await read(kvGet, KEYS.campaigns(scopeKey), [])).slice().reverse();
+}
+
+/** recruit_creator — candidates + Hebrew drafts. Never sends (see campaigns.deliverInvitation). */
+export async function recruitForProduct({ kvGet, productId, scope, origin = ORIGIN }) {
+  const products = arr(await read(kvGet, "marketplace:products", []));
+  const product = products.find((p) => p && String(p.id) === String(productId));
+  if (!product) return { ok: false, error: "product_not_found" };
+  if (scope?.marketerIds && !scope.marketerIds.includes(String(product.marketerId))) return { ok: false, error: "not_owner" };
+  const marketers = arr(await read(kvGet, "marketplace:marketers", []));
+  return recruitCreators({ product, marketers, inviterIds: scope?.marketerIds || [], origin });
 }
 
 function toItem(n) {
@@ -310,6 +370,30 @@ export async function runIntent({ kvGet, kvSet, goal, productId = null, scope, e
       deadLetters.push({ runId, at: now, step: key, capability: n.capability, productId: n.productId, failure, error: step.error });
       if (!failedCaps.has(n.productId)) failedCaps.set(n.productId, new Set());
       failedCaps.get(n.productId).add(n.capability);
+    }
+  }
+
+  // ── Run-scoped capabilities (one per goal, e.g. build_campaign) ──
+  let campaignResult = null;
+  for (const [capId, cap] of Object.entries(CAPABILITIES)) {
+    if (cap.scope !== "run" || typeof cap.trigger !== "function" || !cap.trigger(intent)) continue;
+    // Autonomous only when native + internal + session (LAW 06 / 14).
+    if (!(cap.native && cap.executor === "internal" && cap.permission === "session")) continue;
+    const base = { id: `run:${capId}`, productId: null, capability: capId, kind: capId, permission: cap.permission, rollback: cap.rollback || null, verification: cap.verification };
+    try {
+      if (capId !== "build_campaign") throw new Error(`no_executor:${capId}`);
+      const ids = intent.subject?.ids?.length ? intent.subject.ids : data.scope.map((p) => String(p.id));
+      campaignResult = await withTimeout(createCampaign({ kvGet, kvSet, goal: intent.goal, productIds: ids, scope, entitlement, now, origin, channels: before.channels }), STEP_TIMEOUT_MS, capId);
+      if (campaignResult.ok) {
+        steps.push({ ...base, status: campaignResult.status, result: `טיוטת קמפיין ${campaignResult.campaign.id} (${heCount(campaignResult.campaign.products.length, "מוצר אחד", "מוצרים")})`, proof: campaignResult.proof });
+      } else {
+        const failure = classifyFailure(new Error(campaignResult.error || "campaign_failed"));
+        steps.push({ ...base, status: "failed", result: "בניית הטיוטה נכשלה — שום דבר לא סומן כהצלחה", proof: campaignResult.proof || null, failure, next: failure.selfRepair || "דורש בדיקה" });
+      }
+    } catch (e) {
+      const failure = classifyFailure(e);
+      steps.push({ ...base, status: "failed", result: "הפעולה נכשלה — שום דבר לא סומן כהצלחה", failure, error: String(e?.message || e).slice(0, 160), next: failure.selfRepair || "דורש בדיקה — נרשם לתיקון" });
+      deadLetters.push({ runId, at: now, step: base.id, capability: capId, productId: null, failure, error: String(e?.message || e).slice(0, 160) });
     }
   }
 
@@ -391,7 +475,7 @@ export async function runIntent({ kvGet, kvSet, goal, productId = null, scope, e
     memory: { written: Boolean(memoryWrite?.written), entries: memoryEntries.length },
     deadLetters: deadLetters.length,
     snapshots: { written: snapshots.filter((x) => x.written).length, failed: snapshots.filter((x) => x.error).length },
-    campaign: intent.outcomes.includes("campaign") ? buildCampaignDraft(after, data, before.channels) : null,
+    campaign: campaignResult?.campaign || null,
   };
   result.laws = auditRun({ ...result, passports: Object.values(passportsById) });
   return result;
@@ -404,21 +488,8 @@ export async function runCommand({ command, ...rest }) {
   return runIntent({ ...rest, goal: COMMAND_GOALS[command], commandId: command });
 }
 
-/** A campaign DRAFT: creative + share + channels. Paid spend is never automatic. */
-function buildCampaignDraft(passports, data, channels) {
-  const top = passports.slice().sort((a, b) => b.score.score - a.score.score)[0];
-  if (!top) return null;
-  const assets = data.perProduct.get(top.productId)?.assets || null;
-  return {
-    status: "DRAFT",
-    productId: top.productId,
-    title: top.title,
-    creative: assets?.drafts?.he || null,
-    shareUrl: assets?.share?.url || null,
-    organicChannels: channels.filter((c) => c.connected).map((c) => c.provider),
-    paid: { status: "REQUIRES_APPROVAL", requirement: "קמפיין ממומן מוציא כסף — דורש חשבון מודעות מחובר ואישור בעלים" },
-  };
-}
+// (build_campaign — campaigns.buildCampaign via createCampaign — replaced the
+// earlier in-memory campaign sketch.)
 
 /** LAW 13 — restore the previous share/content version of a product's assets. */
 export async function rollbackAssets({ kvGet, kvSet, productId, scope, now = Date.now() }) {

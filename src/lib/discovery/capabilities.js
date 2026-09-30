@@ -157,6 +157,41 @@ const REGISTRY = {
     verification: "ads_provider_state",
     rollback: "pause_campaign",
   },
+  // ── native agentic capabilities (campaigns.js / surfaces.js) ──
+  build_campaign: {
+    he: "בניית טיוטת קמפיין מהמטרה",
+    native: true, adapter: null, isNew: true,
+    reason: "מטרה חופשית + מוצרים אמיתיים → טיוטת קמפיין עם תקציב וציר זמן (רק אם נאמרו) והתאמת יוצרות לפי תחומים אמיתיים",
+    risk: RISK.LOW, permission: PERMISSION.SESSION, executor: EXECUTOR.INTERNAL,
+    // Run-scoped: one draft per goal (not per product).
+    scope: "run", trigger: (intent) => (intent?.outcomes || []).includes("campaign"),
+    satisfies: ["campaign_drafted"],
+    preconditions: () => [],
+    expected: "טיוטת קמפיין שמורה ב-discovery:campaigns:<scope> — בלי תשלום ובלי שליחה",
+    verification: "reread_campaign",
+  },
+  recruit_creator: {
+    he: "גיוס יוצרות למוצר (טיוטת הזמנה)",
+    native: true, adapter: null, isNew: true,
+    reason: "יוצרות קיימות שתחומי התוכן האמיתיים שלהן חופפים למוצר + טיוטת הזמנה בעברית",
+    // Draft only. LikeLink never sends it: deliverInvitation() refuses
+    // without explicit owner permission and even then only returns the text.
+    risk: RISK.MEDIUM, permission: PERMISSION.OWNER_EXPLICIT, executor: EXECUTOR.OWNER,
+    satisfies: ["creator_recruited"],
+    preconditions: (p) => [{ ok: p.isPublic, he: "המוצר ציבורי" }],
+    expected: "טיוטת הזמנה ביד הבעלים — שום הודעה לא יוצאת מ-LikeLink",
+    verification: "owner_confirmation",
+  },
+  agent_commerce_readiness: {
+    he: "מוכנות למסחר בין סוכנים (נתונים מובנים)",
+    native: true, adapter: null, isNew: true,
+    reason: "JSON-LD מלא ואמיתי (מחיר, מוכר, מודל מכירה, גילוי נאות) — הכנה לפרוטוקולים עתידיים, לא חיבור לאף פרוטוקול",
+    risk: RISK.LOW, permission: PERMISSION.SESSION, executor: EXECUTOR.INTERNAL,
+    satisfies: ["agent_commerce_ready"],
+    preconditions: (p) => [{ ok: p.isPublic, he: "העמוד ציבורי" }],
+    expected: "כל בדיקות המוכנות עוברות על ה-JSON-LD שמוגש ב-/p/:id",
+    verification: "recompute_served_jsonld",
+  },
 };
 
 /** Required-state facts and how each is read from a real passport. */
@@ -174,6 +209,8 @@ export const FACTS = Object.freeze({
   published_external: { he: "פורסם בערוץ חיצוני (מאומת)", read: (p) => (p.signals.verifiedExternalPublications || 0) > 0 },
   shared_manually: { he: "שותף ידנית", read: (p) => (p.tracking.bySource?.luna_share || 0) > 0 },
   measured: { he: "מצב גילוי מתועד", read: () => false },
+  agent_commerce_ready: { he: "מוכן למסחר בין סוכנים", read: (p) => Boolean(p.agentCommerce?.ready) },
+  creator_recruited: { he: "הוזמנו יוצרות", read: () => false },
 });
 
 // Contract fields every capability carries (built-in or registered later):
@@ -192,6 +229,9 @@ const CONTRACT = {
   manual_share: { dependencies: ["create_share_asset"], evidence: "קליקים דרך לינק המעקב עם src=luna_share", recovery: "אין — שיתוף ידני" },
   reconcile_subscription: { dependencies: [], evidence: "סטטוס PayPal שנבדק בשרת (ACTIVE + custom_id + plan_id)", recovery: "בדיקה חוזרת; כשל בבדיקה לעולם לא מבטל גישה" },
   paid_campaign: { dependencies: ["create_share_asset"], evidence: "מזהה קמפיין מספק המודעות", recovery: "השהיית הקמפיין אצל הספק" },
+  build_campaign: { dependencies: [], evidence: "הטיוטה נקראה חזרה עם אותה טביעת אצבע", recovery: "dead-letter + ריצה חוזרת; טיוטה בלבד — אין מה לבטל אצל ספק" },
+  recruit_creator: { dependencies: [], evidence: "טיוטות הזמנה בלבד; מסירה ידנית על ידי הבעלים", recovery: "אין — שום דבר לא נשלח" },
+  agent_commerce_readiness: { dependencies: [], evidence: "בדיקת ה-JSON-LD שמוגש בפועל ב-/p/:id", recovery: "בדיקה בלבד — אין מה לשחזר" },
 };
 
 const CAPABILITY_FIELDS = ["he", "reason", "risk", "permission", "executor", "satisfies", "preconditions", "expected", "verification", "dependencies", "evidence", "recovery", "version"];
@@ -250,6 +290,9 @@ export function listCapabilities() {
     id, name: c.he, purpose: c.reason, permission: c.permission, executor: c.executor, native: c.native, adapter: c.adapter,
     risk: c.risk, dependencies: c.dependencies, evidence: c.evidence, verification: c.verification, recovery: c.recovery,
     rollback: c.rollback || null, satisfies: c.satisfies, version: c.version, available: true,
+    isNew: Boolean(c.isNew), scope: c.scope || "product",
+    // Plan limits come from the entitlement resolver, same as every capability.
+    planLimit: c.scope === "run" ? "maxProductsPerRun" : null,
     autonomous: c.native && c.executor === EXECUTOR.INTERNAL && c.permission === PERMISSION.SESSION,
   }));
 }

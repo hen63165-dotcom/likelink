@@ -36,6 +36,14 @@ export const OUTCOMES = Object.freeze({
     he: "תיקון כל מה שחוסם גילוי", match: /תקנ|תקני|תקן|לתקן|חוסם|מונע|fix|repair|blocking|prevent/i,
     facts: ["page_live", "seo_complete", "structured_data", "share_ready", "tracking_ready", "content_ready", "merchant_eligible", "collection_member", "media_video"],
   },
+  agent_commerce: {
+    he: "מוכנות למסחר בין סוכנים", match: /סוכנ(י|ים)|מסחר אוטונומי|agentic|agent[- ]to[- ]agent|agent commerce|\bucp\b/i,
+    facts: ["structured_data", "agent_commerce_ready"],
+  },
+  recruitment: {
+    he: "גיוס יוצרות למוצרים", match: /גיוס|לגייס|גייסי|recruit|יוצרות חדשות|שיתופי פעולה/i,
+    facts: ["creator_recruited"],
+  },
   opportunities: {
     he: "איתור הזדמנויות", match: /הזדמנו|opportunit|biggest|הכי גדול/i,
     facts: [], analyzeOnly: true,
