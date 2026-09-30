@@ -103,7 +103,7 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
     areas.push(area("payments", "תשלומים", COLOR.RED, "PayPal לא מוגדר בשרת — אין תשלום אפשרי", priv ? "להגדיר PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET" : "להשלים את חיבור PayPal בשרת"));
   } else if (p.payments.tokenRejected === true) {
     // PayPal itself answered 401/403 — a proven fault: nothing PayPal-backed can work.
-    const envHe = p.payments.paypalEnv === "sandbox" ? "סביבת הבדיקות" : "הסביבה החיה";
+    const envHe = p.payments.paypalEnv === "sandbox" ? "סביבת הבדיקות" : "סביבה החיה";
     areas.push(area("payments", "תשלומים", COLOR.RED,
       [`PayPal דחה את פרטי ההתחברות של השרת ב${envHe} — מנוי, תשלום ויצירת מסלולים לא יכולים לעבוד`,
         priv && p.payments.tokenStatus ? `תשובת PayPal: HTTP ${p.payments.tokenStatus}${p.payments.paypalEnvSource === "inferred" ? " · הסביבה נקבעה מהמפתח (PAYPAL_ENV לא מוגדר)" : ""}` : null],

@@ -311,6 +311,7 @@ export default async function handler(req, res) {
       res.status(200);
       res.setHeader("content-type", "text/html; charset=utf-8");
       res.setHeader("cache-control", "public, max-age=0, must-revalidate");
+      res.setHeader("vary", "User-Agent");
       res.end(html);
       return;
     } catch {
@@ -441,7 +442,11 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 
     res.status(attributable ? 200 : 404);
     res.setHeader("content-type", "text/html; charset=utf-8");
-    res.setHeader("cache-control", attributable ? "public, max-age=600" : "public, max-age=60");
+    // Crawler HTML must never be served from the shared CDN cache to people:
+    // a WhatsApp/Googlebot preview fetch used to leave humans on this bare
+    // page for 10 minutes (X-Vercel-Cache: HIT). Private + Vary: User-Agent.
+    res.setHeader("cache-control", attributable ? "private, max-age=600" : "private, max-age=60");
+    res.setHeader("vary", "User-Agent");
     res.end(html);
     return;
   }
@@ -481,6 +486,8 @@ ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 
   res.status(200);
   res.setHeader("content-type", "text/html; charset=utf-8");
+  res.setHeader("cache-control", "private, max-age=600");
+  res.setHeader("vary", "User-Agent");
   res.end(html);
 }
 

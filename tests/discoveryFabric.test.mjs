@@ -122,3 +122,30 @@ test("a reel LikeLink rendered is an animation — never a real (filmed) video, 
     assert.match(src, /native: true,\s*\n\s*synthetic: true/, `${f}: rendered reels are flagged native + synthetic`);
   }
 });
+
+test("crawler HTML is never shared-cached for people (link previews used to strand humans on it)", async () => {
+  process.env.VITE_SUPABASE_URL = "https://sb.test";
+  process.env.VITE_SUPABASE_ANON_KEY = "anon";
+  const products = [product(1)];
+  const marketers = [{ id: "m1", name: "ALYOSTYLE", slug: "alyostyle" }];
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes("key=eq.marketplace%3Aproducts") || u.includes("key=eq.marketplace:products")) return new Response(JSON.stringify([{ value: JSON.stringify(products) }]), { status: 200 });
+    if (u.includes("key=eq.marketplace%3Amarketers") || u.includes("key=eq.marketplace:marketers")) return new Response(JSON.stringify([{ value: JSON.stringify(marketers) }]), { status: 200 });
+    if (u.endsWith("/index.html")) return new Response('<!doctype html><div id="root"></div>', { status: 200 });
+    return new Response("[]", { status: 200 });
+  };
+  const { default: og } = await import("../api/og.mjs");
+  const call = async (ua) => {
+    const res = { statusCode: 200, headers: {}, sent: "", status(c) { this.statusCode = c; return this; }, setHeader(k, v) { this.headers[String(k).toLowerCase()] = v; }, end(b) { this.sent = String(b ?? ""); }, writeHead(c, h) { this.statusCode = c; Object.assign(this.headers, h || {}); } };
+    await og({ method: "GET", url: "/api/og?id=p1", headers: { host: "likelink2.vercel.app", "user-agent": ua } }, res);
+    return res;
+  };
+  const bot = await call("WhatsApp/2.23");
+  assert.match(bot.sent, /גילוי נאות/);
+  assert.match(bot.headers["cache-control"], /^private/, "the CDN must not keep the crawler page");
+  assert.equal(bot.headers.vary, "User-Agent");
+  const human = await call("Mozilla/5.0 (Linux; Android 14) Chrome/152 Mobile Safari/537.36");
+  assert.match(human.sent, /id="root"/, "a person always gets the app");
+  assert.equal(human.headers.vary, "User-Agent");
+});
