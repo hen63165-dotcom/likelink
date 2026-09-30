@@ -85,13 +85,16 @@ export const ProductThumb = memo(function ProductThumb({ p, className = "" }) {
           setAutoStatus("preview");
         }
         addVideo({
-          title: `UGC · ${p.title || "Product"}`,
+          // A first-party animation of the product photo — never labelled UGC.
+          title: `אנימציית מוצר · ${p.title || "Product"}`,
           description: "Product motion reel rendered from the product photo (LikeLink first-party)",
           videoUrl: url,
           marketerId: p.marketerId,
           productId: p.id,
           productTags: [{ productId: p.id }],
           source: "likelink_auto_ugc",
+          native: true,
+          synthetic: true,
           public: Boolean(remoteUrl),
         });
       } catch (e) {

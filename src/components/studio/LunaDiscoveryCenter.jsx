@@ -18,6 +18,7 @@ import { toHebrewError } from "../../lib/errorMessages.js";
 import { CHANNEL_STATE_LABEL, heCount } from "../../lib/discovery/engine.js";
 import { MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { COLOR_LABEL } from "../../lib/discovery/systemCheck.js";
+import { EXPERIMENT_LABEL } from "../../lib/discovery/experiments.js";
 import { Button, LabeledSelect } from "../ui/index.jsx";
 
 const API = "/api/store?mode=discovery";
@@ -214,6 +215,44 @@ export function PassportView({ passport, assets, showToast, onRollback, rollingB
           <p className="mt-1.5 text-[10px]" style={{ color: "var(--text-faint)" }}>
             שיתוף מתבצע רק כשאת לוחצת — לונה לא מפרסמת בשמך. קליקים דרך לינק המעקב נרשמים כנתון אמיתי.
           </p>
+          {share.variants?.length > 1 ? (
+            <div className="mt-2 rounded-lg px-3 py-2" style={{ border: "1px dashed var(--border)" }}>
+              <div className="text-[11px] font-extrabold" style={{ color: "var(--text-faint)" }}>{share.variants[1].he} · לינק מעקב נפרד לניסוי</div>
+              <p className="mt-1 whitespace-pre-line text-xs" style={{ color: "var(--text-secondary)" }}>{share.variants[1].text}</p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => copy(share.variants[1].text, "הגרסה השנייה הועתקה")}><Copy size={13} /> העתקת גרסה ב׳</Button>
+                {share.variants[1].trackingLink ? <Button variant="secondary" onClick={() => copy(share.variants[1].trackingLink, "לינק המעקב של גרסה ב׳ הועתק")}><Link2 size={13} /> לינק מעקב ב׳</Button> : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {passport.commerce ? (
+        <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: "var(--bg-subtle)" }}>
+          <div className="font-bold" style={{ color: "var(--text)" }}>
+            מסלול המכירה: {passport.commerce.model === "direct" ? "מכירה ישירה באתר" : passport.commerce.model === "affiliate" ? `שותפים${passport.commerce.merchant?.host ? ` · ${passport.commerce.merchant.host}` : ""}` : "אין קישור רכישה"}
+          </div>
+          <div className="mt-0.5" style={{ color: "var(--text-muted)" }}>
+            {passport.commerce.price ? `מחיר מהקטלוג ₪${passport.commerce.price.amount} (לא אומת אצל המוכר)` : "אין מחיר"} · מלאי: לא אומת
+            {` · ${heCount(passport.commerce.tracking.outboundClicks, "קליק יוצא אחד", "קליקים יוצאים")}`}
+            {` · המרות מאומתות: ${passport.commerce.conversion.verified}`}
+            {passport.commerce.conversion.selfReported ? ` · ${passport.commerce.conversion.selfReported} מדווחות עצמית` : ""}
+          </div>
+          {passport.commerce.disclosure?.required ? (
+            <div className="mt-0.5" style={{ color: "var(--text-faint)" }}>גילוי נאות מופיע בעמוד המוצר ובכל חבילת שיתוף</div>
+          ) : null}
+          {passport.connections ? (
+            <div className="mt-0.5" style={{ color: "var(--text-faint)" }}>
+              קשרים אמיתיים: {passport.connections.sameCreator.length} מאותה יוצרת · {passport.connections.sameCategory.length} מאותה קטגוריה · {heCount(passport.connections.collections.length, "קולקציה אחת", "קולקציות")}
+            </div>
+          ) : null}
+          {passport.experiment ? (
+            <div className="mt-0.5" style={{ color: "var(--text-faint)" }}>
+              ניסוי שיתוף א׳/ב׳: {EXPERIMENT_LABEL[passport.experiment.state] || "לא ידוע"} — {passport.experiment.reason}
+              {` (א׳: ${passport.experiment.variants[0]?.clicks ?? 0} · ב׳: ${passport.experiment.variants[1]?.clicks ?? 0} קליקים)`}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

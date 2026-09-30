@@ -54,6 +54,9 @@ export function canonicalProduct(product = {}, marketer = null, origin = ORIGIN)
       : null,
     origin: base,
   };
+  // How the sale happens: a direct checkout on the site, or an affiliate
+  // hand-off to an external merchant (which requires a disclosure).
+  canonical.saleModel = isDirectMerchantProduct(product, base) ? "direct" : (canonical.affiliateUrl ? "affiliate" : "none");
   canonical.fingerprint = stableHash({
     id: canonical.id, title: canonical.title, description: canonical.description, price: canonical.price,
     currency: canonical.currency, image: canonical.image, category: canonical.category,
@@ -209,15 +212,28 @@ export function buildContentDrafts(c) {
  * intents (WhatsApp / Telegram share URLs) are user-initiated — nothing is
  * posted on anyone's behalf.
  */
+/** Share-pack format — v2 adds the affiliate disclosure (stored packs of an older format are rebuilt). */
+export const SHARE_FORMAT = 2;
+export const AFFILIATE_DISCLOSURE_HE = "גילוי נאות: קישור שותפים — היוצרת עשויה לקבל עמלה על רכישה, בלי עלות נוספת לך.";
+export const AFFILIATE_DISCLOSURE_SHORT = "גילוי נאות: קישור שותפים";
+
+/** The sale model of a raw catalog product (for UI that has no canonical object). */
+export function saleModelOf(product = {}, origin = ORIGIN) {
+  if (isDirectMerchantProduct(product, origin)) return "direct";
+  return isAbsoluteHttpUrl(product.affiliateUrl) ? "affiliate" : "none";
+}
+
 export function buildShareAsset(c, drafts = buildContentDrafts(c)) {
   if (!c.title) return null;
   const link = productPageUrl(c);
+  const disclosure = c.saleModel === "affiliate" ? `\n${AFFILIATE_DISCLOSURE_SHORT}` : "";
   const text = drafts ? `${drafts.he.social.replace(/\n?לפרטים ולרכישה בלינק 👇$/, "")}\n${link}` : `${c.title}\n${link}`;
+  const shared = text + disclosure;
   return {
-    text,
+    text: shared,
     url: link,
     image: c.image || "",
-    whatsappUrl: `https://wa.me/?text=${encodeURIComponent(text)}`,
+    whatsappUrl: `https://wa.me/?text=${encodeURIComponent(shared)}`,
     telegramUrl: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(c.title)}`,
     provenance: { productId: c.id, fingerprint: c.fingerprint },
   };
@@ -234,6 +250,79 @@ export function buildChannelPayloads(c, share, channels = []) {
     else payload = { text: share.text, url: share.url };
     return { provider: ch.provider, state: ch.state, payload, provenance: { productId: c.id, fingerprint: c.fingerprint } };
   });
+}
+
+/**
+ * A second share variant (price-first framing) for a first-party A/B test.
+ * Each variant has its own tracking source, so /r attributes real clicks.
+ */
+export function buildShareVariants(c, share) {
+  if (!share) return [];
+  const link = productPageUrl(c);
+  const disclosure = c.saleModel === "affiliate" ? `\n${AFFILIATE_DISCLOSURE_SHORT}` : "";
+  const b = [formatPrice(c) ? `${formatPrice(c)} · ${c.title}` : c.title, c.creator?.name ? `המלצה של ${c.creator.name}` : "", link].filter(Boolean).join("\n") + disclosure;
+  return [
+    { id: "a", he: "גרסה א׳ — הסיפור", text: share.text, trackingLink: trackingLink(c, "luna_share_a") },
+    { id: "b", he: "גרסה ב׳ — המחיר קודם", text: b, trackingLink: trackingLink(c, "luna_share_b") },
+  ];
+}
+
+/**
+ * The native commerce route: how a real product reaches a buyer, from real
+ * records only. Price/availability at the merchant are never claimed — the
+ * catalog price is labelled as such and stock is UNVERIFIED.
+ */
+export function commerceRoute(c, { clicks = [], sales = [] } = {}) {
+  let host = "";
+  try { host = c.affiliateUrl ? new URL(c.affiliateUrl).hostname.replace(/^www\./, "") : ""; } catch { host = ""; }
+  const outbound = (clicks || []).filter((x) => x && String(x.productId) === c.id && x.type === "outbound_click");
+  const bySource = {};
+  for (const x of outbound) { const k = String(x.source || "affiliate"); bySource[k] = (bySource[k] || 0) + 1; }
+  const own = (sales || []).filter((x) => x && String(x.productId) === c.id);
+  const verified = own.filter((x) => x.source === "paypal_checkout" && x.captureId).length;
+  return {
+    productId: c.id,
+    model: c.saleModel,
+    merchant: host ? { host } : null,
+    creator: c.creator ? { id: c.creator.id, name: c.creator.name, slug: c.creator.slug } : null,
+    canonicalPage: productPageUrl(c),
+    trackedRoute: trackingLink(c, "luna_route") || null,
+    disclosure: c.saleModel === "affiliate" ? { required: true, he: AFFILIATE_DISCLOSURE_HE } : { required: false, he: null },
+    price: c.price ? { amount: c.price, currency: c.currency, source: "catalog", verifiedAtMerchant: false } : null,
+    availability: { listed: c.status === "approved", merchantStock: "UNVERIFIED" },
+    tracking: { outboundClicks: outbound.length, bySource },
+    conversion: { verified, selfReported: own.length - verified, evidence: verified ? "PayPal capture" : own.length ? "self-reported, signed" : "none" },
+  };
+}
+
+/** Real connections between public products (no new pages): same creator, same category, shared collections. */
+export function productConnections(c, { products = [], marketers = [], collections = [], limit = 6 } = {}) {
+  const pool = (products || []).filter((p) => p && String(p.id) !== c.id && isPublicProduct(p, marketers));
+  const sameCreator = c.creator ? pool.filter((p) => String(p.marketerId) === c.creator.id).map((p) => String(p.id)).slice(0, limit) : [];
+  const cat = String(c.category || "").toLowerCase();
+  const sameCategory = cat ? pool.filter((p) => String(p.category || "").toLowerCase() === cat).map((p) => String(p.id)).slice(0, limit) : [];
+  const inCollections = (collections || []).filter((col) => Array.isArray(col?.productIds) && col.productIds.map(String).includes(c.id));
+  const viaCollections = [...new Set(inCollections.flatMap((col) => col.productIds.map(String)).filter((id) => id !== c.id))].slice(0, limit);
+  return { sameCreator, sameCategory, viaCollections, collections: inCollections.map((col) => String(col.id)) };
+}
+
+const HTML_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (ch) => HTML_ESC[ch]);
+
+/**
+ * The crawler-served /p/:id body — the same real content a person sees
+ * (title, description, price, creator, disclosure), escaped. No extra
+ * crawler-only links (no cloaking).
+ */
+export function renderProductBody(c) {
+  const parts = [
+    `<h1 style="font-size:22px;margin:0 0 8px">${esc(c.title)}</h1>`,
+    c.price ? `<p style="font-size:20px;font-weight:700;margin:0 0 8px">${esc(formatPrice(c))}</p>` : "",
+    c.description ? `<p style="margin:0 0 12px;line-height:1.6">${esc(clip(c.description, 400))}</p>` : "",
+    c.creator ? `<p style="margin:0 0 12px">מומלץ על ידי <a href="${esc(creatorPageUrl(c))}">${esc(c.creator.name)}</a></p>` : "",
+    c.saleModel === "affiliate" ? `<p style="font-size:12px;opacity:.8;margin:0">${esc(AFFILIATE_DISCLOSURE_HE)}</p>` : "",
+  ];
+  return parts.filter(Boolean).join("");
 }
 
 export function isPublicProduct(product, marketers) {

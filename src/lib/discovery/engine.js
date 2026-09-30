@@ -12,7 +12,9 @@
 import {
   canonicalProduct, productPageUrl, creatorPageUrl, trackingLink, buildProductSeo, auditSeo,
   merchantStatus, buildContentDrafts, buildShareAsset, buildChannelPayloads, isPublicProduct, ORIGIN,
+  SHARE_FORMAT, buildShareVariants, commerceRoute, productConnections,
 } from "./surfaces.js";
+import { shareExperiment } from "./experiments.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL, productMediaTruth } from "./mediaTruth.js";
 import { evidence, TRUTH } from "./truth.js";
 
@@ -189,7 +191,7 @@ function productSignals(productId, { clicks = [], sales = [], publications = [],
 export function buildPassport({
   product, marketers = [], clicks = [], sales = [], publications = [], ugcAssets = [], collections = [],
   channels = [], duplicateTitle = false, storedAssets = null, previous = null, origin = ORIGIN, now = Date.now(),
-  publicFeedIds = null,
+  publicFeedIds = null, products = [],
 } = {}) {
   const marketer = (marketers || []).find((m) => m && m.id === product?.marketerId) || null;
   const c = canonicalProduct(product, marketer, origin);
@@ -205,7 +207,9 @@ export function buildPassport({
   const hasDeal = compare > 0 && c.price && compare > c.price;
   // A version the owner restored by hand stays "fresh" until the product changes (LAW 13).
   const sharePinned = Boolean(storedAssets?.share && storedAssets.pinnedFor === c.fingerprint);
-  const shareFresh = Boolean(storedAssets && storedAssets.share && (storedAssets.fingerprint === c.fingerprint || sharePinned));
+  // Fresh = built from this product data AND in the current share format
+  // (format 2 carries the affiliate disclosure); a manual restore stays pinned.
+  const shareFresh = Boolean(storedAssets && storedAssets.share && ((storedAssets.fingerprint === c.fingerprint && Number(storedAssets.format || 1) >= SHARE_FORMAT) || sharePinned));
   const externalConnected = (channels || []).filter((ch) => ["telegram", "webhook"].includes(ch.provider) && ch.connected);
 
   const surfaces = [
@@ -263,6 +267,11 @@ export function buildPassport({
     media,
     tracking: { link, clicks: signals.clicks, lastClickAt: signals.lastClickAt, bySource: signals.clicksBySource },
     signals,
+    // Native commerce routing, real product-to-product connections and the
+    // share-pack A/B state (never a manufactured winner).
+    commerce: commerceRoute(c, { clicks, sales }),
+    connections: productConnections(c, { products, marketers, collections }),
+    experiment: shareExperiment(c.id, clicks),
   };
   passport.score = discoveryScore(passport, { externalConnected: externalConnected.length });
   if (previous && Number.isFinite(previous.score)) {
@@ -499,10 +508,14 @@ export function buildProductAssets(product, marketers, channels, origin = ORIGIN
   const c = canonicalProduct(product, marketer, origin);
   const drafts = buildContentDrafts(c);
   const share = buildShareAsset(c, drafts);
-  if (share) share.trackingLink = trackingLink(c, "luna_share");
+  if (share) {
+    share.trackingLink = trackingLink(c, "luna_share");
+    share.variants = buildShareVariants(c, share);
+  }
   return {
     productId: c.id,
     fingerprint: c.fingerprint,
+    format: SHARE_FORMAT,
     generatedAt: now,
     share,
     drafts,

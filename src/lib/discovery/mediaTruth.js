@@ -45,12 +45,26 @@ export function isHttpUrl(value) {
   return /^https?:\/\/\S+$/i.test(String(value || "").trim());
 }
 
+/**
+ * A video file LikeLink rendered itself (the in-browser reel engine, the
+ * first-party motion pipeline) or any synthetic video is an ANIMATION of the
+ * product — never a filmed video and never human UGC, whatever its format.
+ */
+export function isRenderedAnimation(record = {}) {
+  const origin = `${record.source || ""} ${record.videoProvider || ""} ${record.provider || ""}`.toLowerCase();
+  return record.native === true || record.synthetic === true || /\blikelink_/.test(origin);
+}
+
 /** Classify one media record (product field or UGC/video asset). */
 export function classifyMediaRecord(record = {}) {
   const videoUrl = String(record.videoUrl || record.video || "").trim();
   const status = String(record.videoStatus || record.status || "").toLowerCase();
   const isSvg = /^data:image\/svg/i.test(videoUrl) || /\.svg(\?|#|$)/i.test(videoUrl) || status === "available_as_motion_svg";
-  if (videoUrl && !isSvg && (isHttpUrl(videoUrl) || /^blob:/i.test(videoUrl)) && (VIDEO_FILE.test(videoUrl) || status === "completed" || status === "ready")) {
+  const playable = videoUrl && !isSvg && (isHttpUrl(videoUrl) || /^blob:/i.test(videoUrl)) && (VIDEO_FILE.test(videoUrl) || status === "completed" || status === "ready");
+  if (playable && isRenderedAnimation(record)) {
+    return { state: MEDIA_TRUTH.SYNTHETIC_ANIMATION, url: videoUrl, synthetic: true, rendered: true };
+  }
+  if (playable) {
     return { state: MEDIA_TRUTH.REAL_VIDEO, url: videoUrl, synthetic: Boolean(record.synthetic) };
   }
   if (record.videoJobId && ACTIVE_JOB.has(status)) {

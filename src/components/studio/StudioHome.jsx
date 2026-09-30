@@ -183,6 +183,8 @@ function LiveReelMedia({ product, hero = false }) {
           productId: product.id,
           productTags: [{ productId: product.id }],
           source: "likelink_overview_ugc",
+          native: true,
+          synthetic: true,
           public: Boolean(remote),
         });
       } catch {

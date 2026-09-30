@@ -7,6 +7,7 @@ import { productPath } from "../../lib/acquisition.js";
 import { updatePageSEO, getProductSEO, getDefaultSEO } from "../../lib/seo.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import ShareBar from "./ShareBar";
+import { saleModelOf, AFFILIATE_DISCLOSURE_HE } from "../../lib/discovery/surfaces.js";
 
 /**
  * ProductShowcase — public viral page for a single product.
@@ -123,6 +124,12 @@ export default function ProductShowcase({ product, owner, navigate }) {
               {L("קישור רכישה אינו זמין כרגע.", "Purchase link is not available right now.")}
             </p>
           )}
+
+          {outboundHref && saleModelOf(product) === "affiliate" ? (
+            <p className="text-[11px] text-muted mt-2 text-center">
+              {L(AFFILIATE_DISCLOSURE_HE, "Disclosure: affiliate link — the creator may earn a commission, at no extra cost to you.")}
+            </p>
+          ) : null}
 
           <button
             type="button"

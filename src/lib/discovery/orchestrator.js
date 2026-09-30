@@ -116,6 +116,7 @@ export function computePassports(data, { env = {}, origin = ORIGIN, now = Date.n
       sales: data.sales,
       publications: data.publications,
       publicFeedIds: data.publicFeedIds,
+      products: data.products,
       ugcAssets: extra.ugc || [],
       collections: data.collections,
       channels,
@@ -136,7 +137,7 @@ async function persistAssets({ kvSet, product, data, channels, origin, now, stor
   if (stored?.share && stored.pinnedFor === assets.fingerprint) {
     return { status: OPPORTUNITY_STATUS.UP_TO_DATE, reason: "שוחזרה ידנית גרסה קודמת — לונה לא דורסת אותה כל עוד המוצר לא השתנה", assets: stored };
   }
-  if (stored && stored.fingerprint === assets.fingerprint && stored.share) {
+  if (stored && stored.fingerprint === assets.fingerprint && stored.share && Number(stored.format || 1) >= Number(assets.format || 1)) {
     return { status: OPPORTUNITY_STATUS.UP_TO_DATE, reason: "חבילת השיתוף כבר מעודכנת לנתוני המוצר", assets: stored };
   }
   const next = stored
@@ -531,6 +532,10 @@ export async function publicPassport({ kvGet, productId, env = {}, origin = ORIG
       publications: { total: p.signals.publications, verified: p.signals.verifiedPublications, unverified: p.signals.unverifiedPublished },
       opportunities: p.opportunities.map((o) => ({ id: o.id, kind: o.kind, what: o.what, status: o.status, safety: o.safety })),
       previousScore: p.previousScore ?? null,
+      // Public-safe commerce route: how the sale happens + the disclosure. No
+      // click/conversion counts (those are the owner's).
+      commerce: { model: p.commerce.model, merchant: p.commerce.merchant, canonicalPage: p.commerce.canonicalPage, disclosure: p.commerce.disclosure, availability: p.commerce.availability, price: p.commerce.price },
+      connections: { sameCreator: p.connections.sameCreator.length, sameCategory: p.connections.sameCategory.length, collections: p.connections.collections.length },
     },
     channels: channels.map((c) => ({ provider: c.provider, label: c.label, state: c.state })),
   };

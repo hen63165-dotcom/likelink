@@ -14,7 +14,7 @@
 
 import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
-import { canonicalProduct, buildProductSeo } from "../src/lib/discovery/surfaces.js";
+import { canonicalProduct, buildProductSeo, renderProductBody } from "../src/lib/discovery/surfaces.js";
 import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
 
 const BOT_PATTERN =
@@ -399,7 +399,8 @@ export default async function handler(req, res) {
     // SEO comes from the Luna discovery surfaces (one canonical source of
     // truth, real product fields only) — the same builder the discovery
     // engine audits, so what is checked is exactly what is served.
-    const seo = attributable ? buildProductSeo(canonicalProduct(product, owner, origin)) : null;
+    const canonical = attributable ? canonicalProduct(product, owner, origin) : null;
+    const seo = attributable ? buildProductSeo(canonical) : null;
     title = attributable ? escapeHtml(seo.title) : "Likelink — המוצר לא זמין";
     description = attributable
       ? escapeHtml(seo.description)
@@ -434,7 +435,7 @@ export default async function handler(req, res) {
 ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ""}
 </head>
 <body style="margin:0;background:#f7f5f2;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#6f6b63">
-<div style="text-align:center;padding:24px">${attributable ? "לינק מוצר · נוצר בסטודיו של Likelink" : "מוצר לא זמין"}</div>
+<main style="max-width:560px;padding:24px;color:#2b2925">${attributable ? renderProductBody(canonical) : "מוצר לא זמין"}</main>
 </body>
 </html>`;
 

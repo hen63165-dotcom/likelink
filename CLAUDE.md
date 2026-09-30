@@ -69,7 +69,18 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - **Entitlements:** `entitlements.js` `resolveEntitlement` is the single decider of the plan, from the server-verified subscription only. Pending/unknown means free. `api/store.mjs` `sub=get` uses `pickSubscription` so a pending record still reaches the PayPal self-heal.
   - **System check:** `systemCheck.js` `evaluateSystem` turns live probes into GREEN/YELLOW/RED/UNVERIFIED with evidence. The owner/admin view names missing env vars; the public view hides env names, vulnerability details and private counts.
   - **New capabilities:** add them with `registerCapability`, which refuses a capability without `verification`.
-- **Scheduler fairness:** `growthScheduler.runDueJobs` runs due jobs longest-waiting first. The light cron runs only 2 jobs per call, so registration order must never decide (it starved later jobs for days).
+- **Scheduler fairness:** `growthScheduler.runDueJobs` runs due jobs longest-waiting first, so registration order never decides. The light cron is time-boxed (`budgetMs: 90_000`) instead of a fixed job count, because GitHub fires the dispatcher only every few hours; deferred jobs keep priority on the next beat.
+- **Media storage** (`src/lib/cloud/mediaStore.js`): the `product-images` bucket is private.
+  - Reads go through `/api/og?mode=media&path=<kind>/<id>/<file>`, which asks Storage with the anon key, so the storage RLS policies are the only gate.
+  - Uploads go to `products|reels/<own studio id>/`.
+  - The bucket + policies migration is `supabase/migrations/20260930000000_product_images_bucket.sql` (prepared; apply needs owner approval).
+  - The system check runs a daily real upload → readback → anon-denied self-test once the bucket exists.
+- **Discovery fabric** (`surfaces.js`, `experiments.js`):
+  - Every affiliate share pack and product page carries a disclosure (`AFFILIATE_DISCLOSURE_HE`). `SHARE_FORMAT` bumps rebuild older packs once, keeping `previous`.
+  - Passports carry `commerce` (`commerceRoute`: price is labelled catalog, stock UNVERIFIED, conversions verified only by a PayPal capture), `connections` (real, public-only) and `experiment` (A/B share variants `luna_share_a/b`). An experiment never names a winner without known exposures.
+  - Crawlers get `renderProductBody`: the same content a person sees, with no crawler-only links.
+- **Video truth:** anything LikeLink renders (`videoEngine.js` reels, the `likelink_*` sources) is `SYNTHETIC_ANIMATION`, never `REAL_VIDEO` and never titled UGC.
+- **Subscriptions:** ACTIVE records are reconciled with PayPal at most every 12h (`entitlements.reconcileActiveSubscription`). A cancellation keeps the paid period, and a failed lookup never revokes. Plans self-provision on the first `sub=create` (`paypal.js` `ensureBillingPlans` → `marketplace:paypal_plans`).
 - **Checkout:** `create-order` prices the cart from the catalog (`api/_utils/checkoutCatalog.mjs`) and stores `checkout:order:<paypalOrderId>`. `capture-order` records only that stored record and checks the captured amount against it. Never trust client prices or owners.
 - Server code must never fall back to the anon key. Missing service-role config returns 500 on purpose ("fail loud").
 - Admin login is `POST /api/admin/auth` against the `ADMIN_CODE` env var and returns an HMAC-signed token (`api/_utils/adminAuth.js`). Server-only secrets must never get a `VITE_` prefix, because that prefix ships them to the browser bundle.

@@ -126,6 +126,8 @@ export default function UGCCampaignStudio({ onNavigate }) {
         marketerId: marketer?.id,
         productTags: [{ productId: product.id }],
         source: `likelink_first_party_${style.id}`,
+        native: true,
+        synthetic: true,
         public: Boolean(remoteUrl),
       });
       return item;
@@ -337,7 +339,7 @@ export default function UGCCampaignStudio({ onNavigate }) {
                     <div className="flex h-full items-center justify-center"><Clapperboard size={28} style={{ color: "var(--text-faint)" }} /></div>
                   )}
                   <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[9px] font-black" style={{ background: "rgba(5,8,17,.82)", color: "#fff" }}>
-                    {media?.status === "ready" && media?.remote ? (activeStyle === "ugc" ? "UGC · CLOUD READY" : "3D MOTION · CLOUD READY") : media?.status === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : (busyAll ? "RENDERING" : "READY TO GENERATE")}
+                    {media?.status === "ready" && media?.remote ? (activeStyle === "ugc" ? "UGC-STYLE ANIMATION · CLOUD READY" : "3D MOTION · CLOUD READY") : media?.status === "preview" ? "LOCAL PREVIEW · NOT PUBLISHED" : (busyAll ? "RENDERING" : "READY TO GENERATE")}
                   </div>
                 </div>
                 <div className="p-4">
