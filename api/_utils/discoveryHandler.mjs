@@ -31,7 +31,7 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
-import { getPayPalToken, paypalBase } from "./paypal.js";
+import { getPayPalToken, getPayPalTokenStatus, paypalBase } from "./paypal.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
 import { listCapabilities } from "../../src/lib/discovery/capabilities.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
@@ -152,10 +152,16 @@ export function createDiscoveryHandler({
    */
   async function probePayPal() {
     if (!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET)) return {};
-    const out = { paypalEnv: paypalBase().includes("sandbox") ? "sandbox" : "live", tokenOk: null, provisioned: 0, provisionedVerified: 0 };
+    const out = { paypalEnv: paypalBase().includes("sandbox") ? "sandbox" : "live", tokenOk: null, tokenRejected: false, tokenStatus: null, provisioned: 0, provisionedVerified: 0 };
     try {
-      const token = await getPayPalToken();
-      out.tokenOk = Boolean(token);
+      // Rejected credentials (401/403) are a proven fault; a network or
+      // provider error is not proof of anything and stays unverified.
+      const st = await getPayPalTokenStatus();
+      out.tokenOk = st.ok;
+      out.tokenStatus = st.status;
+      out.tokenRejected = st.rejected;
+      out.paypalEnvSource = st.envSource;
+      const token = st.ok ? await getPayPalToken() : null;
       const cached = await kvGet("marketplace:paypal_plans", null);
       const ids = ["starter", "professional", "enterprise"].map((p) => (cached && typeof cached === "object" ? cached[`${p}:monthly`] : null)).filter(Boolean);
       out.provisioned = ids.length;

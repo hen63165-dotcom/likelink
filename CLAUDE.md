@@ -45,6 +45,9 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - Creating an unowned record returns 401 or 403.
   - `src/lib/storage.js` sends the admin token or the Supabase session token.
 - **Failed reads never become writes:** every server kv helper uses `src/lib/cloud/kvReadGuard.js`. A failed read marks the key, and `kvSet` refuses to write it until a read succeeds. Keep this for any new kv helper.
+- **Migrations deploy on push.** A Supabase GitHub integration applies every file pushed to `supabase/migrations/` on `main` to PRODUCTION.
+  - Observed: `20260930000000_product_images_bucket` was applied about 70 s after its push, recorded under the file's own version. `20260928000000_kv_lockdown` was applied the same way. No workflow in this repo does it.
+  - Never commit a migration you do not intend to run in production. A prepared-only migration must stay out of `supabase/migrations/` until it is approved.
 - **The kv RLS lockdown is live.** `supabase/migrations/20260928000000_kv_lockdown.sql` is applied in production (verified 2026-09-30 in `supabase_migrations.schema_migrations` and `pg_policies`). The file's header comment still says "NOT APPLIED".
   - anon/authenticated can SELECT only the 11 allowlisted keys and cannot write `kv`. Writes need `is_likelink_admin()` or the service role.
   - A new key the browser must read directly needs a new migration that adds it to the allowlist.
@@ -73,7 +76,7 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
 - **Media storage** (`src/lib/cloud/mediaStore.js`): the `product-images` bucket is private.
   - Reads go through `/api/og?mode=media&path=<kind>/<id>/<file>`, which asks Storage with the anon key, so the storage RLS policies are the only gate.
   - Uploads go to `products|reels/<own studio id>/`.
-  - The bucket + policies migration is `supabase/migrations/20260930000000_product_images_bucket.sql` (prepared; apply needs owner approval).
+  - The bucket + policies migration is `supabase/migrations/20260930000000_product_images_bucket.sql` (applied 2026-09-30 — see the migrations note).
   - The system check runs a daily real upload → readback → anon-denied self-test once the bucket exists.
 - **Discovery fabric** (`surfaces.js`, `experiments.js`):
   - Every affiliate share pack and product page carries a disclosure (`AFFILIATE_DISCLOSURE_HE`). `SHARE_FORMAT` bumps rebuild older packs once, keeping `previous`.

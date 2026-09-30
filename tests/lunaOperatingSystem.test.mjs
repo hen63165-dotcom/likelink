@@ -378,8 +378,12 @@ test("system check: payments are judged on PayPal evidence — never a guessed f
   assert.match(untried.ownerAction, /PAYPAL_PLAN_STARTER/);
   assert.match(untried.ownerAction, /PAYPAL_WEBHOOK_ID/);
   assert.doesNotMatch(JSON.stringify(at(base, "public")), /[A-Z]+_(SECRET|ID|STARTER|PROFESSIONAL|ENTERPRISE)/);
-  // PayPal itself rejects the credentials → a proven fault.
-  assert.equal(at({ ...base, tokenOk: false }).color, "RED");
+  // PayPal itself rejects the credentials (401/403) → a proven fault; a network error proves nothing.
+  const rejected = at({ ...base, tokenOk: false, tokenRejected: true, tokenStatus: 401, paypalEnvSource: "inferred" });
+  assert.equal(rejected.color, "RED");
+  assert.match(rejected.ownerAction, /PAYPAL_ENV=sandbox/);
+  assert.doesNotMatch(JSON.stringify(at({ ...base, tokenOk: false, tokenRejected: true, tokenStatus: 401 }, "public")), /[A-Z]+_(SECRET|ID|ENV)|HTTP/);
+  assert.equal(at({ ...base, tokenOk: false, tokenRejected: false }).color, "YELLOW", "a timeout is not a rejection");
   // Self-provisioned plans verified ACTIVE at PayPal + webhook → GREEN.
   assert.equal(at({ ...base, provisioned: 3, provisionedVerified: 3, webhookConfigured: true }).color, "GREEN");
   assert.equal(at({ ...base, provisioned: 3, provisionedVerified: 2, webhookConfigured: true }).color, "YELLOW", "one plan not ACTIVE at PayPal is not ready");

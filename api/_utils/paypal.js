@@ -54,6 +54,33 @@ export async function getPayPalToken() {
   }
 }
 
+/**
+ * The system check's PayPal proof: can the server authenticate, and if not,
+ * WHY — PayPal refused the credentials (401/403) vs. a network / provider
+ * failure. Returns the HTTP status and environment only; never the token.
+ */
+export async function getPayPalTokenStatus() {
+  const id = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
+  const secret = process.env.PAYPAL_CLIENT_SECRET;
+  const env = paypalBase() === SANDBOX_API ? "sandbox" : "live";
+  const envSource = process.env.PAYPAL_ENV ? "PAYPAL_ENV" : "inferred";
+  if (!id || !secret) return { ok: false, status: null, rejected: false, env, envSource };
+  try {
+    const res = await fetch(`${paypalBase()}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + Buffer.from(`${id}:${secret}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+      signal: AbortSignal.timeout(10000),
+    });
+    return { ok: res.ok, status: res.status, rejected: res.status === 401 || res.status === 403, env, envSource };
+  } catch {
+    return { ok: false, status: null, rejected: false, env, envSource, error: "network" };
+  }
+}
+
 // Direct status check against PayPal's own Subscriptions API. This is the
 // fallback path for accounts that haven't configured PAYPAL_WEBHOOK_ID yet:
 // without it, BILLING.SUBSCRIPTION.ACTIVATED webhooks are correctly rejected

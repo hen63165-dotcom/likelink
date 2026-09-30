@@ -67,7 +67,7 @@ function evaluateStorage(st, { priv, now }) {
       priv ? `להחיל את ${STORAGE_MIGRATION}` : "להשלים את הגדרת אחסון המדיה");
   }
   const ev = [
-    "הדלי פרטי — קבצים מוגשים רק דרך הפרוקסי, לפי מדיניות RLS",
+    "הדלי פרטי — קבצים מוגשים רק דרך הפרוקסי, לפי מדיניות ההרשאות",
     Number.isFinite(st.policies) ? `${st.policies}/${STORAGE_POLICY_COUNT} מדיניות גישה פעילות` : "מצב המדיניות לא אומת",
   ];
   const test = st.selftest || null;
@@ -101,9 +101,15 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   // payments
   if (!p.payments?.paypalConfigured) {
     areas.push(area("payments", "תשלומים", COLOR.RED, "PayPal לא מוגדר בשרת — אין תשלום אפשרי", priv ? "להגדיר PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET" : "להשלים את חיבור PayPal בשרת"));
+  } else if (p.payments.tokenRejected === true) {
+    // PayPal itself answered 401/403 — a proven fault: nothing PayPal-backed can work.
+    const envHe = p.payments.paypalEnv === "sandbox" ? "סביבת הבדיקות" : "הסביבה החיה";
+    areas.push(area("payments", "תשלומים", COLOR.RED,
+      [`PayPal דחה את פרטי ההתחברות של השרת ב${envHe} — מנוי, תשלום ויצירת מסלולים לא יכולים לעבוד`,
+        priv && p.payments.tokenStatus ? `תשובת PayPal: HTTP ${p.payments.tokenStatus}${p.payments.paypalEnvSource === "inferred" ? " · הסביבה נקבעה מהמפתח (PAYPAL_ENV לא מוגדר)" : ""}` : null],
+      priv ? `לוודא ש-PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET הם מפתחות ${p.payments.paypalEnv === "sandbox" ? "Sandbox" : "Live"} תקפים — או להגדיר PAYPAL_ENV=${p.payments.paypalEnv === "sandbox" ? "live" : "sandbox"} אם אלה מפתחות של הסביבה האחרת` : "לבדוק את חיבור PayPal"));
   } else if (p.payments.tokenOk === false) {
-    areas.push(area("payments", "תשלומים", COLOR.RED, "PayPal דחה את פרטי ההתחברות של השרת — אין תשלום אפשרי",
-      priv ? "לבדוק את PAYPAL_CLIENT_ID ו-PAYPAL_CLIENT_SECRET (ואת PAYPAL_ENV)" : "לבדוק את חיבור PayPal"));
+    areas.push(area("payments", "תשלומים", COLOR.YELLOW, "אימות מול PayPal לא הצליח כרגע (תקלת רשת או ספק) — מצב התשלומים לא אומת", null));
   } else {
     const pay = p.payments;
     const total = Number(pay.plansTotal) || 3;
