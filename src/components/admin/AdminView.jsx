@@ -8,6 +8,7 @@ import { ProductThumb } from "../product/ProductComponents";
 
 import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed.js";
 import PayoutsSection from "./PayoutsSection";
+import PayPalPlansCard from "./PayPalPlansCard";
 import GrowthEnginePanel from "./GrowthEnginePanel";
 import CloudReportSection from "./CloudReportSection";
 import { adminLogin, verifyAdminToken, adminLogout, verifyOwnerSession } from "../../lib/adminAuth.js";
@@ -268,7 +269,10 @@ export default function AdminView() {
         </div>
       )}
       {section === "payouts" && (
-        <PayoutsSection />
+        <>
+          <PayoutsSection />
+          <PayPalPlansCard />
+        </>
       )}
       {section === "growth" && (
         <GrowthEnginePanel />

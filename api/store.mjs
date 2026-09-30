@@ -33,7 +33,7 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails } from "./_utils/paypal.js";
 import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { verifyProduct, isDiscoveryEligible, trustGateReport } from "../src/lib/cloud/trustVerification.js";
@@ -570,6 +570,40 @@ async function subsHandler(req, res) {
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
+  }
+
+  // ── One-time plan provisioning (admin token or the platform owner only) ──
+  // Creates/adopts the PayPal catalog product + the 6 billing plans in ILS at
+  // the site's prices, stores their ids in kv, then verifies each one at
+  // PayPal (ACTIVE, ILS, price). Idempotent. Never creates a subscription,
+  // never charges, never sends a payment.
+  if (sub === "provision-plans") {
+    if (req.method !== "POST") return json(res, { ok: false, error: "method_not_allowed" }, 405, req);
+    const token = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    if (!token) return json(res, { ok: false, error: "authentication_required" }, 401, req);
+    let allowed = await isAdminToken(token);
+    if (!allowed) {
+      const user = await verifyToken(token).catch(() => null);
+      const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+      allowed = Boolean(ownerEmail && user?.email && String(user.email).trim().toLowerCase() === ownerEmail);
+    }
+    if (!allowed) {
+      audit.logApiForbidden({ type: "not_admin" }, { type: "subs", submode: sub }, { _req: req });
+      return json(res, { ok: false, error: "admin_required" }, 403, req);
+    }
+    if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
+    const report = { created: [], adopted: [], failed: [] };
+    const plans = await ensureBillingPlans({ kvGet, kvSet, report });
+    const verified = await verifyBillingPlans(plans);
+    const planIds = Object.fromEntries(Object.entries(plans || {}).filter(([k]) => k.includes(":")));
+    return json(res, {
+      ok: report.failed.length === 0 && verified.every((v) => v.ok),
+      currency: PLAN_CURRENCY,
+      productId: plans?.productId || null,
+      plans: planIds,
+      ...report,
+      verified,
+    }, 200, req);
   }
 
   return subsAuthHandler(req, res, sub, body);
