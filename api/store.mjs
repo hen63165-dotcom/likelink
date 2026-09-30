@@ -2,7 +2,7 @@ import { intelligenceHandler } from "./_utils/intelligenceHandler.mjs";
 
 import { readBody } from "./_utils/readBody.mjs";
 import { originFromRequest } from "./_utils/origin.mjs";
-import { resolveEntitlement, pickSubscription } from "../src/lib/discovery/entitlements.js";
+import { resolveEntitlement, pickSubscription, needsReconcile, reconcileActiveSubscription } from "../src/lib/discovery/entitlements.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
@@ -625,6 +625,17 @@ async function subsAuthHandler(req, res, sub, body) {
         }
         // Any other live status (e.g. APPROVAL_PENDING, or lookup failed) —
         // leave as "pending" and let the next check try again. Never guess.
+      }
+      // Renewal / cancellation without a webhook: an ACTIVE record is
+      // re-checked against PayPal at most every 12h. Only PayPal's explicit
+      // state changes it (a failed lookup never revokes); a cancellation
+      // keeps the period already paid for.
+      if (needsReconcile(mine)) {
+        const details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        if (details?.status) {
+          mine = reconcileActiveSubscription(mine, details, Date.now());
+          await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? mine : s))).catch(() => {});
+        }
       }
       if (mine && mine.expiresAt && new Date(mine.expiresAt).getTime() < Date.now()) {
         mine = { ...mine, status: "expired" };

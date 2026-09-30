@@ -176,21 +176,90 @@ export const FACTS = Object.freeze({
   measured: { he: "מצב גילוי מתועד", read: () => false },
 });
 
+// Contract fields every capability carries (built-in or registered later):
+// dependencies (capabilities that must run first, same product), the proof it
+// records (evidence), what happens when it fails (recovery) and a version.
+const CONTRACT = {
+  create_share_asset: { dependencies: [], evidence: "discovery:assets:<id> נקרא חזרה עם טביעת אצבע תואמת", recovery: "dead-letter + ריצה חוזרת אידמפוטנטית; שחזור לגרסה הקודמת (rollbackAssets)" },
+  verify_product_seo: { dependencies: [], evidence: "בדיקת ה-SEO שמוגש בפועל ב-/p/:id (buildProductSeo)", recovery: "בדיקה בלבד — אין מה לשחזר" },
+  record_passport: { dependencies: [], evidence: "discovery:passport:<id> עם היסטוריית ציון", recovery: "נכתב שוב בריצה הבאה" },
+  fix_product_data: { dependencies: [], evidence: "הדרכון המחושב מחדש מראה שהשדה קיים", recovery: "הבעלים מתקן שוב — אין פעולה אוטומטית" },
+  enable_direct_checkout: { dependencies: ["fix_product_data"], evidence: "merchantStatus.eligible מחושב מחדש", recovery: "החלטת בעלים הפיכה בסטודיו" },
+  create_collection: { dependencies: [], evidence: "הקולקציה מכילה את המוצר", recovery: "הסרה מהקולקציה" },
+  create_real_video: { dependencies: [], evidence: "media truth = REAL_VIDEO (קובץ נגיש)", recovery: "הסרת הסרטון מהמוצר" },
+  connect_channel: { dependencies: [], evidence: "הערוץ מדווח CONNECTED מהשרת", recovery: "ניתוק הערוץ בהגדרות" },
+  publish_external: { dependencies: ["connect_channel", "create_share_asset"], evidence: "מזהה הודעה מהספק (provider message id)", recovery: "אין ניסיון חוזר עיוור — אישור בעלים מחדש (מניעת פרסום כפול)" },
+  manual_share: { dependencies: ["create_share_asset"], evidence: "קליקים דרך לינק המעקב עם src=luna_share", recovery: "אין — שיתוף ידני" },
+  reconcile_subscription: { dependencies: [], evidence: "סטטוס PayPal שנבדק בשרת (ACTIVE + custom_id + plan_id)", recovery: "בדיקה חוזרת; כשל בבדיקה לעולם לא מבטל גישה" },
+  paid_campaign: { dependencies: ["create_share_asset"], evidence: "מזהה קמפיין מספק המודעות", recovery: "השהיית הקמפיין אצל הספק" },
+};
+
+const CAPABILITY_FIELDS = ["he", "reason", "risk", "permission", "executor", "satisfies", "preconditions", "expected", "verification", "dependencies", "evidence", "recovery", "version"];
+
+/** Validate one capability against the contract. Returns a list of problems (empty = valid). */
+export function validateCapability(id, def, registry = REGISTRY) {
+  const problems = [];
+  if (!/^[a-z][a-z0-9_]{2,60}$/.test(String(id || ""))) problems.push("id");
+  for (const k of CAPABILITY_FIELDS) if (def?.[k] === undefined || def?.[k] === null || def?.[k] === "") problems.push(k);
+  if (def && !Object.values(RISK).includes(def.risk)) problems.push("risk_value");
+  if (def && !Object.values(PERMISSION).includes(def.permission)) problems.push("permission_value");
+  if (def && !Object.values(EXECUTOR).includes(def.executor)) problems.push("executor_value");
+  if (def && typeof def.preconditions !== "function") problems.push("preconditions_fn");
+  if (def && !Array.isArray(def.satisfies)) problems.push("satisfies_list");
+  if (def && Array.isArray(def.dependencies)) {
+    for (const d of def.dependencies) if (d === id || !registry[d]) problems.push(`dependency:${d}`);
+  } else if (def) problems.push("dependencies_list");
+  // Anything that runs by itself must be native, internal and low-risk (LAW 06/14).
+  if (def && def.permission === PERMISSION.SESSION && def.executor === EXECUTOR.INTERNAL && (def.risk !== RISK.LOW || def.native === false)) problems.push("autonomous_must_be_native_low_risk");
+  return [...new Set(problems)];
+}
+
+for (const [id, def] of Object.entries(REGISTRY)) {
+  Object.assign(def, { version: 1, ...CONTRACT[id] });
+  const problems = validateCapability(id, def);
+  if (problems.length) throw new Error(`capability_invalid:${id}:${problems.join(",")}`);
+}
+
 /** The live capability registry (read-only view). */
 export const CAPABILITIES = REGISTRY;
 
 /**
- * Self-extension: add a capability without touching Luna Core. The
- * definition must say how it is verified — a capability without a verifier
- * can never report success (LAW 01).
+ * Self-extension pipeline — Capability → validation → verifier → permission
+ * → test → registration → availability. A capability without a verifier (or
+ * with an invalid permission/executor, unknown dependencies, or a failing
+ * self-test) is refused; Luna Core never changes to gain it.
  */
 export function registerCapability(id, def) {
-  const required = ["he", "reason", "risk", "permission", "executor", "satisfies", "preconditions", "expected", "verification"];
-  const missing = required.filter((k) => def?.[k] === undefined);
-  if (missing.length) throw new Error(`capability_incomplete:${id}:${missing.join(",")}`);
   if (REGISTRY[id]) throw new Error(`capability_exists:${id}`);
-  REGISTRY[id] = { native: true, adapter: null, rollback: null, ...def };
+  const full = { native: true, adapter: null, rollback: null, dependencies: [], version: 1, recovery: "dead-letter + ריצה חוזרת", evidence: def?.verification, ...def };
+  if (!def?.verification) throw new Error(`capability_incomplete:${id}:verification`);
+  const problems = validateCapability(id, full);
+  if (problems.length) throw new Error(`capability_incomplete:${id}:${problems.join(",")}`);
+  if (typeof def.selfTest === "function") {
+    let passed = false;
+    try { passed = def.selfTest() === true; } catch { passed = false; }
+    if (!passed) throw new Error(`capability_self_test_failed:${id}`);
+  }
+  REGISTRY[id] = { ...full, registeredAt: Date.now() };
   return REGISTRY[id];
+}
+
+/** Luna-discoverable catalog (no functions — safe to serve publicly). */
+export function listCapabilities() {
+  return Object.entries(REGISTRY).map(([id, c]) => ({
+    id, name: c.he, purpose: c.reason, permission: c.permission, executor: c.executor, native: c.native, adapter: c.adapter,
+    risk: c.risk, dependencies: c.dependencies, evidence: c.evidence, verification: c.verification, recovery: c.recovery,
+    rollback: c.rollback || null, satisfies: c.satisfies, version: c.version, available: true,
+    autonomous: c.native && c.executor === EXECUTOR.INTERNAL && c.permission === PERMISSION.SESSION,
+  }));
+}
+
+/** Dependency depth (0 = no dependencies) — the execution order. */
+export function dependencyDepth(id, seen = new Set()) {
+  const c = REGISTRY[id];
+  if (!c || seen.has(id)) return 0;
+  seen.add(id);
+  return c.dependencies.length ? 1 + Math.max(...c.dependencies.map((d) => dependencyDepth(d, seen))) : 0;
 }
 
 /** Failure classes (self-repair): what kind of problem, and can LikeLink fix it itself. */

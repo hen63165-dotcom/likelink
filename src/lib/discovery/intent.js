@@ -8,7 +8,7 @@
 // topological order — no AI provider is involved, so this keeps working if
 // every AI API disappears (zero-AI-dependency core). The graph is derived
 // from the real state every time; nothing here is a fixed workflow.
-import { CAPABILITIES, FACTS, PERMISSION, EXECUTOR, capabilityForFact } from "./capabilities.js";
+import { CAPABILITIES, FACTS, PERMISSION, EXECUTOR, capabilityForFact, dependencyDepth } from "./capabilities.js";
 
 /** Intent grammar: each outcome says which facts must become true. */
 export const OUTCOMES = Object.freeze({
@@ -163,22 +163,24 @@ export function buildActionGraph(intent, passports = [], { externalConnected = f
     const cap = CAPABILITIES[capId];
     nodes.push({ id: `account:${capId}`, productId: null, productTitle: null, fact: "entitlement_verified", factHe: "מצב מנוי מאומת", capability: capId, capabilityHe: cap.he, native: cap.native, adapter: cap.adapter, risk: cap.risk, permission: cap.permission, status: "client", preconditions: [], expected: cap.expected, verification: cap.verification, rollback: null, reason: cap.reason });
   }
-  // Dependency order: data fixes → internal work → sharing → external.
-  const ORDER = { fix_product_data: 0, verify_product_seo: 1, create_share_asset: 2, record_passport: 3, create_collection: 4, create_real_video: 5, enable_direct_checkout: 6, manual_share: 7, connect_channel: 8, publish_external: 9, reconcile_subscription: 10, paid_campaign: 11 };
+  // Edges come from each capability's declared dependencies (no per-workflow
+  // wiring): a node requires the same product's nodes whose capability it
+  // depends on. Data fixes still "improve" everything built on that data.
   const edges = [];
   for (const n of nodes) {
-    if (n.capability === "publish_external") {
-      for (const dep of nodes.filter((x) => x.productId === n.productId && ["connect_channel", "create_share_asset"].includes(x.capability))) {
-        edges.push({ from: dep.id, to: n.id, type: "requires" });
-      }
+    const deps = n.capability ? CAPABILITIES[n.capability]?.dependencies || [] : [];
+    for (const dep of nodes.filter((x) => x.productId === n.productId && x !== n && x.capability && deps.includes(x.capability))) {
+      edges.push({ from: dep.id, to: n.id, type: "requires" });
     }
-    if (n.capability === "create_share_asset") {
-      for (const dep of nodes.filter((x) => x.productId === n.productId && x.capability === "fix_product_data")) {
+    if (n.capability && n.capability !== "fix_product_data") {
+      for (const dep of nodes.filter((x) => x.productId === n.productId && x.capability === "fix_product_data" && !deps.includes("fix_product_data"))) {
         edges.push({ from: dep.id, to: n.id, type: "improves" });
       }
     }
   }
-  nodes.sort((a, b) => (ORDER[a.capability] ?? -1) - (ORDER[b.capability] ?? -1) || String(a.productId).localeCompare(String(b.productId)));
+  // Execution order = dependency depth, then data fixes first, then product.
+  const rank = (n) => (n.capability ? dependencyDepth(n.capability) * 10 + (n.capability === "fix_product_data" ? 0 : 1) : -1);
+  nodes.sort((a, b) => rank(a) - rank(b) || String(a.productId).localeCompare(String(b.productId)));
   const count = (st) => nodes.filter((n) => n.status === st).length;
   return {
     nodes,

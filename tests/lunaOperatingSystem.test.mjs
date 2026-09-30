@@ -27,6 +27,9 @@ const PAYPAL_SUBS = {
   "I-ACTIVE-OK": { status: "ACTIVE", plan_id: "P-TEST-STARTER", custom_id: "u-owner" },
   "I-ACTIVE-WRONG-PLAN": { status: "ACTIVE", plan_id: "P-SOMETHING-ELSE", custom_id: "u-owner" },
   "I-APPROVAL-PENDING": { status: "APPROVAL_PENDING", plan_id: "P-TEST-STARTER", custom_id: "u-owner" },
+  "I-CANCELLED": { status: "CANCELLED", plan_id: "P-TEST-STARTER", custom_id: "u-owner" },
+  "I-SUSPENDED": { status: "SUSPENDED", plan_id: "P-TEST-STARTER", custom_id: "u-owner" },
+  "I-RENEWED": { status: "ACTIVE", plan_id: "P-TEST-STARTER", custom_id: "u-owner", billing_info: { next_billing_time: "2031-01-01T00:00:00Z" } },
 };
 const jsonResponse = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 globalThis.fetch = async (url, init = {}) => {
@@ -279,6 +282,37 @@ test("subs get: a pending PayPal subscription activates only on ACTIVE + custom_
   }
 });
 
+test("subs get: an ACTIVE subscription is reconciled with PayPal — cancel keeps the paid period, a failed lookup never revokes", async () => {
+  const { default: store } = await import("../api/store.mjs");
+  const call = async () => { const res = mockRes(); await store(mockReq({ method: "POST", url: "/api/store?mode=subs&sub=get", token: "tok-owner", body: {} }), res); return res; };
+  const startedAt = new Date(Date.now() - 5 * 86400000).toISOString();
+  const cases = [
+    // [paypal id, lastReconciledAt, expected status, expected plan]
+    ["I-CANCELLED", 0, "cancelled", "starter"],
+    ["I-SUSPENDED", 0, "suspended", "free"],
+    ["I-RENEWED", 0, "active", "starter"],
+    ["I-DOES-NOT-EXIST", 0, "active", "starter"],
+    ["I-SUSPENDED", Date.now() - 60000, "active", "starter"],
+  ];
+  for (const [ppId, lastReconciledAt, expectStatus, expectPlan] of cases) {
+    kv.clear();
+    put("marketplace:subscriptions", [{ id: `s-${ppId}`, userId: "u-owner", planId: "starter", billingPeriod: "monthly", status: "active", paypalSubscriptionId: ppId, startedAt, lastReconciledAt, createdAt: startedAt }]);
+    const res = await call();
+    assert.equal(res.statusCode, 200, ppId);
+    assert.equal(res.body.subscription.status, expectStatus, `${ppId} (last check ${lastReconciledAt ? "recent" : "old"}): status`);
+    assert.equal(res.body.plan, expectPlan, `${ppId}: plan`);
+  }
+  // cancelled keeps access exactly until the paid period ends
+  kv.clear();
+  put("marketplace:subscriptions", [{ id: "s-c", userId: "u-owner", planId: "starter", billingPeriod: "monthly", status: "active", paypalSubscriptionId: "I-CANCELLED", startedAt, lastReconciledAt: 0 }]);
+  const res = await call();
+  const end = Date.parse(res.body.subscription.expiresAt);
+  assert.ok(end > Date.now() && end <= Date.parse(startedAt) + 32 * 86400000, "expiresAt = end of the month already paid for");
+  const { reconcileActiveSubscription } = await import("../src/lib/discovery/entitlements.js");
+  const renewed = reconcileActiveSubscription({ status: "active" }, { status: "ACTIVE", nextBillingTime: "2031-01-01T00:00:00Z" }, 1);
+  assert.equal(renewed.paidThrough, "2031-01-01T00:00:00.000Z", "renewal records the next billing time");
+});
+
 // ── LAW 15 — system check ────────────────────────────────────────────────────
 test("system check: every color has evidence; open RLS is RED; the public view hides private data", async () => {
   const { evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
@@ -333,18 +367,23 @@ test("system check: RLS 'locked' needs proof; private fields in a public row are
   assert.notEqual(unknown.areas.find((a) => a.id === "security").color, "GREEN", "an unverified lock is never GREEN");
 });
 
-test("system check: PayPal credentials without plan ids are not a working payment flow", async () => {
+test("system check: payments are judged on PayPal evidence — never a guessed failure", async () => {
   const { evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
-  const payments = { paypalConfigured: true, webhookConfigured: false, plansTotal: 3, plansConfigured: 0, missingPlans: ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"] };
-  const owner = evaluateSystem({ payments }, { audience: "owner" }).areas.find((a) => a.id === "payments");
-  assert.equal(owner.color, "RED");
-  assert.match(owner.ownerAction, /PAYPAL_PLAN_STARTER/);
-  assert.match(owner.ownerAction, /PAYPAL_WEBHOOK_ID/);
-  const pub = evaluateSystem({ payments }, { audience: "public" }).areas.find((a) => a.id === "payments");
-  assert.equal(pub.color, "RED");
-  assert.doesNotMatch(JSON.stringify(pub), /[A-Z]+_(SECRET|ID|STARTER|PROFESSIONAL|ENTERPRISE)\b/);
-  const ready = evaluateSystem({ payments: { ...payments, plansConfigured: 3, missingPlans: [], webhookConfigured: true } }, { audience: "owner" }).areas.find((a) => a.id === "payments");
-  assert.equal(ready.color, "GREEN");
+  const base = { paypalConfigured: true, webhookConfigured: false, plansTotal: 3, plansConfigured: 0, missingPlans: ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"], tokenOk: true, paypalEnv: "live", provisioned: 0, provisionedVerified: 0 };
+  const at = (payments, audience = "owner") => evaluateSystem({ payments }, { audience }).areas.find((a) => a.id === "payments");
+  // Plans were never provisioned (they are created on the first sub=create): not tried ≠ broken.
+  const untried = at(base);
+  assert.equal(untried.color, "YELLOW");
+  assert.match(untried.evidence.join(" "), /עוד לא נוסה/);
+  assert.match(untried.ownerAction, /PAYPAL_PLAN_STARTER/);
+  assert.match(untried.ownerAction, /PAYPAL_WEBHOOK_ID/);
+  assert.doesNotMatch(JSON.stringify(at(base, "public")), /[A-Z]+_(SECRET|ID|STARTER|PROFESSIONAL|ENTERPRISE)/);
+  // PayPal itself rejects the credentials → a proven fault.
+  assert.equal(at({ ...base, tokenOk: false }).color, "RED");
+  // Self-provisioned plans verified ACTIVE at PayPal + webhook → GREEN.
+  assert.equal(at({ ...base, provisioned: 3, provisionedVerified: 3, webhookConfigured: true }).color, "GREEN");
+  assert.equal(at({ ...base, provisioned: 3, provisionedVerified: 2, webhookConfigured: true }).color, "YELLOW", "one plan not ACTIVE at PayPal is not ready");
+  assert.equal(at({ ...base, plansConfigured: 3, missingPlans: [], webhookConfigured: true }).color, "GREEN");
 });
 
 test("API: goal compiles + executes for the owner, fails closed for anonymous callers", async () => {
@@ -371,4 +410,41 @@ test("API: goal compiles + executes for the owner, fails closed for anonymous ca
   assert.doesNotMatch(JSON.stringify(res.body), /service-role-test-key|test-secret/, "no secret value ever leaves");
   res = await call({ url: "/api/store?mode=discovery&action=laws" });
   assert.equal(res.body.laws.length, 15);
+});
+
+test("capability contract: every capability is complete, versioned and discoverable; bad ones are refused", async () => {
+  const { CAPABILITIES, listCapabilities, validateCapability, registerCapability, dependencyDepth } = await import("../src/lib/discovery/capabilities.js");
+  for (const [id, c] of Object.entries(CAPABILITIES)) {
+    assert.deepEqual(validateCapability(id, c), [], `${id} passes the contract`);
+    for (const k of ["dependencies", "evidence", "recovery", "version", "verification"]) assert.ok(c[k] !== undefined, `${id}.${k}`);
+  }
+  const catalog = listCapabilities();
+  assert.ok(catalog.length >= 12);
+  assert.ok(catalog.every((c) => typeof c.preconditions === "undefined"), "the catalog is data only");
+  assert.deepEqual(catalog.filter((c) => c.autonomous && !c.id.startsWith("test_")).map((c) => c.id).sort(), ["create_share_asset", "record_passport", "verify_product_seo"].sort(), "only native low-risk internal steps run by themselves");
+  assert.equal(dependencyDepth("publish_external"), 1);
+  const base = { he: "x", reason: "r", risk: "low", permission: "owner", executor: "owner", satisfies: [], preconditions: () => [], expected: "e", verification: "v" };
+  assert.throws(() => registerCapability("bad_permission", { ...base, permission: "god" }), /permission_value/);
+  assert.throws(() => registerCapability("bad_dependency", { ...base, dependencies: ["does_not_exist"] }), /dependency:does_not_exist/);
+  assert.throws(() => registerCapability("risky_autonomous", { ...base, permission: "session", executor: "internal", risk: "high" }), /autonomous_must_be_native_low_risk/);
+  assert.throws(() => registerCapability("failing_self_test", { ...base, selfTest: () => false }), /capability_self_test_failed/);
+  const ok = registerCapability("owner_checklist_test", { ...base, dependencies: ["fix_product_data"], selfTest: () => true });
+  assert.equal(ok.version, 1);
+  assert.ok(listCapabilities().some((c) => c.id === "owner_checklist_test" && c.available), "registered → available to Luna");
+});
+
+test("action graph: edges come from declared dependencies, not per-workflow wiring", async () => {
+  const { compileIntent, buildActionGraph } = await import("../src/lib/discovery/intent.js");
+  const { buildPassport, buildChannelRegistry } = await import("../src/lib/discovery/engine.js");
+  const channels = buildChannelRegistry({ env: {} });
+  const passport = buildPassport({ product: product(1), marketers: MARKETERS, channels });
+  const graph = buildActionGraph(compileIntent("לונה, תפרסמי את כל מה שאישרתי"), [passport], { externalConnected: false });
+  const publish = graph.nodes.find((n) => n.capability === "publish_external");
+  if (publish) {
+    const into = graph.edges.filter((e) => e.to === publish.id && e.type === "requires").map((e) => graph.nodes.find((n) => n.id === e.from)?.capability);
+    assert.ok(into.includes("connect_channel"), "publishing requires a connected channel");
+  }
+  const idx = (cap) => graph.nodes.findIndex((n) => n.capability === cap);
+  if (idx("connect_channel") >= 0 && idx("publish_external") >= 0) assert.ok(idx("connect_channel") < idx("publish_external"), "dependencies are ordered first");
+  assert.ok(graph.nodes.some((n) => n.capability === "manual_share"), "LAW 10: a blocked channel always offers the legitimate manual path");
 });

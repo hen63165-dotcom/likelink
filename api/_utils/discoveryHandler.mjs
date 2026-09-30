@@ -6,6 +6,7 @@
 //   GET  ?mode=discovery&action=sweep-status              public last-sweep summary
 //   GET  ?mode=discovery&action=commands                  public command catalog
 //   GET  ?mode=discovery&action=laws                      public operating laws
+//   GET  ?mode=discovery&action=capabilities              public capability catalog
 //   GET  ?mode=discovery&action=system-check              public (sanitized) / owner (detailed)
 //   GET  ?mode=discovery&action=overview                  owner
 //   GET  ?mode=discovery&action=memory                    owner
@@ -30,7 +31,9 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
+import { getPayPalToken, paypalBase } from "./paypal.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
+import { listCapabilities } from "../../src/lib/discovery/capabilities.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 
 const RATE_WINDOW_MS = 60000;
@@ -142,6 +145,33 @@ export function createDiscoveryHandler({
     return result;
   }
 
+  /**
+   * Read-only PayPal proof: can the server authenticate, which environment,
+   * and do the cached self-provisioned monthly plans exist at PayPal as ACTIVE.
+   * Nothing is created here — plans are created by the first real sub=create.
+   */
+  async function probePayPal() {
+    if (!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET)) return {};
+    const out = { paypalEnv: paypalBase().includes("sandbox") ? "sandbox" : "live", tokenOk: null, provisioned: 0, provisionedVerified: 0 };
+    try {
+      const token = await getPayPalToken();
+      out.tokenOk = Boolean(token);
+      const cached = await kvGet("marketplace:paypal_plans", null);
+      const ids = ["starter", "professional", "enterprise"].map((p) => (cached && typeof cached === "object" ? cached[`${p}:monthly`] : null)).filter(Boolean);
+      out.provisioned = ids.length;
+      if (token && ids.length) {
+        const states = await Promise.all(ids.map(async (id) => {
+          try {
+            const r = await fetchImpl(`${paypalBase()}/v1/billing/plans/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6000) });
+            return r.ok ? String((await r.json())?.status || "") : "";
+          } catch { return ""; }
+        }));
+        out.provisionedVerified = states.filter((x) => x === "ACTIVE").length;
+      }
+    } catch { /* stays unverified */ }
+    return out;
+  }
+
   /** Live probes for the system check — real reads, booleans for secrets. */
   async function probeSystem() {
     const t = now();
@@ -205,10 +235,12 @@ export function createDiscoveryHandler({
       payments: {
         paypalConfigured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
         webhookConfigured: Boolean(env.PAYPAL_WEBHOOK_ID),
-        // Monthly plan ids — without them sub=create answers plan_not_configured.
+        // Monthly plans: env ids (legacy) or the self-provisioned mapping
+        // (paypal.js ensureBillingPlans, cached in marketplace:paypal_plans).
         plansTotal: SUBSCRIPTION_PLAN_ENV.length,
         plansConfigured: SUBSCRIPTION_PLAN_ENV.filter((k) => Boolean(env[k])).length,
         missingPlans: SUBSCRIPTION_PLAN_ENV.filter((k) => !env[k]),
+        ...(await probePayPal()),
         pending: subList.filter((s) => s?.status === "pending").length,
         active: subList.filter((s) => s?.status === "active").length,
       },
@@ -289,6 +321,10 @@ export function createDiscoveryHandler({
       }
       if (req.method === "GET" && action === "commands") {
         json(res, { ok: true, commands: Object.entries(LUNA_COMMANDS).map(([id, c]) => ({ id, label: c.he, requiresProduct: Boolean(c.requiresProduct) })) }, 200, req);
+        return;
+      }
+      if (req.method === "GET" && action === "capabilities") {
+        json(res, { ok: true, capabilities: listCapabilities() }, 200, req);
         return;
       }
       if (req.method === "GET" && action === "laws") {

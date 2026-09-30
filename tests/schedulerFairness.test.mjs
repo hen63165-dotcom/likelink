@@ -30,3 +30,25 @@ test("runDueJobs runs the longest-waiting due jobs first", async () => {
   await runDueJobs({ kvGet, kvSet, now: NOW + 10, maxJobs: 2 });
   assert.deepEqual(ran.sort(), ["fair-a", "fair-b"]);
 });
+
+test("the light cron is time-boxed, not count-boxed: due jobs run until the budget is spent", async () => {
+  const NOW = 20_000_000_000;
+  const ran = [];
+  let t = 0;
+  const clock = () => t;
+  for (const id of ["budget-a", "budget-b", "budget-c", "budget-d", "budget-e"]) {
+    registerJob(id, { intervalMs: 1000, maxDurationMs: 1000, fn: async () => { ran.push(id); t += 30_000; return { ok: true }; } });
+  }
+  const store = new Map();
+  const kvGet = async (k) => store.get(k) ?? null;
+  const kvSet = async (k, v) => { store.set(k, v); };
+  const results = await runDueJobs({ kvGet, kvSet, now: NOW, budgetMs: 90_000, clock });
+  const mine = results.filter((r) => String(r.id).startsWith("budget-"));
+  assert.equal(ran.length, 3, "30s jobs within a 90s budget → 3 jobs (a fixed limit of 2 used to leave the rest overdue)");
+  assert.equal(mine.filter((r) => r.skipped === "time_budget").length, 2, "the rest are deferred, not dropped");
+  // Next beat: the deferred ones have waited longest and go first.
+  ran.length = 0;
+  t = 0;
+  await runDueJobs({ kvGet, kvSet, now: NOW + 10, budgetMs: 90_000, clock });
+  assert.deepEqual(ran.filter((id) => id.startsWith("budget-")).slice(0, 2).sort(), ["budget-d", "budget-e"]);
+});

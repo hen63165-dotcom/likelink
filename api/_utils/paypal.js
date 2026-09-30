@@ -77,7 +77,7 @@ export async function getPayPalSubscriptionDetails(paypalSubscriptionId) {
     if (!res.ok) return null;
     const data = await res.json().catch(() => null);
     if (!data) return null;
-    return { status: data.status || null, planId: data.plan_id || null, customId: data.custom_id || null };
+    return { status: data.status || null, planId: data.plan_id || null, customId: data.custom_id || null, nextBillingTime: data.billing_info?.next_billing_time || null };
   } catch {
     return null;
   }

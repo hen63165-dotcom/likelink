@@ -91,12 +91,49 @@ export function entitlementAllows(ent, capability) {
   return Boolean(ent?.capabilities?.[capability]);
 }
 
-/** Pick the account's record: an entitled one first, else the newest pending. */
-export function pickSubscription(all = [], userId) {
+/** Pick the account's record: an entitled one first (incl. cancelled-but-paid), else the newest pending. */
+export function pickSubscription(all = [], userId, now = Date.now()) {
   const mine = (Array.isArray(all) ? all : []).filter((s) => s && s.userId === userId);
-  const entitled = mine.find((s) => ENTITLED_STATUS.has(String(s.status || "").toLowerCase()));
+  const entitled = mine.find((s) => ENTITLED_STATUS.has(String(s.status || "").toLowerCase()))
+    || mine.find((s) => String(s.status || "").toLowerCase() === "cancelled" && Date.parse(s.expiresAt || "") > Number(now));
   if (entitled) return entitled;
   return mine
     .filter((s) => String(s.status || "").toLowerCase() === "pending")
     .sort((a, b) => (Date.parse(b.createdAt || 0) || 0) - (Date.parse(a.createdAt || 0) || 0))[0] || null;
+}
+
+// ── Renewal / cancellation reconciliation (no webhook required) ─────────────
+// An ACTIVE record is re-checked against PayPal at most every
+// SUB_RECONCILE_MS. Only an explicit PayPal state changes it; a failed lookup
+// never revokes access. A cancellation keeps the paid period.
+export const SUB_RECONCILE_MS = 12 * 60 * 60 * 1000;
+const PERIOD_MS = { monthly: 31 * 86400000, yearly: 366 * 86400000 };
+
+export function needsReconcile(sub, now = Date.now()) {
+  return Boolean(sub && String(sub.status || "").toLowerCase() === "active" && sub.paypalSubscriptionId
+    && Number(now) - Number(sub.lastReconciledAt || 0) > SUB_RECONCILE_MS);
+}
+
+/** End of the period the customer already paid for (best evidence available). */
+export function paidPeriodEnd(sub, now = Date.now()) {
+  const known = Date.parse(sub?.paidThrough || "");
+  if (Number.isFinite(known)) return known;
+  const start = Date.parse(sub?.lastBillingAt || sub?.startedAt || "");
+  const end = Number.isFinite(start) ? start + (PERIOD_MS[sub?.billingPeriod] || PERIOD_MS.monthly) : NaN;
+  return Number.isFinite(end) && end > Number(now) ? end : Number(now);
+}
+
+export function reconcileActiveSubscription(sub, details, now = Date.now()) {
+  if (!sub || !details?.status) return sub;
+  const live = String(details.status).toUpperCase();
+  const at = Number(now);
+  const next = Date.parse(details.nextBillingTime || "");
+  if (live === "ACTIVE") {
+    return { ...sub, lastReconciledAt: at, providerStatus: live, ...(Number.isFinite(next) ? { paidThrough: new Date(next).toISOString() } : {}) };
+  }
+  if (live === "CANCELLED") {
+    return { ...sub, status: "cancelled", providerStatus: live, lastReconciledAt: at, cancelledAt: sub.cancelledAt || new Date(at).toISOString(), expiresAt: sub.expiresAt || new Date(paidPeriodEnd(sub, at)).toISOString() };
+  }
+  if (live === "SUSPENDED" || live === "EXPIRED") return { ...sub, status: live.toLowerCase(), providerStatus: live, lastReconciledAt: at };
+  return { ...sub, providerStatus: live, lastReconciledAt: at };
 }

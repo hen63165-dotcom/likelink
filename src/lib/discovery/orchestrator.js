@@ -270,6 +270,7 @@ export async function runIntent({ kvGet, kvSet, goal, productId = null, scope, e
   const steps = [];
   const deadLetters = [];
   const seen = new Set();
+  const failedCaps = new Map(); // productId → capabilities that failed / were skipped this run
   const runId = stableHash({ goal: intent.goal, productId, at: now, scope: scope?.marketerIds || "all" });
   for (const n of graph.nodes.filter((x) => x.status === "safe")) {
     const key = `${n.productId}:${n.capability}`;
@@ -279,14 +280,35 @@ export async function runIntent({ kvGet, kvSet, goal, productId = null, scope, e
     const product = data.scope.find((p) => String(p.id) === n.productId);
     const passport = before.passports.find((p) => p.productId === n.productId);
     const base = { id: key, productId: n.productId, capability: n.capability, kind: n.capability, permission: cap.permission, rollback: cap.rollback, verification: cap.verification };
+    // Dependencies: a step runs only when every capability it depends on (same
+    // product) is already satisfied or succeeded in this run. Independent
+    // steps are never held back by an unrelated failure.
+    const unmet = (cap.dependencies || []).filter((d) => {
+      if (failedCaps.get(n.productId)?.has(d)) return true;
+      const depNode = graph.nodes.find((x) => x.productId === n.productId && x.capability === d);
+      return Boolean(depNode && depNode.status !== "done" && depNode.status !== "safe");
+    });
+    if (unmet.length) {
+      const failure = { class: "dependency", retryable: true, selfRepair: "ירוץ בריצה הבאה אחרי שהשלב הקודם יושלם" };
+      steps.push({ ...base, status: "skipped", result: `דולג — תלוי בשלב שלא הושלם: ${unmet.map((d) => CAPABILITIES[d]?.he || d).join(", ")}`, failure, next: failure.selfRepair });
+      if (!failedCaps.has(n.productId)) failedCaps.set(n.productId, new Set());
+      failedCaps.get(n.productId).add(n.capability);
+      continue;
+    }
     try {
       const r = await withTimeout(executeStep({ capability: n.capability, product, passport, data, channels: before.channels, origin, now, kvGet, kvSet }), STEP_TIMEOUT_MS, n.capability);
       steps.push({ ...base, ...r });
+      if (r.status === "failed") {
+        if (!failedCaps.has(n.productId)) failedCaps.set(n.productId, new Set());
+        failedCaps.get(n.productId).add(n.capability);
+      }
     } catch (e) {
       const failure = classifyFailure(e);
       const step = { ...base, status: "failed", result: "הפעולה נכשלה — שום דבר לא סומן כהצלחה", failure, error: String(e?.message || e).slice(0, 160), next: failure.selfRepair || "דורש בדיקה — נרשם לתיקון" };
       steps.push(step);
       deadLetters.push({ runId, at: now, step: key, capability: n.capability, productId: n.productId, failure, error: step.error });
+      if (!failedCaps.has(n.productId)) failedCaps.set(n.productId, new Set());
+      failedCaps.get(n.productId).add(n.capability);
     }
   }
 

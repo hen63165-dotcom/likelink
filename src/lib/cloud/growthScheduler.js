@@ -147,10 +147,14 @@ export async function executeJob(id, { kvGet, kvSet, skipAudit = false, force = 
 /**
  * Run ALL registered jobs that are due.
  */
-export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false, maxJobs = Infinity } = {}) {
+export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false, maxJobs = Infinity, budgetMs = Infinity, clock = () => Date.now() } = {}) {
   const results = [];
   const limit = Number.isFinite(Number(maxJobs)) ? Math.max(1, Number(maxJobs)) : Infinity;
   let executed = 0;
+  // Time budget: keep starting due jobs (longest-waiting first) until the
+  // budget is spent; the rest stay due and go first on the next beat.
+  const startedAt = clock();
+  const budget = Number.isFinite(Number(budgetMs)) ? Math.max(0, Number(budgetMs)) : Infinity;
 
   // Fair scheduling: collect every due job first, then run the ones that have
   // waited longest (never-run first). Iterating in registration order with a
@@ -173,6 +177,7 @@ export async function runDueJobs({ kvGet, kvSet, now = Date.now(), force = false
 
   for (const { id } of due) {
     if (executed >= limit) break;
+    if (executed > 0 && clock() - startedAt >= budget) { results.push({ id, ok: false, skipped: "time_budget", deferred: true }); continue; }
     try {
       const result = await executeJob(id, { kvGet, kvSet, now, force });
       results.push({ id, ...result });
