@@ -13,7 +13,7 @@ import { useI18n } from "../lib/LangContext";
 // The server auto-bootstraps the real catalog (api/store.mjs autoBootstrapCatalog).
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments.js";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
-import { resolveCurrentMarketer, linkMarketer } from "../lib/cloud/identity.js";
+import { resolveCurrentMarketer, linkMarketer, fetchOwnPrivate } from "../lib/cloud/identity.js";
 import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard.js";
 
 const MarketplaceContext = createContext(null);
@@ -75,6 +75,25 @@ function resetLegacyMarketplaceStorage() {
   } catch {
     // noop
   }
+}
+
+// Creator privacy: the public creators row carries no e-mail / payout fields.
+// The verified owner's own fields (GET /api/store?mode=me) are merged into
+// their record in memory only, so settings show them and saves keep them.
+function mergePrivateInto(setMarketers, rows) {
+  const byId = new Map((rows || []).filter((r) => r && r.id).map((r) => [String(r.id), r]));
+  if (!byId.size) return;
+  setMarketers((prev) => prev.map((m) => {
+    const p = byId.get(String(m?.id));
+    if (!p) return m;
+    const { id, ...fields } = p;
+    const bank = fields.bankDetails || m.bankDetails || {};
+    return {
+      ...m,
+      ...fields,
+      bankDetails: { bankName: String(bank.bankName ?? ""), branch: String(bank.branch ?? ""), account: String(bank.account ?? ""), holder: String(bank.holder ?? ""), ...(bank.iban ? { iban: String(bank.iban) } : {}) },
+    };
+  }));
 }
 
 async function getJSON(key, shared, fallback) {
@@ -248,6 +267,7 @@ export function MarketplaceProvider({ children }) {
         let resolved = null;
         try { resolved = await resolveCurrentMarketer(safeMarketers); } catch { resolved = null; }
         activeMarketerId = resolved?.marketerId || null;
+        if (resolved?.private) mergePrivateInto(setMarketers, [resolved.private]);
       }
       setSessionMarketerId(activeMarketerId);
       setFavorites(toArr(fav));
@@ -473,6 +493,7 @@ export function MarketplaceProvider({ children }) {
     try {
       const resolved = await resolveCurrentMarketer(marketers);
       marketer = resolved?.marketerId ? marketers.find((m) => m.id === resolved.marketerId) || null : null;
+      if (resolved?.private) mergePrivateInto(setMarketers, [resolved.private]);
     } catch { /* fall back to the email match below */ }
     if (!marketer) marketer = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail) || null;
     if (!marketer) {
@@ -576,7 +597,9 @@ export function MarketplaceProvider({ children }) {
             if (profileError) console.error("[Likelink] profile bootstrap failed", profileError);
           }
         }
-        const existing = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail);
+        const ownRecords = hasSession ? await fetchOwnPrivate() : [];
+        const existing = marketers.find((m) => String(m?.email || "").trim().toLowerCase() === cleanEmail) ||
+          marketers.find((m) => ownRecords.some((o) => o.id === m.id));
         if (!hasSession) {
           // Email confirmation required: no verified session yet, so the studio
           // is not opened (every save would be refused). The studio record is
@@ -744,6 +767,11 @@ export function MarketplaceProvider({ children }) {
       },
       onSetFee: async (val) => {
         await persistSettings({ ...settings, platformFeePercent: val });
+      },
+      loadAdminPrivate: async (adminToken) => {
+        const rows = await fetchOwnPrivate({ adminToken });
+        if (rows.length) mergePrivateInto(setMarketers, rows);
+        return rows.length;
       },
       onUpdateMarketer: async (id, patch) => {
         await persistMarketers(marketers.map((m) => (m.id === id ? { ...m, ...patch } : m)));

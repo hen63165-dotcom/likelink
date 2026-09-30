@@ -28,6 +28,7 @@ import { buildChannelRegistry, LUNA_COMMANDS, CHANNEL_STATE_LABEL, verifyPublica
 import { merchantStatus } from "../../src/lib/discovery/surfaces.js";
 import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/entitlements.js";
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
+import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 
@@ -106,16 +107,27 @@ export function createDiscoveryHandler({
     const { passports, channels, merchantEligibleCount } = computePassports(data, { env, now: t });
     // RLS probes read with the PUBLIC key and select only the key column — no
     // value is ever read. cron:beat is server-only; marketplace:products is a
-    // public control row (proves the anon key itself works); marketplace:marketers
-    // is public by design, so it is checked for private fields it still carries.
+    // public control row (proves the anon key itself works). The privacy probe
+    // reads the two public rows that could carry personal data EXACTLY as the
+    // public key sees them (marketplace:marketers, marketplace:payouts).
     const anonRead = (key) => (sbUrl && anon
       ? timed(() => safeFetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=key`, { apikey: anon, Authorization: `Bearer ${anon}` }))
       : Promise.resolve({ ok: false }));
-    const [authRes, rlsRes, controlRes, marketerRes, storageRes, beat, daily, subs] = await Promise.all([
+    const anonValue = async (key) => {
+      if (!sbUrl || !anon) return { ok: false };
+      try {
+        const r = await safeFetch(`${sbUrl}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`, { apikey: anon, Authorization: `Bearer ${anon}` });
+        if (!r.ok) return { ok: false };
+        const rows = await r.json();
+        return { ok: true, value: Array.isArray(rows) && rows[0] ? parseValue(rows[0].value) : null };
+      } catch { return { ok: false }; }
+    };
+    const [authRes, rlsRes, controlRes, publicMarketers, publicPayouts, storageRes, beat, daily, subs] = await Promise.all([
       sbUrl && anon ? timed(() => safeFetch(`${sbUrl}/auth/v1/settings`, { apikey: anon })) : Promise.resolve({ ok: false }),
       anonRead("cron:beat"),
       anonRead("marketplace:products"),
-      anonRead("marketplace:marketers"),
+      anonValue("marketplace:marketers"),
+      anonValue("marketplace:payouts"),
       sbUrl && service ? timed(() => safeFetch(`${sbUrl}/storage/v1/bucket/product-images`, { apikey: service, Authorization: `Bearer ${service}` })) : Promise.resolve({ ok: false }),
       kvGet("cron:beat", null),
       kvGet("cron:daily:last", null),
@@ -126,9 +138,9 @@ export function createDiscoveryHandler({
       httpOk: Boolean(r.ok && r.v?.ok),
       rows: r.ok && r.v?.ok ? await r.v.json().then((x) => (Array.isArray(x) ? x.length : null)).catch(() => null) : null,
     });
-    const [privateProbe, controlProbe, marketerProbe] = await Promise.all([probeResult(rlsRes), probeResult(controlRes), probeResult(marketerRes)]);
+    const [privateProbe, controlProbe] = await Promise.all([probeResult(rlsRes), probeResult(controlRes)]);
     const rlsOpen = classifyRlsProbe({ privateProbe, controlProbe, privateKeyExists: beat != null });
-    const pii = marketerProbe.httpOk && marketerProbe.rows > 0 ? publicPiiCounts(data.marketers) : null;
+    const pii = publicMarketers.ok && publicPayouts.ok ? publicPiiCounts(publicMarketers.value, publicPayouts.value) : null;
     let jobs = [];
     try {
       const { AUTONOMOUS_JOBS } = await import("../../src/lib/cloud/autonomousJobs.js");

@@ -18,7 +18,7 @@ const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ 
 export default function AdminView() {
   const { t, lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
-  const { marketers, products, clicks, sales, settings, onSetStatus, onRemove, onSetFee } = useMarketplace();
+  const { marketers, products, clicks, sales, settings, onSetStatus, onRemove, onSetFee, loadAdminPrivate } = useMarketplace();
   
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
@@ -47,6 +47,15 @@ export default function AdminView() {
     })();
     return () => { alive = false; };
   }, []);
+
+  // Creator e-mails / payout destinations are not in the public creators row;
+  // an unlocked admin panel loads them from the server with the admin token.
+  useEffect(() => {
+    if (!unlocked || typeof loadAdminPrivate !== "function") return;
+    let token = "";
+    try { token = sessionStorage.getItem("ll_admin_token") || ""; } catch { token = ""; }
+    if (token) loadAdminPrivate(token).catch(() => {});
+  }, [unlocked, loadAdminPrivate]);
 
   async function submitCode() {
     if (busy) return;

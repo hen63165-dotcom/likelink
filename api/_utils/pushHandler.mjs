@@ -22,6 +22,7 @@ const SUBS_KEY = "marketplace:pushsubs";
 import { isApprovedOrigin } from "./cors.js";
 import { verifyToken } from "./authVerify.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
+import { createPrivateKv } from "../../src/lib/cloud/marketerPrivacy.js";
 
 // 🔒 Fail loud: server writes use the SERVICE ROLE key only. Never fall back
 // to the anon key — the guards below return 500 when it is missing.
@@ -163,7 +164,8 @@ export default async function handler(req, res) {
     const token = String(req.headers?.authorization || req.headers?.Authorization || "").replace(/^Bearer\s+/i, "").trim();
     const actor = token ? await verifyToken(token) : null;
     if (!actor?.email) { json(res, { ok: false, error: "authentication_required" }, 401); return; }
-    const marketers = await kvGet("marketplace:marketers", []);
+    // Ownership needs the private e-mail (the public row does not carry it).
+    const marketers = await createPrivateKv({ get: kvGet, set: kvSet, assertWritable: assertKvWritable }).get("marketplace:marketers", []);
     const owner = (Array.isArray(marketers) ? marketers : []).find((m) => m && String(m.id) === String(marketerId));
     if (!owner || String(owner.email || "").trim().toLowerCase() !== String(actor.email).trim().toLowerCase()) {
       json(res, { ok: false, error: "not_owner" }, 403);

@@ -16,6 +16,7 @@ import { isApprovedOrigin } from "../_utils/cors.js";
 import { paypalBase, getPayPalToken } from "../_utils/paypal.js";
 import { captureMatchesOrder } from "../_utils/checkoutCatalog.mjs";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
+import { createPrivateKv } from "../../src/lib/cloud/marketerPrivacy.js";
 
 const SALES_KEY = "marketplace:sales";
 const PAYOUTS_KEY = "marketplace:payouts";
@@ -46,7 +47,7 @@ function html(res, body, status = 200) {
 // PayPal token + endpoint: the shared helper (one sandbox/live switch).
 const getAccessToken = getPayPalToken;
 
-async function kvGet(key, fallback = null) {
+async function kvGetRaw(key, fallback = null) {
   // A failed read returns the fallback but marks the key (kvReadGuard) so
   // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
@@ -64,7 +65,7 @@ async function kvGet(key, fallback = null) {
   return row.found ? row.value : fallback;
 }
 
-async function kvSet(key, value) {
+async function kvSetRaw(key, value) {
   assertKvWritable(key);
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
@@ -98,6 +99,12 @@ a{display:inline-block;padding:10px 24px;border-radius:8px;background:${color};c
 </head><body><div class="card"><div class="d">${icon}</div><h1>${title}</h1><p>${message}</p>
 <a href="${origin}/">חזרה לאתר</a></div></body></html>`;
 }
+
+// Creator privacy: marketers/payouts reads merge their server-only private
+// maps; writes split them out (src/lib/cloud/marketerPrivacy.js).
+const privateKv = createPrivateKv({ get: (k, fb) => kvGetRaw(k, fb), set: (k, v) => kvSetRaw(k, v), assertWritable: assertKvWritable });
+const kvGet = (key, fallback = null) => privateKv.get(key, fallback);
+const kvSet = (key, value) => privateKv.set(key, value);
 
 export default async function handler(req, res) {
   // 🔒 CORS: no wildcard. Echo back ONLY a validated approved origin

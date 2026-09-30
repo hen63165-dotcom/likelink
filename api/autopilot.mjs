@@ -1,4 +1,5 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
+import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
 let readBody, verifyToken, audit;
@@ -2189,7 +2190,8 @@ export default async function handler(req, res) {
   if (mode === "save" || mode === "run") {
     const authHeader = String(getH("authorization") || "").replace(/^Bearer\s+/i, "").trim();
     const authUser = await verifyToken(authHeader);
-    const marketersRow = await kvGet("marketplace:marketers");
+    // Ownership needs the private e-mail (the public row does not carry it).
+    const marketersRow = await createPrivateKv({ get: (k) => kvGet(k), set: kvSet, assertWritable: assertKvWritable }).get("marketplace:marketers", null);
     const mk = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => m && m.id === marketerId);
     const owned =
       authUser?.email && mk?.email &&

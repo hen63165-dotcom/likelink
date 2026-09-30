@@ -2,6 +2,7 @@ import { readBody } from "../_utils/readBody.mjs";
 import { paypalBase, getPayPalToken } from "../_utils/paypal.js";
 import { isAuthorizedCron } from "../_utils/cronAuth.mjs";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../../src/lib/cloud/kvReadGuard.js";
+import { createPrivateKv } from "../../src/lib/cloud/marketerPrivacy.js";
 // Vercel Serverless Function — Payouts Processor 💰
 //
 // Daily cron (02:00 UTC) that scans all pending payouts and processes them
@@ -28,7 +29,7 @@ function json(res, obj, status = 200) {
   res.json(obj);
 }
 
-async function kvGet(key, fallback = null) {
+async function kvGetRaw(key, fallback = null) {
   // A failed read returns the fallback but marks the key (kvReadGuard) so
   // kvSet refuses to overwrite real data with that fallback.
   if (!SB_URL || !SB_KEY) return fallback;
@@ -46,7 +47,7 @@ async function kvGet(key, fallback = null) {
   return row.found ? row.value : fallback;
 }
 
-async function kvSet(key, value) {
+async function kvSetRaw(key, value) {
   assertKvWritable(key);
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   const res = await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, {
@@ -128,6 +129,12 @@ async function reconcilePayPalPayout(base, payout) {
   }
 }
 
+// Creator privacy: marketers/payouts reads merge their server-only private
+// maps; writes split them out (src/lib/cloud/marketerPrivacy.js).
+const privateKv = createPrivateKv({ get: (k, fb) => kvGetRaw(k, fb), set: (k, v) => kvSetRaw(k, v), assertWritable: assertKvWritable });
+const kvGet = (key, fallback = null) => privateKv.get(key, fallback);
+const kvSet = (key, value) => privateKv.set(key, value);
+
 // ─── main processor ────────────────────────────────────────────────────────
 
 export async function processPendingPayouts() {
@@ -207,13 +214,13 @@ export async function processPendingPayouts() {
       result = {
         ok: true,
         reference: `BANK-${payout.id}`,
-        note: `Bank transfer recorded. Creator IBAN: ${marketer?.bankDetails?.iban || "N/A"}. Owner must transfer manually.`,
+        note: "Bank transfer recorded — the owner transfers manually using the private recipient details.",
       };
     } else {
       result = {
         ok: true,
         reference: `OTHER-${payout.id}`,
-        note: `Recorded. Creator note: ${marketer?.paymentNote || "N/A"}. Owner handles manually.`,
+        note: "Recorded — the owner handles it manually using the creator's private payment note.",
       };
     }
 

@@ -32,12 +32,18 @@ export function classifyRlsProbe({ privateProbe = {}, controlProbe = {}, private
 const hasText = (v) => (typeof v === "string" ? v.trim() !== ""
   : v && typeof v === "object" ? Object.values(v).some(hasText) : false);
 
-/** Private fields still carried by the publicly readable marketers row (counts only). */
-export function publicPiiCounts(marketers = []) {
+/**
+ * Personal data in the two public rows that could carry it, exactly as the
+ * public key reads them (counts only): creator e-mails / payout details in
+ * marketplace:marketers and payout recipients in marketplace:payouts.
+ */
+export function publicPiiCounts(marketers = [], payouts = []) {
   const list = Array.isArray(marketers) ? marketers.filter(Boolean) : [];
+  const pays = Array.isArray(payouts) ? payouts.filter(Boolean) : [];
   return {
     emails: list.filter((m) => hasText(m.email)).length,
-    payment: list.filter((m) => hasText(m.payPalEmail) || hasText(m.bankDetails)).length,
+    payment: list.filter((m) => hasText(m.payPalEmail) || hasText(m.bankDetails) || hasText(m.iban) || hasText(m.paymentNote)).length
+      + pays.filter((p) => hasText(p.recipient) || /IBAN/i.test(String(p.note || ""))).length,
   };
 }
 
@@ -155,7 +161,7 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   ];
   const sActions = [
     s.rlsOpen === true ? (priv ? "לאשר ולהחיל את supabase/migrations/20260928000000_kv_lockdown.sql" : "להחיל את נעילת הרשאות מסד הנתונים שהוכנה") : null,
-    exposedPayment || exposedEmail ? (priv ? "להגיש לציבור עותק מסונן של רשומות היוצרים (בלי email / payPalEmail / bankDetails) ולהוציא את marketplace:marketers מרשימת הקריאה הציבורית" : "לתקן את פער הפרטיות") : null,
+    exposedPayment || exposedEmail ? (priv ? "להעביר את השדות הפרטיים למפתח השרת marketplace:marketers:private — הכתיבה הבאה של רשומות היוצרים מפצלת אותם אוטומטית" : "לתקן את פער הפרטיות") : null,
     missingSecrets ? (priv ? `להגדיר: ${(s.missing || []).join(", ")}` : "להשלים סודות שרת חסרים") : null,
   ].filter(Boolean);
   const sColor = s.rlsOpen === true || exposedPayment ? COLOR.RED

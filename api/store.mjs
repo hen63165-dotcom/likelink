@@ -6,6 +6,7 @@ import { resolveEntitlement, pickSubscription } from "../src/lib/discovery/entit
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
+import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 // Vercel Serverless Function — Store API 🔐
 //
 // THE GATE for every WRITE to the shared kv table from the browser.
@@ -158,7 +159,7 @@ async function autoBootstrapCatalog(req) {
   }
 }
 
-async function kvSet(key, value) {
+async function kvSetRaw(key, value) {
   if (!SB_URL || !SB_KEY) throw new Error("supabase_not_configured");
   assertKvWritable(key);
   if (key === 'marketplace:subscriptions') {
@@ -244,7 +245,7 @@ const signWindow = new Map();   // ip → [ts] (per-lambda sliding window)
 
 // Returns null for a missing row AND for a failed read — but a failed read
 // marks the key (kvReadGuard) so kvSet refuses to overwrite it with a fallback.
-async function kvGet(key) {
+async function kvGetRaw(key) {
   if (!SB_URL || !SB_KEY) return null;
   let res;
   try {
@@ -713,6 +714,12 @@ export default async function handler(req, res) {
   }
   // Luna Discovery Engine (passport / channels / owner commands) — merged
   // here to stay within the 12-function Hobby limit.
+  // The caller's own private creator fields (e-mail, payout details) —
+  // marketplace:marketers is public and no longer carries them.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'me') {
+    const { default: meHandler } = await import('./_utils/meHandler.mjs');
+    return meHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
     const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
     return discoveryHandler(req, res);
@@ -2304,4 +2311,14 @@ export default async function handler(req, res) {
   }
 }
 
-export { kvGet, kvSet, kvDelete };
+// ── Creator privacy (src/lib/cloud/marketerPrivacy.js) ──
+// marketplace:marketers and marketplace:payouts are publicly readable, so
+// contact/payout fields live in server-only keys. Every server read through
+// kvGet MERGES them back (ownership checks and payouts keep working) and every
+// kvSet SPLITS them out. Both private keys go through the read guard: if the
+// private map cannot be read, nothing is written.
+const privateKv = createPrivateKv({ get: (k) => kvGetRaw(k), set: (k, v) => kvSetRaw(k, v), assertWritable: assertKvWritable });
+async function kvGet(key) { return privateKv.get(key, null); }
+async function kvSet(key, value) { return privateKv.set(key, value); }
+
+export { kvGet, kvSet, kvDelete, kvGetRaw };
