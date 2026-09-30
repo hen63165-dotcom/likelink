@@ -15,6 +15,7 @@
 import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
 import { canonicalProduct, buildProductSeo } from "../src/lib/discovery/surfaces.js";
+import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
 
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
@@ -84,6 +85,35 @@ async function readKvStrict(sbUrl, sbKey, key, timeoutMs = 5000) {
 // JSON-LD inside <script>: a "</script>" in any stored field must not end the tag.
 function jsonLdSafe(obj) {
   return JSON.stringify(obj).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+}
+
+async function serveMedia(path, res) {
+  if (!isValidMediaPath(path)) { res.status(400); res.end("Invalid media path."); return; }
+  const sbUrl = process.env.VITE_SUPABASE_URL;
+  const anon = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!sbUrl || !anon) { res.status(503); res.end("Media storage is not configured."); return; }
+  try {
+    const upstream = await fetch(`${sbUrl}/storage/v1/object/authenticated/${MEDIA_BUCKET}/${path}`, {
+      headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    // Denied and missing look the same from outside (never reveal which).
+    if (!upstream.ok) { res.status(404); res.setHeader("cache-control", "no-store"); res.end("Not found."); return; }
+    const type = String(upstream.headers.get("content-type") || "application/octet-stream").split(";")[0].toLowerCase();
+    if (!/^(image|video)\//.test(type)) { res.status(415); res.end("Unsupported media."); return; }
+    const bytes = Buffer.from(await upstream.arrayBuffer());
+    if (!bytes.length || bytes.length > 25 * 1024 * 1024) { res.status(413); res.end("Media too large."); return; }
+    res.status(200);
+    res.setHeader("content-type", type);
+    res.setHeader("x-content-type-options", "nosniff");
+    // A stored SVG is inert when opened directly (no scripts, no network).
+    if (type === "image/svg+xml") res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
+    // Short edge cache: a product that loses its approval stops serving soon.
+    res.setHeader("cache-control", "public, max-age=600, s-maxage=3600");
+    res.end(bytes);
+  } catch {
+    res.status(502); res.end("Media fetch failed.");
+  }
 }
 
 export default async function handler(req, res) {
@@ -180,6 +210,14 @@ export default async function handler(req, res) {
 
   // ─── /api/og?mode=image — same-origin image proxy for first-party video rendering.
   // Strict allowlist prevents this endpoint from becoming an open SSRF proxy.
+  // /api/og?mode=media&path=<kind>/<id>/<file> — the private product-images
+  // bucket. Storage is asked with the PUBLIC anon key, so the storage.objects
+  // RLS policies decide (approved products only); this proxy adds nothing.
+  if (url.searchParams.get("mode") === "media") {
+    await serveMedia(url.searchParams.get("path") || "", res);
+    return;
+  }
+
   if (url.searchParams.get("mode") === "image") {
     const raw = url.searchParams.get("u") || "";
     let target;

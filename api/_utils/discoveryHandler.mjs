@@ -29,12 +29,17 @@ import { merchantStatus } from "../../src/lib/discovery/surfaces.js";
 import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/entitlements.js";
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
+import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 
 const RATE_WINDOW_MS = 60000;
 const RATE_MAX = 12;
 const SYSTEM_CHECK_CACHE_MS = 60000;
+const STORAGE_SELFTEST_KEY = "storage:selftest:last";
+const STORAGE_SELFTEST_EVERY_MS = 24 * 60 * 60 * 1000;
+// 1×1 transparent PNG — the storage self-test object (health/ is never public).
+const PROBE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
 const SUBSCRIPTION_PLAN_ENV = ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"];
 const SERVER_SECRETS = ["ADMIN_SESSION_SECRET", "STORE_SIGN_SECRET", "AUTOPILOT_SECRET", "CRON_SECRET", "PAYOUTS_SECRET", "PRICE_WATCH_SECRET", "CLOUD_PASSPORT_SECRET", "PAYPAL_WEBHOOK_ID"];
 
@@ -90,6 +95,51 @@ export function createDiscoveryHandler({
     win.push(t);
     rateMap.set(key, win);
     return true;
+  }
+
+  /**
+   * The private media bucket: existence + its real public flag, the policy
+   * count (service-role-only status function) and, once a day, a REAL
+   * upload → readback → anonymous-denied self-test on health/probe.png.
+   */
+  async function probeStorage({ storageRes, sbUrl, anon, service, t }) {
+    if (!storageRes.ok || !storageRes.v) return { checked: false };
+    if (!storageRes.v.ok) return { checked: true, bucketExists: false };
+    const bucket = await storageRes.v.json().catch(() => ({}));
+    const out = { checked: true, bucketExists: true, bucketPublic: bucket?.public === true, policies: null, selftest: null };
+    try {
+      const r = await fetchImpl(`${sbUrl}/rest/v1/rpc/likelink_media_policy_status`, {
+        method: "POST", headers: { apikey: service, Authorization: `Bearer ${service}`, "content-type": "application/json" }, body: "{}", signal: AbortSignal.timeout(6000),
+      });
+      if (r.ok) { const st = await r.json(); if (Array.isArray(st?.policies)) out.policies = st.policies.length; }
+    } catch { /* policies stay unverified */ }
+    out.selftest = await storageSelfTest({ sbUrl, anon, service, t, bucketPublic: out.bucketPublic });
+    return out;
+  }
+
+  async function storageSelfTest({ sbUrl, anon, service, t, bucketPublic }) {
+    const last = await kvGet(STORAGE_SELFTEST_KEY, null);
+    if (last && t - Number(last.at || 0) < STORAGE_SELFTEST_EVERY_MS) return last;
+    const objectPath = `${MEDIA_BUCKET}/health/probe.png`;
+    const svc = { apikey: service, Authorization: `Bearer ${service}` };
+    const result = { at: t, upload: false, readback: false, anonDenied: false, bucketPublic };
+    try {
+      const up = await fetchImpl(`${sbUrl}/storage/v1/object/${objectPath}`, {
+        method: "POST", headers: { ...svc, "content-type": "image/png", "x-upsert": "true" }, body: PROBE_PNG, signal: AbortSignal.timeout(8000),
+      });
+      result.upload = up.ok;
+      if (up.ok) {
+        const back = await fetchImpl(`${sbUrl}/storage/v1/object/authenticated/${objectPath}`, { headers: svc, signal: AbortSignal.timeout(8000) });
+        const bytes = back.ok ? Buffer.from(await back.arrayBuffer()) : null;
+        result.readback = Boolean(bytes && bytes.equals(PROBE_PNG));
+        const pub = await fetchImpl(`${sbUrl}/storage/v1/object/authenticated/${objectPath}`, { headers: { apikey: anon, Authorization: `Bearer ${anon}` }, signal: AbortSignal.timeout(8000) });
+        result.anonDenied = !pub.ok;
+      }
+    } catch (e) {
+      result.error = String(e?.message || e).slice(0, 80);
+    }
+    try { await kvSet(STORAGE_SELFTEST_KEY, result); } catch { /* the result is still reported */ }
+    return result;
   }
 
   /** Live probes for the system check — real reads, booleans for secrets. */
@@ -187,7 +237,7 @@ export function createDiscoveryHandler({
         syntheticImages: media.reduce((s, m) => s + m.inventory.syntheticImages, 0),
         images: media.filter((m) => m.state === MEDIA_TRUTH.STATIC_IMAGE).length,
       },
-      storage: { checked: Boolean(storageRes.ok), ok: Boolean(storageRes.ok && storageRes.v?.ok) },
+      storage: await probeStorage({ storageRes, sbUrl, anon, service, t }),
       tracking: { clicks: data.clicks.length, lastClickAt: data.clicks.reduce((m, c) => Math.max(m, Number(c?.ts) || 0), 0) || null },
       publicPages: { publicProducts: passports.filter((p) => p.isPublic).length, seoComplete: passports.filter((p) => p.isPublic && p.seo.audit.passed === p.seo.audit.total).length },
       channels: channels.map((c) => ({ provider: c.provider, label: c.label, connected: c.connected, stateHe: CHANNEL_STATE_LABEL[c.state] || "לא ידוע" })),

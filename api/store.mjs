@@ -7,6 +7,8 @@ import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/c
 import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
+import { mediaUrl } from "../src/lib/cloud/mediaStore.js";
+import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Vercel Serverless Function — Store API 🔐
 //
 // THE GATE for every WRITE to the shared kv table from the browser.
@@ -1097,7 +1099,9 @@ export default async function handler(req, res) {
         json(res, { ok: false, error: "ugc_storage_failed", detail: `storage_${upload.status}` }, 502, req);
         return;
       }
-      const imageUrl = `${SB_URL}/storage/v1/object/public/${bucket}/${path}`;
+      // Private bucket: served through the media proxy (RLS decides — public
+      // while the product is approved).
+      const imageUrl = mediaUrl(path, PRODUCTION_ORIGIN);
       const asset = {
         id: `ugc_${productId}_${Date.now()}`,
         productId,

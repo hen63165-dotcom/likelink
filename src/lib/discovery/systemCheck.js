@@ -47,6 +47,39 @@ export function publicPiiCounts(marketers = [], payouts = []) {
   };
 }
 
+export const STORAGE_POLICY_COUNT = 5;
+const STORAGE_MIGRATION = "supabase/migrations/20260930000000_product_images_bucket.sql";
+
+function evaluateStorage(st, { priv, now }) {
+  const he = "אחסון קבצים";
+  if (!st.checked) return area("storage", he, COLOR.UNVERIFIED, "אחסון הקבצים לא נבדק מהשרת");
+  if (!st.bucketExists) {
+    return area("storage", he, COLOR.YELLOW,
+      ["הדלי product-images לא קיים — תמונה שמועלית נשמרת בתוך רשומת המוצר (base64) וסרטון נשאר מקומי", "קוד ההעלאה, הפרוקסי והמדיניות מוכנים ומחכים לדלי"],
+      priv ? `להחיל את ${STORAGE_MIGRATION} (דלי פרטי + 5 מדיניות RLS)` : "להשלים את הגדרת אחסון המדיה");
+  }
+  if (st.bucketPublic === true) {
+    return area("storage", he, COLOR.RED, "הדלי מוגדר ציבורי — כל קובץ נגיש בלי בדיקת אישור",
+      priv ? `להפוך את הדלי לפרטי ולהחיל את ${STORAGE_MIGRATION}` : "להגביל את הגישה לקבצים");
+  }
+  if (Number.isFinite(st.policies) && st.policies < STORAGE_POLICY_COUNT) {
+    return area("storage", he, COLOR.RED, `הדלי פרטי אבל חסרות מדיניות גישה (${st.policies}/${STORAGE_POLICY_COUNT}) — העלאה/קריאה לא יעבדו`,
+      priv ? `להחיל את ${STORAGE_MIGRATION}` : "להשלים את הגדרת אחסון המדיה");
+  }
+  const ev = [
+    "הדלי פרטי — קבצים מוגשים רק דרך הפרוקסי, לפי מדיניות RLS",
+    Number.isFinite(st.policies) ? `${st.policies}/${STORAGE_POLICY_COUNT} מדיניות גישה פעילות` : "מצב המדיניות לא אומת",
+  ];
+  const test = st.selftest || null;
+  const fresh = test && now - Number(test.at || 0) < 36 * HOUR;
+  if (test && fresh && test.upload && test.readback && test.anonDenied) {
+    ev.push(`העלאה + קריאה חוזרת אומתו לפני ${Math.max(0, Math.round((now - test.at) / HOUR))} שעות; קריאה אנונימית לקובץ לא מאושר נחסמה`);
+    return area("storage", he, Number.isFinite(st.policies) ? COLOR.GREEN : COLOR.YELLOW, ev);
+  }
+  ev.push(test ? `בדיקת האחסון האחרונה נכשלה (${[!test.upload && "העלאה", !test.readback && "קריאה חוזרת", !test.anonDenied && "חסימה אנונימית"].filter(Boolean).join(", ") || "לא עדכנית"})` : "בדיקת העלאה אמיתית עוד לא רצה");
+  return area("storage", he, COLOR.YELLOW, ev);
+}
+
 /**
  * @param {object} p probe results (see api/_utils/discoveryHandler.mjs → probeSystem)
  * @param {object} opts { audience: "public" | "owner", now }
@@ -118,10 +151,9 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
     [`${u.realVideos || 0} סרטונים אמיתיים`, `${u.syntheticImages || 0} תמונות סינתטיות (מסומנות כסינתטיות)`, `${u.images || 0} תמונות מוצר`],
     u.realVideos > 0 ? null : "ליצור סרטונים אמיתיים בסטודיו הווידאו או לחבר ספק וידאו"));
 
-  // storage
-  areas.push(p.storage?.ok
-    ? area("storage", "אחסון קבצים", COLOR.GREEN, "הדלי product-images קיים ונגיש לשרת")
-    : area("storage", "אחסון קבצים", p.storage?.checked ? COLOR.YELLOW : COLOR.UNVERIFIED, p.storage?.checked ? "הדלי product-images לא נמצא — העלאות נשמרות מקומית בלבד" : "לא נבדק", "ליצור את הדלי product-images ב-Supabase Storage"));
+  // storage — the private product-images bucket (mediaStore.js). GREEN needs
+  // a private bucket, all 5 policies and a fresh real upload/readback proof.
+  areas.push(evaluateStorage(p.storage || {}, { priv, now }));
 
   // tracking
   const t = p.tracking || {};

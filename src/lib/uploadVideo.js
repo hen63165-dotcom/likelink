@@ -1,32 +1,36 @@
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
+import { MEDIA_BUCKET, newMediaPath, mediaUrl } from "./cloud/mediaStore.js";
+import { ownStudioId } from "./uploadImage.js";
+import { PRODUCTION_ORIGIN } from "../constants/domain.js";
 
 /**
- * Uploads a generated reel video (Blob) and returns a public URL.
+ * Uploads a generated reel video (Blob) and returns its URL.
  *
- * Reuses the existing public `product-images` bucket (the same one product
- * photos use — already created and public per README.md), under a `reels/`
- * prefix. Zero extra dashboard configuration needed.
+ * Stored in the private `product-images` bucket under reels/<studio id>/ —
+ * only the studio's verified owner may write there. A reel becomes publicly
+ * visible once an approved product of that studio references it.
  *
- * Returns the public URL on success, or `null` on any failure — the caller
- * falls back to the local blob URL so the app never breaks.
+ * Returns the URL on success, or `null` on any failure — the caller falls
+ * back to the local blob URL so the app never breaks.
  */
-export async function uploadReelVideo(blob) {
+export async function uploadReelVideo(blob, { marketerId = null } = {}) {
   if (!blob) return null;
 
   if (supabaseConfigured && supabase) {
     try {
       const ext = (blob.type || "video/webm").includes("mp4") ? "mp4" : "webm";
-      const path = `reels/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const owner = await ownStudioId(marketerId);
+      const path = owner ? newMediaPath("reels", owner, ext) : null;
+      if (!path) return null;
       const { error } = await supabase.storage
-        .from("product-images")
+        .from(MEDIA_BUCKET)
         .upload(path, blob, {
           cacheControl: "3600",
           upsert: false,
           contentType: blob.type || "video/webm",
         });
       if (error) throw error;
-      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
-      if (data?.publicUrl) return data.publicUrl;
+      return mediaUrl(path, PRODUCTION_ORIGIN);
     } catch (e) {
       console.error("Supabase reel upload failed, keeping local video", e);
     }

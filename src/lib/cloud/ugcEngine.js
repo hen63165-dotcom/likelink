@@ -8,6 +8,8 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 import { generateFirstPartyCreatorSvg, buildCreativePlan } from "./likelinkIntelligence.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "./kvReadGuard.js";
+import { mediaUrl } from "./mediaStore.js";
+import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
 
 function configOk() {
   return Boolean(SB_URL && SB_KEY);
@@ -70,8 +72,11 @@ async function uploadBytes(bucket, path, bytes, contentType) {
   }
 }
 
-function publicStorageUrl(bucket, path) {
-  return `${SB_URL}/storage/v1/object/public/${bucket}/${path}`;
+// The bucket is private: objects are served by the media proxy, which lets
+// the storage RLS policies decide (ugc/<productId>/… is public while the
+// product is approved). See src/lib/cloud/mediaStore.js.
+function publicStorageUrl(_bucket, path) {
+  return mediaUrl(path, PRODUCTION_ORIGIN);
 }
 
 export async function generateCloudUgcAsset({
