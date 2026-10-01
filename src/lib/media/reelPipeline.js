@@ -26,6 +26,7 @@
 
 import { isPublicCatalogProduct } from "../cloud/catalog.js";
 import { isPromotable, isRealProductPhoto, sharedAffiliateLinks } from "../discovery/catalogIntegrity.js";
+import { videoIntent, videoStoryboard, compileScenes, creativeBrief } from "./videoCapability.js";
 import { classifyMediaRecord, MEDIA_TRUTH } from "../discovery/mediaTruth.js";
 import { categoryName, formatPrice, merchantOf } from "../publicDiscovery.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
@@ -264,8 +265,13 @@ export function planRenders({ products = [], marketers = [], videos = [], clicks
   for (const { p, i, have } of eligible) {
     if (plan.length >= limit) break;
     const style = styleOrder(learning, i).find((s) => !have.has(s));
-    const concept = buildReelConcept({ product: p, creator: creators.get(p.marketerId), style });
-    if (concept?.image) plan.push({ productId: p.id, style, reason: have.size ? "missing_style" : "no_reel_yet", concept });
+    // VideoIntent → VideoStoryboard → SceneCompiler (videoCapability.js): the
+    // renderer executes the compiled spec; the brief is stored with the asset.
+    const creator = creators.get(p.marketerId);
+    const concept = buildReelConcept({ product: p, creator, style });
+    const storyboard = videoStoryboard(videoIntent({ product: p, creator, style, styleLabel: concept?.styleLabel }), concept);
+    const spec = compileScenes(storyboard, concept);
+    if (spec?.image) plan.push({ productId: p.id, style, reason: have.size ? "missing_style" : "no_reel_yet", concept: spec, creative: creativeBrief(storyboard) });
   }
   return { plan, learning };
 }
@@ -297,13 +303,28 @@ export function validateIngest(body = {}) {
 }
 
 /** The asset record (ugc:assets:<id>) and the public reel record (marketplace:videos). */
-export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER, renderer = RENDERER_VERSION }) {
+/**
+ * The creative brief a render followed (style, prompt, product reference) —
+ * rebuilt from the same real fields the concept used. A Studio clip is the
+ * creator's own browser render, so its brief says exactly that.
+ */
+export function reelCreative({ product, creator = null, style }) {
+  if (!product?.id) return null;
+  if (style === "studio") {
+    return { prompt: "קליפ שהיוצר/ת רינדר/ה בסטודיו (קנבס בדפדפן) מתמונת המוצר", style, productReference: HTTP.test(text(product.image)) ? product.image : "", conceptId: `${product.id}:studio`, goal: "product_discovery" };
+  }
+  const concept = buildReelConcept({ product, creator, style });
+  return creativeBrief(videoStoryboard(videoIntent({ product, creator, style, styleLabel: concept?.styleLabel }), concept));
+}
+
+export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER, renderer = RENDERER_VERSION, creative = null }) {
   const id = `reel_${product.id}_${style}_${now}`;
   const styleLabel = { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en };
-  // The creative is recomputed here from the product — never taken from the uploader.
-  const creative = STYLE_CREATIVE[style] ? creativeFor(product, style, { now }) : null;
+  // LikeLoop creative (id, hook, CTA) — recomputed here from the product, never taken
+  // from the uploader — merged with the creative brief (style, prompt, product reference).
+  const loop = STYLE_CREATIVE[style] ? creativeFor(product, style, { now }) : null;
+  const merged = creative || loop ? { ...(creative || {}), ...(loop || {}) } : null;
   const base = {
-    creative,
     mediaType: style === "ugc_style" ? "SYNTHETIC_UGC" : "CINEMATIC",
     source: provider,
     videoProvider: provider,
@@ -323,6 +344,8 @@ export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, s
     width: REEL_WIDTH,
     height: REEL_HEIGHT,
     createdAt: now,
+    // Style, prompt, product reference and generation status of this asset.
+    ...(merged ? { creative: { ...merged, generationStatus: "GENERATED", provider } } : {}),
   };
   const truth = classifyMediaRecord(base).state;
   return {

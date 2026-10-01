@@ -5,7 +5,7 @@
 const KEY = "ll_attr";
 const clip = (v, n) => (v ? String(v).slice(0, n) : null);
 
-export function landingAttribution() {
+export function landingAttribution({ fallback = null } = {}) {
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch { saved = null; }
   let fromUrl = null;
@@ -25,6 +25,7 @@ export function landingAttribution() {
   } catch { /* no window */ }
   let ref = null;
   try { ref = document.referrer ? new URL(document.referrer).hostname : null; } catch { ref = null; }
-  const a = fromUrl || saved || (ref ? { src: clip(ref, 80) } : {});
+  const inApp = fallback?.src ? { src: clip(fallback.src, 80), camp: clip(fallback.camp, 80) } : null;
+  const a = fromUrl || saved || inApp || (ref ? { src: clip(ref, 80) } : {});
   return Object.fromEntries(Object.entries(a).filter(([, v]) => v));
 }

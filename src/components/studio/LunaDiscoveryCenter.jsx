@@ -18,6 +18,7 @@ import { toHebrewError } from "../../lib/errorMessages.js";
 import { CHANNEL_STATE_LABEL, heCount } from "../../lib/discovery/engine.js";
 import { MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { COLOR_LABEL } from "../../lib/discovery/systemCheck.js";
+import CreativeProofCard from "./CreativeProofCard.jsx";
 import { EXPERIMENT_LABEL } from "../../lib/discovery/experiments.js";
 import { Button, LabeledSelect } from "../ui/index.jsx";
 
@@ -784,6 +785,7 @@ export default function LunaDiscoveryCenter({ onNavigate }) {
       <ChannelChips channels={channels} />
 
       <MemoryCard refreshKey={runs} />
+      <CreativeProofCard />
       <SystemCheckCard />
 
       {!result && overview?.log?.length ? (

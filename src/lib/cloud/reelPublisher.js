@@ -46,7 +46,9 @@ import {
   styleLearning,
   validateIngest,
   buildSocialPack,
+  reelCreative,
 } from "../media/reelPipeline.js";
+import { publishExternalReel } from "../publishing/adapters.js";
 
 const VIDEOS_KEY = "marketplace:videos";
 const PRODUCTS_KEY = "marketplace:products";
@@ -190,35 +192,10 @@ export async function buildPlan({ limit = 3, env, fetchImpl, now = Date.now() } 
   return { ok: true, plan: picked.slice(0, max), learning: full.learning };
 }
 
+// External boundary — the shared adapters of the publishing orchestrator
+// (src/lib/publishing/adapters.js): brand Telegram (sendVideo) or brand webhook.
 async function externalPublish(c, { text, videoUrl, link }) {
-  const { telegramBot, telegramChat, webhook } = c.env;
-  if (telegramBot && telegramChat) {
-    try {
-      const res = await c.fetchImpl(`https://api.telegram.org/bot${telegramBot}/sendVideo`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: telegramChat, video: videoUrl, caption: `${text}\n${link}`.slice(0, 1000), supports_streaming: true }),
-        signal: AbortSignal.timeout(30000),
-      });
-      const j = await res.json().catch(() => null);
-      const id = j?.ok ? j.result?.message_id : null;
-      return id ? { channel: "telegram", status: "PUBLISHED", externalId: String(id), proof: "telegram_message_id" } : { channel: "telegram", status: "FAILED", error: String(j?.description || `http_${res.status}`).slice(0, 160) };
-    } catch (e) {
-      return { channel: "telegram", status: "FAILED", error: String(e?.message || e).slice(0, 160) };
-    }
-  }
-  if (webhook) {
-    try {
-      const res = await c.fetchImpl(webhook, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "likelink_reel", text, videoUrl, link }), signal: AbortSignal.timeout(15000) });
-      const j = await res.json().catch(() => null);
-      const id = j?.id || j?.postId || j?.externalId || null;
-      // A 200 from a webhook is delivery, not publication — success needs a provider id.
-      return id ? { channel: "webhook", status: "PUBLISHED", externalId: String(id), proof: "webhook_returned_id" } : { channel: "webhook", status: res.ok ? "DELIVERED_UNVERIFIED" : "FAILED", error: res.ok ? "no_provider_id" : `http_${res.status}` };
-    } catch (e) {
-      return { channel: "webhook", status: "FAILED", error: String(e?.message || e).slice(0, 160) };
-    }
-  }
-  return { channel: "external", status: "REQUIRES_CONNECTION", error: "no_external_channel_configured" };
+  return publishExternalReel({ env: c.env, fetchImpl: c.fetchImpl }, { text, videoUrl, link });
 }
 
 /** Full ingest: GENERATE (done by the renderer) → VERIFY MEDIA → REGISTER → PUBLISH → VERIFY → PROOF. */
@@ -280,7 +257,8 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
     return { ok: false, status: 502, error: "media_readback_failed", step: "verify_media", proof: { media: mediaProof } };
   }
 
-  const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof, renderer: body.renderer });
+  const creative = reelCreative({ product, creator: marketers.find((m) => m?.id === product.marketerId) || null, style: body.style });
+  const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof, renderer: body.renderer, creative });
   if (result.ok) {
     try {
       const reqR = await c.kvRead(REQUESTS_KEY);
@@ -295,9 +273,10 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
 /** REGISTER → VERIFY REGISTRATION → PUBLISH → VERIFY PUBLICATION → PROOF (shared by every source). */
 async function registerAndPublish(c, ctx) {
   const { product, products, videos, postsR, logR, style, videoPath, posterPath, videoBytes, videoSha, probe, now, conceptId, mediaProof, provider = RENDER_PROVIDER, renderer } = ctx;
+  const creative = ctx.creative || reelCreative({ product, style });
   // 6. register (rollback restores the previous values)
   const origin = c.env.origin;
-  const records = buildReelRecords({ product, style, videoUrl: mediaUrl(videoPath, origin), posterUrl: posterPath ? mediaUrl(posterPath, origin) : product.image, bytes: videoBytes, sha256: videoSha, probe, now, provider, renderer: renderer || (provider === RENDER_PROVIDER ? undefined : "studio-browser") });
+  const records = buildReelRecords({ product, style, videoUrl: mediaUrl(videoPath, origin), posterUrl: posterPath ? mediaUrl(posterPath, origin) : product.image, bytes: videoBytes, sha256: videoSha, probe, now, provider, renderer: renderer || (provider === RENDER_PROVIDER ? undefined : "studio-browser"), creative });
   if (!assertSyntheticTruth(records.truth)) {
     await c.remove([videoPath, posterPath].filter(Boolean));
     return { ok: false, status: 500, error: "truth_violation", truth: records.truth };

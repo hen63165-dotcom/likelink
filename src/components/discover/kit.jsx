@@ -410,7 +410,7 @@ export function shopHref(product, creator) {
   return resolveDestinationUrl(tracked) || tracked;
 }
 
-export function ShopButton({ product, className = "", children }) {
+export function ShopButton({ product, className = "", children, attribution = null }) {
   const { recordClick, marketers } = useMarketplace();
   const { L } = useL();
   const owner = (marketers || []).find((m) => m.id === product?.marketerId);
@@ -423,7 +423,7 @@ export function ShopButton({ product, className = "", children }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer sponsored"
-      onClick={() => recordClick(product)}
+      onClick={() => recordClick(product, attribution)}
       className={`lx-btn lx-btn-rose ${className}`}
     >
       {children || (

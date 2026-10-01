@@ -777,7 +777,26 @@ export const AUTONOMOUS_JOBS = [
   "discovery-sweep",
   "distribution-autorun",
   "native-reel-audit",
+  "publishing-orchestrator",
 ];
+
+// PUBLISH → VERIFY → PROOF → TRACK → LEARN for every LikeLink creative
+// (src/lib/publishing/orchestrator.js). Internal surfaces are verified over
+// their public URLs; external destinations are reported with their provider
+// ids or NEEDS_CONNECTION. Idempotent: an unchanged, verified creative is
+// not re-checked. The native-reels workflow also runs it right after each
+// render (mode=media-pipeline&op=audit).
+registerJob("publishing-orchestrator", {
+  description: "Verify every creative's publications over public URLs, write proof, tracking and Luna memory",
+  intervalMs: 3 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const { runPublishingSweep } = await import("../publishing/orchestrator.js");
+    const r = await runPublishingSweep({ kvGet, kvSet, env: typeof process !== "undefined" ? process.env : {}, now: Number(now) || Date.now() });
+    if (!r.ok) throw new Error(r.error || "publishing_sweep_failed");
+    return { cycle: "publishing-orchestrator", timestamp: now, ...r };
+  },
+});
 
 // Campaigns the OWNER approved (distribution-autorun, confirm = planId):
 // publish their due posts to channels with real credentials (Telegram /

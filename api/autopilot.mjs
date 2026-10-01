@@ -1663,6 +1663,7 @@ export default async function handler(req, res) {
         "autonomous-ugc-video-poll","autonomous-creative-refresh",
         "discovery-sweep","native-reel-audit",
         "distribution-autorun",
+        "publishing-orchestrator",
       ];
       const readKV = async (key, fallback) => {
         const sbUrl = process.env.VITE_SUPABASE_URL;

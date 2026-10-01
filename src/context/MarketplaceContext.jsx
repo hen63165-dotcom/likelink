@@ -399,12 +399,15 @@ export function MarketplaceProvider({ children }) {
   );
 
   const recordClick = useCallback(
-    async (product) => {
+    // `attribution` = the on-site placement that produced the click (e.g. a
+    // reel: { src: "likelink_reels", camp: "v-<assetId>" }); URL params win.
+    async (product, attribution = null) => {
       if (!product || !product.id) return;
       pushActivity("product.click", `פתחת דיל: ${String(product.title || product.id).slice(0, 80)}`, { productId: product.id });
       // Traffic source truth — recorded ONLY when actually available
-      // (utm params / creative id / referral param / referrer host). Never guessed.
-      const attr = landingAttribution();
+      // (utm params / creative id / in-app source / referral param / referrer host). Never guessed.
+      // URL (or this visit's landing) wins; then the in-app source; then the referrer.
+      const attr = landingAttribution({ fallback: attribution });
       const c = {
         id: uid(),
         productId: product.id,
