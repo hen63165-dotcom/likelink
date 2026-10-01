@@ -11,6 +11,9 @@ on:
       dry_run:
         description: "Only print what was found (send nothing)"
         default: "false"
+      evidence:
+        description: "JSON list of observations from an earlier run (productId, itemUrl, image, storeTitle, observedInRun) — server-verified"
+        default: ""
   schedule:
     - cron: "41 5 * * *"
 
@@ -38,4 +41,5 @@ jobs:
       - name: Resolve real product photos
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          EVIDENCE_JSON: ${{ github.event.inputs.evidence }}
         run: node scripts/catalog/resolve-products.mjs ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
