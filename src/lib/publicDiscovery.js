@@ -21,6 +21,14 @@
 import { isPublicCatalogProduct } from "./cloud/catalog.js";
 import { productMediaTruth, classifyMediaRecord, MEDIA_TRUTH } from "./discovery/mediaTruth.js";
 
+// Render styles of the native reel pipeline (src/lib/media/reelPipeline.js) —
+// duplicated as labels only, so the public bundle does not pull the pipeline.
+export const REEL_STYLE_LABELS = Object.freeze({
+  cinematic3d: { he: "אנימציה תלת־ממדית מסוגננת", en: "Stylized 3D-look animation" },
+  ugc_style: { he: "בסגנון UGC · ממוחשב, לא צילום של אדם", en: "UGC-style · computer-made, not filmed by a person" },
+  animated_story: { he: "סיפור מוצר מונפש", en: "Animated product story" },
+});
+
 export const TREND_WINDOW_DAYS = 14;
 export const TREND_MIN_EVENTS = 3;
 const DAY = 86_400_000;
@@ -89,9 +97,12 @@ function cleanTitle(title) {
 function mediaFor(product) {
   const truth = productMediaTruth(product, []);
   const image = /^https?:\/\//i.test(textOf(product.image)) ? product.image : "";
+  const playable = truth.state === MEDIA_TRUTH.REAL_VIDEO || truth.state === MEDIA_TRUTH.SYNTHETIC_ANIMATION;
   return {
     state: truth.state,
-    video: truth.state === MEDIA_TRUTH.REAL_VIDEO || truth.state === MEDIA_TRUTH.SYNTHETIC_ANIMATION ? truth.url : "",
+    video: playable ? truth.url : "",
+    poster: playable && /^https?:\/\//i.test(textOf(product.videoPoster)) ? product.videoPoster : image,
+    style: playable && REEL_STYLE_LABELS[product.videoStyle] ? product.videoStyle : "",
     synthetic: truth.state === MEDIA_TRUTH.SYNTHETIC_ANIMATION || Boolean(truth.synthetic),
     image,
   };
@@ -242,18 +253,25 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
   // Reels: playable media only, classified by mediaTruth. A product photo is
   // never turned into a "reel"; a LikeLink render is labelled as animation.
   const reels = [];
-  for (const p of pub) {
-    if (p.media.video) reels.push({ id: `p-${p.id}`, url: p.media.video, state: p.media.state, poster: p.media.image, productIds: [p.id], creatorId: p.marketerId, title: p.displayTitle });
-  }
+  const seenUrls = new Set();
   for (const v of Array.isArray(videos) ? videos : []) {
     if (!v?.id || !/^https?:\/\//i.test(textOf(v.videoUrl))) continue;
     const truth = classifyMediaRecord(v);
     if (truth.state !== MEDIA_TRUTH.REAL_VIDEO && truth.state !== MEDIA_TRUTH.SYNTHETIC_ANIMATION) continue;
     const tagged = (Array.isArray(v.productTags) ? v.productTags : []).map((t) => t?.productId).filter((id) => byId.has(id));
     const creatorId = creatorById.has(v.marketerId) ? v.marketerId : tagged.length ? byId.get(tagged[0]).marketerId : "";
-    if (!creatorId) continue;
-    reels.push({ id: `v-${v.id}`, url: truth.url, state: truth.state, poster: tagged.length ? byId.get(tagged[0]).media.image : "", productIds: tagged, creatorId, title: textOf(v.title) });
+    if (!creatorId || seenUrls.has(truth.url)) continue;
+    seenUrls.add(truth.url);
+    const poster = /^https?:\/\//i.test(textOf(v.poster)) ? v.poster : tagged.length ? byId.get(tagged[0]).media.image : "";
+    reels.push({ id: `v-${v.id}`, url: truth.url, state: truth.state, poster, style: REEL_STYLE_LABELS[v.style] ? v.style : "", productIds: tagged, creatorId, title: textOf(v.title), createdAt: Number(v.createdAt) || 0 });
   }
+  for (const p of pub) {
+    if (p.media.video && !seenUrls.has(p.media.video)) {
+      seenUrls.add(p.media.video);
+      reels.push({ id: `p-${p.id}`, url: p.media.video, state: p.media.state, poster: p.media.poster, style: p.media.style, productIds: [p.id], creatorId: p.marketerId, title: p.displayTitle, createdAt: Number(p.createdAt) || 0 });
+    }
+  }
+  reels.sort((a, b) => b.createdAt - a.createdAt);
 
   return { products: pub, byId, creators, creatorById, categories, collections: boards, trends, attention, deals, reels };
 }

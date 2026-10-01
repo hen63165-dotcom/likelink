@@ -56,6 +56,7 @@ import {
   ShareButton,
   ShopButton,
   sized,
+  StyleBadge,
   TrendCard,
   TrustBadge,
   useL,
@@ -835,9 +836,10 @@ export function ProductPage({ graph, id, navigate }) {
           {/* MEDIA */}
           <div className="md:sticky md:top-24 md:self-start">
             <div className="lx-card">
-              <Media src={product.media.image} video={product.media.video} poster={product.media.image} alt={product.displayTitle} ratio="4 / 5" width={1000} eager label={product.displayTitle}>
+              <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio="4 / 5" width={1000} eager label={product.displayTitle}>
                 <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
                   <MediaBadge state={product.media.state} showImage />
+                  <StyleBadge style={product.media.style} />
                   {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
                 </div>
               </Media>
@@ -990,7 +992,10 @@ export function ReelsPage({ graph }) {
               />
               <div className="lx-reel-shade" />
               <div className="absolute start-3 top-12">
-                <MediaBadge state={kind === "reel" ? reel.state : product?.media.state} showImage />
+                <div className="flex flex-col items-start gap-1">
+                  <MediaBadge state={kind === "reel" ? reel.state : product?.media.state} showImage />
+                  {kind === "reel" ? <StyleBadge style={reel.style} /> : null}
+                </div>
               </div>
               {/* Side actions */}
               <div className="absolute bottom-40 end-3 flex flex-col items-center gap-3">
@@ -1005,7 +1010,8 @@ export function ReelsPage({ graph }) {
                 {creator ? (
                   <Go to={creatorPath(creator.slug)} className="text-[15px] font-bold">{creator.name}</Go>
                 ) : null}
-                {reel?.title ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
+                {/* A LikeLink render already carries its title on-frame. */}
+                {reel?.title && !reel.style ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
                 {product ? (
                   <div className="mt-3 flex items-center gap-3 rounded-2xl p-2.5" style={{ background: "rgba(255,255,255,.95)", color: "var(--lx-ink)" }}>
                     <Go to={productPath(product.id)} className="flex min-w-0 flex-1 items-center gap-3">

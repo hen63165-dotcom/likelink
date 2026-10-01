@@ -1,0 +1,56 @@
+# LikeLink native reels — the executor of the media pipeline.
+#
+# A Vercel function cannot render video, so the renderer runs here:
+#   plan (server) → render (Chromium canvas) → encode (ffmpeg H.264) →
+#   ingest (server: store → verify via anon read-back → register → publish → proof)
+# then the audit step re-verifies served reels and records measurement.
+# Auth: the same AUTOPILOT_SECRET the cloud dispatcher already uses.
+name: Native reels
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max reels this run (1-6)"
+        default: "3"
+  schedule:
+    - cron: "23 */6 * * *"
+
+concurrency:
+  group: native-reels
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LIKELINK_API: https://likelink2.vercel.app
+      AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install renderer runtime (Chromium, ffmpeg, Hebrew fonts)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core >/dev/null
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium >/dev/null
+      - name: Render, verify and publish reels
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+        run: node scripts/media/render-reels.mjs --limit "${{ github.event.inputs.limit || '3' }}" --out "$RUNNER_TEMP/reels"
+      - name: Audit served reels (verify, measure, learn)
+        if: always()
+        run: |
+          code=$(curl -sS -o audit.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $AUTOPILOT_SECRET" -H "Origin: $LIKELINK_API" \
+            "$LIKELINK_API/api/store?mode=media-pipeline&op=audit")
+          echo "audit http $code"; cat audit.json; echo
+          { echo "### Audit (http $code)"; echo '```json'; cat audit.json; echo; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          test "$code" = "200"

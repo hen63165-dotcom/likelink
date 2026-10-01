@@ -29,7 +29,7 @@ export const BRAND_WORLDS = [
   },
   {
     id: "pixar",
-    label: "פיקסאר 🎬",
+    label: "עולם מונפש 🎬",
     tagline: "עולם אנימציה חם וקסום",
     emoji: "🧚",
     storyPalette: "pixar",      // עולם הברקות הקיים של StoryKit

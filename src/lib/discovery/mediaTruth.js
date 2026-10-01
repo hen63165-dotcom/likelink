@@ -86,7 +86,9 @@ export function classifyMediaRecord(record = {}) {
  */
 export function productMediaTruth(product = {}, assets = []) {
   const records = [
-    { image: product?.image, videoUrl: product?.videoUrl, videoStatus: product?.videoStatus, synthetic: false, source: "product" },
+    // The product's own video keeps its provider + synthetic flag, so a
+    // LikeLink render attached to a product is never read as a filmed video.
+    { image: product?.image, videoUrl: product?.videoUrl, videoStatus: product?.videoStatus, videoProvider: product?.videoProvider, synthetic: product?.videoSynthetic === true, source: "product" },
     ...(Array.isArray(assets) ? assets : []).map((a) => ({ ...a, source: a?.source || "asset" })),
   ];
   const classified = records.map((r) => ({ ...classifyMediaRecord(r), source: r.source }));

@@ -22,7 +22,7 @@ import {
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useVideos } from "../../context/VideoContext";
-import { buildPublicGraph, categoryName, formatPrice } from "../../lib/publicDiscovery.js";
+import { buildPublicGraph, categoryName, formatPrice, REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
@@ -189,6 +189,13 @@ export function MediaBadge({ state, showImage = false }) {
       {label}
     </span>
   );
+}
+
+/** The render style of a LikeLink animation (only when one is attached). */
+export function StyleBadge({ style }) {
+  const { lang } = useL();
+  const label = REEL_STYLE_LABELS[style]?.[lang];
+  return label ? <span className="lx-badge lx-badge-luna">{label}</span> : null;
 }
 
 /* ------------------------------------------------------------ primitives */
@@ -439,7 +446,7 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
   return (
     <article className="lx-card flex h-full flex-col">
       <Go to={to} aria-label={product.displayTitle} className="block">
-        <Media src={product.media.image} video={product.media.video} poster={product.media.image} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
+        <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
           <div className="absolute start-2.5 top-2.5 flex flex-wrap gap-1.5">
             <MediaBadge state={product.media.state} />
             {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
@@ -569,7 +576,7 @@ export function ReelCard({ reel, graph }) {
     <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-card block">
       <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio="9 / 16" width={400}>
         <div className="lx-reel-shade" />
-        <div className="absolute start-2.5 top-2.5"><MediaBadge state={reel.state} /></div>
+        <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} /><StyleBadge style={reel.style} /></div>
         <div className="absolute inset-x-0 bottom-0 p-3 text-white">
           {creator ? <p className="text-[13px] font-bold">{creator.name}</p> : null}
           {product ? <p className="lx-clamp-2 text-[12px] opacity-90">{product.displayTitle}</p> : null}

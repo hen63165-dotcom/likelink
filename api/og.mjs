@@ -87,7 +87,18 @@ function jsonLdSafe(obj) {
   return JSON.stringify(obj).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
 }
 
-async function serveMedia(path, res) {
+/** Parse a single "bytes=a-b" range against a body length (RFC 7233). null = no/invalid range. */
+export function parseByteRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || "").trim());
+  if (!m || (!m[1] && !m[2]) || !size) return null;
+  let start, end;
+  if (!m[1]) { start = Math.max(0, size - Number(m[2])); end = size - 1; }
+  else { start = Number(m[1]); end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1; }
+  if (start > end || start >= size) return { unsatisfiable: true };
+  return { start, end };
+}
+
+async function serveMedia(path, res, rangeHeader = "") {
   if (!isValidMediaPath(path)) { res.status(400); res.end("Invalid media path."); return; }
   const sbUrl = process.env.VITE_SUPABASE_URL;
   const anon = process.env.VITE_SUPABASE_ANON_KEY;
@@ -103,9 +114,22 @@ async function serveMedia(path, res) {
     if (!/^(image|video)\//.test(type)) { res.status(415); res.end("Unsupported media."); return; }
     const bytes = Buffer.from(await upstream.arrayBuffer());
     if (!bytes.length || bytes.length > 25 * 1024 * 1024) { res.status(413); res.end("Media too large."); return; }
-    res.status(200);
     res.setHeader("content-type", type);
     res.setHeader("x-content-type-options", "nosniff");
+    // Video players (iOS Safari in particular) require byte ranges.
+    res.setHeader("accept-ranges", "bytes");
+    const range = rangeHeader ? parseByteRange(rangeHeader, bytes.length) : null;
+    if (range?.unsatisfiable) {
+      res.status(416); res.setHeader("content-range", `bytes */${bytes.length}`); res.end(); return;
+    }
+    if (range) {
+      res.status(206);
+      res.setHeader("content-range", `bytes ${range.start}-${range.end}/${bytes.length}`);
+      res.setHeader("cache-control", "public, max-age=600, s-maxage=3600");
+      res.end(bytes.subarray(range.start, range.end + 1));
+      return;
+    }
+    res.status(200);
     // A stored SVG is inert when opened directly (no scripts, no network).
     if (type === "image/svg+xml") res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
     // Short edge cache: a product that loses its approval stops serving soon.
@@ -214,7 +238,8 @@ export default async function handler(req, res) {
   // bucket. Storage is asked with the PUBLIC anon key, so the storage.objects
   // RLS policies decide (approved products only); this proxy adds nothing.
   if (url.searchParams.get("mode") === "media") {
-    await serveMedia(url.searchParams.get("path") || "", res);
+    const h = req.headers || {};
+    await serveMedia(url.searchParams.get("path") || "", res, (typeof h.get === "function" ? h.get("range") : h.range) || "");
     return;
   }
 
