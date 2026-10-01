@@ -98,7 +98,11 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
 
 ## Frontend (`src/`)
 
-- `src/main.jsx` → `src/App.jsx`. Routing is custom (`src/utils/routing.js` `parsePath`), not react-router. The root `/` renders the dark `StudioShell` (`src/components/studio/`). Feed, sell, and admin views are lazy-loaded from `src/components/*`. `tests/studioShellContract.test.mjs` locks this in. In `src/PAGES/`, only `CreatorProfilePage.jsx` is live (lazy-loaded by `App.jsx`); the other files there are unused duplicates.
+- `src/main.jsx` → `src/App.jsx`. Routing is custom (`src/utils/routing.js` `parsePath`), not react-router.
+  - **Public site** (`src/components/discover/`, one lazy chunk `PublicSite.jsx`): `/` home, `/discover[/cat]`, `/products[/cat]`, `/creators[/cat]`, `/u/:slug`, `/p/:id`, `/reels`, `/trends`, `/collections[/id]`, `/deals`, `/search?q=`, `/saved`. `/feed` maps to Discover; `/?product=<id>` (Google feed links) redirects to `/p/<id>`. New public paths need a `vercel.json` SPA rewrite (a test checks).
+  - Every public surface renders only `buildPublicGraph` (`src/lib/publicDiscovery.js`): approved + attributed products, trends only from recorded click/view events, deals only from a real previous price, reels only from playable media classified by `mediaTruth`, "verified" only when the record says so, Luna picks only from local signals. `tests/publicDiscovery.test.mjs` pins this.
+  - Design system: `src/public.css` (scoped to `.lx`, loaded after Tailwind — don't combine an `lx-*` class that sets display/position with a responsive Tailwind display/position utility on the same element; wrap it). `luxury.css` has global `!important` image rules, neutralized inside `.lx`.
+  - The dark `StudioShell` (`src/components/studio/`) is lazy-loaded at `/studio`; admin at `/admin`. `tests/studioShellContract.test.mjs` locks the separation. In `src/PAGES/`, the remaining files are unused duplicates.
 - State lives in React contexts under `src/context/` (`MarketplaceContext` is the main one).
 - `src/lib/cloud/` is **isomorphic**: it is imported by both the browser and the serverless functions (for example `api/store.mjs` imports `trustVerification.js`, `lunaGrowth.js`, and `veritas.js`). Keep it free of browser-only globals at module top level.
 - `src/constants/domain.js` `PRODUCTION_ORIGIN` is the single source of truth for the public origin. `index.html`, `public/robots.txt`, and `public/sitemap.xml` mirror it, and `tests/domainOrigin.test.mjs` fails if they diverge. `likelink.com` is not ours; never emit it.

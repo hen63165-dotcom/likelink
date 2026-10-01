@@ -1,38 +1,56 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { LangProvider, useI18n } from "./lib/LangContext";
+import { LangProvider } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
-import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys.js";
 import { parsePath } from "./utils/routing.js";
 import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo.js";
-import { isPublicCatalogProduct } from "./lib/cloud/catalog.js";
 import { initReferral } from "./lib/referral.js";
 
 // Modern Layout & UI
-import { AppShell, TopBar, BottomNav } from "./components/layout/AppShell";
-import { StudioShell } from "./components/studio/StudioShell";
+import { AppShell } from "./components/layout/AppShell";
 import { Toast, LoadingScreen } from "./components/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
-import { ScreenshotSearchModal } from "./components/search/ScreenshotSearchModal";
 import { installGlobalErrorHealing } from "./lib/autoHeal.js";
 import { startAutoPilotSwarm } from "./lib/autopilotTick.js";
-import FloatingAIHelper from "./components/FloatingAIHelper";
 import { capturePayPalCheckout } from "./lib/paymentFlow.js";
 import { toHebrewError } from "./lib/errorMessages.js";
 import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
-const FeedView = lazy(() => import("./components/feed/FeedView"));
-const SellView = lazy(() => import("./components/sell/SellView"));
+// The Studio is its own surface — public visitors never download it.
+const StudioShell = lazy(() => import("./components/studio/StudioShell").then((m) => ({ default: m.StudioShell })));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
-const ProductShowcase = lazy(() => import("./components/public/ProductShowcase"));
-const CreatorAcquisition = lazy(() => import("./components/public/CreatorAcquisition"));
 const MerchantAcquisition = lazy(() => import("./components/public/MerchantAcquisition"));
-const DiscoveryPage = lazy(() => import("./components/public/DiscoveryPage"));
-const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
+// The public LikeLink2 site (home, discover, products, creators, reels, trends,
+// collections, deals, search, saved, product + creator pages) — one chunk.
+const PublicSite = lazy(() => import("./components/discover/PublicSite"));
+const PublicFrame = lazy(() => import("./components/discover/PublicSite").then((m) => ({ default: m.PublicFrame })));
+
+// Route types served by the public discovery site.
+const PUBLIC_TYPES = new Set(["landing", "discover", "products", "creators", "creator", "product", "reels", "trends", "collections", "deals", "search", "saved"]);
+
+/**
+ * Initial route. Legacy deep links (`/?product=<id>` from the Google Merchant
+ * feed and older share links, `/u/<slug>?product=<id>`) open the product page.
+ */
+function initialRoute() {
+  if (typeof window === "undefined") return { type: "landing" };
+  try {
+    const id = new URLSearchParams(window.location.search).get("product");
+    const route = parsePath(window.location.pathname);
+    if (id && (route.type === "landing" || route.type === "creator" || (route.type === "app" && route.tab === "feed"))) {
+      const path = `/p/${encodeURIComponent(id)}`;
+      window.history.replaceState({}, "", path);
+      return parsePath(path);
+    }
+    return route;
+  } catch {
+    return parsePath(window.location.pathname);
+  }
+}
 
 export default function AppRoot() {
   useEffect(() => {
@@ -79,31 +97,32 @@ function App() {
     window.location.replace(target);
   }, []);
 
-  const { lang, setLang } = useI18n();
-  const { loading, settings, toast, showToast, marketers, products, collections, favorites, following, toggleFavorite, toggleFollow, recordClick } = useMarketplace();
+  const { loading, toast, showToast } = useMarketplace();
   const { clearCart } = useCart();
   const { setTheme, storedTheme } = useTheme();
-  const [tab, setTab] = useState("feed");
-  const [route, setRoute] = useState(() => parsePath(window.location.pathname));
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeNav, setActiveNav] = useState("discover");
-  const [screenshotOpen, setScreenshotOpen] = useState(false);
+  const [stateTab, setTab] = useState("feed");
+  const [route, setRoute] = useState(initialRoute);
+  // Deep links decide the tab on the very first render (no flash of another
+  // surface while the sync effect below catches up).
+  const tab = route.type === "app" ? route.tab || stateTab : "public";
 
   useEffect(() => {
     initReferral();
   }, []);
 
-  // The seller Studio is a dark premium surface — force dark whenever the Studio
-  // is the active surface (tab "sell" OR the landing/feed view showing the Studio).
+  // The seller Studio is a dark premium surface. The public site paints its own
+  // light editorial canvas (.lx) on top of the dark root, which also keeps the
+  // legacy cream overrides in luxury.css (scoped to non-dark) out of its way.
   useEffect(() => {
-    const showStudio = tab === "sell" || route.type === "landing" || tab === "feed";
-    if (showStudio) setTheme("dark", false);
+    const darkRoot = tab === "sell" || PUBLIC_TYPES.has(route.type) || route.type === "merchants" || tab === "feed";
+    if (darkRoot) setTheme("dark", false);
     else setTheme(storedTheme, false);
   }, [tab, route.type, storedTheme, setTheme]);
 
   // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
   useEffect(() => {
-    if (["creator", "product", "creators", "merchants", "discover"].includes(route.type)) return;
+    // Public pages set their own SEO (PublicSite / MerchantAcquisition).
+    if (route.type !== "landing" && (PUBLIC_TYPES.has(route.type) || route.type === "merchants")) return;
     if (tab === "admin") {
       updatePageSEO(getDefaultSEO("admin"));
       setNoIndex("admin");
@@ -147,7 +166,7 @@ function App() {
   }, [clearCart, showToast]);
 
   useEffect(() => {
-    const onPop = () => setRoute(parsePath(window.location.pathname));
+    const onPop = () => setRoute({ ...parsePath(window.location.pathname), nav: Date.now() });
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -165,169 +184,76 @@ function App() {
   }, [tab, route]);
 
   function navigate(path) {
-    window.history.pushState({}, "", path);
-    setRoute(parsePath(path));
+    const url = new URL(path, window.location.origin);
+    window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    // `nav` makes every navigation a new route object, so a page that reads
+    // its query string (search, filters) refreshes on same-path navigation.
+    setRoute({ ...parsePath(url.pathname), nav: Date.now() });
   }
 
   if (loading) return <LoadingScreen />;
 
-  // Public acquisition + discovery surfaces — real catalog only.
-  if (route.type === "creators" || route.type === "merchants" || route.type === "discover") {
-    const PublicPage = route.type === "creators" ? CreatorAcquisition : route.type === "merchants" ? MerchantAcquisition : DiscoveryPage;
+  // /feed (legacy shopper feed) is now the Discover experience.
+  const publicRoute = route.type === "app" && route.tab === "feed" ? { type: "discover", category: null, nav: route.nav } : route;
+
+  // Public LikeLink2 site — real catalog only (see src/lib/publicDiscovery.js).
+  if (PUBLIC_TYPES.has(publicRoute.type)) {
     return (
-      <AppShell>
+      <>
         <Suspense fallback={<LoadingScreen />}>
-          <PublicPage category={route.category} navigate={navigate} />
+          <PublicSite route={publicRoute} navigate={navigate} />
         </Suspense>
         <Toast message={toast?.msg} />
-      </AppShell>
+      </>
     );
   }
 
-  // Creator Profile Route
-  if (route.type === "creator") {
+  if (route.type === "merchants") {
     return (
-      <AppShell>
+      <>
         <Suspense fallback={<LoadingScreen />}>
-          <CreatorProfilePage
-            slug={route.slug}
-            marketers={marketers}
-            products={products}
-            collections={collections}
-            favorites={favorites}
-            onToggleFavorite={toggleFavorite}
-            following={following}
-            onToggleFollow={toggleFollow}
-            recordClick={recordClick}
-            showToast={showToast}
-            navigate={navigate}
-            lang={lang}
-            setLang={setLang}
-            currentSellerId={settings?.currentSellerId || null}
-          />
+          <PublicFrame routeType="merchants" navigate={navigate}>
+            <MerchantAcquisition category={route.category} navigate={navigate} />
+          </PublicFrame>
         </Suspense>
         <Toast message={toast?.msg} />
-      </AppShell>
+      </>
     );
   }
 
-  // Product Showcase Route — fail-closed without valid creator attribution
-  if (route.type === "product") {
-    const product = products.find((p) => p.id === route.id);
-    const owner = product ? marketers.find((m) => m.id === product.marketerId) : null;
-    const publicOk = product && owner && isPublicCatalogProduct(product, marketers);
-    return (
-      <AppShell>
-        <Suspense fallback={<LoadingScreen />}>
-          <ProductShowcase
-            product={publicOk ? product : null}
-            owner={publicOk ? owner : null}
-            navigate={navigate}
-          />
-        </Suspense>
-        <Toast message={toast?.msg} />
-      </AppShell>
-    );
-  }
-
-  // Seller Studio — the dark premium LikeLink2 Studio shell (2026 redesign).
-  // Fully replaces the old cream marketplace shell for the studio tab.
+  // Seller Studio — the dark premium LikeLink2 Studio shell, visually separate
+  // from the public site.
   if (tab === "sell") {
     return (
       <>
-        <StudioShell
-          view={route.view}
-          onNavigate={(v) => navigate(`/studio/${v}`)}
-        />
+        <Suspense fallback={<LoadingScreen />}>
+          <StudioShell
+            view={route.view}
+            onNavigate={(v) => navigate(`/studio/${v}`)}
+          />
+        </Suspense>
         <Toast message={toast?.msg} />
       </>
     );
   }
 
-  // The root is the premium Studio command center. Public acquisition/discovery
-  // remains available through the dedicated routes (/discover, /creators, /merchants)
-  // while /feed stays the shopper-facing marketplace surface.
-  if (route.type === "landing") {
+  if (tab !== "admin") {
     return (
-      <>
-        <StudioShell
-          view={route.view}
-          onNavigate={(v) => navigate(`/studio/${v}`)}
-        />
-        <Toast message={toast?.msg} />
-      </>
+      <Suspense fallback={<LoadingScreen />}>
+        <PublicSite route={{ type: "landing" }} navigate={navigate} />
+      </Suspense>
     );
   }
 
-  if (tab === "feed") {
-    return (
-      <AppShell>
-        <TopBar
-          tab={tab}
-          feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onScreenshotSearch={() => setScreenshotOpen(true)}
-          activeNav={activeNav}
-          onNavChange={setActiveNav}
-        />
-        <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
-          <Suspense fallback={<LoadingScreen />}>
-            <FeedView
-              navigate={navigate}
-              query={searchQuery}
-              setQuery={setSearchQuery}
-              activeNav={activeNav}
-            />
-          </Suspense>
-        </main>
-        <BottomNav tab={tab} setTab={setTab} />
-        <Toast message={toast?.msg} />
-        <ScreenshotSearchModal
-          isOpen={screenshotOpen}
-          onClose={() => setScreenshotOpen(false)}
-        />
-        <FloatingAIHelper />
-      </AppShell>
-    );
-  }
-
-  // Main App Tabs (marketplace — keeps the existing light shell)
+  // Admin keeps its own shell.
   return (
     <AppShell>
-      <TopBar
-        tab={tab}
-        feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onScreenshotSearch={() => setScreenshotOpen(true)}
-        activeNav={activeNav}
-        onNavChange={setActiveNav}
-      />
-
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
         <Suspense fallback={<LoadingScreen />}>
-          {tab === "feed" && (
-            <FeedView
-              navigate={navigate}
-              query={searchQuery}
-              setQuery={setSearchQuery}
-              activeNav={activeNav}
-              setActiveNav={setActiveNav}
-              onScreenshotSearch={() => setScreenshotOpen(true)}
-            />
-          )}
-          {tab === "admin" && <AdminView />}
+          <AdminView />
         </Suspense>
       </main>
-
-      <BottomNav tab={tab} setTab={setTab} />
       <Toast message={toast?.msg} />
-      <ScreenshotSearchModal
-        isOpen={screenshotOpen}
-        onClose={() => setScreenshotOpen(false)}
-      />
-      <FloatingAIHelper />
     </AppShell>
   );
 }

@@ -1,12 +1,13 @@
-// Regression test: the dark premium LikeLink2 Studio is the DEFAULT root surface.
+// Regression test: the dark premium LikeLink2 Studio and the public site are
+// two separate surfaces.
 //
-// Before this contract existed, `/` parsed to { type: "landing" }, App did not
-// handle "landing" at all, and the root fell through to the cream/beige
-// marketplace shell (AppShell + TopBar + FeedView). The dark Studio existed but
-// was only reachable at /studio, so production still looked like the old
-// marketplace. These tests fail the build if any of that regresses:
+// History: `/` once fell through to the cream/beige marketplace shell
+// (AppShell + TopBar + FeedView). It was then pointed at the Studio. Since the
+// 2026-10 public redesign, `/` is the public discovery home (PublicSite) and
+// the Studio lives at /studio. These tests fail the build if:
 //   • the router stops resolving studio deep links
-//   • App stops routing the landing/root surface to StudioShell
+//   • the root falls back to the cream marketplace shell or the Studio
+//   • /studio stops mounting StudioShell
 //   • the Studio loses views, RTL handling, or its dark stylesheet
 //   • fabricated metrics creep back into the Studio surface
 import test from "node:test";
@@ -68,13 +69,11 @@ test("router resolves the Studio deep links the shell depends on", () => {
   assert.equal(tabToPath("sell"), "/studio");
 });
 
-test("App routes the root/landing surface to the dark Studio, not the marketplace shell", () => {
-  const landingBranch = APP.match(/if \(route\.type === "landing"[\s\S]*?\n  \}/);
-  assert.ok(landingBranch, "App must special-case the landing route");
-  assert.ok(
-    landingBranch[0].includes("StudioShell"),
-    "landing route must render StudioShell (the cream marketplace shell is not the default)"
-  );
+test("App routes the root to the public discovery site and /studio to the dark Studio", () => {
+  assert.ok(/PUBLIC_TYPES = new Set\(\["landing"/.test(APP), "the landing route must be a public discovery route");
+  const publicBranch = APP.match(/if \(PUBLIC_TYPES\.has\(publicRoute\.type\)\)[\s\S]*?\n  \}/);
+  assert.ok(publicBranch && publicBranch[0].includes("<PublicSite"), "public routes must render PublicSite");
+  assert.ok(!/<FeedView|<TopBar/.test(APP), "the cream marketplace shell must not come back");
   assert.ok(
     /setTheme\("dark", false\)/.test(APP),
     "App must force the dark theme for the Studio surface"
