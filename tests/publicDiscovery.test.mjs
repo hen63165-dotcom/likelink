@@ -189,3 +189,11 @@ test("public surfaces carry no fabricated claims", () => {
   assert.ok(kit.includes("MEDIA_TRUTH_LABEL"), "video badges must come from mediaTruth labels");
   assert.ok(kit.includes("AFFILIATE_DISCLOSURE_HE"), "shop CTAs must carry the affiliate disclosure");
 });
+
+test("index.html boots the app and its pre-hydration fallback is the public site, not the Studio", () => {
+  const html = read("index.html");
+  assert.ok(/<script type="module" src="\.\/src\/main\.jsx"><\/script>/.test(html), "index.html must load src/main.jsx");
+  assert.ok(html.includes("data-ll-public-root"), "the first paint must be the public site");
+  assert.ok(!html.includes('class="ll-studio"'), "the Studio is not the public first paint");
+  assert.ok(!/top creators|המובילות בישראל|הכי גדולה/.test(html), "no unprovable superlatives in public meta");
+});
