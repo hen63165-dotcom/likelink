@@ -345,7 +345,7 @@ export default function StudioHome({ onNavigate }) {
         <div>
           <h1 className="sh-title">
             {t("סטודיו UGC – ", "UGC Studio – ")}
-            <span>{t("דמני שלך", "your studio")}</span>
+            <span>{t("הסטודיו שלך", "your studio")}</span>
           </h1>
 
 
@@ -357,8 +357,8 @@ export default function StudioHome({ onNavigate }) {
             ))}
           </div>
           <p className="sh-sub">
-            {t("המערכת פועלת באופן אוטונומי כדי ליצור, להפיץ ולמדוד — על הנתונים האמיתיים שלך.",
-               "The system works autonomously to create, distribute and measure — on your real data.")}
+            {t("יוצרים תוכן, מפיצים באישור שלך ומודדים — על הנתונים האמיתיים שלך. מה שרץ אוטומטית מופיע ב״מצב מערכת״.",
+               "Create content, distribute with your approval and measure — on your real data. What runs automatically is listed under System status.")}
           </p>
         </div>
         <button type="button" className="sh-status" onClick={go("settings")} aria-label={t("מצב מערכת", "System status")}>

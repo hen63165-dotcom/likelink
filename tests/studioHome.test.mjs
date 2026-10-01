@@ -24,6 +24,9 @@ test("every navigation target used by StudioHome is a real Studio view", () => {
 
 test("StudioHome polls job status with POST (GET /api/autopilot returns 405)", () => {
   assert.ok(HOME.includes("fetchAutonomousJobStatus"));
+  // External distribution needs the owner's approval and a connected channel —
+  // the home copy never claims the system distributes on its own.
+  assert.ok(!/פועלת באופן אוטונומי|works autonomously/.test(HOME), "no 'autonomous distribution' claim");
   assert.ok(!SHELL.includes('/api/autopilot?mode=autonomous-jobs-status'), "Shell must not GET autopilot");
 });
 
