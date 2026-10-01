@@ -288,9 +288,12 @@ registerJob("autonomous-ugc-video-production", {
 
         results.push({
           productId: product.id,
-          status: result.ok ? (result.status || "QUEUED") : "FAILED",
-          error: result.ok ? null : result.error,
-          provider: result.provider || "likelink_first_party",
+          // Video is rendered by the native reel runner (GitHub Actions →
+          // /api/store?mode=media-pipeline); a serverless function cannot
+          // render, so "no motion yet" is a wait state, not a failure.
+          status: result.ok ? (result.status || "QUEUED") : result.error === "first_party_motion_missing" ? "AWAITING_NATIVE_RENDER" : "FAILED",
+          error: result.ok || result.error === "first_party_motion_missing" ? null : result.error,
+          provider: result.ok ? result.provider || "likelink_first_party" : "likelink_native_render",
           style,
         });
 
@@ -319,6 +322,22 @@ registerJob("autonomous-ugc-video-production", {
       inspected: results.length,
       results,
     };
+  },
+});
+
+// VERIFY PUBLICATION → MEASURE → LEARN for native reels. The render itself
+// runs on the GitHub Actions runner (.github/workflows/media-render.yml); this
+// job re-verifies every served reel through the public read path, unregisters
+// any that stopped serving (rollback) and records per-style learning.
+registerJob("native-reel-audit", {
+  description: "Re-verify native reels through the public read path, unregister broken ones, record per-style learning",
+  intervalMs: 6 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ now }) {
+    const { auditReels } = await import("./reelPublisher.js");
+    const r = await auditReels({ now });
+    if (!r.ok) throw new Error(r.error || "native_reel_audit_failed");
+    return { ok: true, cycle: "native-reel-audit", timestamp: now, reels: r.reels, checked: r.checked, serving: r.serving, unregistered: r.unregistered };
   },
 });
 
@@ -757,6 +776,7 @@ export const AUTONOMOUS_JOBS = [
   "autonomous-creative-refresh",
   "discovery-sweep",
   "distribution-autorun",
+  "native-reel-audit",
 ];
 
 // Campaigns the OWNER approved (distribution-autorun, confirm = planId):

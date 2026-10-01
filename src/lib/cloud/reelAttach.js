@@ -10,6 +10,7 @@
 import { isValidMediaPath } from "./mediaStore.js";
 
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v)$/i;
+export const STUDIO_REEL_PROVIDER = "likelink_studio_reel";
 
 /** The storage path of a media-proxy video URL (/api/og?mode=media&path=reels/…/x.mp4), or null. */
 export function mediaVideoPath(url) {
@@ -49,7 +50,12 @@ export function applyReelAttachments(products = [], attachments = [], now = Date
   const map = new Map(attachments.map((a) => [a.productId, a]));
   return (Array.isArray(products) ? products : []).map((p) => {
     const a = p?.id ? map.get(String(p.id)) : null;
-    // A first-party animation is labelled as such — never presented as real footage.
-    return a ? { ...p, videoUrl: a.videoUrl, videoSynthetic: a.synthetic, videoUpdatedAt: now } : p;
+    // A first-party animation is labelled as such — never presented as real
+    // footage. The creator's own studio reel replaces a pipeline render; the
+    // render's asset fields are cleared so its audit never touches this reel.
+    return a ? {
+      ...p, videoUrl: a.videoUrl, videoSynthetic: a.synthetic, videoProvider: STUDIO_REEL_PROVIDER,
+      videoPoster: null, videoStyle: null, videoStatus: "completed", videoAssetId: null, videoUpdatedAt: now,
+    } : p;
   });
 }

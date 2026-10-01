@@ -864,6 +864,12 @@ export default async function handler(req, res) {
     const { default: gptHandler } = await import('./_utils/gptHandler.mjs');
     return gptHandler(req, res);
   }
+  // Native reel pipeline (plan / ingest / audit / status) — see
+  // api/_utils/mediaPipelineHandler.mjs and scripts/media/render-reels.mjs.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'media-pipeline') {
+    const { default: mediaPipelineHandler } = await import('./_utils/mediaPipelineHandler.mjs');
+    return mediaPipelineHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
     const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
     return discoveryHandler(req, res);

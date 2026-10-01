@@ -92,7 +92,7 @@ export function getPlatformContent(platform, lang = DEFAULT_LANG) {
       whatsapp: 'היי! ראיתי את זה וחשבתי עליך — {link}',
       telegram: '🔥 {title}\n\n{hook}\n\n💰 ₪{price}\n🔗 {link}',
       instagram: '{hook}\n\n{title}\n💰 ₪{price}\n\nקני עכשיו — לינק בביו 🔗',
-      facebook: '{hook}\n\n{title}\n\nמחיר: ₪{price}\nמשלוח חינם\n\nקני עכשיו: {link}',
+      facebook: '{hook}\n\n{title}\n\nמחיר קטלוג: ₪{price}\n\nקני עכשיו: {link}',
       tiktok: '{hook} 🔥\n\n{title} — ₪{price}\n\n#קניות #אונליין #מומלץ',
       email: 'שלום!\n\nהיום אני ממליץ על:\n\n{title}\n\n{hook}\n\n💰 ₪{price}\n\nקני עכשיו: {link}\n\nבברכה,\n{ambassador}',
     },

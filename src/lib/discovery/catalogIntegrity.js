@@ -31,8 +31,11 @@ export function imageProvenance(url) {
   return IMAGE_PROVENANCE.UNKNOWN;
 }
 
-/** True when the image is a real photo of THIS product (store photo or the creator's upload). */
-export const isRealProductPhoto = (url) => [IMAGE_PROVENANCE.MERCHANT, IMAGE_PROVENANCE.OWN].includes(imageProvenance(url));
+/**
+ * May this image stand for THE product? Everything except a stock photo or a
+ * missing image (a store CDN we do not list is still the product's own photo).
+ */
+export const isRealProductPhoto = (url) => ![IMAGE_PROVENANCE.STOCK, IMAGE_PROVENANCE.NONE].includes(imageProvenance(url));
 
 /** affiliateUrl → ids of the DIFFERENT products that share it (only links used more than once). */
 export function sharedAffiliateLinks(products = []) {

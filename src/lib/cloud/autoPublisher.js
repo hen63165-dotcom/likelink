@@ -90,7 +90,7 @@ export function generateDailyPost(products, options = {}) {
     },
     seo: {
       title: `${product.title} — ${product.price}₪ | לייקלין`,
-      description: `${product.title} ב-${product.price}₪. ${context.urgency}. משלוח מהיר.`,
+      description: `${product.title} ב-${product.price}₪. ${context.urgency}.`,
       image: product.image,
     },
     cta: "קני עכשיו",

@@ -128,7 +128,12 @@ function restoreFields(stored, next, fields) {
 const MODERATED_STATUSES = new Set(["flagged", "removed", "rejected"]);
 // videoUrl & co. are attached by the server (src/lib/cloud/reelAttach.js) — a
 // stale client list can never drop them (which would make the reel private).
-const PROTECTED_PRODUCT_FIELDS = ["trustState", "verification", "verifiedAt", "merchantEligible", "veritasHash", "importSource", "videoUrl", "videoSynthetic", "videoUpdatedAt"];
+const PROTECTED_PRODUCT_FIELDS = [
+  "trustState", "verification", "verifiedAt", "merchantEligible", "veritasHash", "importSource",
+  // Product video fields are written by the server only — the studio reel
+  // attachment (reelAttach.js) and the native render pipeline (reelPublisher.js).
+  "videoUrl", "videoPoster", "videoProvider", "videoSynthetic", "videoStyle", "videoStatus", "videoAssetId", "videoUpdatedAt",
+];
 
 function policyProducts(stored, next, ctx) {
   const { result, created, rejected, rejectedCreates } = mergeOwnedById(stored, next, ctx, {

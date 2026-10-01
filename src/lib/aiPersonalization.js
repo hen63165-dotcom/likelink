@@ -77,7 +77,7 @@ function generateBody(product, tone, audience) {
     young: `אההה ${product.name} זה פשווו מושלם 💖\nמחיר: ${product.price}₪\nלהזמינה: ${product.url}`,
     trendy: `אם אתם עדיין לא גיליתם את ${product.name} — הגיע הזמן ✨\n${product.price}₪ בלבד\n${product.url}`,
     professional: `מתחילים שבוע חדש עם ${product.name}\nאיכות מעולה במחיר של ${product.price}₪\n${product.url}`,
-    trustworthy: `חשבנו עליכם — ${product.name} במחיר של ${product.price}₪\nמשלוח מהיר, החזרה מובנתת\n${product.url}`,
+    trustworthy: `חשבנו עליכם — ${product.name} במחיר של ${product.price}₪\nהמחיר והמשלוח נקבעים אצל החנות\n${product.url}`,
   };
   
   return bodies[tone] || bodies['trendy'];

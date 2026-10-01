@@ -146,6 +146,42 @@
     {
       "source": "/admin/:path*",
       "destination": "/"
+    },
+    {
+      "source": "/reels",
+      "destination": "/"
+    },
+    {
+      "source": "/trends",
+      "destination": "/"
+    },
+    {
+      "source": "/deals",
+      "destination": "/"
+    },
+    {
+      "source": "/search",
+      "destination": "/"
+    },
+    {
+      "source": "/saved",
+      "destination": "/"
+    },
+    {
+      "source": "/products",
+      "destination": "/"
+    },
+    {
+      "source": "/products/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/collections",
+      "destination": "/"
+    },
+    {
+      "source": "/collections/:path*",
+      "destination": "/"
     }
   ],
   "headers": [
