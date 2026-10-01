@@ -37,6 +37,7 @@ import { authConfigured, signOutSeller, getSessionToken } from "../../lib/auth.j
 import { toHebrewError } from "../../lib/errorMessages.js";
 import { buildSocialPack } from "../../lib/media/reelPipeline.js";
 import { catalogTruth, buildHookSet, TRUTH } from "../../lib/growth/likeloop.js";
+import { rankCatalog } from "../../lib/growth/opportunity.js";
 import {
   calculateMonetizationPotential, checkMonetizationEligibility,
 } from "../../lib/monetization.js";
@@ -296,6 +297,12 @@ function GrowthLoopCard({ he, reels = [] }) {
   const truth = useMemo(() => catalogTruth({ products: products || [], marketers: marketers || [], videos: reels.map((r) => ({ ...r, source: "likelink_native_render", productTags: [{ productId: r.productId }] })), clicks: clicks || [] }), [products, marketers, clicks, reels]);
   const mine = truth.rows.filter((r) => (products || []).some((p) => p.id === r.productId && p.marketerId === marketer?.id));
   const ok = mine.filter((r) => r.truthStatus === TRUTH.PROMOTABLE);
+  // Opportunity per product (same engine as the server; scores carry their basis).
+  const rank = useMemo(() => {
+    const own = (products || []).filter((p) => p.marketerId === marketer?.id);
+    const r = rankCatalog({ products: own, truthRows: mine, events: clicks || [], videos: reels.map((x) => ({ ...x, source: "likelink_native_render", public: true, productTags: [{ productId: x.productId }] })), marketers: marketers || [] });
+    return new Map(r.ranked.map((x) => [x.productId, x]));
+  }, [products, marketer, mine, clicks, reels, marketers]);
   const fix = mine.filter((r) => r.truthStatus === TRUTH.REQUIRES_PRODUCT_DATA);
   const [open, setOpen] = useState(null);
   if (!mine.length) return null;
@@ -317,6 +324,7 @@ function GrowthLoopCard({ he, reels = [] }) {
             <div className="flex flex-wrap items-center gap-2 text-[11px]">
               <b style={{ color: "var(--text)" }}>{r.title.slice(0, 40)}</b>
               <span style={{ color: "var(--accent)" }}>{LIFECYCLE_HE[r.lifecycle] || r.lifecycle}</span>
+              {rank.get(r.productId) ? <span style={{ color: "var(--text-muted)" }} title={he ? "ציון הזדמנות מנתונים מתועדים בלבד" : "Opportunity from recorded data only"}>{he ? "הזדמנות" : "Opportunity"} {rank.get(r.productId).opportunity} · {rank.get(r.productId).trend.state} · {rank.get(r.productId).next.action}</span> : null}
               <button type="button" className="ll-tap rounded-lg px-2 py-1 font-bold" style={{ background: "var(--bg)", color: "var(--text)" }} onClick={() => setOpen(open === r.productId ? null : r.productId)}>{he ? "8 הוקים" : "8 hooks"}</button>
             </div>
             {hooks.length ? <ul className="mt-1 space-y-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>{hooks.map((h) => <li key={h.id}><b>{h.type}</b> · {h.text}</li>)}</ul> : null}
