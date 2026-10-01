@@ -32,6 +32,8 @@ import {
   MAX_POSTER_BYTES,
   MAX_REEL_BYTES,
   RENDER_PROVIDER,
+  STUDIO_PROVIDER,
+  STYLE_ORDER,
   REEL_STYLES,
   ON_FRAME_DISCLOSURE,
   assertSyntheticTruth,
@@ -51,6 +53,7 @@ const POSTS_KEY = "brand_pulse:posts";
 const PUBLISH_LOG_KEY = "publish:log";
 const LAST_RUN_KEY = "media:pipeline:last";
 const LEARNING_KEY = "media:learning";
+const REQUESTS_KEY = "media:requests";
 
 export function reelEnv(env = process.env) {
   return {
@@ -125,6 +128,20 @@ function client({ env = reelEnv(), fetchImpl = globalThis.fetch } = {}) {
     } catch { /* best effort; the object is unreferenced either way */ }
   }
 
+  async function copy(sourceKey, destinationKey) {
+    try {
+      const res = await fetchImpl(`${env.url}/storage/v1/object/copy`, {
+        method: "POST",
+        headers: { ...svc, "content-type": "application/json" },
+        body: JSON.stringify({ bucketId: MEDIA_BUCKET, sourceKey, destinationKey }),
+        signal: timeout(30000),
+      });
+      return res.ok ? { ok: true } : { ok: false, error: `storage_copy_failed_${res.status}` };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e).slice(0, 120) };
+    }
+  }
+
   /** The public read path: storage with the ANON key (RLS decides). */
   async function anonMedia(path, { range } = {}) {
     try {
@@ -140,7 +157,7 @@ function client({ env = reelEnv(), fetchImpl = globalThis.fetch } = {}) {
     }
   }
 
-  return { kvRead, kvWrite, upload, remove, anonMedia, env, fetchImpl };
+  return { kvRead, kvWrite, upload, remove, copy, anonMedia, env, fetchImpl };
 }
 
 const sha = (b) => createHash("sha256").update(b).digest("hex");
@@ -150,10 +167,19 @@ const arr = (v) => (Array.isArray(v) ? v : []);
 /** DISCOVER → SELECT OPPORTUNITY → CREATE CREATIVE. Fails closed on any failed read. */
 export async function buildPlan({ limit = 3, env, fetchImpl, now = Date.now() } = {}) {
   const c = client({ env, fetchImpl });
-  const [products, marketers, videos, clicks] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, VIDEOS_KEY, CLICKS_KEY].map((k) => c.kvRead(k)));
-  if (![products, marketers, videos, clicks].every((r) => r.ok)) return { ok: false, error: "kv_read_failed" };
-  const { plan, learning } = planRenders({ products: arr(products.value), marketers: arr(marketers.value), videos: arr(videos.value), clicks: arr(clicks.value), limit: Math.max(1, Math.min(6, Number(limit) || 3)), now });
-  return { ok: true, plan, learning };
+  const [products, marketers, videos, clicks, requests] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, VIDEOS_KEY, CLICKS_KEY, REQUESTS_KEY].map((k) => c.kvRead(k)));
+  if (![products, marketers, videos, clicks, requests].every((r) => r.ok)) return { ok: false, error: "kv_read_failed" };
+  const max = Math.max(1, Math.min(6, Number(limit) || 3));
+  const full = planRenders({ products: arr(products.value), marketers: arr(marketers.value), videos: arr(videos.value), clicks: arr(clicks.value), limit: 200, now });
+  // Creator requests first (oldest first), then the autonomous selection.
+  const queued = arr(requests.value).filter((r) => r?.status === "QUEUED").sort((a, b) => (a.at || 0) - (b.at || 0));
+  const picked = [];
+  for (const r of queued) {
+    const item = full.plan.find((x) => x.productId === r.productId && (!r.style || x.style === r.style)) || full.plan.find((x) => x.productId === r.productId);
+    if (item && !picked.includes(item)) picked.push({ ...item, reason: "creator_request" });
+  }
+  for (const item of full.plan) if (picked.length < max && !picked.some((x) => x.productId === item.productId)) picked.push(item);
+  return { ok: true, plan: picked.slice(0, max), learning: full.learning };
 }
 
 async function externalPublish(c, { text, videoUrl, link }) {
@@ -246,29 +272,44 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
     return { ok: false, status: 502, error: "media_readback_failed", step: "verify_media", proof: { media: mediaProof } };
   }
 
+  const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof });
+  if (result.ok) {
+    try {
+      const reqR = await c.kvRead(REQUESTS_KEY);
+      if (reqR.ok && arr(reqR.value).some((r) => r?.productId === product.id && r.status === "QUEUED")) {
+        await c.kvWrite(REQUESTS_KEY, arr(reqR.value).map((r) => (r?.productId === product.id && r.status === "QUEUED" ? { ...r, status: "RENDERED", assetId: result.assetId, doneAt: now } : r)));
+      }
+    } catch { /* request bookkeeping never undoes a verified publication */ }
+  }
+  return result;
+}
+
+/** REGISTER → VERIFY REGISTRATION → PUBLISH → VERIFY PUBLICATION → PROOF (shared by every source). */
+async function registerAndPublish(c, ctx) {
+  const { product, products, videos, postsR, logR, style, videoPath, posterPath, videoBytes, videoSha, probe, now, conceptId, mediaProof, provider = RENDER_PROVIDER } = ctx;
   // 6. register (rollback restores the previous values)
   const origin = c.env.origin;
-  const records = buildReelRecords({ product, style: body.style, videoUrl: mediaUrl(videoPath, origin), posterUrl: mediaUrl(posterPath, origin), bytes: video.length, sha256: videoSha, probe: body.probe, now });
+  const records = buildReelRecords({ product, style, videoUrl: mediaUrl(videoPath, origin), posterUrl: posterPath ? mediaUrl(posterPath, origin) : product.image, bytes: videoBytes, sha256: videoSha, probe, now, provider });
   if (!assertSyntheticTruth(records.truth)) {
-    await c.remove([videoPath, posterPath]);
+    await c.remove([videoPath, posterPath].filter(Boolean));
     return { ok: false, status: 500, error: "truth_violation", truth: records.truth };
   }
-  const publicVideo = { ...records.video, public: true, conceptId: String(body.conceptId || "").slice(0, 120) };
+  const publicVideo = { ...records.video, public: true, conceptId: String(conceptId || "").slice(0, 120) };
   const assetsKey = `ugc:assets:${product.id}`;
   const assetsR = await c.kvRead(assetsKey);
-  if (!assetsR.ok) { await c.remove([videoPath, posterPath]); return { ok: false, status: 503, error: "kv_read_failed" }; }
+  if (!assetsR.ok) { await c.remove([videoPath, posterPath].filter(Boolean)); return { ok: false, status: 503, error: "kv_read_failed" }; }
   const prevAssets = arr(assetsR.value);
-  const canTakeProductVideo = !product.videoUrl || product.videoProvider === RENDER_PROVIDER;
+  const canTakeProductVideo = !product.videoUrl || /^likelink_/.test(String(product.videoProvider || ""));
   const nextProducts = products.map((p) =>
     p?.id === product.id && canTakeProductVideo
-      ? { ...p, videoUrl: publicVideo.videoUrl, videoPoster: publicVideo.poster, videoProvider: RENDER_PROVIDER, videoSynthetic: true, videoStyle: body.style, videoStatus: "completed", videoAssetId: publicVideo.id }
+      ? { ...p, videoUrl: publicVideo.videoUrl, videoPoster: publicVideo.poster, videoProvider: provider, videoSynthetic: true, videoStyle: style, videoStatus: "completed", videoAssetId: publicVideo.id }
       : p
   );
   const rollbackRegistration = async () => {
     try { await c.kvWrite(VIDEOS_KEY, videos); } catch { /* reported below */ }
     try { await c.kvWrite(assetsKey, prevAssets); } catch { /* reported below */ }
     if (canTakeProductVideo) { try { await c.kvWrite(PRODUCTS_KEY, products); } catch { /* reported below */ } }
-    await c.remove([videoPath, posterPath]);
+    await c.remove([videoPath, posterPath].filter(Boolean));
   };
   try {
     await c.kvWrite(VIDEOS_KEY, [publicVideo, ...videos].slice(0, 60));
@@ -292,9 +333,9 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
 
   // 7. PUBLISH — internal LikeLink publication, then the external boundary.
   const link = `${origin}/p/${encodeURIComponent(product.id)}?utm_source=likelink_reel&utm_medium=reel&utm_campaign=${encodeURIComponent(publicVideo.id)}`;
-  const text = `${publicVideo.title} · ${REEL_STYLES[body.style].he}\n${ON_FRAME_DISCLOSURE.he}`;
+  const text = `${publicVideo.title} · ${REEL_STYLES[style].he}\n${ON_FRAME_DISCLOSURE.he}`;
   const postId = `bp_${now}_${rid()}`;
-  const post = { id: postId, ts: now, kind: "reel", productId: product.id, text, link, channels: ["web"], spotlight: null, media: { videoUrl: publicVideo.videoUrl, poster: publicVideo.poster, truth: records.truth, style: body.style, assetId: publicVideo.id } };
+  const post = { id: postId, ts: now, kind: "reel", productId: product.id, text, link, channels: ["web"], spotlight: null, media: { videoUrl: publicVideo.videoUrl, poster: publicVideo.poster, truth: records.truth, style: style, assetId: publicVideo.id } };
   let webStatus = "FAILED", webError = null;
   try {
     await c.kvWrite(POSTS_KEY, [post, ...arr(postsR.value)].slice(0, 30));
@@ -309,17 +350,17 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
   // 8. PROOF
   const iso = new Date(now).toISOString();
   const logEntries = [
-    { id: `pub_${now}_${rid()}`, contentId: publicVideo.id, contentType: "native_reel", brandId: "platform", productId: product.id, channel: "web", status: webStatus, publishedAt: iso, externalId: webStatus === "PUBLISHED" ? postId : null, error: webError, attempts: 1, attemptOf: null, text, link },
-    { id: `pub_${now + 1}_${rid()}`, contentId: publicVideo.id, contentType: "native_reel", brandId: "platform", productId: product.id, channel: external.channel, status: external.status, publishedAt: iso, externalId: external.externalId || null, error: external.error || null, attempts: 1, attemptOf: null, text, link },
+    { id: `pub_${now}_${rid()}`, contentId: publicVideo.id, contentType: provider === RENDER_PROVIDER ? "native_reel" : "studio_reel", brandId: "platform", productId: product.id, channel: "web", status: webStatus, publishedAt: iso, externalId: webStatus === "PUBLISHED" ? postId : null, error: webError, attempts: 1, attemptOf: null, text, link },
+    { id: `pub_${now + 1}_${rid()}`, contentId: publicVideo.id, contentType: provider === RENDER_PROVIDER ? "native_reel" : "studio_reel", brandId: "platform", productId: product.id, channel: external.channel, status: external.status, publishedAt: iso, externalId: external.externalId || null, error: external.error || null, attempts: 1, attemptOf: null, text, link },
   ];
-  const proof = { assetId: publicVideo.id, productId: product.id, style: body.style, truth: records.truth, media: mediaProof, registration: registrationProof, publication: { web: { status: webStatus, externalId: webStatus === "PUBLISHED" ? postId : null, via: "kv_read:brand_pulse:posts", error: webError }, external } };
+  const proof = { assetId: publicVideo.id, productId: product.id, style: style, truth: records.truth, media: mediaProof, registration: registrationProof, publication: { web: { status: webStatus, externalId: webStatus === "PUBLISHED" ? postId : null, via: "kv_read:brand_pulse:posts", error: webError }, external } };
   try {
     await c.kvWrite(PUBLISH_LOG_KEY, [...logEntries, ...arr(logR.value)].slice(0, 60));
     await c.kvWrite(`media:proof:${publicVideo.id}`, proof);
-    await c.kvWrite(LAST_RUN_KEY, { at: iso, assetId: publicVideo.id, productId: product.id, style: body.style, web: webStatus, external: external.status });
+    await c.kvWrite(LAST_RUN_KEY, { at: iso, assetId: publicVideo.id, productId: product.id, style: style, web: webStatus, external: external.status });
   } catch { /* proof bookkeeping failure never undoes a verified publication */ }
 
-  return { ok: true, status: 200, truth: records.truth, assetId: publicVideo.id, proof, publication: { status: webStatus, externalId: webStatus === "PUBLISHED" ? postId : null }, external };
+  return { ok: true, status: 200, truth: records.truth, assetId: publicVideo.id, video: publicVideo, proof, publication: { status: webStatus, externalId: webStatus === "PUBLISHED" ? postId : null }, external };
 }
 
 /**
@@ -332,12 +373,12 @@ export async function auditReels({ env, fetchImpl, now = Date.now(), maxChecks =
   const [videosR, clicksR, productsR] = await Promise.all([VIDEOS_KEY, CLICKS_KEY, PRODUCTS_KEY].map((k) => c.kvRead(k)));
   if (!videosR.ok || !clicksR.ok || !productsR.ok) return { ok: false, error: "kv_read_failed" };
   const videos = arr(videosR.value);
-  const native = videos.filter((v) => v?.source === RENDER_PROVIDER);
+  const native = videos.filter((v) => v?.source === RENDER_PROVIDER || v?.source === STUDIO_PROVIDER);
   const checks = [];
   for (const v of native.slice(0, maxChecks)) {
     let path = "";
     try { path = new URL(String(v.videoUrl)).searchParams.get("path") || ""; } catch { /* malformed → checked as missing */ }
-    if (!/^ugc\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{1,100}\.mp4$/.test(path)) { checks.push({ id: v.id, path, ok: false, status: 400 }); continue; }
+    if (!/^ugc\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{1,100}\.(mp4|webm)$/.test(path)) { checks.push({ id: v.id, path, ok: false, status: 400 }); continue; }
     const r = await c.anonMedia(path, { range: "bytes=0-1023" });
     checks.push({ id: v.id, path, ok: r.ok, status: r.status });
   }
@@ -357,7 +398,7 @@ export async function auditReels({ env, fetchImpl, now = Date.now(), maxChecks =
 export async function pipelineStatus({ env, fetchImpl } = {}) {
   const c = client({ env, fetchImpl });
   const [videosR, lastR, learnR] = await Promise.all([VIDEOS_KEY, LAST_RUN_KEY, LEARNING_KEY].map((k) => c.kvRead(k)));
-  const native = arr(videosR.value).filter((v) => v?.source === RENDER_PROVIDER);
+  const native = arr(videosR.value).filter((v) => v?.source === RENDER_PROVIDER || v?.source === STUDIO_PROVIDER);
   const byStyle = Object.fromEntries(Object.keys(REEL_STYLES).map((s) => [s, native.filter((v) => v.style === s).length]));
   return {
     ok: true,
@@ -369,5 +410,84 @@ export async function pipelineStatus({ env, fetchImpl } = {}) {
     audit: learnR.ok && learnR.value ? { at: learnR.value.at, serving: learnR.value.serving, checked: learnR.value.checked } : null,
     externalChannel: c.env.telegramBot && c.env.telegramChat ? "telegram" : c.env.webhook ? "webhook" : "REQUIRES_CONNECTION",
     latest: native.slice(0, 6).map((v) => ({ id: v.id, productId: v.productTags?.[0]?.productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, createdAt: v.createdAt })),
+  };
+}
+
+const STUDIO_SOURCE = /^reels\/([A-Za-z0-9_-]{1,80})\/([A-Za-z0-9_-]{1,100})\.(webm|mp4)$/;
+
+/**
+ * ONE CLICK from the Studio: a clip the creator rendered in the browser and
+ * uploaded to reels/<own studio id>/ becomes a public, disclosed reel —
+ * copied to ugc/<productId>/, verified by anonymous read-back, registered,
+ * published, proven. ownerIds = the caller's VERIFIED studio ids.
+ */
+export async function registerStudioUpload({ sourcePath, productId, ownerIds = [] } = {}, { env, fetchImpl, now = Date.now() } = {}) {
+  const c = client({ env, fetchImpl });
+  const m = STUDIO_SOURCE.exec(String(sourcePath || ""));
+  if (!m) return { ok: false, status: 400, error: "bad_source_path" };
+  const owners = new Set((ownerIds || []).map(String));
+  if (!owners.has(m[1])) return { ok: false, status: 403, error: "not_your_upload" };
+  const [productsR, marketersR, videosR, postsR, logR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, VIDEOS_KEY, POSTS_KEY, PUBLISH_LOG_KEY].map((k) => c.kvRead(k)));
+  if (![productsR, marketersR, videosR, postsR, logR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
+  const products = arr(productsR.value), videos = arr(videosR.value);
+  const product = products.find((p) => p?.id === productId);
+  if (!product || !isPublicCatalogProduct(product, arr(marketersR.value))) return { ok: false, status: 404, error: "product_not_public" };
+  if (!owners.has(String(product.marketerId))) return { ok: false, status: 403, error: "not_your_product" };
+  const ext = m[3];
+  const videoPath = `ugc/${product.id}/${now}-studio.${ext}`;
+  const cp = await c.copy(sourcePath, videoPath);
+  if (!cp.ok) return { ok: false, status: 502, error: cp.error, step: "store" };
+  const back = await c.anonMedia(videoPath);
+  const kind = back.ok ? sniffMedia(back.bytes) : "";
+  const mediaProof = {
+    status: back.ok && (kind === "video/webm" || kind === "video/mp4") && back.bytes.length > 1000 ? "VERIFIED" : "FAILED",
+    via: "anon_storage_read",
+    httpStatus: back.status,
+    bytes: back.ok ? back.bytes.length : 0,
+    sha256: back.ok ? sha(back.bytes) : "",
+    sha256Match: back.ok,
+    contentType: back.type || kind,
+    source: sourcePath,
+    verifiedAt: new Date(now).toISOString(),
+  };
+  if (mediaProof.status !== "VERIFIED") {
+    await c.remove([videoPath]);
+    return { ok: false, status: 422, error: back.ok ? "not_a_playable_video" : "media_readback_failed", step: "verify_media", proof: { media: mediaProof } };
+  }
+  return registerAndPublish(c, { product, products, videos, postsR, logR, style: "studio", videoPath, posterPath: null, videoBytes: mediaProof.bytes, videoSha: mediaProof.sha256, probe: {}, now, conceptId: `${product.id}:studio`, mediaProof, provider: STUDIO_PROVIDER });
+}
+
+/** ONE CLICK "צור Reel": queue a native render for the runner (served first by the plan). */
+export async function requestRender({ productId, style = "", ownerIds = [], requestedBy = "" } = {}, { env, fetchImpl, now = Date.now() } = {}) {
+  const c = client({ env, fetchImpl });
+  if (style && !STYLE_ORDER.includes(style)) return { ok: false, status: 400, error: "bad_style" };
+  const [productsR, marketersR, reqR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, REQUESTS_KEY].map((k) => c.kvRead(k)));
+  if (![productsR, marketersR, reqR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
+  const product = arr(productsR.value).find((p) => p?.id === productId);
+  if (!product || !isPublicCatalogProduct(product, arr(marketersR.value))) return { ok: false, status: 404, error: "product_not_public" };
+  if (!(ownerIds || []).map(String).includes(String(product.marketerId))) return { ok: false, status: 403, error: "not_your_product" };
+  if (!/^https?:\/\//i.test(String(product.image || ""))) return { ok: false, status: 422, error: "product_image_required" };
+  const list = arr(reqR.value);
+  const existing = list.find((r) => r?.productId === productId && r.status === "QUEUED");
+  if (existing) return { ok: true, status: 200, request: existing, duplicate: true };
+  const request = { id: `req_${now}_${rid()}`, productId, style: style || "", requestedBy: String(requestedBy).slice(0, 80), at: now, status: "QUEUED" };
+  await c.kvWrite(REQUESTS_KEY, [request, ...list].slice(0, 100));
+  const back = await c.kvRead(REQUESTS_KEY);
+  if (!back.ok || !arr(back.value).some((r) => r?.id === request.id)) return { ok: false, status: 502, error: "request_not_persisted" };
+  return { ok: true, status: 200, request };
+}
+
+/** The caller's own requests + reels, for the Studio. */
+export async function studioReelState({ ownerIds = [] } = {}, { env, fetchImpl } = {}) {
+  const c = client({ env, fetchImpl });
+  const [productsR, videosR, reqR] = await Promise.all([PRODUCTS_KEY, VIDEOS_KEY, REQUESTS_KEY].map((k) => c.kvRead(k)));
+  if (![productsR, videosR, reqR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
+  const owners = new Set((ownerIds || []).map(String));
+  const mine = new Set(arr(productsR.value).filter((p) => owners.has(String(p?.marketerId))).map((p) => p.id));
+  return {
+    ok: true,
+    status: 200,
+    requests: arr(reqR.value).filter((r) => mine.has(r?.productId)).slice(0, 50),
+    reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt })),
   };
 }
