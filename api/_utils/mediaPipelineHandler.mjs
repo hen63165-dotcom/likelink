@@ -6,6 +6,8 @@
 //   POST op=ingest   store → verify → register → publish → proof   (same auth)
 //   POST op=audit    re-verify served reels, measure, learn        (same auth)
 //   POST op=instagram one step of the Instagram Reels publisher     (same auth)
+//   GET  op=likeloop (public summary; full with auth) · POST op=likeloop-run · POST op=instagram-insights
+//   POST op=catalog-resolve-status (SOURCE_BLOCKED + backoff)
 //   GET  op=catalog-candidates / POST op=catalog-resolve  real product photos from
 //        the store page (runner: scripts/catalog/resolve-products.mjs)  (same auth)
 //
@@ -13,9 +15,10 @@
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
 import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
-import { auditReels, buildPlan, ingestReel, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
+import { auditReels, buildPlan, ingestReel, instagramInsightsStep, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
 import { isApprovedOrigin } from "./cors.js";
-import { applyResolution, catalogCandidates } from "../../src/lib/cloud/catalogResolver.js";
+import { applyResolution, catalogCandidates, recordResolveOutcome } from "../../src/lib/cloud/catalogResolver.js";
+import { likeloopRun, likeloopStatus } from "../../src/lib/cloud/likeloopRunner.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
@@ -49,6 +52,11 @@ export default async function mediaPipelineHandler(req, res) {
   }
   if (op === "status" && req.method === "GET") {
     return send(res, 200, await pipelineStatus());
+  }
+  // LikeLoop: public-safe summary (counts and states only).
+  if (op === "likeloop" && req.method === "GET" && !isAuthorizedCron(req, [process.env.AUTOPILOT_SECRET])) {
+    const { status, ...rest } = await likeloopStatus();
+    return send(res, status || 200, rest);
   }
   // Creator ops (Studio one-click): a verified session, an approved origin.
   if (["studio-register", "request", "studio-state"].includes(op)) {
@@ -90,6 +98,23 @@ export default async function mediaPipelineHandler(req, res) {
     }
     if (op === "catalog-candidates" && req.method === "GET") {
       const { status, ...rest } = await catalogCandidates();
+      return send(res, status || 200, rest);
+    }
+    if (op === "likeloop" && req.method === "GET") {
+      const { status, ...rest } = await likeloopStatus({ admin: true });
+      return send(res, status || 200, rest);
+    }
+    if (op === "likeloop-run" && req.method === "POST") {
+      const { status, ...rest } = await likeloopRun();
+      return send(res, status || 200, rest);
+    }
+    if (op === "instagram-insights" && req.method === "POST") {
+      const r = await instagramInsightsStep();
+      return send(res, r.ok ? 200 : 502, r);
+    }
+    if (op === "catalog-resolve-status" && req.method === "POST") {
+      const body = await readBody(req);
+      const { status, ...rest } = await recordResolveOutcome(body && typeof body === "object" ? body : {});
       return send(res, status || 200, rest);
     }
     if (op === "catalog-resolve" && req.method === "POST") {

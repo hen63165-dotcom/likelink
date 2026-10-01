@@ -36,6 +36,7 @@ import {
 import { authConfigured, signOutSeller, getSessionToken } from "../../lib/auth.js";
 import { toHebrewError } from "../../lib/errorMessages.js";
 import { buildSocialPack } from "../../lib/media/reelPipeline.js";
+import { catalogTruth, buildHookSet, TRUTH } from "../../lib/growth/likeloop.js";
 import {
   calculateMonetizationPotential, checkMonetizationEligibility,
 } from "../../lib/monetization.js";
@@ -230,6 +231,7 @@ const REEL_STYLE_HE = {
   ugc_style: "בסגנון UGC · ממוחשב",
   animated_story: "סיפור מוצר מונפש",
   animated_unbox: "אנבוקסינג מונפש",
+  likeloop_cinematic: "LikeLoop Cinematic",
   studio: "קליפ מהסטודיו",
 };
 
@@ -251,7 +253,7 @@ const SHARE_NETWORKS = [
 
 /** Ready-to-post copy per network (real fields only, both disclosures), the MP4, and direct shares. */
 function ShareKit({ product, marketer, reel, showToast, he }) {
-  const pack = useMemo(() => buildSocialPack({ product, creator: marketer, style: reel?.style || "" }), [product, marketer, reel?.style]);
+  const pack = useMemo(() => buildSocialPack({ product, creator: marketer, style: reel?.style || "", hook: reel?.creative?.hook || "" }), [product, marketer, reel?.style, reel?.creative?.hook]);
   if (!pack || !reel) return null;
   const textOf = (n) => { const x = pack.networks[n]; return n === "youtube" ? `${x.title}\n\n${x.description}` : n === "pinterest" ? `${x.title}\n${x.description}\n${x.link}` : x.caption; };
   const copy = async (n) => {
@@ -272,6 +274,64 @@ function ShareKit({ product, marketer, reel, showToast, he }) {
         <a className={chip} style={{ background: "#229ed9", color: "#fff" }} href={`https://t.me/share/url?url=${encodeURIComponent(pack.networks.telegram.link)}&text=${encodeURIComponent(pack.hook + " " + (product.title || ""))}`} target="_blank" rel="noreferrer">Telegram</a>
       </div>
     </details>
+  );
+}
+
+const ISSUE_HE = {
+  shared_affiliate_link: "קישור משותף",
+  stock_image: "תמונת מאגר",
+  source_blocked: "החנות חסמה בדיקה",
+  no_image: "אין תמונה",
+  no_affiliate_url: "אין קישור",
+};
+const LIFECYCLE_HE = { DISCOVERED: "דורש נתונים", VALIDATED: "מאומת", CREATIVE_READY: "קריאייטיב מוכן", PUBLISHED: "פורסם", MEASURED: "נמדד", LEARNING: "בלמידה", OPTIMIZED: "ממוטב", PAUSED: "מושהה" };
+
+/**
+ * LikeLoop in the Studio: which of my products may be promoted, the exact data
+ * each blocked one needs (DATA_REPAIR_QUEUE), and the 8 typed hooks of each
+ * promotable product. Computed from the same pure engine the server runs.
+ */
+function GrowthLoopCard({ he, reels = [] }) {
+  const { products, marketers, clicks, currentMarketer: marketer } = useMarketplace();
+  const truth = useMemo(() => catalogTruth({ products: products || [], marketers: marketers || [], videos: reels.map((r) => ({ ...r, source: "likelink_native_render", productTags: [{ productId: r.productId }] })), clicks: clicks || [] }), [products, marketers, clicks, reels]);
+  const mine = truth.rows.filter((r) => (products || []).some((p) => p.id === r.productId && p.marketerId === marketer?.id));
+  const ok = mine.filter((r) => r.truthStatus === TRUTH.PROMOTABLE);
+  const fix = mine.filter((r) => r.truthStatus === TRUTH.REQUIRES_PRODUCT_DATA);
+  const [open, setOpen] = useState(null);
+  if (!mine.length) return null;
+  return (
+    <div className="ll-card rounded-2xl p-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+        <span style={{ color: "var(--text)" }}>{he ? "LikeLoop — מוכנות לקידום" : "LikeLoop — promotion readiness"}</span>
+        <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(52,211,153,.15)", color: "#6ee7b7" }}>{he ? `${ok.length} כשירים לקידום` : `${ok.length} promotable`}</span>
+        <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(251,191,36,.15)", color: "#fcd34d" }}>{he ? `${fix.length} דורשים נתונים` : `${fix.length} need data`}</span>
+      </div>
+      <p className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+        {he ? "רק מוצר עם קישור שותפים משלו ותמונה אמיתית מקבל סרטונים ופרסום חיצוני. השאר מחכים לתיקון — לא מקודמים." : "Only a product with its own affiliate link and a real photo gets reels and external posts."}
+      </p>
+      {ok.map((r) => {
+        const p = (products || []).find((x) => x.id === r.productId);
+        const hooks = open === r.productId ? buildHookSet(p) : [];
+        return (
+          <div key={r.productId} className="mt-2 rounded-xl p-2" style={{ background: "var(--bg-subtle)" }}>
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <b style={{ color: "var(--text)" }}>{r.title.slice(0, 40)}</b>
+              <span style={{ color: "var(--accent)" }}>{LIFECYCLE_HE[r.lifecycle] || r.lifecycle}</span>
+              <button type="button" className="ll-tap rounded-lg px-2 py-1 font-bold" style={{ background: "var(--bg)", color: "var(--text)" }} onClick={() => setOpen(open === r.productId ? null : r.productId)}>{he ? "8 הוקים" : "8 hooks"}</button>
+            </div>
+            {hooks.length ? <ul className="mt-1 space-y-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>{hooks.map((h) => <li key={h.id}><b>{h.type}</b> · {h.text}</li>)}</ul> : null}
+          </div>
+        );
+      })}
+      {fix.length ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[11px] font-bold" style={{ color: "#fcd34d" }}>{he ? `תור תיקון נתונים (${fix.length})` : `Data repair queue (${fix.length})`}</summary>
+          <ul className="mt-1 space-y-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            {fix.map((r) => <li key={r.productId}><b style={{ color: "var(--text)" }}>{r.title.slice(0, 40)}</b> · {r.issues.map((i) => ISSUE_HE[i] || i).join(" · ")} — {r.repair[0]}</li>)}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -336,6 +396,7 @@ function VideoPanel({ onNavigate }) {
         </p>
         {state.error ? <p className="mt-2 text-xs" style={{ color: "#ff9b9b" }}>{reelErrorHe(state.error)}</p> : null}
       </div>
+      <GrowthLoopCard he={he} reels={state.reels} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {mine.map((p) => {
           const reels = state.reels.filter((r) => r.productId === p.id);

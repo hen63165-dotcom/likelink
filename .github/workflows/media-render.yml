@@ -68,3 +68,13 @@ jobs:
             status=$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('ig.json','utf8')).status||'')}catch{console.log('')}")
             case "$status" in CONTAINER_CREATED|PROCESSING) sleep 40 ;; *) break ;; esac
           done
+      - name: LikeLoop — truth, hooks, creatives, queue, learning, trends
+        if: always()
+        run: |
+          for op in instagram-insights likeloop-run; do
+            code=$(curl -sS -o ll.json -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $AUTOPILOT_SECRET" -H "Origin: $LIKELINK_API" \
+              "$LIKELINK_API/api/store?mode=media-pipeline&op=$op")
+            echo "$op http $code"; head -c 3000 ll.json; echo
+            { echo "### $op (http $code)"; echo '```json'; head -c 6000 ll.json; echo; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          done

@@ -41,7 +41,11 @@ async function main() {
   const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || "chrome" });
   const ctx = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
   let failures = 0;
+  let blocked = false;
   for (const p of c.json.candidates) {
+    // One CAPTCHA means the store is blocking automation right now: stop asking it
+    // (no retries, no workaround); the remaining products wait for the next run.
+    if (blocked) { summary(`- ${p.id}: skipped — the store blocked automation earlier in this run`); continue; }
     const page = await ctx.newPage();
     try {
       await page.goto(p.affiliateUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -55,7 +59,18 @@ async function main() {
       let image = found.og.startsWith("//") ? `https:${found.og}` : found.og;
       image = image.replace(/_\d+x\d+(q\d+)?\.(jpg|png|webp)(_\.webp)?$/i, "");
       summary(`- ${p.id}: page ${itemUrl.slice(0, 80)} · image ${image.slice(0, 90) || "none"} · store title "${found.title.slice(0, 60)}"`);
-      if (!/\/item\/\d+\.html$/.test(itemUrl) || !image) { failures += 1; summary("  - not a product page / no image (blocked or link opens another page) — nothing sent"); continue; }
+      const captcha = /_____tmd_____|\/punish|captcha/i.test(found.url) || /captcha/i.test(found.title);
+      if (captcha || !/\/item\/\d+\.html$/.test(itemUrl) || !image) {
+        failures += 1;
+        const status = captcha ? "SOURCE_BLOCKED" : "NOT_PRODUCT_PAGE";
+        summary(`  - ${status} — nothing written to the product`);
+        if (captcha) blocked = true;
+        if (!DRY) {
+          const r = await api("catalog-resolve-status", { method: "POST", body: { productId: p.id, status, detail: captcha ? "captcha" : itemUrl.slice(0, 100) } });
+          summary(`  - recorded: http ${r.status} ${JSON.stringify(r.json).slice(0, 200)}`);
+        }
+        continue;
+      }
       if (DRY) continue;
       const r = await api("catalog-resolve", { method: "POST", body: { productId: p.id, itemUrl, image } });
       summary(`  - server: http ${r.status} ${JSON.stringify(r.json).slice(0, 300)}`);
