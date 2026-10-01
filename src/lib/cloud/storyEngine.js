@@ -8,7 +8,7 @@ const STORY_TEMPLATES = {
     scenes: [
       { mood: "curiosity", luna: "מה זה? 👀", action: "zoom_in" },
       { mood: "excitement", luna: "וואו! תראי את זה", action: "show_product" },
-      { mood: "demonstration", luna: "זה עובד על כל לוק", action: "demo" },
+      { mood: "demonstration", luna: "איך זה משתלב בלוק", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
@@ -16,8 +16,8 @@ const STORY_TEMPLATES = {
   Beauty: {
     scenes: [
       { mood: "curiosity", luna: "מה חדש? ✨", action: "zoom_in" },
-      { mood: "excitement", luna: "הסרום שכולן רוצות", action: "show_product" },
-      { mood: "demonstration", luna: "תוצאות מידיות", action: "demo" },
+      { mood: "excitement", luna: "מה יש כאן?", action: "show_product" },
+      { mood: "demonstration", luna: "פרטי המוצר בעמוד", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
@@ -25,8 +25,8 @@ const STORY_TEMPLATES = {
   Tech: {
     scenes: [
       { mood: "curiosity", luna: "מה זה? 📱", action: "zoom_in" },
-      { mood: "excitement", luna: "הגאדג'ט הכי חם", action: "show_product" },
-      { mood: "demonstration", luna: "תוכיש איך זה עובד", action: "demo" },
+      { mood: "excitement", luna: "גאדג'ט קטן ליום־יום", action: "show_product" },
+      { mood: "demonstration", luna: "ככה זה נראה", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
@@ -34,8 +34,8 @@ const STORY_TEMPLATES = {
   Home: {
     scenes: [
       { mood: "curiosity", luna: "מה זה? 🏠", action: "zoom_in" },
-      { mood: "excitement", luna: "הפרת הקטש שהבית הזה צריך", action: "show_product" },
-      { mood: "demonstration", luna: "קל להתקנה", action: "demo" },
+      { mood: "excitement", luna: "פרט קטן לבית", action: "show_product" },
+      { mood: "demonstration", luna: "הפרטים בעמוד המוצר", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
@@ -44,7 +44,7 @@ const STORY_TEMPLATES = {
     scenes: [
       { mood: "curiosity", luna: "מה זה? 💪", action: "zoom_in" },
       { mood: "excitement", luna: "הציוד שיעשה את ההבדל", action: "show_product" },
-      { mood: "demonstration", luna: "אימון ביתי מושלם", action: "demo" },
+      { mood: "demonstration", luna: "לשגרת אימון ביתית", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
@@ -53,15 +53,15 @@ const STORY_TEMPLATES = {
     scenes: [
       { mood: "curiosity", luna: "מתנה? 🎁", action: "zoom_in" },
       { mood: "excitement", luna: "המתנה המושלמת", action: "show_product" },
-      { mood: "demonstration", luna: "כולם מתלהבים", action: "demo" },
+      { mood: "demonstration", luna: "ככה זה נראה", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
-      { mood: "cta", luna: "אריזה מתנה", action: "cta" },
+      { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
   },
   Travel: {
     scenes: [
       { mood: "curiosity", luna: "נסיעה? 🧳", action: "zoom_in" },
-      { mood: "excitement", luna: "הציוד שחייב לנסיעה", action: "show_product" },
+      { mood: "excitement", luna: "ציוד לנסיעה", action: "show_product" },
       { mood: "demonstration", luna: "קל ונוח", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
@@ -70,10 +70,10 @@ const STORY_TEMPLATES = {
   Kids: {
     scenes: [
       { mood: "curiosity", luna: "לילדים? 🧸", action: "zoom_in" },
-      { mood: "excitement", luna: "הפריט שהילדים מרותקים אליו", action: "show_product" },
-      { mood: "demonstration", luna: "כיף וגם חינוכי", action: "demo" },
+      { mood: "excitement", luna: "רעיון לילדים", action: "show_product" },
+      { mood: "demonstration", luna: "ככה זה נראה", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
-      { mood: "cta", luna: "משלוח עד הבית", action: "cta" },
+      { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
   },
   Accessories: {
@@ -88,8 +88,8 @@ const STORY_TEMPLATES = {
   Other: {
     scenes: [
       { mood: "curiosity", luna: "מה זה? ✨", action: "zoom_in" },
-      { mood: "excitement", luna: "מצאתי משהו מדהים", action: "show_product" },
-      { mood: "demonstration", luna: "זה עובד", action: "demo" },
+      { mood: "excitement", luna: "מצאתי משהו", action: "show_product" },
+      { mood: "demonstration", luna: "ככה זה נראה", action: "demo" },
       { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
