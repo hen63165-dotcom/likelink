@@ -456,8 +456,11 @@ export async function resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet 
     ? { starter: "PAYPAL_PLAN_STARTER_Y", professional: "PAYPAL_PLAN_PROFESSIONAL_Y" }[planId]
     : { starter: "PAYPAL_PLAN_STARTER", professional: "PAYPAL_PLAN_PROFESSIONAL" }[planId];
   if (envKey && process.env[envKey] && !FOREIGN_PLAN_IDS.has(process.env[envKey])) return process.env[envKey];
-  const plans = await ensureBillingPlans({ kvGet, kvSet });
-  const id = plans[`${planId}:${billingPeriod}`] || null;
+  // Plans are created ONLY by the owner's button (sub=provision-plans). A
+  // customer's checkout reads what exists and never creates anything at PayPal.
+  let map = plansCache;
+  if (!map && kvGet) { try { map = await kvGet(PLANS_KV_KEY, null); } catch { map = null; } }
+  const id = map && typeof map === "object" && map.currency === PLAN_CURRENCY ? map[`${planId}:${billingPeriod}`] || null : null;
   return id && !FOREIGN_PLAN_IDS.has(id) ? id : null;
 }
 // Create a real PayPal Billing Subscription and return its approval link.

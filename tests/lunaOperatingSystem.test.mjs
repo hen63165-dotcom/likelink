@@ -373,7 +373,7 @@ test("system check: payments are judged on PayPal evidence — never a guessed f
   const { evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
   const base = { paypalConfigured: true, webhookConfigured: false, plansTotal: 3, plansConfigured: 0, missingPlans: ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"], tokenOk: true, paypalEnv: "live", provisioned: 0, provisionedVerified: 0 };
   const at = (payments, audience = "owner") => evaluateSystem({ payments }, { audience }).areas.find((a) => a.id === "payments");
-  // Plans were never provisioned (they are created on the first sub=create): not tried ≠ broken.
+  // Plans were never provisioned (only the owner's provision button creates them): not tried ≠ broken.
   const untried = at(base);
   assert.equal(untried.color, "YELLOW");
   assert.match(untried.evidence.join(" "), /עוד לא נוסה/);

@@ -219,3 +219,27 @@ test("a product list that cannot be read creates no product (no duplicate LikeLi
   assert.equal(id, null);
   assert.equal(paypal.products.length, 0);
 });
+
+test("a customer's checkout never creates PayPal plans — only the owner's provision button does", async () => {
+  reset();
+  const { _resetPayPalCaches } = await import("../api/_utils/paypal.js");
+  _resetPayPalCaches();
+  const { LEGAL_VERSION } = await import("../src/lib/legal/catalog.js");
+  kv.set("legal:acceptances", JSON.stringify({ "u-user": { current: { version: LEGAL_VERSION, at: new Date().toISOString() } } }));
+  const { default: store } = await import("../api/store.mjs");
+  const call = async (sub, token, body = {}) => {
+    const res = { statusCode: 200, headers: {}, body: null, status(c) { this.statusCode = c; return this; }, setHeader(k, v) { this.headers[String(k).toLowerCase()] = v; }, getHeader() {}, json(o) { this.body = o; }, end() {}, writeHead(c) { this.statusCode = c; } };
+    await store({ method: "POST", url: `/api/store?mode=subs&sub=${sub}`, headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.31", authorization: `Bearer ${token}` }, [Symbol.asyncIterator]: async function* () { yield Buffer.from(JSON.stringify(body)); } }, res);
+    return res;
+  };
+  let res = await call("checkout", "tok-user", { planId: "starter", billingPeriod: "monthly" });
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.error, "plan_not_configured");
+  assert.ok(!paypal.calls.some((c) => /^POST \/v1\/(billing\/plans|catalogs\/products)/.test(c)), "nothing was created at PayPal by a customer");
+  res = await call("provision-plans", "tok-owner");
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  _resetPayPalCaches();
+  paypal.calls.length = 0;
+  res = await call("checkout", "tok-user", { planId: "starter", billingPeriod: "monthly" });
+  assert.ok(!paypal.calls.some((c) => /^POST \/v1\/billing\/plans/.test(c)), "checkout reads the owner-provisioned plan, never creates one");
+});

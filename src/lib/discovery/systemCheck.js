@@ -121,7 +121,7 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
       envPlans === total ? "מזהי המסלולים מוגדרים בשרת"
         : plansReady ? `${pay.provisionedVerified}/${total} מסלולי מנוי נוצרו ב-PayPal ואומתו כפעילים`
           : (Number(pay.provisioned) || 0) > 0 ? `${pay.provisionedVerified || 0}/${pay.provisioned} מסלולים שמורים אומתו כפעילים ב-PayPal`
-            : "מסלולי המנוי עוד לא נוצרו ב-PayPal — LikeLink יוצרת אותם אוטומטית בבקשת המנוי הראשונה (עוד לא נוסה, לא אומת)",
+            : "מסלולי המנוי עוד לא נוצרו ב-PayPal — הבעלים יוצרת אותם בכפתור \"צור מסלולים\" באדמין; לקוח לא יכול ליצור מסלול (עוד לא נוסה, לא אומת)",
     ];
     if (priv && Number.isFinite(pay.pending)) ev.push(`${pay.pending} מנויים ממתינים לאימות · ${pay.active} פעילים`);
     ev.push(pay.webhookConfigured ? "Webhook מאומת חתימה מוגדר" : "אין אימות Webhook — עדכוני מנוי מגיעים רק מבדיקה יזומה מול PayPal");
