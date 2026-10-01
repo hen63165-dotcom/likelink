@@ -35,6 +35,7 @@ import {
 } from "../../lib/cloud/trustVerification.js";
 import { authConfigured, signOutSeller, getSessionToken } from "../../lib/auth.js";
 import { toHebrewError } from "../../lib/errorMessages.js";
+import { buildSocialPack } from "../../lib/media/reelPipeline.js";
 import {
   calculateMonetizationPotential, checkMonetizationEligibility,
 } from "../../lib/monetization.js";
@@ -228,6 +229,7 @@ const REEL_STYLE_HE = {
   cinematic3d: "אנימציה תלת־ממדית מסוגננת",
   ugc_style: "בסגנון UGC · ממוחשב",
   animated_story: "סיפור מוצר מונפש",
+  animated_unbox: "אנבוקסינג מונפש",
   studio: "קליפ מהסטודיו",
 };
 
@@ -235,9 +237,44 @@ const REEL_STYLE_HE = {
  * Reels — one click per product. Every state shown here is what the server
  * verified (studio-state): a reel is "published" only with a registered,
  * read-back-verified asset; a request is "queued" until the native renderer
- * (GitHub Actions, every 6h) delivers it. All renders are disclosed
+ * (GitHub Actions, every 3h) delivers it. All renders are disclosed
  * computer animation — never presented as filmed or human UGC.
  */
+const SHARE_NETWORKS = [
+  ["instagram", "Instagram"],
+  ["tiktok", "TikTok"],
+  ["youtube", "Shorts"],
+  ["facebook", "Facebook"],
+  ["x", "X"],
+  ["pinterest", "Pinterest"],
+];
+
+/** Ready-to-post copy per network (real fields only, both disclosures), the MP4, and direct shares. */
+function ShareKit({ product, marketer, reel, showToast, he }) {
+  const pack = useMemo(() => buildSocialPack({ product, creator: marketer, style: reel?.style || "" }), [product, marketer, reel?.style]);
+  if (!pack || !reel) return null;
+  const textOf = (n) => { const x = pack.networks[n]; return n === "youtube" ? `${x.title}\n\n${x.description}` : n === "pinterest" ? `${x.title}\n${x.description}\n${x.link}` : x.caption; };
+  const copy = async (n) => {
+    try { await navigator.clipboard.writeText(textOf(n)); showToast(he ? "הטקסט הועתק — הדביקי בפוסט" : "Copied — paste into your post"); }
+    catch { showToast(he ? "ההעתקה נחסמה בדפדפן" : "Copy blocked by the browser"); }
+  };
+  const chip = "ll-tap rounded-lg px-2.5 py-1.5 text-[11px] font-bold";
+  return (
+    <details className="mt-3 rounded-xl p-2" style={{ background: "var(--bg-subtle)" }}>
+      <summary className="cursor-pointer text-xs font-bold" style={{ color: "var(--text)" }}>{he ? "ערכת שיתוף לרשתות" : "Social share kit"}</summary>
+      <p className="mt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>{he ? `פתיח: "${pack.hook}" · כולל #פרסומת וגילוי אנימציה` : `Hook: "${pack.hook}" · includes ad + animation disclosure`}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {SHARE_NETWORKS.map(([n, label]) => (
+          <button key={n} type="button" className={chip} style={{ background: "var(--bg)", color: "var(--text)" }} onClick={() => copy(n)}>{he ? `העתק ל־${label}` : `Copy for ${label}`}</button>
+        ))}
+        <a className={chip} style={{ background: "var(--bg)", color: "var(--text)" }} href={reel.videoUrl} download={`${product.id}-${reel.style || "reel"}.mp4`}>{he ? "הורדת MP4" : "Download MP4"}</a>
+        <a className={chip} style={{ background: "#25d366", color: "#fff" }} href={`https://wa.me/?text=${encodeURIComponent(pack.networks.whatsapp.caption)}`} target="_blank" rel="noreferrer">WhatsApp</a>
+        <a className={chip} style={{ background: "#229ed9", color: "#fff" }} href={`https://t.me/share/url?url=${encodeURIComponent(pack.networks.telegram.link)}&text=${encodeURIComponent(pack.hook + " " + (product.title || ""))}`} target="_blank" rel="noreferrer">Telegram</a>
+      </div>
+    </details>
+  );
+}
+
 function VideoPanel({ onNavigate }) {
   const { lang } = useI18n();
   const he = lang === "he";
@@ -281,7 +318,7 @@ function VideoPanel({ onNavigate }) {
     const r = await requestCinematicReel(p.id);
     setBusy("");
     if (r.ok) {
-      showToast(r.duplicate ? (he ? "כבר בתור — הריצה הבאה של מנוע הרינדור תיצור אותו." : "Already queued.") : (he ? "נכנס לתור: מנוע הרינדור ייצור, יאמת ויפרסם בריצה הבאה (עד 6 שעות)." : "Queued: the renderer creates, verifies and publishes it on its next run (≤6h)."));
+      showToast(r.duplicate ? (he ? "כבר בתור — הריצה הבאה של מנוע הרינדור תיצור אותו." : "Already queued.") : (he ? "נכנס לתור: מנוע הרינדור ייצור, יאמת ויפרסם בריצה הבאה (עד 3 שעות)." : "Queued: the renderer creates, verifies and publishes it on its next run (≤3h)."));
       refresh();
     } else {
       showToast(reelErrorHe(r.error));
@@ -334,6 +371,7 @@ function VideoPanel({ onNavigate }) {
                   </a>
                 ) : null}
               </div>
+              <ShareKit product={p} marketer={marketer} reel={latest} showToast={showToast} he={he} />
             </div>
           );
         })}

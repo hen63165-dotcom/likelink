@@ -27,11 +27,16 @@
 import { isPublicCatalogProduct } from "../cloud/catalog.js";
 import { classifyMediaRecord, MEDIA_TRUTH } from "../discovery/mediaTruth.js";
 import { categoryName, formatPrice, merchantOf } from "../publicDiscovery.js";
+import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
 
 export const RENDER_PROVIDER = "likelink_native_render";
 /** A clip a creator rendered in the Studio (in-browser canvas engine), registered by the server. */
 export const STUDIO_PROVIDER = "likelink_studio_render";
-export const RENDERER_VERSION = "reel-canvas-v1";
+export const RENDERER_VERSION = "reel-canvas-v2";
+/** v1 = no hook prelude, no audio track; v2 = 1.5 s question hook + AAC track (Instagram requires audio). */
+export const ACCEPTED_RENDERERS = Object.freeze(["reel-canvas-v1", "reel-canvas-v2"]);
+/** The question-hook prelude every v2 reel opens with (the product is not shown in it). */
+export const HOOK_PRELUDE_MS = 1500;
 export const REEL_WIDTH = 720;
 export const REEL_HEIGHT = 1280;
 export const REEL_FPS = 30;
@@ -54,6 +59,11 @@ export const REEL_STYLES = Object.freeze({
     en: "Animated product story",
     durationMs: 10000,
   },
+  animated_unbox: {
+    he: "אנבוקסינג מונפש · אנימציה ממוחשבת",
+    en: "Animated unboxing · computer animation",
+    durationMs: 9500,
+  },
   // Not planned by the runner — the creator renders it in the Studio.
   studio: {
     he: "קליפ מהסטודיו · אנימציה ממוחשבת",
@@ -61,7 +71,7 @@ export const REEL_STYLES = Object.freeze({
     durationMs: 0,
   },
 });
-export const STYLE_ORDER = Object.freeze(["cinematic3d", "ugc_style", "animated_story"]);
+export const STYLE_ORDER = Object.freeze(["cinematic3d", "ugc_style", "animated_story", "animated_unbox"]);
 
 /** Burned into every frame and repeated in the metadata. */
 export const ON_FRAME_DISCLOSURE = Object.freeze({
@@ -72,6 +82,32 @@ export const ON_FRAME_DISCLOSURE = Object.freeze({
 const HTTP = /^https?:\/\/\S+$/i;
 const text = (v) => (typeof v === "string" ? v : "");
 const cleanTitle = (t) => text(t).replace(/\s+[—-]\s*(עד\s*)?₪\s?[\d,.]+\s*$/u, "").trim();
+
+/**
+ * Question hooks for the first 1.5 s (2026 short-form practice: a specific
+ * question, product not revealed yet). Questions only — never a claim about
+ * sales, stock, popularity or results we cannot prove.
+ */
+export const HOOK_QUESTIONS = Object.freeze({
+  Beauty: ["עוד מחפשת משהו שבאמת נכנס לשגרה?", "מה חסר לך בשגרת הטיפוח?"],
+  Fashion: ["מה לובשים השבוע? 👀", "מחפשת פריט אחד שמשדרג הכל?"],
+  Accessories: ["פרט קטן שמשנה את כל הלוק?", "מחפשת מתנה קטנה עם נוכחות?"],
+  Home: ["מה הבית שלך צריך עכשיו?", "פינה אחת בבית שמבקשת שדרוג?"],
+  Tech: ["מה עוד חסר על השולחן שלך?", "מחפשים גאדג'ט שימושי ליומיום?"],
+  Fitness: ["מתחילים להתאמן השבוע?", "מה מחזיק אותך באימון?"],
+  Gifts: ["מחפשים מתנה ואין רעיון?", "מתנה שלא תשכב במגירה?"],
+  Travel: ["אורזים לטיסה הבאה?", "מה תמיד שוכחים לארוז?"],
+  Kids: ["מה הקטנים יאהבו השבוע?", "מחפשים משהו שימושי לילדים?"],
+  Pets: ["מה החבר על ארבע צריך?", "מחפשים פינוק לכלב או לחתול?"],
+  Other: ["מה שווה לראות היום?", "מחפשים רעיון טוב לקנייה הבאה?"],
+});
+const seedOf = (s) => [...String(s)].reduce((a, ch) => (a * 31 + ch.codePointAt(0)) >>> 0, 7);
+
+/** Deterministic per product: the same product always opens with the same question. */
+export function hookQuestion(product) {
+  const bank = HOOK_QUESTIONS[product?.category] || HOOK_QUESTIONS.Other;
+  return bank[seedOf(product?.id || "") % bank.length];
+}
 
 /** The reel concept: everything the renderer draws, derived from real fields only. */
 export function buildReelConcept({ product, creator, style }) {
@@ -86,22 +122,24 @@ export function buildReelConcept({ product, creator, style }) {
     merchant ? `נמכר ב־${merchant}` : "",
     creatorName ? `נבחר על ידי ${creatorName}` : "",
   ].filter(Boolean);
-  const hooks = {
+  const kickers = {
     cinematic3d: category ? `${category} · בחירה מהקטלוג` : "בחירה מהקטלוג",
     ugc_style: "גילוי של היום 👀",
     animated_story: "לונה מציגה",
+    animated_unbox: "מה יש בקופסה?",
   };
   return {
     id: `${product.id}:${style}`,
     productId: product.id,
     style,
     styleLabel: { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en },
-    durationMs: REEL_STYLES[style].durationMs,
+    durationMs: REEL_STYLES[style].durationMs + HOOK_PRELUDE_MS,
     fps: REEL_FPS,
     width: REEL_WIDTH,
     height: REEL_HEIGHT,
     image: HTTP.test(text(product.image)) ? product.image : "",
-    lines: { hook: hooks[style], title, facts, cta: "לפרטים ולקנייה ב־LikeLink", brand: "LikeLink2" },
+    hookMs: HOOK_PRELUDE_MS,
+    lines: { hook: hookQuestion(product), kicker: kickers[style], title, facts, cta: "לפרטים ולקנייה ב־LikeLink", brand: "LikeLink2" },
     disclosure: ON_FRAME_DISCLOSURE.he,
     accent: /^#[0-9a-f]{6}$/i.test(text(creator?.color)) ? creator.color : "#d22f5d",
   };
@@ -204,7 +242,8 @@ export function validateIngest(body = {}) {
   if (!body || typeof body !== "object") return fail("bad_body");
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(text(body.productId))) return fail("bad_product_id");
   if (!STYLE_ORDER.includes(body.style)) return fail("bad_style");
-  if (text(body.renderer) !== RENDERER_VERSION) return fail("unknown_renderer");
+  if (!ACCEPTED_RENDERERS.includes(text(body.renderer))) return fail("unknown_renderer");
+  if (text(body.renderer) === "reel-canvas-v2" && text(body.probe?.audio) !== "aac") return fail("missing_audio_track");
   const probe = body.probe || {};
   const duration = Number(probe.durationMs);
   if (!(duration >= 3000 && duration <= 30000)) return fail("bad_duration");
@@ -215,13 +254,14 @@ export function validateIngest(body = {}) {
 }
 
 /** The asset record (ugc:assets:<id>) and the public reel record (marketplace:videos). */
-export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER }) {
+export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER, renderer = RENDERER_VERSION }) {
   const id = `reel_${product.id}_${style}_${now}`;
   const styleLabel = { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en };
   const base = {
     source: provider,
     videoProvider: provider,
-    renderer: RENDERER_VERSION,
+    renderer: text(renderer).slice(0, 40) || RENDERER_VERSION,
+    audio: probe?.audio === "aac" ? "aac" : "none",
     synthetic: true,
     disclosed: true,
     disclosure: ON_FRAME_DISCLOSURE,
@@ -257,4 +297,63 @@ export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, s
 /** A render is only acceptable as a synthetic animation — anything else is a bug. */
 export function assertSyntheticTruth(truth) {
   return truth === MEDIA_TRUTH.SYNTHETIC_ANIMATION;
+}
+
+/* ------------------------------------------------------------------ social */
+
+/** Hashtags per category: a few specific tags beat a wall of generic ones (Instagram caps at 5 in 2026). */
+const CATEGORY_TAGS = Object.freeze({
+  Beauty: ["טיפוח", "ביוטי", "המלצות_טיפוח"],
+  Fashion: ["אופנה", "סטייל", "לוק_יומי"],
+  Accessories: ["אקססוריז", "תכשיטים", "סטייל"],
+  Home: ["עיצוב_הבית", "בית", "מציאות_לבית"],
+  Tech: ["גאדג'טים", "טכנולוגיה", "המלצות_טק"],
+  Fitness: ["כושר", "אימון", "ספורט"],
+  Gifts: ["רעיון_למתנה", "מתנות", "מתנה"],
+  Travel: ["טיולים", "ציוד_לטיסה", "נסיעות"],
+  Kids: ["ילדים", "הורות", "לקטנים"],
+  Pets: ["חיות_מחמד", "כלבים", "חתולים"],
+  Other: ["מציאות", "המלצות", "קניות_אונליין"],
+});
+export const SOCIAL_NETWORKS = Object.freeze(["instagram", "tiktok", "youtube", "facebook", "telegram", "whatsapp", "x", "pinterest"]);
+/** Paid-partnership disclosure (Israeli consumer-protection / platform rules) + the animation disclosure. */
+export const SOCIAL_DISCLOSURE_HE = "#פרסומת · קישור שותפים";
+export const SOCIAL_ANIMATION_NOTE_HE = "🎬 הסרטון: אנימציה ממוחשבת, לא צולם";
+
+/** A network-tagged product link (UTM), on the canonical public origin only. */
+export function socialLink(productId, network, style = "", origin = PRODUCTION_ORIGIN) {
+  const q = new URLSearchParams({ utm_source: network, utm_medium: "social", utm_campaign: "luna_reel" });
+  if (style) q.set("utm_content", style);
+  return `${origin}/p/${encodeURIComponent(productId)}?${q}`;
+}
+
+/**
+ * Ready-to-post Hebrew copy for every network, from real product fields only.
+ * Structure follows current short-form practice: question hook first line,
+ * one concrete line about the product, the real catalog price, a single CTA,
+ * a few specific hashtags, and both disclosures. No invented claims.
+ */
+export function buildSocialPack({ product, creator, style = "", origin = PRODUCTION_ORIGIN } = {}) {
+  if (!product?.id) return null;
+  const title = cleanTitle(product.title) || text(product.title);
+  const hook = hookQuestion(product);
+  const price = formatPrice(product.price, "he");
+  const merchant = merchantOf(product);
+  const by = text(creator?.name);
+  const tags = [...(CATEGORY_TAGS[product.category] || CATEGORY_TAGS.Other), "לייקלינק"].slice(0, 4).map((t) => `#${t}`);
+  const facts = [price ? `💸 ${price} (מחיר קטלוג${merchant ? ` ב־${merchant}` : ""})` : merchant ? `🛍️ נמכר ב־${merchant}` : "", by ? `✨ נבחר על ידי ${by}` : ""].filter(Boolean);
+  const link = (n) => socialLink(product.id, n, style, origin);
+  const body = [hook, "", `👈 ${title}`, ...facts].join("\n");
+  const out = {
+    instagram: { caption: [body, "", "🔗 הקישור בביו · או חפשו ב־LikeLink2", "", SOCIAL_ANIMATION_NOTE_HE, SOCIAL_DISCLOSURE_HE, "", tags.join(" ")].join("\n"), link: link("instagram"), hashtags: tags },
+    tiktok: { caption: [hook, `👈 ${title}`, price ? `💸 ${price}` : "", "🔗 קישור בביו", SOCIAL_DISCLOSURE_HE, tags.slice(0, 4).join(" ")].filter(Boolean).join("\n"), link: link("tiktok"), hashtags: tags },
+    youtube: { title: `${hook} ${title}`.slice(0, 95) + " #Shorts", description: [body, "", `לפרטים: ${link("youtube")}`, "", SOCIAL_ANIMATION_NOTE_HE, SOCIAL_DISCLOSURE_HE].join("\n"), link: link("youtube") },
+    facebook: { caption: [body, "", `לפרטים ולקנייה: ${link("facebook")}`, "", SOCIAL_ANIMATION_NOTE_HE, SOCIAL_DISCLOSURE_HE].join("\n"), link: link("facebook") },
+    telegram: { caption: [`<b>${hook}</b>`, `${title}`, ...facts, "", link("telegram"), "", SOCIAL_DISCLOSURE_HE].join("\n"), link: link("telegram") },
+    whatsapp: { caption: [`*${hook}*`, title, ...facts, "", link("whatsapp"), SOCIAL_DISCLOSURE_HE].join("\n"), link: link("whatsapp") },
+    x: { caption: `${hook} ${title}${price ? ` · ${price}` : ""}\n${link("x")}\n${SOCIAL_DISCLOSURE_HE}`, link: link("x") },
+    pinterest: { title: title.slice(0, 100), description: [hook, ...facts, SOCIAL_DISCLOSURE_HE].join(" · ").slice(0, 500), link: link("pinterest") },
+  };
+  out.instagram.caption = out.instagram.caption.slice(0, 2200);
+  return { productId: product.id, style, hook, networks: out };
 }

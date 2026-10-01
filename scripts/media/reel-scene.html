@@ -90,10 +90,10 @@ function card3D(cx, cy, w, h, angle, opts = {}) {
     pts.push({ X: cx + x * Math.cos(angle) * s, s });
   }
   // floor shadow
-  ctx.save(); const sg = ctx.createRadialGradient(cx, cy + h / 2 + 40, 10, cx, cy + h / 2 + 40, w * 0.7);
+  if (!opts.bare) { ctx.save(); const sg = ctx.createRadialGradient(cx, cy + h / 2 + 40, 10, cx, cy + h / 2 + 40, w * 0.7);
   sg.addColorStop(0, "rgba(0,0,0,.55)"); sg.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = sg;
-  ctx.beginPath(); ctx.ellipse(cx, cy + h / 2 + 40, w * 0.62, 46, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  for (const reflect of [true, false]) {
+  ctx.beginPath(); ctx.ellipse(cx, cy + h / 2 + 40, w * 0.62, 46, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  for (const reflect of opts.bare ? [false] : [true, false]) {
     for (let i = 0; i < strips; i++) {
       const a = pts[i], b = pts[i + 1]; const hh = h * a.s; const dx = Math.min(a.X, b.X), dw = Math.abs(b.X - a.X) + 0.8;
       const srcX = sx + (sw * i) / strips; const srcW = sw / strips;
@@ -137,7 +137,7 @@ function cinematic(t) {
   const cy = 560 + (1 - enter) * 500 + Math.sin(T * 1.6) * 8;
   card3D(W / 2, cy, 470, 588, angle, { sweep: (T % 3.2) / 3.2 });
   // copy
-  textBlock([C.lines.hook], W / 2, 150, `700 30px ${UI}`, 40, "#ffd9c2", ease(win(T, 0.5, 1.2)));
+  textBlock([C.lines.kicker || ""], W / 2, 150, `700 30px ${UI}`, 40, "#ffd9c2", ease(win(T, 0.5, 1.2)));
   const tl = wrap(C.lines.title, `900 56px ${DISPLAY}`, 620, 2);
   textBlock(tl, W / 2, 230, `900 56px ${DISPLAY}`, 64, "#fff", ease(win(T, 1.0, 1.8)));
   C.lines.facts.forEach((f, i) => pill(f, W / 2, 960 + i * 64, { alpha: ease(win(T, 3 + i * 0.6, 3.6 + i * 0.6)), scale: 0.9 + 0.1 * back(win(T, 3 + i * 0.6, 3.6 + i * 0.6)) }));
@@ -166,7 +166,7 @@ function ugc(t) {
   brandMark(W - 120, 90);
   const pop = (a) => back(win(local, a, a + 0.35));
   const chip = (label, y, a, big = false) => pill(label, W / 2, y, { font: big ? `900 40px ${UI}` : `800 30px ${UI}`, h: big ? 76 : 60, padX: 26, scale: pop(a), alpha: clamp(pop(a) * 1.5) });
-  if (seg === 0) { chip(C.lines.hook, 860, 0.15, true); }
+  if (seg === 0) { chip(C.lines.kicker || "", 860, 0.15, true); }
   if (seg === 1) { wrap(C.lines.title, `900 40px ${UI}`, 600, 2).forEach((l, i) => chip(l, 820 + i * 88, 0.1 + i * 0.25, true)); }
   if (seg === 2) { C.lines.facts.forEach((f, i) => chip(f, 760 + i * 76, 0.1 + i * 0.3)); chip(C.lines.cta, 1060, 1.2); }
   disclosure(t);
@@ -233,7 +233,7 @@ function story(t) {
   // speech bubble
   const bub = back(win(T, 0.7, 1.1)) * (T < 6.2 ? 1 : 1 - ease(win(T, 6.2, 6.5)));
   if (bub > 0) {
-    const label = T < 3 ? C.lines.hook : "תראו מה מצאתי";
+    const label = T < 3 ? (C.lines.kicker || "") : "תראו מה מצאתי";
     pill(label, T < 1.4 ? W / 2 : mx - 120, my - 120, { font: `800 30px ${UI}`, scale: bub, h: 62 });
   }
   const tl = wrap(C.lines.title, `900 50px ${DISPLAY}`, 620, 2);
@@ -244,9 +244,119 @@ function story(t) {
   disclosure(t);
 }
 
+/* ------------------------------------------------------- hook prelude (v2)
+   The first 1.5 s: one specific question in big kinetic type. The product is
+   NOT shown yet — the reveal is the payoff of the question. */
+function prelude(t) {
+  const T = t / 1000, D = (C.hookMs || 1500) / 1000;
+  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#14101c"); g.addColorStop(1, "#2a1530");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const pulse = 0.75 + 0.25 * Math.sin(T * 9);
+  const gl = ctx.createRadialGradient(W / 2, H * 0.45, 20, W / 2, H * 0.45, 520 * pulse); gl.addColorStop(0, C.accent + "aa"); gl.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+  // kinetic type: the question builds word by word
+  const words = String(C.lines.hook || "").split(/\s+/).filter(Boolean);
+  const font = `900 64px ${UI}`; ctx.font = font;
+  const lines = wrap(C.lines.hook, font, 600, 3);
+  let k = 0; const per = Math.min(0.16, 0.8 / Math.max(1, words.length));
+  ctx.save(); ctx.direction = "rtl"; ctx.textAlign = "center"; ctx.font = font;
+  lines.forEach((line, li) => {
+    const ws = line.split(" "); const shown = [];
+    for (const w of ws) { if (T >= 0.08 + k * per) shown.push(w); k += 1; }
+    const s = 1 + 0.08 * (1 - ease(win(T, 0.08 + (k - 1) * per, 0.08 + (k - 1) * per + 0.25)));
+    ctx.save(); ctx.translate(W / 2, 560 + li * 84 - (lines.length - 1) * 42); ctx.scale(s, s);
+    ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 24; ctx.fillStyle = "#fff"; ctx.fillText(shown.join(" "), 0, 0); ctx.restore();
+  });
+  ctx.restore();
+  // underline sweep in the creator's accent
+  const u = ease(win(T, 0.5, 1.1)); ctx.fillStyle = C.accent; rr(ctx, W / 2 - 180 * u, 690 + (lines.length - 1) * 42, 360 * u, 10, 5); ctx.fill();
+  pill("👀 רגע…", W / 2, 860, { font: `700 30px ${UI}`, bg: "rgba(255,255,255,.12)", fg: "#fff", alpha: ease(win(T, 0.9, 1.2)), h: 58 });
+  brandMark(W / 2, 92, 0.85);
+  // flash into the reveal
+  const f = win(T, D - 0.12, D); if (f > 0) { ctx.fillStyle = `rgba(255,255,255,${0.85 * f})`; ctx.fillRect(0, 0, W, H); }
+  disclosure(t);
+}
+
+/* -------------------------------------------------------- animated_unbox
+   An original gift box: anticipation shake, lid pop, light rays, the product
+   card rises out of the box. All shapes drawn here. */
+function unbox(t) {
+  const T = t / 1000;
+  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#fff3ea"); bg.addColorStop(0.6, "#ffd9e4"); bg.addColorStop(1, "#e9d6ff");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(90,40,90,.08)"; ctx.beginPath(); ctx.ellipse(W / 2, 1060, 340, 60, 0, 0, Math.PI * 2); ctx.fill();
+  const bx = W / 2, bw = 400, bh = 300, depth = 70;
+  const rise = back(win(T, 0.0, 0.9));
+  const by = 1040 - bh + (1 - rise) * 700; // top edge of the front face
+  const shake = T > 1.0 && T < 1.9 ? Math.sin(T * 60) * 9 * win(T, 1.0, 1.85) : 0;
+  const open = win(T, 1.9, 2.4);
+  // light rays from the opening
+  if (open > 0) {
+    ctx.save(); ctx.translate(bx, by); ctx.globalAlpha = 0.55 * ease(open) * (T < 6 ? 1 : 1 - win(T, 6, 7));
+    for (let i = 0; i < 14; i++) {
+      const a = -Math.PI / 2 + (i - 6.5) * 0.17 + Math.sin(T * 0.8) * 0.05;
+      const gr = ctx.createLinearGradient(0, 0, Math.cos(a) * 900, Math.sin(a) * 900); gr.addColorStop(0, "rgba(255,240,200,.9)"); gr.addColorStop(1, "rgba(255,240,200,0)");
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a - 0.05) * 900, Math.sin(a - 0.05) * 900); ctx.lineTo(Math.cos(a + 0.05) * 900, Math.sin(a + 0.05) * 900); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(shake, 0);
+  // box back / inner opening
+  ctx.fillStyle = "#4a2a6a"; ctx.beginPath(); ctx.moveTo(bx - bw / 2, by); ctx.lineTo(bx - bw / 2 + depth, by - depth * 0.6); ctx.lineTo(bx + bw / 2 + depth, by - depth * 0.6); ctx.lineTo(bx + bw / 2, by); ctx.closePath(); ctx.fill();
+  // the product rises out of the box
+  const up = ease(win(T, 2.2, 3.4));
+  if (up > 0) {
+    const ch = 470, cw = 376; const cy = by + 120 - up * 420 + Math.sin(T * 1.8) * 6 * win(T, 3.4, 4);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, by + 2); ctx.clip();
+    card3D(bx, cy, cw * (0.8 + 0.2 * up), ch * (0.8 + 0.2 * up), Math.sin(T * 0.9) * 0.2 * win(T, 3.2, 3.8), { bare: true, sweep: T > 3.4 ? ((T - 3.4) % 2.8) / 2.8 : null });
+    ctx.restore();
+  }
+  // front + side faces
+  const fg = ctx.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0); fg.addColorStop(0, C.accent); fg.addColorStop(1, shade(C.accent, -40));
+  ctx.fillStyle = fg; rr(ctx, bx - bw / 2, by, bw, bh, 14); ctx.fill();
+  ctx.fillStyle = shade(C.accent, -70); ctx.beginPath(); ctx.moveTo(bx + bw / 2, by); ctx.lineTo(bx + bw / 2 + depth, by - depth * 0.6); ctx.lineTo(bx + bw / 2 + depth, by + bh - depth * 0.6); ctx.lineTo(bx + bw / 2, by + bh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillRect(bx - 22, by, 44, bh); // ribbon
+  ctx.fillStyle = "rgba(255,255,255,.18)"; rr(ctx, bx - bw / 2 + 18, by + 18, 70, bh - 36, 10); ctx.fill(); // gloss
+  // the lid flies off
+  const lidY = by - 34 - ease(open) * 1500, lidR = open * 0.9, lidX = bx + open * 260;
+  if (open < 1) {
+    ctx.save(); ctx.translate(lidX, lidY); ctx.rotate(lidR);
+    ctx.fillStyle = shade(C.accent, 15); rr(ctx, -bw / 2 - 18, -10, bw + 36, 64, 14); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillRect(-22, -10, 44, 64);
+    ctx.fillStyle = "#fff"; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * 46, -26, 48, 26, sx * 0.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = shade(C.accent, -20); ctx.beginPath(); ctx.arc(0, -24, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+  // confetti at the reveal
+  if (T > 2.3 && T < 5.2) {
+    const k = (T - 2.3) / 2.9;
+    for (let i = 0; i < 70; i++) {
+      const a = -Math.PI / 2 + (rand(i) - 0.5) * 2.2, v = 300 + rand(i + 4) * 520;
+      const x = bx + Math.cos(a) * v * k, y = by + Math.sin(a) * v * k + 640 * k * k;
+      ctx.save(); ctx.globalAlpha = 1 - k; ctx.translate(x, y); ctx.rotate(T * 7 + i);
+      ctx.fillStyle = ["#ff6b8b", "#ffd166", "#8f7bf0", "#4fd1c5", C.accent][i % 5]; ctx.fillRect(-7, -4, 14, 8); ctx.restore();
+    }
+  }
+  pill(C.lines.kicker || "", W / 2, 200, { font: `800 34px ${UI}`, h: 70, scale: back(win(T, 0.2, 0.6)), alpha: T < 2.6 ? 1 : 1 - ease(win(T, 2.6, 3.0)) });
+  const tl = wrap(C.lines.title, `900 50px ${DISPLAY}`, 620, 2);
+  textBlock(tl, W / 2, 150, `900 50px ${DISPLAY}`, 60, "#2a1a52", ease(win(T, 3.2, 3.9)), false);
+  C.lines.facts.forEach((f, i) => pill(f, W / 2, by + 80 + i * 66, { alpha: ease(win(T, 4.2 + i * 0.5, 4.7 + i * 0.5)), scale: 0.9 + 0.1 * back(win(T, 4.2 + i * 0.5, 4.7 + i * 0.5)), font: `800 27px ${UI}`, h: 54 }));
+  if (T > 6.8) pill(C.lines.cta, W / 2, 1180, { bg: "#2a1a52", fg: "#fff", alpha: ease(win(T, 6.8, 7.4)), scale: back(win(T, 6.8, 7.3)), font: `800 28px ${UI}`, h: 60 });
+  brandMark(W / 2, 64, 1, "#2a1a52");
+  disclosure(t);
+}
+function shade(hex, d) {
+  const n = parseInt(hex.slice(1), 16); const c = (v) => Math.max(0, Math.min(255, v + d));
+  return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+
 window.renderFrame = (t, quality = 0.9) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalAlpha = 1; ctx.filter = "none";
-  if (C.style === "cinematic3d") cinematic(t); else if (C.style === "ugc_style") ugc(t); else story(t);
+  const hook = C.hookMs || 0;
+  if (t < hook) { prelude(t); return cv.toDataURL("image/jpeg", quality); }
+  const s = t - hook;
+  if (C.style === "cinematic3d") cinematic(s); else if (C.style === "ugc_style") ugc(s); else if (C.style === "animated_unbox") unbox(s); else story(s);
   return cv.toDataURL("image/jpeg", quality);
 };
 </script>
