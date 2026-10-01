@@ -1,0 +1,33 @@
+# Real-browser verification of the LIVE site (Google Chrome on the runner —
+# H.264 capable). Prints results to the job summary and frame/screenshot
+# contact sheets to the log (base64 between ===IMG markers).
+name: Production browser check
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Native reels"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIKELINK_API: https://likelink2.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright + ffmpeg
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-noto-core >/dev/null
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+      - name: Verify the live site
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+        run: node scripts/media/verify-production.mjs
