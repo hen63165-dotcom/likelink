@@ -37,6 +37,7 @@ import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription } from "./_utils/paypal.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
 import { imageProvenance, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
+import { reelAttachments, applyReelAttachments } from "../src/lib/cloud/reelAttach.js";
 import { safeFetch } from "./_utils/safeUrl.mjs";
 import { LEGAL_VERSION } from "../src/lib/legal/catalog.js";
 import { ACCEPTANCES_KEY, hasAcceptedCurrent } from "./_utils/legalHandler.mjs";
@@ -2442,6 +2443,7 @@ export default async function handler(req, res) {
     // Non-admin writes never replace a stored value: the server merges what
     // the caller is allowed to change (storeWritePolicy) into what is stored.
     let valueToWrite = value;
+    let videoWriter = null; // set for an owner's marketplace:videos write (reel attachment below)
     if (!writeIsAdmin) {
       if (!isSigned && !BROWSER_WRITE_POLICIES[normalizedKey]) {
         audit.logApiForbidden({ type: "non-admin" }, { type: "key", key: normalizedKey }, { _req: req });
@@ -2466,6 +2468,7 @@ export default async function handler(req, res) {
           ? storedValue
           : await kvGet("marketplace:marketers");
         const ownedIds = ownedMarketerIdsFor(actor, Array.isArray(marketersForOwnership) ? marketersForOwnership : []);
+        if (normalizedKey === "marketplace:videos" && actor) videoWriter = { ownedIds };
         const result = applyStoreWritePolicy(normalizedKey, storedValue, value, {
           ownedMarketerIds: ownedIds,
           actorEmail: actor?.email || "",
@@ -2510,7 +2513,18 @@ export default async function handler(req, res) {
     }
 
     await kvSet(normalizedKey, valueToWrite);
-    json(res, { ok: true, key: normalizedKey }, 200, req);
+    // A creator's saved reel becomes publicly playable only when their own
+    // approved product references it (storage policy) — attach it here.
+    let attached = 0;
+    if (videoWriter) {
+      try {
+        const products = await kvGet("marketplace:products");
+        assertKvWritable("marketplace:products");
+        const att = reelAttachments(parseStoreValue(valueToWrite), videoWriter.ownedIds, products);
+        if (att.length) { await kvSet("marketplace:products", applyReelAttachments(products, att)); attached = att.length; }
+      } catch { /* best-effort: the video record is saved; attachment retries on the next save */ }
+    }
+    json(res, { ok: true, key: normalizedKey, ...(videoWriter ? { reelsAttached: attached } : {}) }, 200, req);
   } catch (e) {
     json(res, { ok: false, error: String(e.message || e) }, 500, req);
   }

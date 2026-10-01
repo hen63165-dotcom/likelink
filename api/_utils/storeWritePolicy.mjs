@@ -126,7 +126,9 @@ function restoreFields(stored, next, fields) {
 
 // Moderation outcomes an owner can never reverse, and server-set trust fields.
 const MODERATED_STATUSES = new Set(["flagged", "removed", "rejected"]);
-const PROTECTED_PRODUCT_FIELDS = ["trustState", "verification", "verifiedAt", "merchantEligible", "veritasHash", "importSource"];
+// videoUrl & co. are attached by the server (src/lib/cloud/reelAttach.js) — a
+// stale client list can never drop them (which would make the reel private).
+const PROTECTED_PRODUCT_FIELDS = ["trustState", "verification", "verifiedAt", "merchantEligible", "veritasHash", "importSource", "videoUrl", "videoSynthetic", "videoUpdatedAt"];
 
 function policyProducts(stored, next, ctx) {
   const { result, created, rejected, rejectedCreates } = mergeOwnedById(stored, next, ctx, {

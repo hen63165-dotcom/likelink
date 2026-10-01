@@ -88,14 +88,16 @@ function jsonLdSafe(obj) {
   return JSON.stringify(obj).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
 }
 
-async function serveMedia(path, res) {
+async function serveMedia(path, res, req = null) {
   if (!isValidMediaPath(path)) { res.status(400); res.end("Invalid media path."); return; }
   const sbUrl = process.env.VITE_SUPABASE_URL;
   const anon = process.env.VITE_SUPABASE_ANON_KEY;
   if (!sbUrl || !anon) { res.status(503); res.end("Media storage is not configured."); return; }
   try {
+    // Byte ranges: iOS Safari only plays <video> served with 206 + Content-Range.
+    const range = String((req && getHeader(req, "range")) || "");
     const upstream = await fetch(`${sbUrl}/storage/v1/object/authenticated/${MEDIA_BUCKET}/${path}`, {
-      headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+      headers: { apikey: anon, Authorization: `Bearer ${anon}`, ...(/^bytes=\d*-\d*$/.test(range) ? { range } : {}) },
       signal: AbortSignal.timeout(10000),
     });
     // Denied and missing look the same from outside (never reveal which).
@@ -104,7 +106,11 @@ async function serveMedia(path, res) {
     if (!/^(image|video)\//.test(type)) { res.status(415); res.end("Unsupported media."); return; }
     const bytes = Buffer.from(await upstream.arrayBuffer());
     if (!bytes.length || bytes.length > 25 * 1024 * 1024) { res.status(413); res.end("Media too large."); return; }
-    res.status(200);
+    const partial = upstream.status === 206 && upstream.headers.get("content-range");
+    res.status(partial ? 206 : 200);
+    if (partial) res.setHeader("content-range", upstream.headers.get("content-range"));
+    res.setHeader("accept-ranges", "bytes");
+    res.setHeader("content-length", String(bytes.length));
     res.setHeader("content-type", type);
     res.setHeader("x-content-type-options", "nosniff");
     // A stored SVG is inert when opened directly (no scripts, no network).
@@ -221,7 +227,7 @@ export default async function handler(req, res) {
   // bucket. Storage is asked with the PUBLIC anon key, so the storage.objects
   // RLS policies decide (approved products only); this proxy adds nothing.
   if (url.searchParams.get("mode") === "media") {
-    await serveMedia(url.searchParams.get("path") || "", res);
+    await serveMedia(url.searchParams.get("path") || "", res, req);
     return;
   }
 

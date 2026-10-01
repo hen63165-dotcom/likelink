@@ -18,7 +18,7 @@
 import { productPageUrl, trackingLink, AFFILIATE_DISCLOSURE_HE, stableHash } from "./surfaces.js";
 import { registerCapability, CAPABILITIES, RISK, PERMISSION, EXECUTOR } from "./capabilities.js";
 import { imageProvenance, isRealProductPhoto } from "./catalogIntegrity.js";
-import { TELEGRAM_OWNER_ACTION } from "./publishers/telegram.js";
+import { OWNER_ACTIONS } from "./publishers/index.js";
 
 export const DISTRIBUTION_VERSION = 1;
 export const POST_STATE = Object.freeze({
@@ -85,7 +85,19 @@ export const DISTRIBUTION_CHANNELS = Object.freeze([
     disclosureTool: "הגילוי הנאות נמצא בתוך נוסח ההודעה.",
     // Real publishing with a provider message_id (publishers/telegram.js) once the
     // owner's bot + public channel are set in the studio's autopilot channels.
-    api: { name: "Telegram Bot API (sendPhoto / sendMessage)", ownerAction: TELEGRAM_OWNER_ACTION },
+    api: { name: "Telegram Bot API (sendPhoto / sendMessage)", ownerAction: OWNER_ACTIONS.telegram },
+  },
+  {
+    id: "bluesky", label: "Bluesky", format: "פוסט קצר עם קישור (עד 300 תווים)", captionMax: 300, hashtagsMax: 2,
+    aiLabel: "אם התמונה נוצרה בבינה מלאכותית: לציין זאת בפוסט.",
+    disclosureTool: "הגילוי הנאות נמצא בתחילת הפוסט.",
+    api: { name: "AT Protocol (com.atproto.repo.createRecord)", ownerAction: OWNER_ACTIONS.bluesky },
+  },
+  {
+    id: "mastodon", label: "Mastodon", format: "פוסט עם קישור (עד 500 תווים)", captionMax: 500, hashtagsMax: 3,
+    aiLabel: "אם התמונה נוצרה בבינה מלאכותית: לציין זאת בפוסט.",
+    disclosureTool: "הגילוי הנאות נמצא בתחילת הפוסט.",
+    api: { name: "Mastodon API (POST /api/v1/statuses)", ownerAction: OWNER_ACTIONS.mastodon },
   },
 ]);
 
@@ -266,6 +278,8 @@ const SLOTS = [
   { day: 3, channel: "youtube_shorts", script: "s30" },
   { day: 4, channel: "facebook", script: "s30" },
   { day: 5, channel: "telegram", script: null },
+  { day: 2, channel: "bluesky", script: null },
+  { day: 4, channel: "mastodon", script: null },
   { day: 6, channel: "x", script: null },
 ];
 

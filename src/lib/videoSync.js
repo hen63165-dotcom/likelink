@@ -1,4 +1,5 @@
 /** Shared video serialization guard. No network, identity or storage implementation here. */
+import { mediaVideoPath } from "./cloud/reelAttach.js";
 export function isPublicVideo(video) {
   if (!video || typeof video.id !== "string" || !video.id.trim() || video.public !== true) return false;
   if (typeof video.videoUrl !== "string") return false;
@@ -9,6 +10,9 @@ export function isPublicVideo(video) {
     if (!["https:", "http:"].includes(url.protocol) || !url.hostname || url.username || url.password) return false;
     const path = url.pathname.toLowerCase();
     const isVideoFile = /\.(mp4|webm|mov|m4v|ogv)$/.test(path);
+    // Our private-bucket media proxy (/api/og?mode=media&path=reels/…/x.webm)
+    // is a real video too — rejecting it kept every reel out of the feed.
+    if (mediaVideoPath(video.videoUrl)) return true;
     const isKnownVideoHost = /(^|\.)youtube\.com$|(^|\.)youtu\.be$|(^|\.)vimeo\.com$/.test(url.hostname);
     return isVideoFile || isKnownVideoHost;
   } catch {

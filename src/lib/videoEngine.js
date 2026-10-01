@@ -58,10 +58,14 @@ export function canRecordVideo() {
 /** בוחר את ה-mime type הכי איכותי שנתמך */
 export function pickRecorderMime() {
   const candidates = [
+    // MP4 (H.264) first: it plays everywhere, including iPhone. WebM only when
+    // the browser cannot record MP4.
+    "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+    "video/mp4;codecs=avc1",
+    "video/mp4",
     "video/webm;codecs=vp9,opus",
     "video/webm;codecs=vp8,opus",
     "video/webm",
-    "video/mp4",
   ];
   for (const m of candidates) {
     try {

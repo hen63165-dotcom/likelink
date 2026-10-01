@@ -756,7 +756,55 @@ export const AUTONOMOUS_JOBS = [
   // Registered above — must be listed so status reports it (it was hidden).
   "autonomous-creative-refresh",
   "discovery-sweep",
+  "distribution-autorun",
 ];
+
+// Campaigns the OWNER approved (distribution-autorun, confirm = planId):
+// publish their due posts to channels with real credentials (Telegram /
+// Bluesky / Mastodon). One post per creator per run, at most maxPerDay a day;
+// a failure pauses the campaign (no retry storms). PUBLISHED needs the
+// provider's post id (distributionStore.publishPlanPost).
+registerJob("distribution-autorun", {
+  description: "Publishes due posts of owner-approved campaigns (provider post id + public verification)",
+  intervalMs: 15 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const { AUTORUN_INDEX_KEY, autorunKey, plansKey, publishPlanPost, postDueAt } = await import("../discovery/distributionStore.js");
+    const { channelCredentials } = await import("../discovery/publishers/index.js");
+    const t = Number(now) || Date.now();
+    const today = new Date(t).toISOString().slice(0, 10);
+    const index = (await kvGet(AUTORUN_INDEX_KEY, [])) || [];
+    const results = [];
+    for (const scopeKey of index.slice(0, 50)) {
+      const runs = (await kvGet(autorunKey(scopeKey), [])) || [];
+      const active = runs.filter((r) => r?.status === "ACTIVE");
+      if (!active.length) continue;
+      const scope = scopeKey === "platform" ? { marketerIds: null } : { marketerIds: [scopeKey] };
+      const creds = await channelCredentials({ kvGet, env: typeof process !== "undefined" ? process.env : {}, scope });
+      const plans = (await kvGet(plansKey(scopeKey), [])) || [];
+      const doneToday = plans.flatMap((p) => p.calendar || []).filter((x) => x.publishedVia === "autorun" && String(x.publishedAt || "").startsWith(today)).length;
+      for (const run of active) {
+        if (doneToday >= (Number(run.maxPerDay) || 3)) break;
+        const plan = plans.find((p) => p.id === run.planId);
+        const posts = (plan?.calendar || []).filter((x) => run.channels.includes(x.channel));
+        const due = posts.find((x) => x.state !== "PUBLISHED" && !x.lastError && postDueAt(x) <= t);
+        if (!due) {
+          if (posts.length && posts.every((x) => x.state === "PUBLISHED")) {
+            await kvSet(autorunKey(scopeKey), runs.map((r) => (r.planId === run.planId ? { ...r, status: "COMPLETED", completedAt: new Date(t).toISOString() } : r)));
+          }
+          continue;
+        }
+        const out = await publishPlanPost({ kvGet, kvSet, scopeKey, planId: run.planId, postId: due.postId, creds, now: t, via: "autorun" });
+        results.push({ scopeKey, planId: run.planId, postId: due.postId, ok: out.ok, error: out.ok ? null : out.error });
+        if (!out.ok) {
+          await kvSet(autorunKey(scopeKey), runs.map((r) => (r.planId === run.planId ? { ...r, status: "PAUSED", lastError: { code: out.error, at: new Date(t).toISOString() } } : r)));
+        }
+        break; // gentle pacing: one post per creator per run
+      }
+    }
+    return { ok: true, published: results.filter((r) => r.ok).length, results };
+  },
+});
 
 export async function runAllDueAutonomousJobs(opts = {}) {
   const { kvGet = svKvGet, kvSet = svKvSet, force = false, maxJobs = Infinity, budgetMs = Infinity } = opts;
