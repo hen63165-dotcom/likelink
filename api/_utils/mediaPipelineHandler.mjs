@@ -10,7 +10,25 @@
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
 import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
-import { auditReels, buildPlan, ingestReel, pipelineStatus } from "../../src/lib/cloud/reelPublisher.js";
+import { auditReels, buildPlan, ingestReel, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
+import { isApprovedOrigin } from "./cors.js";
+
+const norm = (v) => String(v || "").trim().toLowerCase();
+
+/** The caller's VERIFIED studio ids (Supabase session → private creator record), or all ids for an admin token. */
+async function sessionOwnerIds(req) {
+  const raw = String(req.headers?.authorization || req.headers?.Authorization || "").replace(/^Bearer\s+/i, "").trim();
+  if (!raw) return null;
+  const [{ kvGet }, { verifyToken }, { verifyAdminToken }] = await Promise.all([import("../store.mjs"), import("./authVerify.js"), import("./adminAuth.js")]);
+  const marketers = (await kvGet("marketplace:marketers")) || [];
+  let admin = null;
+  try { admin = verifyAdminToken(raw); } catch { admin = null; }
+  if (admin) return { ids: marketers.filter((m) => m?.id).map((m) => String(m.id)), actor: "admin" };
+  const user = await verifyToken(raw).catch(() => null);
+  const email = norm(user?.email);
+  if (!email) return null;
+  return { ids: marketers.filter((m) => m?.id && norm(m.email) === email).map((m) => String(m.id)), actor: email };
+}
 
 function send(res, status, body) {
   res.statusCode = status;
@@ -27,6 +45,32 @@ export default async function mediaPipelineHandler(req, res) {
   }
   if (op === "status" && req.method === "GET") {
     return send(res, 200, await pipelineStatus());
+  }
+  // Creator ops (Studio one-click): a verified session, an approved origin.
+  if (["studio-register", "request", "studio-state"].includes(op)) {
+    const origin = req.headers?.origin || "";
+    if (origin && !isApprovedOrigin(origin)) return send(res, 403, { ok: false, error: "origin_not_allowed" });
+    const who = await sessionOwnerIds(req);
+    if (!who) return send(res, 401, { ok: false, error: "authentication_required" });
+    if (!who.ids.length) return send(res, 403, { ok: false, error: "no_studio_for_this_account" });
+    try {
+      if (op === "studio-state" && req.method === "GET") {
+        const { status, ...rest } = await studioReelState({ ownerIds: who.ids });
+        return send(res, status || 200, rest);
+      }
+      const body = (await readBody(req)) || {};
+      if (op === "studio-register" && req.method === "POST") {
+        const { status, ...rest } = await registerStudioUpload({ sourcePath: body.sourcePath, productId: body.productId, ownerIds: who.ids });
+        return send(res, status || 200, rest);
+      }
+      if (op === "request" && req.method === "POST") {
+        const { status, ...rest } = await requestRender({ productId: body.productId, style: body.style, ownerIds: who.ids, requestedBy: who.actor });
+        return send(res, status || 200, rest);
+      }
+      return send(res, 405, { ok: false, error: "method_not_allowed" });
+    } catch (e) {
+      return send(res, 500, { ok: false, error: String(e?.message || e).slice(0, 200) });
+    }
   }
   if (!isAuthorizedCron(req, [process.env.AUTOPILOT_SECRET])) return send(res, 401, { ok: false, error: "unauthorized" });
   try {

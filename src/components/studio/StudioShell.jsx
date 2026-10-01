@@ -51,6 +51,7 @@ import GrowthOS from "../growth/GrowthOS";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import AutoVideoStudio from "../video/AutoVideoStudio";
+import { studioReelState, requestCinematicReel, reelErrorHe } from "../../lib/reelClient.js";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
@@ -223,19 +224,43 @@ function LunaPanel({ onNavigate, platform }) {
   );
 }
 
+const REEL_STYLE_HE = {
+  cinematic3d: "אנימציה תלת־ממדית מסוגננת",
+  ugc_style: "בסגנון UGC · ממוחשב",
+  animated_story: "סיפור מוצר מונפש",
+  studio: "קליפ מהסטודיו",
+};
+
+/**
+ * Reels — one click per product. Every state shown here is what the server
+ * verified (studio-state): a reel is "published" only with a registered,
+ * read-back-verified asset; a request is "queued" until the native renderer
+ * (GitHub Actions, every 6h) delivers it. All renders are disclosed
+ * computer animation — never presented as filmed or human UGC.
+ */
 function VideoPanel({ onNavigate }) {
   const { lang } = useI18n();
+  const he = lang === "he";
   const { showToast, currentMarketer: marketer } = useMarketplace();
   const mine = useMyProducts();
   const [selected, setSelected] = useState(null);
+  const [state, setState] = useState({ loading: true, reels: [], requests: [], error: null });
+  const [busy, setBusy] = useState("");
 
-  if (!marketer) return <AuthGate onNavigate={onNavigate} feature={lang === "he" ? "AI Video" : "AI Video"} />;
+  const refresh = useCallback(async () => {
+    const r = await studioReelState();
+    setState(r.ok ? { loading: false, reels: r.reels || [], requests: r.requests || [], error: null } : { loading: false, reels: [], requests: [], error: r.error });
+  }, []);
+  useEffect(() => { if (marketer) refresh(); }, [marketer, refresh]);
+
+  if (!marketer) return <AuthGate onNavigate={onNavigate} feature={he ? "Reels" : "Reels"} />;
   if (selected) {
     return (
       <AutoVideoStudio
         product={selected}
         marketer={marketer}
-        onClose={() => setSelected(null)}
+        onClose={() => { setSelected(null); refresh(); }}
+        onRegistered={refresh}
         showToast={showToast}
       />
     );
@@ -244,29 +269,74 @@ function VideoPanel({ onNavigate }) {
     return (
       <EmptyState
         icon={Clapperboard}
-        title={lang === "he" ? "אין מוצרים ליצירת וידאו" : "No products to render"}
-        body={lang === "he"
-          ? "הוסיפי מוצר מאושר (עם תמונת http) ואז תוכלי ליצור קליפ 9:16 אמיתי בדפדפן."
-          : "Add an approved product (with an http image) and you can render a real 9:16 clip in the browser."}
-        action={<Button onClick={() => onNavigate(VIEW_IDS.PRODUCTS)}>{lang === "he" ? "למוצרים" : "Go to products"}</Button>}
+        title={he ? "אין מוצרים ליצירת Reel" : "No products for a reel"}
+        body={he ? "הוסיפי מוצר מאושר עם תמונה ציבורית, ואז Reel נוצר בלחיצה אחת." : "Add an approved product with a public image, then a reel is one click away."}
+        action={<Button onClick={() => onNavigate(VIEW_IDS.PRODUCTS)}>{he ? "למוצרים" : "Go to products"}</Button>}
       />
     );
   }
+
+  async function requestReel(p) {
+    setBusy(p.id);
+    const r = await requestCinematicReel(p.id);
+    setBusy("");
+    if (r.ok) {
+      showToast(r.duplicate ? (he ? "כבר בתור — הריצה הבאה של מנוע הרינדור תיצור אותו." : "Already queued.") : (he ? "נכנס לתור: מנוע הרינדור ייצור, יאמת ויפרסם בריצה הבאה (עד 6 שעות)." : "Queued: the renderer creates, verifies and publishes it on its next run (≤6h)."));
+      refresh();
+    } else {
+      showToast(reelErrorHe(r.error));
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
-        {lang === "he" ? "AI Video — בחרי מוצר לקליפ" : "AI Video — pick a product to render"}
-      </h3>
+      <div>
+        <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>{he ? "Reels — לחיצה אחת למוצר" : "Reels — one click per product"}</h3>
+        <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+          {he
+            ? "כל Reel הוא אנימציה ממוחשבת שמסומנת ככזו (לא צילום, לא UGC של אדם). \"פורסם\" מוצג רק אחרי שהקובץ נקרא בחזרה מהאחסון הציבורי והפוסט נמצא בפיד."
+            : "Every reel is disclosed computer animation (not filmed, not human UGC). \"Published\" shows only after the file reads back from public storage and the post is found in the feed."}
+        </p>
+        {state.error ? <p className="mt-2 text-xs" style={{ color: "#ff9b9b" }}>{reelErrorHe(state.error)}</p> : null}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {mine.map((p) => (
-          <button key={p.id} onClick={() => setSelected(p)} className="ll-card ll-tap rounded-2xl p-4 text-right">
-            <div className="text-sm font-bold" style={{ color: "var(--text)" }}>{p.title}</div>
-            <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>{money(Number(p.price) || 0, lang)}</div>
-            <span className="mt-3 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
-              {lang === "he" ? "צרי קליפ עכשיו" : "Render clip"}
-            </span>
-          </button>
-        ))}
+        {mine.map((p) => {
+          const reels = state.reels.filter((r) => r.productId === p.id);
+          const queued = state.requests.find((r) => r.productId === p.id && r.status === "QUEUED");
+          const latest = reels[0];
+          return (
+            <div key={p.id} className="ll-card rounded-2xl p-3">
+              {latest ? (
+                <video src={latest.videoUrl} poster={latest.poster || undefined} muted playsInline loop controls preload="metadata" className="w-full rounded-xl" style={{ aspectRatio: "9 / 16", background: "#000", maxHeight: 320, objectFit: "cover" }} />
+              ) : null}
+              <div className="mt-2 text-sm font-bold" style={{ color: "var(--text)" }}>{p.title}</div>
+              <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-bold">
+                {reels.length ? (
+                  <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(52,211,153,.15)", color: "#6ee7b7" }}>
+                    {he ? `${reels.length} Reels אומתו ופורסמו` : `${reels.length} reels verified + published`}
+                  </span>
+                ) : (
+                  <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(255,255,255,.08)", color: "var(--text-muted)" }}>{he ? "אין עדיין Reel" : "No reel yet"}</span>
+                )}
+                {queued ? <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(251,191,36,.15)", color: "#fcd34d" }}>{he ? "בתור לרינדור" : "Queued"}</span> : null}
+                {latest?.style ? <span className="rounded-full px-2 py-0.5" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>{REEL_STYLE_HE[latest.style] || latest.style}</span> : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button onClick={() => requestReel(p)} disabled={busy === p.id || Boolean(queued)}>
+                  {busy === p.id ? (he ? "שולחת…" : "Sending…") : queued ? (he ? "בתור" : "Queued") : (he ? "צרי Reel קולנועי" : "Create cinematic reel")}
+                </Button>
+                <button type="button" onClick={() => setSelected(p)} className="ll-tap rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text)" }}>
+                  {he ? "קליפ מיידי בדפדפן" : "Instant clip in browser"}
+                </button>
+                {latest ? (
+                  <a href={`/p/${encodeURIComponent(p.id)}`} target="_blank" rel="noreferrer" className="ll-tap rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text)" }}>
+                    {he ? "צפייה באתר" : "View on site"}
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

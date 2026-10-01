@@ -27,6 +27,7 @@ export const REEL_STYLE_LABELS = Object.freeze({
   cinematic3d: { he: "אנימציה תלת־ממדית מסוגננת", en: "Stylized 3D-look animation" },
   ugc_style: { he: "בסגנון UGC · ממוחשב, לא צילום של אדם", en: "UGC-style · computer-made, not filmed by a person" },
   animated_story: { he: "סיפור מוצר מונפש", en: "Animated product story" },
+  studio: { he: "קליפ מהסטודיו · אנימציה ממוחשבת", en: "Studio clip · computer animation" },
 });
 
 export const TREND_WINDOW_DAYS = 14;
