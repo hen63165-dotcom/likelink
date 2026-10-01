@@ -42,7 +42,7 @@ import { deliverInvitation } from "../../src/lib/discovery/campaigns.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 import { handleDistribution, DISTRIBUTION_ACTIONS } from "./distributionRoutes.mjs";
 import { imageProvenance, isRealProductPhoto, sharedAffiliateLinks, IMAGE_PROVENANCE } from "../../src/lib/discovery/catalogIntegrity.js";
-import { LEDGER_KEY, PROOF_KEY, publicProof } from "../../src/lib/publishing/orchestrator.js";
+import { LEDGER_KEY, PROOF_KEY, publicProof, buildLedger, verifyEntry } from "../../src/lib/publishing/orchestrator.js";
 import { externalDestinations } from "../../src/lib/publishing/adapters.js";
 import { videoProviders } from "../../src/lib/media/videoCapability.js";
 
@@ -402,6 +402,21 @@ export function createDiscoveryHandler({
           return;
         }
         if (!/^[A-Za-z0-9_-]{1,120}$/.test(assetId)) { json(res, { ok: false, error: "bad_asset_id" }, 400, req); return; }
+        // live=1: verify NOW over the public URLs (read-only — nothing is
+        // written; the stored proof comes from the sweep). Rate-limited per IP.
+        if (url.searchParams.get("live") === "1") {
+          const ip = String(header(req, "x-forwarded-for") || "anon").split(",")[0].trim().slice(0, 64);
+          if (!rateAllowed(`live-proof:${ip}`, 6)) { json(res, { ok: false, error: "rate_limited" }, 429, req); return; }
+          const keys = ["marketplace:products", "marketplace:marketers", "marketplace:videos", "marketplace:clicks", "brand_pulse:posts", "publish:log", "publish:instagram"];
+          const [products, marketers, videos, clicks, posts, log, instagram] = await Promise.all(keys.map((k) => kvGet(k, null)));
+          if (!Array.isArray(products) || !Array.isArray(marketers) || !Array.isArray(videos)) { json(res, { ok: false, error: "kv_read_failed" }, 503, req); return; }
+          const { entries } = buildLedger({ videos, products, marketers, clicks: clicks || [], posts: posts || [], log: log || [], instagram, env });
+          const entry = entries.find((e) => e.assetId === assetId);
+          if (!entry) { json(res, { ok: false, error: "not_a_creative", assetId }, 404, req); return; }
+          const live = await verifyEntry(entry, { fetchImpl, now: now() });
+          json(res, { ok: true, stored: false, proof: publicProof(live) }, 200, req);
+          return;
+        }
         const proof = await kvGet(PROOF_KEY(assetId), null);
         json(res, proof ? { ok: true, proof: publicProof(proof) } : { ok: false, error: "not_checked_yet", assetId }, proof ? 200 : 404, req);
         return;

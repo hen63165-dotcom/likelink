@@ -224,6 +224,13 @@ test("the orchestrator is wired: autonomous job, manifest, audit op, Studio card
   await handler({ method: "GET", url: "/api/store?mode=discovery&action=publication-proof&asset=reel_a_ugc_style_1", headers: {} }, r);
   assert.equal(r.body.proof.state, "VERIFIED");
   assert.doesNotMatch(JSON.stringify(r.body), /IG_ACCESS_TOKEN/, "credential names never reach the public proof");
+  // live=1 verifies over the public URLs and writes nothing
+  const w = world();
+  const writes = [];
+  const live = createDiscoveryHandler({ kvGet: async (k, fb) => ({ "marketplace:products": w.products, "marketplace:marketers": w.marketers, "marketplace:videos": w.videos, "marketplace:clicks": w.clicks }[k] ?? fb), kvSet: async (k) => { writes.push(k); }, verifyToken: async () => null, verifyAdminToken: () => null, env: {}, fetchImpl: fakeWeb().fetchImpl });
+  r = res();
+  await live({ method: "GET", url: `/api/store?mode=discovery&action=publication-proof&asset=${w.ok.id}&live=1`, headers: {} }, r);
+  assert.deepEqual([r.statusCode, r.body.stored, r.body.proof.state, writes.length], [200, false, "VERIFIED", 0]);
   r = res();
   await handler({ method: "GET", url: "/api/store?mode=discovery&action=media-ledger", headers: {} }, r);
   assert.equal(r.statusCode, 401, "the Studio ledger needs a session");
