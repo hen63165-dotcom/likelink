@@ -6,6 +6,8 @@
 //   POST op=ingest   store → verify → register → publish → proof   (same auth)
 //   POST op=audit    re-verify served reels, measure, learn        (same auth)
 //   POST op=instagram one step of the Instagram Reels publisher     (same auth)
+//   GET  op=catalog-candidates / POST op=catalog-resolve  real product photos from
+//        the store page (runner: scripts/catalog/resolve-products.mjs)  (same auth)
 //
 // The renderer (scripts/media/render-reels.mjs) runs on GitHub Actions and is
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
@@ -13,6 +15,7 @@ import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
 import { auditReels, buildPlan, ingestReel, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
 import { isApprovedOrigin } from "./cors.js";
+import { applyResolution, catalogCandidates } from "../../src/lib/cloud/catalogResolver.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
@@ -84,6 +87,15 @@ export default async function mediaPipelineHandler(req, res) {
       const r = await ingestReel(body && typeof body === "object" ? body : {});
       const { status, ...rest } = r;
       return send(res, status || (r.ok ? 200 : 500), rest);
+    }
+    if (op === "catalog-candidates" && req.method === "GET") {
+      const { status, ...rest } = await catalogCandidates();
+      return send(res, status || 200, rest);
+    }
+    if (op === "catalog-resolve" && req.method === "POST") {
+      const body = await readBody(req);
+      const { status, ...rest } = await applyResolution(body && typeof body === "object" ? body : {});
+      return send(res, status || 200, rest);
     }
     if (op === "instagram" && req.method === "POST") {
       const r = await instagramPublishStep();
