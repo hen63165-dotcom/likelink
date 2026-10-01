@@ -17,7 +17,7 @@
 // the Instagram step, owner-approved campaigns) and is recorded here.
 //
 // Isomorphic: no browser globals; IO (kvGet/kvSet/fetch) is injected.
-import { videoAsset, UGC_MODE_LABEL } from "../media/videoCapability.js";
+import { videoAsset, UGC_MODE_LABEL, CREATIVE_CLASS_LABEL } from "../media/videoCapability.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../discovery/mediaTruth.js";
 import { buildPublicGraph } from "../publicDiscovery.js";
 import { canonicalProduct, trackingLink } from "../discovery/surfaces.js";
@@ -32,11 +32,15 @@ export const PUB_STATUS = Object.freeze({
   NOT_LISTED: "NOT_LISTED",             // the surface does not show this creative
   BLOCKED: "BLOCKED",                   // truth / catalog integrity forbids promotion
   NEEDS_CONNECTION: "NEEDS_CONNECTION", // credential missing
+  NO_PUBLISHER: "NO_PUBLISHER",         // credentials exist, no publisher implemented
+  NOT_IN_PUBLIC_FEED: "NOT_IN_PUBLIC_FEED", // the feed shows its newest 8 — this post is not among them
   READY: "READY",                       // connected, not published for this creative
   FAILED: "FAILED",
 });
 
 export const PROOF_KEY = (assetId) => `publish:proof:${assetId}`;
+export const POSTS_LEDGER_KEY = "publish:posts:ledger";
+const REEL_TYPES = new Set(["native_reel", "studio_reel"]);
 export const LEDGER_KEY = "publish:ledger";
 export const DEAD_LETTER_KEY = "publish:deadletter";
 const MEMORY_KEY = "discovery:memory:platform";
@@ -91,7 +95,10 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
 
     // 3–5. internal destinations (publication id = surface + asset)
     const slug = creator?.slug || creator?.id || "";
+    // The site-feed post written at ingest (brand_pulse:posts, public JSON at mode=brand-pulse).
+    const feedPost = arr(posts).find((p) => p?.media?.assetId === asset.assetId) || null;
     const listed = {
+      site_feed: Boolean(feedPost),
       media: Boolean(asset.assetUrl),
       product_page: isPublicProduct && String(product.videoUrl || "") === asset.assetUrl,
       reels: Boolean(reel),
@@ -101,23 +108,24 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
     const publications = INTERNAL_DESTINATIONS.map((d) => {
       const url = d.path(asset, origin, slug);
       const isListed = listed[d.id];
-      const status = d.id !== "media" && blockedReason && !isListed ? PUB_STATUS.BLOCKED : isListed ? PUB_STATUS.PUBLISHED_UNVERIFIED : PUB_STATUS.NOT_LISTED;
+      // Promotion surfaces are blocked by catalog integrity; the media file and
+      // the product's own page are reported as they are.
+      const promotion = !["media", "product_page"].includes(d.id);
+      const status = blockedReason && (promotion || !isListed) && d.id !== "media" ? PUB_STATUS.BLOCKED : isListed ? PUB_STATUS.PUBLISHED_UNVERIFIED : PUB_STATUS.NOT_LISTED;
       return {
         destination: d.id, he: d.he, kind: "internal", codePath: d.codePath,
-        publicationId: isListed ? `${d.id}:${asset.assetId}` : null,
-        url: isListed ? url : null,
+        publicationId: isListed && status !== PUB_STATUS.BLOCKED ? (d.id === "site_feed" ? feedPost.id : `${d.id}:${asset.assetId}`) : null,
+        url: isListed && status !== PUB_STATUS.BLOCKED ? url : null,
         status,
         ...(status === PUB_STATUS.BLOCKED ? { reason: blockedReason } : {}),
         ...(d.id === "product_page" && !isListed && isPublicProduct && product.videoAssetId ? { note: `superseded_by:${product.videoAssetId}` } : {}),
       };
     });
-    // The site-feed record written at ingest (brand_pulse:posts) — an internal id.
-    const feedPost = arr(posts).find((p) => p?.media?.assetId === asset.assetId) || null;
-
     // External: what was actually done (provider ids), then what is possible.
     const tried = arr(log).filter((e) => e?.contentId === asset.assetId && e.channel && e.channel !== "web");
     const ig = igPosted.find((p) => p?.reelId === asset.assetId) || null;
-    for (const d of external) {
+    // Reels go to platform channels; creator channels carry the creator autopilot's posts.
+    for (const d of external.filter((x) => x.scope === "platform")) {
       const logged = d.id === "instagram"
         ? (ig ? { status: ig.verified ? PUB_STATUS.VERIFIED : PUB_STATUS.PUBLISHED_UNVERIFIED, externalId: ig.mediaId, url: ig.permalink || null, at: ig.at } : null)
         : (() => {
@@ -130,7 +138,7 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
         publicationId: logged?.externalId || null,
         providerId: logged?.externalId || null,
         url: logged?.url || null,
-        status: logged ? logged.status : blockedReason ? PUB_STATUS.BLOCKED : d.status === DESTINATION_STATUS.CONNECTED ? PUB_STATUS.READY : PUB_STATUS.NEEDS_CONNECTION,
+        status: logged ? logged.status : blockedReason ? PUB_STATUS.BLOCKED : d.status === DESTINATION_STATUS.CONNECTED ? PUB_STATUS.READY : d.status === DESTINATION_STATUS.NO_PUBLISHER ? PUB_STATUS.NO_PUBLISHER : PUB_STATUS.NEEDS_CONNECTION,
         requiredCredentials: d.requiredCredentials,
         missing: d.missing,
         ...(logged?.at ? { at: logged.at } : {}),
@@ -151,7 +159,7 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
       marketerId: asset.marketerId,
       creatorSlug: slug || null,
       asset,
-      truth: { state: asset.truth, label: MEDIA_TRUTH_LABEL[asset.truth] || null, ugcMode: asset.ugcMode, ugcLabel: UGC_MODE_LABEL[asset.ugcMode], disclosed: asset.disclosed, ok: truthOk },
+      truth: { state: asset.truth, label: MEDIA_TRUTH_LABEL[asset.truth] || null, ugcMode: asset.ugcMode, ugcLabel: UGC_MODE_LABEL[asset.ugcMode], creativeClass: asset.creativeClass, classLabel: CREATIVE_CLASS_LABEL[asset.creativeClass], disclosed: asset.disclosed, ok: truthOk },
       blockedReason,
       feedPostId: feedPost?.id || null,
       publications,
@@ -163,6 +171,33 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
   }
   entries.sort((a, b) => (b.asset.createdAt || 0) - (a.asset.createdAt || 0));
   return { entries, external };
+}
+
+/**
+ * Every NON-reel publication from the shared log (brand pulse, creator
+ * autopilot, price drop / new product, distribution campaigns): one row per
+ * content id with each channel's outcome. A site-feed post is verified by its
+ * id in the public feed; an external one stands on the provider's id.
+ */
+export function buildPostLedger({ log = [], feedIds = null, limit = 30 } = {}) {
+  const groups = new Map();
+  for (const e of arr(log)) {
+    if (!e?.contentId || REEL_TYPES.has(e.contentType)) continue;
+    if (!groups.has(e.contentId)) groups.set(e.contentId, { contentId: e.contentId, contentType: e.contentType, brandId: e.brandId || "platform", productId: e.productId || null, at: e.publishedAt || null, channels: [] });
+    const g = groups.get(e.contentId);
+    if (g.channels.some((c) => c.channel === e.channel)) continue; // newest attempt per channel
+    let status = e.status;
+    let evidence = null;
+    if (e.channel === "web" && e.externalId) {
+      if (feedIds) {
+        const inFeed = feedIds.includes(e.externalId);
+        status = inFeed ? PUB_STATUS.VERIFIED : PUB_STATUS.NOT_IN_PUBLIC_FEED;
+        evidence = { method: "http", source: "mode=brand-pulse", inPublicFeed: inFeed };
+      }
+    }
+    g.channels.push({ channel: e.channel, status, providerId: e.externalId || null, url: e.permalink || null, error: e.error || null, at: e.publishedAt || null, ...(evidence ? { evidence } : {}) });
+  }
+  return [...groups.values()].slice(0, limit);
 }
 
 async function timed(fetchImpl, url, init = {}) {
@@ -191,6 +226,14 @@ export async function verifyEntry(entry, { fetchImpl = globalThis.fetch, now = D
       r = await timed(fetchImpl, p.url, { headers: { Range: "bytes=0-1023" } });
       ok = (r.status === 206 || r.status === 200) && /^video\//.test(r.type);
       evidence = { method: "http", http: r.status, contentType: r.type, contentRange: r.range || null, error: r.error || null };
+    } else if (p.destination === "site_feed") {
+      if (!pages.has("feed")) pages.set("feed", await timed(fetchImpl, p.url, {}));
+      r = pages.get("feed");
+      let ids = [];
+      try { ids = arr(JSON.parse(r.body).posts).map((x) => x?.id); } catch { /* not JSON → not verified */ }
+      ok = r.status === 200 && ids.includes(p.publicationId);
+      evidence = { method: "http", http: r.status, inPublicFeed: ok, feedSize: ids.length, error: r.error || null };
+      if (!ok && r.status === 200) { pubs.push({ ...p, status: PUB_STATUS.NOT_IN_PUBLIC_FEED, evidence }); continue; }
     } else if (p.destination === "product_page") {
       r = await timed(fetchImpl, p.url, { headers: { "User-Agent": CRAWLER_UA } });
       ok = r.status === 200 && (r.body.includes(entry.assetUrl) || r.body.includes(htmlEsc(entry.assetUrl)));
@@ -271,12 +314,12 @@ export async function runPublishingSweep({ kvGet, kvSet, env = {}, fetchImpl = g
     await kvSet(PROOF_KEY(proof.assetId), proof);
     summary.push({
       assetId: proof.assetId, productId: proof.productId, marketerId: proof.marketerId, productTitle: proof.productTitle, style: proof.asset.style, provider: proof.asset.provider,
-      truth: proof.truth.state, ugcMode: proof.truth.ugcMode, state: proof.state, fingerprint: proof.fingerprint, checkedAt: proof.checkedAt,
+      truth: proof.truth.state, ugcMode: proof.truth.ugcMode, creativeClass: proof.truth.creativeClass, state: proof.state, fingerprint: proof.fingerprint, checkedAt: proof.checkedAt,
       verified: proof.stages.VERIFIED.verified, clicksFromCreative: proof.tracking.clicksFromCreative,
       external: proof.publications.filter((p) => p.kind === "external").map((p) => ({ destination: p.destination, status: p.status, providerId: p.providerId || null })),
     });
     for (const p of proof.publications) {
-      if (p.kind === "internal" && p.publicationId && p.status !== PUB_STATUS.VERIFIED) dead.push({ assetId: proof.assetId, destination: p.destination, error: p.lastError || "unverified", at: proof.checkedAt });
+      if (p.kind === "internal" && p.publicationId && p.status === PUB_STATUS.PUBLISHED_UNVERIFIED) dead.push({ assetId: proof.assetId, destination: p.destination, error: p.lastError || "unverified", at: proof.checkedAt });
     }
     if (!before || before.state !== proof.state) {
       memory.push({
@@ -289,6 +332,12 @@ export async function runPublishingSweep({ kvGet, kvSet, env = {}, fetchImpl = g
     }
   }
   await kvSet(LEDGER_KEY, summary.slice(0, LEDGER_CAP));
+  // Non-reel publications (brand pulse, creator autopilot, distribution).
+  if (!pages.has("feed")) pages.set("feed", await timed(fetchImpl, `${origin}/api/store?mode=brand-pulse`, {}));
+  let feedIds = null;
+  try { const f = pages.get("feed"); if (f.status === 200) feedIds = arr(JSON.parse(f.body).posts).map((x) => x?.id); } catch { feedIds = null; }
+  const postLedger = buildPostLedger({ log, feedIds });
+  await kvSet(POSTS_LEDGER_KEY, { at: new Date(now).toISOString(), feedChecked: Boolean(feedIds), posts: postLedger });
   if (dead.length) {
     const prevDead = arr(await read(DEAD_LETTER_KEY, []));
     const day = new Date(now).toISOString().slice(0, 10);
@@ -308,6 +357,8 @@ export async function runPublishingSweep({ kvGet, kvSet, env = {}, fetchImpl = g
     blocked: summary.filter((s) => s.state === "BLOCKED").length,
     deadLettered: dead.length,
     memoryWritten: memory.length,
+    posts: postLedger.length,
+    postsWithProviderId: postLedger.filter((p) => p.channels.some((c) => c.providerId)).length,
     external: external.map((d) => ({ id: d.id, status: d.status })),
   };
 }

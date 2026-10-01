@@ -116,6 +116,12 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - Per creative it records CREATED → GENERATED → STORED → PUBLISHED → VERIFIED → TRACKED with evidence, in `publish:proof:<assetId>` and `publish:ledger`. Failures go to `publish:deadletter`; state changes go to `discovery:memory:platform`.
   - Internal surfaces (media proxy, `/p/:id`, `/reels`, home rail, creator page) are verified over their public URLs. Verification never hits `/r`, because that would log a click.
   - External destinations report provider ids, or `NEEDS_CONNECTION` with the missing credential names (names reach admins only). The sweep never posts a backlog externally.
+  - The registry (`externalDestinations`) lists every adapter in the code: LikeLoop's `CHANNEL_ADAPTERS` (credentials without a publisher → `NO_PUBLISHER`) and the 14 creator channel types.
+  - **Every path writes the one log through the gate.** `publicationGate`: PUBLISHED only with the provider's id; otherwise `DELIVERED_UNVERIFIED`. `withPublications` / `appendPublicationLog` keep the log newest first, capped at 60.
+    - The paths: the reel ingest, the Instagram step, brand pulse (`recordPublication`), the creator autopilot (`sendToChannel` returns each provider's post id; all three creator paths use it) and distribution campaigns.
+  - The creator autopilot and the public feed (`mode=brand-pulse`) never promote a product that fails catalog integrity.
+  - Non-reel publications are in `publish:posts:ledger`: a site-feed post is verified by its id in the public feed (newest 8); an older one is `NOT_IN_PUBLIC_FEED`. Public read: `action=publication-proof&posts=1`.
+  - `creativeClass` (videoCapability.js) is one of REAL_UGC / SYNTHETIC_UGC_STYLE / ANIMATED_PRODUCT_CREATIVE / REAL_PRODUCT_VIDEO / NO_VIDEO. A render is never REAL_UGC.
   - A creative whose product fails catalog integrity is `BLOCKED` for promotion.
   - Public proof: `GET /api/store?mode=discovery&action=publication-proof[&asset=<id>]`. Studio ledger: `action=media-ledger` (session).
   - `/p/:id` serves the attached video as `og:video` plus a VideoObject labelled as animation. Reel shop clicks carry `src=likelink_reels` and `camp=v-<assetId>`.

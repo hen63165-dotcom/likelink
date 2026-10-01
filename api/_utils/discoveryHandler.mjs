@@ -42,7 +42,7 @@ import { deliverInvitation } from "../../src/lib/discovery/campaigns.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 import { handleDistribution, DISTRIBUTION_ACTIONS } from "./distributionRoutes.mjs";
 import { imageProvenance, isRealProductPhoto, sharedAffiliateLinks, IMAGE_PROVENANCE } from "../../src/lib/discovery/catalogIntegrity.js";
-import { LEDGER_KEY, PROOF_KEY, publicProof, buildLedger, verifyEntry } from "../../src/lib/publishing/orchestrator.js";
+import { LEDGER_KEY, PROOF_KEY, POSTS_LEDGER_KEY, publicProof, buildLedger, verifyEntry } from "../../src/lib/publishing/orchestrator.js";
 import { externalDestinations } from "../../src/lib/publishing/adapters.js";
 import { videoProviders } from "../../src/lib/media/videoCapability.js";
 
@@ -396,6 +396,12 @@ export function createDiscoveryHandler({
       // URLs, provider post ids). No credential names, no private fields.
       if (req.method === "GET" && action === "publication-proof") {
         const assetId = String(url.searchParams.get("asset") || "").slice(0, 120);
+        // posts=1: every non-reel publication (brand pulse, creator autopilot, campaigns) with its proof.
+        if (url.searchParams.get("posts") === "1") {
+          const p = await kvGet(POSTS_LEDGER_KEY, null);
+          json(res, { ok: true, at: p?.at || null, feedChecked: Boolean(p?.feedChecked), posts: Array.isArray(p?.posts) ? p.posts : [] }, 200, req);
+          return;
+        }
         if (!assetId) {
           const ledger = await kvGet(LEDGER_KEY, []);
           json(res, { ok: true, ledger: (Array.isArray(ledger) ? ledger : []).map(({ fingerprint, ...e }) => e) }, 200, req);
@@ -435,7 +441,8 @@ export function createDiscoveryHandler({
       // only for the platform owner / admin.
       if (req.method === "GET" && action === "media-ledger") {
         const privileged = Boolean(who.admin || who.platformOwner);
-        const [ledger, autopilotStore] = await Promise.all([kvGet(LEDGER_KEY, []), privileged ? kvGet("marketplace:autopilot", {}) : Promise.resolve({})]);
+        const [ledger, autopilotStore, postsLedger] = await Promise.all([kvGet(LEDGER_KEY, []), privileged ? kvGet("marketplace:autopilot", {}) : Promise.resolve({}), kvGet(POSTS_LEDGER_KEY, null)]);
+        const posts = (Array.isArray(postsLedger?.posts) ? postsLedger.posts : []).filter((p) => privileged || (scope.marketerIds || []).includes(String(p.brandId || "")));
         const mine = (Array.isArray(ledger) ? ledger : []).filter((e) => privileged || !scope.marketerIds || scope.marketerIds.includes(String(e.marketerId || "")));
         const proofs = await Promise.all(mine.slice(0, 20).map((e) => kvGet(PROOF_KEY(e.assetId), null)));
         const destinations = externalDestinations(env, autopilotStore || {}).map((d) => (privileged ? d : { id: d.id, he: d.he, scope: d.scope, status: d.status }));
@@ -444,6 +451,7 @@ export function createDiscoveryHandler({
           providers: videoProviders().map((p) => ({ id: p.id, he: p.he, kind: p.kind, output: p.output, truth: p.truth, ...(privileged ? { executor: p.executor, requiredCredentials: p.requiredCredentials } : {}) })),
           destinations,
           ledger: mine.map(({ fingerprint, ...e }) => e),
+          posts,
           proofs: proofs.filter(Boolean).map((p) => (privileged ? p : publicProof(p))),
         }, 200, req);
         return;

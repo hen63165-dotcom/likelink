@@ -48,7 +48,7 @@ import {
   buildSocialPack,
   reelCreative,
 } from "../media/reelPipeline.js";
-import { publishExternalReel } from "../publishing/adapters.js";
+import { publishExternalReel, withPublications } from "../publishing/adapters.js";
 
 const VIDEOS_KEY = "marketplace:videos";
 const PRODUCTS_KEY = "marketplace:products";
@@ -344,7 +344,7 @@ async function registerAndPublish(c, ctx) {
   ];
   const proof = { assetId: publicVideo.id, productId: product.id, style: style, truth: records.truth, media: mediaProof, registration: registrationProof, publication: { web: { status: webStatus, externalId: webStatus === "PUBLISHED" ? postId : null, via: "kv_read:brand_pulse:posts", error: webError }, external } };
   try {
-    await c.kvWrite(PUBLISH_LOG_KEY, [...logEntries, ...arr(logR.value)].slice(0, 60));
+    await c.kvWrite(PUBLISH_LOG_KEY, withPublications(arr(logR.value), logEntries, now));
     await c.kvWrite(`media:proof:${publicVideo.id}`, proof);
     await c.kvWrite(LAST_RUN_KEY, { at: iso, assetId: publicVideo.id, productId: product.id, style: style, web: webStatus, external: external.status });
   } catch { /* proof bookkeeping failure never undoes a verified publication */ }
@@ -559,7 +559,9 @@ export async function instagramPublishStep({ env, fetchImpl, now = Date.now() } 
     await c.kvWrite(IG_STATE_KEY, state);
     const logR = await c.kvRead(PUBLISH_LOG_KEY);
     if (logR.ok) {
-      await c.kvWrite(PUBLISH_LOG_KEY, [...arr(logR.value), { id: `pub_${now}_${rid()}`, contentId: p.reelId, contentType: "native_reel", brandId: "platform", productId: p.productId, channel: "instagram", status: verified ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", publishedAt: iso, externalId: mediaId, permalink: entry.permalink, error: null, attempts: 1, attemptOf: null, link: p.link }].slice(-500));
+      // Shared log rule (newest first, same cap as every writer) — appending at
+      // the end let the next writer evict this proof.
+      await c.kvWrite(PUBLISH_LOG_KEY, withPublications(arr(logR.value), [{ id: `pub_${now}_${rid()}`, contentId: p.reelId, contentType: "native_reel", brandId: "platform", productId: p.productId, channel: "instagram", status: verified ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", publishedAt: iso, externalId: mediaId, permalink: entry.permalink, link: p.link }], now));
     }
     return { ok: true, status: verified ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", reelId: p.reelId, mediaId, permalink: entry.permalink };
   }

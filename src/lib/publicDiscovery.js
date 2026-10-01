@@ -24,6 +24,7 @@
 import { isPublicCatalogProduct } from "./cloud/catalog.js";
 import { productMediaTruth, classifyMediaRecord, MEDIA_TRUTH } from "./discovery/mediaTruth.js";
 import { IMAGE_PROVENANCE, imageProvenance, isPromotable, sharedAffiliateLinks } from "./discovery/catalogIntegrity.js";
+import { creativeClass } from "./media/videoCapability.js";
 
 // Render styles of the native reel pipeline (src/lib/media/reelPipeline.js) —
 // duplicated as labels only, so the public bundle does not pull the pipeline.
@@ -277,12 +278,12 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
     if (!creatorId || seenUrls.has(truth.url)) continue;
     seenUrls.add(truth.url);
     const poster = /^https?:\/\//i.test(textOf(v.poster)) ? v.poster : tagged.length ? byId.get(tagged[0]).media.image : "";
-    reels.push({ id: `v-${v.id}`, url: truth.url, state: truth.state, poster, style: REEL_STYLE_LABELS[v.style] ? v.style : "", productIds: tagged, creatorId, title: textOf(v.title), createdAt: Number(v.createdAt) || 0 });
+    reels.push({ id: `v-${v.id}`, url: truth.url, state: truth.state, creativeClass: creativeClass(v), poster, style: REEL_STYLE_LABELS[v.style] ? v.style : "", productIds: tagged, creatorId, title: textOf(v.title), createdAt: Number(v.createdAt) || 0 });
   }
   for (const p of pub) {
     if (p.media.video && !seenUrls.has(p.media.video) && reelWorthy(p.id)) {
       seenUrls.add(p.media.video);
-      reels.push({ id: `p-${p.id}`, url: p.media.video, state: p.media.state, poster: p.media.poster, style: p.media.style, productIds: [p.id], creatorId: p.marketerId, title: p.displayTitle, createdAt: Number(p.createdAt) || 0 });
+      reels.push({ id: `p-${p.id}`, url: p.media.video, state: p.media.state, creativeClass: creativeClass({ videoUrl: p.videoUrl, videoStatus: p.videoStatus, videoProvider: p.videoProvider, synthetic: p.videoSynthetic === true, style: p.videoStyle, marketerId: p.marketerId }), poster: p.media.poster, style: p.media.style, productIds: [p.id], creatorId: p.marketerId, title: p.displayTitle, createdAt: Number(p.createdAt) || 0 });
     }
   }
   reels.sort((a, b) => b.createdAt - a.createdAt);

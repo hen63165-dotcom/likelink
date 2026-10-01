@@ -36,7 +36,7 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription } from "./_utils/paypal.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
-import { imageProvenance, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
+import { imageProvenance, isRealProductPhoto, isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 import { reelAttachments, applyReelAttachments } from "../src/lib/cloud/reelAttach.js";
 import { safeFetch } from "./_utils/safeUrl.mjs";
 import { LEGAL_VERSION } from "../src/lib/legal/catalog.js";
@@ -975,14 +975,18 @@ export default async function handler(req, res) {
           kvGet("marketplace:products", []),
           kvGet("marketplace:marketers", []),
         ]);
+        const allProds = Array.isArray(hygProds) ? hygProds : [];
+        const shared = sharedAffiliateLinks(allProds);
+        // Public AND promotable (catalogIntegrity.js): a product whose affiliate
+        // link is shared by other products opens the store home page — no post
+        // (spotlight or reel) promotes it.
         const publicIds = new Set(
-          filterPublicCatalog(
-            Array.isArray(hygProds) ? hygProds : [],
-            Array.isArray(hygMks) ? hygMks : []
-          ).map((p) => String(p.id))
+          filterPublicCatalog(allProds, Array.isArray(hygMks) ? hygMks : [])
+            .filter((p) => isPromotable(p, allProds, shared))
+            .map((p) => String(p.id))
         );
         list = list.filter((p) => {
-          const sid = p?.spotlight?.id;
+          const sid = p?.spotlight?.id || p?.productId;
           return !sid || publicIds.has(String(sid));
         });
       } catch { /* hygiene is fail-open: serve the feed as-is on error */ }

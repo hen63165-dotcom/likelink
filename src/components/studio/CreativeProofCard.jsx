@@ -25,6 +25,10 @@ const PUB = {
   NOT_LISTED: "לא מוצג",
   BLOCKED: "חסום",
   NEEDS_CONNECTION: "דורש חיבור",
+  NO_PUBLISHER: "יש הרשאות · אין מפרסם מיושם",
+  NOT_IN_PUBLIC_FEED: "לא בין 8 הפוסטים האחרונים בפיד",
+  DELIVERED_UNVERIFIED: "נשלח · אין מזהה פרסום",
+  REQUIRES_CONNECTION: "דורש חיבור",
   READY: "מחובר · עוד לא פורסם",
   FAILED: "נכשל",
 };
@@ -117,10 +121,22 @@ export default function CreativeProofCard() {
               </div>
             );
           })}
+          {d.posts?.length ? (
+            <div className="rounded-lg px-3 py-2 text-[11px]" style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}>
+              <div className="font-bold" style={{ color: "var(--text)" }}>פוסטים (לונה, טייס אוטומטי, קמפיינים)</div>
+              <ul className="mt-1 space-y-0.5">
+                {d.posts.slice(0, 6).map((p) => (
+                  <li key={p.contentId}>
+                    {p.contentType} · {p.productId || "—"}: {p.channels.map((c) => `${c.channel} — ${PUB[c.status] || c.status}${c.providerId ? ` (${c.providerId})` : ""}`).join(" · ")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {d.destinations?.length ? (
             <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
               <span className="font-bold">יעדים חיצוניים: </span>
-              {d.destinations.map((x) => `${x.he} — ${x.status === "CONNECTED" ? "מחובר" : "דורש חיבור"}`).join(" · ")}
+              {d.destinations.map((x) => `${x.he} — ${x.status === "CONNECTED" ? "מחובר" : x.status === "NO_PUBLISHER" ? "אין מפרסם מיושם" : "דורש חיבור"}`).join(" · ")}
             </div>
           ) : null}
           <div className="flex justify-end">

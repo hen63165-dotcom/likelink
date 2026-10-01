@@ -6,11 +6,66 @@
 // them is NEEDS_CONNECTION — never a silent success. Credential VALUES never
 // leave process.env / the server-only kv; status reports names and booleans.
 import { PUBLISHABLE_CHANNELS } from "../discovery/publishers/index.js";
+import { CHANNEL_ADAPTERS } from "../growth/likeloop.js";
+
+/**
+ * The publication gate every publishing path writes through: PUBLISHED (or
+ * PUBLISHED_UNVERIFIED) only with the provider's own id; a "success" without
+ * one is DELIVERED_UNVERIFIED. Other states pass through.
+ */
+export function publicationGate(status, providerId) {
+  const s = String(status || "").trim().toUpperCase();
+  if (s === "PUBLISHED" || s === "PUBLISHED_UNVERIFIED") return providerId ? s : "DELIVERED_UNVERIFIED";
+  return s || "PENDING";
+}
+
+/** The shared publication log (newest first, capped) every path appends to. */
+export const PUBLISH_LOG_KEY = "publish:log";
+export const PUBLISH_LOG_CAP = 60;
+
+/** One log row in the shared shape, through the gate. */
+export function publicationRecord(entry = {}, now = Date.now()) {
+  const cut = (v, n) => (v == null || v === "" ? null : String(v).slice(0, n));
+  return {
+    id: entry.id || `pub_${now}_${Math.random().toString(36).slice(2, 8)}`,
+    contentId: cut(entry.contentId, 120),
+    contentType: cut(entry.contentType, 40) || "unknown",
+    brandId: cut(entry.brandId, 80) || "platform",
+    productId: cut(entry.productId, 80),
+    channel: cut(entry.channel, 40) || "unknown",
+    status: publicationGate(entry.status, entry.externalId),
+    publishedAt: entry.publishedAt || new Date(now).toISOString(),
+    externalId: cut(entry.externalId, 160),
+    permalink: cut(entry.permalink, 400),
+    error: cut(entry.error, 200),
+    attempts: Number(entry.attempts) > 0 ? Number(entry.attempts) : 1,
+    attemptOf: cut(entry.attemptOf, 80),
+    text: cut(entry.text, 1200),
+    link: cut(entry.link, 400),
+  };
+}
+
+/** Prepend rows to a log array (pure) — the one ordering/cap rule. */
+export function withPublications(rows, entries, now = Date.now()) {
+  return [...entries.map((e) => publicationRecord(e, now)), ...(Array.isArray(rows) ? rows : [])].slice(0, PUBLISH_LOG_CAP);
+}
+
+/** Append through kvGet/kvSet (best effort — a log failure never undoes a publication). */
+export async function appendPublicationLog({ kvGet, kvSet, now = Date.now() }, entries = []) {
+  try {
+    const rows = await kvGet(PUBLISH_LOG_KEY, []);
+    await kvSet(PUBLISH_LOG_KEY, withPublications(rows, entries, now));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const DESTINATION_STATUS = Object.freeze({
   CONNECTED: "CONNECTED",
   NEEDS_CONNECTION: "NEEDS_CONNECTION",
   INTERNAL: "INTERNAL",
+  NO_PUBLISHER: "NO_PUBLISHER", // credentials exist, no publisher implemented
 });
 
 /** LikeLink's own public surfaces a reel is published to (public URL each). */
@@ -20,51 +75,62 @@ export const INTERNAL_DESTINATIONS = Object.freeze([
   { id: "reels", he: "סרטונים", path: (a, o) => `${o}/reels?r=${encodeURIComponent(`v-${a.assetId}`)}`, codePath: "src/lib/publicDiscovery.js buildPublicGraph.reels → pages.jsx ReelsPage" },
   { id: "home", he: "דף הבית (שורת הסרטונים)", path: (a, o) => `${o}/`, codePath: "pages.jsx LandingPage → graph.reels rail" },
   { id: "creator_page", he: "עמוד היוצר/ת", path: (a, o, slug) => (slug ? `${o}/u/${encodeURIComponent(slug)}` : ""), codePath: "pages.jsx CreatorPage → graph.reels by creator" },
+  { id: "site_feed", he: "הפיד הציבורי של לונה", path: (a, o) => `${o}/api/store?mode=brand-pulse`, codePath: "api/store.mjs mode=brand-pulse (public JSON, newest 8) ← brand_pulse:posts" },
 ]);
 
-const ENV_DESTINATIONS = [
-  { id: "telegram_brand", he: "Telegram (ערוץ המותג)", required: ["BRAND_TELEGRAM_BOT", "BRAND_TELEGRAM_CHAT"], codePath: "src/lib/publishing/adapters.js publishExternalReel ← reelPublisher.ingestReel", proof: "telegram message_id" },
-  { id: "webhook_brand", he: "Webhook (Make/Zapier/n8n)", required: ["BRAND_WEBHOOK_URL"], codePath: "src/lib/publishing/adapters.js publishExternalReel ← reelPublisher.ingestReel", proof: "the id the webhook returns (200 alone = DELIVERED_UNVERIFIED)" },
-  { id: "instagram", he: "Instagram Reels", required: ["IG_USER_ID", "IG_ACCESS_TOKEN"], codePath: "src/lib/cloud/reelPublisher.js instagramPublishStep ← mode=media-pipeline&op=instagram", proof: "Instagram media id read back (permalink)" },
-];
-
-const CREATOR_DESTINATIONS = {
-  telegram: { he: "Telegram (ערוץ של יוצר/ת)", required: ["Studio → טייס אוטומטי → ערוצים → Telegram (bot token + @channel)"] },
-  bluesky: { he: "Bluesky", required: ["Studio → טייס אוטומטי → ערוצים → Bluesky (handle + app password)"] },
-  mastodon: { he: "Mastodon", required: ["Studio → טייס אוטומטי → ערוצים → Mastodon (instance + token)"] },
+// Platform channels — the same adapter list LikeLoop plans its calendar with
+// (src/lib/growth/likeloop.js CHANNEL_ADAPTERS), plus the code that publishes.
+const PLATFORM_META = {
+  instagram: { he: "Instagram Reels", codePath: "src/lib/cloud/reelPublisher.js instagramPublishStep ← mode=media-pipeline&op=instagram", proof: "Instagram media id read back (permalink)" },
+  telegram: { id: "telegram_brand", he: "Telegram (ערוץ המותג)", codePath: "adapters.js publishExternalReel ← reelPublisher.ingestReel · api/autopilot.mjs publishBrandPulse", proof: "telegram message_id" },
+  webhook: { id: "webhook_brand", he: "Webhook (Make/Zapier/n8n)", codePath: "adapters.js publishExternalReel ← reelPublisher.ingestReel · api/autopilot.mjs publishBrandPulse", proof: "the id the webhook returns (200 alone = DELIVERED_UNVERIFIED)" },
+  facebook: { he: "Facebook Page", codePath: "none for the platform page yet (creator pages: api/autopilot.mjs sendFacebook)", proof: "Graph post id" },
+  tiktok: { he: "TikTok", codePath: "none (no publisher implemented)", proof: "—" },
+  pinterest: { he: "Pinterest", codePath: "none for the platform board yet (creator boards: api/autopilot.mjs sendPinterest)", proof: "pin id" },
+  youtube: { he: "YouTube Shorts", codePath: "none (no publisher implemented)", proof: "—" },
 };
 
-const valid = {
-  telegram: (c) => c?.botToken && c?.chatId,
-  bluesky: (c) => c?.handle && c?.token,
-  mastodon: (c) => c?.token,
+// Creator channels (marketplace:autopilot[marketer].channels): the creator
+// autopilot (api/autopilot.mjs sendToChannel) + owner-approved campaigns
+// (distribution-autorun) for telegram/bluesky/mastodon. Fields = what the sender needs.
+const CREATOR_FIELDS = {
+  telegram: ["botToken", "chatId"], webhook: ["url"], facebook: ["pageId", "pageToken"], discord: ["url"], slack: ["url"],
+  whatsapp: ["phoneNumberId", "token", "chatId"], instagram: ["igUserId", "token"], x: ["bearer"], linkedin: ["personUrn", "token"],
+  mastodon: ["token"], bluesky: ["handle", "token"], reddit: ["clientId", "clientSecret", "token", "subreddit"],
+  pinterest: ["token", "boardId"], wordpress: ["wpUrl", "wpUser", "wpPass"],
 };
+const NO_POST_ID = new Set(["slack"]); // the API returns no id → DELIVERED_UNVERIFIED at best
 
 /**
- * Every external destination with its status. `autopilotStore` is the
- * server-only marketplace:autopilot map (only counted, never returned).
+ * Every external destination with its status. Values never leave: env and
+ * the server-only marketplace:autopilot map are only checked / counted.
  */
 export function externalDestinations(env = {}, autopilotStore = {}) {
-  const out = ENV_DESTINATIONS.map((d) => {
-    const missing = d.required.filter((k) => !env[k]);
+  const out = CHANNEL_ADAPTERS.map((a) => {
+    const meta = PLATFORM_META[a.id] || { he: a.id, codePath: "—", proof: "—" };
+    const missing = a.env.filter((k) => !env[k]);
     return {
-      id: d.id, he: d.he, scope: "platform", codePath: d.codePath, proof: d.proof,
-      requiredCredentials: d.required,
+      id: meta.id || a.id, he: meta.he, scope: "platform", codePath: meta.codePath, proof: meta.proof,
+      implemented: Boolean(a.publisher),
+      requiredCredentials: a.env,
       missing,
-      status: missing.length ? DESTINATION_STATUS.NEEDS_CONNECTION : DESTINATION_STATUS.CONNECTED,
+      status: missing.length ? DESTINATION_STATUS.NEEDS_CONNECTION : a.publisher ? DESTINATION_STATUS.CONNECTED : DESTINATION_STATUS.NO_PUBLISHER,
     };
   });
-  for (const ch of PUBLISHABLE_CHANNELS) {
+  const store = autopilotStore && typeof autopilotStore === "object" ? autopilotStore : {};
+  for (const [type, fields] of Object.entries(CREATOR_FIELDS)) {
     let creators = 0;
-    for (const rec of Object.values(autopilotStore && typeof autopilotStore === "object" ? autopilotStore : {})) {
-      if ((Array.isArray(rec?.channels) ? rec.channels : []).some((c) => c?.type === ch && valid[ch](c))) creators++;
+    for (const rec of Object.values(store)) {
+      if ((Array.isArray(rec?.channels) ? rec.channels : []).some((c) => c?.type === type && fields.every((k) => c[k]))) creators++;
     }
+    const where = `Studio → טייס אוטומטי → ערוצים → ${type} (${fields.join(" + ")})`;
     out.push({
-      id: `creator_${ch}`, he: CREATOR_DESTINATIONS[ch].he, scope: "creator",
-      codePath: "src/lib/discovery/publishers/index.js publishPost ← distribution-autorun (owner-approved campaigns)",
-      proof: "provider post id + public verification",
-      requiredCredentials: CREATOR_DESTINATIONS[ch].required,
-      missing: creators ? [] : CREATOR_DESTINATIONS[ch].required,
+      id: `creator_${type}`, he: `${type} (ערוץ של יוצר/ת)`, scope: "creator",
+      codePath: `api/autopilot.mjs sendToChannel${PUBLISHABLE_CHANNELS.includes(type) ? " · distribution-autorun (publishers/index.js)" : ""}`,
+      proof: NO_POST_ID.has(type) ? "none — the API returns no post id (DELIVERED_UNVERIFIED)" : "provider post id",
+      implemented: true,
+      requiredCredentials: [where],
+      missing: creators ? [] : [where],
       connectedCreators: creators,
       status: creators ? DESTINATION_STATUS.CONNECTED : DESTINATION_STATUS.NEEDS_CONNECTION,
     });

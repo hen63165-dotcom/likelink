@@ -4,6 +4,7 @@
 // provider's own post id; PUBLIC_VERIFIED needs the post readable in public.
 import { POST_STATE } from "./distribution.js";
 import { publishPost } from "./publishers/index.js";
+import { appendPublicationLog } from "../publishing/adapters.js";
 
 export const plansKey = (scopeKey) => `distribution:plans:${scopeKey}`;
 export const connectionsKey = (scopeKey) => `distribution:connections:${scopeKey}`;
@@ -33,8 +34,11 @@ export async function publishPlanPost({ kvGet, kvSet, scopeKey, planId, postId, 
   // Re-read right before writing so a concurrent change is not lost.
   const fresh = (await kvGet(plansKey(scopeKey), [])) || list;
   const at = new Date(now).toISOString();
+  // Every attempt goes to the shared publication log (the orchestrator's ledger reads it).
+  const logRow = { contentId: `${planId}:${postId}`, contentType: "distribution_post", brandId: scopeKey, productId: plan.productId || null, channel: post.channel, text: post.caption };
   if (!sent.ok) {
     await kvSet(plansKey(scopeKey), updatePost(fresh, planId, postId, { lastError: { code: sent.error, at, via } }));
+    await appendPublicationLog({ kvGet, kvSet, now }, [{ ...logRow, status: "FAILED", error: sent.error }]);
     return { ok: false, error: sent.error, status: 502 };
   }
   const published = {
@@ -42,6 +46,7 @@ export async function publishPlanPost({ kvGet, kvSet, scopeKey, planId, postId, 
     publishedAt: at, publishedVia: via, verification: sent.verification, verificationNote: sent.verificationNote, lastError: null,
   };
   await kvSet(plansKey(scopeKey), updatePost(fresh, planId, postId, published));
+  await appendPublicationLog({ kvGet, kvSet, now }, [{ ...logRow, status: sent.verification === "PUBLIC_VERIFIED" ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", externalId: sent.providerPostId, permalink: sent.publicUrl }]);
   const connections = (await kvGet(connectionsKey(scopeKey), {})) || {};
   await kvSet(connectionsKey(scopeKey), { ...connections, [post.channel]: { verifiedAt: at, providerAccountId: sent.publicUrl ? sent.publicUrl.split("/").slice(0, -1).join("/") : "private", source: channelCreds.source || "creator" } });
   return { ok: true, post: { ...post, ...published } };

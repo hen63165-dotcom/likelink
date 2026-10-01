@@ -1,6 +1,7 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
+import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
 let readBody, verifyToken, audit;
@@ -547,6 +548,13 @@ async function markChannelVerified(provider) {
   }
 }
 
+/** The provider's own id for what was just created (null when the API returns none). */
+async function providerIdFrom(res, pick) {
+  const j = await res.json().catch(() => null);
+  const v = j ? pick(j) : null;
+  return v != null && v !== "" ? String(v) : null;
+}
+
 async function sendTelegram(ch, text) {
   const res = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMessage`, {
     method: "POST",
@@ -568,6 +576,8 @@ async function sendWebhook(ch, payload) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`webhook_${res.status}`);
+  // A 200 is delivery; publication needs the id the receiver returns.
+  return providerIdFrom(res, (j) => j.id ?? j.postId ?? j.externalId);
 }
 
 async function sendFacebook(ch, text, link, product) {
@@ -587,7 +597,7 @@ async function sendFacebook(ch, text, link, product) {
       }
     );
     if (!res.ok) throw new Error(`facebook_video_${res.status}`);
-    return;
+    return providerIdFrom(res, (j) => j.id);
   }
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${encodeURIComponent(ch.pageId)}/feed`,
@@ -599,16 +609,19 @@ async function sendFacebook(ch, text, link, product) {
     }
   );
   if (!res.ok) throw new Error(`facebook_${res.status}`);
+  return providerIdFrom(res, (j) => j.id);
 }
 
 async function sendDiscord(ch, text) {
-  const res = await fetch(ch.url, {
+  const url = `${ch.url}${String(ch.url).includes("?") ? "&" : "?"}wait=true`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ content: text }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`discord_${res.status}`);
+  return providerIdFrom(res, (j) => j.id);
 }
 
 async function sendSlack(ch, text) {
@@ -619,6 +632,8 @@ async function sendSlack(ch, text) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`slack_${res.status}`);
+  // Incoming webhooks answer "ok" — no message id, so this is delivery only.
+  return null;
 }
 
 // WhatsApp Cloud API (Meta business) — posts to a channel/catalog broadcast list
@@ -638,6 +653,7 @@ async function sendWhatsApp(ch, text, link) {
     }
   );
   if (!res.ok) throw new Error(`whatsapp_${res.status}`);
+  return providerIdFrom(res, (j) => j.messages?.[0]?.id);
 }
 
 // Instagram Graph API — 2-step publish (container → publish). Requires an
@@ -683,7 +699,7 @@ async function sendInstagram(ch, text, link, product) {
       }
     );
     if (!publish.ok) throw new Error(`instagram_reel_publish_${publish.status}`);
-    return;
+    return providerIdFrom(publish, (j) => j.id);
   }
 
   const imageUrl = product?.image
@@ -713,6 +729,7 @@ async function sendInstagram(ch, text, link, product) {
     }
   );
   if (!publish.ok) throw new Error(`instagram_publish_${publish.status}`);
+  return providerIdFrom(publish, (j) => j.id);
 }
 
 // X (Twitter) API v2 — Bearer token with user context from the X developer portal
@@ -756,6 +773,7 @@ async function sendLinkedIn(ch, text, link) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`linkedin_${res.status}`);
+  return res.headers.get("x-restli-id") || providerIdFrom(res, (j) => j.id);
 }
 
 // Mastodon — one call, any instance (default mastodon.social)
@@ -797,6 +815,7 @@ async function sendBluesky(ch, text, link) {
     signal: AbortSignal.timeout(10000),
   });
   if (!post.ok) throw new Error(`bluesky_post_${post.status}`);
+  return providerIdFrom(post, (j) => j.uri);
 }
 
 // Reddit — OAuth2 refresh-token flow then submit a link post
@@ -824,10 +843,14 @@ async function sendReddit(ch, text, link) {
       title: text.split("\n")[0].slice(0, 300),
       url: link,
       resubmit: "true",
+      api_type: "json",
     }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`reddit_${res.status}`);
+  const j = await res.json().catch(() => null);
+  if (j?.json?.errors?.length) throw new Error(`reddit_${String(j.json.errors[0]?.[0] || "error").slice(0, 60)}`);
+  return j?.json?.data?.name || j?.json?.data?.id || null;
 }
 
 // Pinterest — pin the product image with title + link (needs an image)
@@ -847,6 +870,7 @@ async function sendPinterest(ch, text, link, product) {
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`pinterest_${res.status}`);
+  return providerIdFrom(res, (j) => j.id);
 }
 
 // WordPress — publish a post via the REST API (application password auth)
@@ -864,6 +888,49 @@ async function sendWordPress(ch, text, link) {
     signal: AbortSignal.timeout(12000),
   });
   if (!res.ok) throw new Error(`wordpress_${res.status}`);
+  return providerIdFrom(res, (j) => j.id);
+}
+
+/**
+ * One dispatcher for every creator channel (it replaces three copies of the
+ * chain). Returns the provider's post id, or null when the channel gives none.
+ * `mediaProduct` = the product whose media Facebook may use (only the
+ * scheduled run passes one); `product` = the one Instagram/Pinterest picture.
+ */
+async function sendToChannel(ch, { text, link, product = null, mediaProduct = null, webhook = {} }) {
+  switch (ch.type) {
+    case "telegram": return sendTelegram(ch, text);
+    case "webhook": return sendWebhook(ch, { text, link, ...webhook });
+    case "facebook": return sendFacebook(ch, text, link, mediaProduct || undefined);
+    case "discord": return sendDiscord(ch, text);
+    case "slack": return sendSlack(ch, text);
+    case "whatsapp": return sendWhatsApp(ch, text, link);
+    case "instagram": return sendInstagram(ch, text, link, product);
+    case "x": return sendX(ch, text, link);
+    case "linkedin": return sendLinkedIn(ch, text, link);
+    case "mastodon": return sendMastodon(ch, text, link);
+    case "bluesky": return sendBluesky(ch, text, link);
+    case "reddit": return sendReddit(ch, text, link);
+    case "pinterest": return sendPinterest(ch, text, link, product);
+    case "wordpress": return sendWordPress(ch, text, link);
+    default: throw new Error("unknown_channel");
+  }
+}
+
+/** Log one creator-channel attempt through the publication gate. */
+async function recordCreatorAttempt({ contentType, marketerId, productId, channel, providerId = null, error = null, text, link }) {
+  return recordPublication({
+    contentId: `${contentType}_${marketerId}_${productId}`,
+    contentType,
+    brandId: marketerId,
+    productId,
+    channel,
+    status: error ? "FAILED" : "PUBLISHED", // the gate turns an id-less send into DELIVERED_UNVERIFIED
+    externalId: providerId,
+    error,
+    text,
+    link,
+  });
 }
 
 // ─── core runner ────────────────────────────────────────────────────────────
@@ -885,7 +952,10 @@ function pickProduct(cfg, pool) {
 export async function runOne(store, marketerId, cfg, origin) {
   const marketer = (store.__marketers || []).find((m) => m.id === marketerId);
   const allProducts = store.__products || [];
-  const pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved");
+  const sharedLinks = sharedAffiliateLinks(allProducts);
+  // Catalog integrity: a product whose affiliate link is shared by other
+  // products (it opens the store home page) is never promoted.
+  const pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved" && isPromotable(p, allProducts, sharedLinks));
   const product = pickProduct(cfg, pool);
 
   // If a real UGC asset exists for this product, use it for image-capable
@@ -944,26 +1014,13 @@ export async function runOne(store, marketerId, cfg, origin) {
     const link = trackLink(baseLink, ch.type, product.id);
     const chText = link === baseLink ? text : text.split(baseLink).join(link);
     try {
-      if (ch.type === "telegram") await sendTelegram(ch, chText);
-      else if (ch.type === "webhook")
-        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-autopilot" });
-      else if (ch.type === "facebook") await sendFacebook(ch, chText, link, publishProduct);
-      else if (ch.type === "discord") await sendDiscord(ch, chText);
-      else if (ch.type === "slack") await sendSlack(ch, chText);
-      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
-      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, publishProduct);
-      else if (ch.type === "x") await sendX(ch, chText, link);
-      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
-      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
-      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
-      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
-      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, publishProduct);
-      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
-      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
+      const providerId = await sendToChannel(ch, { text: chText, link, product: publishProduct, mediaProduct: publishProduct, webhook: { product, marketerId, source: "likelink-autopilot" } });
       await markChannelVerified(ch.type);
-      results.push({ channel: ch.type, ok: true });
+      results.push({ channel: ch.type, ok: true, providerId, status: publicationGate("PUBLISHED", providerId) });
+      await recordCreatorAttempt({ contentType: "creator_autopilot", marketerId, productId: product.id, channel: ch.type, providerId, text: chText, link });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+      await recordCreatorAttempt({ contentType: "creator_autopilot", marketerId, productId: product.id, channel: ch.type, error: String(e.message || e), text: chText, link });
     }
   }
 
@@ -1051,25 +1108,12 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
     const link = trackLink(baseLink, ch.type, `drop_${product.id}`);
     const chText = priceDropCaption(product, listedN, liveN, pct, link);
     try {
-      if (ch.type === "telegram") await sendTelegram(ch, chText);
-      else if (ch.type === "webhook")
-        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-pricedrop", event: "price_drop", listed: listedN, live: liveN, pct });
-      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
-      else if (ch.type === "discord") await sendDiscord(ch, chText);
-      else if (ch.type === "slack") await sendSlack(ch, chText);
-      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
-      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
-      else if (ch.type === "x") await sendX(ch, chText, link);
-      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
-      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
-      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
-      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
-      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
-      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
-      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
-      results.push({ channel: ch.type, ok: true });
+      const providerId = await sendToChannel(ch, { text: chText, link, product, webhook: { product, marketerId, source: "likelink-pricedrop", event: "price_drop", listed: listedN, live: liveN, pct } });
+      results.push({ channel: ch.type, ok: true, providerId, status: publicationGate("PUBLISHED", providerId) });
+      await recordCreatorAttempt({ contentType: "price_drop", marketerId, productId: product.id, channel: ch.type, providerId, text: chText, link });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+      await recordCreatorAttempt({ contentType: "price_drop", marketerId, productId: product.id, channel: ch.type, error: String(e.message || e), text: chText, link });
     }
   }
 
@@ -1126,25 +1170,12 @@ async function announceNewProduct(store, marketerId, cfg, product, origin) {
     const link = trackLink(baseLink, ch.type, product.id);
     const chText = link === baseLink ? text : text.split(baseLink).join(link);
     try {
-      if (ch.type === "telegram") await sendTelegram(ch, chText);
-      else if (ch.type === "webhook")
-        await sendWebhook(ch, { text: chText, product, marketerId, link, source: "likelink-new-product", event: "new_product" });
-      else if (ch.type === "facebook") await sendFacebook(ch, chText, link);
-      else if (ch.type === "discord") await sendDiscord(ch, chText);
-      else if (ch.type === "slack") await sendSlack(ch, chText);
-      else if (ch.type === "whatsapp") await sendWhatsApp(ch, chText, link);
-      else if (ch.type === "instagram") await sendInstagram(ch, chText, link, product);
-      else if (ch.type === "x") await sendX(ch, chText, link);
-      else if (ch.type === "linkedin") await sendLinkedIn(ch, chText, link);
-      else if (ch.type === "mastodon") await sendMastodon(ch, chText, link);
-      else if (ch.type === "bluesky") await sendBluesky(ch, chText, link);
-      else if (ch.type === "reddit") await sendReddit(ch, chText, link);
-      else if (ch.type === "pinterest") await sendPinterest(ch, chText, link, product);
-      else if (ch.type === "wordpress") await sendWordPress(ch, chText, link);
-      else { results.push({ channel: ch.type, ok: false, detail: "unknown_channel" }); continue; }
-      results.push({ channel: ch.type, ok: true });
+      const providerId = await sendToChannel(ch, { text: chText, link, product, webhook: { product, marketerId, source: "likelink-new-product", event: "new_product" } });
+      results.push({ channel: ch.type, ok: true, providerId, status: publicationGate("PUBLISHED", providerId) });
+      await recordCreatorAttempt({ contentType: "new_product", marketerId, productId: product.id, channel: ch.type, providerId, text: chText, link });
     } catch (e) {
       results.push({ channel: ch.type, ok: false, detail: String(e.message || e) });
+      await recordCreatorAttempt({ contentType: "new_product", marketerId, productId: product.id, channel: ch.type, error: String(e.message || e), text: chText, link });
     }
   }
 
@@ -1217,6 +1248,8 @@ const PUBLISH_LOG_MAX = 60;
 
 export const PUBLICATION_STATE = {
   PUBLISHED: "PUBLISHED",
+  PUBLISHED_UNVERIFIED: "PUBLISHED_UNVERIFIED",
+  DELIVERED_UNVERIFIED: "DELIVERED_UNVERIFIED",
   PENDING: "PENDING",
   FAILED: "FAILED",
   REQUIRES_CONNECTION: "REQUIRES_CONNECTION",
@@ -1240,7 +1273,9 @@ async function recordPublication(entry = {}) {
     brandId: entry.brandId ? String(entry.brandId).slice(0, 80) : "platform",
     productId: entry.productId ? String(entry.productId).slice(0, 80) : null,
     channel: String(entry.channel || "unknown").slice(0, 40),
-    status: PUBLICATION_STATE[entry.status] || PUBLICATION_STATE.PENDING,
+    // The publishing gate (src/lib/publishing/adapters.js): PUBLISHED only
+    // with the provider's own id — an id-less success is DELIVERED_UNVERIFIED.
+    status: PUBLICATION_STATE[publicationGate(entry.status, entry.externalId)] || PUBLICATION_STATE.PENDING,
     publishedAt: new Date(now).toISOString(),
     externalId: entry.externalId ? String(entry.externalId).slice(0, 120) : null,
     error: entry.error ? String(entry.error).slice(0, 200) : null,
@@ -1393,7 +1428,7 @@ export async function publishBrandPulse(origin, opts = {}) {
       if (ch.type === "telegram") {
         externalId = await sendTelegram(ch, text);
       } else if (ch.type === "webhook") {
-        await sendWebhook(ch, { text, source: "likelink-brand-pulse", link });
+        externalId = await sendWebhook(ch, { text, source: "likelink-brand-pulse", link });
       }
       results.push({ channel: ch.type, ok: true, externalId });
     } catch (e) {

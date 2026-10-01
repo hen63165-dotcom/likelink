@@ -173,6 +173,39 @@ export function ugcMode(record = {}) {
   return UGC_MODE.NOT_UGC;
 }
 
+/**
+ * The three kinds a creative can be — never shown as one another:
+ *   REAL_UGC                  a real video a person filmed (known source)
+ *   SYNTHETIC_UGC_STYLE       computer-made in a creator-video format
+ *   ANIMATED_PRODUCT_CREATIVE computer-made cinematic / story / unboxing animation
+ * plus REAL_PRODUCT_VIDEO (a real video that is not UGC) and NO_VIDEO.
+ */
+export const CREATIVE_CLASS = Object.freeze({
+  REAL_UGC: "REAL_UGC",
+  SYNTHETIC_UGC_STYLE: "SYNTHETIC_UGC_STYLE",
+  ANIMATED_PRODUCT_CREATIVE: "ANIMATED_PRODUCT_CREATIVE",
+  REAL_PRODUCT_VIDEO: "REAL_PRODUCT_VIDEO",
+  NO_VIDEO: "NO_VIDEO",
+});
+
+export const CREATIVE_CLASS_LABEL = Object.freeze({
+  REAL_UGC: { he: "UGC אמיתי · צולם על ידי אדם", en: "Real UGC · filmed by a person" },
+  SYNTHETIC_UGC_STYLE: { he: "בסגנון UGC · ממוחשב, לא אדם אמיתי", en: "UGC-style · computer-made, not a real person" },
+  ANIMATED_PRODUCT_CREATIVE: { he: "קריאייטיב מונפש של המוצר · ממוחשב, לא צילום", en: "Animated product creative · computer-made, not filmed" },
+  REAL_PRODUCT_VIDEO: { he: "סרטון מוצר אמיתי", en: "Real product video" },
+  NO_VIDEO: { he: "אין וידאו", en: "No video" },
+});
+
+export function creativeClass(record = {}) {
+  const mode = ugcMode(record);
+  if (mode === UGC_MODE.REAL_UGC) return CREATIVE_CLASS.REAL_UGC;
+  if (mode === UGC_MODE.SYNTHETIC_UGC_STYLE) return CREATIVE_CLASS.SYNTHETIC_UGC_STYLE;
+  const truth = classifyMediaRecord(record).state;
+  if (truth === MEDIA_TRUTH.SYNTHETIC_ANIMATION) return CREATIVE_CLASS.ANIMATED_PRODUCT_CREATIVE;
+  if (truth === MEDIA_TRUTH.REAL_VIDEO) return CREATIVE_CLASS.REAL_PRODUCT_VIDEO;
+  return CREATIVE_CLASS.NO_VIDEO;
+}
+
 /* --------------------------------------------------------------- asset */
 
 /** The VideoAsset view of a marketplace:videos record (and its product). */
@@ -197,6 +230,7 @@ export function videoAsset(video = {}, product = null) {
     createdAt: Number(video.createdAt) || null,
     truth,
     ugcMode: ugcMode({ ...video, marketerId: video.marketerId }),
+    creativeClass: creativeClass(video),
     disclosed: video.disclosed === true,
     bytes: Number(video.bytes) || null,
     sha256: text(video.sha256) || null,
