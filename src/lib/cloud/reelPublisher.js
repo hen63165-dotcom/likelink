@@ -28,12 +28,14 @@ import { noteKvReadFailed, readKvResponse, assertKvWritable } from "./kvReadGuar
 import { mediaUrl, MEDIA_BUCKET } from "./mediaStore.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
 import { isPublicCatalogProduct } from "./catalog.js";
+import { IMAGE_PROVENANCE, imageProvenance, isPromotable, sharedAffiliateLinks } from "../discovery/catalogIntegrity.js";
 import {
   MAX_POSTER_BYTES,
   MAX_REEL_BYTES,
   RENDER_PROVIDER,
   STUDIO_PROVIDER,
   STYLE_ORDER,
+  hookQuestion,
   REEL_STYLES,
   ON_FRAME_DISCLOSURE,
   assertSyntheticTruth,
@@ -43,6 +45,7 @@ import {
   sniffMedia,
   styleLearning,
   validateIngest,
+  buildSocialPack,
 } from "../media/reelPipeline.js";
 
 const VIDEOS_KEY = "marketplace:videos";
@@ -54,6 +57,7 @@ const PUBLISH_LOG_KEY = "publish:log";
 const LAST_RUN_KEY = "media:pipeline:last";
 const LEARNING_KEY = "media:learning";
 const REQUESTS_KEY = "media:requests";
+const IG_STATE_KEY = "publish:instagram";
 
 export function reelEnv(env = process.env) {
   return {
@@ -63,6 +67,10 @@ export function reelEnv(env = process.env) {
     telegramBot: env.BRAND_TELEGRAM_BOT || "",
     telegramChat: env.BRAND_TELEGRAM_CHAT || "",
     webhook: env.BRAND_WEBHOOK_URL || "",
+    igUser: env.IG_USER_ID || "",
+    igToken: env.IG_ACCESS_TOKEN || "",
+    igGraph: (env.IG_GRAPH_HOST || "https://graph.facebook.com/v21.0").replace(/\/+$/, ""),
+    igDailyCap: Math.max(0, Math.min(10, Number(env.IG_DAILY_CAP ?? 3) || 0)),
     origin: env.LIKELINK_BASE_URL || PRODUCTION_ORIGIN,
   };
 }
@@ -272,7 +280,7 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
     return { ok: false, status: 502, error: "media_readback_failed", step: "verify_media", proof: { media: mediaProof } };
   }
 
-  const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof });
+  const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof, renderer: body.renderer });
   if (result.ok) {
     try {
       const reqR = await c.kvRead(REQUESTS_KEY);
@@ -286,10 +294,10 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
 
 /** REGISTER → VERIFY REGISTRATION → PUBLISH → VERIFY PUBLICATION → PROOF (shared by every source). */
 async function registerAndPublish(c, ctx) {
-  const { product, products, videos, postsR, logR, style, videoPath, posterPath, videoBytes, videoSha, probe, now, conceptId, mediaProof, provider = RENDER_PROVIDER } = ctx;
+  const { product, products, videos, postsR, logR, style, videoPath, posterPath, videoBytes, videoSha, probe, now, conceptId, mediaProof, provider = RENDER_PROVIDER, renderer } = ctx;
   // 6. register (rollback restores the previous values)
   const origin = c.env.origin;
-  const records = buildReelRecords({ product, style, videoUrl: mediaUrl(videoPath, origin), posterUrl: posterPath ? mediaUrl(posterPath, origin) : product.image, bytes: videoBytes, sha256: videoSha, probe, now, provider });
+  const records = buildReelRecords({ product, style, videoUrl: mediaUrl(videoPath, origin), posterUrl: posterPath ? mediaUrl(posterPath, origin) : product.image, bytes: videoBytes, sha256: videoSha, probe, now, provider, renderer: renderer || (provider === RENDER_PROVIDER ? undefined : "studio-browser") });
   if (!assertSyntheticTruth(records.truth)) {
     await c.remove([videoPath, posterPath].filter(Boolean));
     return { ok: false, status: 500, error: "truth_violation", truth: records.truth };
@@ -333,7 +341,7 @@ async function registerAndPublish(c, ctx) {
 
   // 7. PUBLISH — internal LikeLink publication, then the external boundary.
   const link = `${origin}/p/${encodeURIComponent(product.id)}?utm_source=likelink_reel&utm_medium=reel&utm_campaign=${encodeURIComponent(publicVideo.id)}`;
-  const text = `${publicVideo.title} · ${REEL_STYLES[style].he}\n${ON_FRAME_DISCLOSURE.he}`;
+  const text = `${hookQuestion(product)}\n${publicVideo.title} · ${REEL_STYLES[style].he}\n${ON_FRAME_DISCLOSURE.he}`;
   const postId = `bp_${now}_${rid()}`;
   const post = { id: postId, ts: now, kind: "reel", productId: product.id, text, link, channels: ["web"], spotlight: null, media: { videoUrl: publicVideo.videoUrl, poster: publicVideo.poster, truth: records.truth, style: style, assetId: publicVideo.id } };
   let webStatus = "FAILED", webError = null;
@@ -411,6 +419,7 @@ export async function pipelineStatus({ env, fetchImpl } = {}) {
     lastRun: lastR.ok ? lastR.value : null,
     audit: learnR.ok && learnR.value ? { at: learnR.value.at, serving: learnR.value.serving, checked: learnR.value.checked } : null,
     externalChannel: c.env.telegramBot && c.env.telegramChat ? "telegram" : c.env.webhook ? "webhook" : "REQUIRES_CONNECTION",
+    instagram: c.env.igUser && c.env.igToken ? "connected" : "REQUIRES_CONNECTION",
     latest: native.slice(0, 6).map((v) => ({ id: v.id, productId: v.productTags?.[0]?.productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, createdAt: v.createdAt })),
   };
 }
@@ -492,4 +501,108 @@ export async function studioReelState({ ownerIds = [] } = {}, { env, fetchImpl }
     requests: arr(reqR.value).filter((r) => mine.has(r?.productId)).slice(0, 50),
     reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt })),
   };
+}
+
+/* ------------------------------------------------------------- instagram */
+
+const DAY_MS = 86_400_000;
+const igDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/** Reels Instagram can take: native v2 renders (AAC track), still public, product still public, not yet posted. */
+export function nextInstagramReel({ videos = [], products = [], marketers = [], posted = [] } = {}) {
+  const done = new Set(arr(posted).map((p) => p?.reelId));
+  const postedProducts = new Set(arr(posted).map((p) => p?.productId));
+  const byId = new Map(arr(products).map((p) => [p?.id, p]));
+  // Catalog integrity (catalogIntegrity.js): never promote a product whose
+  // link is shared by other products (it opens the store home page) or whose
+  // image is a stock photo the reel would present as the product.
+  const shared = sharedAffiliateLinks(arr(products));
+  const honest = (p) => isPromotable(p, arr(products), shared) && imageProvenance(p.image) !== IMAGE_PROVENANCE.STOCK;
+  const ok = arr(videos).filter((v) => v?.source === RENDER_PROVIDER && v.audio === "aac" && v.public !== false && !done.has(v.id) && /^https:\/\//.test(String(v.videoUrl || "")))
+    .map((v) => ({ v, product: byId.get(v.productTags?.[0]?.productId) }))
+    .filter((x) => x.product && isPublicCatalogProduct(x.product, marketers) && honest(x.product));
+  // Spread across the catalog: products never posted first, then oldest reel first.
+  ok.sort((a, b) => Number(postedProducts.has(a.product.id)) - Number(postedProducts.has(b.product.id)) || (Number(a.v.createdAt) || 0) - (Number(b.v.createdAt) || 0));
+  return ok[0] || null;
+}
+
+/**
+ * One step of the Instagram Reels publisher (Graph API, two phases):
+ *   phase 1  POST /{ig-user}/media  media_type=REELS  → container id (stored)
+ *   phase 2  GET  /{container}?fields=status_code → FINISHED → POST media_publish
+ *            → GET /{media}?fields=id,permalink (read-back = proof)
+ * PUBLISHED only with the media id Instagram returned AND read back. Without
+ * IG_USER_ID + IG_ACCESS_TOKEN nothing is sent: REQUIRES_CONNECTION.
+ * A daily cap protects the account; a product is not re-posted before the
+ * rest of the catalog had its turn.
+ */
+export async function instagramPublishStep({ env, fetchImpl, now = Date.now() } = {}) {
+  const c = client({ env, fetchImpl });
+  const { igUser, igToken, igGraph, igDailyCap } = c.env;
+  if (!igUser || !igToken) return { ok: true, status: "REQUIRES_CONNECTION", channel: "instagram" };
+  const stateR = await c.kvRead(IG_STATE_KEY);
+  if (!stateR.ok) return { ok: false, status: "kv_read_failed" };
+  const state = { pending: null, posted: [], failed: [], ...(stateR.value && typeof stateR.value === "object" ? stateR.value : {}) };
+  const graph = async (path, { method = "GET", params = {} } = {}) => {
+    const q = new URLSearchParams({ ...params, access_token: igToken });
+    const url = method === "GET" ? `${igGraph}/${path}?${q}` : `${igGraph}/${path}`;
+    const res = await c.fetchImpl(url, method === "GET" ? { signal: AbortSignal.timeout(20000) } : { method, headers: { "content-type": "application/x-www-form-urlencoded" }, body: q.toString(), signal: AbortSignal.timeout(30000) });
+    const j = await res.json().catch(() => ({}));
+    return { ok: res.ok && !j?.error, j, error: j?.error ? String(j.error.message || j.error.type || "graph_error").slice(0, 160) : res.ok ? null : `http_${res.status}` };
+  };
+
+  if (state.pending) {
+    const p = state.pending;
+    const st = await graph(p.containerId, { params: { fields: "status_code" } });
+    const code = st.j?.status_code;
+    if (st.ok && code === "IN_PROGRESS") return { ok: true, status: "PROCESSING", reelId: p.reelId };
+    if (!st.ok || code === "ERROR" || code === "EXPIRED" || now - p.createdAt > DAY_MS) {
+      state.failed = [...arr(state.failed), { ...p, error: st.error || code || "expired", at: now }].slice(-30);
+      state.pending = null;
+      await c.kvWrite(IG_STATE_KEY, state);
+      return { ok: false, status: "FAILED", reelId: p.reelId, error: st.error || code || "expired" };
+    }
+    if (code !== "FINISHED") return { ok: true, status: "PROCESSING", reelId: p.reelId, code: code || null };
+    const pub = await graph(`${igUser}/media_publish`, { method: "POST", params: { creation_id: p.containerId } });
+    const mediaId = pub.ok ? String(pub.j?.id || "") : "";
+    const back = mediaId ? await graph(mediaId, { params: { fields: "id,permalink,timestamp" } }) : { ok: false };
+    const verified = !!mediaId && back.ok && String(back.j?.id) === mediaId;
+    const iso = new Date(now).toISOString();
+    if (!mediaId) {
+      state.failed = [...arr(state.failed), { ...p, error: pub.error || "no_media_id", at: now }].slice(-30);
+      state.pending = null;
+      await c.kvWrite(IG_STATE_KEY, state);
+      return { ok: false, status: "FAILED", reelId: p.reelId, error: pub.error || "no_media_id" };
+    }
+    const entry = { reelId: p.reelId, productId: p.productId, mediaId, permalink: back.j?.permalink || null, at: now, verified, via: "graph_api" };
+    state.posted = [...arr(state.posted), entry].slice(-500);
+    state.pending = null;
+    await c.kvWrite(IG_STATE_KEY, state);
+    const logR = await c.kvRead(PUBLISH_LOG_KEY);
+    if (logR.ok) {
+      await c.kvWrite(PUBLISH_LOG_KEY, [...arr(logR.value), { id: `pub_${now}_${rid()}`, contentId: p.reelId, contentType: "native_reel", brandId: "platform", productId: p.productId, channel: "instagram", status: verified ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", publishedAt: iso, externalId: mediaId, permalink: entry.permalink, error: null, attempts: 1, attemptOf: null, link: p.link }].slice(-500));
+    }
+    return { ok: true, status: verified ? "PUBLISHED" : "PUBLISHED_UNVERIFIED", reelId: p.reelId, mediaId, permalink: entry.permalink };
+  }
+
+  const today = igDay(now);
+  const postedToday = arr(state.posted).filter((x) => igDay(Number(x.at) || 0) === today).length;
+  if (postedToday >= igDailyCap) return { ok: true, status: "DAILY_CAP", postedToday, cap: igDailyCap };
+  const [videosR, productsR, marketersR] = await Promise.all([VIDEOS_KEY, PRODUCTS_KEY, MARKETERS_KEY].map((k) => c.kvRead(k)));
+  if (![videosR, productsR, marketersR].every((r) => r.ok)) return { ok: false, status: "kv_read_failed" };
+  const failedIds = new Set(arr(state.failed).map((f) => f?.reelId));
+  const next = nextInstagramReel({ videos: arr(videosR.value).filter((v) => !failedIds.has(v?.id)), products: arr(productsR.value), marketers: arr(marketersR.value), posted: state.posted });
+  if (!next) return { ok: true, status: "NOTHING_TO_POST" };
+  const creator = arr(marketersR.value).find((m) => m?.id === next.product.marketerId);
+  const pack = buildSocialPack({ product: next.product, creator, style: next.v.style, origin: c.env.origin });
+  const caption = pack.networks.instagram.caption;
+  const cont = await graph(`${igUser}/media`, { method: "POST", params: { media_type: "REELS", video_url: next.v.videoUrl, caption, share_to_feed: "true", ...(next.v.poster && /^https:/.test(next.v.poster) ? { cover_url: next.v.poster } : {}) } });
+  if (!cont.ok || !cont.j?.id) {
+    state.failed = [...arr(state.failed), { reelId: next.v.id, productId: next.product.id, error: cont.error || "no_container_id", at: now }].slice(-30);
+    await c.kvWrite(IG_STATE_KEY, state);
+    return { ok: false, status: "FAILED", reelId: next.v.id, error: cont.error || "no_container_id" };
+  }
+  state.pending = { reelId: next.v.id, productId: next.product.id, containerId: String(cont.j.id), createdAt: now, link: pack.networks.instagram.link };
+  await c.kvWrite(IG_STATE_KEY, state);
+  return { ok: true, status: "CONTAINER_CREATED", reelId: next.v.id, containerId: String(cont.j.id) };
 }

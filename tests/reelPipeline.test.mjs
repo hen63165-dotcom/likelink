@@ -24,8 +24,13 @@ import {
   RENDER_PROVIDER,
   RENDERER_VERSION,
   STYLE_ORDER,
+  HOOK_QUESTIONS,
+  hookQuestion,
+  buildSocialPack,
+  SOCIAL_NETWORKS,
+  HOOK_PRELUDE_MS,
 } from "../src/lib/media/reelPipeline.js";
-import { ingestReel, auditReels, buildPlan, registerStudioUpload, requestRender, studioReelState } from "../src/lib/cloud/reelPublisher.js";
+import { ingestReel, auditReels, buildPlan, registerStudioUpload, requestRender, studioReelState, instagramPublishStep, nextInstagramReel } from "../src/lib/cloud/reelPublisher.js";
 import { isPublicVideo } from "../src/lib/videoSync.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../src/lib/discovery/mediaTruth.js";
 import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
@@ -47,7 +52,7 @@ const ingestBody = (over = {}) => ({
   style: "cinematic3d",
   renderer: RENDERER_VERSION,
   conceptId: "p1:cinematic3d",
-  probe: { codec: "h264", width: 720, height: 1280, frames: 270, durationMs: 9000 },
+  probe: { audio: "aac", audioRate: 48000, codec: "h264", width: 720, height: 1280, frames: 270, durationMs: 9000 },
   sha256: sha(MP4),
   video: MP4.toString("base64"),
   poster: JPEG.toString("base64"),
@@ -142,7 +147,10 @@ test("ingest validation and media sniffing", () => {
   assert.equal(validateIngest(ingestBody()).ok, true);
   assert.equal(validateIngest(ingestBody({ style: "x" })).error, "bad_style");
   assert.equal(validateIngest(ingestBody({ renderer: "other" })).error, "unknown_renderer");
-  assert.equal(validateIngest(ingestBody({ probe: { width: 100, height: 100, durationMs: 9000 } })).error, "bad_dimensions");
+  // v2 must carry the AAC track Instagram requires; v1 (no audio) is still accepted.
+  assert.equal(validateIngest(ingestBody({ probe: { width: 720, height: 1280, durationMs: 10500 } })).error, "missing_audio_track");
+  assert.equal(validateIngest(ingestBody({ renderer: "reel-canvas-v1", probe: { width: 720, height: 1280, durationMs: 9000 } })).ok, true);
+  assert.equal(validateIngest(ingestBody({ probe: { audio: "aac", width: 100, height: 100, durationMs: 9000 } })).error, "bad_dimensions");
   assert.equal(sniffMedia(MP4), "video/mp4");
   assert.equal(sniffMedia(JPEG), "image/jpeg");
   assert.equal(sniffMedia(Buffer.from("<svg/>")), "");
@@ -318,4 +326,134 @@ test("publishing a reel never evicts earlier feed posts (append-only, cap = publ
   assert.equal(feed.length, 31, "nothing evicted");
   assert.equal(feed[0].id, "bp_old_0", "oldest stays first");
   assert.equal(feed[30].id, r.publication.externalId, "new post appended last");
+});
+
+// ---------------------------------------------------------------- v2: hooks, social, Instagram
+
+const FORBIDDEN_CLAIMS = /כולם|נגמר|אחרונ|מלאי|משלוח חינם|הכי נמכר|ויראלי|מבצע|רק היום|מיליון/;
+
+test("v2 hooks are questions only, deterministic per product, never claims", () => {
+  for (const [cat, bank] of Object.entries(HOOK_QUESTIONS)) {
+    for (const q of bank) {
+      assert.match(q, /\?(\s*\S{1,2})?$/u, `${cat}: "${q}" is a question`);
+      assert.ok(!FORBIDDEN_CLAIMS.test(q), `${cat}: "${q}" makes no unprovable claim`);
+    }
+  }
+  const p = product("p7", { category: "Fashion" });
+  assert.equal(hookQuestion(p), hookQuestion({ ...p }));
+  assert.ok(HOOK_QUESTIONS.Fashion.includes(hookQuestion(p)));
+  assert.ok(HOOK_QUESTIONS.Other.includes(hookQuestion(product("p8", { category: "Nope" }))));
+  const c = buildReelConcept({ product: p, creator, style: "animated_unbox" });
+  assert.equal(c.hookMs, HOOK_PRELUDE_MS);
+  assert.equal(c.lines.hook, hookQuestion(p));
+  assert.equal(c.durationMs, 9500 + HOOK_PRELUDE_MS);
+  assert.ok(c.durationMs <= 30000, "inside the ingest duration bound");
+  assert.ok(STYLE_ORDER.includes("animated_unbox"));
+  const scene = read("scripts/media/reel-scene.html");
+  assert.ok(scene.includes("function prelude(") && scene.includes("function unbox("));
+  assert.ok(read("scripts/media/render-reels.mjs").includes('"-c:a", "aac"'), "renderer muxes an AAC track");
+});
+
+test("social pack: every network, real fields, both disclosures, tracked canonical links", () => {
+  const pack = buildSocialPack({ product: product("p1"), creator, style: "ugc_style" });
+  assert.deepEqual(Object.keys(pack.networks).sort(), [...SOCIAL_NETWORKS].sort());
+  const ig = pack.networks.instagram;
+  assert.ok(ig.caption.length <= 2200);
+  assert.ok(ig.caption.startsWith(pack.hook), "hook is the first line");
+  assert.ok(ig.caption.includes("#פרסומת") && ig.caption.includes("אנימציה ממוחשבת"), "ad + animation disclosure");
+  assert.ok((ig.caption.match(/#[^\s#]+/g) || []).length <= 6, "a few specific hashtags, not a wall");
+  assert.ok(ig.caption.includes("₪45") && ig.caption.includes("מחיר קטלוג"));
+  for (const [n, x] of Object.entries(pack.networks)) {
+    assert.ok(x.link.startsWith("https://likelink2.vercel.app/p/p1?"), `${n} links to the canonical product page`);
+    assert.equal(new URL(x.link).searchParams.get("utm_source"), n);
+    const all = JSON.stringify(x);
+    assert.ok(!FORBIDDEN_CLAIMS.test(all), `${n}: no invented claims`);
+    assert.ok(!/likelink\.com/.test(all));
+    assert.ok(all.includes("#פרסומת"), `${n}: paid-partnership disclosure`);
+  }
+  assert.ok(pack.networks.x.caption.length <= 280);
+  assert.ok(pack.networks.youtube.title.includes("#Shorts") && pack.networks.youtube.title.length <= 100);
+});
+
+function fakeGraph({ status = ["IN_PROGRESS", "FINISHED"], failPublish = false } = {}) {
+  const calls = [];
+  let n = 0;
+  const json = (v, s = 200) => new Response(JSON.stringify(v), { status: s, headers: { "content-type": "application/json" } });
+  return {
+    calls,
+    async handle(url, opts = {}) {
+      const u = new URL(url);
+      const body = opts.body ? Object.fromEntries(new URLSearchParams(opts.body)) : Object.fromEntries(u.searchParams);
+      calls.push({ method: opts.method || "GET", path: u.pathname, body });
+      assert.equal(body.access_token, "IGTOKEN");
+      if (u.pathname.endsWith("/IGUSER/media") && opts.method === "POST") return json({ id: "CONT1" });
+      if (u.pathname.endsWith("/CONT1")) return json({ status_code: status[Math.min(n++, status.length - 1)] });
+      if (u.pathname.endsWith("/IGUSER/media_publish")) return failPublish ? json({ error: { message: "nope" } }, 400) : json({ id: "IGMEDIA9" });
+      if (u.pathname.endsWith("/IGMEDIA9")) return json({ id: "IGMEDIA9", permalink: "https://www.instagram.com/reel/abc/" });
+      return json({ error: { message: "unexpected" } }, 500);
+    },
+  };
+}
+
+function withInstagram(sb, graph, extra = {}) {
+  const env = { ...sb.env, igUser: "IGUSER", igToken: "IGTOKEN", igGraph: "https://graph.test/v21.0", igDailyCap: 3, ...extra };
+  const fetchImpl = (url, opts) => (String(url).startsWith("https://graph.test/") ? graph.handle(url, opts) : sb.fetchImpl(url, opts));
+  return { env, fetchImpl };
+}
+
+test("instagram: nothing is sent without a connection", async () => {
+  const sb = fakeSupabase();
+  const r = await instagramPublishStep({ env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(r.status, "REQUIRES_CONNECTION");
+  assert.equal(sb.calls.length, 0);
+});
+
+test("instagram: two-phase publish, PUBLISHED only with a read-back media id, logged, never twice", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  const ok = await ingestReel(ingestBody(), { env: sb.env, fetchImpl: sb.fetchImpl, now: 5000 });
+  assert.equal(ok.ok, true, JSON.stringify(ok));
+  // v1 reels (no audio) are never sent to Instagram
+  const vids = sb.get("marketplace:videos");
+  assert.equal(vids[0].audio, "aac");
+  assert.equal(nextInstagramReel({ videos: vids.map((v) => ({ ...v, audio: "none" })), products: sb.get("marketplace:products"), marketers: [creator] }), null);
+  // a product whose affiliate link is shared by another product (store home page) or whose image is stock is never posted
+  const prods = sb.get("marketplace:products");
+  const sharedLink = prods.map((p) => ({ ...p, affiliateUrl: "https://best.aliexpress.com" }));
+  assert.equal(nextInstagramReel({ videos: vids, products: [...sharedLink, product("other", { affiliateUrl: "https://best.aliexpress.com" })], marketers: [creator] }), null);
+  assert.equal(nextInstagramReel({ videos: vids, products: prods.map((p) => ({ ...p, image: "https://images.unsplash.com/x.jpg" })), marketers: [creator] }), null);
+  assert.ok(nextInstagramReel({ videos: vids, products: prods, marketers: [creator] }));
+  const graph = fakeGraph();
+  const io = withInstagram(sb, graph);
+  const now = Date.parse("2026-10-01T10:00:00Z");
+  const a = await instagramPublishStep({ ...io, now });
+  assert.equal(a.status, "CONTAINER_CREATED");
+  const create = graph.calls.find((c) => c.path.endsWith("/IGUSER/media"));
+  assert.equal(create.body.media_type, "REELS");
+  assert.ok(create.body.caption.includes("#פרסומת"));
+  assert.ok(create.body.video_url.startsWith("https://likelink2.vercel.app/api/og?mode=media"));
+  assert.equal((await instagramPublishStep({ ...io, now: now + 1000 })).status, "PROCESSING");
+  const c = await instagramPublishStep({ ...io, now: now + 2000 });
+  assert.equal(c.status, "PUBLISHED");
+  assert.equal(c.mediaId, "IGMEDIA9");
+  const log = sb.get("publish:log").filter((x) => x.channel === "instagram");
+  assert.equal(log.length, 1);
+  assert.equal(log[0].externalId, "IGMEDIA9");
+  assert.equal(sb.get("publish:instagram").posted[0].permalink, "https://www.instagram.com/reel/abc/");
+  // the same reel is never posted again
+  assert.equal((await instagramPublishStep({ ...io, now: now + 3000 })).status, "NOTHING_TO_POST");
+});
+
+test("instagram: a failed publish is FAILED (no id, no log) and the daily cap holds", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  await ingestReel(ingestBody(), { env: sb.env, fetchImpl: sb.fetchImpl, now: 5000 });
+  const io = withInstagram(sb, fakeGraph({ status: ["FINISHED"], failPublish: true }));
+  const now = Date.parse("2026-10-01T10:00:00Z");
+  await instagramPublishStep({ ...io, now });
+  const r = await instagramPublishStep({ ...io, now: now + 1000 });
+  assert.equal(r.status, "FAILED");
+  assert.equal(sb.get("publish:log").filter((x) => x.channel === "instagram").length, 0);
+  const capped = withInstagram(sb, fakeGraph(), { igDailyCap: 0 });
+  assert.equal((await instagramPublishStep({ ...capped, now: now + 2000 })).status, "DAILY_CAP");
 });
