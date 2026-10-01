@@ -42,8 +42,8 @@ async function main() {
     page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text()}`.slice(0, 200)); });
     for (const r of ROUTES) {
       errors = [];
-      const resp = await page.goto(BASE + r, { waitUntil: "networkidle", timeout: 45000 }).catch((e) => ({ status: () => 0, err: e.message }));
-      await page.waitForTimeout(r === "/reels" ? 4500 : 1200);
+      const resp = await page.goto(BASE + r, { waitUntil: "load", timeout: 45000 }).catch((e) => ({ status: () => 0, err: e.message }));
+      await page.waitForTimeout(r === "/reels" ? 5000 : 2500);
       const m = await page.evaluate(() => {
         const v = document.querySelector(".lx-reels video, video");
         return {
@@ -67,16 +67,16 @@ async function main() {
     }
     // Interactions on the live site (mobile only; local state, no writes beyond the visitor's own).
     if (vp.n === "m") {
-      await page.goto(BASE + "/", { waitUntil: "networkidle" });
+      await page.goto(BASE + "/", { waitUntil: "load" });
       const save = page.locator("article button[aria-pressed]").first();
-      await save.click();
+      await page.waitForTimeout(2500); await save.click();
       const saved = (await save.getAttribute("aria-pressed")) === "true";
-      await page.goto(BASE + "/saved", { waitUntil: "networkidle" });
+      await page.goto(BASE + "/saved", { waitUntil: "load" });
       const savedCount = await page.locator("article").count();
-      await page.goto(BASE + "/u/alyostyle", { waitUntil: "networkidle" });
-      await page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click();
+      await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" });
+      await page.waitForTimeout(2500); await page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click();
       const following = await page.locator("button[aria-pressed=true]", { hasText: "עוקבים" }).count();
-      await page.goto(BASE + "/", { waitUntil: "networkidle" });
+      await page.goto(BASE + "/", { waitUntil: "load" });
       await page.locator("button", { hasText: "EN" }).first().click().catch(() => {});
       await page.waitForTimeout(500);
       const dir = await page.evaluate(() => document.querySelector(".lx")?.dir);
