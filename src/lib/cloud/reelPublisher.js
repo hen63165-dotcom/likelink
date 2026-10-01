@@ -49,6 +49,7 @@ import {
   reelCreative,
 } from "../media/reelPipeline.js";
 import { publishExternalReel, withPublications } from "../publishing/adapters.js";
+import { reelStudioStatus } from "../publishing/studioStatus.js";
 
 const VIDEOS_KEY = "marketplace:videos";
 const PRODUCTS_KEY = "marketplace:products";
@@ -59,6 +60,7 @@ const PUBLISH_LOG_KEY = "publish:log";
 const LAST_RUN_KEY = "media:pipeline:last";
 const LEARNING_KEY = "media:learning";
 const REQUESTS_KEY = "media:requests";
+const PUBLISH_LEDGER_KEY = "publish:ledger";
 const IG_STATE_KEY = "publish:instagram";
 
 export function reelEnv(env = process.env) {
@@ -474,11 +476,16 @@ export async function studioReelState({ ownerIds = [] } = {}, { env, fetchImpl }
   if (![productsR, videosR, reqR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
   const owners = new Set((ownerIds || []).map(String));
   const mine = new Set(arr(productsR.value).filter((p) => owners.has(String(p?.marketerId))).map((p) => p.id));
+  // The publishing ledger decides what the Studio may call verified. A failed
+  // read only downgrades every reel to OBSERVED — never to a success.
+  const ledgerR = await c.kvRead(PUBLISH_LEDGER_KEY);
+  const ledger = new Map(ledgerR.ok ? arr(ledgerR.value).map((e) => [e?.assetId, e]) : []);
   return {
     ok: true,
     status: 200,
+    ledgerRead: ledgerR.ok,
     requests: arr(reqR.value).filter((r) => mine.has(r?.productId)).slice(0, 50),
-    reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt, mediaType: v.mediaType || null, creative: v.creative ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, hook: v.creative.hook } : null })),
+    reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt, mediaType: v.mediaType || null, creative: v.creative ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, hook: v.creative.hook } : null, status: reelStudioStatus(v, ledger.get(v.id)) })),
   };
 }
 
