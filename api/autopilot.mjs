@@ -1661,6 +1661,7 @@ export default async function handler(req, res) {
         "autonomous-ugc-video-production","autonomous-ugc-distribution",
         "autonomous-ugc-video-poll","autonomous-creative-refresh",
         "discovery-sweep",
+        "distribution-autorun",
       ];
       const readKV = async (key, fallback) => {
         const sbUrl = process.env.VITE_SUPABASE_URL;
