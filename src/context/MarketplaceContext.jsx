@@ -1,3 +1,4 @@
+import { landingAttribution } from "../lib/attribution.js";
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { storage } from "../lib/storage.js";
 import { recordActivity, getActivity } from "../lib/studioActivity.js";
@@ -404,31 +405,15 @@ export function MarketplaceProvider({ children }) {
       if (!product || !product.id) return;
       pushActivity("product.click", `פתחת דיל: ${String(product.title || product.id).slice(0, 80)}`, { productId: product.id });
       // Traffic source truth — recorded ONLY when actually available
-      // (utm params / referral param / referrer host). Never guessed.
-      let src = null;
-      let med = null;
-      let camp = null;
-      try {
-        const params = new URLSearchParams(window.location.search);
-        src = params.get("utm_source") || params.get("ref") || null;
-        med = params.get("utm_medium") || null;
-        camp = params.get("utm_campaign") || null;
-        if (!src && attribution?.src) {
-          src = attribution.src;
-          camp = camp || attribution.camp || null;
-        }
-        if (!src && document.referrer) {
-          src = new URL(document.referrer).hostname || null;
-        }
-      } catch { /* no source available — recorded without one */ }
+      // (utm params / creative id / in-app source / referral param / referrer host). Never guessed.
+      // URL (or this visit's landing) wins; then the in-app source; then the referrer.
+      const attr = landingAttribution({ fallback: attribution });
       const c = {
         id: uid(),
         productId: product.id,
         marketerId: product.marketerId,
         ts: Date.now(),
-        ...(src ? { src: String(src).slice(0, 80) } : {}),
-        ...(med ? { med: String(med).slice(0, 60) } : {}),
-        ...(camp ? { camp: String(camp).slice(0, 80) } : {}),
+        ...attr,
       };
       const nextClicks = [...clicks, c];
       const nextProducts = products.map((p) =>
@@ -470,21 +455,14 @@ export function MarketplaceProvider({ children }) {
         seen.push(product.id);
         sessionStorage.setItem("ll_viewed", JSON.stringify(seen.slice(-200)));
       } catch { /* private mode — still record the first view */ }
-      let src = null;
-      try {
-        const params = new URLSearchParams(window.location.search);
-        src = params.get("utm_source") || params.get("ref") || (document.referrer ? new URL(document.referrer).hostname : null);
-      } catch { /* no source available */ }
+      const attr = landingAttribution();
       const v = {
         id: uid(),
         type: "view",
         productId: product.id,
         marketerId: product.marketerId || null,
         ts: Date.now(),
-        ...(src ? { src: String(src).slice(0, 80) } : {}),
-        ...(new URLSearchParams(window.location.search).get("utm_campaign")
-          ? { camp: new URLSearchParams(window.location.search).get("utm_campaign").slice(0, 80) }
-          : {}),
+        ...attr,
       };
       try { await persistClicks([...clicks, v]); } catch (e) { console.warn("[Likelink] view tracking not saved", e?.message || e); }
     },

@@ -32,6 +32,7 @@ export const REEL_STYLE_LABELS = Object.freeze({
   ugc_style: { he: "בסגנון UGC · ממוחשב, לא צילום של אדם", en: "UGC-style · computer-made, not filmed by a person" },
   animated_story: { he: "סיפור מוצר מונפש", en: "Animated product story" },
   animated_unbox: { he: "אנבוקסינג מונפש · אנימציה ממוחשבת", en: "Animated unboxing · computer animation" },
+  likeloop_cinematic: { he: "LikeLoop Cinematic · סרט אנימציה קצר, ממוחשב", en: "LikeLoop Cinematic · short computer-animated film" },
   studio: { he: "קליפ מהסטודיו · אנימציה ממוחשבת", en: "Studio clip · computer animation" },
 });
 

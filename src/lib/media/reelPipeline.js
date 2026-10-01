@@ -30,6 +30,7 @@ import { videoIntent, videoStoryboard, compileScenes, creativeBrief } from "./vi
 import { classifyMediaRecord, MEDIA_TRUTH } from "../discovery/mediaTruth.js";
 import { categoryName, formatPrice, merchantOf } from "../publicDiscovery.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
+import { buildHookSet, buildStoryBeats, CTAS, FORMATS, stableId } from "../growth/likeloop.js";
 
 export const RENDER_PROVIDER = "likelink_native_render";
 /** A clip a creator rendered in the Studio (in-browser canvas engine), registered by the server. */
@@ -61,6 +62,11 @@ export const REEL_STYLES = Object.freeze({
     en: "Animated product story",
     durationMs: 10000,
   },
+  likeloop_cinematic: {
+    he: "LikeLoop Cinematic · סרט אנימציה קצר, ממוחשב",
+    en: "LikeLoop Cinematic · short computer-animated film",
+    durationMs: 18500,
+  },
   animated_unbox: {
     he: "אנבוקסינג מונפש · אנימציה ממוחשבת",
     en: "Animated unboxing · computer animation",
@@ -73,7 +79,16 @@ export const REEL_STYLES = Object.freeze({
     durationMs: 0,
   },
 });
-export const STYLE_ORDER = Object.freeze(["cinematic3d", "ugc_style", "animated_story", "animated_unbox"]);
+export const STYLE_ORDER = Object.freeze(["likeloop_cinematic", "ugc_style", "cinematic3d", "animated_story", "animated_unbox"]);
+
+/** Each style opens with a different hook type, so the catalog explores hooks (LikeLoop learns from them). */
+export const STYLE_CREATIVE = Object.freeze({
+  likeloop_cinematic: { hookType: "before_after", opening: "question_card", format: "cinematic", cta: "details" },
+  ugc_style: { hookType: "didnt_know", opening: "close_up", format: "synthetic_ugc", cta: "details" },
+  cinematic3d: { hookType: "curiosity", opening: "reveal", format: "cinematic", cta: "see_more" },
+  animated_story: { hookType: "question", opening: "question_card", format: "cinematic", cta: "details" },
+  animated_unbox: { hookType: "gift", opening: "reveal", format: "cinematic", cta: "see_more" },
+});
 
 /** Burned into every frame and repeated in the metadata. */
 export const ON_FRAME_DISCLOSURE = Object.freeze({
@@ -112,6 +127,25 @@ export function hookQuestion(product) {
 }
 
 /** The reel concept: everything the renderer draws, derived from real fields only. */
+/** The creative a (product, style) render stands for: hook, opening, format, CTA, stable id. */
+export function creativeFor(product, style, { now = Date.now() } = {}) {
+  const spec = STYLE_CREATIVE[style];
+  if (!spec || !product?.id) return null;
+  const hooks = buildHookSet(product, { now });
+  const hook = hooks.find((h) => h.type === spec.hookType) || hooks.find((h) => h.type === "question");
+  const cta = CTAS.find((c) => c.id === spec.cta) || CTAS[0];
+  return {
+    creativeId: stableId("cr", [product.id, hook?.type, spec.opening, spec.format, cta.id, style]),
+    hookType: hook?.type || "question",
+    hook: hook?.text || hookQuestion(product),
+    opening: spec.opening,
+    format: spec.format,
+    mediaType: FORMATS[spec.format].mediaType,
+    cta: cta.id,
+    ctaText: cta.text,
+  };
+}
+
 export function buildReelConcept({ product, creator, style }) {
   if (!product?.id || !REEL_STYLES[style]) return null;
   const title = cleanTitle(product.title) || text(product.title);
@@ -129,6 +163,7 @@ export function buildReelConcept({ product, creator, style }) {
     ugc_style: "גילוי של היום 👀",
     animated_story: "לונה מציגה",
     animated_unbox: "מה יש בקופסה?",
+    likeloop_cinematic: category || "LikeLoop",
   };
   return {
     id: `${product.id}:${style}`,
@@ -141,7 +176,9 @@ export function buildReelConcept({ product, creator, style }) {
     height: REEL_HEIGHT,
     image: HTTP.test(text(product.image)) ? product.image : "",
     hookMs: HOOK_PRELUDE_MS,
-    lines: { hook: hookQuestion(product), kicker: kickers[style], title, facts, cta: "לפרטים ולקנייה ב־LikeLink", brand: "LikeLink2" },
+    creative: creativeFor(product, style),
+    story: style === "likeloop_cinematic" ? buildStoryBeats(product) : null,
+    lines: { hook: creativeFor(product, style)?.hook || hookQuestion(product), kicker: kickers[style], title, facts, cta: creativeFor(product, style)?.ctaText || "לפרטים ב־LikeLink ←", brand: "LikeLink2" },
     disclosure: ON_FRAME_DISCLOSURE.he,
     accent: /^#[0-9a-f]{6}$/i.test(text(creator?.color)) ? creator.color : "#d22f5d",
   };
@@ -283,7 +320,12 @@ export function reelCreative({ product, creator = null, style }) {
 export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER, renderer = RENDERER_VERSION, creative = null }) {
   const id = `reel_${product.id}_${style}_${now}`;
   const styleLabel = { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en };
+  // LikeLoop creative (id, hook, CTA) — recomputed here from the product, never taken
+  // from the uploader — merged with the creative brief (style, prompt, product reference).
+  const loop = STYLE_CREATIVE[style] ? creativeFor(product, style, { now }) : null;
+  const merged = creative || loop ? { ...(creative || {}), ...(loop || {}) } : null;
   const base = {
+    mediaType: style === "ugc_style" ? "SYNTHETIC_UGC" : "CINEMATIC",
     source: provider,
     videoProvider: provider,
     renderer: text(renderer).slice(0, 40) || RENDERER_VERSION,
@@ -303,7 +345,7 @@ export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, s
     height: REEL_HEIGHT,
     createdAt: now,
     // Style, prompt, product reference and generation status of this asset.
-    ...(creative ? { creative: { ...creative, generationStatus: "GENERATED", provider } } : {}),
+    ...(merged ? { creative: { ...merged, generationStatus: "GENERATED", provider } } : {}),
   };
   const truth = classifyMediaRecord(base).state;
   return {
@@ -361,10 +403,10 @@ export function socialLink(productId, network, style = "", origin = PRODUCTION_O
  * one concrete line about the product, the real catalog price, a single CTA,
  * a few specific hashtags, and both disclosures. No invented claims.
  */
-export function buildSocialPack({ product, creator, style = "", origin = PRODUCTION_ORIGIN } = {}) {
+export function buildSocialPack({ product, creator, style = "", origin = PRODUCTION_ORIGIN, hook: hookOverride = "" } = {}) {
   if (!product?.id) return null;
   const title = cleanTitle(product.title) || text(product.title);
-  const hook = hookQuestion(product);
+  const hook = text(hookOverride) || hookQuestion(product);
   const price = formatPrice(product.price, "he");
   const merchant = merchantOf(product);
   const by = text(creator?.name);

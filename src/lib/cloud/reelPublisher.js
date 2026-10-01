@@ -478,7 +478,7 @@ export async function studioReelState({ ownerIds = [] } = {}, { env, fetchImpl }
     ok: true,
     status: 200,
     requests: arr(reqR.value).filter((r) => mine.has(r?.productId)).slice(0, 50),
-    reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt })),
+    reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt, mediaType: v.mediaType || null, creative: v.creative ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, hook: v.creative.hook } : null })),
   };
 }
 
@@ -553,7 +553,7 @@ export async function instagramPublishStep({ env, fetchImpl, now = Date.now() } 
       await c.kvWrite(IG_STATE_KEY, state);
       return { ok: false, status: "FAILED", reelId: p.reelId, error: pub.error || "no_media_id" };
     }
-    const entry = { reelId: p.reelId, productId: p.productId, mediaId, permalink: back.j?.permalink || null, at: now, verified, via: "graph_api" };
+    const entry = { reelId: p.reelId, productId: p.productId, mediaId, permalink: back.j?.permalink || null, publishedAt: back.j?.timestamp || iso, at: now, verified, via: "graph_api", provider: "instagram", creativeId: p.creativeId || null, hookType: p.hookType || null };
     state.posted = [...arr(state.posted), entry].slice(-500);
     state.pending = null;
     await c.kvWrite(IG_STATE_KEY, state);
@@ -573,7 +573,7 @@ export async function instagramPublishStep({ env, fetchImpl, now = Date.now() } 
   const next = nextInstagramReel({ videos: arr(videosR.value).filter((v) => !failedIds.has(v?.id)), products: arr(productsR.value), marketers: arr(marketersR.value), posted: state.posted });
   if (!next) return { ok: true, status: "NOTHING_TO_POST" };
   const creator = arr(marketersR.value).find((m) => m?.id === next.product.marketerId);
-  const pack = buildSocialPack({ product: next.product, creator, style: next.v.style, origin: c.env.origin });
+  const pack = buildSocialPack({ product: next.product, creator, style: next.v.style, origin: c.env.origin, hook: next.v.creative?.hook || "" });
   const caption = pack.networks.instagram.caption;
   const cont = await graph(`${igUser}/media`, { method: "POST", params: { media_type: "REELS", video_url: next.v.videoUrl, caption, share_to_feed: "true", ...(next.v.poster && /^https:/.test(next.v.poster) ? { cover_url: next.v.poster } : {}) } });
   if (!cont.ok || !cont.j?.id) {
@@ -581,7 +581,39 @@ export async function instagramPublishStep({ env, fetchImpl, now = Date.now() } 
     await c.kvWrite(IG_STATE_KEY, state);
     return { ok: false, status: "FAILED", reelId: next.v.id, error: cont.error || "no_container_id" };
   }
-  state.pending = { reelId: next.v.id, productId: next.product.id, containerId: String(cont.j.id), createdAt: now, link: pack.networks.instagram.link };
+  state.pending = { reelId: next.v.id, productId: next.product.id, containerId: String(cont.j.id), createdAt: now, link: pack.networks.instagram.link, creativeId: next.v.creative?.creativeId || null, hookType: next.v.creative?.hookType || null, caption };
   await c.kvWrite(IG_STATE_KEY, state);
   return { ok: true, status: "CONTAINER_CREATED", reelId: next.v.id, containerId: String(cont.j.id) };
+}
+
+/**
+ * MEASURE: Instagram's own numbers for posted reels (Graph API insights),
+ * stored next to the post with the creative/hook it carried. Only what the
+ * provider returns is stored; a metric it does not return stays absent.
+ */
+export async function instagramInsightsStep({ env, fetchImpl, now = Date.now(), max = 5 } = {}) {
+  const c = client({ env, fetchImpl });
+  const { igToken, igGraph } = c.env;
+  if (!c.env.igUser || !igToken) return { ok: true, status: "REQUIRES_CONNECTION" };
+  const stateR = await c.kvRead(IG_STATE_KEY);
+  if (!stateR.ok) return { ok: false, status: "kv_read_failed" };
+  const state = { posted: [], ...(stateR.value && typeof stateR.value === "object" ? stateR.value : {}) };
+  const due = arr(state.posted).filter((x) => x?.mediaId && now - (Number(x.at) || 0) > 3_600_000 && now - (Number(x.insights?.at) || 0) > 6 * 3_600_000).slice(0, max);
+  let updated = 0;
+  for (const x of due) {
+    const q = new URLSearchParams({ metric: "views,reach,saved,shares,total_interactions,ig_reels_avg_watch_time", access_token: igToken });
+    try {
+      const res = await c.fetchImpl(`${igGraph}/${x.mediaId}/insights?${q}`, { signal: AbortSignal.timeout(20000) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j?.error) { x.insightsError = String(j?.error?.message || `http_${res.status}`).slice(0, 160); continue; }
+      const metrics = Object.fromEntries(arr(j.data).map((m) => [m.name, Number(m.values?.[0]?.value ?? m.total_value?.value)]).filter(([, v]) => Number.isFinite(v)));
+      x.insights = { at: now, ...metrics };
+      delete x.insightsError;
+      updated += 1;
+    } catch (e) {
+      x.insightsError = String(e?.message || e).slice(0, 160);
+    }
+  }
+  if (due.length) await c.kvWrite(IG_STATE_KEY, state);
+  return { ok: true, status: updated ? "MEASURED" : due.length ? "PROVIDER_ERROR" : "NOTHING_DUE", updated, checked: due.length };
 }

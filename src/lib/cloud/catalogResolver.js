@@ -19,6 +19,9 @@ import { assertKvWritable, noteKvReadFailed, readKvResponse } from "./kvReadGuar
 const PRODUCTS_KEY = "marketplace:products";
 const MARKETERS_KEY = "marketplace:marketers";
 const LOG_KEY = "catalog:resolve:log";
+const STATE_KEY = "catalog:resolve:state";
+const BACKOFF_BASE_MS = 12 * 3_600_000; // 12h, 24h, 48h … — never hammer a store that blocks automation
+const OUTCOMES = new Set(["SOURCE_BLOCKED", "NOT_PRODUCT_PAGE", "UNAVAILABLE"]);
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 const ITEM_PAGE = /^https:\/\/([a-z]{2,3}\.)?(www\.|m\.)?aliexpress\.(com|us)\/item\/(\d{6,20})\.html/i;
@@ -75,16 +78,19 @@ function client({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   return { kvRead, kvWrite, fetchImpl, configured: Boolean(url && key) };
 }
 
-export async function catalogCandidates({ env, fetchImpl } = {}) {
+export async function catalogCandidates({ env, fetchImpl, now = Date.now() } = {}) {
   const c = client({ env, fetchImpl });
-  const [p, m] = await Promise.all([c.kvRead(PRODUCTS_KEY), c.kvRead(MARKETERS_KEY)]);
-  if (!p.ok || !m.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+  const [p, m, st] = await Promise.all([c.kvRead(PRODUCTS_KEY), c.kvRead(MARKETERS_KEY), c.kvRead(STATE_KEY)]);
+  if (!p.ok || !m.ok || !st.ok) return { ok: false, status: 503, error: "kv_read_failed" };
   const all = arr(p.value);
   const shared = sharedAffiliateLinks(all);
+  const state = st.value && typeof st.value === "object" ? st.value : {};
+  const due = resolveCandidates(all, arr(m.value)).filter((x) => !(Number(state[x.id]?.nextAttemptAt) > now));
   return {
     ok: true,
     status: 200,
-    candidates: resolveCandidates(all, arr(m.value)),
+    candidates: due,
+    backoff: Object.entries(state).filter(([, v]) => Number(v?.nextAttemptAt) > now).map(([id, v]) => ({ id, status: v.status, nextAttemptAt: new Date(v.nextAttemptAt).toISOString() })),
     // Reported, never "fixed": a shared link has no product page to read.
     needsOwnerLink: [...shared.values()].flat(),
   };
@@ -120,7 +126,27 @@ export async function applyResolution(body = {}, { env, fetchImpl, now = Date.no
   const stored = back.ok ? arr(back.value).find((x) => x?.id === v.product.id) : null;
   const verified = stored?.image === v.image;
 
+  const stR = await c.kvRead(STATE_KEY);
+  if (stR.ok && verified) await c.kvWrite(STATE_KEY, { ...(stR.value || {}), [v.product.id]: { status: "RESOLVED", lastAt: now, attempts: 0 } });
   const logR = await c.kvRead(LOG_KEY);
   if (logR.ok) await c.kvWrite(LOG_KEY, [...arr(logR.value), { productId: v.product.id, itemId: v.itemId, image: v.image, previous: source.previous, at: iso, status: verified ? "VERIFIED" : "WRITE_UNVERIFIED" }].slice(-200));
   return { ok: verified, status: verified ? 200 : 500, productId: v.product.id, image: v.image, itemUrl: v.itemUrl, proof: { status: verified ? "VERIFIED" : "WRITE_UNVERIFIED", via: "kv_read:marketplace:products", probe } };
+}
+
+/**
+ * The runner could not read the product page (CAPTCHA / not a product page /
+ * unavailable). Recorded with exponential backoff; nothing about the product
+ * changes. The resolver never tries to get around a CAPTCHA.
+ */
+export async function recordResolveOutcome(body = {}, { env, fetchImpl, now = Date.now() } = {}) {
+  if (!OUTCOMES.has(body.status) || !/^[A-Za-z0-9_-]{1,80}$/.test(String(body.productId || ""))) return { ok: false, status: 400, error: "bad_outcome" };
+  const c = client({ env, fetchImpl });
+  const r = await c.kvRead(STATE_KEY);
+  if (!r.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+  const state = r.value && typeof r.value === "object" ? r.value : {};
+  const attempts = (Number(state[body.productId]?.attempts) || 0) + 1;
+  const nextAttemptAt = now + BACKOFF_BASE_MS * 2 ** Math.min(attempts - 1, 4);
+  state[body.productId] = { status: body.status, attempts, lastAt: now, nextAttemptAt, detail: String(body.detail || "").slice(0, 120) };
+  await c.kvWrite(STATE_KEY, state);
+  return { ok: true, status: 200, productId: body.productId, outcome: body.status, attempts, nextAttemptAt: new Date(nextAttemptAt).toISOString() };
 }

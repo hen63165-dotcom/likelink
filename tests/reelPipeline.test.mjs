@@ -345,7 +345,10 @@ test("v2 hooks are questions only, deterministic per product, never claims", () 
   assert.ok(HOOK_QUESTIONS.Other.includes(hookQuestion(product("p8", { category: "Nope" }))));
   const c = buildReelConcept({ product: p, creator, style: "animated_unbox" });
   assert.equal(c.hookMs, HOOK_PRELUDE_MS);
-  assert.equal(c.lines.hook, hookQuestion(p));
+  // The prelude opens with the creative's own typed hook (LikeLoop hook engine).
+  assert.equal(c.lines.hook, c.creative.hook);
+  assert.equal(c.creative.hookType, "gift");
+  assert.ok(/^cr_/.test(c.creative.creativeId));
   assert.equal(c.durationMs, 9500 + HOOK_PRELUDE_MS);
   assert.ok(c.durationMs <= 30000, "inside the ingest duration bound");
   assert.ok(STYLE_ORDER.includes("animated_unbox"));

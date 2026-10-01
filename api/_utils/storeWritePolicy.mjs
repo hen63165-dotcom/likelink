@@ -175,7 +175,7 @@ function policyMarketers(stored, next, ctx) {
   return { ok: true, value: [...result, ...created], rejected, rejectedCreates };
 }
 
-function appendOnly({ cap, maxNew, accept }) {
+function appendOnly({ cap, maxNew, accept, sanitize = (n) => n }) {
   return (stored, next, ctx) => {
     const storedArr = toArr(stored);
     const known = new Set(storedArr.map(idOf).filter(Boolean));
@@ -186,7 +186,7 @@ function appendOnly({ cap, maxNew, accept }) {
       if (!id || known.has(id)) continue;
       known.add(id);
       if (fresh.length >= maxNew || !accept(n, ctx)) { rejected++; continue; }
-      fresh.push(n);
+      fresh.push(sanitize(n));
     }
     return { ok: true, value: [...storedArr, ...fresh].slice(-cap), rejected, rejectedCreates: 0 };
   };
@@ -202,6 +202,15 @@ const policyClicks = appendOnly({
   cap: 5000,
   maxNew: 5,
   accept: (n, ctx) => typeof n.productId === "string" && n.productId.length <= 80 && CLICK_TYPES.has(n.type) && recentTs(n.ts, ctx.now),
+  // A visitor's event keeps only known attribution fields, clipped (no free-form payloads).
+  sanitize: (n) => {
+    const out = { id: String(n.id).slice(0, 80), productId: n.productId, ts: Number(n.ts) };
+    if (n.type) out.type = n.type;
+    if (typeof n.marketerId === "string") out.marketerId = n.marketerId.slice(0, 80);
+    for (const [k, max] of [["src", 80], ["med", 60], ["camp", 80], ["cnt", 60]]) if (typeof n[k] === "string" && n[k]) out[k] = n[k].slice(0, max);
+    if (typeof n.cid === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(n.cid)) out.cid = n.cid;
+    return out;
+  },
 });
 
 function policyReferralClicks(stored, next, ctx) {
