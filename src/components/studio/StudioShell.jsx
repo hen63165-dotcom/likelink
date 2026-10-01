@@ -343,6 +343,41 @@ function GrowthLoopCard({ he, reels = [] }) {
   );
 }
 
+const MEDIA_STATUS_HE = { GENERATED: "נוצר", STORED: "נשמר", PUBLICATION_READY: "מוכן לפרסום", PUBLISHED: "פורסם (טרם אומת)", VERIFIED: "פורסם ואומת", BLOCKED: "חסום" };
+const SOURCE_HE = { NATIVE: "מנוע LikeLink", PROVIDER: "ספק חיצוני", SYNTHETIC: "סינתטי · אנימציה", EXTERNAL: "פורסם חיצונית" };
+const TRUTH_HE = { VERIFIED: "VERIFIED", OBSERVED: "OBSERVED", STALE: "STALE", BLOCKED: "BLOCKED" };
+const TRUTH_TONE = {
+  VERIFIED: { background: "rgba(52,211,153,.15)", color: "#6ee7b7" },
+  OBSERVED: { background: "rgba(255,255,255,.08)", color: "var(--text-muted)" },
+  STALE: { background: "rgba(251,191,36,.15)", color: "#fcd34d" },
+  BLOCKED: { background: "rgba(248,113,113,.15)", color: "#fca5a5" },
+};
+
+/** Per-reel state from the publishing ledger. Green only for a read-back VERIFIED. */
+function ReelStatusChips({ status, count, verified, he }) {
+  if (!status) return null;
+  const tone = TRUTH_TONE[status.truth] || TRUTH_TONE.OBSERVED;
+  const missing = (status.externalMissing || []).length;
+  return (
+    <>
+      <span className="rounded-full px-2 py-0.5" style={tone} title={status.verifiedOn?.length ? status.verifiedOn.join(", ") : undefined}>
+        {he ? MEDIA_STATUS_HE[status.media] || status.media : status.media} · {TRUTH_HE[status.truth] || status.truth}
+      </span>
+      <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(255,255,255,.08)", color: "var(--text-muted)" }}>
+        {(status.source || []).map((x) => (he ? SOURCE_HE[x] || x : x)).join(" · ")}
+      </span>
+      <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(255,255,255,.08)", color: "var(--text-muted)" }}>
+        {he ? `${verified}/${count} אומתו באתר` : `${verified}/${count} verified on site`}
+      </span>
+      {status.external?.length ? (
+        <span className="rounded-full px-2 py-0.5" style={TRUTH_TONE.VERIFIED}>{status.external.map((x) => `${x.destination} #${x.providerId}`).join(" · ")}</span>
+      ) : missing ? (
+        <span className="rounded-full px-2 py-0.5" style={TRUTH_TONE.STALE}>{he ? "חיצוני: דורש חיבור ערוץ — שיתוף ידני זמין" : "External: needs a channel connection — manual share available"}</span>
+      ) : null}
+    </>
+  );
+}
+
 function VideoPanel({ onNavigate }) {
   const { lang } = useI18n();
   const he = lang === "he";
@@ -418,9 +453,7 @@ function VideoPanel({ onNavigate }) {
               <div className="mt-2 text-sm font-bold" style={{ color: "var(--text)" }}>{p.title}</div>
               <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-bold">
                 {reels.length ? (
-                  <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(52,211,153,.15)", color: "#6ee7b7" }}>
-                    {he ? `${reels.length} Reels אומתו ופורסמו` : `${reels.length} reels verified + published`}
-                  </span>
+                  <ReelStatusChips status={latest?.status} count={reels.length} verified={reels.filter((r) => r.status?.truth === "VERIFIED").length} he={he} />
                 ) : (
                   <span className="rounded-full px-2 py-0.5" style={{ background: "rgba(255,255,255,.08)", color: "var(--text-muted)" }}>{he ? "אין עדיין Reel" : "No reel yet"}</span>
                 )}
