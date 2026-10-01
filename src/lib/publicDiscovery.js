@@ -13,6 +13,9 @@
 //   • Video is whatever mediaTruth says it is: a product photo is never a video
 //     and a rendered animation is never a filmed video or human UGC.
 //   • "Verified" appears only when the creator record carries verified === true.
+//   • A reel promotes its product, so it is listed only for a product whose
+//     link opens THAT product (not shared by other products) and whose image
+//     is not a stock photo (catalogIntegrity.js).
 //   • "Picked for you" needs a real signal (saved / viewed / followed);
 //     without one there are no picks.
 //
@@ -20,6 +23,7 @@
 
 import { isPublicCatalogProduct } from "./cloud/catalog.js";
 import { productMediaTruth, classifyMediaRecord, MEDIA_TRUTH } from "./discovery/mediaTruth.js";
+import { IMAGE_PROVENANCE, imageProvenance, isPromotable, sharedAffiliateLinks } from "./discovery/catalogIntegrity.js";
 
 // Render styles of the native reel pipeline (src/lib/media/reelPipeline.js) —
 // duplicated as labels only, so the public bundle does not pull the pipeline.
@@ -255,11 +259,18 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
   // never turned into a "reel"; a LikeLink render is labelled as animation.
   const reels = [];
   const seenUrls = new Set();
+  const shared = sharedAffiliateLinks(products);
+  const reelWorthy = (id) => {
+    const p = byId.get(id);
+    return Boolean(p) && isPromotable(p, products, shared) && imageProvenance(p.image) !== IMAGE_PROVENANCE.STOCK;
+  };
   for (const v of Array.isArray(videos) ? videos : []) {
     if (!v?.id || !/^https?:\/\//i.test(textOf(v.videoUrl))) continue;
     const truth = classifyMediaRecord(v);
     if (truth.state !== MEDIA_TRUTH.REAL_VIDEO && truth.state !== MEDIA_TRUTH.SYNTHETIC_ANIMATION) continue;
-    const tagged = (Array.isArray(v.productTags) ? v.productTags : []).map((t) => t?.productId).filter((id) => byId.has(id));
+    const publicTags = (Array.isArray(v.productTags) ? v.productTags : []).map((t) => t?.productId).filter((id) => byId.has(id));
+    if (publicTags.length && !publicTags.some(reelWorthy)) continue;
+    const tagged = publicTags.filter(reelWorthy);
     const creatorId = creatorById.has(v.marketerId) ? v.marketerId : tagged.length ? byId.get(tagged[0]).marketerId : "";
     if (!creatorId || seenUrls.has(truth.url)) continue;
     seenUrls.add(truth.url);
@@ -267,7 +278,7 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
     reels.push({ id: `v-${v.id}`, url: truth.url, state: truth.state, poster, style: REEL_STYLE_LABELS[v.style] ? v.style : "", productIds: tagged, creatorId, title: textOf(v.title), createdAt: Number(v.createdAt) || 0 });
   }
   for (const p of pub) {
-    if (p.media.video && !seenUrls.has(p.media.video)) {
+    if (p.media.video && !seenUrls.has(p.media.video) && reelWorthy(p.id)) {
       seenUrls.add(p.media.video);
       reels.push({ id: `p-${p.id}`, url: p.media.video, state: p.media.state, poster: p.media.poster, style: p.media.style, productIds: [p.id], creatorId: p.marketerId, title: p.displayTitle, createdAt: Number(p.createdAt) || 0 });
     }

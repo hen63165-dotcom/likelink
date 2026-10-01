@@ -35,7 +35,7 @@ const mk = (id, extra = {}) => ({
   status: "approved",
   marketerId: "m1",
   image: `https://images.example.com/${id}.jpg`,
-  affiliateUrl: "https://s.click.aliexpress.com/e/_x",
+  affiliateUrl: `https://s.click.aliexpress.com/e/_${id}`,
   createdAt: NOW - 1000,
   ...extra,
 });
@@ -109,6 +109,28 @@ test("a product photo is never a reel; rendered video is animation, not real vid
   assert.equal(states["v-v2"], MEDIA_TRUTH.SYNTHETIC_ANIMATION);
   assert.ok(!("v-v3" in states), "non-http media is not a public reel");
   assert.ok(!("v-v4" in states), "unattributed video is not public");
+});
+
+test("a reel is listed only for a product whose link is its own and whose image is not a stock photo", () => {
+  const seeded = [
+    mk("s1", { affiliateUrl: "https://best.aliexpress.com", videoUrl: "https://cdn.example.com/s1.mp4", videoProvider: "likelink_native_render" }),
+    mk("s2", { affiliateUrl: "https://best.aliexpress.com" }),
+    mk("st", { image: "https://images.unsplash.com/photo-1.jpg" }),
+    mk("ok", { image: "https://ae01.alicdn.com/kf/ok.jpg" }),
+  ];
+  const g = buildPublicGraph({
+    products: seeded,
+    marketers: [creator],
+    videos: [
+      { id: "shared", marketerId: "m1", videoUrl: "https://cdn.example.com/sh.mp4", source: "likelink_native_render", productTags: [{ productId: "s2" }] },
+      { id: "stock", marketerId: "m1", videoUrl: "https://cdn.example.com/st.mp4", source: "likelink_native_render", productTags: [{ productId: "st" }] },
+      { id: "good", marketerId: "m1", videoUrl: "https://cdn.example.com/ok.mp4", source: "likelink_native_render", productTags: [{ productId: "ok" }] },
+      { id: "untagged", marketerId: "m1", videoUrl: "https://cdn.example.com/own.mp4" },
+    ],
+    now: NOW,
+  });
+  assert.deepEqual(g.reels.map((r) => r.id).sort(), ["v-good", "v-untagged"]);
+  assert.equal(g.products.length, 4, "the products themselves stay listed — only promotion is withheld");
 });
 
 test("collections state their rule and contain only public products", () => {
