@@ -1441,7 +1441,8 @@ export async function publishBrandPulse(origin, opts = {}) {
       spotlight: spotlight ? { id: spotlight.id, title: spotlight.title, price: spotlight.price, image: spotlight.image } : null,
       channels: results.map((r) => r.channel),
     });
-    while (list.length > 30) list.shift(); // cap, append-only otherwise
+    // Cap = publish:log length (60): a logged publication keeps its post.
+    while (list.length > 60) list.shift(); // cap, append-only otherwise
     await kvSet(BRAND_POSTS_KEY, list);
     webPublished = true;
     results.push({ channel: "web", ok: true, externalId: webPostId });
@@ -2141,7 +2142,7 @@ export default async function handler(req, res) {
           channels: ["web"],
           retryOf: target.id,
         });
-        while (list.length > 30) list.shift();
+        while (list.length > 60) list.shift();
         await kvSet(BRAND_POSTS_KEY, list);
       } else {
         throw new Error("channel_not_retryable");
