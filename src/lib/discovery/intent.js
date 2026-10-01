@@ -14,7 +14,7 @@ import { CAPABILITIES, FACTS, PERMISSION, EXECUTOR, capabilityForFact, dependenc
 export const OUTCOMES = Object.freeze({
   discovery: {
     he: "להגדיל גילוי וחשיפה", match: /חשיפ|גילוי|לגלות|נראות|discover|exposure|visib|reach/i,
-    facts: ["page_live", "seo_complete", "structured_data", "share_ready", "tracking_ready", "content_ready"],
+    facts: ["page_live", "promotion_ready", "seo_complete", "structured_data", "share_ready", "tracking_ready", "content_ready", "native_reel"],
   },
   organic_search: {
     he: "גילוי אורגני בחיפוש", match: /אורגני|חיפוש|seo|organic|search|גוגל|google/i,
@@ -26,11 +26,11 @@ export const OUTCOMES = Object.freeze({
   },
   distribution: {
     he: "הפצה בערוצים מורשים", match: /הפצ|פרסמ|לפרסם|שתפ|publish|distribut|share|everywhere|בכל מקום/i,
-    facts: ["share_ready", "tracking_ready", "external_channel_connected", "published_external"],
+    facts: ["promotion_ready", "share_ready", "tracking_ready", "native_reel", "external_channel_connected", "published_external"],
   },
   campaign: {
     he: "הכנת קמפיין", match: /קמפיין|campaign|מבצע|promot|קדמ|לקדם/i,
-    facts: ["content_ready", "share_ready", "tracking_ready", "media_video"],
+    facts: ["promotion_ready", "content_ready", "share_ready", "tracking_ready", "native_reel"],
   },
   repair: {
     he: "תיקון כל מה שחוסם גילוי", match: /תקנ|תקני|תקן|לתקן|חוסם|מונע|fix|repair|blocking|prevent/i,

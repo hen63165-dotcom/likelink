@@ -17,6 +17,7 @@ import {
 import { shareExperiment } from "./experiments.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL, productMediaTruth } from "./mediaTruth.js";
 import { evidence, TRUTH } from "./truth.js";
+import { catalogIssues, isRealProductPhoto } from "./catalogIntegrity.js";
 
 // ── Publication proof (LAW 04) ───────────────────────────────────────────
 /**
@@ -200,6 +201,9 @@ export function buildPassport({
   const seoAudit = auditSeo(c, seo, { duplicateTitle, inSitemap: isPublic });
   const merchant = merchantStatus(product, marketers, origin);
   const media = productMediaTruth(product, ugcAssets);
+  // LikeLoop promotion gate: own affiliate link + a real photo (catalogIntegrity.js).
+  const promoIssues = catalogIssues(product, products && products.length ? products : [product]);
+  const promotion = { promotable: isPublic && !promoIssues.some((i) => i.blocking) && isRealProductPhoto(product?.image), issues: promoIssues.map((i) => i.code) };
   const signals = productSignals(c.id, { clicks, sales, publications, publicFeedIds });
   const link = trackingLink(c);
   const inCollection = (collections || []).some((col) => Array.isArray(col?.productIds) && col.productIds.includes(c.id));
@@ -274,6 +278,7 @@ export function buildPassport({
     experiment: shareExperiment(c.id, clicks),
     // Readiness of the served JSON-LD for agent-to-agent commerce (preparation, not a connection).
     agentCommerce: agentCommerceReadiness(c, seo),
+    promotion,
   };
   passport.score = discoveryScore(passport, { externalConnected: externalConnected.length });
   if (previous && Number.isFinite(previous.score)) {

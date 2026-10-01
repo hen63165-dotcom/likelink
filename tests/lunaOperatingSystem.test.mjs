@@ -427,7 +427,7 @@ test("capability contract: every capability is complete, versioned and discovera
   const catalog = listCapabilities();
   assert.ok(catalog.length >= 12);
   assert.ok(catalog.every((c) => typeof c.preconditions === "undefined"), "the catalog is data only");
-  assert.deepEqual(catalog.filter((c) => c.autonomous && !c.id.startsWith("test_")).map((c) => c.id).sort(), ["agent_commerce_readiness", "build_campaign", "create_share_asset", "record_passport", "verify_product_seo"].sort(), "only native low-risk internal steps (drafts / verification) run by themselves");
+  assert.deepEqual(catalog.filter((c) => c.autonomous && !c.id.startsWith("test_")).map((c) => c.id).sort(), ["agent_commerce_readiness", "build_campaign", "create_share_asset", "record_passport", "request_native_reel", "verify_product_seo"].sort(), "only native low-risk internal steps (drafts / verification / a render request for LikeLink's own disclosed reel engine) run by themselves");
   assert.equal(dependencyDepth("publish_external"), 1);
   const base = { he: "x", reason: "r", risk: "low", permission: "owner", executor: "owner", satisfies: [], preconditions: () => [], expected: "e", verification: "v" };
   assert.throws(() => registerCapability("bad_permission", { ...base, permission: "god" }), /permission_value/);

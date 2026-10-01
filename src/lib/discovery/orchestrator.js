@@ -251,6 +251,25 @@ async function executeStep({ capability, product, passport, data, channels, orig
       proof: r.ready ? evidence({ state: TRUTH.VERIFIED, source: "buildProductSeo JSON-LD (/p/:id)", evidence: `${r.passed}/${r.total} בדיקות מוכנות עברו`, verifiedAt: now }) : null,
     };
   }
+  if (capability === "request_native_reel") {
+    // Queue a render for LikeLink's own reel engine (media-render workflow).
+    // Idempotent: one QUEUED request per product. The reel itself is proven
+    // later, at ingest (sha256 + anonymous read-back) — not here.
+    const key = "media:requests";
+    const list = arr(await read(kvGet, key, []));
+    const pid = String(product.id);
+    const open = list.find((r) => r && r.productId === pid && r.status === "QUEUED");
+    if (!open) await kvSet(key, [...list, { productId: pid, style: "", requestedBy: "luna", at: now, status: "QUEUED" }].slice(-200));
+    const back = arr(await read(kvGet, key, []));
+    const ok = back.some((r) => r && r.productId === pid && r.status === "QUEUED");
+    return {
+      status: ok ? (open ? "up_to_date" : "executed") : "failed",
+      result: ok ? "בקשת Reel בתור — מנוע הרינדור של LikeLink ייצור, יאמת ויפרסם באתר בריצה הבאה" : "הבקשה לא נמצאה בקריאה החוזרת",
+      proof: ok
+        ? evidence({ state: TRUTH.VERIFIED, source: key, evidence: `בקשת רינדור QUEUED למוצר ${pid} נקראה חזרה (ה-Reel עצמו עדיין לא קיים)`, verifiedAt: now })
+        : evidence({ state: TRUTH.UNVERIFIED, source: key, evidence: "הקריאה החוזרת לא מצאה את הבקשה" }),
+    };
+  }
   throw new Error(`no_executor:${capability}`);
 }
 
