@@ -5,7 +5,8 @@
 // does not reject duplicate plan names, so an existing ACTIVE plan with the
 // same name/currency/price is looked up and adopted before anything is
 // created; a failed lookup creates nothing; failed plans are retried later.
-// It never creates a subscription and never charges. The provisioning action
+// Only Starter + Professional exist at PayPal (4 plans); Elite is a waitlist
+// teaser and is never created. It never creates a subscription and never charges. The provisioning action
 // is admin / platform-owner only.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -85,13 +86,12 @@ test("plans are created in ILS at exactly the site's prices, with PayPal idempot
   const kvSet = async (k, v) => { kv.set(k, JSON.stringify(v)); };
   const map = await ensureBillingPlans({ kvGet, kvSet, report });
   assert.equal(PLAN_CURRENCY, "ILS");
-  assert.equal(report.created.length, 6);
+  assert.equal(report.created.length, 4);
   assert.equal(report.failed.length, 0);
   const prices = Object.fromEntries(paypal.plans.map((p) => [p.name, `${p.billing_cycles[0].pricing_scheme.fixed_price.value} ${p.billing_cycles[0].pricing_scheme.fixed_price.currency_code}`]));
   assert.deepEqual(prices, {
     "LikeLink Starter Monthly (ILS)": "29.00 ILS", "LikeLink Starter Yearly (ILS)": "290.00 ILS",
     "LikeLink Professional Monthly (ILS)": "79.00 ILS", "LikeLink Professional Yearly (ILS)": "790.00 ILS",
-    "LikeLink Enterprise Monthly (ILS)": "199.00 ILS", "LikeLink Enterprise Yearly (ILS)": "1990.00 ILS",
   });
   assert.equal(paypal.products.length, 1);
   assert.equal(JSON.parse(kv.get("marketplace:paypal_plans")).currency, "ILS");
@@ -109,7 +109,7 @@ test("idempotent: a second run (even after a cold start and a lost kv cache) cre
   const report = { created: [], adopted: [], failed: [] };
   await ensureBillingPlans({ kvGet, kvSet, report });
   assert.equal(paypal.plans.length, before, "no duplicate plans");
-  assert.equal(report.adopted.length, 6);
+  assert.equal(report.adopted.length, 4);
   assert.equal(report.created.length, 0);
 });
 
@@ -125,21 +125,21 @@ test("a USD plan with the same name is not adopted; a failed lookup creates noth
   let report = { created: [], adopted: [], failed: [] };
   await ensureBillingPlans({ kvGet, kvSet, report });
   assert.equal(report.created.length, 0, "cannot verify existing plans → create nothing");
-  assert.equal(report.failed.length, 6);
+  assert.equal(report.failed.length, 4);
   paypal.failList = false;
-  paypal.failPlanPost = new Set(["Enterprise Yearly"]);
+  paypal.failPlanPost = new Set(["Professional Yearly"]);
   _resetPayPalCaches();
   report = { created: [], adopted: [], failed: [] };
   const map = await ensureBillingPlans({ kvGet, kvSet, report });
   assert.notEqual(map["starter:monthly"], "P-USD", "a USD plan is never reused for ILS billing");
-  assert.equal(report.created.length, 5);
-  assert.deepEqual(report.failed.map((f) => f.key), ["enterprise:yearly"]);
+  assert.equal(report.created.length, 3);
+  assert.deepEqual(report.failed.map((f) => f.key), ["professional:yearly"]);
   paypal.failPlanPost = new Set();
   _resetPayPalCaches();
   report = { created: [], adopted: [], failed: [] };
   const again = await ensureBillingPlans({ kvGet, kvSet, report });
-  assert.deepEqual(report.created.map((c) => c.key), ["enterprise:yearly"], "only the missing plan is retried");
-  assert.ok(again["enterprise:yearly"]);
+  assert.deepEqual(report.created.map((c) => c.key), ["professional:yearly"], "only the missing plan is retried");
+  assert.ok(again["professional:yearly"]);
 });
 
 test("provision-plans is admin / platform-owner only and reports PayPal-verified results", async () => {
@@ -161,11 +161,61 @@ test("provision-plans is admin / platform-owner only and reports PayPal-verified
   assert.equal(owner.statusCode, 200, JSON.stringify(owner.body));
   assert.equal(owner.body.ok, true);
   assert.equal(owner.body.currency, "ILS");
-  assert.equal(owner.body.verified.filter((v) => v.ok).length, 6, "each plan verified at PayPal: ACTIVE, ILS, site price");
-  assert.equal(Object.keys(owner.body.plans).length, 6);
+  assert.equal(owner.body.verified.filter((v) => v.ok).length, 4, "each plan verified at PayPal: ACTIVE, ILS, site price");
+  assert.equal(Object.keys(owner.body.plans).length, 4);
   const { makeAdminToken } = await import("../api/_utils/adminAuth.js");
   const admin = await call(makeAdminToken());
   assert.equal(admin.statusCode, 200);
   assert.equal(admin.body.created.length, 0, "a repeated run only verifies");
   assert.ok(!paypal.calls.some((c) => /billing\/subscriptions|\/v2\/checkout|\/v1\/payments/.test(c)));
+});
+
+test("the owner's other PayPal plans are never adopted, requested, changed or billed against", async () => {
+  reset();
+  const { ensureBillingPlans, resolvePayPalPlanId, verifyBillingPlans, _resetPayPalCaches, FOREIGN_PLAN_IDS, _addForeignPlanIdForTest } = await import("../api/_utils/paypal.js");
+  // Stand-ins for the owner's real foreign plans (only their hashes live in the code).
+  _addForeignPlanIdForTest("P-FOREIGNTESTA00000000000000");
+  _addForeignPlanIdForTest("P-FOREIGNTESTB00000000000000");
+  assert.ok(FOREIGN_PLAN_IDS.has("P-FOREIGNTESTA00000000000000") && !FOREIGN_PLAN_IDS.has("P-SOMETHING-ELSE"));
+  const kvGet = async (k, fb) => (kv.has(k) ? JSON.parse(kv.get(k)) : fb);
+  const kvSet = async (k, v) => { kv.set(k, JSON.stringify(v)); };
+  // The live account as it is: two ACTIVE plans of OTHER products — one even
+  // renamed like a LikeLink ILS plan to try to fool the duplicate lookup.
+  const ils = (v) => [{ tenure_type: "REGULAR", pricing_scheme: { fixed_price: { value: v, currency_code: "ILS" } } }];
+  paypal.products.push({ id: "PROD-OTHER-A", name: "Other business — product A" }, { id: "PROD-OTHER-B", name: "Other business — product B" });
+  paypal.plans.push(
+    { id: "P-FOREIGNTESTA00000000000000", product_id: "PROD-OTHER-A", name: "LikeLink Starter Monthly (ILS)", status: "ACTIVE", billing_cycles: ils("29.00") },
+    { id: "P-FOREIGNTESTB00000000000000", product_id: "PROD-OTHER-B", name: "Other business — membership", status: "ACTIVE", billing_cycles: ils("49.00") },
+  );
+  // Even a foreign id planted in kv is dropped.
+  kv.set("marketplace:paypal_plans", JSON.stringify({ currency: "ILS", "starter:monthly": "P-FOREIGNTESTA00000000000000" }));
+  _resetPayPalCaches();
+  const report = { created: [], adopted: [], failed: [] };
+  const map = await ensureBillingPlans({ kvGet, kvSet, report });
+  assert.equal(report.adopted.length, 0, "no foreign plan is adopted");
+  assert.equal(report.created.length, 4);
+  for (const id of ["P-FOREIGNTESTA00000000000000", "P-FOREIGNTESTB00000000000000"]) {
+    assert.ok(!Object.values(map).includes(id), `${id} is not LikeLink's plan`);
+    assert.ok(!paypal.calls.some((c) => c.includes(id)), `${id} is never requested, patched or deactivated`);
+  }
+  assert.ok(paypal.products.some((p) => p.name === "LikeLink Cloud"), "LikeLink uses its own product");
+  assert.ok(!paypal.calls.some((c) => /^PATCH |\/deactivate|\/activate|update-pricing-schemes/.test(c)), "no plan is ever modified");
+  assert.equal(paypal.plans.find((p) => p.id === "P-FOREIGNTESTA00000000000000").status, "ACTIVE", "the foreign plans stay exactly as they were");
+  process.env.PAYPAL_PLAN_STARTER = "P-FOREIGNTESTA00000000000000";
+  assert.notEqual(await resolvePayPalPlanId("starter", "monthly", { kvGet, kvSet }), "P-FOREIGNTESTA00000000000000", "never billed against, even via env");
+  delete process.env.PAYPAL_PLAN_STARTER;
+  const v = await verifyBillingPlans({ ...map, "starter:monthly": "P-FOREIGNTESTA00000000000000" });
+  assert.equal(v.find((x) => x.key === "starter:monthly").reason, "foreign_plan_not_used");
+});
+
+test("a product list that cannot be read creates no product (no duplicate LikeLink Cloud)", async () => {
+  reset();
+  const { ensurePayPalProduct, _resetPayPalCaches } = await import("../api/_utils/paypal.js");
+  _resetPayPalCaches();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => (String(url).includes("/v1/catalog/products") && (init?.method || "GET") === "GET" ? new Response("{}", { status: 500 }) : realFetch(url, init));
+  const id = await ensurePayPalProduct({});
+  globalThis.fetch = realFetch;
+  assert.equal(id, null);
+  assert.equal(paypal.products.length, 0);
 });

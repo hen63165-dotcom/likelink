@@ -17,7 +17,9 @@ export const SEED_MARKETERS = [
   {
     id: "msd6go4kff49s5",
     name: "ALYOSTYLE",
-    email: "hen63165@gmail.com",
+    // The owner's e-mail comes from the server env (OWNER_EMAIL) — never
+    // hard-coded in this public repository. Empty in the browser.
+    email: typeof process !== "undefined" && process.env ? String(process.env.OWNER_EMAIL || "").trim().toLowerCase() : "",
     trackingId: "trk-noa",
     slug: "alyostyle",
     color: "#C1356C",

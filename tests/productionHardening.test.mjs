@@ -274,6 +274,34 @@ test("/api/store: anonymous create → 401, owner create → saved, click bump m
   assert.equal(products().length, 2, "catalog untouched");
 });
 
+test("/api/store: the plan's product limit holds on the server; edits and deletes always pass", async () => {
+  kv.clear();
+  kv.set("marketplace:marketers", JSON.stringify([{ id: "m1", email: "owner@likelink.test", name: "Owner" }]));
+  const five = Array.from({ length: 5 }, (_, i) => ({ id: `p${i + 1}`, marketerId: "m1", title: `מוצר ${i + 1}`, status: "approved" }));
+  kv.set("marketplace:products", JSON.stringify(five));
+  const { default: store } = await import("../api/store.mjs");
+  const products = () => read("marketplace:products");
+  // Free = 5 products: the 6th is refused with the plan that allows more.
+  let res = mockRes();
+  await store(mockReq({ token: "tok-owner", body: { key: "marketplace:products", value: JSON.stringify([...products(), { id: "p6", marketerId: "m1", title: "שישי" }]) } }), res);
+  assert.equal(res.statusCode, 402);
+  assert.equal(res.body.error, "plan_limit_products");
+  assert.equal(res.body.limit, 5);
+  assert.equal(res.body.upgrade.id, "starter");
+  assert.equal(products().length, 5, "nothing written");
+  // Editing or deleting within the catalog is never blocked by the limit.
+  res = mockRes();
+  await store(mockReq({ token: "tok-owner", body: { key: "marketplace:products", value: JSON.stringify(products().map((p) => (p.id === "p1" ? { ...p, title: "עודכן" } : p)).filter((p) => p.id !== "p5")) } }), res);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(products().length, 4);
+  // A verified Starter subscription (50 products) allows growth.
+  kv.set("marketplace:subscriptions", JSON.stringify([{ id: "s1", userId: "u-owner", planId: "starter", billingPeriod: "monthly", status: "active", startedAt: "2026-09-01T00:00:00.000Z" }]));
+  res = mockRes();
+  await store(mockReq({ token: "tok-owner", body: { key: "marketplace:products", value: JSON.stringify([...products(), { id: "p6", marketerId: "m1", title: "שישי" }, { id: "p7", marketerId: "m1", title: "שביעי" }]) } }), res);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.equal(products().length, 6);
+});
+
 test("/api/store: a failed catalog read refuses the write instead of overwriting", async () => {
   const { default: store } = await import("../api/store.mjs");
   const before = kv.get("marketplace:products");
@@ -326,4 +354,32 @@ test("/r redirects only to catalog destinations; anything else gets an interstit
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers.location, undefined, "no automatic redirect to an unknown site");
   assert.match(String(res.ended), /evil\.example/);
+});
+
+test("/r bot guard: scrapers are refused, preview bots are not counted as clicks, bursts get 429", async () => {
+  kv.set("marketplace:products", JSON.stringify([{ id: "p1", marketerId: "m1", affiliateUrl: "https://www.aliexpress.com/item/1.html", status: "approved" }]));
+  kv.set("marketplace:clicks", JSON.stringify([]));
+  const { default: og } = await import("../api/og.mjs");
+  const hit = async (ua, ip = "198.51.100.7") => { const res = mockRes(); await og(mockReq({ method: "GET", url: "/api/og?mode=r&pid=p1", headers: { "user-agent": ua, "x-forwarded-for": ip } }), res); return res; };
+  let res = await hit("python-requests/2.32");
+  assert.equal(res.statusCode, 403);
+  res = await hit("WhatsApp/2.24.1 A");
+  assert.equal(res.statusCode, 302, "preview bots still get the redirect");
+  assert.equal(read("marketplace:clicks").length, 0, "…but are never counted as a click");
+  res = await hit("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1");
+  assert.equal(res.statusCode, 302);
+  assert.equal(read("marketplace:clicks").length, 1, "a person's click is recorded");
+  let last;
+  for (let i = 0; i < 61; i++) last = await hit("Mozilla/5.0 Chrome/126", "198.51.100.99");
+  assert.equal(last.statusCode, 429);
+  assert.ok(Number(last.headers["retry-after"]) > 0);
+});
+
+test("botGuard: search engines and preview bots are never classified as scrapers", async () => {
+  const { classifyAgent } = await import("../api/_utils/botGuard.mjs");
+  for (const ua of ["Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "facebookexternalhit/1.1", "Mozilla/5.0 (compatible; bingbot/2.0)", "TelegramBot (like TwitterBot)", "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2)"]) {
+    assert.equal(classifyAgent(ua), "crawler", ua);
+  }
+  for (const ua of ["Scrapy/2.11 (+https://scrapy.org)", "python-requests/2.31.0", "Go-http-client/1.1", "Wget/1.21", "HTTrack 3.0"]) assert.equal(classifyAgent(ua), "scraper", ua);
+  assert.equal(classifyAgent("Mozilla/5.0 (Windows NT 10.0) HeadlessChrome/126 Chrome-Lighthouse"), "browser", "PageSpeed is rate-limited, not blocked");
 });

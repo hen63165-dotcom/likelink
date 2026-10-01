@@ -88,6 +88,34 @@ const MESSAGES = {
   nothing_to_rollback: "אין גרסה קודמת לשחזר",
   rollback_write_failed: "השחזור לא נשמר — הגרסה הנוכחית נשארה כמו שהייתה",
   owner_explicit_required: "שליחה דורשת את האישור המפורש שלך — לונה לא שולחת הזמנות בעצמה",
+
+  // Plans, quotas and subscriptions (src/lib/plans.js, src/lib/billing/cancellation.js)
+  plan_required: "הפעולה לא כלולה במסלול הנוכחי שלך — אפשר לראות מה כלול בכל מסלול בעמוד המסלולים",
+  quota_exceeded: "הגעת למכסה החודשית של המסלול. היא תתאפס בתחילת החודש הבא, ולא ייגבה תשלום נוסף",
+  plan_limit_products: "הגעת למספר המוצרים המרבי במסלול. המוצרים הקיימים נשארים, ואפשר לערוך או למחוק אותם",
+  legal_acceptance_required: "לפני מעבר לתשלום יש לאשר את תנאי השימוש, מדיניות הפרטיות ומדיניות הביטולים",
+  legal_version_outdated: "המסמכים המשפטיים עודכנו — רענני את העמוד ואשרי את הגרסה החדשה",
+  active_subscription_exists: "יש לך כבר מנוי פעיל. כדי לעבור מסלול, בטלי קודם את המנוי הנוכחי ואז בחרי מסלול חדש — כך לא תחויבי פעמיים",
+  no_active_subscription: "לא נמצא מנוי פעיל לביטול",
+  paypal_cancel_failed: "PayPal לא אישר את הביטול כרגע, ולכן המנוי עדיין פעיל. נסי שוב בעוד רגע או בטלי מחשבון ה-PayPal",
+  paypal_unreachable: "אין כרגע חיבור ל-PayPal, ולכן המנוי עדיין פעיל. נסי שוב בעוד רגע או בטלי מחשבון ה-PayPal",
+  user_session_required: "צריך להתחבר לסטודיו כדי לבצע את הפעולה",
+  invalid_unsubscribe_link: "קישור ההסרה לא תקין — אפשר להסיר את ההרשמה מהסטודיו",
+  unsubscribe_not_configured: "ההסרה דרך קישור אינה זמינה כרגע — אפשר להסיר את ההרשמה מהסטודיו",
+
+  // External publishing (src/lib/discovery/publishers/*)
+  explicit_confirmation_required: "כדי לפרסם צריך לאשר את הפוסט הזה במפורש",
+  channel_requires_connection: "הרשת הזו עדיין לא מחוברת — אפשר לפרסם ידנית עם הכיתוב והלינק",
+  telegram_not_configured: "בוט הטלגרם לא הוגדר — מגדירים אותו בטייס האוטומטי ← ערוצים ← Telegram",
+  telegram_bad_token: "טלגרם דחה את טוקן הבוט — בדקי את הטוקן מ-BotFather ושמרי שוב. הפוסט לא פורסם",
+  telegram_chat_not_allowed: "הבוט לא יכול לפרסם בערוץ — ודאי שהוא מנהל בערוץ עם הרשאה לפרסם, ושה-Chat נכון. הפוסט לא פורסם",
+  telegram_rate_limited: "טלגרם הגביל זמנית את קצב הפרסום — נסי שוב בעוד דקה. הפוסט לא פורסם",
+  telegram_unreachable: "אין כרגע חיבור לטלגרם — הפוסט לא פורסם, נסי שוב בעוד רגע",
+  telegram_no_message_id: "טלגרם לא החזיר מזהה פוסט, ולכן הפוסט לא נחשב כמפורסם",
+  empty_post: "אין טקסט לפרסום",
+  product_photo_required: "ליצירת תמונה צריך תמונה אמיתית של המוצר (מדף המוצר בחנות או צילום שלך), לא תמונת אווירה",
+  product_photo_unavailable: "לא הצלחנו לטעון את תמונת המוצר כדי ליצור ממנה תמונה — נסי שוב או החליפי תמונה",
+  platform_owner_only: "יצירת תמונות AI זמינה כרגע רק לבעלת הפלטפורמה",
 };
 
 const GENERIC = "משהו השתבש — נסי שוב בעוד רגע";

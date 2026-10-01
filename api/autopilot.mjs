@@ -1,5 +1,6 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
+import { isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
 let readBody, verifyToken, audit;
@@ -1363,8 +1364,12 @@ export async function publishBrandPulse(origin, opts = {}) {
   try {
     const productsRow = await kvGet("marketplace:products");
     const list = Array.isArray(productsRow) ? productsRow : Object.values(productsRow || {});
+    const sharedLinks = sharedAffiliateLinks(list);
     const pool = list.filter(
       (p) => p && p.status === "approved" && Number(p.price) > 0 && /^https?:/i.test(String(p.image || ""))
+        // Never feature a product whose affiliate link is shared by other products
+        // (it opens the store's home page, not the product) — catalogIntegrity.js.
+        && isPromotable(p, list, sharedLinks)
     );
     if (pool.length) spotlight = pool[(meta.run || 0) % pool.length];
   } catch { /* classic brand-pulse fallback */ }

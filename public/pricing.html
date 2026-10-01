@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מסלולים ומחירים · LikeLink</title>
+<meta name="description" content="מסלולי LikeLink: חינמי, Starter ב-₪29 לחודש ו-Professional ב-₪79 לחודש. מה כלול, המכסות, ואיך מבטלים.">
+<link rel="canonical" href="https://likelink2.vercel.app/pricing">
+<meta property="og:title" content="מסלולים ומחירים · LikeLink">
+<meta property="og:description" content="מסלולי LikeLink: חינמי, Starter ב-₪29 לחודש ו-Professional ב-₪79 לחודש. מה כלול, המכסות, ואיך מבטלים.">
+<meta property="og:url" content="https://likelink2.vercel.app/pricing">
+<meta property="og:type" content="website">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{--bg:#f7f6f3;--surface:#fff;--ink:#1d1c1a;--muted:#5f5b54;--line:#e3dfd8;--accent:#8a2f5a;--accent-ink:#fff;--soon:#6b5a1e;--soon-bg:#f6efd6;--ok:#1f6b45;--focus:#1a5fb4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121212;--surface:#1c1c1c;--ink:#f1efe9;--muted:#b3aea5;--line:#34322e;--accent:#e58ab3;--accent-ink:#1b0b13;--soon:#f0d98a;--soon-bg:#3a3220;--ok:#7fd6a6;--focus:#8ab4ff}}
+:root[data-theme="dark"]{--bg:#121212;--surface:#1c1c1c;--ink:#f1efe9;--muted:#b3aea5;--line:#34322e;--accent:#e58ab3;--accent-ink:#1b0b13;--soon:#f0d98a;--soon-bg:#3a3220;--ok:#7fd6a6;--focus:#8ab4ff}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans Hebrew",Arial,system-ui,sans-serif;line-height:1.7;font-size:16px}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.skip{position:absolute;inset-inline-start:-9999px;top:0;background:var(--surface);padding:8px 12px}
+.skip:focus{inset-inline-start:8px;z-index:10}
+header.top{border-bottom:1px solid var(--line);background:var(--surface)}
+header.top .in{max-width:1080px;margin:0 auto;padding:14px 16px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.brand{font-weight:800;font-size:18px;color:var(--ink);text-decoration:none}
+nav.top a{margin-inline-start:14px;font-size:15px}
+main{max-width:1080px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:clamp(24px,4vw,32px);line-height:1.3;margin:0 0 8px}
+h2{font-size:20px;margin:36px 0 10px}
+h3{font-size:17px;margin:22px 0 6px}
+.lead{color:var(--muted);max-width:720px;margin:0 0 24px}
+.meta{color:var(--muted);font-size:14px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+footer.site{border-top:1px solid var(--line);background:var(--surface)}
+footer.site .in{max-width:1080px;margin:0 auto;padding:24px 16px 40px;font-size:14px;color:var(--muted)}
+footer.site ul{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:6px 18px}
+
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:24px 0}
+.plan{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:6px}
+.plan.featured{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.plan h3{margin:0;font-size:20px}
+.tagline{color:var(--muted);margin:0}
+.price{margin:8px 0 0}
+.amount{font-size:30px;font-weight:800}
+.per,.yearly{color:var(--muted);font-size:14px;margin:0}
+.inc{padding-inline-start:18px;margin:10px 0;font-size:15px}
+.inc li{margin:4px 0}
+.locked{font-size:14px;color:var(--muted);margin:0 0 10px}
+.tag{display:inline-block;align-self:flex-start;background:var(--soon-bg);color:var(--soon);font-weight:700;font-size:13px;padding:2px 10px;border-radius:99px;margin:0}
+.soon-plan{border-style:dashed}
+.btn{margin-top:auto;display:block;text-align:center;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700;padding:11px 14px;border-radius:12px}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+caption{text-align:start;padding:12px 14px;font-weight:700}
+th,td{border-top:1px solid var(--line);padding:10px 14px;text-align:start;vertical-align:top}
+thead th{background:var(--bg)}
+.c-yes{color:var(--ok);font-weight:600}.c-no{color:var(--muted)}.c-soon{color:var(--soon)}
+</style>
+
+<script type="application/json" id="likelink-data">{"currency":"ILS","plans":[{"id":"free","name":"חינמי","price":0,"priceYearly":0,"purchasable":false,"comingSoon":false,"quotas":{"maxProducts":5,"maxProductsPerRun":5,"distributionPlans":0,"campaigns":0,"recruitDrafts":0,"gptDrafts":0},"rows":[{"id":"studio","included":true,"detail":null},{"id":"products","included":true,"detail":"עד 5"},{"id":"goal_scope","included":true,"detail":"עד 5"},{"id":"share_packs","included":true,"detail":null},{"id":"click_stats","included":true,"detail":"סה\"כ קליקים למוצר"},{"id":"distribution_plans","included":false,"detail":null},{"id":"content_export","included":false,"detail":null},{"id":"campaigns","included":false,"detail":null},{"id":"recruit","included":false,"detail":null},{"id":"gpt_api","included":false,"detail":null},{"id":"priority_support","included":false,"detail":null}]},{"id":"starter","name":"Starter","price":29,"priceYearly":290,"purchasable":true,"comingSoon":false,"quotas":{"maxProducts":50,"maxProductsPerRun":50,"distributionPlans":20,"campaigns":0,"recruitDrafts":0,"gptDrafts":0},"rows":[{"id":"studio","included":true,"detail":null},{"id":"products","included":true,"detail":"עד 50"},{"id":"goal_scope","included":true,"detail":"עד 50"},{"id":"share_packs","included":true,"detail":null},{"id":"click_stats","included":true,"detail":"פירוט לפי מקור ולפי פוסט"},{"id":"distribution_plans","included":true,"detail":"עד 20 בחודש"},{"id":"content_export","included":true,"detail":null},{"id":"campaigns","included":false,"detail":null},{"id":"recruit","included":false,"detail":null},{"id":"gpt_api","included":false,"detail":null},{"id":"priority_support","included":false,"detail":null}]},{"id":"professional","name":"Professional","price":79,"priceYearly":790,"purchasable":true,"comingSoon":false,"quotas":{"maxProducts":300,"maxProductsPerRun":300,"distributionPlans":100,"campaigns":20,"recruitDrafts":30,"gptDrafts":300},"rows":[{"id":"studio","included":true,"detail":null},{"id":"products","included":true,"detail":"עד 300"},{"id":"goal_scope","included":true,"detail":"עד 300"},{"id":"share_packs","included":true,"detail":null},{"id":"click_stats","included":true,"detail":"פירוט לפי מקור ולפי פוסט"},{"id":"distribution_plans","included":true,"detail":"עד 100 בחודש"},{"id":"content_export","included":true,"detail":null},{"id":"campaigns","included":true,"detail":"עד 20 בחודש"},{"id":"recruit","included":true,"detail":"עד 30 בחודש"},{"id":"gpt_api","included":true,"detail":"עד 300 בחודש"},{"id":"priority_support","included":true,"detail":null}]},{"id":"elite","name":"Elite","price":149,"priceYearly":1490,"purchasable":false,"comingSoon":true,"quotas":null,"rows":[]}],"soon":["channel_posting","ai_video"]}</script>
+</head>
+<body>
+<a class="skip" href="#main">דילוג לתוכן</a>
+<header class="top"><div class="in"><a class="brand" href="/">LikeLink</a><nav class="top" aria-label="ראשי"><a href="/studio">לסטודיו</a><a href="/pricing">מסלולים</a><a href="/legal">מסמכים משפטיים</a></nav></div></header>
+<main id="main">
+
+<h1>מסלולים ומחירים</h1>
+<p class="lead">אפשר להתחיל בחינם ולשדרג או לבטל בכל עת. המחירים בשקלים, והמחיר שמוצג הוא המחיר הסופי לתשלום. המסלול קובע אילו כלים זמינים לך ובאיזו כמות, והוא לא מבטיח מכירות, הכנסה, חשיפה או תנועה.</p>
+<section class="plans" aria-label="המסלולים">
+<article class="plan" aria-labelledby="plan-free">
+<h3 id="plan-free">חינמי</h3>
+<p class="tagline">להתחיל ולנסות את הסטודיו</p>
+<p class="price"><span class="amount">₪0</span> <span class="per">לתמיד</span></p>
+<ul class="inc"><li>סטודיו לונה: דרכון גילוי לכל מוצר, ציון, מטרות ובדיקת מערכת</li><li>מוצרים עם עמוד ציבורי ולינק מעקב — <strong>עד 5</strong></li><li>מוצרים לכל מטרה ששולחים ללונה — <strong>עד 5</strong></li><li>חבילות שיתוף מוכנות עם גילוי נאות ולינק מעקב</li><li>סטטיסטיקת קליקים אמיתית — <strong>סה&quot;כ קליקים למוצר</strong></li></ul>
+<p class="locked">תוכניות הפצה, ייצוא תוכן, קמפיינים, גיוס יוצרות וחיבור ל-ChatGPT נעולים — אפשר לשדרג בכל עת</p>
+<a class="btn ghost" href="/studio">כניסה לסטודיו בחינם</a>
+</article>
+<article class="plan" aria-labelledby="plan-starter">
+<h3 id="plan-starter">Starter</h3>
+<p class="tagline">ליוצרת שמפרסמת באופן קבוע</p>
+<p class="price"><span class="amount">₪29</span> <span class="per">לחודש</span></p>
+<p class="yearly">או ₪290 ל-12 חודשים (חיסכון של ₪58)</p>
+<ul class="inc"><li>סטודיו לונה: דרכון גילוי לכל מוצר, ציון, מטרות ובדיקת מערכת</li><li>מוצרים עם עמוד ציבורי ולינק מעקב — <strong>עד 50</strong></li><li>מוצרים לכל מטרה ששולחים ללונה — <strong>עד 50</strong></li><li>חבילות שיתוף מוכנות עם גילוי נאות ולינק מעקב</li><li>סטטיסטיקת קליקים אמיתית — <strong>פירוט לפי מקור ולפי פוסט</strong></li><li>תוכניות הפצה (טיוטות): הוקים, תסריטים, כיתובים, האשטגים ולוח זמנים — <strong>עד 20 בחודש</strong></li><li>ייצוא חבילת תוכן (CSV או JSON) לתזמון ידני בכלי שתבחרי</li></ul>
+<p class="locked">קמפיינים, גיוס יוצרות וחיבור ל-ChatGPT זמינים במסלול Professional</p>
+<a class="btn" href="/sell?plan=starter">בחירת Starter</a>
+</article>
+<article class="plan featured" aria-labelledby="plan-professional">
+<h3 id="plan-professional">Professional</h3>
+<p class="tagline">לעסק פעיל שמנהל קמפיינים</p>
+<p class="price"><span class="amount">₪79</span> <span class="per">לחודש</span></p>
+<p class="yearly">או ₪790 ל-12 חודשים (חיסכון של ₪158)</p>
+<ul class="inc"><li>סטודיו לונה: דרכון גילוי לכל מוצר, ציון, מטרות ובדיקת מערכת</li><li>מוצרים עם עמוד ציבורי ולינק מעקב — <strong>עד 300</strong></li><li>מוצרים לכל מטרה ששולחים ללונה — <strong>עד 300</strong></li><li>חבילות שיתוף מוכנות עם גילוי נאות ולינק מעקב</li><li>סטטיסטיקת קליקים אמיתית — <strong>פירוט לפי מקור ולפי פוסט</strong></li><li>תוכניות הפצה (טיוטות): הוקים, תסריטים, כיתובים, האשטגים ולוח זמנים — <strong>עד 100 בחודש</strong></li><li>ייצוא חבילת תוכן (CSV או JSON) לתזמון ידני בכלי שתבחרי</li><li>בניית טיוטת קמפיין מהמטרה — <strong>עד 20 בחודש</strong></li><li>טיוטות הזמנה ליוצרות מתאימות (את שולחת בעצמך) — <strong>עד 30 בחודש</strong></li><li>חיבור ל-ChatGPT (Custom GPT) ליצירת טיוטות תוכן — <strong>עד 300 בחודש</strong></li><li>מענה בעדיפות לפניות תמיכה במייל</li></ul>
+<p class="locked">שליחה אוטומטית לרשתות ויצירת סרטונים — בקרוב, לא כלולים כרגע</p>
+<a class="btn" href="/sell?plan=professional">בחירת Professional</a>
+</article>
+<article class="plan soon-plan" aria-labelledby="plan-elite">
+<p class="tag">בקרוב</p>
+<h3 id="plan-elite">Elite</h3>
+<p class="price"><span class="amount">₪149</span> <span class="per">לחודש</span></p>
+<p class="yearly">או ₪1490 ל-12 חודשים (חיסכון של ₪298)</p>
+<p class="tagline">המסלול עדיין לא זמין לרכישה ואין בו כרגע התחייבות לתכונות. אפשר להצטרף לרשימת ההמתנה, ללא תשלום, ולקבל עדכון כשייפתח.</p>
+<a class="btn ghost" href="/sell?plan=elite">הצטרפות לרשימת ההמתנה</a>
+</article>
+</section>
+
+<h2>השוואה מלאה</h2>
+<div class="table-wrap" role="region" aria-label="השוואת מסלולים" tabindex="0"><table>
+<caption>מה כלול בכל מסלול</caption>
+<thead><tr><th scope="col">תכונה</th><th scope="col">חינמי</th><th scope="col">Starter</th><th scope="col">Professional</th></tr></thead>
+<tbody>
+<tr><th scope="row">סטודיו לונה: דרכון גילוי לכל מוצר, ציון, מטרות ובדיקת מערכת</th><td class="c-yes">כלול</td><td class="c-yes">כלול</td><td class="c-yes">כלול</td></tr>
+<tr><th scope="row">מוצרים עם עמוד ציבורי ולינק מעקב</th><td class="c-yes">עד 5</td><td class="c-yes">עד 50</td><td class="c-yes">עד 300</td></tr>
+<tr><th scope="row">מוצרים לכל מטרה ששולחים ללונה</th><td class="c-yes">עד 5</td><td class="c-yes">עד 50</td><td class="c-yes">עד 300</td></tr>
+<tr><th scope="row">חבילות שיתוף מוכנות עם גילוי נאות ולינק מעקב</th><td class="c-yes">כלול</td><td class="c-yes">כלול</td><td class="c-yes">כלול</td></tr>
+<tr><th scope="row">סטטיסטיקת קליקים אמיתית</th><td class="c-yes">סה&quot;כ קליקים למוצר</td><td class="c-yes">פירוט לפי מקור ולפי פוסט</td><td class="c-yes">פירוט לפי מקור ולפי פוסט</td></tr>
+<tr><th scope="row">תוכניות הפצה (טיוטות): הוקים, תסריטים, כיתובים, האשטגים ולוח זמנים</th><td class="c-no">לא כלול</td><td class="c-yes">עד 20 בחודש</td><td class="c-yes">עד 100 בחודש</td></tr>
+<tr><th scope="row">ייצוא חבילת תוכן (CSV או JSON) לתזמון ידני בכלי שתבחרי</th><td class="c-no">לא כלול</td><td class="c-yes">כלול</td><td class="c-yes">כלול</td></tr>
+<tr><th scope="row">בניית טיוטת קמפיין מהמטרה</th><td class="c-no">לא כלול</td><td class="c-no">לא כלול</td><td class="c-yes">עד 20 בחודש</td></tr>
+<tr><th scope="row">טיוטות הזמנה ליוצרות מתאימות (את שולחת בעצמך)</th><td class="c-no">לא כלול</td><td class="c-no">לא כלול</td><td class="c-yes">עד 30 בחודש</td></tr>
+<tr><th scope="row">חיבור ל-ChatGPT (Custom GPT) ליצירת טיוטות תוכן</th><td class="c-no">לא כלול</td><td class="c-no">לא כלול</td><td class="c-yes">עד 300 בחודש</td></tr>
+<tr><th scope="row">מענה בעדיפות לפניות תמיכה במייל</th><td class="c-no">לא כלול</td><td class="c-no">לא כלול</td><td class="c-yes">כלול</td></tr>
+<tr><th scope="row">שליחת פוסט לערוצים מחוברים (Instagram, TikTok ועוד) באישור לכל פוסט</th><td class="c-soon">בקרוב</td><td class="c-soon">בקרוב</td><td class="c-soon">בקרוב</td></tr>
+<tr><th scope="row">יצירת סרטונים אוטומטית</th><td class="c-soon">בקרוב</td><td class="c-soon">בקרוב</td><td class="c-soon">בקרוב</td></tr>
+</tbody></table></div>
+
+<h2>מה עוד לא זמין</h2>
+<p>התכונות האלה נמצאות בפיתוח. הן לא כלולות כרגע באף מסלול, ולא גובים עליהן תשלום:</p>
+<ul><li>שליחת פוסט לערוצים מחוברים (Instagram, TikTok ועוד) באישור לכל פוסט</li><li>יצירת סרטונים אוטומטית</li></ul>
+
+<h2>איך עובדות המכסות</h2>
+<ul>
+<li>מכסה חודשית מתאפסת בתחילת כל חודש קלנדרי. מכסה כוללת (למשל מספר המוצרים) נספרת לאורך כל התקופה.</li>
+<li>כשמגיעים למכסה, הפעולה לא מתבצעת ומוצגת הודעה. אין חיוב נוסף, ואין חיוב על שימוש מעבר למכסה.</li>
+<li>מוצרים קיימים אף פעם לא נמחקים בגלל מכסה. אפשר תמיד לערוך אותם או למחוק אותם.</li>
+</ul>
+
+<h2>חיוב, חידוש וביטול</h2>
+<ul>
+<li><strong>מסלול חודשי:</strong> החיוב מתבצע מראש בכל חודש דרך PayPal, והמנוי מתחדש כל חודש עד שמבטלים אותו.</li>
+<li><strong>מסלול שנתי:</strong> החיוב מתבצע פעם אחת, מראש, לתקופה של 12 חודשים. המסלול לא מתחדש אוטומטית, ובסיום התקופה הגישה חוזרת למסלול החינמי.</li>
+<li><strong>ביטול:</strong> אפשר לבטל בכל עת מהסטודיו, בכפתור "ביטול מנוי", או מחשבון ה-PayPal. הביטול נכנס לתוקף תוך 3 ימי עסקים לכל היותר, ולא יהיו חיובים נוספים אחריו.</li>
+<li><strong>ביטול בתוך 14 יום מהתשלום הראשון:</strong> מקבלים החזר של הסכום ששולם, בניכוי דמי ביטול של 5% מהמחיר או ₪100, לפי הנמוך מביניהם. הגישה למסלול מסתיימת עם הביטול.</li>
+<li><strong>ביטול מאוחר יותר:</strong> במסלול חודשי הגישה נשארת עד סוף החודש ששולם. במסלול שנתי הגישה נשארת עד סוף החודש הנוכחי, ומקבלים החזר יחסי על החודשים המלאים שעוד לא התחילו.</li>
+<li>ההחזר מבוצע לחשבון ה-PayPal שממנו שולם, תוך 14 ימים מהביטול.</li>
+</ul>
+<p class="note">הפרטים המלאים נמצאים ב<a href="/legal/cancellation">מדיניות הביטולים וההחזרים</a> וב<a href="/legal/terms">תנאי השימוש</a>. השירות מיועד לבני 18 ומעלה.</p>
+
+</main>
+<footer class="site"><div class="in"><nav aria-label="מסמכים משפטיים"><ul><li><a href="/legal/terms">תנאי שימוש</a></li><li><a href="/legal/privacy">פרטיות</a></li><li><a href="/legal/cancellation">ביטולים והחזרים</a></li><li><a href="/legal/affiliate-disclosure">גילוי נאות</a></li><li><a href="/legal/ip-takedown">קניין רוחני</a></li><li><a href="/legal/disclaimer">הגבלת אחריות</a></li><li><a href="/legal/content-license">רישיון תוכן</a></li><li><a href="/legal/acceptable-use">שימוש הוגן</a></li><li><a href="/legal/accessibility">נגישות</a></li><li><a href="/legal/cookies">עוגיות</a></li><li><a href="/legal/business">פרטי העסק</a></li><li><a href="/pricing">מסלולים ומחירים</a></li></ul></nav>
+<p>© 2026 LikeLink. כל הזכויות שמורות. אין להעתיק, לשכפל או לאסוף באופן אוטומטי (scraping) תוכן מהאתר, כמפורט ב<a href="/legal/acceptable-use">מדיניות השימוש ההוגן</a>.</p></div></footer>
+</body>
+</html>

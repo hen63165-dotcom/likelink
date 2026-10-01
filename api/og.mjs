@@ -16,6 +16,7 @@ import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
 import { canonicalProduct, buildProductSeo, renderProductBody } from "../src/lib/discovery/surfaces.js";
 import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
+import { guardPublicRequest, sendGuardRefusal, classifyAgent } from "./_utils/botGuard.mjs";
 
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
@@ -124,6 +125,12 @@ export default async function handler(req, res) {
   // forwarder. Dispatched BEFORE the bot/SPA logic so real browser clicks are
   // redirected, never served the React app.
   if (url.searchParams.get("mode") === "r") {
+    // Scraping tools are refused and bursts are rate-limited; neither records a click.
+    const refusal = guardPublicRequest(req, "r", { getUa: (r) => getHeader(r, "user-agent") });
+    if (refusal) { sendGuardRefusal(res, refusal); return; }
+    // Link-preview bots and search crawlers follow the link but are not people:
+    // they are redirected without being counted as a click.
+    const isCrawler = classifyAgent(getHeader(req, "user-agent")) === "crawler";
     const target = url.searchParams.get("u") || "";
     const productId = String(url.searchParams.get("pid") || "").slice(0, 80);
     const marketerId = String(url.searchParams.get("mid") || "").slice(0, 80) || null;
@@ -156,7 +163,7 @@ export default async function handler(req, res) {
     // Server-side affiliate click ledger: persist the click before redirecting.
     // This makes AliExpress outbound attribution reliable even when the browser
     // closes immediately after the tap.
-    if (clickProductId && sbUrl && sbKey) {
+    if (clickProductId && sbUrl && sbKey && !isCrawler) {
       try {
         {
           const key = "marketplace:clicks";
@@ -299,6 +306,10 @@ export default async function handler(req, res) {
   const slug = url.searchParams.get("slug") || "";
   const productId = url.searchParams.get("id") || "";
   const userAgent = String(getHeader(req, "user-agent") || "");
+  if (slug || productId) {
+    const refusal = guardPublicRequest(req, "page", { getUa: () => userAgent });
+    if (refusal) { sendGuardRefusal(res, refusal); return; }
+  }
 
   // Real visitor — serve the normal React app from the same deployment.
   if (!BOT_PATTERN.test(userAgent) || (!slug && !productId)) {

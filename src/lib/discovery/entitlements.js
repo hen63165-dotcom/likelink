@@ -14,22 +14,44 @@ const PLAN_BY_ID = Object.fromEntries(Object.values(PLANS).map((p) => [p.id, p])
 const ENTITLED_STATUS = new Set(["active", "trial"]);
 const STATUS_HE = { cancelled: "בוטל", suspended: "מושהה", expired: "פג תוקף", approval_pending: "ממתין לאישור ב-PayPal", created: "נוצר ולא אושר", failed: "התשלום נכשל" };
 
-/** Discovery capabilities per plan, derived from the plan's real features. */
+/**
+ * Capabilities per plan — read from src/lib/plans.js (features + quotas), so
+ * the pricing page, the code and the PayPal plans can never disagree
+ * (tests/plansConsistency.test.mjs). A quota of 0 means "not included".
+ * The internal "owner" plan (platform owner / admin) is unlimited (null).
+ */
 function capabilitiesFor(planId) {
-  const f = (PLAN_BY_ID[planId] || PLANS.FREE).features;
+  if (planId === OWNER_PLAN) {
+    return {
+      maxProductsPerRun: null, opportunityEngine: true, memoryDepth: 50, externalDistribution: true,
+      apiAccess: true, analytics: "sources",
+      quotas: Object.fromEntries(QUOTA_KEYS.map((k) => [k, null])),
+    };
+  }
+  const plan = PLAN_BY_ID[planId] || PLANS.FREE;
+  const f = plan.features;
+  const q = plan.quotas || {};
   return {
     // How many products one Luna goal may act on (analysis is never limited).
-    // null = unlimited (JSON-safe; Infinity would serialize as null anyway).
-    maxProductsPerRun: Number.isFinite(f.maxProducts) ? f.maxProducts : null,
+    maxProductsPerRun: Number.isFinite(q.maxProductsPerRun) ? q.maxProductsPerRun : null,
     // Evidence-ranked opportunity engine across the whole catalog.
     opportunityEngine: Boolean(f.opportunityEngine),
     // Full structured memory (what was tried / happened / blocked / next).
     memoryDepth: f.decisionMemory ? 50 : 10,
-    // Prepared payloads for connected external channels (still needs the
-    // channel's own authorization + owner approval to send anything).
+    // Distribution plans (drafts) — sending still needs a connected channel
+    // and explicit owner approval per post.
     externalDistribution: Boolean(f.distribution),
+    apiAccess: Boolean(f.apiAccess),
+    analytics: f.analytics || "basic",
+    // Monthly (or total) quotas, exactly as published on the pricing page.
+    quotas: Object.fromEntries(QUOTA_KEYS.map((k) => [k, Number.isFinite(q[k]) ? q[k] : 0])),
   };
 }
+
+/** The internal plan of the platform owner / admin — never sold. */
+export const OWNER_PLAN = "owner";
+const QUOTA_KEYS = ["maxProducts", "maxProductsPerRun", "distributionPlans", "campaigns", "recruitDrafts", "gptDrafts"];
+export { QUOTA_KEYS };
 
 /**
  * @param {object}  args
@@ -40,7 +62,7 @@ function capabilitiesFor(planId) {
 export function resolveEntitlement({ subscription = null, isPlatformOwner = false, now = Date.now() } = {}) {
   if (isPlatformOwner) {
     return {
-      plan: "enterprise",
+      plan: OWNER_PLAN,
       status: "active",
       source: "platform_owner",
       effectiveAt: null,
@@ -48,7 +70,7 @@ export function resolveEntitlement({ subscription = null, isPlatformOwner = fals
       providerRef: null,
       verifiedAt: now,
       reason: "בעלות על הפלטפורמה — מאומתת מהזהות בשרת",
-      capabilities: capabilitiesFor("enterprise"),
+      capabilities: capabilitiesFor(OWNER_PLAN),
     };
   }
   const free = (reason, extra = {}) => ({
@@ -56,7 +78,9 @@ export function resolveEntitlement({ subscription = null, isPlatformOwner = fals
     providerRef: null, verifiedAt: now, reason, capabilities: capabilitiesFor("free"), ...extra,
   });
   if (!subscription) return free("אין מנוי — מסלול חינמי");
-  const planId = PLAN_BY_ID[subscription.planId] ? subscription.planId : null;
+  // Only a plan that can actually be bought unlocks anything (Elite is a
+  // waitlist teaser; legacy/unknown plan ids resolve to free).
+  const planId = PLAN_BY_ID[subscription.planId]?.purchasable && !PLAN_BY_ID[subscription.planId]?.comingSoon ? subscription.planId : null;
   if (!planId) return free("מסלול לא מוכר — מסלול חינמי");
   const expiresAt = subscription.expiresAt ? Date.parse(subscription.expiresAt) || null : null;
   const expired = expiresAt != null && expiresAt < Number(now);
@@ -129,7 +153,15 @@ export function reconcileActiveSubscription(sub, details, now = Date.now()) {
   const at = Number(now);
   const next = Date.parse(details.nextBillingTime || "");
   if (live === "ACTIVE") {
-    return { ...sub, lastReconciledAt: at, providerStatus: live, ...(Number.isFinite(next) ? { paidThrough: new Date(next).toISOString() } : {}) };
+    // A renewal PayPal confirms extends access to the next billing time, even
+    // when no webhook arrived (PAYPAL_WEBHOOK_ID missing / delivery failed).
+    const cur = Date.parse(sub.expiresAt || "");
+    const extend = Number.isFinite(next) && (!Number.isFinite(cur) || next > cur);
+    return {
+      ...sub, lastReconciledAt: at, providerStatus: live,
+      ...(Number.isFinite(next) ? { paidThrough: new Date(next).toISOString() } : {}),
+      ...(extend ? { expiresAt: new Date(next).toISOString() } : {}),
+    };
   }
   if (live === "CANCELLED") {
     return { ...sub, status: "cancelled", providerStatus: live, lastReconciledAt: at, cancelledAt: sub.cancelledAt || new Date(at).toISOString(), expiresAt: sub.expiresAt || new Date(paidPeriodEnd(sub, at)).toISOString() };

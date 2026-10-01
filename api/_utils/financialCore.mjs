@@ -49,7 +49,7 @@ export function createFinancialCore({ store = financialStore(), gateway = create
     status: gateway.status,
     async checkout(owner, input, origin) {
       if (!owner || !input || Object.keys(input).some(k => !['planId','billingPeriod','idempotencyKey'].includes(k))) throw Error('INVALID_CHECKOUT');
-      const plan = getAllPlans().find(p => p.id === input.planId && p.price > 0);
+      const plan = getAllPlans().find(p => p.id === input.planId && p.price > 0 && p.purchasable && !p.comingSoon);
       if (!plan || !['monthly','yearly'].includes(input.billingPeriod) || !/^[a-zA-Z0-9_-]{16,80}$/.test(input.idempotencyKey || '')) throw Error('INVALID_CHECKOUT');
       if (!gateway.status().configured) throw Error('PAYMENT_PROVIDER_REQUIRED');
       const amountMinor = Math.round((input.billingPeriod === 'yearly' ? plan.priceYearly : plan.price) * 100);

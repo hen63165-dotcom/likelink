@@ -11,6 +11,7 @@
  * - Auditable (Decision Memory via Veritas)
  */
 
+import { imageProvenance, isRealProductPhoto } from "../discovery/catalogIntegrity.js";
 import { registerJob, executeJob, runDueJobs, JOB_STATE } from "./growthScheduler.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "./kvReadGuard.js";
 
@@ -242,7 +243,15 @@ registerJob("autonomous-ugc-video-production", {
           continue;
         }
 
-        let asset = assets.find((a) => a?.imageUrl && a?.synthetic === true);
+        // Reuse the product's existing catalog asset (each run used to append a
+        // new identical one). A stock photo is never used as the product's media.
+        let asset = assets.find((a) => a?.imageUrl && a?.synthetic === true)
+          || assets.find((a) => a?.imageUrl === String(product.image) && ["catalog_image", "verified_catalog_image"].includes(a?.source));
+        const provenance = imageProvenance(product.image);
+        if (!asset && !isRealProductPhoto(product.image)) {
+          results.push({ productId: product.id, status: "SKIPPED_NOT_A_PRODUCT_PHOTO", provenance });
+          continue;
+        }
         if (!asset) {
           asset = {
             id: "catalog_video_" + product.id + "_" + now,
@@ -251,7 +260,10 @@ registerJob("autonomous-ugc-video-production", {
             characterType: null,
             creativeAngle: angles[(queued + Math.floor(now / 21600000)) % angles.length].id,
             imageUrl: String(product.image),
-            source: "verified_catalog_image",
+            // The store's own photo or the creator's upload — never "verified" by
+            // us, and never a stock photo (catalogIntegrity.imageProvenance).
+            source: "catalog_image",
+            provenance,
             synthetic: false,
             disclosed: false,
             videoProvider: null,

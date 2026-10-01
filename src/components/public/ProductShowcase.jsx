@@ -158,11 +158,11 @@ export default function ProductShowcase({ product, owner, navigate }) {
         </div>
 
         <div className="surface rounded-3xl mt-4 p-5 text-center shadow-sm">
-          <p className="disp text-lg font-bold">{L("ככה זה נראה כשזה עובד", "This is what 'it just works' looks like")}</p>
+          <p className="disp text-lg font-bold">{L("רוצה עמוד כזה למוצרים שלך?", "Want a page like this for your products?")}</p>
           <p className="text-xs text-muted mt-1.5 leading-relaxed">
             {L(
-              "חמש דקות, ואת מקבלת את אותה מערכת. פותחים סטודיו, מדביקים לינק, והמערכת עושה את כל השאר — בעברית, לכל רשת, כל הזמן.",
-              "Five minutes and you get the same machine. Open a studio, paste a link, and it does the rest — in Hebrew, to every network, all the time."
+              "פותחים סטודיו בחינם ומדביקים לינק למוצר. לונה מכינה עמוד מוצר, לינק מעקב וטיוטות תוכן בעברית, ואת מחליטה מה לפרסם ואיפה.",
+              "Open a free studio and paste a product link. Luna prepares a product page, a tracking link and Hebrew content drafts — you decide what to post and where."
             )}
           </p>
           <a
@@ -182,6 +182,15 @@ export default function ProductShowcase({ product, owner, navigate }) {
           marketerId={owner.id}
           compact
         />
+
+        <nav aria-label={L("מסמכים משפטיים", "Legal")} className="mt-6 mb-2 text-[11px] text-muted flex flex-wrap justify-center gap-x-3 gap-y-1">
+          <a className="underline" href="/legal/affiliate-disclosure">{L("גילוי נאות", "Disclosure")}</a>
+          <a className="underline" href="/legal/terms">{L("תנאי שימוש", "Terms")}</a>
+          <a className="underline" href="/legal/privacy">{L("פרטיות", "Privacy")}</a>
+          <a className="underline" href="/legal/accessibility">{L("נגישות", "Accessibility")}</a>
+          <a className="underline" href="/legal">{L("כל המסמכים", "All documents")}</a>
+          <span>© 2026 LikeLink</span>
+        </nav>
       </div>
     </div>
   );

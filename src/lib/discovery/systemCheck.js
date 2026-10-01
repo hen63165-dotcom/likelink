@@ -162,8 +162,14 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   // UGC / media
   const u = p.ugc || {};
   areas.push(area("ugc", "מדיה ו-UGC", u.realVideos > 0 ? COLOR.GREEN : COLOR.YELLOW,
-    [`${u.realVideos || 0} סרטונים אמיתיים`, `${u.syntheticImages || 0} תמונות סינתטיות (מסומנות כסינתטיות)`, `${u.images || 0} תמונות מוצר`],
-    u.realVideos > 0 ? null : "ליצור סרטונים אמיתיים בסטודיו הווידאו או לחבר ספק וידאו"));
+    [
+      `${u.realVideos || 0} סרטונים אמיתיים`,
+      `${u.syntheticImages || 0} תמונות סינתטיות (מסומנות כסינתטיות)`,
+      u.realProductPhotos != null ? `${u.realProductPhotos} מוצרים עם תמונה אמיתית של המוצר` : `${u.images || 0} תמונות מוצר`,
+      u.stockPhotos ? `${u.stockPhotos} מוצרים עם תמונת אווירה ממאגר (לא תמונת המוצר)` : null,
+      u.sharedAffiliateLinks ? `${u.sharedAffiliateLinks} מוצרים חולקים קישור שותפים עם מוצרים אחרים — לא מקודמים` : null,
+    ].filter(Boolean),
+    u.realVideos > 0 ? null : u.stockPhotos ? "להחליף תמונות אווירה בתמונות אמיתיות של המוצרים, ואז ליצור מדיה" : "ליצור סרטונים אמיתיים בסטודיו הווידאו או לחבר ספק וידאו"));
 
   // storage — the private product-images bucket (mediaStore.js). GREEN needs
   // a private bucket, all 5 policies and a fresh real upload/readback proof.

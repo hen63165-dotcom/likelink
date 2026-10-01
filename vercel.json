@@ -68,6 +68,26 @@
       "destination": "/api/store?mode=push"
     },
     {
+      "source": "/api/gpt/openapi.json",
+      "destination": "/api/store?mode=gpt&op=openapi"
+    },
+    {
+      "source": "/api/gpt/products",
+      "destination": "/api/store?mode=gpt&op=products"
+    },
+    {
+      "source": "/api/gpt/products/:productId/tracking-link",
+      "destination": "/api/store?mode=gpt&op=tracking-link&productId=:productId"
+    },
+    {
+      "source": "/api/gpt/drafts",
+      "destination": "/api/store?mode=gpt&op=drafts"
+    },
+    {
+      "source": "/api/gpt/drafts/:draftId",
+      "destination": "/api/store?mode=gpt&op=draft&draftId=:draftId"
+    },
+    {
       "source": "/api/sign-sale",
       "destination": "/api/store?mode=sign-sale"
     },

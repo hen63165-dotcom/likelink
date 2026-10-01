@@ -13,7 +13,6 @@ import { toHebrewError } from "../../lib/errorMessages.js";
 const LABEL = {
   "starter:monthly": "Starter חודשי", "starter:yearly": "Starter שנתי",
   "professional:monthly": "Professional חודשי", "professional:yearly": "Professional שנתי",
-  "enterprise:monthly": "Enterprise חודשי", "enterprise:yearly": "Enterprise שנתי",
 };
 
 export default function PayPalPlansCard() {
@@ -22,7 +21,7 @@ export default function PayPalPlansCard() {
   const [error, setError] = useState("");
 
   async function provision() {
-    if (!window.confirm("ייווצרו (או יאומתו) מסלולי מנוי ב-PayPal Live בשקלים, לפי המחירים באתר. זה לא מחייב אף אחד. להמשיך?")) return;
+    if (!window.confirm("ייווצרו (או יאומתו) 4 מסלולי מנוי ב-PayPal Live בשקלים: Starter ₪29/₪290, Professional ₪79/₪790. זה לא מחייב אף אחד. להמשיך?")) return;
     setBusy(true);
     setError("");
     let token = "";
@@ -46,7 +45,7 @@ export default function PayPalPlansCard() {
   return (
     <div className="surface rounded-2xl p-4 mt-4">
       <p className="font-semibold">מסלולי מנוי ב-PayPal</p>
-      <p className="text-xs text-muted mt-1">יצירה חד-פעמית של 6 המסלולים (חודשי ושנתי) בשקלים, לפי המחירים באתר. פעולה חוזרת רק מאמתת — לא יוצרת כפילויות ולא מחייבת.</p>
+      <p className="text-xs text-muted mt-1">יצירה חד-פעמית של 4 המסלולים (Starter ו-Professional, חודשי ושנתי) בשקלים, לפי המחירים באתר. Elite לא נוצר (בקרוב). פעולה חוזרת רק מאמתת — לא יוצרת כפילויות ולא מחייבת.</p>
       <div className="mt-3 max-w-xs">
         <Button onClick={provision} disabled={busy}>{busy ? <Loader2 size={14} className="animate-spin" /> : null} יצירה / אימות מסלולים</Button>
       </div>

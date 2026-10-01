@@ -67,7 +67,10 @@ function seed() {
   put("marketplace:marketers", [{ id: "m1", name: "Owner", slug: "owner" }, { id: "m2", name: "Other", slug: "other", tags: ["jewelry"] }]);
   // …ownership resolves through the server-only private map.
   put("marketplace:marketers:private", { m1: { email: "owner@likelink.test" }, m2: { email: "other@likelink.test" } });
+  // The owner's studio is on Professional (campaigns + recruitment drafts are Professional features).
+  put("marketplace:subscriptions", [PRO_SUB]);
 }
+const PRO_SUB = { id: "s1", userId: "u-owner", planId: "professional", billingPeriod: "monthly", status: "active", startedAt: "2026-09-01T00:00:00.000Z" };
 
 test("recruit_creator: calling the send path directly is refused without owner_explicit — and never sends even with it", async () => {
   const { deliverInvitation, recruitCreators } = await import("../src/lib/discovery/campaigns.js");
@@ -136,4 +139,42 @@ test("API: the agentic actions are owner-only", async () => {
   res = await call({ url: "/api/store?mode=discovery&action=campaigns", token: "tok-other" });
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.campaigns, [], "another creator never sees this draft");
+});
+
+test("quotas: a Free studio is refused with the plan that includes the feature; the monthly limit holds", async () => {
+  seed();
+  kv.delete("marketplace:subscriptions"); // → Free plan
+  const { default: store } = await import("../api/store.mjs");
+  const { quotaStoreKey } = await import("../src/lib/discovery/quotas.js");
+  const call = async (opts) => { const res = mockRes(); await store(mockReq(opts), res); return res; };
+  let res = await call({ method: "POST", url: "/api/store?mode=discovery&action=campaign", token: "tok-owner", body: { goal: "קמפיין", productIds: ["p1"] } });
+  assert.equal(res.statusCode, 402);
+  assert.equal(res.body.error, "plan_required");
+  assert.equal(res.body.upgrade.id, "professional");
+  assert.ok(!kv.has("discovery:campaigns:m1"), "nothing was created");
+  res = await call({ method: "POST", url: "/api/store?mode=discovery&action=recruit", token: "tok-owner", body: { productId: "p1" } });
+  assert.equal(res.statusCode, 402);
+  assert.equal(res.body.error, "plan_required");
+  // Professional: 20 campaigns a month — the 21st is refused, usage is counted.
+  put("marketplace:subscriptions", [PRO_SUB]);
+  put(quotaStoreKey("m1"), { campaigns: 20 });
+  res = await call({ method: "POST", url: "/api/store?mode=discovery&action=campaign", token: "tok-owner", body: { goal: "קמפיין חדש", productIds: ["p1"] } });
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.body.error, "quota_exceeded");
+  assert.equal(res.body.limit, 20);
+  put(quotaStoreKey("m1"), { campaigns: 3 });
+  res = await call({ method: "POST", url: "/api/store?mode=discovery&action=campaign", token: "tok-owner", body: { goal: "קמפיין נוסף", productIds: ["p1"] } });
+  assert.equal(res.statusCode, 200);
+  assert.equal(JSON.parse(kv.get(quotaStoreKey("m1"))).campaigns, 4, "usage is counted");
+});
+
+test("quotas: an Elite / legacy subscription never unlocks a feature (Elite is not sold yet)", async () => {
+  seed();
+  const { default: store } = await import("../api/store.mjs");
+  const call = async (opts) => { const res = mockRes(); await store(mockReq(opts), res); return res; };
+  for (const planId of ["elite", "enterprise"]) {
+    put("marketplace:subscriptions", [{ ...PRO_SUB, planId }]);
+    const res = await call({ method: "POST", url: "/api/store?mode=discovery&action=campaign", token: "tok-owner", body: { goal: "קמפיין", productIds: ["p1"] } });
+    assert.equal(res.statusCode, 402, planId);
+  }
 });

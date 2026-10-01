@@ -14,6 +14,8 @@
 //   POST ?mode=discovery&action=goal    { goal, productId? }     owner
 //   POST ?mode=discovery&action=command { command, productId? }  owner
 //   POST ?mode=discovery&action=rollback { productId }           owner
+//   GET  ?mode=discovery&action=quotas                    owner — plan, month usage, product count
+//   …&action=distribution-*|click-stats                   owner — see distributionRoutes.mjs
 //
 // Identity comes only from the verified Bearer token: a Supabase session
 // (→ the marketer with the same email) or an admin token. Public reads never
@@ -31,11 +33,15 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
-import { getPayPalToken, getPayPalTokenStatus, paypalBase } from "./paypal.js";
+import { getPayPalToken, getPayPalTokenStatus, paypalBase, FOREIGN_PLAN_IDS } from "./paypal.js";
+import { getProvisionedPlans } from "../../src/lib/plans.js";
+import { checkQuota, quotaStoreKey, monthKey, QUOTA_ERROR } from "../../src/lib/discovery/quotas.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
 import { listCapabilities, PERMISSION } from "../../src/lib/discovery/capabilities.js";
 import { deliverInvitation } from "../../src/lib/discovery/campaigns.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
+import { handleDistribution, DISTRIBUTION_ACTIONS } from "./distributionRoutes.mjs";
+import { imageProvenance, isRealProductPhoto, sharedAffiliateLinks, IMAGE_PROVENANCE } from "../../src/lib/discovery/catalogIntegrity.js";
 
 const RATE_WINDOW_MS = 60000;
 const RATE_MAX = 12;
@@ -44,7 +50,7 @@ const STORAGE_SELFTEST_KEY = "storage:selftest:last";
 const STORAGE_SELFTEST_EVERY_MS = 24 * 60 * 60 * 1000;
 // 1×1 transparent PNG — the storage self-test object (health/ is never public).
 const PROBE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
-const SUBSCRIPTION_PLAN_ENV = ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL", "PAYPAL_PLAN_ENTERPRISE"];
+const SUBSCRIPTION_PLAN_ENV = ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL"];
 const SERVER_SECRETS = ["ADMIN_SESSION_SECRET", "STORE_SIGN_SECRET", "AUTOPILOT_SECRET", "CRON_SECRET", "PAYOUTS_SECRET", "PRICE_WATCH_SECRET", "CLOUD_PASSPORT_SECRET", "PAYPAL_WEBHOOK_ID"];
 
 function header(req, name) {
@@ -92,10 +98,24 @@ export function createDiscoveryHandler({
     return resolveEntitlement({ subscription: pickSubscription(subs, who.userId), now: now() });
   }
 
-  function rateAllowed(key) {
+  // ── Monthly quotas (src/lib/plans.js via the entitlement) ──
+  async function quotaGate(entitlement, scopeKey, quotaKey) {
+    const used = Number(((await kvGet(quotaStoreKey(scopeKey, now()), {})) || {})[quotaKey]) || 0;
+    return checkQuota(entitlement, quotaKey, used);
+  }
+  async function quotaUse(scopeKey, quotaKey) {
+    const key = quotaStoreKey(scopeKey, now());
+    const cur = (await kvGet(key, {})) || {};
+    await kvSet(key, { ...cur, [quotaKey]: (Number(cur[quotaKey]) || 0) + 1 });
+  }
+  function quotaRefusal(gate) {
+    return { ok: false, error: gate.error, limit: gate.limit, used: gate.used, upgrade: gate.upgrade || null };
+  }
+
+  function rateAllowed(key, max = RATE_MAX) {
     const t = now();
     const win = (rateMap.get(key) || []).filter((x) => t - x < RATE_WINDOW_MS);
-    if (win.length >= RATE_MAX) return false;
+    if (win.length >= max) return false;
     win.push(t);
     rateMap.set(key, win);
     return true;
@@ -164,7 +184,7 @@ export function createDiscoveryHandler({
       out.paypalEnvSource = st.envSource;
       const token = st.ok ? await getPayPalToken() : null;
       const cached = await kvGet("marketplace:paypal_plans", null);
-      const ids = ["starter", "professional", "enterprise"].map((p) => (cached && typeof cached === "object" ? cached[`${p}:monthly`] : null)).filter(Boolean);
+      const ids = getProvisionedPlans().map((p) => (cached && typeof cached === "object" ? cached[`${p.id}:monthly`] : null)).filter((id) => id && !FOREIGN_PLAN_IDS.has(id));
       out.provisioned = ids.length;
       if (token && ids.length) {
         const states = await Promise.all(ids.map(async (id) => {
@@ -275,6 +295,10 @@ export function createDiscoveryHandler({
         realVideos: media.reduce((s, m) => s + m.inventory.realVideos, 0),
         syntheticImages: media.reduce((s, m) => s + m.inventory.syntheticImages, 0),
         images: media.filter((m) => m.state === MEDIA_TRUTH.STATIC_IMAGE).length,
+        // A stock photo is not a product image (catalogIntegrity.imageProvenance).
+        realProductPhotos: data.products.filter((p) => isRealProductPhoto(p?.image)).length,
+        stockPhotos: data.products.filter((p) => imageProvenance(p?.image) === IMAGE_PROVENANCE.STOCK).length,
+        sharedAffiliateLinks: [...sharedAffiliateLinks(data.products).values()].reduce((s, ids) => s + ids.length, 0),
       },
       storage: await probeStorage({ storageRes, sbUrl, anon, service, t }),
       tracking: { clicks: data.clicks.length, lastClickAt: data.clicks.reduce((m, c) => Math.max(m, Number(c?.ts) || 0), 0) || null },
@@ -364,7 +388,7 @@ export function createDiscoveryHandler({
       }
 
       // ── owner-scoped ──
-      const ownerActions = new Set(["overview", "memory", "entitlement", "goal", "command", "rollback", "campaign", "campaigns", "recruit"]);
+      const ownerActions = new Set(["overview", "memory", "entitlement", "goal", "command", "rollback", "campaign", "campaigns", "recruit", "quotas", ...DISTRIBUTION_ACTIONS]);
       if (!ownerActions.has(action)) { json(res, { ok: false, error: "unknown_action" }, 400, req); return; }
       const who = await identify(req);
       if (!who.ok) { json(res, { ok: false, error: who.error }, who.status, req); return; }
@@ -383,6 +407,13 @@ export function createDiscoveryHandler({
       if (req.method === "GET" && action === "memory") {
         const ent = await entitlementFor(who);
         json(res, await memoryAnswer({ kvGet, scope, depth: ent.capabilities.memoryDepth }), 200, req);
+        return;
+      }
+      // Light "מה כלול במסלול" read: the plan, this month's usage and the product count.
+      if (req.method === "GET" && action === "quotas") {
+        const [ent, used, products] = await Promise.all([entitlementFor(who), kvGet(quotaStoreKey(scopeKey, now()), {}), kvGet("marketplace:products", [])]);
+        const mine = (Array.isArray(products) ? products : []).filter((p) => p && (!scope.marketerIds || scope.marketerIds.includes(String(p.marketerId)))).length;
+        json(res, { ok: true, plan: ent.plan, month: monthKey(now()), limits: ent.capabilities.quotas, used: { ...(used || {}), maxProducts: mine } }, 200, req);
         return;
       }
       if (req.method === "GET" && action === "overview") {
@@ -405,9 +436,17 @@ export function createDiscoveryHandler({
           log: (Array.isArray(log) ? log : []).slice(-10).reverse(),
           sweep: sweep ? { at: sweep.at, products: sweep.products, avgScore: sweep.avgScore } : null,
           entitlement: { plan: ent.plan, status: ent.status, source: ent.source, reason: ent.reason, maxProductsPerRun: ent.capabilities.maxProductsPerRun },
+          // This month's usage against the published quotas (the "מה כלול במסלול" view).
+          quotas: { month: monthKey(now()), limits: ent.capabilities.quotas, used: (await kvGet(quotaStoreKey(scopeKey, now()), {})) || {} },
         }, 200, req);
         return;
       }
+
+      // Distribution plans, content export, click stats (api/_utils/distributionRoutes.mjs).
+      if (await handleDistribution({
+        action, req, res, json, kvGet, kvSet, who, scope, scopeKey, now, entitlementFor, quotaGate, quotaUse, quotaRefusal, rateAllowed, env, fetchImpl,
+        readJson: (r) => readBody(r).catch(() => null),
+      })) return;
 
       if (req.method !== "POST") { json(res, { ok: false, error: "method_not_allowed" }, 405, req); return; }
       if (!rateAllowed(who.actor)) { json(res, { ok: false, error: "rate_limited" }, 429, req); return; }
@@ -420,7 +459,10 @@ export function createDiscoveryHandler({
         const ids = (Array.isArray(body.productIds) ? body.productIds : productId ? [productId] : []).map((x) => String(x).slice(0, 120)).slice(0, 50);
         if (!ids.length) { json(res, { ok: false, error: "product_id_required" }, 400, req); return; }
         const entitlement = await entitlementFor(who);
+        const gate = await quotaGate(entitlement, scopeKey, "campaigns");
+        if (!gate.allowed) { json(res, quotaRefusal(gate), gate.error === QUOTA_ERROR.EXCEEDED ? 429 : 402, req); return; }
         const out = await createCampaign({ kvGet, kvSet, goal, productIds: ids, scope, entitlement, now: now() });
+        if (out.ok && out.status === "executed") await quotaUse(scopeKey, "campaigns");
         json(res, out, out.ok ? 200 : out.error === "not_owner" ? 403 : out.error === "product_not_found" ? 404 : 400, req);
         return;
       }
@@ -435,7 +477,11 @@ export function createDiscoveryHandler({
             return;
           }
         }
+        const recruitEnt = await entitlementFor(who);
+        const gate = await quotaGate(recruitEnt, scopeKey, "recruitDrafts");
+        if (!gate.allowed) { json(res, quotaRefusal(gate), gate.error === QUOTA_ERROR.EXCEEDED ? 429 : 402, req); return; }
         const out = await recruitForProduct({ kvGet, productId, scope });
+        if (out.ok) await quotaUse(scopeKey, "recruitDrafts");
         json(res, out, out.ok ? 200 : out.error === "not_owner" ? 403 : 404, req);
         return;
       }

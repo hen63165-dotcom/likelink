@@ -13,7 +13,9 @@ import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys.js";
 import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
 import { getSellerPayoutSummary } from "../../lib/payments.js";
-import { resetPassword, authConfigured } from "../../lib/auth.js";
+import { resetPassword, authConfigured, getSessionToken } from "../../lib/auth.js";
+import { rememberSignupConsent, flushSignupConsent } from "../../lib/legalConsent.js";
+import { LEGAL_VERSION, legalPath } from "../../lib/legal/catalog.js";
 import { fetchProductInfo } from "../../lib/productInfo.js";
 import { buildSellerAIInsights } from "../../lib/aiAssistant.js";
 import { getPaymentReadiness, buildBusinessPayPalFlow } from "../../lib/paymentFlow.js";
@@ -37,7 +39,8 @@ import ShareQR from "../ShareQR.jsx";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import LunaAssistant from "../ambassador/LunaAssistant";
 import StudioHub from "./StudioHub";
-import StudioCheckout from "./StudioCheckout";
+import PlanCheckout from "./PlanCheckout";
+import DistributionPanel from "./DistributionPanel";
 import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
@@ -239,7 +242,9 @@ export default function SellView({ navigate }) {
         </button>
       </div>
 
-      <StudioCheckout />
+      <PlanCheckout />
+
+      <DistributionPanel products={mine} />
 
       {/* Creator/Seller Studio — Capability Hub: intelligence, content, launch, trends, WhatsApp */}
       <div className="mt-6">
@@ -949,6 +954,9 @@ function AuthGate({ marketers, onLogin, onSignup }) {
   // Success/info messages are shown separately — never in the red error style.
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Signup consent: the legal pack (required, 18+) and marketing (optional, separate — 30א).
+  const [agreed, setAgreed] = useState(false);
+  const [marketing, setMarketing] = useState(false);
 
   async function submit() {
     if (submitting) return;
@@ -958,9 +966,13 @@ function AuthGate({ marketers, onLogin, onSignup }) {
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return setErr(t("auth.errEmail"));
     if (password.trim().length < 6) return setErr(t("auth.errPassword"));
     if (mode === "signup" && !name.trim()) return setErr(t("auth.errName"));
+    if (mode === "signup" && !agreed) return setErr("כדי לפתוח סטודיו יש לאשר את תנאי השימוש ומדיניות הפרטיות, ולהצהיר על גיל 18 ומעלה.");
+    if (mode === "signup") rememberSignupConsent({ marketing });
     setSubmitting(true);
     try {
       const result = mode === "signup" ? await onSignup(name.trim(), cleanEmail, password.trim()) : await onLogin(cleanEmail, password.trim());
+      // Record the consent (version + time) as soon as a verified session exists.
+      if (result?.ok !== false) getSessionToken().then((tok) => flushSignupConsent(tok)).catch(() => {});
       if (result?.needsConfirmation) {
         setMode("login");
         setNotice("✓ נשלח אליך מייל לאימות הכתובת. אשרי אותו ואז התחברי כאן — הסטודיו יחכה לך.");
@@ -1059,9 +1071,28 @@ function AuthGate({ marketers, onLogin, onSignup }) {
             </button>
           )}
         </div>
+        {mode === "signup" && (
+          <div className="flex flex-col gap-2 text-[11px] text-right" dir="rtl">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" />
+              <span>
+                קראתי ואני מסכימה ל<a className="underline" href={legalPath("terms")} target="_blank" rel="noreferrer">תנאי השימוש</a>,{" "}
+                <a className="underline" href={legalPath("privacy")} target="_blank" rel="noreferrer">מדיניות הפרטיות</a> ו
+                <a className="underline" href={legalPath("cancellation")} target="_blank" rel="noreferrer">מדיניות הביטולים</a> (גרסה <span dir="ltr" className="whitespace-nowrap">{LEGAL_VERSION}</span>), ואני בת 18 ומעלה.
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="mt-0.5" />
+              <span>אני רוצה לקבל במייל עדכונים והצעות מ-LikeLink (לא חובה, אפשר להסיר בכל עת).</span>
+            </label>
+          </div>
+        )}
         {err && <p role="alert" className="text-xs flex items-center gap-1" style={{ color: "var(--danger)" }}><CircleAlert size={13} /> {err}</p>}
         {notice && <p role="status" className="text-xs" style={{ color: "var(--success)" }}>{notice}</p>}
         <Button onClick={submit} disabled={submitting}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
+        <p className="text-[11px] text-muted text-center">
+          <a className="underline" href="/pricing" target="_blank" rel="noreferrer">מסלולים ומחירים</a> · <a className="underline" href="/legal" target="_blank" rel="noreferrer">מסמכים משפטיים</a>
+        </p>
       </div>
       <p className="text-[11px] text-muted mt-4 max-w-[280px]">{t("auth.note")}</p>
     </div>

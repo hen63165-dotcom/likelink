@@ -17,6 +17,8 @@ node --test tests/domainOrigin.test.mjs       # run a single test file
 node --test --test-name-pattern="verifyProduct" tests/*.test.mjs   # run tests by name
 npm run build                                 # vite build → dist/
 npm run feed:google                           # generate google-feed.xml (scripts/generate-google-feed.mjs)
+npm run pages:build                           # regenerate public/pricing.html + public/legal/*.html from plans.js / legal/documents.js
+node scripts/authorship-evidence.mjs          # dated SHA-256 fingerprints → legal/AUTHORSHIP_EVIDENCE.md
 npx cap sync                                  # after build, copy dist/ into the native projects
 ```
 
@@ -91,6 +93,67 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
 - **Video truth:** anything LikeLink renders (`videoEngine.js` reels, the `likelink_*` sources) is `SYNTHETIC_ANIMATION`, never `REAL_VIDEO` and never titled UGC.
 - **Subscriptions:** ACTIVE records are reconciled with PayPal at most every 12h (`entitlements.reconcileActiveSubscription`). A cancellation keeps the paid period, and a failed lookup never revokes. PayPal billing plans are in ILS at exactly the site's prices (`PLAN_CURRENCY`). `ensureBillingPlans` adopts an existing ACTIVE plan with the same name/currency/price before creating one (PayPal allows duplicate names), creates nothing when that lookup fails, sends a `PayPal-Request-Id`, and retries only missing plans. Its ids are stored in `marketplace:paypal_plans` (with `currency`). One-time provisioning is `POST /api/store?mode=subs&sub=provision-plans` (admin token or the `OWNER_EMAIL` session), available as a button in the admin panel's payouts section. It also runs on the first `sub=create`.
 - **Checkout:** `create-order` prices the cart from the catalog (`api/_utils/checkoutCatalog.mjs`) and stores `checkout:order:<paypalOrderId>`. `capture-order` records only that stored record and checks the captured amount against it. Never trust client prices or owners.
+- **Plans (`src/lib/plans.js`) are the single source of truth.** The same file feeds five things, and `tests/plansConsistency.test.mjs` fails if any of them disagree:
+  - the generated `/pricing` page;
+  - the studio "מה כלול" view (`PlanCheckout.jsx`);
+  - `entitlements.js` quotas;
+  - the PayPal plan bodies (`paypal.js` `buildPlanBody`/`plannedBillingPlans`);
+  - the checkout allow-list.
+- **Plan rules:**
+  - Plans: Free, Starter ₪29/₪290 and Professional ₪79/₪790. Elite ₪149 is a waitlist only: never purchasable and never provisioned.
+  - Every `FEATURES` row is `live` or `soon`. A `soon` feature is never included in any plan, and every `live` one must name code that exists.
+  - Quotas are enforced on the server: `src/lib/discovery/quotas.js`, counted in `quota:<scope>:<yyyy-mm>`.
+    - A feature not in the plan returns 402 `plan_required`, with the cheapest plan that includes it.
+    - An exhausted quota returns 429 `quota_exceeded`.
+    - A product-count overflow returns 402 `plan_limit_products`. It only blocks writes that grow the catalog.
+  - `OWNER_EMAIL` resolves to the unlimited internal plan `owner`.
+- **Subscription cancellation stops PayPal first.**
+  - `sub=cancel` calls PayPal's cancel endpoint. If PayPal fails, nothing changes (502), so there is never a fake "cancelled".
+  - Terms come from `src/lib/billing/cancellation.js`:
+    - within 14 days: a refund minus the lesser of 5% and ₪100;
+    - monthly: access stays to the end of the paid month;
+    - yearly: access stays to the end of the current month, and unused months are refunded.
+  - Yearly PayPal plans are one 12-month term (`total_cycles: 1`), with no automatic renewal (Consumer Protection Law 13א).
+  - Refunds are never sent automatically. They go to `billing:refund_requests`; the owner lists them and marks each one done with PayPal's refund ID via `sub=refunds`.
+  - Checkout refuses a second paid subscription next to an active one (409), and requires acceptance of the current legal version (428).
+- **Legal pack:**
+  - Texts: `src/lib/legal/documents.js`, 11 documents. `[OWNER_INPUT: …]` placeholders only; attorney notes and owner-only instructions are kept OUTSIDE this public repository (never on a page, never committed).
+  - Version: `src/lib/legal/catalog.js` `LEGAL_VERSION`. Bump it on any material text change; users re-accept.
+  - `npm run pages:build` renders `public/pricing.html`, `public/legal.html` and `public/legal/*.html`. `tests/legalPack.test.mjs` and `plansConsistency` fail when a committed page is stale.
+  - Acceptance, marketing consent and the Elite waitlist live in `mode=legal` (`api/_utils/legalHandler.mjs`):
+    - acceptance is stored as version + time + context in `legal:acceptances`;
+    - marketing opt-in (30א) is separate and explicit, with a signed one-click unsubscribe;
+    - the waitlist is `plans:waitlist`.
+  - All of these are server-only keys.
+- **Distribution:**
+  - `src/lib/discovery/distribution.js` builds plans only from the product's own fields: hooks, scripts, captions, hashtags, a storyboard and prompts for original 3D characters.
+    - `FORBIDDEN_CLAIMS` blocks testimonials, rankings and guarantees.
+    - The disclosure opens every caption, and every post gets its own `/r` link (`src=<channel>.<postId>`).
+  - Routes are in `api/_utils/distributionRoutes.mjs`, under `mode=discovery`. They cover the plan, export, click stats and publishing.
+  - **Publishing (Telegram only today)** is in `src/lib/discovery/publishers/telegram.js`:
+    - It needs the creator's own bot + channel from the autopilot channel settings, or the brand bot for the platform scope.
+    - It needs `confirm: <postId>` from a studio session, the owner's explicit approval of that one post.
+    - A post is `PUBLISHED` only with Telegram's `message_id`. It is `PUBLIC_VERIFIED` only when the post is visible at `t.me/<channel>/<id>`.
+    - Publishing is idempotent, and a failure leaves the post unpublished with `lastError`.
+  - Other networks return 409 `channel_requires_connection` with the exact owner action.
+  - A post the creator reports is `REPORTED_BY_CREATOR`, never `PUBLISHED`.
+- **Catalog integrity** (`src/lib/discovery/catalogIntegrity.js`), used by distribution plans, brand pulse, the GPT API, the UGC job and the system check:
+  - An affiliate link shared by several different products blocks promotion. On the live catalog, 22 seed products shared two links that open the AliExpress home page.
+  - A stock photo (`imageProvenance` = `stock_photo`) is never used or labelled as the product's image.
+- **AI images** (`/api/store?mode=ugc-model`):
+  - Only the platform owner (`OWNER_EMAIL`) may generate, because it spends the owner's OpenAI budget. It needs `OPENAI_API_KEY`.
+  - It requires a real product photo, sent as the reference to `images/edits`. The default is an ORIGINAL 3D cartoon character.
+  - The result is stored as a synthetic, AI-labelled asset (`aiGenerated`, `aiLabelRequired`, `referencePhoto`).
+  - The UGC video job reuses one catalog asset per product (it used to append a duplicate each run). It skips stock photos.
+- **Custom GPT** (`api/_utils/gptHandler.mjs`, `mode=gpt`, pretty URLs `/api/gpt/*`, spec `/api/gpt/openapi.json`):
+  - Actions: list_products, get_tracking_link, create_content_draft (DRAFT only), list_drafts, get_draft_status.
+  - There is no publish or approve action. Approval happens only in the studio, with a session (`op=draft-approve`).
+  - Keys are Professional-only. They are shown once, stored as SHA-256 in `gpt:keys`, rate-limited and revocable.
+  - Setup instructions are in `docs/chatgpt/`.
+- **Bot guard** (`api/_utils/botGuard.mjs`):
+  - On `/r`, `/p/:id` and `/u/:slug`, scraping tools get 403 and bursts get 429.
+  - Link-preview bots and search crawlers are redirected but never counted as clicks.
+  - The guard is in-memory, so it limits per instance.
 - Server code must never fall back to the anon key. Missing service-role config returns 500 on purpose ("fail loud").
 - Admin login is `POST /api/admin/auth` against the `ADMIN_CODE` env var and returns an HMAC-signed token (`api/_utils/adminAuth.js`). Server-only secrets must never get a `VITE_` prefix, because that prefix ships them to the browser bundle.
 - Several API files define their own private `kvGet/kvSet` Supabase helpers (for example `api/_utils/pushHandler.mjs`) instead of sharing one.

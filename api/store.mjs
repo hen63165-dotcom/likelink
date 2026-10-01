@@ -3,6 +3,7 @@ import { intelligenceHandler } from "./_utils/intelligenceHandler.mjs";
 import { readBody } from "./_utils/readBody.mjs";
 import { originFromRequest } from "./_utils/origin.mjs";
 import { resolveEntitlement, pickSubscription, needsReconcile, reconcileActiveSubscription } from "../src/lib/discovery/entitlements.js";
+import { productLimitAllows, productUpgrade, PRODUCT_LIMIT_ERROR } from "../src/lib/discovery/quotas.js";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { BROWSER_WRITE_POLICIES, applyStoreWritePolicy, ownedMarketerIdsFor, parseStoreValue, mergeSignedSale } from "./_utils/storeWritePolicy.mjs";
 import { SEED_MARKETERS as TOP_LEVEL_SEED_MARKETERS } from "../src/data/seed.js";
@@ -33,7 +34,12 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription } from "./_utils/paypal.js";
+import { cancellationTerms } from "../src/lib/billing/cancellation.js";
+import { imageProvenance, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
+import { safeFetch } from "./_utils/safeUrl.mjs";
+import { LEGAL_VERSION } from "../src/lib/legal/catalog.js";
+import { ACCEPTANCES_KEY, hasAcceptedCurrent } from "./_utils/legalHandler.mjs";
 import { audit } from "./_utils/audit.js";
 import { verifyAdminToken } from "./_utils/adminAuth.js";
 import { verifyProduct, isDiscoveryEligible, trustGateReport } from "../src/lib/cloud/trustVerification.js";
@@ -146,7 +152,7 @@ async function autoBootstrapCatalog(req) {
       const ownerMarketer = {
         id: OWNER_ID,
         name: "ALYOSTYLE",
-        email: "hen63165@gmail.com",
+        email: String(process.env.OWNER_EMAIL || "").trim().toLowerCase(), // never hard-coded (public repo)
         slug: "alyostyle",
         color: "#C1356C",
         bio: "LikeLink Official — curated by ALYOSTYLE",
@@ -472,8 +478,10 @@ async function linkIdentityHandler(req, res) {
 // Money: only a real PayPal Billing Subscription approval activates a plan.
 // ─────────────────────────────────────────────────────────────────────────────
 const SUBS_KEY = "marketplace:subscriptions";
-const PLAN_ENV_MONTHLY = { starter: "PAYPAL_PLAN_STARTER", professional: "PAYPAL_PLAN_PROFESSIONAL", enterprise: "PAYPAL_PLAN_ENTERPRISE" };
-const PLAN_ENV_YEARLY = { starter: "PAYPAL_PLAN_STARTER_Y", professional: "PAYPAL_PLAN_PROFESSIONAL_Y", enterprise: "PAYPAL_PLAN_ENTERPRISE_Y" };
+// Only purchasable plans (src/lib/plans.js) — Elite is a waitlist teaser and
+// can never be checked out; unknown / legacy ids answer invalid_plan.
+const PLAN_ENV_MONTHLY = { starter: "PAYPAL_PLAN_STARTER", professional: "PAYPAL_PLAN_PROFESSIONAL" };
+const PLAN_ENV_YEARLY = { starter: "PAYPAL_PLAN_STARTER_Y", professional: "PAYPAL_PLAN_PROFESSIONAL_Y" };
 
 async function subsAuthUser(req) {
   const auth = getHeader(req, "authorization");
@@ -501,7 +509,8 @@ async function subsHandler(req, res) {
       const { getAllPlans } = await import("../src/lib/plans.js");
       const plans = getAllPlans().map((p) => ({
         id: p.id, name: p.name, tagline: p.tagline, price: p.price, priceYearly: p.priceYearly,
-        period: p.period, platformFee: p.platformFee, features: p.features, cta: p.cta,
+        period: p.period, features: p.features, quotas: p.quotas, cta: p.cta,
+        purchasable: Boolean(p.purchasable && !p.comingSoon), comingSoon: Boolean(p.comingSoon),
         // Self-provisioning: when PayPal creds exist, plans are created on first
         // demand by the cloud (ensureBillingPlans). Env vars remain the legacy
         // override; absence is no longer a config blocker.
@@ -606,8 +615,36 @@ async function subsHandler(req, res) {
     }, 200, req);
   }
 
+  // ── Refund requests (owner / admin): cancellations that owe money back.
+  // LikeLink never sends a refund itself — the owner returns it in PayPal and
+  // marks it done here with PayPal's refund id.
+  if (sub === "refunds") {
+    const token = String(getHeader(req, "authorization") || "").replace(/^Bearer\s+/i, "").trim();
+    if (!token) return json(res, { ok: false, error: "authentication_required" }, 401, req);
+    let allowed = await isAdminToken(token);
+    if (!allowed) {
+      const user = await verifyToken(token).catch(() => null);
+      const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+      allowed = Boolean(ownerEmail && user?.email && String(user.email).trim().toLowerCase() === ownerEmail);
+    }
+    if (!allowed) return json(res, { ok: false, error: "admin_required" }, 403, req);
+    const list = (await kvGet(REFUNDS_KEY)) || [];
+    if (req.method === "POST" && body.id) {
+      const providerRefundId = String(body.providerRefundId || "").trim().slice(0, 80);
+      if (!providerRefundId) return json(res, { ok: false, error: "provider_refund_id_required" }, 400, req);
+      if (!list.some((r) => r.id === body.id)) return json(res, { ok: false, error: "not_found" }, 404, req);
+      const next = list.map((r) => (r.id === body.id ? { ...r, status: "refunded", providerRefundId, refundedAt: new Date().toISOString() } : r));
+      await kvSet(REFUNDS_KEY, next);
+      return json(res, { ok: true, refunds: next }, 200, req);
+    }
+    return json(res, { ok: true, refunds: list }, 200, req);
+  }
+
   return subsAuthHandler(req, res, sub, body);
 }
+
+// Server-only (not browser-writable, not in the public RLS allowlist).
+const REFUNDS_KEY = "billing:refund_requests";
 
 // ── Session-protected subscription actions (identity = verified token only) ──
 async function subsAuthHandler(req, res, sub, body) {
@@ -693,6 +730,18 @@ async function subsAuthHandler(req, res, sub, body) {
       const billingPeriod = body.billingPeriod === "yearly" ? "yearly" : "monthly";
       if (!PLAN_ENV_MONTHLY[planId]) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
       if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
+      // The current terms, privacy and cancellation policy must be accepted
+      // (version + time recorded by mode=legal) before any paid plan.
+      const acceptances = (await kvGet(ACCEPTANCES_KEY)) || {};
+      if (!hasAcceptedCurrent(acceptances[authId])) {
+        return json(res, { ok: false, error: "legal_acceptance_required", version: LEGAL_VERSION }, 428, req);
+      }
+      // One paid subscription at a time: an active PayPal subscription must be
+      // cancelled first (it keeps its paid period), so nobody is ever billed twice.
+      const current = (await kvGet(SUBS_KEY, [])) || [];
+      if (current.some((s) => s && s.userId === authId && (s.status === "active" || s.status === "trial") && s.paypalSubscriptionId)) {
+        return json(res, { ok: false, error: "active_subscription_exists" }, 409, req);
+      }
       const paypalPlanId = await resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet });
       if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
       const origin = getHeader(req, "origin");
@@ -707,7 +756,8 @@ async function subsAuthHandler(req, res, sub, body) {
       if (result.error) return json(res, { ok: false, error: result.error }, 502, req);
       // Record the pending subscription bound to the VERIFIED user id.
       const all = (await kvGet(SUBS_KEY, [])) || [];
-      const superseded = all.map((s) => (s.userId === authId && (s.status === "pending" || s.status === "active") ? { ...s, status: "cancelled", supersededBy: planId, cancelledAt: new Date().toISOString() } : s));
+      // Only unpaid pending attempts are superseded (an active one was refused above).
+      const superseded = all.map((s) => (s.userId === authId && s.status === "pending" ? { ...s, status: "cancelled", supersededBy: planId, cancelledAt: new Date().toISOString() } : s));
       const record = commerce.createSubscription({ planId, userId: authId, billingPeriod, paypalSubscriptionId: result.subscriptionId });
       record.authEmail = String(authUser.email || "");
       await kvSet(SUBS_KEY, [...superseded, record]);
@@ -735,13 +785,49 @@ async function subsAuthHandler(req, res, sub, body) {
     }
 
     // ── Cancel own subscription ──
+    // The customer's own cancellation (Consumer Protection Law 14ט: online, from
+    // the studio). Billing is stopped AT PAYPAL first — a local "cancelled" that
+    // PayPal keeps charging would be a lie. If PayPal cannot confirm, nothing
+    // changes and the customer is told so. Terms: src/lib/billing/cancellation.js.
     if (sub === "cancel") {
       const all = (await kvGet(SUBS_KEY, [])) || [];
-      const mine = await subsFindOwn(all, authId);
+      const mine = all.find((s) => s && s.userId === authId && ["active", "trial", "pending", "suspended"].includes(String(s.status)));
       if (!mine) return json(res, { ok: false, error: "no_active_subscription" }, 404, req);
-      const cancelled = commerce.cancelSubscription(mine);
+      let details = null;
+      let providerCancelled = false;
+      if (mine.paypalSubscriptionId) {
+        details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        if (!details?.status) return json(res, { ok: false, error: "paypal_unreachable" }, 502, req);
+        const live = String(details.status).toUpperCase();
+        if (["ACTIVE", "SUSPENDED", "APPROVED"].includes(live)) {
+          const r = await cancelPayPalSubscription(mine.paypalSubscriptionId);
+          if (!r.ok) return json(res, { ok: false, error: "paypal_cancel_failed" }, 502, req);
+          providerCancelled = true;
+        }
+      }
+      const nowMs = Date.now();
+      const wasBilled = mine.status !== "pending" || String(details?.status || "").toUpperCase() === "ACTIVE";
+      const terms = cancellationTerms({ sub: { ...mine, status: wasBilled ? "active" : "pending" }, now: nowMs, paidThrough: details?.nextBillingTime || null });
+      const cancelled = {
+        ...commerce.cancelSubscription(mine),
+        expiresAt: terms.accessUntil,
+        cancelSource: "studio",
+        providerCancelConfirmed: providerCancelled,
+        refund: terms.refund,
+      };
       await kvSet(SUBS_KEY, all.map((s) => (s.id === mine.id ? cancelled : s)));
-      return json(res, { ok: true, subscription: cancelled }, 200, req);
+      if (terms.refund?.amount > 0) {
+        const refunds = (await kvGet(REFUNDS_KEY)) || [];
+        if (!refunds.some((r) => r.subscriptionId === mine.id)) {
+          await kvSet(REFUNDS_KEY, [...refunds, {
+            id: `rf_${nowMs}_${Math.random().toString(36).slice(2, 8)}`,
+            subscriptionId: mine.id, userId: authId, paypalSubscriptionId: mine.paypalSubscriptionId || null,
+            planId: mine.planId, billingPeriod: mine.billingPeriod, ...terms.refund,
+            requestedAt: new Date(nowMs).toISOString(), status: "pending_owner",
+          }]);
+        }
+      }
+      return json(res, { ok: true, subscription: cancelled, terms }, 200, req);
     }
 
     return json(res, { ok: false, error: "invalid_submode" }, 400, req);
@@ -766,6 +852,16 @@ export default async function handler(req, res) {
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'me') {
     const { default: meHandler } = await import('./_utils/meHandler.mjs');
     return meHandler(req, res);
+  }
+  // Legal acceptance (version + time), marketing consent, unsubscribe, waitlist.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'legal') {
+    const { default: legalHandler } = await import('./_utils/legalHandler.mjs');
+    return legalHandler(req, res);
+  }
+  // Custom GPT actions (API key, read-mostly, drafts only) + studio key management.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'gpt') {
+    const { default: gptHandler } = await import('./_utils/gptHandler.mjs');
+    return gptHandler(req, res);
   }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
     const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
@@ -1063,6 +1159,14 @@ export default async function handler(req, res) {
       json(res, { ok: false, error: "unauthenticated" }, 401, req);
       return;
     }
+    // Every image spends the platform owner's OpenAI budget and is shown to
+    // buyers — only the platform owner (OWNER_EMAIL) may generate, until AI
+    // images are part of a paid plan.
+    const ugcOwnerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+    if (!ugcOwnerEmail || String(authUser.email || "").trim().toLowerCase() !== ugcOwnerEmail) {
+      json(res, { ok: false, error: "platform_owner_only" }, 403, req);
+      return;
+    }
     if (!process.env.OPENAI_API_KEY) {
       json(res, { ok: false, error: "ugc_ai_not_configured", nextAction: "configure_openai_api_key" }, 503, req);
       return;
@@ -1070,7 +1174,7 @@ export default async function handler(req, res) {
     let body = {};
     try { body = await readBody(req); } catch { json(res, { ok: false, error: "bad_json" }, 400, req); return; }
     const productId = String(body?.productId || "").trim();
-    const characterType = String(body?.characterType || "ai_female_model").trim();
+    const characterType = String(body?.characterType || "original_3d_cartoon").trim();
     if (!productId) { json(res, { ok: false, error: "missing_productId" }, 400, req); return; }
 
     const [productsRow, marketersRow] = await Promise.all([
@@ -1086,6 +1190,12 @@ export default async function handler(req, res) {
       return;
     }
 
+    // The real product photo is the reference for every image: the product
+    // must look exactly like it is. A stock photo is not the product.
+    if (!isRealProductPhoto(product.image)) {
+      json(res, { ok: false, error: "product_photo_required", provenance: imageProvenance(product.image) }, 422, req);
+      return;
+    }
     const modelMap = {
       ai_female_model: "original adult female fashion/lifestyle model",
       ai_female_creator: "original adult female creator",
@@ -1095,7 +1205,15 @@ export default async function handler(req, res) {
     const title = String(product.title || "the product").slice(0, 180);
     const category = String(product.category || "general").slice(0, 80);
     const description = String(product.description || "").slice(0, 500);
-    const prompt = [
+    const prompt = characterType === "original_3d_cartoon" ? [
+      "Create a vertical 9:16 illustration for a social commerce post.",
+      "Draw an ORIGINAL, friendly 3D cartoon character created from scratch (rounded shapes, soft pastel palette, expressive eyes) presenting the product shown in the reference image.",
+      "The character must not resemble any existing film, TV or game character, any animation studio's recognizable style, any brand mascot, or any real person. No logos, no trademarks.",
+      "The product must look exactly like the reference photo: same shape, color, materials and contents. Do not add or change features.",
+      `Product name: ${title}.`,
+      `Category: ${category}.`,
+      "Do not invent claims, testimonials, awards, discounts or scarcity. No text overlay.",
+    ].join("\n") : [
       "Create a photorealistic vertical UGC product photograph for a commerce platform.",
       `Use an ${modelRole}; the person must be fully synthetic and not resemble any real or famous person.`,
       "Show the person naturally presenting/using the product in a believable everyday setting.",
@@ -1108,11 +1226,26 @@ export default async function handler(req, res) {
     ].filter(Boolean).join("\n");
 
     try {
-      const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+      // The product photo is sent as the reference image (images/edits), so
+      // the generated image shows the real product, not an invented one.
+      const photoRes = await safeFetch(String(product.image), { signal: AbortSignal.timeout(15000) });
+      const photoType = String(photoRes.headers.get("content-type") || "").split(";")[0].toLowerCase();
+      const photo = photoRes.ok && /^image\/(png|jpe?g|webp)$/.test(photoType) ? Buffer.from(await photoRes.arrayBuffer()) : null;
+      if (!photo || photo.length > 20 * 1024 * 1024) {
+        json(res, { ok: false, error: "product_photo_unavailable" }, 502, req);
+        return;
+      }
+      const form = new FormData();
+      form.append("model", "gpt-image-1");
+      form.append("prompt", prompt);
+      form.append("size", "1024x1536");
+      form.append("quality", "high");
+      form.append("image", new Blob([photo], { type: photoType }), `product.${photoType.split("/")[1].replace("jpeg", "jpg")}`);
+      const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-        body: JSON.stringify({ model: "gpt-image-1", prompt, size: "1024x1536", quality: "high", output_format: "png" }),
-        signal: AbortSignal.timeout(60000),
+        headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: form,
+        signal: AbortSignal.timeout(90000),
       });
       const payload = await openaiRes.json().catch(() => ({}));
       if (!openaiRes.ok) {
@@ -1153,8 +1286,14 @@ export default async function handler(req, res) {
         marketerId: product.marketerId,
         characterType,
         imageUrl,
-        source: "openai_images",
+        // AI-generated from the real product photo (images/edits) — never
+        // presented as a real photo or a real person; posts must carry the
+        // network's AI label.
+        source: "openai_gpt_image_1_edit",
+        referencePhoto: String(product.image),
         synthetic: true,
+        aiGenerated: true,
+        aiLabelRequired: true,
         disclosed: true,
         createdAt: Date.now(),
       };
@@ -2326,8 +2465,9 @@ export default async function handler(req, res) {
         const marketersForOwnership = normalizedKey === "marketplace:marketers"
           ? storedValue
           : await kvGet("marketplace:marketers");
+        const ownedIds = ownedMarketerIdsFor(actor, Array.isArray(marketersForOwnership) ? marketersForOwnership : []);
         const result = applyStoreWritePolicy(normalizedKey, storedValue, value, {
-          ownedMarketerIds: ownedMarketerIdsFor(actor, Array.isArray(marketersForOwnership) ? marketersForOwnership : []),
+          ownedMarketerIds: ownedIds,
           actorEmail: actor?.email || "",
           now: Date.now(),
         });
@@ -2341,6 +2481,22 @@ export default async function handler(req, res) {
         if (result.rejectedCreates) {
           json(res, { ok: false, error: actor ? "not_owner" : "authentication_required" }, actor ? 403 : 401, req);
           return;
+        }
+        // Product count per plan (src/lib/plans.js maxProducts). Only a write
+        // that GROWS the creator's catalog past the plan is refused — existing
+        // products are never removed, and edits/deletes always pass.
+        if (normalizedKey === "marketplace:products" && actor && result.ok) {
+          const mine = (arr) => (Array.isArray(arr) ? arr : []).filter((p) => p && ownedIds.has(String(p.marketerId))).length;
+          const before = mine(parseStoreValue(storedValue));
+          const after = mine(result.value);
+          if (after > before) {
+            const ent = await writerEntitlement(actor);
+            if (!productLimitAllows(ent, before, after)) {
+              const limit = ent.capabilities.quotas.maxProducts;
+              json(res, { ok: false, error: PRODUCT_LIMIT_ERROR, limit, used: before, upgrade: productUpgrade(limit) }, 402, req);
+              return;
+            }
+          }
         }
         valueToWrite = JSON.stringify(result.value);
       }
@@ -2368,6 +2524,17 @@ export default async function handler(req, res) {
 // private map cannot be read, nothing is written.
 const privateKv = createPrivateKv({ get: (k) => kvGetRaw(k), set: (k, v) => kvSetRaw(k, v), assertWritable: assertKvWritable });
 async function kvGet(key) { return privateKv.get(key, null); }
+
+// The plan of the creator behind a verified session (server-verified
+// subscription only; the platform owner is unlimited).
+async function writerEntitlement(actor) {
+  const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+  if (ownerEmail && String(actor?.email || "").trim().toLowerCase() === ownerEmail) {
+    return resolveEntitlement({ isPlatformOwner: true, now: Date.now() });
+  }
+  const subs = await kvGet("marketplace:subscriptions");
+  return resolveEntitlement({ subscription: pickSubscription(Array.isArray(subs) ? subs : [], actor?.id), now: Date.now() });
+}
 async function kvSet(key, value) { return privateKv.set(key, value); }
 
 export { kvGet, kvSet, kvDelete, kvGetRaw };

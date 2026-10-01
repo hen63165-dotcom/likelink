@@ -256,10 +256,12 @@ test("entitlements: pending never unlocks, cancelled keeps paid time, provider o
   assert.equal(resolveEntitlement({ subscription: { planId: "professional", status: "pending" }, now }).plan, "free");
   assert.equal(resolveEntitlement({ subscription: { planId: "professional", status: "active" }, now }).plan, "professional");
   assert.equal(resolveEntitlement({ subscription: { planId: "starter", status: "active", expiresAt: new Date(now - 1).toISOString() }, now }).plan, "free");
-  assert.equal(resolveEntitlement({ subscription: { planId: "enterprise", status: "cancelled", expiresAt: new Date(now + 86400000).toISOString() }, now }).plan, "enterprise");
+  assert.equal(resolveEntitlement({ subscription: { planId: "professional", status: "cancelled", expiresAt: new Date(now + 86400000).toISOString() }, now }).plan, "professional");
+  assert.equal(resolveEntitlement({ subscription: { planId: "elite", status: "active" }, now }).plan, "free", "Elite is a waitlist teaser — it can never unlock anything");
+  assert.equal(resolveEntitlement({ subscription: { planId: "enterprise", status: "active" }, now }).plan, "free", "a retired plan id unlocks nothing");
   const src = readFileSync(path.join(ROOT, "src/lib/discovery/entitlements.js"), "utf8");
   assert.doesNotMatch(src, /\bfetch\(/, "the resolver never calls a provider, so a timeout can never revoke access");
-  const all = [{ userId: "u", status: "pending", planId: "starter", createdAt: "2026-01-01" }, { userId: "x", status: "active", planId: "enterprise" }];
+  const all = [{ userId: "u", status: "pending", planId: "starter", createdAt: "2026-01-01" }, { userId: "x", status: "active", planId: "professional" }];
   assert.equal(pickSubscription(all, "u").status, "pending", "a pending record is found so it can be verified");
 });
 
