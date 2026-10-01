@@ -232,13 +232,22 @@ test("a customer's checkout never creates PayPal plans — only the owner's prov
     await store({ method: "POST", url: `/api/store?mode=subs&sub=${sub}`, headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.31", authorization: `Bearer ${token}` }, [Symbol.asyncIterator]: async function* () { yield Buffer.from(JSON.stringify(body)); } }, res);
     return res;
   };
-  let res = await call("checkout", "tok-user", { planId: "starter", billingPeriod: "monthly" });
+  // PayPal credentials alone do not make the catalog "ready": no plan exists yet.
+  let res = await call("plans", "tok-user");
+  assert.equal(res.body.paypalConfigured, false, "the checkout button stays disabled until the owner creates the plans");
+  assert.equal(res.body.paypalConnected, true);
+  assert.equal(res.body.selfProvisioning, false);
+  assert.ok(res.body.plans.every((p) => !p.paypalConfigured.monthly && !p.paypalConfigured.yearly));
+  res = await call("checkout", "tok-user", { planId: "starter", billingPeriod: "monthly" });
   assert.equal(res.statusCode, 503);
   assert.equal(res.body.error, "plan_not_configured");
   assert.ok(!paypal.calls.some((c) => /^POST \/v1\/(billing\/plans|catalogs\/products)/.test(c)), "nothing was created at PayPal by a customer");
   res = await call("provision-plans", "tok-owner");
   assert.equal(res.statusCode, 200, JSON.stringify(res.body));
   _resetPayPalCaches();
+  res = await call("plans", "tok-user");
+  assert.equal(res.body.paypalConfigured, true);
+  assert.deepEqual(res.body.plans.filter((p) => p.paypalConfigured.monthly && p.paypalConfigured.yearly).map((p) => p.id), ["starter", "professional"], "only the provisioned plans are ready (never Free / the Elite waitlist)");
   paypal.calls.length = 0;
   res = await call("checkout", "tok-user", { planId: "starter", billingPeriod: "monthly" });
   assert.ok(!paypal.calls.some((c) => /^POST \/v1\/billing\/plans/.test(c)), "checkout reads the owner-provisioned plan, never creates one");

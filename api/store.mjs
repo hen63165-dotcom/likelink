@@ -508,19 +508,22 @@ async function subsHandler(req, res) {
   if (sub === "plans") {
     try {
       const { getAllPlans } = await import("../src/lib/plans.js");
-      const plans = getAllPlans().map((p) => ({
+      // Ready = a PayPal plan id exists for that plan/period — the SAME lookup
+      // checkout uses (resolvePayPalPlanId). Credentials alone are not enough:
+      // plans are created only by the owner's button (sub=provision-plans), so
+      // the checkout button stays disabled until they exist.
+      const connected = paypalConfigured();
+      let stored = null;
+      const kvOnce = (key, fallback) => (stored ||= kvGet(key, fallback));
+      const ready = async (id, period) => connected && Boolean(await resolvePayPalPlanId(id, period, { kvGet: kvOnce }).catch(() => null));
+      const plans = await Promise.all(getAllPlans().map(async (p) => ({
         id: p.id, name: p.name, tagline: p.tagline, price: p.price, priceYearly: p.priceYearly,
         period: p.period, features: p.features, quotas: p.quotas, cta: p.cta,
         purchasable: Boolean(p.purchasable && !p.comingSoon), comingSoon: Boolean(p.comingSoon),
-        // Self-provisioning: when PayPal creds exist, plans are created on first
-        // demand by the cloud (ensureBillingPlans). Env vars remain the legacy
-        // override; absence is no longer a config blocker.
-        paypalConfigured: {
-          monthly: Boolean(process.env[PLAN_ENV_MONTHLY[p.id]]) || paypalConfigured(),
-          yearly: Boolean(process.env[PLAN_ENV_YEARLY[p.id]]) || paypalConfigured(),
-        },
-      }));
-      return json(res, { ok: true, plans, paypalConfigured: paypalConfigured(), selfProvisioning: paypalConfigured() }, 200, req);
+        paypalConfigured: { monthly: await ready(p.id, "monthly"), yearly: await ready(p.id, "yearly") },
+      })));
+      const anyReady = plans.some((p) => p.paypalConfigured.monthly || p.paypalConfigured.yearly);
+      return json(res, { ok: true, plans, paypalConfigured: anyReady, paypalConnected: connected, selfProvisioning: false }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
