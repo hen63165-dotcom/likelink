@@ -50,7 +50,9 @@ export function prepareExternal(destination, { v, asset, product, creator, origi
   const net = pack?.networks?.[channel] || pack?.networks?.facebook;
   const creative = v?.creative?.creativeId ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, productId: product.id } : null;
   const trackingUrl = creative ? creativeUrl(creative, channel, origin) : net?.link || null;
-  const caption = String(net?.caption || "");
+  // The caption carries the creative's own tracked URL (utm_source = this channel + cid),
+  // so a click from the post is attributed to this creative.
+  const caption = trackingUrl && net?.link ? String(net.caption || "").split(net.link).join(trackingUrl) : String(net?.caption || "");
   const durationMs = Number(asset.durationMs || v?.durationMs || 0);
   const checks = [
     { id: "video_https", ok: /^https:\/\//.test(String(asset.assetUrl || "")) },

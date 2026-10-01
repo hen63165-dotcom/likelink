@@ -28,6 +28,9 @@ test("not connected: GENERATED + internally PUBLISHED/VERIFIED, externally PREPA
   assert.ok(ig.prepared.payload.caption.startsWith("רגע לפני שיוצאים"), "the creative's own hook opens the caption");
   assert.ok(ig.prepared.payload.caption.includes("#פרסומת") && ig.prepared.payload.caption.includes("אנימציה ממוחשבת"));
   assert.match(ig.prepared.trackingUrl, /cid=cr_x1/);
+  const tg = proof.publications.find((p) => p.destination === "telegram_brand").prepared;
+  assert.ok(tg.payload.caption.includes(tg.trackingUrl), "the caption link is the creative's tracked URL");
+  assert.ok(!/utm_source=facebook/.test(proof.publications.find((p) => p.destination === "webhook_brand").prepared.payload.caption));
   assert.equal(proof.lifecycle.GENERATED.ok, true);
   assert.ok(proof.lifecycle.PUBLISHED.internal.length > 0);
   assert.deepEqual(proof.lifecycle.PUBLISHED.external, []);
