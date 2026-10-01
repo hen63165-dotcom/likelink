@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { X, Video, Loader2, Download, Share2, CheckCircle2, Send } from "lucide-react";
 import { generateProductReel, canRecordVideo } from "../../lib/videoEngine.js";
 import { uploadReelVideo } from "../../lib/uploadVideo.js";
+import { registerStudioReel, mediaPathOf, reelErrorHe } from "../../lib/reelClient.js";
 import { useVideos } from "../../context/VideoContext";
 import VideoUpload from "./VideoUpload";
 import { getBrandWorld, worldHook, worldVideoPalette } from "../../lib/brandWorlds.js";
@@ -27,7 +28,7 @@ const PALETTE_OPTIONS = [
   { id: "gold", label: "זהב · יוקרה", swatch: "#241404" },
 ];
 
-export default function AutoVideoStudio({ product, marketer, onClose, showToast, onOpenMarketing }) {
+export default function AutoVideoStudio({ product, marketer, onClose, showToast, onOpenMarketing, onRegistered }) {
   const { addVideo } = useVideos();
   const [stage, setStage] = useState("idle"); // idle | rendering | done
   const [progress, setProgress] = useState(0);
@@ -131,21 +132,23 @@ export default function AutoVideoStudio({ product, marketer, onClose, showToast,
     setSaving(true);
     try {
       // מעלה ל-Supabase כדי שהריל יופיע בפיד אצל כולם; בכשל — נשאר מקומי
-      const remoteUrl = await uploadReelVideo(result.blob);
-      addVideo({
-        title: product.title || "Reel",
-        description: hook,
-        videoUrl: remoteUrl || result.url,
-        marketerId: marketer?.id,
-        productTags: [{ productId: product.id }],
-        source: "studio",
-        public: Boolean(remoteUrl),
-      });
-      showToast?.(
-        remoteUrl
-          ? "הריל פורסם לפיד — כולם רואים אותו 🎬"
-          : "נשמר במכשיר (Supabase לא מוגדר בסביבה הזו) 🎬"
-      );
+      // Upload → the server copies it to the public path, verifies it by an
+      // anonymous read-back, registers it as a disclosed computer animation
+      // and publishes it. Only that verified result is shown as "published".
+      const remoteUrl = await uploadReelVideo(result.blob, { marketerId: marketer?.id });
+      if (!remoteUrl) {
+        addVideo({ title: product.title || "Reel", description: hook, videoUrl: result.url, marketerId: marketer?.id, productTags: [{ productId: product.id }], source: "likelink_studio_render", synthetic: true, public: false });
+        showToast?.("נשמר רק במכשיר הזה — ההעלאה לאחסון נכשלה, לא פורסם.");
+        return;
+      }
+      const r = await registerStudioReel(mediaPathOf(remoteUrl), product.id);
+      if (r.ok && r.video) {
+        addVideo(r.video);
+        showToast?.(r.publication?.status === "PUBLISHED" ? "הריל אומת ופורסם ב־LikeLink (אנימציה ממוחשבת, מסומנת) 🎬" : "הריל אומת ונרשם — הפרסום לא אומת.");
+        onRegistered?.(r);
+      } else {
+        showToast?.(reelErrorHe(r.error));
+      }
     } finally {
       setSaving(false);
     }

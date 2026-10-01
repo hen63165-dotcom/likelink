@@ -12,7 +12,10 @@ import {
   Heart,
   Link2,
   Loader2,
+  Pause,
   Play,
+  Volume2,
+  VolumeX,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -119,18 +122,22 @@ function useReducedMotion() {
  * fallback. Never a broken image, never an empty black box, never a fake
  * play button on a photo. Videos play muted only while on screen.
  */
-export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children }) {
+export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children, controls = false, controlsAt = "bottom", onFirstPlay }) {
   const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const userPaused = useRef(false);
   const reduced = useReducedMotion();
   const videoRef = useRef(null);
+  const firstPlay = useRef(false);
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !reduced) el.play?.().catch(() => {});
-        else el.pause?.();
+        if (entry.isIntersecting && !reduced && !userPaused.current) el.play?.().catch(() => {});
+        else if (!entry.isIntersecting) el.pause?.();
       },
       { threshold: 0.55 }
     );
@@ -151,8 +158,28 @@ export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 6
           loop
           preload="metadata"
           aria-label={alt}
+          onPlay={() => {
+            setPlaying(true);
+            if (!firstPlay.current) { firstPlay.current = true; onFirstPlay?.(); }
+          }}
+          onPause={() => setPlaying(false)}
           className="absolute inset-0 h-full w-full object-cover"
         />
+      ) : null}
+      {video && controls ? (
+        <div className={`absolute z-[2] flex gap-2 ${controlsAt === "side" ? "end-3 bottom-[21.5rem] flex-col" : controlsAt === "top" ? "end-3 top-12" : "bottom-3 start-3"}`}>
+          <PlayToggle playing={playing} onToggle={() => {
+            const el = videoRef.current;
+            if (!el) return;
+            if (el.paused) { userPaused.current = false; el.play?.().catch(() => {}); } else { userPaused.current = true; el.pause?.(); }
+          }} />
+          <MuteToggle muted={muted} onToggle={() => {
+            const el = videoRef.current;
+            if (!el) return;
+            el.muted = !el.muted;
+            setMuted(el.muted);
+          }} />
+        </div>
       ) : null}
       {showImage ? (
         <img
@@ -172,6 +199,25 @@ export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 6
       ) : null}
       {children}
     </div>
+  );
+}
+
+// Shown only on a real, playable <video> (never on a photo).
+function PlayToggle({ playing, onToggle }) {
+  const { L } = useL();
+  return (
+    <button type="button" className="lx-icon-btn" aria-pressed={!playing} aria-label={playing ? L("השהיה", "Pause") : L("ניגון", "Play")} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}>
+      {playing ? <Pause size={17} /> : <Play size={17} />}
+    </button>
+  );
+}
+
+function MuteToggle({ muted, onToggle }) {
+  const { L } = useL();
+  return (
+    <button type="button" className="lx-icon-btn" aria-pressed={!muted} aria-label={muted ? L("הפעלת קול", "Unmute") : L("השתקה", "Mute")} onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}>
+      {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+    </button>
   );
 }
 
@@ -446,7 +492,8 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
   return (
     <article className="lx-card flex h-full flex-col">
       <Go to={to} aria-label={product.displayTitle} className="block">
-        <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
+        {/* Cards stay photo-first; a reel exists → truth badge, playback in /reels and on the product page. */}
+        <Media src={product.media.image} video={ratio === "9 / 16" ? product.media.video : ""} poster={product.media.poster} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
           <div className="absolute start-2.5 top-2.5 flex flex-wrap gap-1.5">
             <MediaBadge state={product.media.state} />
             {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}

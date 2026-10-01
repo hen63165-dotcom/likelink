@@ -164,6 +164,7 @@ export function evaluateSystem(p = {}, { audience = "public", now = Date.now() }
   areas.push(area("ugc", "מדיה ו-UGC", u.realVideos > 0 ? COLOR.GREEN : COLOR.YELLOW,
     [
       `${u.realVideos || 0} סרטונים אמיתיים`,
+      `${u.syntheticAnimations || 0} אנימציות ממוחשבות (מסומנות, לא צילום)`,
       `${u.syntheticImages || 0} תמונות סינתטיות (מסומנות כסינתטיות)`,
       u.realProductPhotos != null ? `${u.realProductPhotos} מוצרים עם תמונה אמיתית של המוצר` : `${u.images || 0} תמונות מוצר`,
       u.stockPhotos ? `${u.stockPhotos} מוצרים עם תמונת אווירה ממאגר (לא תמונת המוצר)` : null,

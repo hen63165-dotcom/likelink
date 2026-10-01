@@ -242,6 +242,11 @@ export function HomePage({ graph, navigate }) {
         <div className="lx-wrap relative grid items-center gap-10 pb-6 pt-8 md:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="lx-rise">
             <p className="lx-kicker"><Sparkles size={14} /> {L("Creator commerce בעברית", "Creator commerce, Hebrew first")}</p>
+            <nav aria-label={L("מה עושים כאן", "What you can do here")} className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[13px] font-semibold" style={{ color: "var(--lx-ink-2)" }}>
+              {[["/discover", L("לגלות", "Discover")], ["/products", L("לקנות", "Shop")], ["/reels", L("לצפות", "Watch")], ["/creators", L("לעקוב", "Follow")], ["/studio", L("ליצור", "Create")], ["/studio", L("להרוויח", "Earn")]].map(([to, label], i) => (
+                <Go key={label} to={to} className="hover:underline">{i ? "· " : ""}{label}</Go>
+              ))}
+            </nav>
             <h1 id="lx-hero-title" className="lx-display mt-3 text-[42px] leading-[1.02] sm:text-[54px] lg:text-[68px]">
               {L("גלו מה שווה לקנות", "Discover what's worth buying")}
               <span className="block" style={{ color: "var(--lx-rose)" }}>{L("דרך אנשים.", "through people.")}</span>
@@ -835,16 +840,23 @@ export function ProductPage({ graph, id, navigate }) {
         <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-10 lg:grid-cols-[1.15fr_1fr]">
           {/* MEDIA */}
           <div className="md:sticky md:top-24 md:self-start">
-            <div className="lx-card">
-              <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio="4 / 5" width={1000} eager label={product.displayTitle}>
-                <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
-                  <MediaBadge state={product.media.state} showImage />
-                  <StyleBadge style={product.media.style} />
-                  {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
-                </div>
+            <div className="lx-card" style={product.media.video ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
+              <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio={product.media.video ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(product.media.video)}>
+                {product.media.video ? null : (
+                  <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
+                    <MediaBadge state={product.media.state} showImage />
+                    {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
+                  </div>
+                )}
               </Media>
               <SaveButton productId={product.id} className="absolute end-3 top-3" />
             </div>
+            {product.media.video ? (
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                <MediaBadge state={product.media.state} showImage />
+                <StyleBadge style={product.media.style} />
+              </div>
+            ) : null}
           </div>
 
           {/* DETAILS */}
@@ -946,6 +958,7 @@ export function ProductPage({ graph, id, navigate }) {
 
 export function ReelsPage({ graph }) {
   const { L, lang } = useL();
+  const { recordProductView } = useMarketplace();
   const [target] = useQueryParam("r");
   const hasReels = graph.reels.length > 0;
   // Without published reels, the same immersive pager shows product stories
@@ -973,9 +986,11 @@ export function ReelsPage({ graph }) {
     <div className="relative">
       <h1 className="lx-sr">{hasReels ? "LikeLink Reels" : L("סיפורי מוצר", "Product stories")}</h1>
       <div className="absolute inset-x-0 top-0 z-10 flex justify-center px-4 pt-3" style={{ pointerEvents: "none" }}>
-        <span className="lx-badge lx-badge-glass" style={{ pointerEvents: "auto" }}>
-          {hasReels ? "LikeLink Reels" : L("סיפורי מוצר בתמונות · עדיין אין סרטונים שפורסמו", "Product stories in photos · no reels published yet")}
-        </span>
+        {hasReels ? null : (
+          <span className="lx-badge lx-badge-glass" style={{ pointerEvents: "auto" }}>
+            {L("סיפורי מוצר בתמונות · עדיין אין סרטונים שפורסמו", "Product stories in photos · no reels published yet")}
+          </span>
+        )}
       </div>
       <div ref={scroller} className="lx-reels" aria-label={L("סרטונים", "Reels")}>
         {items.map(({ key, kind, reel, product, creator }) => (
@@ -989,14 +1004,16 @@ export function ReelsPage({ graph }) {
                 ratio="auto"
                 width={900}
                 style={{ position: "absolute", inset: 0, height: "100%" }}
+                controls={kind === "reel"}
+                controlsAt="side"
+                onFirstPlay={() => { if (product && recordProductView) recordProductView(product); }}
               />
               <div className="lx-reel-shade" />
-              <div className="absolute start-3 top-12">
-                <div className="flex flex-col items-start gap-1">
-                  <MediaBadge state={kind === "reel" ? reel.state : product?.media.state} showImage />
-                  {kind === "reel" ? <StyleBadge style={reel.style} /> : null}
+              {kind === "story" ? (
+                <div className="absolute start-3 top-12">
+                  <MediaBadge state={product?.media.state} showImage />
                 </div>
-              </div>
+              ) : null}
               {/* Side actions */}
               <div className="absolute bottom-40 end-3 flex flex-col items-center gap-3">
                 {product ? <SaveButton productId={product.id} /> : null}
@@ -1007,6 +1024,12 @@ export function ReelsPage({ graph }) {
               </div>
               {/* Caption + product tag */}
               <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                {kind === "reel" ? (
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    <MediaBadge state={reel.state} showImage />
+                    <StyleBadge style={reel.style} />
+                  </div>
+                ) : null}
                 {creator ? (
                   <Go to={creatorPath(creator.slug)} className="text-[15px] font-bold">{creator.name}</Go>
                 ) : null}

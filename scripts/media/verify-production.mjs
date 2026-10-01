@@ -72,12 +72,16 @@ async function main() {
       await page.waitForTimeout(2500); await save.click();
       const saved = (await save.getAttribute("aria-pressed")) === "true";
       await page.goto(BASE + "/saved", { waitUntil: "load" });
+      await page.waitForTimeout(3000);
       const savedCount = await page.locator("article").count();
       await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" });
       await page.waitForTimeout(2500); await page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click();
       const following = await page.locator("button[aria-pressed=true]", { hasText: "עוקבים" }).count();
       await page.goto(BASE + "/", { waitUntil: "load" });
-      await page.locator("button", { hasText: "EN" }).first().click().catch(() => {});
+      // At 375px the language switch lives in the menu drawer.
+      await page.waitForTimeout(2000);
+      await page.locator("button[aria-label='תפריט']").click().catch(() => {});
+      await page.locator("[role=dialog] button", { hasText: "EN" }).first().click().catch(() => {});
       await page.waitForTimeout(500);
       const dir = await page.evaluate(() => document.querySelector(".lx")?.dir);
       summary(`- interactions: save ${saved} → saved page items ${savedCount} · follow ${following > 0} · language switch dir=${dir}`);

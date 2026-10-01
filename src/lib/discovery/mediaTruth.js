@@ -89,7 +89,8 @@ export function productMediaTruth(product = {}, assets = []) {
     // The product's own video keeps its provider + synthetic flag, so a
     // LikeLink render attached to a product is never read as a filmed video.
     { image: product?.image, videoUrl: product?.videoUrl, videoStatus: product?.videoStatus, videoProvider: product?.videoProvider, synthetic: product?.videoSynthetic === true, source: "product" },
-    ...(Array.isArray(assets) ? assets : []).map((a) => ({ ...a, source: a?.source || "asset" })),
+    // The same file attached to the product and listed as an asset counts once.
+    ...(Array.isArray(assets) ? assets : []).filter((a) => !(a?.videoUrl && a.videoUrl === product?.videoUrl)).map((a) => ({ ...a, source: a?.source || "asset" })),
   ];
   const classified = records.map((r) => ({ ...classifyMediaRecord(r), source: r.source }));
   const best = classified.reduce((a, b) => (RANK[b.state] > RANK[a.state] ? b : a), { state: MEDIA_TRUTH.MISSING_MEDIA, url: "", synthetic: false });

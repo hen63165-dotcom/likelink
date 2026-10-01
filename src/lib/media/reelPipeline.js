@@ -30,6 +30,8 @@ import { classifyMediaRecord, MEDIA_TRUTH } from "../discovery/mediaTruth.js";
 import { categoryName, formatPrice, merchantOf } from "../publicDiscovery.js";
 
 export const RENDER_PROVIDER = "likelink_native_render";
+/** A clip a creator rendered in the Studio (in-browser canvas engine), registered by the server. */
+export const STUDIO_PROVIDER = "likelink_studio_render";
 export const RENDERER_VERSION = "reel-canvas-v1";
 export const REEL_WIDTH = 720;
 export const REEL_HEIGHT = 1280;
@@ -52,6 +54,12 @@ export const REEL_STYLES = Object.freeze({
     he: "סיפור מוצר מונפש",
     en: "Animated product story",
     durationMs: 10000,
+  },
+  // Not planned by the runner — the creator renders it in the Studio.
+  studio: {
+    he: "קליפ מהסטודיו · אנימציה ממוחשבת",
+    en: "Studio clip · computer animation",
+    durationMs: 0,
   },
 });
 export const STYLE_ORDER = Object.freeze(["cinematic3d", "ugc_style", "animated_story"]);
@@ -104,7 +112,7 @@ export function buildReelConcept({ product, creator, style }) {
 export function registeredStyles(videos = []) {
   const map = new Map();
   for (const v of Array.isArray(videos) ? videos : []) {
-    if (v?.source !== RENDER_PROVIDER || !REEL_STYLES[v.style]) continue;
+    if (v?.source !== RENDER_PROVIDER || !STYLE_ORDER.includes(v.style)) continue;
     for (const t of Array.isArray(v.productTags) ? v.productTags : []) {
       if (!t?.productId) continue;
       if (!map.has(t.productId)) map.set(t.productId, new Set());
@@ -201,7 +209,7 @@ export function validateIngest(body = {}) {
   const fail = (error) => ({ ok: false, error });
   if (!body || typeof body !== "object") return fail("bad_body");
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(text(body.productId))) return fail("bad_product_id");
-  if (!REEL_STYLES[body.style]) return fail("bad_style");
+  if (!STYLE_ORDER.includes(body.style)) return fail("bad_style");
   if (text(body.renderer) !== RENDERER_VERSION) return fail("unknown_renderer");
   const probe = body.probe || {};
   const duration = Number(probe.durationMs);
@@ -213,12 +221,12 @@ export function validateIngest(body = {}) {
 }
 
 /** The asset record (ugc:assets:<id>) and the public reel record (marketplace:videos). */
-export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now() }) {
+export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, sha256, probe, now = Date.now(), provider = RENDER_PROVIDER }) {
   const id = `reel_${product.id}_${style}_${now}`;
   const styleLabel = { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en };
   const base = {
-    source: RENDER_PROVIDER,
-    videoProvider: RENDER_PROVIDER,
+    source: provider,
+    videoProvider: provider,
     renderer: RENDERER_VERSION,
     synthetic: true,
     disclosed: true,

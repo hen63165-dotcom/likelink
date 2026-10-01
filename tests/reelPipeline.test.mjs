@@ -25,7 +25,7 @@ import {
   RENDERER_VERSION,
   STYLE_ORDER,
 } from "../src/lib/media/reelPipeline.js";
-import { ingestReel, auditReels, buildPlan } from "../src/lib/cloud/reelPublisher.js";
+import { ingestReel, auditReels, buildPlan, registerStudioUpload, requestRender, studioReelState } from "../src/lib/cloud/reelPublisher.js";
 import { isPublicVideo } from "../src/lib/videoSync.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../src/lib/discovery/mediaTruth.js";
 import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
@@ -89,6 +89,13 @@ function fakeSupabase({ products = [product("p1"), product("p2")], corruptReadba
     if (u.pathname.startsWith(objPrefix) && method === "POST") {
       objects.set(u.pathname.slice(objPrefix.length), { bytes: Buffer.from(opts.body), type: opts.headers["Content-Type"] });
       return json({ Key: u.pathname });
+    }
+    if (u.pathname === "/storage/v1/object/copy" && method === "POST") {
+      const { sourceKey, destinationKey } = JSON.parse(opts.body);
+      const o = objects.get(sourceKey);
+      if (!o) return new Response("missing", { status: 404 });
+      objects.set(destinationKey, { ...o });
+      return json({ Key: destinationKey });
     }
     if (u.pathname === "/storage/v1/object/product-images" && method === "DELETE") {
       for (const p of JSON.parse(opts.body).prefixes) objects.delete(p);
@@ -252,4 +259,63 @@ test("renderer, workflow and endpoint stay inside the architecture", () => {
   const count = readdirSync(path.join(ROOT, "api"), { withFileTypes: true }).filter((e) => !e.isDirectory() && /\.(mjs|js)$/.test(e.name)).length;
   assert.ok(count <= 12, `serverless functions: ${count}`);
   assert.ok(read("src/lib/cloud/autonomousJobs.js").includes('"native-reel-audit"'));
+});
+
+const WEBM = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(5000, 9)]);
+
+test("studio one-click: an owner's browser render becomes a verified, disclosed public reel", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  sb.objects.set("reels/m1/1-abc.webm", { bytes: WEBM, type: "video/webm" });
+  const r = await registerStudioUpload({ sourcePath: "reels/m1/1-abc.webm", productId: "p1", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl, now: 7 });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.truth, "SYNTHETIC_ANIMATION");
+  assert.equal(r.video.source, "likelink_studio_render");
+  assert.equal(r.video.synthetic, true);
+  assert.equal(r.proof.media.status, "VERIFIED");
+  assert.equal(r.publication.status, "PUBLISHED");
+  assert.ok(sb.objects.has("ugc/p1/7-studio.webm"));
+  const state = await studioReelState({ ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(state.reels.length, 1);
+});
+
+test("studio one-click refuses someone else's upload or product, and fake media", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  sb.objects.set("reels/m2/1-x.webm", { bytes: WEBM, type: "video/webm" });
+  sb.objects.set("reels/m1/2-y.webm", { bytes: Buffer.from("not a video at all, just text padding ...".repeat(40)), type: "video/webm" });
+  assert.equal((await registerStudioUpload({ sourcePath: "reels/m2/1-x.webm", productId: "p1", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl })).error, "not_your_upload");
+  assert.equal((await registerStudioUpload({ sourcePath: "../etc/passwd", productId: "p1", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl })).error, "bad_source_path");
+  assert.equal((await registerStudioUpload({ sourcePath: "reels/m2/1-x.webm", productId: "p1", ownerIds: ["m2"] }, { env: sb.env, fetchImpl: sb.fetchImpl })).error, "not_your_product");
+  const fake = await registerStudioUpload({ sourcePath: "reels/m1/2-y.webm", productId: "p1", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(fake.error, "not_a_playable_video");
+  assert.deepEqual(sb.get("marketplace:videos"), [], "nothing registered");
+});
+
+test("a creator request is queued once and served first by the plan, then marked rendered", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase({ products: [product("p1", { createdAt: 9 }), product("p2", { createdAt: 1 })] });
+  assert.equal((await requestRender({ productId: "p2", ownerIds: ["zz"] }, { env: sb.env, fetchImpl: sb.fetchImpl })).error, "not_your_product");
+  const q = await requestRender({ productId: "p2", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(q.request.status, "QUEUED");
+  assert.equal((await requestRender({ productId: "p2", ownerIds: ["m1"] }, { env: sb.env, fetchImpl: sb.fetchImpl })).duplicate, true);
+  const plan = await buildPlan({ env: sb.env, fetchImpl: sb.fetchImpl, limit: 1 });
+  assert.equal(plan.plan[0].productId, "p2", "requested product first even though p1 is newer");
+  assert.equal(plan.plan[0].reason, "creator_request");
+  const r = await ingestReel(ingestBody({ productId: "p2", style: plan.plan[0].style, conceptId: "p2:x" }), { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(r.ok, true);
+  assert.equal(sb.get("media:requests")[0].status, "RENDERED");
+});
+
+test("publishing a reel never evicts earlier feed posts (append-only, cap = publish:log length)", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  const old = Array.from({ length: 30 }, (_, i) => ({ id: `bp_old_${i}`, ts: i, text: "x" }));
+  sb.kv.set("brand_pulse:posts", JSON.stringify(old));
+  const r = await ingestReel(ingestBody(), { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(r.ok, true);
+  const feed = sb.get("brand_pulse:posts");
+  assert.equal(feed.length, 31, "nothing evicted");
+  assert.equal(feed[0].id, "bp_old_0", "oldest stays first");
+  assert.equal(feed[30].id, r.publication.externalId, "new post appended last");
 });
