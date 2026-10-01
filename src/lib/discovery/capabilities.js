@@ -119,7 +119,7 @@ const REGISTRY = {
     reason: "הפצה לקהל חיצוני",
     risk: RISK.HIGH, permission: PERMISSION.OWNER_EXPLICIT, executor: EXECUTOR.EXTERNAL,
     satisfies: ["published_external"],
-    preconditions: (p, ctx) => [{ ok: Boolean(ctx.externalConnected), he: "יש ערוץ חיצוני מחובר" }],
+    preconditions: (p, ctx) => [{ ok: Boolean(ctx.externalConnected), he: "יש ערוץ חיצוני מחובר" }, { ok: p.promotion?.promotable !== false, he: "המוצר כשיר לקידום (קישור משלו + תמונה אמיתית)" }],
     expected: "אישור מהספק (מזהה הודעה) — רק אז 'פורסם'",
     verification: "provider_confirmation",
     rollback: "delete_provider_post",
@@ -182,6 +182,31 @@ const REGISTRY = {
     expected: "טיוטת הזמנה ביד הבעלים — שום הודעה לא יוצאת מ-LikeLink",
     verification: "owner_confirmation",
   },
+  repair_product_truth: {
+    he: "השלמת אמת המוצר: קישור שותפים משלו ותמונה אמיתית",
+    native: true, adapter: null, isNew: true,
+    reason: "מוצר בלי קישור משלו (מוביל לדף הבית) או עם תמונת מאגר לא מקודם — זה היה מטעה את הקונה",
+    risk: RISK.LOW, permission: PERMISSION.OWNER, executor: EXECUTOR.OWNER,
+    satisfies: ["promotion_ready"],
+    preconditions: () => [],
+    expected: "למוצר קישור שותפים לדף המוצר עצמו ותמונה מדף המוצר בחנות (או צילום שלך)",
+    verification: "recompute_promotion",
+    rollback: null,
+  },
+  request_native_reel: {
+    he: "הזמנת Reel נייטיב (אנימציה מסומנת) מהמנוע של LikeLink",
+    native: true, adapter: null, isNew: true,
+    reason: "Reel אנכי עם Hook פותח משטחי גילוי (Reels, פיד, שיתוף) — נוצר ב-LikeLink עצמה, בלי ספק חיצוני",
+    risk: RISK.LOW, permission: PERMISSION.SESSION, executor: EXECUTOR.INTERNAL,
+    satisfies: ["native_reel"],
+    preconditions: (p) => [
+      { ok: p.isPublic, he: "המוצר ציבורי" },
+      { ok: p.promotion?.promotable === true, he: "המוצר כשיר לקידום (קישור משלו + תמונה אמיתית)" },
+    ],
+    expected: "בקשת רינדור בתור media:requests; ה-Reel עצמו נחשב קיים רק אחרי שהקובץ נקרא חזרה מהאחסון הציבורי",
+    verification: "reread_render_queue",
+    rollback: null,
+  },
   agent_commerce_readiness: {
     he: "מוכנות למסחר בין סוכנים (נתונים מובנים)",
     native: true, adapter: null, isNew: true,
@@ -210,6 +235,10 @@ export const FACTS = Object.freeze({
   shared_manually: { he: "שותף ידנית", read: (p) => (p.tracking.bySource?.luna_share || 0) > 0 },
   measured: { he: "מצב גילוי מתועד", read: () => false },
   agent_commerce_ready: { he: "מוכן למסחר בין סוכנים", read: (p) => Boolean(p.agentCommerce?.ready) },
+  // LikeLoop (catalogIntegrity.js): own affiliate link + a real product photo.
+  promotion_ready: { he: "כשיר לקידום (קישור משלו + תמונה אמיתית)", read: (p) => p.promotion?.promotable === true },
+  // A disclosed reel exists (native render = SYNTHETIC_ANIMATION, or a real video).
+  native_reel: { he: "יש Reel (אנימציה מסומנת או וידאו אמיתי)", read: (p) => ["SYNTHETIC_ANIMATION", "REAL_VIDEO"].includes(p.media?.state) },
   creator_recruited: { he: "הוזמנו יוצרות", read: () => false },
 });
 
@@ -232,6 +261,8 @@ const CONTRACT = {
   build_campaign: { dependencies: [], evidence: "הטיוטה נקראה חזרה עם אותה טביעת אצבע", recovery: "dead-letter + ריצה חוזרת; טיוטה בלבד — אין מה לבטל אצל ספק" },
   recruit_creator: { dependencies: [], evidence: "טיוטות הזמנה בלבד; מסירה ידנית על ידי הבעלים", recovery: "אין — שום דבר לא נשלח" },
   agent_commerce_readiness: { dependencies: [], evidence: "בדיקת ה-JSON-LD שמוגש בפועל ב-/p/:id", recovery: "בדיקה בלבד — אין מה לשחזר" },
+  repair_product_truth: { dependencies: [], evidence: "catalogIssues מחושב מחדש בלי חוסם", recovery: "הבעלים מתקן — LikeLink לא ממציא קישור או תמונה" },
+  request_native_reel: { dependencies: [], evidence: "הבקשה נקראה חזרה מ-media:requests; הקובץ עצמו מאומת ב-ingest (sha256 + קריאה אנונימית)", recovery: "בקשה כפולה לא נוצרת (אידמפוטנטי); ריצת הרינדור הבאה מנסה שוב" },
 };
 
 const CAPABILITY_FIELDS = ["he", "reason", "risk", "permission", "executor", "satisfies", "preconditions", "expected", "verification", "dependencies", "evidence", "recovery", "version"];

@@ -224,3 +224,45 @@ test("visitor click events keep only known attribution fields (no free-form payl
   assert.equal(r.value[0].cnt.length, 60);
   assert.equal(r.value[1].cid, undefined);
 });
+
+// ── Luna knows the LikeLoop capabilities (intent → plan → action → proof) ──
+import { compileIntent, buildActionGraph } from "../src/lib/discovery/intent.js";
+import { buildPassport } from "../src/lib/discovery/engine.js";
+import { CAPABILITIES, FACTS } from "../src/lib/discovery/capabilities.js";
+
+test("Luna: 'more exposure' plans a native reel for a promotable product and a data repair for a demo one", () => {
+  const passports = [real, demoA].map((product) => buildPassport({ product, marketers: M, products: CATALOG }));
+  assert.equal(passports[0].promotion.promotable, true);
+  assert.equal(passports[1].promotion.promotable, false);
+  assert.ok(passports[1].promotion.issues.includes("shared_affiliate_link"));
+  const intent = compileIntent("לונה, תגדילי את החשיפה של המוצרים");
+  assert.ok(intent.requiredFacts.includes("promotion_ready") && intent.requiredFacts.includes("native_reel"));
+  const g = buildActionGraph(intent, passports);
+  const reelReal = g.nodes.find((n) => n.productId === "real" && n.fact === "native_reel");
+  assert.equal(reelReal.capability, "request_native_reel");
+  assert.equal(reelReal.status, "safe", "Luna may queue LikeLink's own render by herself");
+  const reelDemo = g.nodes.find((n) => n.productId === "d1" && n.fact === "native_reel");
+  assert.equal(reelDemo.status, "blocked", "never for a product that cannot be promoted honestly");
+  const truthDemo = g.nodes.find((n) => n.productId === "d1" && n.fact === "promotion_ready");
+  assert.equal(truthDemo.capability, "repair_product_truth");
+  assert.equal(truthDemo.status, "owner");
+  assert.equal(FACTS.native_reel.read({ media: { state: "STATIC_IMAGE" } }), false, "a photo is not a reel");
+  assert.equal(CAPABILITIES.request_native_reel.verification, "reread_render_queue");
+});
+
+test("Luna executes the reel request herself and proves it by read-back (the reel is not claimed)", async () => {
+  const { runIntent } = await import("../src/lib/discovery/orchestrator.js");
+  const store = new Map([["marketplace:products", CATALOG], ["marketplace:marketers", M]]);
+  const kvGet = async (k) => (store.has(k) ? structuredClone(store.get(k)) : null);
+  const kvSet = async (k, v) => { store.set(k, structuredClone(v)); };
+  const r = await runIntent({ kvGet, kvSet, goal: "לונה, תגדילי את החשיפה של המוצר", productId: "real", scope: { marketerIds: ["m1"] }, now: 1_790_000_000_000 });
+  assert.equal(r.ok, true, JSON.stringify(r).slice(0, 300));
+  const q = store.get("media:requests") || [];
+  assert.equal(q.filter((x) => x.productId === "real" && x.status === "QUEUED").length, 1);
+  const again = await runIntent({ kvGet, kvSet, goal: "לונה, תגדילי את החשיפה של המוצר", productId: "real", scope: { marketerIds: ["m1"] }, now: 1_790_000_100_000 });
+  assert.equal(again.ok, true);
+  assert.equal((store.get("media:requests") || []).filter((x) => x.productId === "real").length, 1, "idempotent");
+  const demo = await runIntent({ kvGet, kvSet, goal: "לונה, תגדילי את החשיפה של המוצר", productId: "d1", scope: { marketerIds: ["m1"] }, now: 1_790_000_200_000 });
+  assert.equal(demo.ok, true);
+  assert.ok(!(store.get("media:requests") || []).some((x) => x.productId === "d1"), "a demo product is never queued");
+});
