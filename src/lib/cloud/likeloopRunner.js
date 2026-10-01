@@ -26,6 +26,7 @@ import {
   selectCreatives,
   TRUTH,
 } from "../growth/likeloop.js";
+import { rankCatalog } from "../growth/opportunity.js";
 
 const KEYS = {
   products: "marketplace:products",
@@ -38,6 +39,7 @@ const KEYS = {
   trends: "trends:radar",
   queue: "likeloop:queue",
   state: "likeloop:state",
+  scores: "likeloop:scores",
 };
 const TRENDS_URL = "https://trends.google.com/trending/rss?geo=IL";
 const TREND_TTL_MS = 6 * 3_600_000;
@@ -142,7 +144,19 @@ export async function likeloopRun({ env = process.env, fetchImpl, now = Date.now
 
   const creator = marketers.find((m) => m?.slug) || null;
   const igConnected = channels.find((x) => x.channel === "instagram")?.state === "CONNECTED";
+  // RANK the whole catalog (batched, fingerprinted; unchanged products are reused).
+  const rank = rankCatalog({
+    products, truthRows: truth.rows, events: clicks, videos, marketers,
+    radarMatches: arr(radar.trends).filter((t) => t.relevance === "MATCHED"),
+    igPosted, previous: d.scores?.byId || {}, now,
+  });
   const state = {
+    opportunities: {
+      stats: rank.stats,
+      trends: rank.trends,
+      nextActions: rank.nextActions,
+      top: rank.ranked.slice(0, 10).map((r) => ({ productId: r.productId, title: r.title, opportunity: r.opportunity, trend: r.trend.state, reels: r.reels, next: r.next, scores: Object.fromEntries(Object.entries(r.scores).map(([k, v]) => [k, { score: v.score, basis: v.basis, confidence: v.confidence }])) })),
+    },
     at: new Date(now).toISOString(),
     counts: truth.counts,
     lifecycle: truth.rows.reduce((o, r) => ({ ...o, [r.lifecycle]: (o[r.lifecycle] || 0) + 1 }), {}),
@@ -160,6 +174,7 @@ export async function likeloopRun({ env = process.env, fetchImpl, now = Date.now
   };
   await c.kvWrite(KEYS.trends, radar);
   await c.kvWrite(KEYS.queue, queue);
+  await c.kvWrite(KEYS.scores, { at: new Date(now).toISOString(), byId: Object.fromEntries(rank.ranked.map((r) => [r.productId, r])) });
   await c.kvWrite(KEYS.state, state);
   const back = await c.kvRead(KEYS.state);
   const verified = back.ok && back.value?.at === state.at;
@@ -179,6 +194,7 @@ export function summarize(state, { admin = false } = {}) {
     channels: arr(state.channels).map((x) => ({ channel: x.channel, state: x.state })),
     queue: { total: state.queue?.total || 0, byStatus: state.queue?.byStatus || {} },
     trends: { status: state.trends?.status, observedAt: state.trends?.observedAt, matched: arr(state.trends?.matched).length },
+    catalog: state.opportunities ? { ...state.opportunities.stats, trendLifecycle: state.opportunities.trends, nextActions: state.opportunities.nextActions } : null,
   };
   if (admin) {
     Object.assign(out, {
@@ -191,6 +207,7 @@ export function summarize(state, { admin = false } = {}) {
       trendMatches: state.trends?.matched,
       profile: state.profile,
       productTruth: state.products,
+      opportunitiesTop: state.opportunities?.top || [],
     });
   }
   return out;
