@@ -51,7 +51,9 @@ export function validateResolution(body = {}, products = [], marketers = []) {
   try { img = new URL(String(body.image || "")); } catch { return fail("bad_image_url"); }
   if (img.protocol !== "https:") return fail("bad_image_url");
   if (imageProvenance(img.href) !== IMAGE_PROVENANCE.MERCHANT) return fail("image_not_merchant_photo");
-  return { ok: true, product, itemId: m[4], itemUrl: `https://www.aliexpress.com/item/${m[4]}.html`, image: img.href };
+  // Keep the store's own regional host (aliexpress.us ids differ from .com ids).
+  const host = String(body.itemUrl).match(/^https:\/\/([^/]+)/)[1].toLowerCase();
+  return { ok: true, product, itemId: m[4], itemUrl: `https://${host}/item/${m[4]}.html`, image: img.href };
 }
 
 function client({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
@@ -119,7 +121,10 @@ export async function applyResolution(body = {}, { env, fetchImpl, now = Date.no
   }
 
   const iso = new Date(now).toISOString();
-  const source = { provenance: IMAGE_PROVENANCE.MERCHANT, itemUrl: v.itemUrl, itemId: v.itemId, resolvedAt: iso, via: "store_product_page_og_image", previous: v.product.image || null, probe };
+  const source = { provenance: IMAGE_PROVENANCE.MERCHANT, itemUrl: v.itemUrl, itemId: v.itemId, resolvedAt: iso, via: "store_product_page_og_image", previous: v.product.image || null, probe,
+    // Where the runner saw it: the store page title and the workflow run (audit trail).
+    ...(body.storeTitle ? { storeTitle: String(body.storeTitle).slice(0, 140) } : {}),
+    ...(/^\d{6,14}$/.test(String(body.observedInRun || "")) ? { observedInRun: String(body.observedInRun) } : {}) };
   const next = arr(p.value).map((x) => (x?.id === v.product.id ? { ...x, image: v.image, imageSource: source, updatedAt: now } : x));
   await c.kvWrite(PRODUCTS_KEY, next);
   const back = await c.kvRead(PRODUCTS_KEY);

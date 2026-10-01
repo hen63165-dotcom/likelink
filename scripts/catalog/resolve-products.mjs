@@ -31,6 +31,22 @@ async function api(op, { method = "GET", body } = {}) {
 
 async function main() {
   if (!SECRET) throw new Error("AUTOPILOT_SECRET is required");
+  // Evidence mode: submit observations a previous run made on the store's own
+  // product pages (EVIDENCE_JSON = [{productId,itemUrl,image,storeTitle,observedInRun}]).
+  // The server applies exactly the same checks (product page, store CDN, it
+  // downloads the image itself, read-back) — no store request is made here.
+  if (process.env.EVIDENCE_JSON && process.env.EVIDENCE_JSON.trim()) {
+    const list = JSON.parse(process.env.EVIDENCE_JSON);
+    summary(`## Catalog resolver — evidence mode (${list.length})`);
+    let bad = 0;
+    for (const e of list) {
+      const r = await api("catalog-resolve", { method: "POST", body: e });
+      summary(`- ${e.productId}: http ${r.status} ${JSON.stringify(r.json).slice(0, 300)}`);
+      if (r.status !== 200) bad += 1;
+    }
+    if (bad) process.exitCode = 1;
+    return;
+  }
   const c = await api("catalog-candidates");
   if (c.status !== 200 || !c.json?.ok) throw new Error(`candidates_failed ${c.status} ${JSON.stringify(c.json).slice(0, 200)}`);
   summary(`## Catalog resolver — ${new Date().toISOString()}${DRY ? " (dry run)" : ""}`);
@@ -72,7 +88,7 @@ async function main() {
         continue;
       }
       if (DRY) continue;
-      const r = await api("catalog-resolve", { method: "POST", body: { productId: p.id, itemUrl, image } });
+      const r = await api("catalog-resolve", { method: "POST", body: { productId: p.id, itemUrl, image, storeTitle: found.title.slice(0, 140), observedInRun: process.env.GITHUB_RUN_ID || "" } });
       summary(`  - server: http ${r.status} ${JSON.stringify(r.json).slice(0, 300)}`);
       if (r.status !== 200) failures += 1;
     } catch (e) {

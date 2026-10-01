@@ -78,3 +78,19 @@ test("apply refuses a 'photo' that is not an image or is a tiny placeholder — 
     assert.equal(f.get("marketplace:products").find((x) => x.id === "own1").image, "https://images.unsplash.com/photo-1");
   }
 });
+
+test("a regional product page keeps its own host and the evidence trail is stored", async () => {
+  _resetKvReadGuard();
+  const f = fake();
+  const body = { productId: "own1", itemUrl: "https://www.aliexpress.us/item/3256811986400982.html", image: "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png", storeTitle: "925 Sterling Silver Classic Marquise Zircon Ring", observedInRun: "36880720408" };
+  const v = validateResolution(body, CATALOG, M);
+  assert.equal(v.ok, true, v.error);
+  assert.equal(v.itemUrl, "https://www.aliexpress.us/item/3256811986400982.html");
+  const fetchImpl = (url, opts) => (String(url).includes("aliexpress-media.com") ? Promise.resolve(new Response(new Uint8Array(20000), { status: 200, headers: { "content-type": "image/png" } })) : f.fetchImpl(url, opts));
+  const r = await applyResolution(body, { env: f.env, fetchImpl });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const p = f.get("marketplace:products").find((x) => x.id === "own1");
+  assert.equal(p.imageSource.observedInRun, "36880720408");
+  assert.equal(p.imageSource.storeTitle, body.storeTitle);
+  assert.equal((await applyResolution({ ...body, image: "https://images.unsplash.com/x.jpg" }, { env: f.env, fetchImpl })).error, "image_not_merchant_photo");
+});
