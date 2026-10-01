@@ -103,7 +103,18 @@ export default async function mediaPipelineHandler(req, res) {
     }
     if (op === "audit" && req.method === "POST") {
       const r = await auditReels();
-      return send(res, r.ok ? 200 : 503, r);
+      // Right after a render: publish → verify → proof → track → learn
+      // (src/lib/publishing/orchestrator.js). Its failure never hides the audit.
+      let orchestrator = null;
+      if (r.ok) {
+        try {
+          const [{ kvGet, kvSet }, { runPublishingSweep }] = await Promise.all([import("../store.mjs"), import("../../src/lib/publishing/orchestrator.js")]);
+          orchestrator = await runPublishingSweep({ kvGet, kvSet, env: process.env, budgetMs: 25000 });
+        } catch (e) {
+          orchestrator = { ok: false, error: String(e?.message || e).slice(0, 160) };
+        }
+      }
+      return send(res, r.ok ? 200 : 503, { ...r, orchestrator });
     }
     return send(res, 400, { ok: false, error: "unknown_op" });
   } catch (e) {

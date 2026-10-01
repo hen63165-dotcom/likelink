@@ -42,6 +42,9 @@ import { deliverInvitation } from "../../src/lib/discovery/campaigns.js";
 import { productMediaTruth, MEDIA_TRUTH } from "../../src/lib/discovery/mediaTruth.js";
 import { handleDistribution, DISTRIBUTION_ACTIONS } from "./distributionRoutes.mjs";
 import { imageProvenance, isRealProductPhoto, sharedAffiliateLinks, IMAGE_PROVENANCE } from "../../src/lib/discovery/catalogIntegrity.js";
+import { LEDGER_KEY, PROOF_KEY, publicProof } from "../../src/lib/publishing/orchestrator.js";
+import { externalDestinations } from "../../src/lib/publishing/adapters.js";
+import { videoProviders } from "../../src/lib/media/videoCapability.js";
 
 const RATE_WINDOW_MS = 60000;
 const RATE_MAX = 12;
@@ -388,14 +391,48 @@ export function createDiscoveryHandler({
         return;
       }
 
+      // Publication proof (src/lib/publishing/orchestrator.js) — public and
+      // read-only: everything in it is already public (asset URLs, public page
+      // URLs, provider post ids). No credential names, no private fields.
+      if (req.method === "GET" && action === "publication-proof") {
+        const assetId = String(url.searchParams.get("asset") || "").slice(0, 120);
+        if (!assetId) {
+          const ledger = await kvGet(LEDGER_KEY, []);
+          json(res, { ok: true, ledger: (Array.isArray(ledger) ? ledger : []).map(({ fingerprint, ...e }) => e) }, 200, req);
+          return;
+        }
+        if (!/^[A-Za-z0-9_-]{1,120}$/.test(assetId)) { json(res, { ok: false, error: "bad_asset_id" }, 400, req); return; }
+        const proof = await kvGet(PROOF_KEY(assetId), null);
+        json(res, proof ? { ok: true, proof: publicProof(proof) } : { ok: false, error: "not_checked_yet", assetId }, proof ? 200 : 404, req);
+        return;
+      }
+
       // ── owner-scoped ──
-      const ownerActions = new Set(["overview", "memory", "entitlement", "goal", "command", "rollback", "campaign", "campaigns", "recruit", "quotas", ...DISTRIBUTION_ACTIONS]);
+      const ownerActions = new Set(["media-ledger", "overview", "memory", "entitlement", "goal", "command", "rollback", "campaign", "campaigns", "recruit", "quotas", ...DISTRIBUTION_ACTIONS]);
       if (!ownerActions.has(action)) { json(res, { ok: false, error: "unknown_action" }, 400, req); return; }
       const who = await identify(req);
       if (!who.ok) { json(res, { ok: false, error: who.error }, who.status, req); return; }
       const scope = { marketerIds: who.admin ? null : who.marketerIds, actor: who.actor };
       const scopeKey = scope.marketerIds?.length === 1 ? scope.marketerIds[0] : "platform";
 
+      // The creative + publication ledger for the Studio: generation, truth,
+      // every destination's status / id / proof, tracking. Credential NAMES
+      // only for the platform owner / admin.
+      if (req.method === "GET" && action === "media-ledger") {
+        const privileged = Boolean(who.admin || who.platformOwner);
+        const [ledger, autopilotStore] = await Promise.all([kvGet(LEDGER_KEY, []), privileged ? kvGet("marketplace:autopilot", {}) : Promise.resolve({})]);
+        const mine = (Array.isArray(ledger) ? ledger : []).filter((e) => privileged || !scope.marketerIds || scope.marketerIds.includes(String(e.marketerId || "")));
+        const proofs = await Promise.all(mine.slice(0, 20).map((e) => kvGet(PROOF_KEY(e.assetId), null)));
+        const destinations = externalDestinations(env, autopilotStore || {}).map((d) => (privileged ? d : { id: d.id, he: d.he, scope: d.scope, status: d.status }));
+        json(res, {
+          ok: true,
+          providers: videoProviders().map((p) => ({ id: p.id, he: p.he, kind: p.kind, output: p.output, truth: p.truth, ...(privileged ? { executor: p.executor, requiredCredentials: p.requiredCredentials } : {}) })),
+          destinations,
+          ledger: mine.map(({ fingerprint, ...e }) => e),
+          proofs: proofs.filter(Boolean).map((p) => (privileged ? p : publicProof(p))),
+        }, 200, req);
+        return;
+      }
       if (req.method === "GET" && action === "campaigns") {
         json(res, { ok: true, campaigns: await listCampaigns({ kvGet, scope }) }, 200, req);
         return;

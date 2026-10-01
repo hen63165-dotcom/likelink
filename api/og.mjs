@@ -465,6 +465,11 @@ export default async function handler(req, res) {
 <meta property="og:url" content="${escapeHtml(pageUrl)}" />
 <meta property="og:type" content="product" />
 <meta property="og:site_name" content="Likelink" />
+${attributable && seo.og.video ? `<meta property="og:video" content="${escapeHtml(seo.og.video.url)}" />
+<meta property="og:video:secure_url" content="${escapeHtml(seo.og.video.url)}" />
+<meta property="og:video:type" content="${escapeHtml(seo.og.video.type)}" />
+<meta property="og:video:width" content="${seo.og.video.width}" />
+<meta property="og:video:height" content="${seo.og.video.height}" />` : ""}
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${description}" />

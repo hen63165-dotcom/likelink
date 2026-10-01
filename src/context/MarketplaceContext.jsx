@@ -398,7 +398,9 @@ export function MarketplaceProvider({ children }) {
   );
 
   const recordClick = useCallback(
-    async (product) => {
+    // `attribution` = the on-site placement that produced the click (e.g. a
+    // reel: { src: "likelink_reels", camp: "v-<assetId>" }); URL params win.
+    async (product, attribution = null) => {
       if (!product || !product.id) return;
       pushActivity("product.click", `פתחת דיל: ${String(product.title || product.id).slice(0, 80)}`, { productId: product.id });
       // Traffic source truth — recorded ONLY when actually available
@@ -411,6 +413,10 @@ export function MarketplaceProvider({ children }) {
         src = params.get("utm_source") || params.get("ref") || null;
         med = params.get("utm_medium") || null;
         camp = params.get("utm_campaign") || null;
+        if (!src && attribution?.src) {
+          src = attribution.src;
+          camp = camp || attribution.camp || null;
+        }
         if (!src && document.referrer) {
           src = new URL(document.referrer).hostname || null;
         }

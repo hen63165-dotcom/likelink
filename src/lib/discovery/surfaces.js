@@ -9,6 +9,25 @@ import {
   DEFAULT_BASE_URL, isAbsoluteHttpUrl, isDirectMerchantProduct, toNumber, toText,
 } from "../googleFeed.js";
 import { isPublicCatalogProduct } from "../cloud/catalog.js";
+import { productMediaTruth, MEDIA_TRUTH } from "./mediaTruth.js";
+
+const VIDEO_LABEL_HE = { [MEDIA_TRUTH.SYNTHETIC_ANIMATION]: "אנימציה ממוחשבת של המוצר — לא צילום", [MEDIA_TRUTH.REAL_VIDEO]: "סרטון של המוצר" };
+
+/** The product's playable video (mediaTruth), with its truth label — or null. */
+function productVideo(product) {
+  const truth = productMediaTruth(product, []);
+  if (truth.state !== MEDIA_TRUTH.SYNTHETIC_ANIMATION && truth.state !== MEDIA_TRUTH.REAL_VIDEO) return null;
+  if (!isAbsoluteHttpUrl(truth.url)) return null;
+  const ts = Number(String(product.videoAssetId || "").match(/_(\d{13})$/)?.[1]) || Number(product.videoUpdatedAt) || null;
+  return {
+    url: truth.url,
+    poster: isAbsoluteHttpUrl(product.videoPoster) ? String(product.videoPoster) : "",
+    truth: truth.state,
+    label: VIDEO_LABEL_HE[truth.state],
+    uploadDate: ts ? new Date(ts).toISOString() : null,
+    type: /\.webm(\?|#|$)/i.test(truth.url) ? "video/webm" : "video/mp4",
+  };
+}
 
 export const ORIGIN = DEFAULT_BASE_URL;
 
@@ -54,6 +73,9 @@ export function canonicalProduct(product = {}, marketer = null, origin = ORIGIN)
       : null,
     origin: base,
   };
+  // The attached creative (not part of the fingerprint: media changes do not
+  // rebuild the share pack).
+  canonical.video = productVideo(product);
   // How the sale happens: a direct checkout on the site, or an affiliate
   // hand-off to an external merchant (which requires a disclosure).
   canonical.saleModel = isDirectMerchantProduct(product, base) ? "direct" : (canonical.affiliateUrl ? "affiliate" : "none");
@@ -111,6 +133,10 @@ export function buildProductSeo(c) {
       // Only a real brand — the recommending creator is not the brand.
       ...(c.brand ? { brand: { "@type": "Brand", name: c.brand } } : {}),
       ...(c.price ? { offers: agentOffer(c, url) } : {}),
+      // The product's video, described as what it is (an animation is never "footage").
+      ...(c.video?.uploadDate && (c.video.poster || c.image)
+        ? { subjectOf: { "@type": "VideoObject", name: c.title, description: `${c.video.label} · ${c.title}`, thumbnailUrl: c.video.poster || c.image, contentUrl: c.video.url, uploadDate: c.video.uploadDate } }
+        : {}),
       // Agent-commerce readiness: facts an agent needs, stated plainly —
       // how the sale happens, the disclosure, who recommends it.
       additionalProperty: [
@@ -125,7 +151,7 @@ export function buildProductSeo(c) {
     description,
     canonical: url,
     robots: c.status === "approved" && c.creator ? "index,follow" : "noindex,nofollow",
-    og: { title, description, image: c.image || `${c.origin}/icons/icon-512.webp`, url, type: "product" },
+    og: { title, description, image: c.image || `${c.origin}/icons/icon-512.webp`, url, type: "product", ...(c.video ? { video: { url: c.video.url, type: c.video.type, width: 720, height: 1280 } } : {}) },
     jsonLd,
     provenance: { productId: c.id, fingerprint: c.fingerprint },
   };
@@ -396,6 +422,7 @@ export function renderProductBody(c) {
     c.price ? `<p style="font-size:20px;font-weight:700;margin:0 0 8px">${esc(formatPrice(c))}</p>` : "",
     c.description ? `<p style="margin:0 0 12px;line-height:1.6">${esc(clip(c.description, 400))}</p>` : "",
     c.creator ? `<p style="margin:0 0 12px">מומלץ על ידי <a href="${esc(creatorPageUrl(c))}">${esc(c.creator.name)}</a></p>` : "",
+    c.video ? `<figure style="margin:0 0 12px"><video src="${esc(c.video.url)}"${c.video.poster ? ` poster="${esc(c.video.poster)}"` : ""} controls playsinline muted preload="metadata" style="width:100%;max-width:360px;border-radius:12px"></video><figcaption style="font-size:12px;opacity:.8">${esc(c.video.label)}</figcaption></figure>` : "",
     c.saleModel === "affiliate" ? `<p style="font-size:12px;opacity:.8;margin:0">${esc(AFFILIATE_DISCLOSURE_HE)}</p>` : "",
   ];
   return parts.filter(Boolean).join("");

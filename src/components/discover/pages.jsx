@@ -1046,7 +1046,7 @@ export function ReelsPage({ graph }) {
                         <span className="text-[13px] font-bold">{formatPrice(product.price, lang)}</span>
                       </span>
                     </Go>
-                    <ShopButton product={product} className="lx-btn-sm">{L("לחנות", "Shop")}</ShopButton>
+                    <ShopButton product={product} className="lx-btn-sm" attribution={kind === "reel" ? { src: "likelink_reels", camp: reel.id } : null}>{L("לחנות", "Shop")}</ShopButton>
                   </div>
                 ) : null}
               </div>
