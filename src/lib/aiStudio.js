@@ -51,7 +51,7 @@ export function generateHebrewDescription({ title, category = "", price = 0, tra
     `${category ? category + " " : ""}${traitLine}.`,
     price ? `מחיר הוגן, סטייל ללא פשרות — ₪${price} בלבד.` : "פרטי מחיר בחנות.",
     "",
-    "🚚 משלוח מהיר · 💬 תמיכה אישית · ⭐ מהקהילה שסומכת עליה",
+    "🔗 קישור ישיר לחנות · 🧾 מחיר קטלוג · 💜 נבחר ב־LikeLink",
   ].join("\n");
 }
 

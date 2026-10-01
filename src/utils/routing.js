@@ -10,6 +10,18 @@ export function parsePath(pathname) {
   if (parts[0] === "merchants") {
     return { type: "merchants", category: parts[1] ? decodeURIComponent(parts[1]) : null };
   }
+  // Public discovery surfaces (redesigned public site).
+  if (parts[0] === "reels") return { type: "reels" };
+  if (parts[0] === "trends") return { type: "trends" };
+  if (parts[0] === "deals") return { type: "deals" };
+  if (parts[0] === "search") return { type: "search" };
+  if (parts[0] === "saved") return { type: "saved" };
+  if (parts[0] === "products") {
+    return { type: "products", category: parts[1] ? decodeURIComponent(parts[1]) : null };
+  }
+  if (parts[0] === "collections") {
+    return { type: "collections", id: parts[1] ? decodeURIComponent(parts[1]) : null };
+  }
   if (parts[0] === "discover") {
     return { type: "discover", category: parts[1] ? decodeURIComponent(parts[1]) : null };
   }

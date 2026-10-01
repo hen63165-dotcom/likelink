@@ -44,8 +44,8 @@ export default function GrowthEnginePanel() {
         </div>
         <p className="text-xs text-muted leading-relaxed">
           {L(
-            "הזני פרטי יוצרת/משפיענית, והמערכת מנסחת 3 פניות בעברית — סקרנות, FOMO וסיפור פיקסאר — עם הערך של 'הכל בקליק אחד'. העתקי או שלחי בוואטסאפ.",
-            "Enter a creator's details and get 3 Hebrew pitches — curiosity, FOMO and a Pixar story — each carrying the one-click value. Copy or send via WhatsApp."
+            "הזני פרטי יוצרת/משפיענית, והמערכת מנסחת 3 פניות בעברית — סקרנות, FOMO וסיפור מונפש — עם הערך של 'הכל בקליק אחד'. העתקי או שלחי בוואטסאפ.",
+            "Enter a creator's details and get 3 Hebrew pitches — curiosity, FOMO and an animated story — each carrying the one-click value. Copy or send via WhatsApp."
           )}
         </p>
       </div>

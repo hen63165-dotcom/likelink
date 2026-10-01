@@ -29,7 +29,7 @@ export function updatePageSEO(options) {
     jsonLd = null,
   } = options || {};
 
-  document.title = title || "לייקלינק — קניות מהיוצרות המובילות בישראל";
+  document.title = title || "לייקלינק — גילוי מוצרים דרך יוצרים, תוכן וטרנדים";
 
   setMetaTag("description", description);
   setMetaTag("robots", robots);
@@ -118,8 +118,8 @@ export function getCreatorSEO(creator, products = []) {
   const title = `${name} — חנות אונליין | לייקלינק`;
   const description =
     productCount > 0
-      ? `גלו את המוצרים הכי חמים של ${name}: ${productNames}. משלוח מהיר, החזרה חופשית, ומחירים משתלמים.`
-      : `חנות האונליין של ${name} בלייקלינק — מוצרים ייחודיים, משלוח מהיר ושירות מעולה.`;
+      ? `החנות של ${name} בלייקלינק: ${productNames}. מוצרים שנבחרו על ידי ${name}, עם מחיר, חנות וגילוי נאות.`
+      : `החנות של ${name} בלייקלינק — מוצרים, אוספים ותוכן שנבחרו על ידי ${name}.`;
 
   return {
     title,
@@ -150,7 +150,7 @@ export function getProductSEO(product, owner = null) {
   const title = `${product.title} — ₪${product.price} | לייקלינק`;
   const description =
     product.description ||
-    `קנו ${product.title} ב-₪${product.price} בלייקלינק. משלוח מהיר והחזרה חופשית.`;
+    `${product.title} ב-₪${product.price} — מוצר שנבחר על ידי יוצר/ת בלייקלינק. המחיר והמלאי נקבעים אצל החנות.`;
   const url = `${PUBLIC_ORIGIN}/p/${encodeURIComponent(product.id)}`;
   const creatorUrl = `${PUBLIC_ORIGIN}/u/${encodeURIComponent(owner.slug || owner.id)}`;
 
@@ -186,9 +186,9 @@ export function getProductSEO(product, owner = null) {
 export function getDefaultSEO(page = "home") {
   const pages = {
     home: {
-      title: "לייקלינק — קניות מהיוצרות המובילות בישראל",
+      title: "לייקלינק — גילוי מוצרים דרך יוצרים, תוכן וטרנדים",
       description:
-        "פלטפורמת האפילייט הכי גדולה בישראל. גלו מוצרים ייחודיים מהיוצרות והיוצרים הכי טובים, עם עמלה על כל מכירה.",
+        "גלו מוצרים דרך אנשים: יוצרים, אוספים, סרטונים וטרנדים — עם מחיר אמיתי, חנות ברורה וגילוי נאות. ויוצרים בונים כאן עסק אמיתי מה־Studio.",
       type: "website",
       url: `${PUBLIC_ORIGIN}/`,
       robots: "index,follow",

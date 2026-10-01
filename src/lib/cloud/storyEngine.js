@@ -9,7 +9,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? 👀", action: "zoom_in" },
       { mood: "excitement", luna: "וואו! תראי את זה", action: "show_product" },
       { mood: "demonstration", luna: "זה עובד על כל לוק", action: "demo" },
-      { mood: "urgency", luna: "עוד מעט נגמר", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
   },
@@ -18,8 +18,8 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה חדש? ✨", action: "zoom_in" },
       { mood: "excitement", luna: "הסרום שכולן רוצות", action: "show_product" },
       { mood: "demonstration", luna: "תוצאות מידיות", action: "demo" },
-      { mood: "urgency", luna: "מלאי מוגבל", action: "countdown" },
-      { mood: "cta", luna: "משלוח מהיר", action: "cta" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
+      { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
   },
   Tech: {
@@ -27,7 +27,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? 📱", action: "zoom_in" },
       { mood: "excitement", luna: "הגאדג'ט הכי חם", action: "show_product" },
       { mood: "demonstration", luna: "תוכיש איך זה עובד", action: "demo" },
-      { mood: "urgency", luna: "נמכר מהר", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
   },
@@ -36,8 +36,8 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? 🏠", action: "zoom_in" },
       { mood: "excitement", luna: "הפרת הקטש שהבית הזה צריך", action: "show_product" },
       { mood: "demonstration", luna: "קל להתקנה", action: "demo" },
-      { mood: "urgency", luna: "מחיר מיוחד", action: "countdown" },
-      { mood: "cta", luna: "משלוח חינם", action: "cta" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
+      { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
   },
   Fitness: {
@@ -45,7 +45,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? 💪", action: "zoom_in" },
       { mood: "excitement", luna: "הציוד שיעשה את ההבדל", action: "show_product" },
       { mood: "demonstration", luna: "אימון ביתי מושלם", action: "demo" },
-      { mood: "urgency", luna: "עוד מעט נגמר", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
   },
@@ -54,7 +54,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מתנה? 🎁", action: "zoom_in" },
       { mood: "excitement", luna: "המתנה המושלמת", action: "show_product" },
       { mood: "demonstration", luna: "כולם מתלהבים", action: "demo" },
-      { mood: "urgency", luna: "לזמן מוגבל", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "אריזה מתנה", action: "cta" },
     ],
   },
@@ -63,8 +63,8 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "נסיעה? 🧳", action: "zoom_in" },
       { mood: "excitement", luna: "הציוד שחייב לנסיעה", action: "show_product" },
       { mood: "demonstration", luna: "קל ונוח", action: "demo" },
-      { mood: "urgency", luna: "מחיר לפני הנסיעה", action: "countdown" },
-      { mood: "cta", luna: "משלוח מהיר", action: "cta" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
+      { mood: "cta", luna: "הקישור בעמוד המוצר", action: "cta" },
     ],
   },
   Kids: {
@@ -72,7 +72,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "לילדים? 🧸", action: "zoom_in" },
       { mood: "excitement", luna: "הפריט שהילדים מרותקים אליו", action: "show_product" },
       { mood: "demonstration", luna: "כיף וגם חינוכי", action: "demo" },
-      { mood: "urgency", luna: "נמכר מהר", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "משלוח עד הבית", action: "cta" },
     ],
   },
@@ -81,7 +81,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? 🕶️", action: "zoom_in" },
       { mood: "excitement", luna: "הפרט הקטן שעושה את כל הלוק", action: "show_product" },
       { mood: "demonstration", luna: "משלים כל אאוטפית", action: "demo" },
-      { mood: "urgency", luna: "מלאי מוגבל", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
   },
@@ -90,7 +90,7 @@ const STORY_TEMPLATES = {
       { mood: "curiosity", luna: "מה זה? ✨", action: "zoom_in" },
       { mood: "excitement", luna: "מצאתי משהו מדהים", action: "show_product" },
       { mood: "demonstration", luna: "זה עובד", action: "demo" },
-      { mood: "urgency", luna: "עוד מעט נגמר", action: "countdown" },
+      { mood: "price", luna: "מחיר קטלוג", action: "price" },
       { mood: "cta", luna: "קני עכשיו", action: "cta" },
     ],
   },
@@ -101,6 +101,7 @@ const ANIMATION_EFFECTS = {
   show_product: { type: "fadeIn", duration: "0.5s" },
   demo: { type: "slideUp", duration: "0.6s" },
   countdown: { type: "pulse", duration: "1s" },
+  price: { type: "fadeIn", duration: "0.6s" },
   cta: { type: "bounce", duration: "0.8s" },
 };
 
@@ -109,11 +110,12 @@ const MOOD_COLORS = {
   excitement: "#E86A9E",
   demonstration: "#6C4CF1",
   urgency: "#FF4D6E",
+  price: "#2A1A52",
     cta: "#00C896",
 };
 
 /**
- * Generate a complete Pixar-style story for a product.
+ * Generate a complete animated product story (original LikeLink style).
  * Returns a 5-frame animated story with Luna as the character.
  */
 export function generateProductStory(product, options = {}) {
@@ -219,6 +221,7 @@ function getLunaMood(mood) {
     excitement: "✨",
     demonstration: "🧚",
     urgency: "🔥",
+    price: "🧾",
     cta: "💜",
   };
   return map[mood] || "🧚";
@@ -230,6 +233,7 @@ function getTextStyle(mood) {
     excitement: { fontSize: "22px", fontWeight: "800" },
     demonstration: { fontSize: "16px", fontWeight: "600" },
     urgency: { fontSize: "20px", fontWeight: "700" },
+    price: { fontSize: "20px", fontWeight: "700" },
     cta: { fontSize: "24px", fontWeight: "900" },
   };
   return map[mood] || { fontSize: "16px", fontWeight: "600" };

@@ -20,7 +20,7 @@ export const NICHES = [
 ];
 
 export const PLATFORMS = [
-  { id: "instagram", label: "Instagram", tip: "שלחי לה בדיירקט את סיפור הפיקסאר — הוא עובד הכי חזק בפרטי" },
+  { id: "instagram", label: "Instagram", tip: "שלחי לה בדיירקט את הסיפור המונפש — הוא עובד הכי חזק בפרטי" },
   { id: "tiktok",    label: "TikTok",    tip: "הפניית הסקרנות מתאימה לקהל צעיר — קצר, ישיר, בלי מבוא" },
   { id: "whatsapp",  label: "WhatsApp",  tip: "בוואטסאפ פנייה אישית מנצחת — פתחי בשם שלה ובסיפור" },
   { id: "facebook",  label: "Facebook",  tip: "קבוצות נשים = FOMO קולקציות — הדגישי שהמלאי מתאזל" },
@@ -42,7 +42,7 @@ function storefrontLink(storeUrl) {
   return u && /^https?:\/\//i.test(u) ? `\n${u}` : "";
 }
 
-/** בונה 3 פניות מותאמות אישית: סקרנות / FOMO / סיפור פיקסאר */
+/** בונה 3 פניות מותאמות אישית: סקרנות / FOMO / סיפור מונפש */
 export function buildRecruitPitches(prospect = {}) {
   const niche = NICHES.find((n) => n.id === prospect.niche) || NICHES[NICHES.length - 1];
   const platform = PLATFORMS.find((p) => p.id === prospect.platform) || PLATFORMS[0];
@@ -78,7 +78,7 @@ export function buildRecruitPitches(prospect = {}) {
     pitches: [
       { id: "curiosity", label: "🎣 סקרנות", text: curiosity },
       { id: "fomo", label: "⏳ FOMO", text: fomo },
-      { id: "story", label: "💛 סיפור פיקסאר", text: story },
+      { id: "story", label: "💛 סיפור מונפש", text: story },
     ],
     tier,
     channelTip: platform.tip,

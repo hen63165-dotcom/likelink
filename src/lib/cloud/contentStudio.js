@@ -108,7 +108,7 @@ function generatePost(product, hook, story) {
     carousel: [
       { slide: 1, text: hook, visual: 'product_hero' },
       { slide: 2, text: extractFirstLine(story), visual: 'benefits' },
-      { slide: 3, text: `₪${product.price} — משלוח חינם`, visual: 'cta' },
+      { slide: 3, text: `₪${product.price} — מחיר קטלוג`, visual: 'cta' },
     ],
     hashtags: generateHashtags(product),
     cta: 'Link in bio to shop',

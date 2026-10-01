@@ -14,7 +14,7 @@ const FORMATS = {
 /** סגנונות עיצוב — כל אחת בוחרת את הווייב שלה בקליק */
 export const STORY_STYLES = [
   { id: "lux", label: "לוקס ✨", desc: "עולם הבית של לייקלינק — קרם ושמפניה" },
-  { id: "pixar", label: "פיקסאר 🎬", desc: "פוסטר קולנועי חם" },
+  { id: "pixar", label: "קולנועי מונפש 🎬", desc: "פוסטר קולנועי חם" },
   { id: "neon", label: "ניאון 🌃", desc: "זוהר של לילה" },
   { id: "minimal", label: "מינימלי 🤍", desc: "נקי ואלגנטי" },
   { id: "party", label: "מסיבה 🎉", desc: "צבע, ניצוצות, חיוך" },

@@ -55,7 +55,7 @@ export function generateSeoPage(product, { origin } = {}) {
   const category = product.category || '';
 
   const seoTitle = `${title} — קני אונליין ב-₪${price} | ${AMBASSADOR.name} ממליצה`;
-  const seoDescription = `${hook} — ${title} במחיר של ₪${price} בלבד. משלוח מהיר, החזרה מלאה.`;
+  const seoDescription = `${hook} — ${title} במחיר קטלוג של ₪${price}. המחיר והמשלוח הסופיים נקבעים אצל החנות.`;
 
   return {
     id: `seo_${product.id}`,
