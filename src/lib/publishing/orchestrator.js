@@ -23,6 +23,8 @@ import { buildPublicGraph } from "../publicDiscovery.js";
 import { canonicalProduct, trackingLink } from "../discovery/surfaces.js";
 import { INTERNAL_DESTINATIONS, externalDestinations, DESTINATION_STATUS } from "./adapters.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
+import { buildSocialPack } from "../media/reelPipeline.js";
+import { creativeUrl } from "../growth/likeloop.js";
 
 export const PROOF_STAGES = Object.freeze(["CREATED", "GENERATED", "STORED", "PUBLISHED", "VERIFIED", "TRACKED"]);
 
@@ -35,6 +37,44 @@ export const PUB_STATUS = Object.freeze({
   READY: "READY",                       // connected, not published for this creative
   FAILED: "FAILED",
 });
+
+/**
+ * PREPARED — the exact payload an external destination would receive, built
+ * and validated against that destination's rules, but NOT sent. It is never a
+ * publication: PUBLISHED needs the provider's id, VERIFIED its read-back.
+ */
+export function prepareExternal(destination, { v, asset, product, creator, origin = PRODUCTION_ORIGIN }) {
+  if (!product) return null;
+  const channel = destination.startsWith("instagram") ? "instagram" : /telegram/.test(destination) ? "telegram" : destination.replace(/^creator_|_brand$/g, "");
+  const pack = buildSocialPack({ product, creator, style: asset.style || "", origin, hook: v?.creative?.hook || "" });
+  const net = pack?.networks?.[channel] || pack?.networks?.facebook;
+  const creative = v?.creative?.creativeId ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, productId: product.id } : null;
+  const trackingUrl = creative ? creativeUrl(creative, channel, origin) : net?.link || null;
+  const caption = String(net?.caption || "");
+  const durationMs = Number(asset.durationMs || v?.durationMs || 0);
+  const checks = [
+    { id: "video_https", ok: /^https:\/\//.test(String(asset.assetUrl || "")) },
+    { id: "disclosure_ad", ok: caption.includes("#פרסומת") },
+    { id: "disclosure_animation", ok: channel !== "instagram" || caption.includes("אנימציה ממוחשבת") },
+    { id: "tracking_url", ok: Boolean(trackingUrl) },
+  ];
+  if (channel === "instagram") {
+    // Instagram Reels via the Graph API: MP4/H.264, AAC audio, 3–90 s, caption ≤ 2200.
+    checks.push({ id: "audio_aac", ok: v?.audio === "aac" }, { id: "duration_3_90s", ok: durationMs >= 3000 && durationMs <= 90000 }, { id: "caption_2200", ok: caption.length > 0 && caption.length <= 2200 });
+  }
+  const valid = checks.every((c) => c.ok);
+  return {
+    stage: valid ? "PREPARED" : "INVALID",
+    channel,
+    payload: channel === "instagram"
+      ? { media_type: "REELS", video_url: asset.assetUrl, cover_url: asset.posterUrl || null, caption, share_to_feed: true }
+      : { video_url: asset.assetUrl, caption, link: trackingUrl },
+    trackingUrl,
+    creativeId: creative?.creativeId || null,
+    checks,
+    sent: false,
+  };
+}
 
 export const PROOF_KEY = (assetId) => `publish:proof:${assetId}`;
 export const LEDGER_KEY = "publish:ledger";
@@ -125,8 +165,10 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
           const e = tried.find((x) => x.channel === ch && x.externalId);
           return e ? { status: PUB_STATUS.PUBLISHED_UNVERIFIED, externalId: e.externalId, url: e.permalink || null, at: e.publishedAt } : null;
         })();
+      const prepared = !logged && !blockedReason ? prepareExternal(d.id, { v, asset, product, creator, origin }) : null;
       publications.push({
         destination: d.id, he: d.he, kind: "external", scope: d.scope, codePath: d.codePath,
+        ...(prepared ? { prepared } : {}),
         publicationId: logged?.externalId || null,
         providerId: logged?.externalId || null,
         url: logged?.url || null,
@@ -216,6 +258,19 @@ export async function verifyEntry(entry, { fetchImpl = globalThis.fetch, now = D
     VERIFIED: { ok: internal.some((p) => p.destination !== "media" && p.status === PUB_STATUS.VERIFIED), verified: internal.filter((p) => p.status === PUB_STATUS.VERIFIED).map((p) => p.destination) },
     TRACKED: { ok: Boolean(entry.tracking.link), evidence: entry.tracking },
   };
+  // One lifecycle summary that never mixes the four states up:
+  //   PREPARED  payload built + validated for an external destination, NOT sent
+  //   GENERATED the media file exists (bytes, sha256, renderer)
+  //   PUBLISHED a publication id exists (internal surface id / provider post id)
+  //   VERIFIED  that publication was read back
+  const external = pubs.filter((p) => p.kind === "external");
+  const lifecycle = {
+    PREPARED: { ok: external.some((p) => p.prepared?.stage === "PREPARED"), destinations: external.filter((p) => p.prepared?.stage === "PREPARED").map((p) => p.destination), sent: false },
+    GENERATED: { ok: stages.GENERATED.ok && stages.STORED.ok, evidence: { sha256: a.sha256 || null, bytes: a.bytes || null, storedHttp: media?.evidence?.http || null } },
+    PUBLISHED: { internal: stages.PUBLISHED.publications, external: external.filter((p) => p.providerId).map((p) => ({ destination: p.destination, providerId: p.providerId, url: p.url })) },
+    VERIFIED: { internal: stages.VERIFIED.verified, external: external.filter((p) => p.status === PUB_STATUS.VERIFIED).map((p) => p.destination) },
+  };
+  lifecycle.externalState = lifecycle.VERIFIED.external.length ? "VERIFIED" : lifecycle.PUBLISHED.external.length ? "PUBLISHED" : lifecycle.PREPARED.ok ? "PREPARED_NOT_SENT" : "NOT_PREPARED";
   // Blocked = must not be PROMOTED (its own product page may still show it,
   // and that listing is reported as it is).
   const state = entry.blockedReason
@@ -223,7 +278,7 @@ export async function verifyEntry(entry, { fetchImpl = globalThis.fetch, now = D
     : stages.VERIFIED.ok && stages.STORED.ok
       ? "VERIFIED"
       : stages.PUBLISHED.ok ? "UNVERIFIED" : "READY";
-  return { ...entry, publications: pubs, stages, state, checkedAt: at };
+  return { ...entry, publications: pubs, stages, lifecycle, state, checkedAt: at };
 }
 
 /** Public projection of a proof (no credential names, no private fields). */
