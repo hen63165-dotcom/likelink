@@ -35,7 +35,7 @@ const LIMIT = Number(args.limit || 3);
 const OUT = path.resolve(String(args.out || path.join(process.cwd(), "reel-out")));
 const SECRET = process.env.AUTOPILOT_SECRET || "";
 const UPLOAD = !args["no-upload"];
-const RENDERER = "reel-canvas-v1";
+const RENDERER = "reel-canvas-v2";
 mkdirSync(OUT, { recursive: true });
 
 function summary(line) {
@@ -96,7 +96,10 @@ async function renderOne(page, item) {
 
   const encode = async (crf) => {
     await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(concept.fps), "-c:v", "mjpeg", "-i", "-",
-      "-c:v", "libx264", "-preset", "medium", "-crf", String(crf), "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart", "-an", mp4], {
+      // Instagram's Reels API requires an AAC track: a silent 48 kHz stereo bed (no third-party music).
+      "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", "-shortest",
+      "-c:v", "libx264", "-preset", "medium", "-crf", String(crf), "-pix_fmt", "yuv420p", "-profile:v", "high", "-r", String(concept.fps),
+      "-c:a", "aac", "-b:a", "96k", "-ar", "48000", "-movflags", "+faststart", mp4], {
       input: async (stdin) => {
         for (let f = 0; f < frames; f++) {
           const jpeg = await page.evaluate((t) => window.renderFrame(t, 0.9), (f * 1000) / concept.fps);
@@ -120,7 +123,9 @@ async function renderOne(page, item) {
   const probeRaw = await run("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=codec_name,width,height,nb_read_frames,pix_fmt", "-show_entries", "format=duration", "-of", "json", mp4]);
   const pj = JSON.parse(probeRaw);
   const s = pj.streams?.[0] || {};
-  const probe = { codec: s.codec_name, width: Number(s.width), height: Number(s.height), frames: Number(s.nb_read_frames), pixFmt: s.pix_fmt, durationMs: Math.round(Number(pj.format?.duration || 0) * 1000), crf };
+  const audioRaw = await run("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_name,sample_rate", "-of", "json", mp4]);
+  const a = JSON.parse(audioRaw).streams?.[0] || {};
+  const probe = { audio: a.codec_name || "none", audioRate: Number(a.sample_rate) || 0, codec: s.codec_name, width: Number(s.width), height: Number(s.height), frames: Number(s.nb_read_frames), pixFmt: s.pix_fmt, durationMs: Math.round(Number(pj.format?.duration || 0) * 1000), crf };
   const video = readFileSync(mp4);
   const sha256 = createHash("sha256").update(video).digest("hex");
   return { mp4, poster, video, posterBytes: readFileSync(poster), probe, sha256 };

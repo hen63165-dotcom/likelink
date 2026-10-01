@@ -5,12 +5,13 @@
 //   GET  op=plan     what to render next          (Bearer AUTOPILOT_SECRET / CRON_SECRET)
 //   POST op=ingest   store → verify → register → publish → proof   (same auth)
 //   POST op=audit    re-verify served reels, measure, learn        (same auth)
+//   POST op=instagram one step of the Instagram Reels publisher     (same auth)
 //
 // The renderer (scripts/media/render-reels.mjs) runs on GitHub Actions and is
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
 import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
-import { auditReels, buildPlan, ingestReel, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
+import { auditReels, buildPlan, ingestReel, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
 import { isApprovedOrigin } from "./cors.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
@@ -83,6 +84,10 @@ export default async function mediaPipelineHandler(req, res) {
       const r = await ingestReel(body && typeof body === "object" ? body : {});
       const { status, ...rest } = r;
       return send(res, status || (r.ok ? 200 : 500), rest);
+    }
+    if (op === "instagram" && req.method === "POST") {
+      const r = await instagramPublishStep();
+      return send(res, r.ok ? 200 : 502, r);
     }
     if (op === "audit" && req.method === "POST") {
       const r = await auditReels();
