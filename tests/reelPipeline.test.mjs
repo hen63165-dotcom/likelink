@@ -306,3 +306,16 @@ test("a creator request is queued once and served first by the plan, then marked
   assert.equal(r.ok, true);
   assert.equal(sb.get("media:requests")[0].status, "RENDERED");
 });
+
+test("publishing a reel never evicts earlier feed posts (append-only, cap = publish:log length)", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  const old = Array.from({ length: 30 }, (_, i) => ({ id: `bp_old_${i}`, ts: i, text: "x" }));
+  sb.kv.set("brand_pulse:posts", JSON.stringify(old));
+  const r = await ingestReel(ingestBody(), { env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(r.ok, true);
+  const feed = sb.get("brand_pulse:posts");
+  assert.equal(feed.length, 31, "nothing evicted");
+  assert.equal(feed[0].id, "bp_old_0", "oldest stays first");
+  assert.equal(feed[30].id, r.publication.externalId, "new post appended last");
+});

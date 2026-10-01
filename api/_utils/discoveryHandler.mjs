@@ -273,6 +273,7 @@ export function createDiscoveryHandler({
       },
       ugc: {
         realVideos: media.reduce((s, m) => s + m.inventory.realVideos, 0),
+        syntheticAnimations: media.reduce((s, m) => s + (m.inventory.syntheticAnimations || 0), 0),
         syntheticImages: media.reduce((s, m) => s + m.inventory.syntheticImages, 0),
         images: media.filter((m) => m.state === MEDIA_TRUTH.STATIC_IMAGE).length,
       },

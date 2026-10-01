@@ -338,7 +338,9 @@ async function registerAndPublish(c, ctx) {
   const post = { id: postId, ts: now, kind: "reel", productId: product.id, text, link, channels: ["web"], spotlight: null, media: { videoUrl: publicVideo.videoUrl, poster: publicVideo.poster, truth: records.truth, style: style, assetId: publicVideo.id } };
   let webStatus = "FAILED", webError = null;
   try {
-    await c.kvWrite(POSTS_KEY, [post, ...arr(postsR.value)].slice(0, 30));
+    // The site feed is append-only, oldest first (same as the autopilot writer);
+    // its cap matches publish:log (60) so a logged publication keeps its post.
+    await c.kvWrite(POSTS_KEY, [...arr(postsR.value), post].slice(-60));
     const back = await c.kvRead(POSTS_KEY);
     webStatus = back.ok && arr(back.value).some((p) => p?.id === postId) ? "PUBLISHED" : "FAILED";
     if (webStatus !== "PUBLISHED") webError = "post_not_found_on_readback";
