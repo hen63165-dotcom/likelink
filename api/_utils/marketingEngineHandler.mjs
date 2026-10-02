@@ -20,6 +20,8 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { PLATFORM_SCOPE, studioScope, parseScope, sanitizeSettings, ENGINE_QUOTA_KEY, KEYS } from "../../src/lib/growth/marketingEngine.js";
 import { runCycle, setControl, engineView, engineSweep } from "../../src/lib/cloud/marketingEngineRunner.js";
 import { planIncluding } from "../../src/lib/discovery/quotas.js";
+import { aeStatus, importHotProducts, repairSharedLinks, dailyAffiliateImport } from "./aliexpressAffiliate.mjs";
+import { sharedAffiliateLinks } from "../../src/lib/discovery/catalogIntegrity.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 const CONTROL_OPS = new Set(["enable", "disable", "pause", "resume", "settings"]);
@@ -33,7 +35,7 @@ function header(req, name) {
 export function createMarketingEngineHandler({
   kvGet, kvSet, verifyToken, verifyAdminToken, env = process.env, now = () => Date.now(),
   requestVideo = null, channelCredentials = null, publishPost = null, cronAuthorized = (req) => isAuthorizedCron(req, [env.AUTOPILOT_SECRET]),
-  rateMap = new Map(),
+  rateMap = new Map(), fetchImpl = (...a) => fetch(...a),
 }) {
   const json = (res, obj, status, req) => jsonCors(res, obj, status, req, { allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type", "authorization"] });
 
@@ -92,12 +94,30 @@ export function createMarketingEngineHandler({
     try {
       // ── cron: platform + every enabled studio (each with its own verified plan) ──
       if (req.method === "POST" && op === "run" && cronAuthorized(req)) {
-        const out = await engineSweep({ kvGet, kvSet, env, now: now(), requestVideo, channelCredentials, publishPost });
+        // The owner's affiliate account first (new promotable products), then the engine.
+        const affiliate = await dailyAffiliateImport({ kvGet, kvSet, env, fetchImpl, now: now() });
+        const out = { ...(await engineSweep({ kvGet, kvSet, env, now: now(), requestVideo, channelCredentials, publishPost })), affiliate };
         json(res, out, 200, req);
         return;
       }
 
+      if (req.method === "GET" && op === "affiliate-status") {
+        const last = await kvGet("affiliate:aliexpress:last", null);
+        json(res, { ok: true, provider: "aliexpress_affiliate_api", configured: aeStatus(env).configured, last }, 200, req);
+        return;
+      }
+
       const who = await identify(req);
+
+      // The owner's affiliate account (platform owner / admin, or cron above).
+      if (req.method === "POST" && (op === "affiliate-import" || op === "affiliate-repair")) {
+        if (!who || !(who.admin || who.platformOwner)) { json(res, { ok: false, error: who ? "owner_only" : "authentication_required" }, who ? 403 : 401, req); return; }
+        const out = op === "affiliate-import"
+          ? await importHotProducts({ kvGet, kvSet, env, fetchImpl, now: now(), limit: 8 })
+          : await repairSharedLinks({ kvGet, kvSet, env, fetchImpl, now: now(), sharedAffiliateLinks });
+        json(res, out.ok ? out : { ...out, missing: who.admin || who.platformOwner ? out.missing : undefined }, out.status || 200, req);
+        return;
+      }
 
       if (req.method === "GET" && op === "status") {
         const wanted = url.searchParams.get("scope");
