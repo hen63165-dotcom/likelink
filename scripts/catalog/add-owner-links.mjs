@@ -53,8 +53,15 @@ async function main() {
       await page.waitForTimeout(6000);
       const found = await page.evaluate(() => {
         const q = (s) => document.querySelector(s);
-        const priceEl = [...document.querySelectorAll('[class*="price-default--current"], [class*="product-price-current"], [class*="price--currentPriceText"], [class*="uniform-banner-box-price"], [class*="price--current"]')][0];
+        // Every price-like element with its class, so the real price can be told
+        // apart from a new-customer / welcome-deal banner price.
+        const all = [...document.querySelectorAll('[class*="price"]')]
+          .filter((el) => el.children.length <= 6 && /(₪|ILS|\$)\s*[\d.,]+|[\d.,]+\s*₪/.test(el.textContent || "") && (el.textContent || "").length < 60)
+          .map((el) => ({ cls: String(el.className || "").slice(0, 70), text: el.textContent.trim().slice(0, 40), banner: Boolean(el.closest('[class*="banner"], [class*="welcome"], [class*="newuser"], [class*="new-user"], [class*="coupon"]')) }));
+        const main = all.find((x) => !x.banner && /price-default--current|product-price-current|price--currentPriceText|price--current/.test(x.cls));
+        const priceEl = main ? { textContent: main.text } : null;
         return {
+          prices: all.slice(0, 12),
           url: location.href,
           og: q('meta[property="og:image"]')?.content || "",
           title: q('meta[property="og:title"]')?.content || q("h1")?.textContent || document.title || "",
@@ -66,6 +73,7 @@ async function main() {
       image = image.replace(/_\d+x\d+(q\d+)?\.(jpg|png|webp)(_\.webp)?$/i, "");
       const pr = parsePrice(found.priceText);
       summary(`- ${link}\n  page ${itemUrl.slice(0, 90)} · price "${found.priceText.trim().slice(0, 30)}" → ${pr ? `${pr.price} ${pr.currency}` : "none"} · title "${found.title.slice(0, 70)}"`);
+      if (DRY) for (const x of found.prices) summary(`    · ${x.banner ? "[banner] " : ""}${x.cls} → "${x.text}"`);
       const captcha = /_____tmd_____|\/punish|captcha/i.test(found.url) || /captcha/i.test(found.title);
       if (captcha) { blocked = true; summary("  - SOURCE_BLOCKED (captcha) — nothing written"); continue; }
       if (DRY) continue;
