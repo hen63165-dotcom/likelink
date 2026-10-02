@@ -549,7 +549,8 @@ export function MarketplaceProvider({ children }) {
         try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return { ok: false, error: "שגיאת הגדרת מערכת — פני לתמיכה" }; }
         const cleanName = String(name || "").trim().slice(0, 60);
         const cleanEmail = String(email || "").trim().toLowerCase();
-        if (!cleanName || !isValidEmail(cleanEmail)) return { ok: false, error: t("auth.errEmail") };
+        if (!isValidEmail(cleanEmail)) return { ok: false, error: t("auth.errEmail") };
+        if (!cleanName) return { ok: false, error: t("auth.errName") };
         // 🔒 Fail loud: signup REQUIRES real auth. Never create a studio or a
         // session on email-only matching, even when Supabase Auth is missing.
         if (!authConfigured) return { ok: false, error: "החיבור למערכת האבטחה נכשל, נסי שוב מאוחר יותר" };
