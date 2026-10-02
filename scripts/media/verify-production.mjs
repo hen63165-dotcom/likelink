@@ -90,47 +90,58 @@ async function main() {
     await ctx.close();
   }
   // Tracking probe: a page that presents as a regular browser must SEND a view
-  // event for a product page. The write is intercepted and aborted, so the
-  // check never adds a fake view to production data.
-  {
+  // event for a product page and a funnel step for a Studio CTA. Writes are
+  // intercepted and aborted, so the check never adds fake data to production.
+  // The probe is time-capped: it can fail, never hang the job.
+  const probe = async () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "he-IL" });
-    await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
-    const page = await ctx.newPage();
-    const captured = [];
-    const funnel = [];
-    await page.route("**/api/store", async (route) => {
-      const r = route.request();
-      let body = null;
-      try { body = r.method() === "POST" ? JSON.parse(r.postData() || "{}") : null; } catch { body = null; }
-      if (body?.key === "marketplace:funnel") {
-        try { funnel.push(...JSON.parse(body.value || "[]")); } catch { /* ignore */ }
-        return route.abort();
-      }
-      if (body?.key === "marketplace:clicks") {
-        let events = [];
-        try { events = JSON.parse(body.value || "[]"); } catch { events = []; }
-        captured.push(...events.filter((e) => e?.type === "view"));
-        return route.abort();
-      }
-      return route.continue();
-    });
-    const target = process.env.TRACKING_PRODUCT || "/p/p-live-05";
-    await page.goto(BASE + target, { waitUntil: "load", timeout: 45000 }).catch(() => null);
-    await page.waitForTimeout(4000);
-    const ok = captured.some((e) => e.productId === target.split("/").pop());
-    summary(`- tracking: product view sent=${ok} (${captured.length} view event(s) intercepted and aborted — nothing written)`);
-    results.push({ route: `tracking ${target}`, status: ok ? 200 : 0, hscroll: 0, broken: 0, errors: ok ? [] : ["view_event_not_sent"] });
-    // Studio CTA: clicking a Studio link on the home page sends a funnel step.
-    await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
-    await page.waitForTimeout(2500);
-    await page.locator('a[href="/studio"]').first().click({ timeout: 10000 }).catch(() => null);
-    await page.waitForTimeout(2500);
-    const cta = funnel.some((e) => e.type === "studio_cta");
-    summary(`- funnel: studio_cta sent=${cta} (${funnel.length} event(s) intercepted and aborted — nothing written)`);
-    results.push({ route: "funnel studio_cta", status: cta ? 200 : 0, hscroll: 0, broken: 0, errors: cta ? [] : ["studio_cta_not_sent"] });
-    await ctx.close();
+    let page = null;
+    try {
+      await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
+      page = await ctx.newPage();
+      const captured = [];
+      const funnel = [];
+      await page.route("**/api/store", async (route) => {
+        const r = route.request();
+        let body = null;
+        try { body = r.method() === "POST" ? JSON.parse(r.postData() || "{}") : null; } catch { body = null; }
+        if (body?.key === "marketplace:funnel") {
+          try { funnel.push(...JSON.parse(body.value || "[]")); } catch { /* ignore */ }
+          return route.abort();
+        }
+        if (body?.key === "marketplace:clicks") {
+          let events = [];
+          try { events = JSON.parse(body.value || "[]"); } catch { events = []; }
+          captured.push(...events.filter((e) => e?.type === "view"));
+          return route.abort();
+        }
+        return route.continue();
+      });
+      const target = process.env.TRACKING_PRODUCT || "/p/p-live-05";
+      await page.goto(BASE + target, { waitUntil: "load", timeout: 45000 }).catch(() => null);
+      await page.waitForTimeout(4000);
+      const ok = captured.some((e) => e.productId === target.split("/").pop());
+      summary(`- tracking: product view sent=${ok} (${captured.length} view event(s) intercepted and aborted — nothing written)`);
+      results.push({ route: `tracking ${target}`, status: ok ? 200 : 0, hscroll: 0, broken: 0, errors: ok ? [] : ["view_event_not_sent"] });
+      // Studio CTA: clicking a Studio link on the home page sends a funnel step.
+      await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
+      await page.waitForTimeout(2500);
+      await page.locator('a[href="/studio"]').first().click({ timeout: 10000 }).catch(() => null);
+      await page.waitForTimeout(2500);
+      const cta = funnel.some((e) => e.type === "studio_cta");
+      summary(`- funnel: studio_cta sent=${cta} (${funnel.length} event(s) intercepted and aborted — nothing written)`);
+      results.push({ route: "funnel studio_cta", status: cta ? 200 : 0, hscroll: 0, broken: 0, errors: cta ? [] : ["studio_cta_not_sent"] });
+    } finally {
+      await page?.unrouteAll?.({ behavior: "ignoreErrors" }).catch(() => null);
+      await Promise.race([ctx.close().catch(() => null), new Promise((r) => setTimeout(r, 10000))]);
+    }
+  };
+  const capped = await Promise.race([probe().then(() => "done"), new Promise((r) => setTimeout(() => r("timeout"), 90000))]);
+  if (capped === "timeout") {
+    summary("- tracking probe: TIMEOUT after 90s");
+    results.push({ route: "tracking probe", status: 0, hscroll: 0, broken: 0, errors: ["probe_timeout"] });
   }
-  await browser.close();
+  await Promise.race([browser.close().catch(() => null), new Promise((r) => setTimeout(r, 15000))]);
 
   // Live media: newest native reels, downloaded exactly as visitors get them.
   const status = await (await fetch(`${BASE}/api/store?mode=media-pipeline&op=status`)).json();
