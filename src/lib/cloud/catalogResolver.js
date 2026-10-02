@@ -228,7 +228,8 @@ export async function addOwnerLink(body = {}, { env = process.env, fetchImpl, no
     importSource: "owner_link_generator",
     imageSource: { provenance: IMAGE_PROVENANCE.MERCHANT, itemUrl: v.itemUrl, itemId: v.itemId, resolvedAt: iso, via: "store_product_page_og_image", probe,
       storeTitle: String(body.storeTitle || "").slice(0, 140), ...(/^\d{6,14}$/.test(String(body.observedInRun || "")) ? { observedInRun: String(body.observedInRun) } : {}) },
-    priceSource: { via: "store_product_page", observedAt: iso, label: "catalog_price_unverified" },
+    priceSource: { via: "store_product_page", observedAt: iso, label: "catalog_price_unverified",
+      basis: body.priceBasis === "regular_price_welcome_deal_available" ? "regular_price_welcome_deal_available" : "current_price" },
   };
   await c.kvWrite(PRODUCTS_KEY, [...arr(p.value), product]);
   const back = await c.kvRead(PRODUCTS_KEY);
