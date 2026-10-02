@@ -35,6 +35,8 @@ export const REEL_STYLE_LABELS = Object.freeze({
   animated_unbox: { he: "אנבוקסינג מונפש · אנימציה ממוחשבת", en: "Animated unboxing · computer animation" },
   likeloop_cinematic: { he: "LikeLoop Cinematic · סרט אנימציה קצר, ממוחשב", en: "LikeLoop Cinematic · short computer-animated film" },
   street_story: { he: "סיפור רחוב מונפש · דמות מקורית, ממוחשב", en: "Animated street story · original character, computer-made" },
+  ai_story: { he: "סיפור עם דמות AI · המוצר בתמונה אמיתית", en: "AI-generated original character · real product photo" },
+  ai_ugc: { he: "יוצרת וירטואלית (AI) · לא אדם אמיתי · המוצר בתמונה אמיתית", en: "Virtual AI creator · not a real person · real product photo" },
   text_hook: { he: "הוק טקסט על תמונת המוצר · ממוחשב", en: "Text hook over the product photo · computer-made" },
   studio: { he: "קליפ מהסטודיו · אנימציה ממוחשבת", en: "Studio clip · computer animation" },
 });

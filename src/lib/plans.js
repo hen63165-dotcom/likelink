@@ -36,6 +36,7 @@ export const FEATURES = Object.freeze([
   { id: "recruit", status: "live", he: "טיוטות הזמנה ליוצרות מתאימות (את שולחת בעצמך)", quotaKey: "recruitDrafts", plans: { free: false, starter: false, professional: { monthly: 30 } } },
   { id: "gpt_api", status: "live", he: "חיבור ל-ChatGPT (Custom GPT) ליצירת טיוטות תוכן", quotaKey: "gptDrafts", plans: { free: false, starter: false, professional: { monthly: 300 } } },
   { id: "marketing_engine", status: "live", he: "מנוע שיווק אוטונומי: בוחר מוצרים לקידום, כותב הוק וכיתוב עם לינק מעקב, מצרף סרטון אנימציה מסומן כשיש, מפרסם בפיד של LikeLink ומכין פריטי שיתוף לערוצים שלא חוברו", quotaKey: "marketingCycles", plans: { free: false, starter: { monthly: 30 }, professional: { monthly: 120 } } },
+  { id: "creative_premium", status: "live", he: "Creative Lab פרימיום: סרטון UGC סינתטי, סיפור 3D עם דמות AI מקורית או יוצרת וירטואלית 3D למוצר שלך (תמונות AI מונפשות + תמונת המוצר האמיתית, מסומן כ-AI). נספר רק סרטון שנשמר ואומת", quotaKey: "premiumCreatives", plans: { free: false, starter: { monthly: 4 }, professional: { monthly: 20 } } },
   { id: "priority_support", status: "live", he: "מענה בעדיפות לפניות תמיכה במייל", plans: { free: false, starter: false, professional: true } },
   { id: "channel_posting", status: "soon", he: "שליחת פוסט לערוצים מחוברים (Instagram, TikTok ועוד) באישור לכל פוסט", plans: { free: false, starter: false, professional: false } },
   { id: "ai_video", status: "soon", he: "יצירת סרטונים אוטומטית", plans: { free: false, starter: false, professional: false } },

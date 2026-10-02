@@ -56,6 +56,7 @@ import LunaAssistant from "../ambassador/LunaAssistant";
 import AvatarStudio from "../ambassador/AvatarStudio";
 import AutoVideoStudio from "../video/AutoVideoStudio";
 import { studioReelState, requestCinematicReel, reelErrorHe } from "../../lib/reelClient.js";
+import CreativeLab from "./CreativeLab.jsx";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
@@ -235,6 +236,8 @@ const REEL_STYLE_HE = {
   animated_unbox: "אנבוקסינג מונפש",
   likeloop_cinematic: "LikeLoop Cinematic",
   street_story: "סיפור רחוב מונפש",
+  ai_story: "סיפור 3D עם דמות AI",
+  ai_ugc: "יוצרת וירטואלית 3D (AI)",
   text_hook: "הוק טקסט על המוצר",
   studio: "קליפ מהסטודיו",
 };
@@ -444,6 +447,7 @@ function VideoPanel({ onNavigate }) {
         </p>
         {state.error ? <p className="mt-2 text-xs" style={{ color: "#ff9b9b" }}>{reelErrorHe(state.error)}</p> : null}
       </div>
+      <CreativeLab products={mine} he={he} onCreated={refresh} />
       <GrowthLoopCard he={he} reels={state.reels} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {mine.map((p) => {
