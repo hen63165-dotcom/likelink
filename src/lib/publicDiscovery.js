@@ -30,7 +30,7 @@ import { creativeClass } from "./media/videoCapability.js";
 // duplicated as labels only, so the public bundle does not pull the pipeline.
 export const REEL_STYLE_LABELS = Object.freeze({
   cinematic3d: { he: "אנימציה תלת־ממדית מסוגננת", en: "Stylized 3D-look animation" },
-  ugc_style: { he: "בסגנון UGC · ממוחשב, לא צילום של אדם", en: "UGC-style · computer-made, not filmed by a person" },
+  ugc_style: { he: "UGC סינתטי · ממוחשב, לא צילום של אדם", en: "UGC-style · computer-made, not filmed by a person" },
   animated_story: { he: "סיפור מוצר מונפש", en: "Animated product story" },
   animated_unbox: { he: "אנבוקסינג מונפש · אנימציה ממוחשבת", en: "Animated unboxing · computer animation" },
   likeloop_cinematic: { he: "LikeLoop Cinematic · סרט אנימציה קצר, ממוחשב", en: "LikeLoop Cinematic · short computer-animated film" },

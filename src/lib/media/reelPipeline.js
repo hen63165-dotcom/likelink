@@ -53,7 +53,7 @@ export const REEL_STYLES = Object.freeze({
     durationMs: 9000,
   },
   ugc_style: {
-    he: "בסגנון UGC · ממוחשב, לא צילום של אדם",
+    he: "UGC סינתטי · ממוחשב, לא צילום של אדם",
     en: "UGC-style · computer-made, not filmed by a person",
     durationMs: 9000,
   },

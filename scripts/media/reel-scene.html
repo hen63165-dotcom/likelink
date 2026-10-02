@@ -163,7 +163,7 @@ function ugc(t) {
     ctx.fillStyle = "rgba(255,255,255,.35)"; rr(ctx, x, 26, w, 6, 3); ctx.fill();
     const p = i < seg ? 1 : i === seg ? clamp(local / 3) : 0; ctx.fillStyle = "#fff"; rr(ctx, x, 26, w * p, 6, 3); ctx.fill();
   }
-  pill("בסגנון UGC · ממוחשב", 160, 78, { font: `700 21px ${UI}`, bg: "rgba(10,8,14,.6)", fg: "#fff", h: 40, padX: 16 });
+  pill("UGC סינתטי · ממוחשב", 160, 78, { font: `700 21px ${UI}`, bg: "rgba(10,8,14,.6)", fg: "#fff", h: 40, padX: 16 });
   brandMark(W - 120, 90);
   const pop = (a) => back(win(local, a, a + 0.35));
   const chip = (label, y, a, big = false) => pill(label, W / 2, y, { font: big ? `900 40px ${UI}` : `800 30px ${UI}`, h: big ? 76 : 60, padX: 26, scale: pop(a), alpha: clamp(pop(a) * 1.5) });

@@ -49,3 +49,12 @@ test("external counts only with the provider's id", () => {
   assert.ok(s.source.includes("EXTERNAL"));
   assert.equal(s.externalMissing[0].destination, "tiktok");
 });
+
+test("synthetic UGC is labelled 'UGC סינתטי' everywhere a viewer sees it", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["src/lib/media/reelPipeline.js", "src/lib/publicDiscovery.js", "src/lib/media/videoCapability.js", "src/components/studio/StudioShell.jsx", "scripts/media/reel-scene.html"]) {
+    const s = readFileSync(f, "utf8");
+    assert.ok(s.includes("UGC סינתטי"), f);
+    assert.ok(!s.includes("בסגנון UGC"), f);
+  }
+});
