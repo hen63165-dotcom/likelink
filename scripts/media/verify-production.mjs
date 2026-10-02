@@ -69,21 +69,26 @@ async function main() {
     }
     // Interactions on the live site (mobile only; local state, no writes beyond the visitor's own).
     if (vp.n === "m") {
+      // Each step is time-capped and recorded; a missing control is reported, never a hang.
+      const step = async (name, fn) => { try { return await fn(); } catch (e) { summary(`  interaction ${name} failed: ${String(e.message || e).split("\n")[0].slice(0, 160)}`); return null; } };
       await page.goto(BASE + "/", { waitUntil: "load" });
+      await page.waitForTimeout(2500);
       const save = page.locator("article button[aria-pressed]").first();
-      await page.waitForTimeout(2500); await save.click();
-      const saved = (await save.getAttribute("aria-pressed")) === "true";
+      const saved = await step("save", async () => { await save.click({ timeout: 8000 }); return (await save.getAttribute("aria-pressed")) === "true"; });
       await page.goto(BASE + "/saved", { waitUntil: "load" });
       await page.waitForTimeout(3000);
       const savedCount = await page.locator("article").count();
-      await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" });
-      await page.waitForTimeout(2500); await page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click();
+      const creatorResp = await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" }).catch(() => null);
+      await page.waitForTimeout(3000);
+      const followDiag = await page.evaluate(() => ({ pressed: [...document.querySelectorAll("button[aria-pressed]")].map((b) => b.textContent.trim().slice(0, 30)).slice(0, 8), h1: (document.querySelector("h1")?.textContent || "").trim().slice(0, 40), lx: !!document.querySelector(".lx") }));
+      await step("follow", () => page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click({ timeout: 8000 }));
       const following = await page.locator("button[aria-pressed=true]", { hasText: "עוקבים" }).count();
+      if (!following) summary(`  follow diagnostics: http ${creatorResp?.status?.() ?? 0} · ${JSON.stringify(followDiag)}`);
       await page.goto(BASE + "/", { waitUntil: "load" });
       // At 375px the language switch lives in the menu drawer.
       await page.waitForTimeout(2000);
-      await page.locator("button[aria-label='תפריט']").click().catch(() => {});
-      await page.locator("[role=dialog] button", { hasText: "EN" }).first().click().catch(() => {});
+      await page.locator("button[aria-label='תפריט']").click({ timeout: 8000 }).catch(() => {});
+      await page.locator("[role=dialog] button", { hasText: "EN" }).first().click({ timeout: 8000 }).catch(() => {});
       await page.waitForTimeout(500);
       const dir = await page.evaluate(() => document.querySelector(".lx")?.dir);
       summary(`- interactions: save ${saved} → saved page items ${savedCount} · follow ${following > 0} · language switch dir=${dir}`);
@@ -165,4 +170,5 @@ async function main() {
   for (const b of bad) summary(`  ISSUE ${JSON.stringify(b).slice(0, 400)}`);
 }
 
-main().catch((e) => { console.error(e); process.exitCode = 1; });
+// Never hang the job: whatever happens, the process ends (an open Chrome would keep it alive).
+main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => setTimeout(() => process.exit(process.exitCode || 0), 2000));
