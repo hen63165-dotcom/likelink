@@ -27,7 +27,7 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     env:
       LIKELINK_API: https://likelink2.vercel.app
       AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
@@ -42,8 +42,23 @@ jobs:
           sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core >/dev/null
           npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
           /tmp/pw/node_modules/.bin/playwright install --with-deps chromium >/dev/null
+      # LikeLink's own image model (open weights, CPU): no account, no key, no credits.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: own-image-model-v1
+      - name: Install own image model runtime (CPU torch + diffusers)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.30" transformers accelerate peft safetensors
       - name: Render, verify and publish reels
         env:
+          OWN_MODEL_PYTHON: python
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
         run: node scripts/media/render-reels.mjs --limit "${{ github.event.inputs.limit || '4' }}" --out "$RUNNER_TEMP/reels"
