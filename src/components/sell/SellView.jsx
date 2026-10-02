@@ -45,6 +45,7 @@ import CoachPanel from "./CoachPanel";
 import { lunaPersona } from "../../lib/lunaAvatar.js";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
 import { toHebrewError } from "../../lib/errorMessages.js";
+import { trackFunnel } from "../../lib/funnel.js";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -973,6 +974,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       const result = mode === "signup" ? await onSignup(name.trim(), cleanEmail, password.trim()) : await onLogin(cleanEmail, password.trim());
       // Record the consent (version + time) as soon as a verified session exists.
       if (result?.ok !== false) getSessionToken().then((tok) => flushSignupConsent(tok)).catch(() => {});
+      if (result?.ok !== false) trackFunnel(result?.needsConfirmation ? "signup_confirm_sent" : mode === "signup" ? "signup_completed" : "login_completed", mode);
       if (result?.needsConfirmation) {
         setMode("login");
         setNotice("✓ נשלח אליך מייל לאימות הכתובת. אשרי אותו ואז התחברי כאן — הסטודיו יחכה לך.");

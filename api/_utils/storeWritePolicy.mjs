@@ -198,6 +198,21 @@ function recentTs(ts, now) {
   return Number.isFinite(n) && n > now - 24 * 60 * 60 * 1000 && n < now + 5 * 60 * 1000;
 }
 
+// Funnel steps (src/lib/funnel.js): known types, recent, attribution fields only.
+const FUNNEL_TYPES = new Set(["studio_cta", "signup_completed", "signup_confirm_sent", "login_completed"]);
+const policyFunnel = appendOnly({
+  cap: 5000,
+  maxNew: 3,
+  accept: (n, ctx) => FUNNEL_TYPES.has(n.type) && recentTs(n.ts, ctx.now),
+  sanitize: (n) => {
+    const out = { id: String(n.id).slice(0, 80), type: n.type, ts: Number(n.ts) };
+    if (typeof n.place === "string" && n.place) out.place = n.place.slice(0, 60);
+    for (const [k, max] of [["src", 80], ["med", 60], ["camp", 80], ["cnt", 60]]) if (typeof n[k] === "string" && n[k]) out[k] = n[k].slice(0, max);
+    if (typeof n.cid === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(n.cid)) out.cid = n.cid;
+    return out;
+  },
+});
+
 const policyClicks = appendOnly({
   cap: 5000,
   maxNew: 5,
@@ -253,6 +268,7 @@ export const BROWSER_WRITE_POLICIES = Object.freeze({
   "marketplace:products": policyProducts,
   "marketplace:marketers": policyMarketers,
   "marketplace:clicks": policyClicks,
+  "marketplace:funnel": policyFunnel,
   "marketplace:referral_clicks": policyReferralClicks,
   "marketplace:notifications": policyNotifications,
   "marketplace:charges": policyCharges,
