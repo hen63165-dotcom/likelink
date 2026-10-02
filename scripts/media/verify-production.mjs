@@ -133,7 +133,9 @@ async function main() {
       // Studio CTA: clicking a Studio link on the home page sends a funnel step.
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
       await page.waitForTimeout(2500);
-      await page.locator('a[href="/studio"]').first().click({ timeout: 10000 }).catch(() => null);
+      // The first /studio link can sit in a closed menu drawer; click a visible one.
+      const ctaLinks = await page.locator('a[href="/studio"]:visible').count();
+      await page.locator('a[href="/studio"]:visible').first().click({ timeout: 10000 }).catch((e) => summary(`  studio CTA click failed (${ctaLinks} visible): ${String(e.message || e).split("\n")[0].slice(0, 120)}`));
       await page.waitForTimeout(2500);
       const cta = funnel.some((e) => e.type === "studio_cta");
       summary(`- funnel: studio_cta sent=${cta} (${funnel.length} event(s) intercepted and aborted — nothing written)`);
@@ -167,7 +169,7 @@ async function main() {
   writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
   const bad = results.filter((x) => x.route && (x.status !== 200 || x.hscroll > 0 || x.broken || x.errors.length));
   summary(`RESULT routes=${results.filter((x) => x.route).length} issues=${bad.length}`);
-  for (const b of bad) summary(`  ISSUE ${JSON.stringify(b).slice(0, 400)}`);
+  for (const b of bad) summary(`  ISSUE ${b.vp || ""} ${b.route} · http ${b.status} · hscroll ${b.hscroll} · broken ${b.broken} · errors ${JSON.stringify(b.errors).slice(0, 600)}`);
 }
 
 // Never hang the job: whatever happens, the process ends (an open Chrome would keep it alive).
