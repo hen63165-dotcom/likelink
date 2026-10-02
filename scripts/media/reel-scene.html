@@ -406,12 +406,131 @@ function likeloop(t) {
   disclosure(t);
 }
 
+
+/* ---------------------------------------------------------- street_story
+   An original stylized character walks down a sunny street (setup), the sky
+   turns and her curls frizz in the rain (twist), the real product photo is the
+   payoff she picks, then the LikeLink CTA. All drawn here — no third-party
+   characters or footage. Lines come from concept.street (about the day only). */
+function walker(x, y, T, walk, frizz, mood) {
+  const sw = Math.sin(T * 6.2) * 0.38 * walk, bob = Math.abs(Math.sin(T * 6.2)) * 10 * walk;
+  ctx.save(); ctx.translate(x, y - bob);
+  // legs (jeans) + shoes
+  for (const [dir, ph] of [[1, 0], [-1, Math.PI]]) {
+    ctx.save(); ctx.translate(dir * 26, 120); ctx.rotate(dir * sw);
+    ctx.fillStyle = "#7f9cc9"; rr(ctx, -22, 0, 44, 230, 20); ctx.fill();
+    ctx.fillStyle = "#1d1a24"; ctx.beginPath(); ctx.ellipse(6, 236, 30, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // top + blazer
+  ctx.fillStyle = "#f7f1ea"; rr(ctx, -62, -120, 124, 250, 40); ctx.fill();
+  ctx.fillStyle = "#f08aa8";
+  ctx.beginPath(); ctx.moveTo(-78, -110); ctx.lineTo(-24, -118); ctx.lineTo(-30, 140); ctx.lineTo(-86, 128); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(78, -110); ctx.lineTo(24, -118); ctx.lineTo(30, 140); ctx.lineTo(86, 128); ctx.closePath(); ctx.fill();
+  // arm + bag (swings opposite to the legs)
+  ctx.save(); ctx.translate(-80, -96); ctx.rotate(-sw * 0.6);
+  ctx.fillStyle = "#f08aa8"; rr(ctx, -18, 0, 36, 170, 18); ctx.fill();
+  ctx.fillStyle = "#211b26"; rr(ctx, -46, 150, 70, 84, 14); ctx.fill(); ctx.strokeStyle = "#211b26"; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(-11, 150, 26, Math.PI, 0); ctx.stroke();
+  ctx.restore();
+  // neck + head
+  ctx.fillStyle = "#e9b48f"; rr(ctx, -16, -150, 32, 40, 12); ctx.fill();
+  const hairR = 118 * (1 + frizz * 0.38);
+  // one shaded hair mass behind the head, falling to the shoulders
+  const hg = ctx.createRadialGradient(-30, -250, 20, 0, -170, hairR * 1.5);
+  hg.addColorStop(0, "#9a5a35"); hg.addColorStop(0.55, "#6a3720"); hg.addColorStop(1, "#3c1f12");
+  ctx.fillStyle = hg; ctx.beginPath();
+  for (let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 2, wav = 1 + 0.07 * Math.sin(a * 9 + T * 3) + frizz * 0.12 * Math.sin(a * 17 + T * 6);
+    const rx = hairR * 1.08 * wav, ry = hairR * 1.3 * wav;
+    const x = Math.cos(a) * rx, y = -165 + Math.sin(a) * ry;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.fill();
+  // curl texture: soft spiral highlights
+  ctx.lineWidth = 5; ctx.lineCap = "round";
+  for (let i = 0; i < 34; i++) {
+    const a = rand(i) * Math.PI * 2, d = hairR * (0.35 + rand(i + 9) * 0.6);
+    const x = Math.cos(a) * d * 1.05, y = -165 + Math.sin(a) * d * 1.25;
+    if (Math.abs(x) < 58 && y > -275 && y < -130) continue; // keep the face clear
+    ctx.strokeStyle = `rgba(214,150,100,${0.35 + rand(i + 2) * 0.35})`;
+    ctx.beginPath(); ctx.arc(x, y + Math.sin(T * 4 + i) * (1 + frizz * 3), 9 + rand(i + 4) * 9 + frizz * 5, rand(i) * 6, rand(i) * 6 + 3.6); ctx.stroke();
+  }
+  // face
+  ctx.fillStyle = "#efbd98"; ctx.beginPath(); ctx.ellipse(0, -205, 58, 70, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(240,120,140,.35)"; for (const ex of [-34, 34]) { ctx.beginPath(); ctx.ellipse(ex, -180, 13, 8, 0, 0, Math.PI * 2); ctx.fill(); }
+  // sunglasses + lips
+  ctx.fillStyle = "#14121a"; rr(ctx, -50, -228, 44, 30, 12); ctx.fill(); rr(ctx, 6, -228, 44, 30, 12); ctx.fill(); ctx.fillRect(-8, -218, 16, 5);
+  ctx.fillStyle = "rgba(255,255,255,.35)"; rr(ctx, -44, -224, 14, 8, 4); ctx.fill(); rr(ctx, 12, -224, 14, 8, 4); ctx.fill();
+  ctx.strokeStyle = "#b5455f"; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath();
+  if (mood >= 0) ctx.arc(0, -172, 14, 0.25, Math.PI - 0.25); else ctx.arc(0, -156, 13, Math.PI + 0.35, -0.35);
+  ctx.stroke();
+  // side locks framing the face
+  for (const side of [-1, 1]) {
+    const lg = ctx.createLinearGradient(side * 60, -270, side * 80, -120); lg.addColorStop(0, "#a56238"); lg.addColorStop(1, "#6a3720");
+    ctx.fillStyle = lg; ctx.beginPath(); ctx.ellipse(side * (62 + frizz * 14), -205 + Math.sin(T * 5 + side) * 3, 17 + frizz * 8, 84, side * 0.1, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+function street(t) {
+  const T = t / 1000, L0 = C.street || { setup: "", twist: "", payoff: "" };
+  const noEmoji = (x) => String(x || "").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "").trim();
+  const L = { setup: noEmoji(L0.setup), twist: noEmoji(L0.twist), payoff: noEmoji(L0.payoff) };
+  const rain = ease(win(T, 4, 5)) * (1 - ease(win(T, 7.5, 8.6)));
+  const walk = T < 4 ? 1 : T < 7.5 ? 0.15 : T < 11 ? 0.8 : 0.4;
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  const mix = (a, b) => Math.round(a + (b - a) * rain);
+  sky.addColorStop(0, `rgb(${mix(132, 92)},${mix(196, 104)},${mix(240, 122)})`); sky.addColorStop(1, `rgb(${mix(255, 120)},${mix(226, 126)},${mix(196, 140)})`);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  // parallax facades (far, near) + trees + lamps
+  const off = (T * 70) % 260;
+  for (let layer = 0; layer < 2; layer++) {
+    const spd = layer ? 1 : 0.45, base = layer ? 300 : 220, col = layer ? `rgb(${mix(238, 150)},${mix(220, 150)},${mix(196, 156)})` : `rgb(${mix(214, 132)},${mix(196, 134)},${mix(176, 142)})`;
+    for (let i = -1; i < 5; i++) {
+      const bx = i * 260 - ((T * 70 * spd) % 260);
+      ctx.fillStyle = col; ctx.fillRect(bx, base, 250, 820 - base + 200);
+      ctx.fillStyle = `rgba(60,70,90,${0.35 + 0.2 * layer})`;
+      for (let wy = 0; wy < 4; wy++) for (let wx = 0; wx < 3; wx++) { rr(ctx, bx + 28 + wx * 74, base + 40 + wy * 120, 44, 70, 8); ctx.fill(); }
+      if (layer) { ctx.fillStyle = "#b8463f"; ctx.fillRect(bx + 10, base + 520, 230, 26); }
+    }
+  }
+  for (let i = -1; i < 4; i++) { // trees in front
+    const tx = i * 340 - ((T * 110) % 340) + 120;
+    ctx.fillStyle = "#5b3b25"; ctx.fillRect(tx - 9, 640, 18, 360);
+    ctx.fillStyle = rain > 0.5 ? "#4e7a4a" : "#6fae5a"; for (const [dx, dy, r] of [[0, 0, 90], [-60, 40, 70], [60, 40, 70]]) { ctx.beginPath(); ctx.arc(tx + dx, 600 + dy, r, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.fillStyle = `rgb(${mix(206, 120)},${mix(196, 120)},${mix(184, 128)})`; ctx.fillRect(0, 1000, W, 280);
+  // the character
+  const exit = easeInOut(win(T, 10.6, 11.4));
+  if (exit < 1) { ctx.save(); ctx.globalAlpha = 1 - exit; walker(W / 2 - 40 - exit * 420, 760, T, walk, rain, T > 4 && T < 8 ? -1 : 1); ctx.restore(); }
+  // rain streaks
+  if (rain > 0.02) { ctx.strokeStyle = `rgba(220,230,255,${0.55 * rain})`; ctx.lineWidth = 3; for (let i = 0; i < 90; i++) { const x = (rand(i) * W + T * 40) % W, y = (rand(i + 50) * H + T * 1400) % H; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 10, y + 38); ctx.stroke(); } }
+  // payoff: the real product enters
+  const enter = back(win(T, 8, 9));
+  if (T > 8) {
+    const hero = easeInOut(win(T, 11, 12));
+    const px = W + 260 - (W + 260 - (W - 190)) * enter - (W - 190 - W / 2) * hero, py = 640 - 110 * hero, sc = 0.55 + 0.4 * hero;
+    card3D(px, py, 420 * sc, 525 * sc, Math.sin(T * 0.9) * 0.2, { sweep: ((T - 8) % 2.4) / 2.4 });
+    if (T < 11) for (let i = 0; i < 20; i++) { const a = rand(i) * 6.28, k = ((T - 8) * 0.7 + rand(i + 3)) % 1; ctx.fillStyle = `rgba(255,236,190,${(1 - k) * 0.9})`; ctx.beginPath(); ctx.arc(px + Math.cos(a) * 200 * k, py + Math.sin(a) * 200 * k, 3 + rand(i) * 5, 0, 6.28); ctx.fill(); }
+  }
+  // captions: big, creator-style, one per beat
+  const cap = (line, a, b, y = 230) => { const al = ease(win(T, a, a + 0.35)) * (1 - ease(win(T, b - 0.3, b))); if (al > 0 && line) wrap(line, `900 50px ${UI}`, 620, 2).forEach((l, i) => pill(l, W / 2, y + i * 84, { font: `900 46px ${UI}`, h: 78, alpha: al, scale: 0.9 + 0.1 * back(win(T, a, a + 0.4)), bg: "rgba(255,255,255,.96)" })); };
+  cap(L.setup, 0.2, 4);
+  cap(L.twist, 4.1, 7.8);
+  cap(L.payoff, 8.1, 11.2);
+  if (T > 11.4) textBlock(wrap(C.lines.title, `900 46px ${DISPLAY}`, 620, 2), W / 2, 170, `900 46px ${DISPLAY}`, 56, "#fff", ease(win(T, 11.4, 12)));
+  if (T > 12) C.lines.facts.forEach((f, i) => pill(f, W / 2, 960 + i * 58, { alpha: ease(win(T, 12 + i * 0.35, 12.5 + i * 0.35)), font: `700 25px ${UI}`, h: 50 }));
+  if (T > 13) pill(C.lines.cta, W / 2, 1150, { bg: C.accent, fg: "#fff", alpha: ease(win(T, 13, 13.4)), scale: back(win(T, 13, 13.5)), font: `800 32px ${UI}`, h: 66 });
+  brandMark(W / 2, 64, 0.95);
+  if (T < 11.2) pill("דמות מקורית · אנימציה", 150, 120, { font: `700 20px ${UI}`, bg: "rgba(10,8,14,.55)", fg: "#fff", h: 38, padX: 14 });
+  disclosure(t);
+}
+
 window.renderFrame = (t, quality = 0.9) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalAlpha = 1; ctx.filter = "none";
   const hook = C.hookMs || 0;
   if (t < hook) { prelude(t); return cv.toDataURL("image/jpeg", quality); }
   const s = t - hook;
-  if (C.style === "cinematic3d") cinematic(s); else if (C.style === "ugc_style") ugc(s); else if (C.style === "animated_unbox") unbox(s); else if (C.style === "likeloop_cinematic") likeloop(s); else story(s);
+  if (C.style === "cinematic3d") cinematic(s); else if (C.style === "ugc_style") ugc(s); else if (C.style === "animated_unbox") unbox(s); else if (C.style === "likeloop_cinematic") likeloop(s); else if (C.style === "street_story") street(s); else story(s);
   return cv.toDataURL("image/jpeg", quality);
 };
 </script>

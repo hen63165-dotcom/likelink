@@ -233,6 +233,7 @@ const REEL_STYLE_HE = {
   animated_story: "סיפור מוצר מונפש",
   animated_unbox: "אנבוקסינג מונפש",
   likeloop_cinematic: "LikeLoop Cinematic",
+  street_story: "סיפור רחוב מונפש",
   studio: "קליפ מהסטודיו",
 };
 
