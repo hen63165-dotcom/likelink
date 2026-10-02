@@ -65,10 +65,14 @@ async function main() {
         let area = mainEl;
         for (let i = 0; i < 4 && area?.parentElement; i++) area = area.parentElement;
         const welcome = /welcome|new (user|shopper|customer|buyer)|first order|לקונ(ה|ים) חדש|משתמש(ים)? חדש|הזמנה ראשונה|ברוכים הבאים/i.test(area?.innerText || "");
-        const priceEl = main && !welcome ? { textContent: main.text } : null;
+        // With a welcome deal on the page, the regular price is the struck-through
+        // one: every buyer pays at most that. It is taken as the product's price.
+        const original = welcome ? all.find((x) => /original|del|origin/i.test(x.cls)) : null;
+        const priceEl = !main ? null : welcome ? (original ? { textContent: original.text } : null) : { textContent: main.text };
         return {
           prices: all.slice(0, 12),
           welcome,
+          original: original ? original.text : "",
           url: location.href,
           og: q('meta[property="og:image"]')?.content || "",
           title: q('meta[property="og:title"]')?.content || q("h1")?.textContent || document.title || "",
@@ -80,7 +84,7 @@ async function main() {
       image = image.replace(/_\d+x\d+(q\d+)?\.(jpg|png|webp)(_\.webp)?$/i, "");
       const pr = parsePrice(found.priceText);
       summary(`- ${link}\n  page ${itemUrl.slice(0, 90)} · price "${found.priceText.trim().slice(0, 30)}" → ${pr ? `${pr.price} ${pr.currency}` : "none"} · title "${found.title.slice(0, 70)}"`);
-      if (found.welcome) summary("  - the price area shows a new-customer price — no price taken (the product is not added this run)");
+      if (found.welcome) summary(found.original ? `  - welcome deal on the page — the regular (struck-through) price is used: "${found.original}"` : "  - welcome deal and no regular price found — no price taken (not added this run)");
       for (const x of found.prices) summary(`    · ${x.banner ? "[banner] " : ""}${x.cls} → "${x.text}"`);
       const captcha = /_____tmd_____|\/punish|captcha/i.test(found.url) || /captcha/i.test(found.title);
       if (captcha) { blocked = true; summary("  - SOURCE_BLOCKED (captcha) — nothing written"); continue; }
@@ -88,7 +92,7 @@ async function main() {
       const res = await fetch(`${API}/api/store?mode=media-pipeline&op=catalog-add-link`, {
         method: "POST",
         headers: { Authorization: `Bearer ${SECRET}`, Origin: API, "content-type": "application/json" },
-        body: JSON.stringify({ affiliateUrl: link, itemUrl, image, storeTitle: found.title, price: pr?.price, currency: pr?.currency, observedInRun: process.env.GITHUB_RUN_ID || "" }),
+        body: JSON.stringify({ affiliateUrl: link, itemUrl, image, storeTitle: found.title, price: pr?.price, currency: pr?.currency, priceBasis: found.welcome ? "regular_price_welcome_deal_available" : "current_price", observedInRun: process.env.GITHUB_RUN_ID || "" }),
         signal: AbortSignal.timeout(60_000),
       });
       const json = await res.json().catch(() => null);
