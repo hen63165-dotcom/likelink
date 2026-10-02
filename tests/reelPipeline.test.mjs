@@ -315,6 +315,30 @@ test("a creator request is queued once and served first by the plan, then marked
   assert.equal(sb.get("media:requests")[0].status, "RENDERED");
 });
 
+test("a request that the planner could never serve is refused, not left QUEUED forever", async () => {
+  _resetKvReadGuard();
+  const stock = product("ps", { image: "https://images.unsplash.com/photo-1" });
+  const s1 = product("s1", { affiliateUrl: "https://s.click.aliexpress.com/e/_SHARED" });
+  const s2 = product("s2", { affiliateUrl: "https://s.click.aliexpress.com/e/_SHARED" });
+  const sb = fakeSupabase({ products: [product("p1"), stock, s1, s2] });
+  const ctx = { env: sb.env, fetchImpl: sb.fetchImpl };
+  assert.equal((await requestRender({ productId: "ps", ownerIds: ["m1"] }, ctx)).error, "stock_image");
+  assert.equal((await requestRender({ productId: "s1", ownerIds: ["m1"] }, ctx)).error, "product_not_promotable");
+  const before = sb.get("media:requests") || [];
+  assert.equal(before.length, 0, "nothing queued for an unservable product");
+  // Every style already rendered → complete, nothing queued.
+  for (const style of STYLE_ORDER) {
+    const plan = await buildPlan({ ...ctx, limit: 1 });
+    const item = plan.plan.find((x) => x.productId === "p1");
+    if (!item) break;
+    assert.equal((await ingestReel(ingestBody({ productId: "p1", style: item.style, conceptId: `p1:${style}` }), { ...ctx, now: Date.now() + STYLE_ORDER.indexOf(style) })).ok, true);
+  }
+  const done = await requestRender({ productId: "p1", ownerIds: ["m1"] }, ctx);
+  assert.equal(done.complete, true);
+  assert.equal(done.styles.length, STYLE_ORDER.length);
+  assert.equal((sb.get("media:requests") || []).length, 0);
+});
+
 test("publishing a reel never evicts earlier feed posts (append-only, cap = publish:log length)", async () => {
   _resetKvReadGuard();
   const sb = fakeSupabase();

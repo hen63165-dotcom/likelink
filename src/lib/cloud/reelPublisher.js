@@ -453,12 +453,19 @@ export async function registerStudioUpload({ sourcePath, productId, ownerIds = [
 export async function requestRender({ productId, style = "", ownerIds = [], requestedBy = "" } = {}, { env, fetchImpl, now = Date.now() } = {}) {
   const c = client({ env, fetchImpl });
   if (style && !STYLE_ORDER.includes(style)) return { ok: false, status: 400, error: "bad_style" };
-  const [productsR, marketersR, reqR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, REQUESTS_KEY].map((k) => c.kvRead(k)));
-  if (![productsR, marketersR, reqR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
-  const product = arr(productsR.value).find((p) => p?.id === productId);
+  const [productsR, marketersR, reqR, videosR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, REQUESTS_KEY, VIDEOS_KEY].map((k) => c.kvRead(k)));
+  if (![productsR, marketersR, reqR, videosR].every((r) => r.ok)) return { ok: false, status: 503, error: "kv_read_failed" };
+  const products = arr(productsR.value);
+  const product = products.find((p) => p?.id === productId);
   if (!product || !isPublicCatalogProduct(product, arr(marketersR.value))) return { ok: false, status: 404, error: "product_not_public" };
   if (!(ownerIds || []).map(String).includes(String(product.marketerId))) return { ok: false, status: 403, error: "not_your_product" };
   if (!/^https?:\/\//i.test(String(product.image || ""))) return { ok: false, status: 422, error: "product_image_required" };
+  // The planner renders only a promotable product (own link, real photo) and only
+  // a style it does not have yet — anything else would sit QUEUED forever.
+  if (imageProvenance(product.image) === IMAGE_PROVENANCE.STOCK) return { ok: false, status: 422, error: "stock_image" };
+  if (!isPromotable(product, products, sharedAffiliateLinks(products))) return { ok: false, status: 422, error: "product_not_promotable" };
+  const have = registeredStyles(arr(videosR.value)).get(product.id) || new Set();
+  if (style ? have.has(style) : have.size >= STYLE_ORDER.length) return { ok: true, status: 200, complete: true, styles: [...have] };
   const list = arr(reqR.value);
   const existing = list.find((r) => r?.productId === productId && r.status === "QUEUED");
   if (existing) return { ok: true, status: 200, request: existing, duplicate: true };
