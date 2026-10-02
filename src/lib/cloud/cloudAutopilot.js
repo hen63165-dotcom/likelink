@@ -5,6 +5,7 @@ import { generateDailyTrendReport } from "./trendScanner.js";
 import { appendVeritas } from "./veritas.js";
 import { generateProductStory } from "./storyEngine.js";
 import { CONNECTION_STATE } from "./connectionManager.js";
+import { isPromotable, isRealProductPhoto, sharedAffiliateLinks } from "../discovery/catalogIntegrity.js";
 
 const CLOUD_CYCLE_KEY = "cloud_autopilot:meta";
 const SITE_FEED_KEY = "site_campaign:feed";
@@ -44,7 +45,11 @@ export async function runCloudAutopilotCycle(ctx, opts = {}) {
   }
   const trendReport = generateDailyTrendReport(productsList, new Date(now));
   const channelStates = [{ provider: "owned_web", connected: true, authorized: true, verified: true }, ...marketersList.filter(m => m && m.enabled).flatMap(m => (m.channels || []).map(ch => { const provider = String(ch.type || "unknown"); const state = connectionByProvider.get(provider); const verified = Boolean(state && (state.state === CONNECTION_STATE.CONNECTED || state.state === CONNECTION_STATE.READY) && state.lastVerified); return { provider, connected: verified, authorized: verified, verified }; }))];
-  const decision = selectOpportunity({ approved: productsList, sales: salesList, clicks: clicksList, campaigns: campaignsList, channelStates, marketers: marketersList, now });
+  // Catalog integrity: the autopilot spotlights only a product with its own
+  // affiliate link and a real product photo (never a stock image presented as it).
+  const shared = sharedAffiliateLinks(productsList);
+  const promotable = productsList.filter((p) => isPromotable(p, productsList, shared) && isRealProductPhoto(p?.image));
+  const decision = selectOpportunity({ approved: promotable, sales: salesList, clicks: clicksList, campaigns: campaignsList, channelStates, marketers: marketersList, now });
   const selected = decision.selected || null;
   let campaign = null; let campaignId = null;
   if (selected) {
