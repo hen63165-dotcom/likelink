@@ -117,6 +117,7 @@ const LIVE_EVIDENCE = {
   content_export: [["src/lib/discovery/distribution.js", "export function exportContentPack"], ["api/_utils/distributionRoutes.mjs", "\"content_export\""]],
 };
 LIVE_EVIDENCE.marketing_engine = [["src/lib/cloud/marketingEngineRunner.js", "export async function runCycle"], ["api/_utils/marketingEngineHandler.mjs", "ENGINE_QUOTA_KEY"]];
+LIVE_EVIDENCE.creative_premium = [["src/lib/cloud/reelPublisher.js", "export async function createCreative"], ["src/lib/media/creativeEngine.js", "PREMIUM_QUOTA_KEY = \"premiumCreatives\""], ["api/_utils/mediaPipelineHandler.mjs", "creative-create"]];
 const PENDING_IN_THIS_PR = [];
 LIVE_EVIDENCE.gpt_api = [["api/_utils/gptHandler.mjs", "create_content_draft"], ["src/lib/gpt/openapi.js", "operationId: \"create_content_draft\""], ["api/_utils/gptHandler.mjs", "\"gptDrafts\""]];
 

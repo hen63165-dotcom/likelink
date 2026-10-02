@@ -47,7 +47,26 @@ import {
   validateIngest,
   buildSocialPack,
   reelCreative,
+  planItemFor,
+  AI_SCENE_STYLES,
+  AI_IMAGE_PROVIDER,
 } from "../media/reelPipeline.js";
+import {
+  CREATIVE_TYPES,
+  KEYS as CREATIVE_KEYS,
+  MAX_RENDER_ATTEMPTS,
+  PREMIUM_QUOTA_KEY,
+  STATUS as PROVIDER_STATUS,
+  appendEvent,
+  creativeAnalytics,
+  creativeCapabilities,
+  jobView,
+  providerStates,
+  recordProviderResult,
+  typeOfStyle,
+  validateOrder,
+} from "../media/creativeEngine.js";
+import { checkQuota, quotaStoreKey, planIncluding } from "../discovery/quotas.js";
 import { publishExternalReel, withPublications } from "../publishing/adapters.js";
 import { reelStudioStatus } from "../publishing/studioStatus.js";
 
@@ -182,16 +201,31 @@ export async function buildPlan({ limit = 3, env, fetchImpl, now = Date.now() } 
   const [products, marketers, videos, clicks, requests] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, VIDEOS_KEY, CLICKS_KEY, REQUESTS_KEY].map((k) => c.kvRead(k)));
   if (![products, marketers, videos, clicks, requests].every((r) => r.ok)) return { ok: false, error: "kv_read_failed" };
   const max = Math.max(1, Math.min(6, Number(limit) || 3));
-  const full = planRenders({ products: arr(products.value), marketers: arr(marketers.value), videos: arr(videos.value), clicks: arr(clicks.value), limit: 200, now });
-  // Creator requests first (oldest first), then the autonomous selection.
+  // The free AI image provider in backoff (creativeEngine): its styles wait.
+  const healthR = await c.kvRead(CREATIVE_KEYS.providers);
+  const image = providerStates({ health: healthR.ok ? healthR.value || {} : {}, videos: arr(videos.value), now }).find((p) => p.id === AI_IMAGE_PROVIDER);
+  const skipStyles = image?.status === PROVIDER_STATUS.FAILED ? [...AI_SCENE_STYLES] : [];
+  const full = planRenders({ products: arr(products.value), marketers: arr(marketers.value), videos: arr(videos.value), clicks: arr(clicks.value), limit: 200, now, skipStyles });
+  const creators = new Map(arr(marketers.value).filter((m) => m?.id).map((m) => [m.id, m]));
+  const productById = new Map(arr(products.value).map((p) => [p?.id, p]));
+  const eligible = new Set(full.eligibleIds || []);
+  // Creator requests first (oldest first) — exactly the style that was ordered — then the autonomous selection.
   const queued = arr(requests.value).filter((r) => r?.status === "QUEUED").sort((a, b) => (a.at || 0) - (b.at || 0));
   const picked = [];
   for (const r of queued) {
-    const item = full.plan.find((x) => x.productId === r.productId && (!r.style || x.style === r.style)) || full.plan.find((x) => x.productId === r.productId);
-    if (item && !picked.includes(item)) picked.push({ ...item, reason: "creator_request" });
+    if (picked.length >= max) break;
+    if (r.style && skipStyles.includes(r.style)) continue;
+    let item = null;
+    if (r.style) {
+      const p = productById.get(r.productId);
+      if (p && eligible.has(p.id) && !(full.done?.get(p.id)?.has(r.style))) item = planItemFor(p, creators.get(p.marketerId), r.style);
+    } else {
+      item = full.plan.find((x) => x.productId === r.productId) || null;
+    }
+    if (item && !picked.some((x) => x.productId === item.productId && x.style === item.style)) picked.push({ ...item, reason: "creator_request", requestId: r.id });
   }
   for (const item of full.plan) if (picked.length < max && !picked.some((x) => x.productId === item.productId)) picked.push(item);
-  return { ok: true, plan: picked.slice(0, max), learning: full.learning };
+  return { ok: true, plan: picked.slice(0, max), learning: full.learning, skippedStyles: skipStyles };
 }
 
 // External boundary — the shared adapters of the publishing orchestrator
@@ -263,13 +297,39 @@ export async function ingestReel(body, { env, fetchImpl, now = Date.now() } = {}
   const result = await registerAndPublish(c, { product, products, videos, postsR, logR, style: body.style, videoPath, posterPath, videoBytes: video.length, videoSha, probe: body.probe, now, conceptId: body.conceptId, mediaProof, renderer: body.renderer, creative });
   if (result.ok) {
     try {
-      const reqR = await c.kvRead(REQUESTS_KEY);
-      if (reqR.ok && arr(reqR.value).some((r) => r?.productId === product.id && r.status === "QUEUED")) {
-        await c.kvWrite(REQUESTS_KEY, arr(reqR.value).map((r) => (r?.productId === product.id && r.status === "QUEUED" ? { ...r, status: "RENDERED", assetId: result.assetId, doneAt: now } : r)));
-      }
+      await settleRequests(c, { product, style: body.style, assetId: result.assetId, now, renderMs: Number(body.renderMs) || null, published: result.publication?.status === "PUBLISHED" || result.proof?.publication?.web?.status === "PUBLISHED" });
     } catch { /* request bookkeeping never undoes a verified publication */ }
   }
   return result;
+}
+
+const matches = (r, productId, style) => r?.productId === productId && r.status === "QUEUED" && (!r.style || r.style === style);
+
+/**
+ * After a VERIFIED ingest: the matching requests become RENDERED, a premium
+ * order is counted against the studio's monthly quota (only now — never for a
+ * failed render), and one analytics event is recorded.
+ */
+async function settleRequests(c, { product, style, assetId, now, renderMs, published }) {
+  const reqR = await c.kvRead(REQUESTS_KEY);
+  const settled = reqR.ok ? arr(reqR.value).filter((r) => matches(r, product.id, style)) : [];
+  const premium = settled.filter((r) => r.premium && r.studioId);
+  if (settled.length) {
+    await c.kvWrite(REQUESTS_KEY, arr(reqR.value).map((r) => (matches(r, product.id, style) ? { ...r, status: "RENDERED", assetId, doneAt: now, quotaCharged: Boolean(r.premium && r.studioId) } : r)));
+  }
+  for (const r of premium) {
+    const key = quotaStoreKey(r.studioId, now);
+    const q = await c.kvRead(key);
+    if (q.ok) await c.kvWrite(key, { ...(q.value || {}), [PREMIUM_QUOTA_KEY]: (Number(q.value?.[PREMIUM_QUOTA_KEY]) || 0) + 1 });
+  }
+  await creativeEvent(c, { type: "completed", creativeType: typeOfStyle(style), style, productId: product.id, studioId: product.marketerId || null, assetId, jobId: settled[0]?.id || null, provider: AI_SCENE_STYLES.includes(style) ? AI_IMAGE_PROVIDER : RENDER_PROVIDER, renderMs, published: Boolean(published), premium: premium.length > 0, cost: 0, at: now });
+}
+
+async function creativeEvent(c, event) {
+  const r = await c.kvRead(CREATIVE_KEYS.events);
+  if (!r.ok) return false;
+  await c.kvWrite(CREATIVE_KEYS.events, appendEvent(r.value, event));
+  return true;
 }
 
 /** REGISTER → VERIFY REGISTRATION → PUBLISH → VERIFY PUBLICATION → PROOF (shared by every source). */
@@ -460,7 +520,7 @@ export async function registerStudioUpload({ sourcePath, productId, ownerIds = [
 }
 
 /** ONE CLICK "צור Reel": queue a native render for the runner (served first by the plan). */
-export async function requestRender({ productId, style = "", ownerIds = [], requestedBy = "" } = {}, { env, fetchImpl, now = Date.now() } = {}) {
+export async function requestRender({ productId, style = "", ownerIds = [], requestedBy = "", creativeType = "", premium = false } = {}, { env, fetchImpl, now = Date.now() } = {}) {
   const c = client({ env, fetchImpl });
   if (style && !STYLE_ORDER.includes(style)) return { ok: false, status: 400, error: "bad_style" };
   const [productsR, marketersR, reqR, videosR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, REQUESTS_KEY, VIDEOS_KEY].map((k) => c.kvRead(k)));
@@ -477,9 +537,9 @@ export async function requestRender({ productId, style = "", ownerIds = [], requ
   const have = registeredStyles(arr(videosR.value)).get(product.id) || new Set();
   if (style ? have.has(style) : have.size >= STYLE_ORDER.length) return { ok: true, status: 200, complete: true, styles: [...have] };
   const list = arr(reqR.value);
-  const existing = list.find((r) => r?.productId === productId && r.status === "QUEUED");
+  const existing = list.find((r) => r?.productId === productId && r.status === "QUEUED" && (r.style || "") === (style || ""));
   if (existing) return { ok: true, status: 200, request: existing, duplicate: true };
-  const request = { id: `req_${now}_${rid()}`, productId, style: style || "", requestedBy: String(requestedBy).slice(0, 80), at: now, status: "QUEUED" };
+  const request = { id: `req_${now}_${rid()}`, productId, style: style || "", requestedBy: String(requestedBy).slice(0, 80), at: now, status: "QUEUED", attempts: 0, ...(creativeType ? { creativeType, studioId: String(product.marketerId), premium: Boolean(premium) } : {}) };
   await c.kvWrite(REQUESTS_KEY, [request, ...list].slice(0, 100));
   const back = await c.kvRead(REQUESTS_KEY);
   if (!back.ok || !arr(back.value).some((r) => r?.id === request.id)) return { ok: false, status: 502, error: "request_not_persisted" };
@@ -504,6 +564,153 @@ export async function studioReelState({ ownerIds = [] } = {}, { env, fetchImpl }
     requests: arr(reqR.value).filter((r) => mine.has(r?.productId)).slice(0, 50),
     reels: arr(videosR.value).filter((v) => /^likelink_/.test(String(v?.source || "")) && mine.has(v?.productTags?.[0]?.productId)).map((v) => ({ id: v.id, productId: v.productTags[0].productId, style: v.style, truth: v.truth, videoUrl: v.videoUrl, poster: v.poster, createdAt: v.createdAt, mediaType: v.mediaType || null, creative: v.creative ? { creativeId: v.creative.creativeId, hookType: v.creative.hookType, hook: v.creative.hook } : null, status: reelStudioStatus(v, ledger.get(v.id)) })),
   };
+}
+
+/* ------------------------------------------------------- creative engine */
+
+// Provider credentials are read on the server only; only booleans/states leave.
+const serverEnv = () => (typeof process !== "undefined" && process.env ? process.env : {});
+
+async function creativeContext(c, now) {
+  const [productsR, marketersR, videosR, reqR, healthR] = await Promise.all([PRODUCTS_KEY, MARKETERS_KEY, VIDEOS_KEY, REQUESTS_KEY, CREATIVE_KEYS.providers].map((k) => c.kvRead(k)));
+  if (![productsR, marketersR, videosR, reqR].every((r) => r.ok)) return null;
+  const videos = arr(videosR.value);
+  return {
+    products: arr(productsR.value), marketers: arr(marketersR.value), videos, requests: arr(reqR.value),
+    // A failed health read only means "no evidence" (UNVERIFIED) — never AVAILABLE.
+    health: healthR.ok ? healthR.value || {} : {},
+    now,
+  };
+}
+
+/** Provider states + what each creative type can do — from recorded evidence only. */
+export async function creativeCapabilityView({ owner = false } = {}, { env, fetchImpl, now = Date.now(), providerEnv = serverEnv() } = {}) {
+  const c = client({ env, fetchImpl });
+  const ctx = await creativeContext(c, now);
+  if (!ctx) return { ok: false, status: 503, error: "kv_read_failed" };
+  const providers = providerStates({ env: providerEnv, health: ctx.health, videos: ctx.videos, now, owner });
+  return { ok: true, status: 200, providers, capabilities: creativeCapabilities({ providers }) };
+}
+
+const videoFor = (videos, request) => {
+  const list = arr(videos);
+  if (request.assetId) return list.find((v) => v?.id === request.assetId) || null;
+  if (!request.style) return null;
+  return list.find((v) => v?.source === RENDER_PROVIDER && v.style === request.style && v.productTags?.[0]?.productId === request.productId) || null;
+};
+
+/**
+ * createCreative({ product, studio, creativeType, language, duration, platform, offer, cta }):
+ * validate → capability (real providers) → plan quota (premium) → queue a
+ * render job (idempotent per product + style) → event. The job completes only
+ * through the runner's verified ingest.
+ */
+export async function createCreative(input = {}, { ownerIds = [], actor = "", entitlement = null, env, fetchImpl, now = Date.now(), providerEnv = serverEnv() } = {}) {
+  const v = validateOrder(input);
+  if (!v.ok) return v;
+  const { order } = v;
+  const c = client({ env, fetchImpl });
+  const ctx = await creativeContext(c, now);
+  if (!ctx) return { ok: false, status: 503, error: "kv_read_failed" };
+  const product = ctx.products.find((p) => p?.id === order.productId);
+  if (!product) return { ok: false, status: 404, error: "product_not_public" };
+  if (!(ownerIds || []).map(String).includes(String(product.marketerId))) return { ok: false, status: 403, error: "not_your_product" };
+  const providers = providerStates({ env: providerEnv, health: ctx.health, videos: ctx.videos, now });
+  const cap = creativeCapabilities({ providers }).find((x) => x.type === order.creativeType);
+  if (!cap.available) return { ok: false, status: 409, error: "creative_unavailable", capability: cap };
+  const tier = CREATIVE_TYPES[order.creativeType].tier;
+  const studioId = String(product.marketerId);
+  if (tier === "premium") {
+    // Usage = verified creatives this month + premium jobs still queued (a reservation, never a charge).
+    const q = await c.kvRead(quotaStoreKey(studioId, now));
+    if (!q.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+    const pending = ctx.requests.filter((r) => r?.premium && r.studioId === studioId && r.status === "QUEUED").length;
+    const used = (Number(q.value?.[PREMIUM_QUOTA_KEY]) || 0) + pending;
+    const qa = checkQuota(entitlement, PREMIUM_QUOTA_KEY, used);
+    if (!qa.allowed) return { ok: false, status: qa.error === "plan_required" ? 402 : 429, error: qa.error, limit: qa.limit, used, upgrade: qa.upgrade || planIncluding(PREMIUM_QUOTA_KEY) };
+  }
+  const r = await requestRender({ productId: product.id, style: order.style, ownerIds, requestedBy: actor, creativeType: order.creativeType, premium: tier === "premium" }, { env, fetchImpl, now });
+  const creator = ctx.marketers.find((m) => m?.id === product.marketerId) || null;
+  if (!r.ok) return r;
+  if (r.complete) {
+    const video = videoFor(ctx.videos, { productId: product.id, style: order.style });
+    const job = jobView({ request: { id: `existing_${video?.id || product.id}`, productId: product.id, style: order.style, creativeType: order.creativeType, studioId, status: "RENDERED", assetId: video?.id }, video, product, creator });
+    return { ok: true, status: 200, existing: true, job, order, capability: cap };
+  }
+  if (!r.duplicate) await creativeEvent(c, { type: "queued", creativeType: order.creativeType, style: order.style, productId: product.id, studioId, jobId: r.request.id, provider: cap.providers.image || cap.providers.renderer, premium: tier === "premium", platform: order.platform, at: now });
+  return { ok: true, status: 200, duplicate: Boolean(r.duplicate), job: jobView({ request: r.request, product, creator }), order, capability: cap };
+}
+
+/** The Studio's creative jobs, capabilities, quota and real per-type analytics. */
+export async function creativeStudioState({ ownerIds = [], entitlement = null, owner = false } = {}, { env, fetchImpl, now = Date.now(), providerEnv = serverEnv() } = {}) {
+  const c = client({ env, fetchImpl });
+  const ctx = await creativeContext(c, now);
+  if (!ctx) return { ok: false, status: 503, error: "kv_read_failed" };
+  const owners = new Set((ownerIds || []).map(String));
+  const mine = new Map(ctx.products.filter((p) => owners.has(String(p?.marketerId))).map((p) => [p.id, p]));
+  const creators = new Map(ctx.marketers.map((m) => [m?.id, m]));
+  const jobs = ctx.requests.filter((r) => mine.has(r?.productId) && r.creativeType).slice(0, 40)
+    .map((r) => { const p = mine.get(r.productId); return jobView({ request: r, video: r.status === "RENDERED" ? videoFor(ctx.videos, r) : null, product: p, creator: creators.get(p.marketerId) }); });
+  const providers = providerStates({ env: providerEnv, health: ctx.health, videos: ctx.videos, now, owner });
+  const [eventsR, clicksR] = await Promise.all([CREATIVE_KEYS.events, CLICKS_KEY].map((k) => c.kvRead(k)));
+  const studioIds = [...owners];
+  const events = eventsR.ok ? arr(eventsR.value).filter((e) => studioIds.includes(String(e?.studioId))) : [];
+  const quotas = {};
+  for (const id of studioIds.slice(0, 3)) {
+    const q = await c.kvRead(quotaStoreKey(id, now));
+    const pending = ctx.requests.filter((r) => r?.premium && r.studioId === id && r.status === "QUEUED").length;
+    const used = q.ok ? Number(q.value?.[PREMIUM_QUOTA_KEY]) || 0 : null;
+    quotas[id] = { used, pending, ...(entitlement ? { check: checkQuota(entitlement, PREMIUM_QUOTA_KEY, (used || 0) + pending) } : {}) };
+  }
+  return {
+    ok: true,
+    status: 200,
+    jobs,
+    providers,
+    capabilities: creativeCapabilities({ providers }),
+    analytics: { source: eventsR.ok ? "creative:events" : "unavailable", byType: creativeAnalytics({ events, clicks: clicksR.ok ? arr(clicksR.value) : [] }) },
+    quota: { key: PREMIUM_QUOTA_KEY, byStudio: quotas, upgrade: planIncluding(PREMIUM_QUOTA_KEY) },
+    plan: entitlement?.plan || null,
+  };
+}
+
+/**
+ * The runner's report of one render attempt (cron auth): provider health, and
+ * for a failed attempt the matching queued job's attempts — FAILED for good at
+ * MAX_RENDER_ATTEMPTS (bounded, no loop). A success is settled by ingest.
+ */
+export async function recordRenderReport(body = {}, { env, fetchImpl, now = Date.now() } = {}) {
+  const c = client({ env, fetchImpl });
+  const productId = String(body.productId || "");
+  const style = String(body.style || "");
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(productId) || !STYLE_ORDER.includes(style)) return { ok: false, status: 400, error: "bad_report" };
+  const ok = body.ok === true;
+  const error = String(body.error || "").replace(/[^\w .:/-]/g, "").slice(0, 160);
+  const out = { ok: true, status: 200, provider: null, request: null };
+  if (body.provider === AI_IMAGE_PROVIDER && body.providerOk !== undefined) {
+    const h = await c.kvRead(CREATIVE_KEYS.providers);
+    if (!h.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+    const next = recordProviderResult(h.value || {}, { provider: AI_IMAGE_PROVIDER, ok: body.providerOk === true, error, now });
+    await c.kvWrite(CREATIVE_KEYS.providers, next);
+    out.provider = { id: AI_IMAGE_PROVIDER, consecutiveFailures: next[AI_IMAGE_PROVIDER].consecutiveFailures };
+  }
+  if (!ok) {
+    const reqR = await c.kvRead(REQUESTS_KEY);
+    if (!reqR.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+    let changed = null;
+    const list = arr(reqR.value).map((r) => {
+      if (changed || !matches(r, productId, style)) return r;
+      const attempts = (Number(r.attempts) || 0) + 1;
+      changed = { ...r, attempts, lastError: error || "render_failed", lastAttemptAt: now, ...(attempts >= MAX_RENDER_ATTEMPTS ? { status: "FAILED", failedAt: now } : {}) };
+      return changed;
+    });
+    if (changed) {
+      await c.kvWrite(REQUESTS_KEY, list);
+      out.request = { id: changed.id, status: changed.status, attempts: changed.attempts };
+    }
+    await creativeEvent(c, { type: "failed", creativeType: typeOfStyle(style), style, productId, studioId: changed?.studioId || null, jobId: changed?.id || null, provider: body.provider || RENDER_PROVIDER, error: error || "render_failed", final: changed?.status === "FAILED", renderMs: Number(body.renderMs) || null, at: now });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------- instagram */

@@ -49,3 +49,20 @@ const ERRORS_HE = {
 export function reelErrorHe(code) {
   return ERRORS_HE[code] || `הפעולה לא הושלמה (${code || "unknown"}) — לא בוצע פרסום.`;
 }
+
+/* Creative Engine (src/lib/media/creativeEngine.js on the server). */
+export const creativeState = () => call("creative-state");
+export const createCreative = (order) => call("creative-create", { method: "POST", body: order });
+
+const CREATIVE_ERRORS_HE = {
+  creative_unavailable: "הסוג הזה לא זמין כרגע — ספק נדרש לא עובד או לא מחובר. לא נוצרה עבודה ולא נספר שימוש.",
+  plan_required: "סרטוני פרימיום כלולים במסלול בתשלום. לא חויבת ולא נוצרה עבודה.",
+  quota_exceeded: "ניצלת את סרטוני הפרימיום של החודש. לא נוצרה עבודה.",
+  unsupported_language: "כרגע הסרטונים נוצרים בעברית בלבד.",
+  unsupported_platform: "הפלטפורמה לא נתמכת.",
+  cta_not_allowed: "קריאה לפעולה לא נתמכת.",
+  bad_creative_type: "סוג סרטון לא מוכר.",
+};
+export function creativeErrorHe(code) {
+  return CREATIVE_ERRORS_HE[code] || reelErrorHe(code);
+}

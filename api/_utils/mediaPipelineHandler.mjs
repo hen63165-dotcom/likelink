@@ -5,6 +5,9 @@
 //   GET  op=plan     what to render next          (Bearer AUTOPILOT_SECRET / CRON_SECRET)
 //   POST op=ingest   store → verify → register → publish → proof   (same auth)
 //   POST op=audit    re-verify served reels, measure, learn        (same auth)
+//   POST op=render-report  one render attempt's outcome (provider health, bounded job retries)  (same auth)
+//   GET  op=creative-capabilities  public-safe provider states per creative type
+//   GET  op=creative-state / POST op=creative-create   Creative Engine for the Studio (session)
 //   POST op=instagram one step of the Instagram Reels publisher     (same auth)
 //   GET  op=likeloop (public summary; full with auth) · POST op=likeloop-run · POST op=instagram-insights
 //   POST op=catalog-resolve-status (SOURCE_BLOCKED + backoff)
@@ -15,7 +18,8 @@
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
 import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
-import { auditReels, buildPlan, ingestReel, instagramInsightsStep, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
+import { auditReels, buildPlan, createCreative, creativeCapabilityView, creativeStudioState, ingestReel, instagramInsightsStep, instagramPublishStep, pipelineStatus, recordRenderReport, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
+import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/entitlements.js";
 import { isApprovedOrigin } from "./cors.js";
 import { applyResolution, addOwnerLink, catalogCandidates, recordResolveOutcome } from "../../src/lib/cloud/catalogResolver.js";
 import { likeloopRun, likeloopStatus } from "../../src/lib/cloud/likeloopRunner.js";
@@ -30,11 +34,20 @@ async function sessionOwnerIds(req) {
   const marketers = (await kvGet("marketplace:marketers")) || [];
   let admin = null;
   try { admin = verifyAdminToken(raw); } catch { admin = null; }
-  if (admin) return { ids: marketers.filter((m) => m?.id).map((m) => String(m.id)), actor: "admin" };
+  if (admin) return { ids: marketers.filter((m) => m?.id).map((m) => String(m.id)), actor: "admin", admin: true, platformOwner: true, userId: null, kvGet };
   const user = await verifyToken(raw).catch(() => null);
   const email = norm(user?.email);
   if (!email) return null;
-  return { ids: marketers.filter((m) => m?.id && norm(m.email) === email).map((m) => String(m.id)), actor: email };
+  const platformOwner = Boolean(norm(process.env.OWNER_EMAIL) && norm(process.env.OWNER_EMAIL) === email);
+  return { ids: marketers.filter((m) => m?.id && norm(m.email) === email).map((m) => String(m.id)), actor: email, admin: false, platformOwner, userId: String(user.id || ""), kvGet };
+}
+
+/** The caller's plan from the server-verified subscription only (entitlements.js); pending/unknown = free. */
+async function entitlementOf(who) {
+  const now = Date.now();
+  if (who.admin || who.platformOwner) return resolveEntitlement({ isPlatformOwner: true, now });
+  const subs = (await who.kvGet("marketplace:subscriptions")) || [];
+  return resolveEntitlement({ subscription: pickSubscription(subs, who.userId, now), now });
 }
 
 function send(res, status, body) {
@@ -58,14 +71,23 @@ export default async function mediaPipelineHandler(req, res) {
     const { status, ...rest } = await likeloopStatus();
     return send(res, status || 200, rest);
   }
+  // Creative Engine: public-safe provider states + what each creative type can do.
+  if (op === "creative-capabilities" && req.method === "GET") {
+    const { status, ...rest } = await creativeCapabilityView({ owner: false });
+    return send(res, status || 200, rest);
+  }
   // Creator ops (Studio one-click): a verified session, an approved origin.
-  if (["studio-register", "request", "studio-state"].includes(op)) {
+  if (["studio-register", "request", "studio-state", "creative-create", "creative-state"].includes(op)) {
     const origin = req.headers?.origin || "";
     if (origin && !isApprovedOrigin(origin)) return send(res, 403, { ok: false, error: "origin_not_allowed" });
     const who = await sessionOwnerIds(req);
     if (!who) return send(res, 401, { ok: false, error: "authentication_required" });
     if (!who.ids.length) return send(res, 403, { ok: false, error: "no_studio_for_this_account" });
     try {
+      if (op === "creative-state" && req.method === "GET") {
+        const { status, ...rest } = await creativeStudioState({ ownerIds: who.ids, entitlement: await entitlementOf(who), owner: Boolean(who.admin || who.platformOwner) });
+        return send(res, status || 200, rest);
+      }
       if (op === "studio-state" && req.method === "GET") {
         const { status, ...rest } = await studioReelState({ ownerIds: who.ids });
         return send(res, status || 200, rest);
@@ -73,6 +95,10 @@ export default async function mediaPipelineHandler(req, res) {
       const body = (await readBody(req)) || {};
       if (op === "studio-register" && req.method === "POST") {
         const { status, ...rest } = await registerStudioUpload({ sourcePath: body.sourcePath, productId: body.productId, ownerIds: who.ids });
+        return send(res, status || 200, rest);
+      }
+      if (op === "creative-create" && req.method === "POST") {
+        const { status, ...rest } = await createCreative(body, { ownerIds: who.ids, actor: who.actor, entitlement: await entitlementOf(who) });
         return send(res, status || 200, rest);
       }
       if (op === "request" && req.method === "POST") {
@@ -89,6 +115,10 @@ export default async function mediaPipelineHandler(req, res) {
     if (op === "plan" && req.method === "GET") {
       const r = await buildPlan({ limit: Number(url.searchParams.get("limit") || 3) });
       return send(res, r.ok ? 200 : 503, r);
+    }
+    if (op === "render-report" && req.method === "POST") {
+      const { status, ...rest } = await recordRenderReport((await readBody(req)) || {});
+      return send(res, status || 200, rest);
     }
     if (op === "ingest" && req.method === "POST") {
       const body = await readBody(req);

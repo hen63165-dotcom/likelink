@@ -50,7 +50,7 @@ function capabilitiesFor(planId) {
 
 /** The internal plan of the platform owner / admin — never sold. */
 export const OWNER_PLAN = "owner";
-const QUOTA_KEYS = ["maxProducts", "maxProductsPerRun", "distributionPlans", "campaigns", "recruitDrafts", "gptDrafts", "marketingCycles"];
+const QUOTA_KEYS = ["maxProducts", "maxProductsPerRun", "distributionPlans", "campaigns", "recruitDrafts", "gptDrafts", "marketingCycles", "premiumCreatives"];
 export { QUOTA_KEYS };
 
 /**

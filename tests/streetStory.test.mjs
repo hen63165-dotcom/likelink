@@ -48,7 +48,7 @@ test("text_hook: creator-style text reel from real fields only, comment-for-link
   const { HOOK_FORBIDDEN } = await import("../src/lib/growth/likeloop.js");
   const p = { id: "p9", title: "שרשרת יד Smyoue — ₪85", price: 85.36, category: "Accessories", image: "https://ae01.alicdn.com/kf/x.jpg" };
   const c = buildReelConcept({ product: p, creator: { name: "ALYOSTYLE" }, style: "text_hook" });
-  assert.equal(STYLE_ORDER[0], "text_hook");
+  assert.ok(STYLE_ORDER.slice(0, 2).includes("text_hook"));
   assert.ok(STYLE_CREATIVE.text_hook);
   assert.ok(!HOOK_FORBIDDEN.test(c.textHook.hook));
   assert.ok(c.textHook.reveal.some((l) => l.includes("מחיר בקטלוג")));
@@ -57,4 +57,33 @@ test("text_hook: creator-style text reel from real fields only, comment-for-link
   const scene = (await import("node:fs")).readFileSync(new URL("../scripts/media/reel-scene.html", import.meta.url), "utf8");
   assert.match(scene, /function textHook\(ms\)/);
   assert.match(scene, /C\.style === "text_hook"\) textHook\(s\)/);
+});
+
+test("ai_story: original AI character scenes (labelled), real product photo, no Pixar IP, no claims", async () => {
+  const { buildReelConcept, STYLE_ORDER, STYLE_CREATIVE, REEL_STYLES, COMMENT_KEYWORD, aiStoryScenes, AI_IMAGE_PROVIDER } = await import("../src/lib/media/reelPipeline.js");
+  const { HOOK_FORBIDDEN } = await import("../src/lib/growth/likeloop.js");
+  const prod = { id: "p7", title: "חצובה Ulanzi MT-44M", price: 193.16, category: "Tech", image: "https://ae01.alicdn.com/kf/y.jpg" };
+  assert.equal(STYLE_ORDER[0], "ai_story");
+  assert.ok(STYLE_CREATIVE.ai_story);
+  assert.match(REEL_STYLES.ai_story.he, /AI/);
+  const ai = aiStoryScenes(prod);
+  assert.equal(ai.provider, AI_IMAGE_PROVIDER);
+  assert.equal(ai.scenes.length, 2);
+  for (const s of ai.scenes) {
+    assert.doesNotMatch(s.prompt, /pixar|disney|dreamworks/i, "no third-party studio IP");
+    assert.match(s.prompt, /original/i);
+    assert.ok(!HOOK_FORBIDDEN.test(s.caption), s.caption);
+    assert.doesNotMatch(s.caption, FORBIDDEN_CLAIMS);
+  }
+  assert.equal(aiStoryScenes(prod).seed, ai.seed, "deterministic per product");
+  const c = buildReelConcept({ product: prod, creator: { name: "ALYOSTYLE" }, style: "ai_story" });
+  assert.ok(c.aiStory && c.textHook && c.disclosure);
+  assert.ok(c.textHook.cta.join(" ").includes(COMMENT_KEYWORD));
+  assert.equal(creativeFor(prod, "ai_story").mediaType === "REAL_UGC", false);
+  const scene = readFileSync("scripts/media/reel-scene.html", "utf8");
+  assert.match(scene, /function aiStory\(ms\)/);
+  assert.match(scene, /C\.style === "ai_story"\) aiStory\(s\)/);
+  const fn = scene.slice(scene.indexOf("function aiStory(ms)"));
+  assert.match(fn.slice(0, 4000), /disclosure\(/);
+  assert.match(fn.slice(0, 4000), /AI/);
 });

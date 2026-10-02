@@ -86,10 +86,50 @@ function run(cmd, argv, { input } = {}) {
   });
 }
 
+/**
+ * AI story scenes: an ORIGINAL cartoon character from a free image model
+ * (Pollinations, no key). Only the character scene is generated; the product
+ * is always its real photo. Any failure → this render is skipped (no fallback art).
+ */
+async function aiSceneDataUrls(ai) {
+  const out = [];
+  for (const sc of ai.scenes) {
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.prompt)}?width=720&height=1280&seed=${ai.seed}&model=flux&nologo=true`;
+    let last = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, { headers: { accept: "image/*", "user-agent": "LikeLink reel renderer (+https://likelink2.vercel.app)" }, signal: AbortSignal.timeout(120_000) });
+        const type = String(res.headers.get("content-type") || "").split(";")[0];
+        if (!res.ok || !type.startsWith("image/")) throw new Error(`ai_scene_${res.status}_${type || "none"}`);
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (buf.length < 10_000) throw new Error("ai_scene_too_small");
+        out.push(`data:${type};base64,${buf.toString("base64")}`);
+        last = null;
+        break;
+      } catch (e) { last = e; }
+    }
+    if (last) throw last;
+  }
+  return out;
+}
+
 async function renderOne(page, item) {
   const { concept } = item;
   const dataUrl = await imageDataUrl(concept.image);
   await page.evaluate(([c, d]) => window.loadConcept(c, d), [concept, dataUrl]);
+  if (concept.aiStory) {
+    let scenes;
+    try {
+      scenes = await aiSceneDataUrls(concept.aiStory);
+      item.providerOk = true;
+    } catch (e) {
+      item.providerOk = false;
+      throw e;
+    } finally {
+      item.provider = concept.aiStory.provider;
+    }
+    await page.evaluate((s) => window.loadScenes(s), scenes);
+  }
   const frames = Math.round((concept.durationMs / 1000) * concept.fps);
   const base = path.join(OUT, `${item.productId}-${item.style}`);
   const mp4 = `${base}.mp4`, poster = `${base}.jpg`;
@@ -152,10 +192,18 @@ async function main() {
   await page.goto(pathToFileURL(path.join(HERE, "reel-scene.html")).href, { waitUntil: "load" });
 
   let failures = 0;
+  // One render attempt's outcome → the server (provider health, bounded job retries).
+  const report = async (item, ok, error, renderMs) => {
+    if (!UPLOAD) return;
+    const r = await api("render-report", { method: "POST", body: { productId: item.productId, style: item.style, ok, error: String(error || "").slice(0, 160), provider: item.provider || null, providerOk: item.providerOk, renderMs } }).catch(() => null);
+    if (r && r.status !== 200) summary(`  - render-report not recorded (${r.status})`);
+  };
   for (const item of plan) {
     const tag = `${item.productId} · ${item.style}`;
+    const started = Date.now();
     try {
       const r = await renderOne(page, item);
+      const renderMs = Date.now() - started;
       summary(`- rendered ${tag}: ${r.probe.codec} ${r.probe.width}x${r.probe.height}, ${r.probe.frames} frames, ${r.probe.durationMs} ms, ${r.video.length} bytes, sha256 ${r.sha256.slice(0, 16)}…`);
       if (!UPLOAD) continue;
       const res = await api("ingest", {
@@ -169,6 +217,7 @@ async function main() {
           sha256: r.sha256,
           video: r.video.toString("base64"),
           poster: r.posterBytes.toString("base64"),
+          renderMs,
         },
       });
       if (res.status === 200 && res.json?.ok) {
@@ -177,10 +226,14 @@ async function main() {
       } else {
         failures += 1;
         summary(`  - ingest FAILED (${res.status}): ${JSON.stringify(res.json).slice(0, 400)}`);
+        if (res.json?.error !== "already_registered") await report(item, false, `ingest_${res.json?.error || res.status}`, renderMs);
       }
+      // the provider worked even when ingest did not: its health is its own
+      if (item.provider && res.status === 200 && res.json?.ok) await report(item, true, "", renderMs);
     } catch (e) {
       failures += 1;
       summary(`- FAILED ${tag}: ${String(e?.message || e).slice(0, 300)}`);
+      await report(item, false, String(e?.message || e), Date.now() - started);
     }
   }
   await browser.close();
