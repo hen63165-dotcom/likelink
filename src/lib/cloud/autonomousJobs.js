@@ -778,6 +778,7 @@ export const AUTONOMOUS_JOBS = [
   "distribution-autorun",
   "native-reel-audit",
   "publishing-orchestrator",
+  "marketing-engine",
 ];
 
 // PUBLISH → VERIFY → PROOF → TRACK → LEARN for every LikeLink creative
@@ -842,6 +843,28 @@ registerJob("distribution-autorun", {
       }
     }
     return { ok: true, published: results.filter((r) => r.ok).length, results };
+  },
+});
+
+// Autonomous Marketing Engine: LikeLink Growth Mode + every enabled studio
+// (each with its own server-verified plan and monthly quota). Internal feed
+// posts are PUBLISHED only after read-back; external channels need a provider
+// id, otherwise the cycle leaves tracked manual-share items.
+registerJob("marketing-engine", {
+  description: "Autonomous marketing engine: opportunity → creative → video → distribution → proof → learning",
+  intervalMs: 8 * 60 * 60 * 1000,
+  maxDurationMs: 60000,
+  async fn({ kvGet, kvSet, now }) {
+    const [{ engineSweep }, { requestRender }, publishers] = await Promise.all([
+      import("./marketingEngineRunner.js"), import("./reelPublisher.js"), import("../discovery/publishers/index.js"),
+    ]);
+    const env = typeof process !== "undefined" ? process.env : {};
+    const r = await engineSweep({
+      kvGet, kvSet, env, now: Number(now) || Date.now(), trigger: "scheduler",
+      requestVideo: (productId, ownerId) => requestRender({ productId, ownerIds: [ownerId], requestedBy: "marketing_engine" }, {}),
+      channelCredentials: publishers.channelCredentials, publishPost: (a) => publishers.publishPost(a),
+    });
+    return { cycle: "marketing-engine", timestamp: now, results: r.results.map((x) => ({ scope: x.scope, ok: x.ok, outcome: x.outcome, published: x.summary?.published ?? 0, manual: x.summary?.manual ?? 0 })) };
   },
 });
 

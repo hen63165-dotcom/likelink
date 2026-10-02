@@ -116,6 +116,7 @@ const LIVE_EVIDENCE = {
   distribution_plans: [["src/lib/discovery/distribution.js", "export function generateDistributionPlan"], ["api/_utils/distributionRoutes.mjs", "\"distributionPlans\""]],
   content_export: [["src/lib/discovery/distribution.js", "export function exportContentPack"], ["api/_utils/distributionRoutes.mjs", "\"content_export\""]],
 };
+LIVE_EVIDENCE.marketing_engine = [["src/lib/cloud/marketingEngineRunner.js", "export async function runCycle"], ["api/_utils/marketingEngineHandler.mjs", "ENGINE_QUOTA_KEY"]];
 const PENDING_IN_THIS_PR = [];
 LIVE_EVIDENCE.gpt_api = [["api/_utils/gptHandler.mjs", "create_content_draft"], ["src/lib/gpt/openapi.js", "operationId: \"create_content_draft\""], ["api/_utils/gptHandler.mjs", "\"gptDrafts\""]];
 

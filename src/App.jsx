@@ -7,6 +7,7 @@ import { VideoProvider } from "./context/VideoContext";
 import { parsePath } from "./utils/routing.js";
 import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo.js";
 import { initReferral } from "./lib/referral.js";
+import { trackLanding } from "./lib/funnel.js";
 
 // Modern Layout & UI
 import { AppShell } from "./components/layout/AppShell";
@@ -108,6 +109,8 @@ function App() {
 
   useEffect(() => {
     initReferral();
+    // A landing from a marketing-engine creative (cid mk_…) is measured once per session.
+    trackLanding();
   }, []);
 
   // The seller Studio is a dark premium surface. The public site paints its own

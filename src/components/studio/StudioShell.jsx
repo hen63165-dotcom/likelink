@@ -49,6 +49,7 @@ import { AnalyticsDashboard } from "../sell/AnalyticsDashboard";
 import AutoPilot from "../sell/AutoPilot";
 import SellerEngagement from "../sell/SellerEngagement";
 import CampaignBuilder from "../sell/CampaignBuilder";
+import MarketingEnginePanel from "./MarketingEnginePanel.jsx";
 import StudioHub from "../sell/StudioHub";
 import GrowthOS from "../growth/GrowthOS";
 import LunaAssistant from "../ambassador/LunaAssistant";
@@ -578,14 +579,17 @@ function CampaignsPanel({ onNavigate }) {
   const slug = typeof marketer.slug === "string" && marketer.slug ? marketer.slug : marketer.id;
   const myLink = `${window.location.origin}/u/${encodeURIComponent(slug)}`;
   return (
-    <CampaignBuilder
-      marketer={marketer}
-      products={mine}
-      link={myLink}
-      lang={lang}
-      onClose={() => setClosed(true)}
-      showToast={showToast}
-    />
+    <>
+      <MarketingEnginePanel />
+      <CampaignBuilder
+        marketer={marketer}
+        products={mine}
+        link={myLink}
+        lang={lang}
+        onClose={() => setClosed(true)}
+        showToast={showToast}
+      />
+    </>
   );
 }
 

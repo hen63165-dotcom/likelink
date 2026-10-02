@@ -199,7 +199,7 @@ function recentTs(ts, now) {
 }
 
 // Funnel steps (src/lib/funnel.js): known types, recent, attribution fields only.
-const FUNNEL_TYPES = new Set(["studio_cta", "signup_completed", "signup_confirm_sent", "login_completed"]);
+const FUNNEL_TYPES = new Set(["studio_cta", "signup_completed", "signup_confirm_sent", "login_completed", "landing"]);
 const policyFunnel = appendOnly({
   cap: 5000,
   maxNew: 3,
