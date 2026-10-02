@@ -45,6 +45,7 @@ jobs:
       - name: Render, verify and publish reels
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
         run: node scripts/media/render-reels.mjs --limit "${{ github.event.inputs.limit || '4' }}" --out "$RUNNER_TEMP/reels"
       - name: Audit served reels (verify, measure, learn)
         if: always()
