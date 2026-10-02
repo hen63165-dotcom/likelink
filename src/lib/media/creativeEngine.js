@@ -40,6 +40,10 @@ export const KEYS = Object.freeze({ providers: "creative:providers", events: "cr
 
 export const STATUS = Object.freeze({ AVAILABLE: "AVAILABLE", UNVERIFIED: "UNVERIFIED", NOT_CONFIGURED: "NOT_CONFIGURED", NO_CREDITS: "NO_CREDITS", FAILED: "FAILED", DISABLED: "DISABLED" });
 
+/** Records store time as epoch ms (number) or ISO text — both are accepted. */
+const toMs = (x) => (typeof x === "number" ? x : Date.parse(x) || Number(x) || 0);
+const toIso = (x) => (toMs(x) ? new Date(toMs(x)).toISOString() : null);
+
 export const typeOfStyle = (style) => CREATIVE_TYPE_IDS.find((t) => CREATIVE_TYPES[t].style === style) || null;
 
 /**
@@ -61,7 +65,7 @@ export const PROVIDERS = Object.freeze([
  * @param {Array}  o.videos    marketplace:videos (a recent native render proves the renderer)
  */
 export function providerStates({ env = {}, health = {}, videos = [], now = Date.now(), owner = false } = {}) {
-  const lastNative = (Array.isArray(videos) ? videos : []).filter((v) => v?.source === RENDER_PROVIDER).map((v) => Date.parse(v.createdAt) || 0).sort((a, b) => b - a)[0] || 0;
+  const lastNative = (Array.isArray(videos) ? videos : []).filter((v) => v?.source === RENDER_PROVIDER).map((v) => toMs(v.createdAt)).sort((a, b) => b - a)[0] || 0;
   return PROVIDERS.map((p) => {
     const h = (health && health[p.id]) || {};
     const missing = p.env.filter((k) => !String(env[k] || "").trim());
@@ -218,7 +222,7 @@ export function jobView({ request, video = null, product = null, creator = null 
     quotaCharged: Boolean(request.quotaCharged),
     cost: { amount: 0, currency: "USD", basis: "free_providers_only" },
     createdAt: request.at ? new Date(request.at).toISOString() : null,
-    completedAt: request.doneAt ? new Date(request.doneAt).toISOString() : done ? video.createdAt || null : null,
+    completedAt: request.doneAt ? new Date(request.doneAt).toISOString() : done ? toIso(video.createdAt) : null,
     truth: done ? video.truth || null : null,
   };
 }

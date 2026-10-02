@@ -105,6 +105,8 @@ test("providers are AVAILABLE only with recorded evidence; paid keys without an 
   const ok = providerStates({ health: { [AI_IMAGE_PROVIDER]: { lastOkAt: T0 - 1000 } }, videos: [{ source: RENDER_PROVIDER, createdAt: new Date(T0 - 1000).toISOString() }], now: T0 });
   assert.equal(by(ok, AI_IMAGE_PROVIDER).status, "AVAILABLE");
   assert.equal(by(ok, "likelink_native_render").status, "AVAILABLE");
+  // production stores createdAt as epoch ms
+  assert.equal(by(providerStates({ videos: [{ source: RENDER_PROVIDER, createdAt: T0 - 5000 }], now: T0 }), "likelink_native_render").status, "AVAILABLE");
   const failing = providerStates({ health: { [AI_IMAGE_PROVIDER]: { lastFailAt: T0 - 1000, consecutiveFailures: 3 } }, now: T0 });
   assert.equal(by(failing, AI_IMAGE_PROVIDER).status, "FAILED");
   const caps = creativeCapabilities({ providers: failing });

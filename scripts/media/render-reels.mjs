@@ -87,20 +87,27 @@ function run(cmd, argv, { input } = {}) {
 }
 
 /**
- * AI story scenes: an ORIGINAL cartoon character from a free image model
- * (Pollinations, no key). Only the character scene is generated; the product
- * is always its real photo. Any failure → this render is skipped (no fallback art).
+ * AI scenes: an ORIGINAL cartoon character from Pollinations (Flux). Only the
+ * character scene is generated; the product is always its real photo. The
+ * anonymous tier may refuse (402): an optional free account token
+ * (POLLINATIONS_TOKEN, a GitHub secret) is sent server-to-server only, and one
+ * fallback to the provider's default model is tried. Any failure → this render
+ * is skipped (no fallback art) and reported with the provider's own reason.
  */
+const POLLINATIONS_TOKEN = process.env.POLLINATIONS_TOKEN || "";
 async function aiSceneDataUrls(ai) {
   const out = [];
   for (const sc of ai.scenes) {
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.prompt)}?width=720&height=1280&seed=${ai.seed}&model=flux&nologo=true`;
+    const base = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.prompt)}?width=720&height=1280&seed=${ai.seed}&nologo=true&private=true`;
     let last = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (const url of [`${base}&model=flux`, base]) {
       try {
-        const res = await fetch(url, { headers: { accept: "image/*", "user-agent": "LikeLink reel renderer (+https://likelink2.vercel.app)" }, signal: AbortSignal.timeout(120_000) });
+        const res = await fetch(url, { headers: { accept: "image/*", "user-agent": "LikeLink reel renderer (+https://likelink2.vercel.app)", ...(POLLINATIONS_TOKEN ? { Authorization: `Bearer ${POLLINATIONS_TOKEN}` } : {}) }, signal: AbortSignal.timeout(120_000) });
         const type = String(res.headers.get("content-type") || "").split(";")[0];
-        if (!res.ok || !type.startsWith("image/")) throw new Error(`ai_scene_${res.status}_${type || "none"}`);
+        if (!res.ok || !type.startsWith("image/")) {
+          const why = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
+          throw new Error(`ai_scene_${res.status}_${type || "none"} ${why}`);
+        }
         const buf = Buffer.from(await res.arrayBuffer());
         if (buf.length < 10_000) throw new Error("ai_scene_too_small");
         out.push(`data:${type};base64,${buf.toString("base64")}`);
