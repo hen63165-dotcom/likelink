@@ -924,11 +924,6 @@ const RecommendationsTab = ({ product, marketer, myProducts, sales, Brain, Targe
                 </span>
               </div>
               <p className="text-sm">{rec.text || rec.title}</p>
-              {rec.action && (
-                <button className="tap mt-2 text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: '#6C4CF1', color: '#fff' }}>
-                  {rec.action}
-                </button>
-              )}
             </div>
           ))}
         </div>
