@@ -42,3 +42,19 @@ test("the renderer draws street_story, burns in the disclosure and strips emoji 
   assert.match(fn, /noEmoji/);
   assert.match(fn, /דמות מקורית/);
 });
+
+test("text_hook: creator-style text reel from real fields only, comment-for-link CTA, never a claim", async () => {
+  const { buildReelConcept, STYLE_ORDER, STYLE_CREATIVE, COMMENT_KEYWORD } = await import("../src/lib/media/reelPipeline.js");
+  const { HOOK_FORBIDDEN } = await import("../src/lib/growth/likeloop.js");
+  const p = { id: "p9", title: "שרשרת יד Smyoue — ₪85", price: 85.36, category: "Accessories", image: "https://ae01.alicdn.com/kf/x.jpg" };
+  const c = buildReelConcept({ product: p, creator: { name: "ALYOSTYLE" }, style: "text_hook" });
+  assert.equal(STYLE_ORDER[0], "text_hook");
+  assert.ok(STYLE_CREATIVE.text_hook);
+  assert.ok(!HOOK_FORBIDDEN.test(c.textHook.hook));
+  assert.ok(c.textHook.reveal.some((l) => l.includes("מחיר בקטלוג")));
+  assert.ok(c.textHook.cta.join(" ").includes(COMMENT_KEYWORD));
+  assert.ok(c.disclosure, "the on-frame disclosure is always drawn");
+  const scene = (await import("node:fs")).readFileSync(new URL("../scripts/media/reel-scene.html", import.meta.url), "utf8");
+  assert.match(scene, /function textHook\(ms\)/);
+  assert.match(scene, /C\.style === "text_hook"\) textHook\(s\)/);
+});
