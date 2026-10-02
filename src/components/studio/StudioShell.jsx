@@ -420,8 +420,10 @@ function VideoPanel({ onNavigate }) {
     setBusy(p.id);
     const r = await requestCinematicReel(p.id);
     setBusy("");
-    if (r.ok) {
-      showToast(r.duplicate ? (he ? "כבר בתור — הריצה הבאה של מנוע הרינדור תיצור אותו." : "Already queued.") : (he ? "נכנס לתור: מנוע הרינדור ייצור, יאמת ויפרסם בריצה הבאה (עד 3 שעות)." : "Queued: the renderer creates, verifies and publishes it on its next run (≤3h)."));
+    if (r.ok && r.complete) {
+      showToast(he ? "לכל הסגנונות של המוצר כבר יש סרטון מאומת — אין מה לרנדר שוב." : "Every style of this product already has a verified reel.");
+    } else if (r.ok) {
+      showToast(r.duplicate ? (he ? "כבר בתור — הריצה הבאה של מנוע הרינדור תיצור אותו." : "Already queued.") : (he ? "Luna קיבלה: בריצה הבאה (עד 3 שעות) היא תרנדר סרטון, תשמור, תפרסם באתר ותאמת. פרסום חיצוני — רק בערוץ מחובר." : "Luna queued it: on the next run (≤3h) it renders, stores, publishes on the site and verifies. External — only on a connected channel."));
       refresh();
     } else {
       showToast(reelErrorHe(r.error));
@@ -462,7 +464,7 @@ function VideoPanel({ onNavigate }) {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button onClick={() => requestReel(p)} disabled={busy === p.id || Boolean(queued)}>
-                  {busy === p.id ? (he ? "שולחת…" : "Sending…") : queued ? (he ? "בתור" : "Queued") : (he ? "צרי Reel קולנועי" : "Create cinematic reel")}
+                  {busy === p.id ? (he ? "שולחת…" : "Sending…") : queued ? (he ? "בתור" : "Queued") : (he ? "צרי ופרסמי עם Luna" : "Create & publish with Luna")}
                 </Button>
                 <button type="button" onClick={() => setSelected(p)} className="ll-tap rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text)" }}>
                   {he ? "קליפ מיידי בדפדפן" : "Instant clip in browser"}
