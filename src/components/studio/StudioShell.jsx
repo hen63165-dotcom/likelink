@@ -229,7 +229,7 @@ function LunaPanel({ onNavigate, platform }) {
 
 const REEL_STYLE_HE = {
   cinematic3d: "אנימציה תלת־ממדית מסוגננת",
-  ugc_style: "בסגנון UGC · ממוחשב",
+  ugc_style: "UGC סינתטי · ממוחשב",
   animated_story: "סיפור מוצר מונפש",
   animated_unbox: "אנבוקסינג מונפש",
   likeloop_cinematic: "LikeLoop Cinematic",
@@ -372,7 +372,7 @@ function ReelStatusChips({ status, count, verified, he }) {
       {status.external?.length ? (
         <span className="rounded-full px-2 py-0.5" style={TRUTH_TONE.VERIFIED}>{status.external.map((x) => `${x.destination} #${x.providerId}`).join(" · ")}</span>
       ) : missing ? (
-        <span className="rounded-full px-2 py-0.5" style={TRUTH_TONE.STALE}>{he ? "חיצוני: דורש חיבור ערוץ — שיתוף ידני זמין" : "External: needs a channel connection — manual share available"}</span>
+        <span className="rounded-full px-2 py-0.5" style={TRUTH_TONE.STALE}>{he ? "נדרש חיבור לערוץ · שיתוף ידני זמין" : "External: needs a channel connection — manual share available"}</span>
       ) : null}
     </>
   );

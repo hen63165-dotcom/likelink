@@ -157,7 +157,7 @@ export const UGC_MODE = Object.freeze({
 
 export const UGC_MODE_LABEL = Object.freeze({
   REAL_UGC: { he: "UGC אמיתי (צולם על ידי אדם)", en: "Real UGC (filmed by a person)" },
-  SYNTHETIC_UGC_STYLE: { he: "בסגנון UGC · ממוחשב, לא אדם אמיתי", en: "UGC-style · computer-made, not a real person" },
+  SYNTHETIC_UGC_STYLE: { he: "UGC סינתטי · ממוחשב, לא אדם אמיתי", en: "UGC-style · computer-made, not a real person" },
   NOT_UGC: { he: "לא UGC", en: "Not UGC" },
 });
 
@@ -190,7 +190,7 @@ export const CREATIVE_CLASS = Object.freeze({
 
 export const CREATIVE_CLASS_LABEL = Object.freeze({
   REAL_UGC: { he: "UGC אמיתי · צולם על ידי אדם", en: "Real UGC · filmed by a person" },
-  SYNTHETIC_UGC_STYLE: { he: "בסגנון UGC · ממוחשב, לא אדם אמיתי", en: "UGC-style · computer-made, not a real person" },
+  SYNTHETIC_UGC_STYLE: { he: "UGC סינתטי · ממוחשב, לא אדם אמיתי", en: "UGC-style · computer-made, not a real person" },
   ANIMATED_PRODUCT_CREATIVE: { he: "קריאייטיב מונפש של המוצר · ממוחשב, לא צילום", en: "Animated product creative · computer-made, not filmed" },
   REAL_PRODUCT_VIDEO: { he: "סרטון מוצר אמיתי", en: "Real product video" },
   NO_VIDEO: { he: "אין וידאו", en: "No video" },
