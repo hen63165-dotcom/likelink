@@ -40,6 +40,8 @@ async function main() {
     let errors = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`.slice(0, 200)));
     page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text()}`.slice(0, 200)); });
+    // Name the resource behind a "Failed to load resource" console line.
+    page.on("response", (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`.slice(0, 220)); });
     for (const r of ROUTES) {
       errors = [];
       const resp = await page.goto(BASE + r, { waitUntil: "load", timeout: 45000 }).catch((e) => ({ status: () => 0, err: e.message }));
