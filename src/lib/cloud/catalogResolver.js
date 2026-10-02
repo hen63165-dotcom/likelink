@@ -166,7 +166,7 @@ const CATEGORY_WORDS = [
   [/shoe|sneaker|boot|sandal|heel|נעל/i, "Fashion"],
   [/makeup|lipstick|serum|skin|cream|nail|hair|brush|lash|beauty|cosmetic|איפור|שפתון|סרום|קרם/i, "Beauty"],
   [/kitchen|home|lamp|decor|pillow|storage|towel|cup|mug|bottle|בית|מטבח|מנורה/i, "Home"],
-  [/phone|earbud|headphone|charger|cable|speaker|keyboard|mouse|usb|bluetooth|טלפון|אוזניות|מטען/i, "Tech"],
+  [/phone|earbud|headphone|charger|cable|speaker|keyboard|mouse|usb|bluetooth|led|light|camera|tripod|photograph|selfie|טלפון|אוזניות|מטען/i, "Tech"],
   [/yoga|fitness|gym|sport|running|כושר|ספורט/i, "Fitness"],
   [/baby|kid|toy|children|תינוק|ילד|צעצוע/i, "Kids"],
   [/pet|dog|cat|כלב|חתול/i, "Pets"],
