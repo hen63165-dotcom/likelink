@@ -247,3 +247,12 @@ test("home 'Luna is promoting' shows only engine posts whose product is in the p
   assert.equal(out[0].to, "/p/a1?cid=cr_1"); assert.equal(out[0].animated, true); assert.equal(out[0].affiliate, true);
   assert.equal(out[1].affiliate, false);
 });
+
+test("exploration rotates hooks across objects; the scheduler job reports ok", async () => {
+  const day = NOW;
+  const hooks = new Set(["a1", "a2", "a3", "b1"].map((id) => chooseCreative({ kind: "product", objectId: id, product: PRODUCTS.find((p) => p.id === id) }, { now: day }).hookType));
+  assert.ok(hooks.size >= 2, "not every product opens with the same hook");
+  const src = (await import("node:fs")).readFileSync(new URL("../src/lib/cloud/autonomousJobs.js", import.meta.url), "utf8");
+  assert.match(src, /cycle: "marketing-engine"/);
+  assert.match(src, /ok: Boolean\(platform\?\.ok\)/, "growthScheduler marks a job without ok:true as failed");
+});

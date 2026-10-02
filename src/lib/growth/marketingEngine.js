@@ -204,7 +204,14 @@ export function chooseCreative(opportunity, { learning = { creatives: {} }, done
   const matrix = opportunity.kind === "product"
     ? buildCreativeMatrix(opportunity.product, { hooks: buildHookSet(opportunity.product, { now }) })
     : platformMatrix(opportunity.object);
-  const [pick] = selectCreatives(matrix, learning, { limit: 1, done, seed });
+  // Exploration starts at a different hook per object and day, so two products
+  // in one cycle do not open with the same line. Evidence (exploit) is unaffected.
+  let h = 2166136261; // FNV-1a
+  for (const ch of `${opportunity.objectId}:${new Date(now).toISOString().slice(0, 10)}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const types = [...new Set(matrix.map((c) => c.hookType))];
+  const order = types.map((_, i) => types[(i + h) % types.length]);
+  const rotated = order.flatMap((t) => matrix.filter((c) => c.hookType === t));
+  const [pick] = selectCreatives(rotated, learning, { limit: 1, done, seed });
   return pick ? { ...pick, matrixSize: matrix.length } : null;
 }
 

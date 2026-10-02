@@ -864,7 +864,8 @@ registerJob("marketing-engine", {
       requestVideo: (productId, ownerId) => requestRender({ productId, ownerIds: [ownerId], requestedBy: "marketing_engine" }, {}),
       channelCredentials: publishers.channelCredentials, publishPost: (a) => publishers.publishPost(a),
     });
-    return { cycle: "marketing-engine", timestamp: now, results: r.results.map((x) => ({ scope: x.scope, ok: x.ok, outcome: x.outcome, published: x.summary?.published ?? 0, manual: x.summary?.manual ?? 0 })) };
+    const platform = r.results.find((x) => x.scope === "platform");
+    return { ok: Boolean(platform?.ok), error: platform?.ok ? undefined : platform?.outcome || "platform_cycle_failed", cycle: "marketing-engine", timestamp: now, results: r.results.map((x) => ({ scope: x.scope, ok: x.ok, outcome: x.outcome, published: x.summary?.published ?? 0, manual: x.summary?.manual ?? 0 })) };
   },
 });
 
