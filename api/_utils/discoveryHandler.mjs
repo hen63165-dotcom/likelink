@@ -54,7 +54,15 @@ const STORAGE_SELFTEST_EVERY_MS = 24 * 60 * 60 * 1000;
 // 1×1 transparent PNG — the storage self-test object (health/ is never public).
 const PROBE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", "base64");
 const SUBSCRIPTION_PLAN_ENV = ["PAYPAL_PLAN_STARTER", "PAYPAL_PLAN_PROFESSIONAL"];
-const SERVER_SECRETS = ["ADMIN_SESSION_SECRET", "STORE_SIGN_SECRET", "AUTOPILOT_SECRET", "CRON_SECRET", "PAYOUTS_SECRET", "PRICE_WATCH_SECRET", "CLOUD_PASSPORT_SECRET", "PAYPAL_WEBHOOK_ID"];
+// Server secrets and the secure fallback the code really uses when one is unset
+// (payouts/price-watch accept CRON_SECRET; the passport key is derived from
+// STORE_SIGN_SECRET). A secret counts as missing only when it AND its fallback
+// are unset. PAYPAL_WEBHOOK_ID is reported under payments, not here.
+const SERVER_SECRETS = Object.freeze({
+  ADMIN_SESSION_SECRET: [], STORE_SIGN_SECRET: [], AUTOPILOT_SECRET: [], CRON_SECRET: [],
+  PAYOUTS_SECRET: ["CRON_SECRET"], PRICE_WATCH_SECRET: ["CRON_SECRET", "AUTOPILOT_SECRET"], CLOUD_PASSPORT_SECRET: ["STORE_SIGN_SECRET"],
+});
+export const secretCovered = (env, name) => Boolean(env[name]) || (SERVER_SECRETS[name] || []).some((f) => Boolean(env[f]));
 
 function header(req, name) {
   const h = req.headers;
@@ -324,9 +332,9 @@ export function createDiscoveryHandler({
         rlsOpen,
         publicEmails: pii?.emails ?? null,
         publicPaymentDetails: pii?.payment ?? null,
-        secretsTotal: SERVER_SECRETS.length,
-        secretsPresent: SERVER_SECRETS.filter((k) => Boolean(env[k])).length,
-        missing: SERVER_SECRETS.filter((k) => !env[k]),
+        secretsTotal: Object.keys(SERVER_SECRETS).length,
+        secretsPresent: Object.keys(SERVER_SECRETS).filter((k) => secretCovered(env, k)).length,
+        missing: Object.keys(SERVER_SECRETS).filter((k) => !secretCovered(env, k)),
       },
       deployment: { sha: env.VERCEL_GIT_COMMIT_SHA || null, env: env.VERCEL_ENV || null },
     };

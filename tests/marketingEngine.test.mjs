@@ -256,3 +256,12 @@ test("exploration rotates hooks across objects; the scheduler job reports ok", a
   assert.match(src, /cycle: "marketing-engine"/);
   assert.match(src, /ok: Boolean\(platform\?\.ok\)/, "growthScheduler marks a job without ok:true as failed");
 });
+
+test("system check: a secret with a real secure fallback is not reported missing", async () => {
+  const { secretCovered } = await import("../api/_utils/discoveryHandler.mjs");
+  const env = { CRON_SECRET: "x", STORE_SIGN_SECRET: "y" };
+  assert.equal(secretCovered(env, "PAYOUTS_SECRET"), true, "payouts accepts CRON_SECRET");
+  assert.equal(secretCovered(env, "CLOUD_PASSPORT_SECRET"), true, "derived from STORE_SIGN_SECRET");
+  assert.equal(secretCovered(env, "ADMIN_SESSION_SECRET"), false, "no fallback → missing");
+  assert.equal(secretCovered({}, "PRICE_WATCH_SECRET"), false);
+});
