@@ -1725,7 +1725,7 @@ export default async function handler(req, res) {
         "brand-pulse-external","opportunity-discovery","brand-pulse-freshness",
         "autonomous-ugc-video-production","autonomous-ugc-distribution",
         "autonomous-ugc-video-poll","autonomous-creative-refresh",
-        "discovery-sweep","native-reel-audit",
+        "discovery-sweep","native-reel-audit","marketing-engine",
         "distribution-autorun",
         "publishing-orchestrator",
       ];

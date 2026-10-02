@@ -16,10 +16,10 @@ const OWNER = {
   name: "[OWNER_INPUT: שם העסק או החברה כפי שהוא רשום]",
   id: "[OWNER_INPUT: מספר עוסק / ח.פ.]",
   address: "[OWNER_INPUT: כתובת למשלוח דואר]",
-  email: "[OWNER_INPUT: כתובת דוא\"ל לפניות]",
+  email: "hen63165@gmail.com",
   phone: "[OWNER_INPUT: מספר טלפון]",
   court: "[OWNER_INPUT: העיר שבה ממוקם בית המשפט המוסמך]",
-  a11y: "[OWNER_INPUT: שם רכז/ת הנגישות ודרך ליצירת קשר]",
+  a11y: "[OWNER_INPUT: שם רכז/ת הנגישות] · דוא\"ל: hen63165@gmail.com",
 };
 const L = (slug, text) => `<a href="${legalPath(slug)}">${text}</a>`;
 const S = PLANS.STARTER;

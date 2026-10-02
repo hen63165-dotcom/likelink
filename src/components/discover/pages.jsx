@@ -32,6 +32,8 @@ import {
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
+import { trackLanding } from "../../lib/funnel.js";
+import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import {
   categoryName,
   CollectionCard,
@@ -123,6 +125,43 @@ function Grid({ products, graph, cols = "grid-cols-2 md:grid-cols-3 xl:grid-cols
         <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />
       ))}
     </div>
+  );
+}
+
+/**
+ * What the marketing engine published to LikeLink's own feed. Only posts whose
+ * product is in the public graph (or a LikeLink page) are shown. Each link
+ * keeps its creative id (cid), so a visit from here is measured.
+ */
+function EnginePicks({ graph }) {
+  const { L, lang } = useL();
+  const [posts, setPosts] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/store?mode=brand-pulse")
+      .then((r) => r.json())
+      .then((d) => { if (alive && d?.ok) setPosts(enginePicksFrom(d.posts, graph)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [graph]);
+  if (!posts.length) return null;
+  return (
+    <Section labelledBy="h-engine">
+      <SectionHead id="h-engine" kicker={<><Sparkles size={14} /> {L("לונה מקדמת עכשיו", "Luna is promoting")}</>} title={L("מה עלה עכשיו בפיד של LikeLink", "Fresh on the LikeLink feed")} sub={L("פוסטים שמנוע השיווק פרסם כאן. כל לינק נמדד, וסרטון מסומן אם הוא אנימציה", "Posts the marketing engine published here. Every link is measured; animation is labelled")} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {posts.map((x) => (
+          <Go key={x.id} to={x.to} onClick={() => setTimeout(trackLanding, 0)} className="lx-card block overflow-hidden" style={{ borderRadius: 18 }}>
+            {x.image ? <Media src={x.image} alt={x.title} ratio="4 / 3" width={480} /> : null}
+            <div className="p-4">
+              <p className="text-[15px] font-bold leading-snug">{x.hook}</p>
+              <p className="lx-mute mt-1 text-[13px]">{x.title}{x.price ? ` · ${formatPrice(x.price, lang)}` : ""}</p>
+              {x.animated ? <p className="lx-mute mt-2 text-[12px]">{L("כולל סרטון · אנימציה ממוחשבת, לא צולם", "Includes a computer-animated video")}</p> : null}
+              {x.affiliate ? <p className="lx-mute mt-1 text-[11px]">{L("#פרסומת · קישור שותפים", "Ad · affiliate link")}</p> : null}
+            </div>
+          </Go>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -330,6 +369,9 @@ export function HomePage({ graph, navigate }) {
           <Rail item="minmax(176px, 220px)">{graph.products.slice(0, 10).map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
         </Section>
       )}
+
+      {/* LUNA PROMOTES NOW — the marketing engine's own published site-feed posts */}
+      <EnginePicks graph={graph} />
 
       {/* CREATORS TO DISCOVER */}
       {graph.creators.length ? (

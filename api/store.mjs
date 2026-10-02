@@ -873,6 +873,12 @@ export default async function handler(req, res) {
     const { default: mediaPipelineHandler } = await import('./_utils/mediaPipelineHandler.mjs');
     return mediaPipelineHandler(req, res);
   }
+  // Autonomous Marketing Engine (LikeLink Growth Mode + Studio Growth Mode) —
+  // see api/_utils/marketingEngineHandler.mjs.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'growth-engine') {
+    const { default: marketingEngineHandler } = await import('./_utils/marketingEngineHandler.mjs');
+    return marketingEngineHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
     const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
     return discoveryHandler(req, res);
