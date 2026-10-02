@@ -1310,7 +1310,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
   const { lang, setLang } = useI18n();
   const { setTheme } = useTheme();
   const {
-    loading, error, toast, showToast,
+    loading, toast, showToast,
     currentMarketer: marketer,
     onLogout,
   } = useMarketplace();
@@ -1600,12 +1600,6 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           {loading ? (
             <LoadingScreen />
-          ) : error ? (
-            <EmptyState
-              icon={Activity}
-              title={lang === "he" ? "שגיאה בטעינת הנתונים" : "Failed to load data"}
-              body={String(error.message || error)}
-            />
           ) : (
             <>
               {activeView && view !== VIEW_IDS.OVERVIEW && (

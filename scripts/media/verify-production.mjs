@@ -89,6 +89,34 @@ async function main() {
     }
     await ctx.close();
   }
+  // Tracking probe: a page that presents as a regular browser must SEND a view
+  // event for a product page. The write is intercepted and aborted, so the
+  // check never adds a fake view to production data.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "he-IL" });
+    await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
+    const page = await ctx.newPage();
+    const captured = [];
+    await page.route("**/api/store", async (route) => {
+      const r = route.request();
+      let body = null;
+      try { body = r.method() === "POST" ? JSON.parse(r.postData() || "{}") : null; } catch { body = null; }
+      if (body?.key === "marketplace:clicks") {
+        let events = [];
+        try { events = JSON.parse(body.value || "[]"); } catch { events = []; }
+        captured.push(...events.filter((e) => e?.type === "view"));
+        return route.abort();
+      }
+      return route.continue();
+    });
+    const target = process.env.TRACKING_PRODUCT || "/p/p-live-05";
+    await page.goto(BASE + target, { waitUntil: "load", timeout: 45000 }).catch(() => null);
+    await page.waitForTimeout(4000);
+    const ok = captured.some((e) => e.productId === target.split("/").pop());
+    summary(`- tracking: product view sent=${ok} (${captured.length} view event(s) intercepted and aborted — nothing written)`);
+    results.push({ route: `tracking ${target}`, status: ok ? 200 : 0, hscroll: 0, broken: 0, errors: ok ? [] : ["view_event_not_sent"] });
+    await ctx.close();
+  }
   await browser.close();
 
   // Live media: newest native reels, downloaded exactly as visitors get them.
