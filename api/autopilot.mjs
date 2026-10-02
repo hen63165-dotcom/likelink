@@ -555,7 +555,36 @@ async function providerIdFrom(res, pick) {
   return v != null && v !== "" ? String(v) : null;
 }
 
-async function sendTelegram(ch, text) {
+// Every video LikeLink renders is a computer animation: a post that carries one
+// says so, whatever caption the creator wrote.
+export const VIDEO_DISCLOSURE_HE = "🎬 הסרטון: אנימציה ממוחשבת, לא צולם";
+export function videoCaption(text) {
+  const t = String(text || "");
+  return /אנימציה ממוחשבת/.test(t) ? t : `${t}\n\n${VIDEO_DISCLOSURE_HE}`;
+}
+export function telegramVideoUrl(product) {
+  const v = String(product?.videoUrl || product?.ugcVideo || "");
+  return /^https:\/\//.test(v) ? v : "";
+}
+
+async function sendTelegram(ch, text, product = null) {
+  // A product with a verified video goes out as a video (Telegram fetches it from
+  // the public media proxy); if Telegram refuses the file, the text post still goes.
+  const video = telegramVideoUrl(product);
+  if (video) {
+    try {
+      const vr = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendVideo`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: ch.chatId, video, caption: videoCaption(String(text || "").slice(0, 1024 - VIDEO_DISCLOSURE_HE.length - 2)), supports_streaming: true }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (vr.ok) {
+        const vd = await vr.json().catch(() => null);
+        if (vd?.result?.message_id != null) return String(vd.result.message_id);
+      }
+    } catch { /* fall through to the text post */ }
+  }
   const res = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -590,7 +619,7 @@ async function sendFacebook(ch, text, link, product) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           file_url: videoUrl,
-          description: `${text}\\n${link}`,
+          description: videoCaption(`${text}\n${link}`),
           access_token: ch.pageToken,
         }),
         signal: AbortSignal.timeout(20000),
@@ -669,7 +698,7 @@ async function sendInstagram(ch, text, link, product) {
         body: JSON.stringify({
           media_type: "REELS",
           video_url: videoUrl,
-          caption: `${text}\\n${link}`,
+          caption: videoCaption(`${text}\n${link}`),
           access_token: ch.token,
         }),
         signal: AbortSignal.timeout(15000),
@@ -899,7 +928,7 @@ async function sendWordPress(ch, text, link) {
  */
 async function sendToChannel(ch, { text, link, product = null, mediaProduct = null, webhook = {} }) {
   switch (ch.type) {
-    case "telegram": return sendTelegram(ch, text);
+    case "telegram": return sendTelegram(ch, text, mediaProduct || product);
     case "webhook": return sendWebhook(ch, { text, link, ...webhook });
     case "facebook": return sendFacebook(ch, text, link, mediaProduct || undefined);
     case "discord": return sendDiscord(ch, text);
