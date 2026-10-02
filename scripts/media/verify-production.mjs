@@ -97,10 +97,15 @@ async function main() {
     await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
     const page = await ctx.newPage();
     const captured = [];
+    const funnel = [];
     await page.route("**/api/store", async (route) => {
       const r = route.request();
       let body = null;
       try { body = r.method() === "POST" ? JSON.parse(r.postData() || "{}") : null; } catch { body = null; }
+      if (body?.key === "marketplace:funnel") {
+        try { funnel.push(...JSON.parse(body.value || "[]")); } catch { /* ignore */ }
+        return route.abort();
+      }
       if (body?.key === "marketplace:clicks") {
         let events = [];
         try { events = JSON.parse(body.value || "[]"); } catch { events = []; }
@@ -115,6 +120,14 @@ async function main() {
     const ok = captured.some((e) => e.productId === target.split("/").pop());
     summary(`- tracking: product view sent=${ok} (${captured.length} view event(s) intercepted and aborted — nothing written)`);
     results.push({ route: `tracking ${target}`, status: ok ? 200 : 0, hscroll: 0, broken: 0, errors: ok ? [] : ["view_event_not_sent"] });
+    // Studio CTA: clicking a Studio link on the home page sends a funnel step.
+    await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
+    await page.waitForTimeout(2500);
+    await page.locator('a[href="/studio"]').first().click({ timeout: 10000 }).catch(() => null);
+    await page.waitForTimeout(2500);
+    const cta = funnel.some((e) => e.type === "studio_cta");
+    summary(`- funnel: studio_cta sent=${cta} (${funnel.length} event(s) intercepted and aborted — nothing written)`);
+    results.push({ route: "funnel studio_cta", status: cta ? 200 : 0, hscroll: 0, broken: 0, errors: cta ? [] : ["studio_cta_not_sent"] });
     await ctx.close();
   }
   await browser.close();

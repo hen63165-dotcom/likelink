@@ -30,6 +30,7 @@ import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.j
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import { creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
+import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
 
 /* ---------------------------------------------------------------- context */
@@ -68,6 +69,8 @@ export function Go({ to, children, onClick, ...rest }) {
       href={to}
       onClick={(e) => {
         onClick?.(e);
+        // A Studio CTA click is a funnel step (first-party, never blocks navigation).
+        if (/^\/(studio|sell)(\/|$|\?)/.test(String(to || ""))) trackFunnel("studio_cta", typeof window !== "undefined" ? window.location.pathname : "");
         if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
         navigate(to);
