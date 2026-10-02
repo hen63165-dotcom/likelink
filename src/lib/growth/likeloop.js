@@ -187,7 +187,7 @@ export function buildStoryBeats(p) {
 export const OPENINGS = Object.freeze(["question_card", "close_up", "reveal"]);
 export const FORMATS = Object.freeze({
   synthetic_ugc: { styles: ["ugc_style"], mediaType: "SYNTHETIC_UGC" },
-  cinematic: { styles: ["likeloop_cinematic", "cinematic3d", "animated_story", "animated_unbox"], mediaType: "CINEMATIC" },
+  cinematic: { styles: ["street_story", "likeloop_cinematic", "cinematic3d", "animated_story", "animated_unbox"], mediaType: "CINEMATIC" },
 });
 export const CTAS = Object.freeze([
   { id: "details", text: "לפרטים ב־LikeLink ←" },

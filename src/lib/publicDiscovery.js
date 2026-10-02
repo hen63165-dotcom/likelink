@@ -34,6 +34,7 @@ export const REEL_STYLE_LABELS = Object.freeze({
   animated_story: { he: "סיפור מוצר מונפש", en: "Animated product story" },
   animated_unbox: { he: "אנבוקסינג מונפש · אנימציה ממוחשבת", en: "Animated unboxing · computer animation" },
   likeloop_cinematic: { he: "LikeLoop Cinematic · סרט אנימציה קצר, ממוחשב", en: "LikeLoop Cinematic · short computer-animated film" },
+  street_story: { he: "סיפור רחוב מונפש · דמות מקורית, ממוחשב", en: "Animated street story · original character, computer-made" },
   studio: { he: "קליפ מהסטודיו · אנימציה ממוחשבת", en: "Studio clip · computer animation" },
 });
 

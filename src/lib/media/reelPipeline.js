@@ -67,6 +67,11 @@ export const REEL_STYLES = Object.freeze({
     en: "LikeLoop Cinematic · short computer-animated film",
     durationMs: 18500,
   },
+  street_story: {
+    he: "סיפור רחוב מונפש · דמות מקורית, ממוחשב",
+    en: "Animated street story · original character, computer-made",
+    durationMs: 15000,
+  },
   animated_unbox: {
     he: "אנבוקסינג מונפש · אנימציה ממוחשבת",
     en: "Animated unboxing · computer animation",
@@ -79,7 +84,7 @@ export const REEL_STYLES = Object.freeze({
     durationMs: 0,
   },
 });
-export const STYLE_ORDER = Object.freeze(["likeloop_cinematic", "ugc_style", "cinematic3d", "animated_story", "animated_unbox"]);
+export const STYLE_ORDER = Object.freeze(["street_story", "likeloop_cinematic", "ugc_style", "cinematic3d", "animated_story", "animated_unbox"]);
 
 /** Each style opens with a different hook type, so the catalog explores hooks (LikeLoop learns from them). */
 export const STYLE_CREATIVE = Object.freeze({
@@ -88,7 +93,33 @@ export const STYLE_CREATIVE = Object.freeze({
   cinematic3d: { hookType: "curiosity", opening: "reveal", format: "cinematic", cta: "see_more" },
   animated_story: { hookType: "question", opening: "question_card", format: "cinematic", cta: "details" },
   animated_unbox: { hookType: "gift", opening: "reveal", format: "cinematic", cta: "see_more" },
+  street_story: { hookType: "story", opening: "close_up", format: "cinematic", cta: "details" },
 });
+
+/**
+ * Street story: a relatable micro-story (setup → twist → payoff) about the
+ * day, never about what the product does — the product is the payoff the
+ * character chooses, nothing more is claimed. One set per category family,
+ * picked per product so the catalog does not repeat one line.
+ */
+export const STREET_STORIES = Object.freeze({
+  style: [
+    { setup: "הלוק היה מושלם…", twist: "…בדיוק ל־5 דקות 😭🌧️", payoff: "אז הפרט הקטן קיבל את כל הבמה ✨" },
+    { setup: "יצאתי מהבית מוכנה לגמרי…", twist: "…ואז השמיים החליטו אחרת 🙃", payoff: "אז שמתי את כל הפוקוס על פרט אחד ✨" },
+    { setup: "שעה מול המראה, הכל בדיוק…", twist: "…ואז פתחתי את הדלת 🌧️😅", payoff: "הפרט הזה הציל לי את המצב רוח 💫" },
+  ],
+  general: [
+    { setup: "תכננתי יום מושלם…", twist: "…והתוכנית החליטה אחרת 😅", payoff: "אז פינקתי את עצמי בדבר אחד קטן ✨" },
+    { setup: "הכל הלך לפי התוכנית…", twist: "…עד שהתחיל גשם 🌧️", payoff: "מה שמצאתי בדרך שינה את היום 💫" },
+  ],
+});
+const STYLE_CATEGORIES = new Set(["Fashion", "Accessories", "Beauty", "Gifts"]);
+export function streetStory(product) {
+  const set = STYLE_CATEGORIES.has(text(product?.category)) ? STREET_STORIES.style : STREET_STORIES.general;
+  let h = 0;
+  for (const ch of text(product?.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return set[h % set.length];
+}
 
 /** Burned into every frame and repeated in the metadata. */
 export const ON_FRAME_DISCLOSURE = Object.freeze({
@@ -164,6 +195,7 @@ export function buildReelConcept({ product, creator, style }) {
     animated_story: "לונה מציגה",
     animated_unbox: "מה יש בקופסה?",
     likeloop_cinematic: category || "LikeLoop",
+    street_story: "סיפור קצר 👀",
   };
   return {
     id: `${product.id}:${style}`,
@@ -178,6 +210,7 @@ export function buildReelConcept({ product, creator, style }) {
     hookMs: HOOK_PRELUDE_MS,
     creative: creativeFor(product, style),
     story: style === "likeloop_cinematic" ? buildStoryBeats(product) : null,
+    street: style === "street_story" ? streetStory(product) : null,
     lines: { hook: creativeFor(product, style)?.hook || hookQuestion(product), kicker: kickers[style], title, facts, cta: creativeFor(product, style)?.ctaText || "לפרטים ב־LikeLink ←", brand: "LikeLink2" },
     disclosure: ON_FRAME_DISCLOSURE.he,
     accent: /^#[0-9a-f]{6}$/i.test(text(creator?.color)) ? creator.color : "#d22f5d",
