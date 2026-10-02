@@ -525,12 +525,47 @@ function street(t) {
   disclosure(t);
 }
 
+/* ------------------------------------------------------------ text_hook */
+// Creator-style text reel: the real product photo full-bleed with a slow push-in,
+// big Hebrew text with a heavy outline (hook → what it is → comment for the link).
+function outlined(lines, y, size, alpha = 1, lh = 1.22) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.font = `900 ${size}px ${UI}`; ctx.textAlign = "center"; ctx.direction = "rtl";
+  ctx.lineJoin = "round"; ctx.lineWidth = Math.round(size * 0.2); ctx.strokeStyle = "rgba(0,0,0,.92)"; ctx.fillStyle = "#fff";
+  lines.forEach((l, i) => { const yy = y + i * size * lh; ctx.strokeText(l, W / 2, yy); ctx.fillText(l, W / 2, yy); });
+  ctx.restore();
+}
+function textHook(ms) {
+  const t = ms / 1000; // the renderer passes milliseconds
+  const noEmoji = (x) => String(x || "").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "").trim();
+  const TH = C.textHook || { hook: C.lines.hook, reveal: [C.lines.title], cta: [C.lines.cta] };
+  // background: the product photo, slow push-in, soft vignette for legibility
+  ctx.drawImage(BLUR, 0, 0, W, H);
+  const z = 1.02 + 0.1 * easeInOut(t / 11);
+  coverDraw(ctx, IMG, 0, 0, W, H, z, 0.5, 0.45);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "rgba(0,0,0,.55)"); g.addColorStop(0.42, "rgba(0,0,0,.05)"); g.addColorStop(0.75, "rgba(0,0,0,.05)"); g.addColorStop(1, "rgba(0,0,0,.6)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const beat = (a, b) => ease(win(t, a, a + 0.35)) * (1 - ease(win(t, b - 0.3, b)));
+  const hookA = beat(0, 4.2), revA = beat(4.2, 7.6), ctaA = t >= 7.6 ? ease(win(t, 7.6, 8)) : 0;
+  if (hookA > 0) outlined(wrap(noEmoji(TH.hook), `900 64px ${UI}`, 640, 4), 250, 64, hookA);
+  if (revA > 0) {
+    const lines = [...wrap(noEmoji(TH.reveal[0] || ""), `900 54px ${UI}`, 640, 3), ...TH.reveal.slice(1).map(noEmoji)];
+    outlined(lines, 240, 54, revA);
+  }
+  if (ctaA > 0) {
+    outlined(TH.cta.map(noEmoji), 250, 66, ctaA);
+    pill(`תגיבו: ${TH.keyword || "קישור"}`, W / 2, 1110, { bg: C.accent, fg: "#fff", alpha: ctaA, scale: back(win(t, 7.8, 8.3)), font: `900 36px ${UI}`, h: 74, padX: 30 });
+  }
+  brandMark(W / 2, 1200, 0.9);
+  disclosure(t);
+}
+
 window.renderFrame = (t, quality = 0.9) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H); ctx.globalAlpha = 1; ctx.filter = "none";
   const hook = C.hookMs || 0;
   if (t < hook) { prelude(t); return cv.toDataURL("image/jpeg", quality); }
   const s = t - hook;
-  if (C.style === "cinematic3d") cinematic(s); else if (C.style === "ugc_style") ugc(s); else if (C.style === "animated_unbox") unbox(s); else if (C.style === "likeloop_cinematic") likeloop(s); else if (C.style === "street_story") street(s); else story(s);
+  if (C.style === "cinematic3d") cinematic(s); else if (C.style === "ugc_style") ugc(s); else if (C.style === "animated_unbox") unbox(s); else if (C.style === "likeloop_cinematic") likeloop(s); else if (C.style === "street_story") street(s); else if (C.style === "text_hook") textHook(s); else story(s);
   return cv.toDataURL("image/jpeg", quality);
 };
 </script>

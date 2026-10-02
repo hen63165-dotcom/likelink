@@ -72,6 +72,11 @@ export const REEL_STYLES = Object.freeze({
     en: "Animated street story · original character, computer-made",
     durationMs: 15000,
   },
+  text_hook: {
+    he: "הוק טקסט על תמונת המוצר · ממוחשב",
+    en: "Text hook over the product photo · computer-made",
+    durationMs: 11000,
+  },
   animated_unbox: {
     he: "אנבוקסינג מונפש · אנימציה ממוחשבת",
     en: "Animated unboxing · computer animation",
@@ -84,7 +89,7 @@ export const REEL_STYLES = Object.freeze({
     durationMs: 0,
   },
 });
-export const STYLE_ORDER = Object.freeze(["street_story", "likeloop_cinematic", "ugc_style", "cinematic3d", "animated_story", "animated_unbox"]);
+export const STYLE_ORDER = Object.freeze(["text_hook", "street_story", "likeloop_cinematic", "ugc_style", "cinematic3d", "animated_story", "animated_unbox"]);
 
 /** Each style opens with a different hook type, so the catalog explores hooks (LikeLoop learns from them). */
 export const STYLE_CREATIVE = Object.freeze({
@@ -94,7 +99,27 @@ export const STYLE_CREATIVE = Object.freeze({
   animated_story: { hookType: "question", opening: "question_card", format: "cinematic", cta: "details" },
   animated_unbox: { hookType: "gift", opening: "reveal", format: "cinematic", cta: "see_more" },
   street_story: { hookType: "story", opening: "close_up", format: "cinematic", cta: "details" },
+  text_hook: { hookType: "curiosity", opening: "close_up", format: "cinematic", cta: "details" },
 });
+
+/** The keyword viewers comment to get the link in a private message. */
+export const COMMENT_KEYWORD = "קישור";
+
+/**
+ * Text hook (creator-style): big Hebrew text over the real product photo, in
+ * three beats — hook (a question, never a claim) → what it is (title + catalog
+ * price) → comment-for-link CTA. Real fields only.
+ */
+export function textHookLines(product, creative) {
+  const title = cleanTitle(product?.title) || text(product?.title);
+  const price = formatPrice(product?.price, "he");
+  return {
+    hook: creative?.hook || hookQuestion(product),
+    reveal: [title, price ? `${price} · מחיר בקטלוג` : ""].filter(Boolean),
+    cta: ["רוצים את הקישור?", `תגיבו "${COMMENT_KEYWORD}"`, "ואשלח לכם בפרטי"],
+    keyword: COMMENT_KEYWORD,
+  };
+}
 
 /**
  * Street story: a relatable micro-story (setup → twist → payoff) about the
@@ -196,6 +221,7 @@ export function buildReelConcept({ product, creator, style }) {
     animated_unbox: "מה יש בקופסה?",
     likeloop_cinematic: category || "LikeLoop",
     street_story: "סיפור קצר 👀",
+    text_hook: "שמרו את זה",
   };
   return {
     id: `${product.id}:${style}`,
@@ -211,6 +237,7 @@ export function buildReelConcept({ product, creator, style }) {
     creative: creativeFor(product, style),
     story: style === "likeloop_cinematic" ? buildStoryBeats(product) : null,
     street: style === "street_story" ? streetStory(product) : null,
+    textHook: style === "text_hook" ? textHookLines(product, creativeFor(product, style)) : null,
     lines: { hook: creativeFor(product, style)?.hook || hookQuestion(product), kicker: kickers[style], title, facts, cta: creativeFor(product, style)?.ctaText || "לפרטים ב־LikeLink ←", brand: "LikeLink2" },
     disclosure: ON_FRAME_DISCLOSURE.he,
     accent: /^#[0-9a-f]{6}$/i.test(text(creator?.color)) ? creator.color : "#d22f5d",

@@ -235,6 +235,7 @@ const REEL_STYLE_HE = {
   animated_unbox: "אנבוקסינג מונפש",
   likeloop_cinematic: "LikeLoop Cinematic",
   street_story: "סיפור רחוב מונפש",
+  text_hook: "הוק טקסט על המוצר",
   studio: "קליפ מהסטודיו",
 };
 
