@@ -52,3 +52,9 @@ test("shared-link repair: only products with a known store page, previous link k
   const a = kv.db.get("marketplace:products")[0];
   assert.equal(a.affiliateUrl, "https://s.click.aliexpress.com/e/_new11"); assert.equal(a.affiliateSource.previous, shared);
 });
+
+test("the scheduled marketing-engine job runs the daily affiliate import (keys alone must be enough)", async () => {
+  const src = (await import("node:fs")).readFileSync(new URL("../src/lib/cloud/autonomousJobs.js", import.meta.url), "utf8");
+  const job = src.slice(src.indexOf('registerJob("marketing-engine"'));
+  assert.match(job.slice(0, 1500), /dailyAffiliateImport\(/);
+});

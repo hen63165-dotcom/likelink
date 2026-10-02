@@ -859,13 +859,17 @@ registerJob("marketing-engine", {
       import("./marketingEngineRunner.js"), import("./reelPublisher.js"), import("../discovery/publishers/index.js"),
     ]);
     const env = typeof process !== "undefined" ? process.env : {};
+    // The owner's AliExpress affiliate account first (at most once a day, only
+    // with its keys): new promotable products with the owner's own links.
+    const { dailyAffiliateImport } = await import("../../../api/_utils/aliexpressAffiliate.mjs");
+    const affiliate = await dailyAffiliateImport({ kvGet, kvSet, env, now: Number(now) || Date.now() });
     const r = await engineSweep({
       kvGet, kvSet, env, now: Number(now) || Date.now(), trigger: "scheduler",
       requestVideo: (productId, ownerId) => requestRender({ productId, ownerIds: [ownerId], requestedBy: "marketing_engine" }, {}),
       channelCredentials: publishers.channelCredentials, publishPost: (a) => publishers.publishPost(a),
     });
     const platform = r.results.find((x) => x.scope === "platform");
-    return { ok: Boolean(platform?.ok), error: platform?.ok ? undefined : platform?.outcome || "platform_cycle_failed", cycle: "marketing-engine", timestamp: now, results: r.results.map((x) => ({ scope: x.scope, ok: x.ok, outcome: x.outcome, published: x.summary?.published ?? 0, manual: x.summary?.manual ?? 0 })) };
+    return { ok: Boolean(platform?.ok), error: platform?.ok ? undefined : platform?.outcome || "platform_cycle_failed", cycle: "marketing-engine", timestamp: now, affiliate, results: r.results.map((x) => ({ scope: x.scope, ok: x.ok, outcome: x.outcome, published: x.summary?.published ?? 0, manual: x.summary?.manual ?? 0 })) };
   },
 });
 
