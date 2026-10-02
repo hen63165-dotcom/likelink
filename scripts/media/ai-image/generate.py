@@ -17,8 +17,13 @@ import argparse, json, os, time
 
 MODEL = os.environ.get("LIKELINK_IMAGE_MODEL", "Lykon/dreamshaper-8")
 LCM_LORA = "latent-consistency/lcm-lora-sdv1-5"
-NEGATIVE = ("text, letters, words, watermark, logo, signature, brand name, deformed, disfigured, "
-            "extra fingers, extra limbs, bad hands, lowres, blurry, jpeg artifacts, photo, photorealistic, nsfw")
+# Cartoon, not a photo; modest; no text (Hebrew is composited later, never drawn by the model).
+NEGATIVE = ("photo, photograph, photorealistic, realistic, realistic skin texture, real person, "
+            "text, letters, words, watermark, logo, signature, brand name, "
+            "cleavage, revealing clothes, short skirt, sexy, nsfw, "
+            "deformed, disfigured, extra fingers, extra limbs, bad hands, lowres, blurry, jpeg artifacts")
+STYLE = ("stylized 3d cartoon character, animated feature film still, cute big head, very large expressive eyes, "
+         "smooth stylized skin, soft subsurface lighting, cinematic lighting, vibrant colors, highly detailed, blender render")
 
 
 def main():
@@ -45,7 +50,7 @@ def main():
     for job in json.load(open(a.jobs)):
         t = time.time()
         g = torch.Generator("cpu").manual_seed(int(job.get("seed", 1)))
-        img = pipe(prompt=job["prompt"], negative_prompt=NEGATIVE, num_inference_steps=a.steps,
+        img = pipe(prompt=f"{STYLE}, {job['prompt']}", negative_prompt=NEGATIVE, num_inference_steps=a.steps,
                    guidance_scale=1.5, width=a.width, height=a.height, generator=g).images[0]
         path = os.path.join(a.out, f"{job['id']}.png")
         img.save(path)
