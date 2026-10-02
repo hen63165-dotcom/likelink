@@ -3,14 +3,16 @@
 /opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
   deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]Fetching 13 files:  15%|█▌        | 2/13 [00:00<00:00, 11.11it/s]Fetching 13 files:  85%|████████▍ | 11/13 [00:02<00:00,  4.24it/s]Fetching 13 files:  92%|█████████▏| 12/13 [00:03<00:00,  3.50it/s]Fetching 13 files: 100%|██████████| 13/13 [00:12<00:00,  1.68s/it]Fetching 13 files: 100%|██████████| 13/13 [00:12<00:00,  1.01it/s]
-Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 3700.26it/s]
-Loading pipeline components...:  33%|███▎      | 2/6 [00:00<00:00, 10.72it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
-Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 19.16it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 17.75it/s]
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:01,  4.47it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
+
+Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 8837.52it/s]
+Loading pipeline components...:  83%|████████▎ | 5/6 [00:00<00:00, 16.62it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 14.64it/s]
 The config attributes {'skip_prk_steps': True} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
 No LoRA keys associated to CLIPTextModel found with the prefix='text_encoder'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModel related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
-{"loaded_ms": 18913, "model": "Lykon/dreamshaper-8"}
-{"id": "street-rain", "ms": 151642, "bytes": 634168}
-{"id": "desk-cables", "ms": 151871, "bytes": 554179}
-{"id": "vlog-creator", "ms": 151309, "bytes": 514946}
+{"loaded_ms": 3699, "model": "Lykon/dreamshaper-8"}
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (79 > 77). Running this sequence through the model will result in indexing errors
+[transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer CLIPTokenizer. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
+The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['a sunny european street']
+{"id": "street-rain", "ms": 82546, "bytes": 626531}
+{"id": "desk-cables", "ms": 84131, "bytes": 543582}
+{"id": "vlog-creator", "ms": 81413, "bytes": 539033}
