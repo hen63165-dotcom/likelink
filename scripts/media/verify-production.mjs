@@ -54,11 +54,13 @@ async function main() {
           studio: !!document.querySelector(".ll-studio"),
           video: v ? { src: v.currentSrc.slice(0, 120), readyState: v.readyState, t: Number(v.currentTime.toFixed(2)), w: v.videoWidth, h: v.videoHeight, paused: v.paused } : null,
           badges: [...document.querySelectorAll(".lx-badge")].slice(0, 6).map((b) => b.textContent.trim()),
+          // Home "לונה מקדמת עכשיו": the marketing engine's own published feed posts, each link with its creative id.
+          engine: (() => { const a = [...document.querySelectorAll('[aria-labelledby="h-engine"] a')]; return { cards: a.length, withCid: a.filter((x) => /[?&]cid=/.test(x.getAttribute("href") || "")).length }; })(),
         };
       });
       const row = { vp: vp.n, route: r, status: resp?.status?.() ?? 0, ...m, errors: errors.slice(0, 5) };
       results.push(row);
-      summary(`- ${vp.n} ${r}: http ${row.status} · hscroll ${row.hscroll} · broken ${row.broken} · errors ${row.errors.length}${row.video ? ` · video rs=${row.video.readyState} t=${row.video.t}s ${row.video.w}x${row.video.h}` : ""}`);
+      summary(`- ${vp.n} ${r}: http ${row.status} · hscroll ${row.hscroll} · broken ${row.broken} · errors ${row.errors.length}${r === "/" ? ` · engine cards ${row.engine.cards} (cid ${row.engine.withCid})` : ""}${row.video ? ` · video rs=${row.video.readyState} t=${row.video.t}s ${row.video.w}x${row.video.h}` : ""}`);
       if (["/", "/reels", "/p/p1"].includes(r)) {
         const f = path.join(OUT, `${vp.n}${r.replace(/\W+/g, "_")}.jpg`);
         await page.screenshot({ path: f, type: "jpeg", quality: 55 });
