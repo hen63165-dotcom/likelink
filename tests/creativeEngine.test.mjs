@@ -277,3 +277,19 @@ test("Creative Lab: every button has a real action, and no Pixar wording reaches
   assert.doesNotMatch(ui, /pixar|פיקסאר|disney/i);
   assert.match(readFileSync("src/components/studio/StudioShell.jsx", "utf8"), /<CreativeLab /);
 });
+
+test("own image model: open weights on the runner, no account; short prompts; no studio IP; modest; the product is never drawn", () => {
+  assert.equal(AI_IMAGE_PROVIDER, "likelink_own_model");
+  const own = PROVIDERS.find((p) => p.id === AI_IMAGE_PROVIDER);
+  assert.deepEqual(own.env, [], "no credentials needed");
+  const py = readFileSync("scripts/media/ai-image/generate.py", "utf8");
+  assert.doesNotMatch(py, /pixar|disney|dreamworks/i);
+  assert.match(py, /NEGATIVE = \(/);
+  assert.match(py, /cleavage/);
+  assert.match(py, /text, letters/);
+  const story = creativeScript({ product: product("p1"), creativeType: "AI_3D_STORY" });
+  assert.ok(story);
+  const runner = readFileSync("scripts/media/render-reels.mjs", "utf8");
+  assert.match(runner, /ownModelScenes/);
+  assert.match(readFileSync(".github/workflows/media-render.yml", "utf8"), /diffusers/);
+});

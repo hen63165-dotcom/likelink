@@ -1,0 +1,38 @@
+# Feasibility test for LikeLink's own image model (no account, no key):
+# open weights on the CPU runner. Runs on pushes that touch the model runner and
+# commits the sample images back to the same branch for review.
+name: Own image model — test
+on:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/ai-image/generate.py", "scripts/media/ai-image/sample-jobs.json", ".github/workflows/ai-image-test.yml"]
+permissions:
+  contents: write
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: own-image-model-v1
+      - name: Install (CPU torch + diffusers)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.30" transformers accelerate peft safetensors
+      - name: Generate samples
+        run: python scripts/media/ai-image/generate.py --jobs scripts/media/ai-image/sample-jobs.json --out scripts/media/ai-image/samples 2>&1 | tee /tmp/gen.log; mkdir -p scripts/media/ai-image/samples; cp /tmp/gen.log scripts/media/ai-image/samples/log.txt || true
+      - name: Commit samples for review
+        run: |
+          mkdir -p scripts/media/ai-image/samples
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add scripts/media/ai-image/samples
+          git commit -m "Own image model: sample images from the CPU runner" || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"

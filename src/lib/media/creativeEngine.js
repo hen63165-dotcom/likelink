@@ -16,7 +16,7 @@
 //   • no voice is claimed: no voice provider is implemented, captions carry the script;
 //   • a provider is AVAILABLE only with recorded evidence (a real success), never because code exists;
 //   • premium usage is counted only when the asset was stored and verified.
-import { REEL_STYLES, AI_IMAGE_PROVIDER, AI_SCENE_STYLES, RENDER_PROVIDER, ON_FRAME_DISCLOSURE, buildReelConcept, hookQuestion } from "./reelPipeline.js";
+import { REEL_STYLES, AI_IMAGE_PROVIDER, POLLINATIONS_PROVIDER, AI_SCENE_STYLES, RENDER_PROVIDER, ON_FRAME_DISCLOSURE, buildReelConcept, hookQuestion } from "./reelPipeline.js";
 
 export const CREATIVE_TYPES = Object.freeze({
   TEXT_HOOK: { style: "text_hook", tier: "free", needs: ["renderer"], aiGenerated: false, he: "הוק טקסט", en: "Text Hook", output: "RENDERED_VIDEO" },
@@ -53,7 +53,8 @@ export const typeOfStyle = (style) => CREATIVE_TYPE_IDS.find((t) => CREATIVE_TYP
  */
 export const PROVIDERS = Object.freeze([
   { id: "likelink_native_render", kind: "renderer", free: true, adapter: true, env: [], he: "מנוע הרינדור של LikeLink (Chromium + ffmpeg בענן)" },
-  { id: AI_IMAGE_PROVIDER, kind: "image", free: true, adapter: true, env: [], he: "Pollinations (Flux) — תמונות AI חינמיות" },
+  { id: AI_IMAGE_PROVIDER, kind: "image", free: true, adapter: true, env: [], he: "המודל של LikeLink — קוד פתוח בענן, בלי חשבון" },
+  { id: POLLINATIONS_PROVIDER, kind: "image", free: true, adapter: true, env: ["POLLINATIONS_TOKEN"], envOnRunner: true, he: "Pollinations (Flux) — גיבוי, דורש טוקן" },
   { id: "kling", kind: "video", free: false, adapter: false, env: ["KLING_ACCESS_KEY", "KLING_SECRET_KEY"], he: "Kling — וידאו AI (בתשלום)" },
   { id: "elevenlabs", kind: "voice", free: false, adapter: false, env: ["ELEVENLABS_API_KEY"], he: "ElevenLabs — קריינות (בתשלום)" },
 ]);

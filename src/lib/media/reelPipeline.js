@@ -121,7 +121,9 @@ export const STYLE_CREATIVE = Object.freeze({
  * model: the prompt leaves clean space and the renderer burns the Hebrew in.
  * The character is labelled as AI on every frame where it appears.
  */
-export const AI_IMAGE_PROVIDER = "pollinations_flux";
+/** LikeLink's own image model (open weights on the render runner — no account, no key). */
+export const AI_IMAGE_PROVIDER = "likelink_own_model";
+export const POLLINATIONS_PROVIDER = "pollinations_flux";
 /** Styles whose scenes come from an AI image model (the runner fetches them). */
 export const AI_SCENE_STYLES = Object.freeze(["ai_story", "ai_ugc"]);
 const AI_LOOK = "high-end original 3D animated commercial still, expressive original stylized character not based on any existing film, franchise or mascot, cinematic lighting, soft global illumination, detailed materials and fabric textures, shallow depth of field, vibrant color grade, vertical 9:16 composition, clean uncluttered upper third for captions, no text, no letters, no logos, no watermark, no brand names";
@@ -144,6 +146,7 @@ const AI_SCENE = {
   Pets: ["on an evening walk with a bored cute dog, looking at her phone", "playing happily in a park with an excited cute dog"],
   Other: ["on an ordinary day at home, thinking something small is missing", "smiling, the day feels a little better"],
 };
+const SD_OUTFIT = ["pink blazer and white t-shirt", "cozy oversized sweater", "denim jacket and striped top", "pastel hoodie"];
 /** Where the virtual creator films herself (ai_ugc), per category. */
 const AI_UGC_SET = {
   Accessories: "a cozy sunlit bedroom with a vanity mirror", Fashion: "a bright walk-in closet", Beauty: "a clean bright bathroom with soft ring light",
@@ -157,6 +160,8 @@ export function aiStoryScenes(product, style = "ai_story", creative = null) {
   const seed = seedOf(product?.id || "") % 100000;
   const character = AI_CHARACTERS[seed % AI_CHARACTERS.length];
   const prompt = (scene) => `${AI_LOOK}, ${character}, ${scene}, not holding any product`;
+  // The own model (SD 1.5) reads ~77 tokens: character + moment, medium shot. Style words live in generate.py.
+  const short = (scene) => `${character.replace(/^a /, "")}, ${SD_OUTFIT[seed % SD_OUTFIT.length]}, ${scene}, medium shot, upper body`;
   if (style === "ai_ugc") {
     const set = AI_UGC_SET[cat];
     return {
@@ -164,8 +169,8 @@ export function aiStoryScenes(product, style = "ai_story", creative = null) {
       seed,
       character,
       scenes: [
-        { beat: "HOOK", prompt: prompt(`looking straight into the camera like a vlogger filming herself with a phone, mid-sentence, animated expression, in ${set}`), caption: creative?.hook || hookQuestion(product) },
-        { beat: "PROBLEM_DESIRE", prompt: prompt(`thoughtful expression, hand on chin, talking to the camera, in ${set}`), caption: `${w.missing}?` },
+        { beat: "HOOK", prompt: prompt(`looking straight into the camera like a vlogger filming herself with a phone, mid-sentence, animated expression, in ${set}`), sdPrompt: short(`smiling and talking to the camera like a vlogger, in ${set}`), caption: creative?.hook || hookQuestion(product) },
+        { beat: "PROBLEM_DESIRE", prompt: prompt(`thoughtful expression, hand on chin, talking to the camera, in ${set}`), sdPrompt: short(`thoughtful, hand on chin, talking to the camera, in ${set}`), caption: `${w.missing}?` },
       ],
     };
   }
@@ -175,8 +180,8 @@ export function aiStoryScenes(product, style = "ai_story", creative = null) {
     seed,
     character,
     scenes: [
-      { beat: "PROBLEM", prompt: prompt(pair[0]), caption: `${w.missing}?` },
-      { beat: "DESIRE", prompt: prompt(pair[1]), caption: w.fixed },
+      { beat: "PROBLEM", prompt: prompt(pair[0]), sdPrompt: short(pair[0]), caption: `${w.missing}?` },
+      { beat: "DESIRE", prompt: prompt(pair[1]), sdPrompt: short(pair[1]), caption: w.fixed },
     ],
   };
 }

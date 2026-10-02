@@ -87,35 +87,50 @@ function run(cmd, argv, { input } = {}) {
 }
 
 /**
- * AI scenes: an ORIGINAL cartoon character from Pollinations (Flux). Only the
- * character scene is generated; the product is always its real photo. The
- * anonymous tier may refuse (402): an optional free account token
- * (POLLINATIONS_TOKEN, a GitHub secret) is sent server-to-server only, and one
- * fallback to the provider's default model is tried. Any failure → this render
- * is skipped (no fallback art) and reported with the provider's own reason.
+ * AI scenes come from LikeLink's OWN image model (scripts/media/ai-image/generate.py:
+ * open weights on this runner — no account, no key, no credits). One model
+ * process per run generates every scene the plan needs. Pollinations is only a
+ * fallback when a POLLINATIONS_TOKEN secret exists. The product is never
+ * generated; any failure → that render is skipped and reported.
  */
+const OWN_MODEL = "likelink_own_model";
 const POLLINATIONS_TOKEN = process.env.POLLINATIONS_TOKEN || "";
-async function aiSceneDataUrls(ai) {
+const PYTHON = process.env.OWN_MODEL_PYTHON || "python3";
+
+async function ownModelScenes(items) {
+  const jobs = [];
+  for (const item of items) item.concept.aiStory.scenes.forEach((sc, i) => jobs.push({ id: `${item.productId}__${item.style}__${i}`, prompt: sc.sdPrompt || sc.prompt, seed: item.concept.aiStory.seed + i * 101 }));
+  if (!jobs.length) return;
+  const dir = path.join(OUT, "ai-scenes");
+  mkdirSync(dir, { recursive: true });
+  const jobsFile = path.join(dir, "jobs.json");
+  writeFileSync(jobsFile, JSON.stringify(jobs));
+  const started = Date.now();
+  let log = "";
+  try {
+    log = await run(PYTHON, [path.join(HERE, "ai-image", "generate.py"), "--jobs", jobsFile, "--out", dir]);
+  } catch (e) {
+    for (const item of items) item.sceneError = `own_model_failed ${String(e?.message || e).slice(-120)}`;
+    summary(`- own image model FAILED: ${String(e?.message || e).slice(-300)}`);
+    return;
+  }
+  const done = new Set(log.split("\n").map((l) => { try { return JSON.parse(l).id; } catch { return null; } }).filter(Boolean));
+  for (const item of items) {
+    const ids = item.concept.aiStory.scenes.map((_, i) => `${item.productId}__${item.style}__${i}`);
+    if (!ids.every((id) => done.has(id))) { item.sceneError = "own_model_missing_scene"; continue; }
+    item.sceneUrls = ids.map((id) => `data:image/png;base64,${readFileSync(path.join(dir, `${id}.png`)).toString("base64")}`);
+  }
+  summary(`- own image model: ${done.size}/${jobs.length} scene(s) in ${Math.round((Date.now() - started) / 1000)} s`);
+}
+
+async function pollinationsScenes(ai) {
   const out = [];
   for (const sc of ai.scenes) {
-    const base = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.prompt)}?width=720&height=1280&seed=${ai.seed}&nologo=true&private=true`;
-    let last = null;
-    for (const url of [`${base}&model=flux`, base]) {
-      try {
-        const res = await fetch(url, { headers: { accept: "image/*", "user-agent": "LikeLink reel renderer (+https://likelink2.vercel.app)", ...(POLLINATIONS_TOKEN ? { Authorization: `Bearer ${POLLINATIONS_TOKEN}` } : {}) }, signal: AbortSignal.timeout(120_000) });
-        const type = String(res.headers.get("content-type") || "").split(";")[0];
-        if (!res.ok || !type.startsWith("image/")) {
-          const why = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 120);
-          throw new Error(`ai_scene_${res.status}_${type || "none"} ${why}`);
-        }
-        const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.length < 10_000) throw new Error("ai_scene_too_small");
-        out.push(`data:${type};base64,${buf.toString("base64")}`);
-        last = null;
-        break;
-      } catch (e) { last = e; }
-    }
-    if (last) throw last;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(sc.prompt)}?width=720&height=1280&seed=${ai.seed}&nologo=true&private=true&model=flux`;
+    const res = await fetch(url, { headers: { accept: "image/*", Authorization: `Bearer ${POLLINATIONS_TOKEN}` }, signal: AbortSignal.timeout(120_000) });
+    const type = String(res.headers.get("content-type") || "").split(";")[0];
+    if (!res.ok || !type.startsWith("image/")) throw new Error(`pollinations_${res.status}`);
+    out.push(`data:${type};base64,${Buffer.from(await res.arrayBuffer()).toString("base64")}`);
   }
   return out;
 }
@@ -125,16 +140,11 @@ async function renderOne(page, item) {
   const dataUrl = await imageDataUrl(concept.image);
   await page.evaluate(([c, d]) => window.loadConcept(c, d), [concept, dataUrl]);
   if (concept.aiStory) {
-    let scenes;
-    try {
-      scenes = await aiSceneDataUrls(concept.aiStory);
-      item.providerOk = true;
-    } catch (e) {
-      item.providerOk = false;
-      throw e;
-    } finally {
-      item.provider = concept.aiStory.provider;
-    }
+    let scenes = item.sceneUrls || null;
+    item.provider = OWN_MODEL;
+    item.providerOk = Boolean(scenes);
+    if (!scenes && POLLINATIONS_TOKEN) scenes = await pollinationsScenes(concept.aiStory);
+    if (!scenes) throw new Error(item.sceneError || "ai_scenes_missing");
     await page.evaluate((s) => window.loadScenes(s), scenes);
   }
   const frames = Math.round((concept.durationMs / 1000) * concept.fps);
@@ -197,6 +207,9 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 720, height: 1280 } });
   if (args["block-fonts"]) await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await page.goto(pathToFileURL(path.join(HERE, "reel-scene.html")).href, { waitUntil: "load" });
+
+  // Every AI scene of this run from one model process (the model loads once).
+  await ownModelScenes(plan.filter((x) => x.concept?.aiStory));
 
   let failures = 0;
   // One render attempt's outcome → the server (provider health, bounded job retries).
