@@ -398,6 +398,12 @@ export function MarketplaceProvider({ children }) {
     [marketers, sessionMarketerId]
   );
 
+  // Automated browsers (Playwright/Selenium/headless: navigator.webdriver) are
+  // never counted as traffic — no fake views or clicks from our own checks.
+  const isAutomated = () => {
+    try { return typeof navigator !== "undefined" && navigator.webdriver === true; } catch { return false; }
+  };
+
   const recordClick = useCallback(
     // `attribution` = the on-site placement that produced the click (e.g. a
     // reel: { src: "likelink_reels", camp: "v-<assetId>" }); URL params win.
@@ -407,6 +413,7 @@ export function MarketplaceProvider({ children }) {
       // Traffic source truth — recorded ONLY when actually available
       // (utm params / creative id / in-app source / referral param / referrer host). Never guessed.
       // URL (or this visit's landing) wins; then the in-app source; then the referrer.
+      if (isAutomated()) return;
       const attr = landingAttribution({ fallback: attribution });
       const c = {
         id: uid(),
@@ -448,6 +455,7 @@ export function MarketplaceProvider({ children }) {
   const recordProductView = useCallback(
     async (product) => {
       if (!product?.id) return; pushActivity('product.view', 'צפית במוצר', { productId: product.id });
+      if (isAutomated()) return;
       // Dedupe per session: one view per product per browser session (honest metric).
       try {
         const seen = JSON.parse(sessionStorage.getItem("ll_viewed") || "[]");
@@ -532,6 +540,10 @@ export function MarketplaceProvider({ children }) {
       persistCollections,
       toggleFollow,
       recordClick,
+      recordProductView,
+      activityFeed,
+      activityTick,
+      pushActivity,
       onLogin: async (email, password) => {
         try { assertAuthSafeForEnvironment(authConfigured); } catch (e) { return { ok: false, error: "שגיאת הגדרת מערכת — פני לתמיכה" }; }
         const cleanEmail = String(email || "").trim().toLowerCase();
