@@ -359,28 +359,38 @@ async function registerAndPublish(c, ctx) {
  * Re-checks every native reel through the public read path; a reel whose
  * media no longer serves is unregistered (rollback) instead of left broken.
  */
-export async function auditReels({ env, fetchImpl, now = Date.now(), maxChecks = 12 } = {}) {
+export async function auditReels({ env, fetchImpl, now = Date.now(), maxChecks = 80 } = {}) {
   const c = client({ env, fetchImpl });
   const [videosR, clicksR, productsR] = await Promise.all([VIDEOS_KEY, CLICKS_KEY, PRODUCTS_KEY].map((k) => c.kvRead(k)));
   if (!videosR.ok || !clicksR.ok || !productsR.ok) return { ok: false, error: "kv_read_failed" };
   const videos = arr(videosR.value);
   const native = videos.filter((v) => v?.source === RENDER_PROVIDER || v?.source === STUDIO_PROVIDER);
+  // Every LikeLink-made video on the media proxy is audited: the native reels
+  // (ugc/…) and the older in-browser renders (reels/<studio>/…), whose file is
+  // public only while an approved product still references it.
+  const audited = videos.filter((v) => /^likelink_/.test(String(v?.source || "")) && v.public !== false);
   const checks = [];
-  for (const v of native.slice(0, maxChecks)) {
+  for (const v of audited.slice(0, maxChecks)) {
     let path = "";
     try { path = new URL(String(v.videoUrl)).searchParams.get("path") || ""; } catch { /* malformed → checked as missing */ }
-    if (!/^ugc\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{1,100}\.(mp4|webm)$/.test(path)) { checks.push({ id: v.id, path, ok: false, status: 400 }); continue; }
+    if (!/^(ugc|reels)\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{1,100}\.(mp4|webm)$/.test(path)) { checks.push({ id: v.id, path, ok: false, status: 400 }); continue; }
     const r = await c.anonMedia(path, { range: "bytes=0-1023" });
     checks.push({ id: v.id, path, ok: r.ok, status: r.status });
   }
-  const broken = new Set(checks.filter((x) => !x.ok && x.status !== 0).map((x) => x.id));
-  if (broken.size) {
-    await c.kvWrite(VIDEOS_KEY, videos.filter((v) => !broken.has(v.id)));
-    const products = arr(productsR.value);
-    await c.kvWrite(PRODUCTS_KEY, products.map((p) => (broken.has(p?.videoAssetId) ? { ...p, videoUrl: null, videoPoster: null, videoProvider: null, videoSynthetic: null, videoStyle: null, videoStatus: null, videoAssetId: null } : p)));
+  const brokenAll = new Set(checks.filter((x) => !x.ok && x.status !== 0).map((x) => x.id));
+  const nativeIds = new Set(native.map((v) => v.id));
+  const broken = new Set([...brokenAll].filter((id) => nativeIds.has(id)));        // native: unregistered (as before)
+  const hidden = new Set([...brokenAll].filter((id) => !nativeIds.has(id)));       // older renders: kept, marked not public
+  if (brokenAll.size) {
+    const at = new Date(now).toISOString();
+    await c.kvWrite(VIDEOS_KEY, videos.filter((v) => !broken.has(v.id)).map((v) => (hidden.has(v.id) ? { ...v, public: false, unpublishedReason: "media_not_public", unpublishedAt: at } : v)));
+    if (broken.size) {
+      const products = arr(productsR.value);
+      await c.kvWrite(PRODUCTS_KEY, products.map((p) => (broken.has(p?.videoAssetId) ? { ...p, videoUrl: null, videoPoster: null, videoProvider: null, videoSynthetic: null, videoStyle: null, videoStatus: null, videoAssetId: null } : p)));
+    }
   }
   const learning = styleLearning({ videos: native.filter((v) => !broken.has(v.id)), clicks: arr(clicksR.value) });
-  const report = { at: new Date(now).toISOString(), reels: native.length, checked: checks.length, serving: checks.filter((x) => x.ok).length, unregistered: [...broken], learning, note: "learning = product views/clicks recorded after each reel went live (correlation, not reel performance)" };
+  const report = { at: new Date(now).toISOString(), reels: native.length, checked: checks.length, serving: checks.filter((x) => x.ok).length, unregistered: [...broken], hidden: [...hidden], learning, note: "learning = product views/clicks recorded after each reel went live (correlation, not reel performance)" };
   await c.kvWrite(LEARNING_KEY, report);
   return { ok: true, ...report };
 }

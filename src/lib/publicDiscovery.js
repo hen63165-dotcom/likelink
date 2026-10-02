@@ -272,8 +272,12 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
     if (!v?.id || !/^https?:\/\//i.test(textOf(v.videoUrl))) continue;
     const truth = classifyMediaRecord(v);
     if (truth.state !== MEDIA_TRUTH.REAL_VIDEO && truth.state !== MEDIA_TRUTH.SYNTHETIC_ANIMATION) continue;
-    const publicTags = (Array.isArray(v.productTags) ? v.productTags : []).map((t) => t?.productId).filter((id) => byId.has(id));
-    if (publicTags.length && !publicTags.some(reelWorthy)) continue;
+    if (v.public === false) continue; // unregistered (e.g. its file is no longer public)
+    const allTags = (Array.isArray(v.productTags) ? v.productTags : []).map((t) => t?.productId).filter(Boolean);
+    const publicTags = allTags.filter((id) => byId.has(id));
+    // A reel made for a product must show a public, promotable product. One whose
+    // products are all non-public (archived, unapproved) is not a creator reel.
+    if (allTags.length && !publicTags.some(reelWorthy)) continue;
     const tagged = publicTags.filter(reelWorthy);
     const creatorId = creatorById.has(v.marketerId) ? v.marketerId : tagged.length ? byId.get(tagged[0]).marketerId : "";
     if (!creatorId || seenUrls.has(truth.url)) continue;

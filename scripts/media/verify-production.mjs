@@ -40,6 +40,8 @@ async function main() {
     let errors = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`.slice(0, 200)));
     page.on("console", (m) => { if (m.type() === "error") errors.push(`console: ${m.text()}`.slice(0, 200)); });
+    // Name the resource behind a "Failed to load resource" console line.
+    page.on("response", (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`.slice(0, 220)); });
     for (const r of ROUTES) {
       errors = [];
       const resp = await page.goto(BASE + r, { waitUntil: "load", timeout: 45000 }).catch((e) => ({ status: () => 0, err: e.message }));
@@ -54,11 +56,13 @@ async function main() {
           studio: !!document.querySelector(".ll-studio"),
           video: v ? { src: v.currentSrc.slice(0, 120), readyState: v.readyState, t: Number(v.currentTime.toFixed(2)), w: v.videoWidth, h: v.videoHeight, paused: v.paused } : null,
           badges: [...document.querySelectorAll(".lx-badge")].slice(0, 6).map((b) => b.textContent.trim()),
+          // Home "לונה מקדמת עכשיו": the marketing engine's own published feed posts, each link with its creative id.
+          engine: (() => { const a = [...document.querySelectorAll('[aria-labelledby="h-engine"] a')]; return { cards: a.length, withCid: a.filter((x) => /[?&]cid=/.test(x.getAttribute("href") || "")).length }; })(),
         };
       });
       const row = { vp: vp.n, route: r, status: resp?.status?.() ?? 0, ...m, errors: errors.slice(0, 5) };
       results.push(row);
-      summary(`- ${vp.n} ${r}: http ${row.status} · hscroll ${row.hscroll} · broken ${row.broken} · errors ${row.errors.length}${row.video ? ` · video rs=${row.video.readyState} t=${row.video.t}s ${row.video.w}x${row.video.h}` : ""}`);
+      summary(`- ${vp.n} ${r}: http ${row.status} · hscroll ${row.hscroll} · broken ${row.broken} · errors ${row.errors.length}${r === "/" ? ` · engine cards ${row.engine.cards} (cid ${row.engine.withCid})` : ""}${row.video ? ` · video rs=${row.video.readyState} t=${row.video.t}s ${row.video.w}x${row.video.h}` : ""}`);
       if (["/", "/reels", "/p/p1"].includes(r)) {
         const f = path.join(OUT, `${vp.n}${r.replace(/\W+/g, "_")}.jpg`);
         await page.screenshot({ path: f, type: "jpeg", quality: 55 });
@@ -67,21 +71,26 @@ async function main() {
     }
     // Interactions on the live site (mobile only; local state, no writes beyond the visitor's own).
     if (vp.n === "m") {
+      // Each step is time-capped and recorded; a missing control is reported, never a hang.
+      const step = async (name, fn) => { try { return await fn(); } catch (e) { summary(`  interaction ${name} failed: ${String(e.message || e).split("\n")[0].slice(0, 160)}`); return null; } };
       await page.goto(BASE + "/", { waitUntil: "load" });
+      await page.waitForTimeout(2500);
       const save = page.locator("article button[aria-pressed]").first();
-      await page.waitForTimeout(2500); await save.click();
-      const saved = (await save.getAttribute("aria-pressed")) === "true";
+      const saved = await step("save", async () => { await save.click({ timeout: 8000 }); return (await save.getAttribute("aria-pressed")) === "true"; });
       await page.goto(BASE + "/saved", { waitUntil: "load" });
       await page.waitForTimeout(3000);
       const savedCount = await page.locator("article").count();
-      await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" });
-      await page.waitForTimeout(2500); await page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click();
+      const creatorResp = await page.goto(BASE + "/u/alyostyle", { waitUntil: "load" }).catch(() => null);
+      await page.waitForTimeout(3000);
+      const followDiag = await page.evaluate(() => ({ pressed: [...document.querySelectorAll("button[aria-pressed]")].map((b) => b.textContent.trim().slice(0, 30)).slice(0, 8), h1: (document.querySelector("h1")?.textContent || "").trim().slice(0, 40), lx: !!document.querySelector(".lx") }));
+      await step("follow", () => page.locator("button[aria-pressed]", { hasText: "מעקב" }).first().click({ timeout: 8000 }));
       const following = await page.locator("button[aria-pressed=true]", { hasText: "עוקבים" }).count();
+      if (!following) summary(`  follow diagnostics: http ${creatorResp?.status?.() ?? 0} · ${JSON.stringify(followDiag)}`);
       await page.goto(BASE + "/", { waitUntil: "load" });
       // At 375px the language switch lives in the menu drawer.
       await page.waitForTimeout(2000);
-      await page.locator("button[aria-label='תפריט']").click().catch(() => {});
-      await page.locator("[role=dialog] button", { hasText: "EN" }).first().click().catch(() => {});
+      await page.locator("button[aria-label='תפריט']").click({ timeout: 8000 }).catch(() => {});
+      await page.locator("[role=dialog] button", { hasText: "EN" }).first().click({ timeout: 8000 }).catch(() => {});
       await page.waitForTimeout(500);
       const dir = await page.evaluate(() => document.querySelector(".lx")?.dir);
       summary(`- interactions: save ${saved} → saved page items ${savedCount} · follow ${following > 0} · language switch dir=${dir}`);
@@ -126,7 +135,9 @@ async function main() {
       // Studio CTA: clicking a Studio link on the home page sends a funnel step.
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
       await page.waitForTimeout(2500);
-      await page.locator('a[href="/studio"]').first().click({ timeout: 10000 }).catch(() => null);
+      // The first /studio link can sit in a closed menu drawer; click a visible one.
+      const ctaLinks = await page.locator('a[href="/studio"]:visible').count();
+      await page.locator('a[href="/studio"]:visible').first().click({ timeout: 10000 }).catch((e) => summary(`  studio CTA click failed (${ctaLinks} visible): ${String(e.message || e).split("\n")[0].slice(0, 120)}`));
       await page.waitForTimeout(2500);
       const cta = funnel.some((e) => e.type === "studio_cta");
       summary(`- funnel: studio_cta sent=${cta} (${funnel.length} event(s) intercepted and aborted — nothing written)`);
@@ -160,7 +171,8 @@ async function main() {
   writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
   const bad = results.filter((x) => x.route && (x.status !== 200 || x.hscroll > 0 || x.broken || x.errors.length));
   summary(`RESULT routes=${results.filter((x) => x.route).length} issues=${bad.length}`);
-  for (const b of bad) summary(`  ISSUE ${JSON.stringify(b).slice(0, 400)}`);
+  for (const b of bad) summary(`  ISSUE ${b.vp || ""} ${b.route} · http ${b.status} · hscroll ${b.hscroll} · broken ${b.broken} · errors ${JSON.stringify(b.errors).slice(0, 600)}`);
 }
 
-main().catch((e) => { console.error(e); process.exitCode = 1; });
+// Never hang the job: whatever happens, the process ends (an open Chrome would keep it alive).
+main().catch((e) => { console.error(e); process.exitCode = 1; }).finally(() => setTimeout(() => process.exit(process.exitCode || 0), 2000));
