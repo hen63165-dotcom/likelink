@@ -155,3 +155,83 @@ export async function recordResolveOutcome(body = {}, { env, fetchImpl, now = Da
   await c.kvWrite(STATE_KEY, state);
   return { ok: true, status: 200, productId: body.productId, outcome: body.status, attempts, nextAttemptAt: new Date(nextAttemptAt).toISOString() };
 }
+
+/* ───────────────────────── owner links → new products (Link Generator) ───── */
+
+const OWNER_LINK = /^https:\/\/s\.click\.aliexpress\.com\/e\/_[A-Za-z0-9]{4,24}$/;
+const CATEGORY_WORDS = [
+  [/ring|necklace|bracelet|earring|pendant|jewel|anklet|chain|brooch|טבעת|שרשרת|צמיד|עגיל/i, "Accessories"],
+  [/bag|wallet|sunglass|watch|hat|scarf|belt|תיק|ארנק|משקפי|שעון/i, "Accessories"],
+  [/dress|shirt|skirt|pants|jeans|coat|jacket|sweater|blouse|hoodie|שמלה|חולצה|חצאית|מכנס|מעיל/i, "Fashion"],
+  [/shoe|sneaker|boot|sandal|heel|נעל/i, "Fashion"],
+  [/makeup|lipstick|serum|skin|cream|nail|hair|brush|lash|beauty|cosmetic|איפור|שפתון|סרום|קרם/i, "Beauty"],
+  [/kitchen|home|lamp|decor|pillow|storage|towel|cup|mug|bottle|בית|מטבח|מנורה/i, "Home"],
+  [/phone|earbud|headphone|charger|cable|speaker|keyboard|mouse|usb|bluetooth|טלפון|אוזניות|מטען/i, "Tech"],
+  [/yoga|fitness|gym|sport|running|כושר|ספורט/i, "Fitness"],
+  [/baby|kid|toy|children|תינוק|ילד|צעצוע/i, "Kids"],
+  [/pet|dog|cat|כלב|חתול/i, "Pets"],
+];
+export const categoryFromTitle = (t) => (CATEGORY_WORDS.find(([re]) => re.test(String(t || ""))) || [null, "Other"])[1];
+
+/** Store title → product title: drop the store suffix, keep the store's own words. */
+export function cleanStoreTitle(t) {
+  return String(t || "").replace(/\s*[-|–]\s*AliExpress.*$/i, "").replace(/^\s*AliExpress\b\s*[-|–:]?\s*/i, "").replace(/\s+/g, " ").trim().slice(0, 140);
+}
+
+/** Pure validation of one owner link observed on the store's own page. */
+export function validateOwnerLink(body = {}, products = [], marketers = [], ownerId = "") {
+  const fail = (error) => ({ ok: false, error });
+  const affiliateUrl = String(body.affiliateUrl || "").trim();
+  if (!OWNER_LINK.test(affiliateUrl)) return fail("not_an_owner_affiliate_link");
+  if (!arr(marketers).some((m) => String(m?.id) === String(ownerId))) return fail("owner_studio_not_found");
+  const m = ITEM_PAGE.exec(String(body.itemUrl || ""));
+  if (!m) return fail("not_a_product_page");
+  let img;
+  try { img = new URL(String(body.image || "")); } catch { return fail("bad_image_url"); }
+  if (img.protocol !== "https:" || imageProvenance(img.href) !== IMAGE_PROVENANCE.MERCHANT) return fail("image_not_merchant_photo");
+  const title = cleanStoreTitle(body.storeTitle);
+  if (title.length < 5) return fail("title_missing");
+  const price = Number(body.price);
+  const currency = String(body.currency || "").toUpperCase();
+  if (!(price > 0 && price < 100000) || !["ILS", "USD"].includes(currency)) return fail("price_missing");
+  const itemId = m[4];
+  const existing = arr(products).find((p) => String(p?.affiliateUrl || "").trim() === affiliateUrl || (p?.imageSource?.itemId && String(p.imageSource.itemId) === itemId) || p?.id === `ae-${itemId}`);
+  const host = String(body.itemUrl).match(/^https:\/\/([^/]+)/)[1].toLowerCase();
+  return { ok: true, existing: existing || null, itemId, itemUrl: `https://${host}/item/${itemId}.html`, image: img.href, title, price: Math.round(price * 100) / 100, currency, affiliateUrl };
+}
+
+/**
+ * Add one product from the owner's own Link Generator link: validate → the
+ * server downloads the photo itself → write → read back. Idempotent: a link
+ * or store item that already exists is reported, never duplicated.
+ */
+export async function addOwnerLink(body = {}, { env = process.env, fetchImpl, now = Date.now() } = {}) {
+  const c = client({ env, fetchImpl });
+  const ownerId = env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+  const [p, m] = await Promise.all([c.kvRead(PRODUCTS_KEY), c.kvRead(MARKETERS_KEY)]);
+  if (!p.ok || !m.ok) return { ok: false, status: 503, error: "kv_read_failed" };
+  const v = validateOwnerLink(body, arr(p.value), arr(m.value), ownerId);
+  if (!v.ok) return { ok: false, status: 422, error: v.error };
+  if (v.existing) return { ok: true, status: 200, duplicate: true, productId: v.existing.id };
+  let probe;
+  try {
+    const res = await c.fetchImpl(v.image, { headers: { accept: "image/*", "user-agent": "Mozilla/5.0 (LikeLink catalog check)" }, signal: AbortSignal.timeout(15000) });
+    probe = { status: res.status, type: String(res.headers.get("content-type") || "").split(";")[0], bytes: res.ok ? (await res.arrayBuffer()).byteLength : 0 };
+  } catch (e) {
+    return { ok: false, status: 502, error: "image_unreachable", detail: String(e?.message || e).slice(0, 120) };
+  }
+  if (probe.status !== 200 || !probe.type.startsWith("image/") || probe.bytes < MIN_IMAGE_BYTES) return { ok: false, status: 422, error: "image_not_valid", probe };
+  const iso = new Date(now).toISOString();
+  const product = {
+    id: `ae-${v.itemId}`, marketerId: ownerId, status: "approved", title: v.title, price: v.price, currency: v.currency,
+    category: categoryFromTitle(v.title), image: v.image, affiliateUrl: v.affiliateUrl, clicks: 0, createdAt: now, updatedAt: now,
+    importSource: "owner_link_generator",
+    imageSource: { provenance: IMAGE_PROVENANCE.MERCHANT, itemUrl: v.itemUrl, itemId: v.itemId, resolvedAt: iso, via: "store_product_page_og_image", probe,
+      storeTitle: String(body.storeTitle || "").slice(0, 140), ...(/^\d{6,14}$/.test(String(body.observedInRun || "")) ? { observedInRun: String(body.observedInRun) } : {}) },
+    priceSource: { via: "store_product_page", observedAt: iso, label: "catalog_price_unverified" },
+  };
+  await c.kvWrite(PRODUCTS_KEY, [...arr(p.value), product]);
+  const back = await c.kvRead(PRODUCTS_KEY);
+  const verified = back.ok && arr(back.value).some((x) => x?.id === product.id && x.affiliateUrl === product.affiliateUrl);
+  return { ok: verified, status: verified ? 200 : 500, productId: product.id, title: product.title, price: product.price, currency: product.currency, category: product.category, proof: verified ? "VERIFIED" : "WRITE_UNVERIFIED" };
+}

@@ -1,0 +1,41 @@
+# Owner links → products: Chrome reads each Link Generator link's store page
+# (title, photo, price); the server validates, downloads the photo itself,
+# writes the product and reads it back (src/lib/cloud/catalogResolver.js addOwnerLink).
+name: Catalog add owner links
+
+on:
+  workflow_dispatch:
+    inputs:
+      links:
+        description: "AliExpress Link Generator links (s.click.aliexpress.com/e/_…), any separator"
+        required: true
+      dry_run:
+        description: "Only print what was found (send nothing)"
+        default: "false"
+
+concurrency:
+  group: catalog-resolve
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIKELINK_API: https://likelink2.vercel.app
+      AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (drives the runner's Google Chrome)
+        run: npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+      - name: Add the owner's links
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          LINKS: ${{ github.event.inputs.links }}
+        run: node scripts/catalog/add-owner-links.mjs ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}

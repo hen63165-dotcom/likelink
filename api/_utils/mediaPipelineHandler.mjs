@@ -17,7 +17,7 @@ import { isAuthorizedCron } from "./cronAuth.mjs";
 import { readBody } from "./readBody.mjs";
 import { auditReels, buildPlan, ingestReel, instagramInsightsStep, instagramPublishStep, pipelineStatus, registerStudioUpload, requestRender, studioReelState } from "../../src/lib/cloud/reelPublisher.js";
 import { isApprovedOrigin } from "./cors.js";
-import { applyResolution, catalogCandidates, recordResolveOutcome } from "../../src/lib/cloud/catalogResolver.js";
+import { applyResolution, addOwnerLink, catalogCandidates, recordResolveOutcome } from "../../src/lib/cloud/catalogResolver.js";
 import { likeloopRun, likeloopStatus } from "../../src/lib/cloud/likeloopRunner.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
@@ -115,6 +115,11 @@ export default async function mediaPipelineHandler(req, res) {
     if (op === "catalog-resolve-status" && req.method === "POST") {
       const body = await readBody(req);
       const { status, ...rest } = await recordResolveOutcome(body && typeof body === "object" ? body : {});
+      return send(res, status || 200, rest);
+    }
+    if (op === "catalog-add-link" && req.method === "POST") {
+      const body = await readBody(req);
+      const { status, ...rest } = await addOwnerLink(body && typeof body === "object" ? body : {});
       return send(res, status || 200, rest);
     }
     if (op === "catalog-resolve" && req.method === "POST") {
