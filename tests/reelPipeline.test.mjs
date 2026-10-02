@@ -484,3 +484,25 @@ test("instagram: a failed publish is FAILED (no id, no log) and the daily cap ho
   const capped = withInstagram(sb, fakeGraph(), { igDailyCap: 0 });
   assert.equal((await instagramPublishStep({ ...capped, now: now + 2000 })).status, "DAILY_CAP");
 });
+
+test("audit also checks older in-browser renders: one whose file is no longer public is kept but marked not public, and the public graph skips it", async () => {
+  _resetKvReadGuard();
+  const sb = fakeSupabase();
+  const legacy = { id: "old1", title: "אנימציית מוצר · p1", videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/1790845976061-cqe3nc.webm", source: "likelink_auto_ugc", synthetic: true, public: true, marketerId: "m1", productTags: [{ productId: "p1" }], createdAt: 5 };
+  sb.kv.set("marketplace:videos", JSON.stringify([legacy]));
+  const a = await auditReels({ env: sb.env, fetchImpl: sb.fetchImpl });
+  assert.equal(a.ok, true);
+  assert.deepEqual(a.hidden, ["old1"]);
+  assert.deepEqual(a.unregistered, []);
+  const kept = sb.get("marketplace:videos");
+  assert.equal(kept.length, 1, "an older render is kept (not deleted)");
+  assert.equal(kept[0].public, false); assert.equal(kept[0].unpublishedReason, "media_not_public");
+  const graph = buildPublicGraph({ products: [product("p1", { affiliateUrl: "https://s.click.aliexpress.com/e/_own1", image: "https://ae01.alicdn.com/kf/p1.jpg" })], marketers: [creator], collections: [], clicks: [], videos: kept });
+  assert.equal(graph.reels.some((r) => r.id === "v-old1"), false);
+});
+
+test("a reel tagged only with non-public products never reaches the public reels", () => {
+  const video = { id: "x1", title: "אנימציית מוצר", videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/a.webm", source: "likelink_auto_ugc", synthetic: true, marketerId: "m1", productTags: [{ productId: "archived-1" }], createdAt: 5 };
+  const graph = buildPublicGraph({ products: [product("p1"), product("archived-1", { status: "archived" })], marketers: [creator], collections: [], clicks: [], videos: [video] });
+  assert.equal(graph.reels.some((r) => r.id === "v-x1"), false);
+});
