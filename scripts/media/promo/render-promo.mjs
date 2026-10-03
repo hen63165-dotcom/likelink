@@ -22,16 +22,16 @@ mkdirSync(OUT, { recursive: true }); mkdirSync(PREVIEW, { recursive: true });
 // Every line states what the live site does today (no income promise, no numbers).
 const PLAN = {
   segments: [
-    { kind: "ai", img: "a", cap: "ראית מוצר מושלם ברילס... ואין לך מאיפה לקנות?", section: "לקונות", sectionColor: "#2b8a6e" },
-    { kind: "site", img: "home", cap: "ב-LikeLink2 כל המוצרים מהרילסים מחכים במקום אחד, בעברית", bg0: "#d6fff1", bg1: "#a7d8ff" },
-    { kind: "site", img: "product", cap: "תמונה אמיתית של המוצר, מחיר מהקטלוג, ומי המליצה עליו", bg0: "#d6fff1", bg1: "#a7d8ff" },
-    { kind: "ai", img: "b", cap: "לוחצת, ומגיעה ישר לדף המוצר בחנות", section: "לקונות", sectionColor: "#2b8a6e" },
-    { kind: "ai", img: "c", cap: "ממליצה על מוצרים כל יום, וההמלצות נעלמות בסטורי?", section: "למשפיעניות ולמוכרות" },
-    { kind: "site", img: "sell", cap: "פותחים סטודיו בחינם: עמוד משלך וקישור מעקב לכל מוצר" },
-    { kind: "site", img: "reels", cap: "לונה מכינה לך רילסים מוכנים לשיתוף, בעברית" },
-    { kind: "ai", img: "d", cap: "ורואים כמה קליקים הגיעו לכל מוצר", section: "למשפיעניות ולמוכרות" },
+    { kind: "ai", img: "a", cap: "אותו מוצר, 20 קישורים, 10 מחירים... על מה ללחוץ?", section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "site", img: "search", cap: "ב-LikeLink2 כותבים, מדברים, מצלמים או מדביקים קישור — והוא מוצא", bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "site", img: "product", cap: "וכל תוצאה מראה למה היא כאן: תמונה אמיתית, קישור ישיר, מחיר", bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "ai", img: "b", cap: "ואת בוחרת מהאפשרויות שנמצאו, בלי ים של לינקים", section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "ai", img: "c", cap: "ממליצה על מוצרים כל יום, והקישורים נעלמים בסטורי?", section: "למשפיעניות ולמוכרות" },
+    { kind: "site", img: "sell", cap: "פותחים סטודיו בחינם, מיוצרת קטנה ועד מותג" },
+    { kind: "site", img: "reels", cap: "לונה מכינה רילסים, ורואים כמה קליקים הגיעו לכל מוצר" },
+    { kind: "ai", img: "d", cap: "ובחיפוש, מוצר עם תמונה אמיתית וקישור ישיר עולה למעלה", section: "למשפיעניות ולמוכרות" },
   ],
-  cta: ["קונות? גלו מוצרים", "ממליצות? פתחו סטודיו בחינם"],
+  cta: ["קונות? חפשו כל מוצר", "ממליצות? פתחו סטודיו בחינם"],
   url: "likelink2.vercel.app",
 };
 
@@ -50,8 +50,8 @@ const browser = await chromium.launch();
 // Real screenshots of the live site at phone size.
 const shots = {};
 const mobile = await browser.newPage({ viewport: { width: 390, height: 1500 }, deviceScaleFactor: 2 });
-for (const [k, p] of [["home", "/"], ["product", "/p/p-live-05"], ["sell", "/sell"], ["reels", "/reels"]]) {
-  await mobile.goto(`${SITE}${p}?utm_source=promo_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
+for (const [k, p] of [["search", "/search?q=%D7%A6%D7%9E%D7%99%D7%93"], ["product", "/p/p-live-05"], ["sell", "/sell"], ["reels", "/reels"]]) {
+  await mobile.goto(`${SITE}${p}${p.includes("?") ? "&" : "?"}utm_source=promo_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
   await mobile.waitForTimeout(2500);
   shots[k] = `data:image/jpeg;base64,${(await mobile.screenshot({ type: "jpeg", quality: 85 })).toString("base64")}`;
 }
@@ -65,7 +65,7 @@ await page.evaluate((m) => window.loadAssets(m), {
   b: dataUrl(path.join(SCENES, "promo-b.png"), "image/png"),
   c: dataUrl(path.join(SCENES, "promo-c.png"), "image/png"),
   d: dataUrl(path.join(SCENES, "promo-d.png"), "image/png"),
-  home: shots.home, product: shots.product, sell: shots.sell, reels: shots.reels,
+  search: shots.search, product: shots.product, sell: shots.sell, reels: shots.reels,
 });
 const fps = 30, dur = await page.evaluate(() => window.durationS()), frames = fps * dur;
 const mp4 = path.join(OUT, "likelink-studio.mp4");

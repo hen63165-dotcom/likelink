@@ -1,6 +1,22 @@
 [
-  {"id": "promo-a", "seed": 4101, "prompt": "young woman with a short black bob and freckles, denim jacket, scrolling her phone on a city bench, frustrated searching expression, sunny street, one person only, medium shot, upper body"},
-  {"id": "promo-b", "seed": 4202, "prompt": "young woman with a short black bob and freckles, denim jacket, smiling happily at her phone, holding a shopping bag, sunny street, one person only, medium shot, upper body"},
-  {"id": "promo-c", "seed": 3301, "prompt": "young woman with long curly brown hair, cozy pink sweater, recording herself with a phone on a ring light, tired overwhelmed expression, cozy bedroom, one person only, medium shot, upper body"},
-  {"id": "promo-d", "seed": 3503, "prompt": "young woman with long curly brown hair, cozy pink sweater, cheering happily with both arms raised, colorful confetti, bright room, one person only, medium shot, upper body"}
+  {
+    "id": "promo-a",
+    "seed": 4111,
+    "prompt": "young woman with a short black bob and freckles, denim jacket, overwhelmed looking at many floating phone screens with product links around her, confused expression, sunny street, one person only, medium shot, upper body"
+  },
+  {
+    "id": "promo-b",
+    "seed": 4202,
+    "prompt": "young woman with a short black bob and freckles, denim jacket, smiling happily at her phone, holding a shopping bag, sunny street, one person only, medium shot, upper body"
+  },
+  {
+    "id": "promo-c",
+    "seed": 3301,
+    "prompt": "young woman with long curly brown hair, cozy pink sweater, recording herself with a phone on a ring light, tired overwhelmed expression, cozy bedroom, one person only, medium shot, upper body"
+  },
+  {
+    "id": "promo-d",
+    "seed": 3503,
+    "prompt": "young woman with long curly brown hair, cozy pink sweater, cheering happily with both arms raised, colorful confetti, bright room, one person only, medium shot, upper body"
+  }
 ]
