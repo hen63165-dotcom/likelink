@@ -241,3 +241,42 @@ test("search orders equally relevant products by real evidence and explains why 
   assert.ok(Object.keys(EVIDENCE_LABELS).every((k) => !/כוכב|ביקורת|נמכר|star|review|sold/i.test(EVIDENCE_LABELS[k].he + EVIDENCE_LABELS[k].en)), "no stars, reviews or sales claims");
   assert.deepEqual(evidenceOf(null, g).signals, []);
 });
+
+test("buyer intent: a price limit is understood, and one store item from several creators is one result with its offers", async () => {
+  const { buildPublicGraph, searchGraph, parseIntent, offersOf, identityOf } = await import("../src/lib/publicDiscovery.js");
+  assert.deepEqual(parseIntent("סט יוגה שחור עד 150 שקל"), { text: "סט יוגה שחור", maxPrice: 150, minPrice: null });
+  assert.equal(parseIntent("עגילים מעל 50 ₪").minPrice, 50);
+  assert.equal(parseIntent("under 80 earrings").maxPrice, 80);
+  const mk = (id) => ({ id, name: id, slug: id, status: "approved" });
+  const base = { status: "approved", category: "Accessories", createdAt: 1, image: "https://ae01.alicdn.com/kf/x.jpg" };
+  const products = [
+    { ...base, id: "a1", marketerId: "m1", title: "צמיד טניס", price: 90, affiliateUrl: "https://s.click.aliexpress.com/e/_a", imageSource: { itemId: "1005006791312138" } },
+    { ...base, id: "a2", marketerId: "m2", title: "צמיד טניס", price: 90, affiliateUrl: "https://s.click.aliexpress.com/e/_b", itemUrl: "https://he.aliexpress.com/item/1005006791312138.html" },
+    { ...base, id: "b1", marketerId: "m1", title: "צמיד חוטים", price: 300, affiliateUrl: "https://s.click.aliexpress.com/e/_c" },
+  ];
+  const g = buildPublicGraph({ products, marketers: [mk("m1"), mk("m2")], clicks: [{ productId: "a2", ts: Date.now(), type: "click" }] });
+  assert.equal(identityOf(products[0]), identityOf(products[1]));
+  assert.equal(identityOf(products[2]), null, "no item id → never merged by guess");
+  const r = searchGraph(g, "צמיד עד 150");
+  assert.deepEqual(r.products.map((p) => p.id), ["a2"], "price filter + one card per store item, the one with more evidence");
+  assert.equal(r.why.get("a2").offers, 2);
+  assert.deepEqual(offersOf(g.byId.get("a2"), g).map((o) => o.product.id), ["a1"]);
+  assert.equal(searchGraph(g, "עד 100").products.length, 1, "a price-only search works");
+});
+
+test("a pasted link resolves only to the exact item it points to — never a guess", async () => {
+  const { buildPublicGraph, searchGraph } = await import("../src/lib/publicDiscovery.js");
+  const m = { id: "m1", name: "A", slug: "a", status: "approved" };
+  const base = { status: "approved", marketerId: "m1", category: "Accessories", price: 50, createdAt: 1, image: "https://ae01.alicdn.com/kf/x.jpg" };
+  const products = [
+    { ...base, id: "x1", title: "עגילים", affiliateUrl: "https://s.click.aliexpress.com/e/_x1", imageSource: { itemId: "1005009075983767" } },
+    { ...base, id: "x2", title: "טבעת", affiliateUrl: "https://s.click.aliexpress.com/e/_x2" },
+  ];
+  const g = buildPublicGraph({ products, marketers: [m] });
+  assert.deepEqual(searchGraph(g, "https://he.aliexpress.com/item/1005009075983767.html?spm=1").products.map((p) => p.id), ["x1"]);
+  assert.deepEqual(searchGraph(g, "ראיתי את זה https://s.click.aliexpress.com/e/_x2").products.map((p) => p.id), ["x2"]);
+  assert.deepEqual(searchGraph(g, "https://likelink2.vercel.app/p/x2").products.map((p) => p.id), ["x2"]);
+  const none = searchGraph(g, "https://example.com/some-shop/item");
+  assert.equal(none.total, 0);
+  assert.equal(none.link.kind, "unknown");
+});

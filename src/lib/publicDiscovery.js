@@ -370,17 +370,92 @@ export function evidenceOf(p, graph, shared = null) {
 }
 
 /**
+ * The store item a product points to, when it is known for sure (the resolver
+ * stored the item id, or the item page URL is on record). Several creators'
+ * products with the same identity are OFFERS of one product. No fuzzy title
+ * matching: a wrong merge would mislead the buyer.
+ */
+export function identityOf(p) {
+  const id = p?.imageSource?.itemId || p?.itemId;
+  if (id && /^\d{6,20}$/.test(String(id))) return `ae:${id}`;
+  for (const u of [p?.itemUrl, p?.sourceUrl, p?.imageSource?.itemUrl]) {
+    const m = /aliexpress\.[a-z.]+\/item\/(\d{6,20})\.html/i.exec(String(u || ""));
+    if (m) return `ae:${m[1]}`;
+  }
+  return null;
+}
+
+/** Other public offers (other creators / links) of the same store item, strongest evidence first. */
+export function offersOf(p, graph) {
+  const key = identityOf(p);
+  if (!key || !graph?.products) return [];
+  return graph.products.filter((x) => x.id !== p.id && identityOf(x) === key)
+    .map((x) => ({ product: x, evidence: evidenceOf(x, graph) }))
+    .sort((a, b) => b.evidence.score - a.evidence.score);
+}
+
+/**
+ * What the buyer asked for, beyond the words: a price ceiling/floor
+ * ("עד 150 שקל", "מתחת ל-100", "מעל 50", "under 150"). Deterministic, no AI call.
+ */
+export function parseIntent(query) {
+  let q = ` ${String(query || "")} `;
+  const num = "(\\d{1,6}(?:[.,]\\d{1,2})?)";
+  const cur = "\\s*(?:₪|ש\"ח|שח|שקל(?:ים)?|nis|ils)?";
+  let maxPrice = null, minPrice = null;
+  const take = (re, set) => { q = q.replace(re, (_, n) => { set(Number(String(n).replace(",", "."))); return " "; }); };
+  take(new RegExp(`(?:עד|מתחת\\s*ל-?|פחות\\s*מ-?|under|below|up to)\\s*₪?\\s*${num}${cur}`, "giu"), (n) => { maxPrice = n; });
+  take(new RegExp(`(?:מעל|יותר\\s*מ-?|from|over|above)\\s*₪?\\s*${num}${cur}`, "giu"), (n) => { minPrice = n; });
+  return { text: q.replace(/\s+/g, " ").trim(), maxPrice, minPrice };
+}
+
+/**
  * Search everything: products, creators, collections and categories.
  * Every token must match somewhere in the item's real fields.
  */
+/**
+ * A pasted link → the catalog item it points to, only when it is certain:
+ * a LikeLink product page, an AliExpress item page (same store item id), or
+ * the exact affiliate link a creator listed. Anything else is not guessed.
+ */
+export function resolveLink(graph, raw) {
+  const m = /https?:\/\/\S+/i.exec(String(raw || ""));
+  if (!m) return null;
+  const url = m[0].replace(/[),.]+$/, "");
+  const page = /\/p\/([A-Za-z0-9_-]{1,80})/.exec(url);
+  if (page && graph.byId.get(page[1])) return { url, kind: "likelink_page", products: [graph.byId.get(page[1])] };
+  const item = /aliexpress\.[a-z.]+\/item\/(\d{6,20})\.html/i.exec(url);
+  if (item) {
+    const key = `ae:${item[1]}`;
+    return { url, kind: "store_item", products: graph.products.filter((p) => identityOf(p) === key) };
+  }
+  const exact = graph.products.filter((p) => String(p.affiliateUrl || "").trim() === url);
+  return { url, kind: exact.length ? "affiliate_link" : "unknown", products: exact };
+}
+
 export function searchGraph(graph, query) {
-  const tokens = norm(query).split(" ").filter(Boolean);
-  const empty = { products: [], why: new Map(), creators: [], collections: [], categories: [], total: 0 };
-  if (!tokens.length) return empty;
+  const link = resolveLink(graph, query);
+  if (link) {
+    const why = new Map(link.products.map((p) => [p.id, { ...evidenceOf(p, graph), match: "exact_link" }]));
+    const products = [...link.products].sort((a, b) => why.get(b.id).score - why.get(a.id).score);
+    return { products, why, link, intent: { text: "", maxPrice: null, minPrice: null }, creators: [], collections: [], categories: [], total: products.length };
+  }
+  const intent = parseIntent(query);
+  const tokens = norm(intent.text).split(" ").filter(Boolean);
+  const priceOk = (p) => {
+    const v = Number(p.price);
+    if (intent.maxPrice != null && !(v > 0 && v <= intent.maxPrice)) return false;
+    if (intent.minPrice != null && !(v >= intent.minPrice)) return false;
+    return true;
+  };
+  const priceOnly = !tokens.length && (intent.maxPrice != null || intent.minPrice != null);
+  const empty = { products: [], why: new Map(), creators: [], collections: [], categories: [], total: 0, intent };
+  if (!tokens.length && !priceOnly) return empty;
   const matchAll = (hay) => tokens.every((t) => hay.includes(t) || (t.length > 2 && hay.includes(t.replace(/^(ה|ו|ב|ל|מ|ש)/u, ""))));
   const scoreOf = (title, hay) => tokens.reduce((s, t) => s + (title.includes(t) ? 3 : 0) + (hay.includes(t) ? 1 : 0), 0);
 
   const why = new Map();
+  const seen = new Map();
   const shared = graph.sharedLinks || sharedAffiliateLinks(graph.products);
   const products = graph.products
     .map((p) => {
@@ -389,16 +464,20 @@ export function searchGraph(graph, query) {
       const hay = norm([title, p.description, (p.tags || []).join(" "), p.brand, p.category, categoryName(p.category, "he"), categoryName(p.category, "en"), p.merchant, creator?.name].join(" "));
       return { p, title, hay };
     })
-    .filter((x) => matchAll(x.hay))
+    .filter((x) => priceOk(x.p) && (priceOnly || matchAll(x.hay)))
     // Relevance first (how well the words match); among equally relevant
     // results, the one with more real evidence comes first.
     .map((x) => ({ ...x, rel: scoreOf(x.title, x.hay), ev: evidenceOf(x.p, graph, shared) }))
     .sort((a, b) => b.rel - a.rel || b.ev.score - a.ev.score)
+    // One card per store item: the strongest offer stands for it; the others
+    // are reachable from it ("עוד המלצות לאותו מוצר").
+    .filter((x) => { const k = identityOf(x.p); if (!k) return true; if (seen.has(k)) { seen.get(k).offers += 1; return false; } seen.set(k, x.ev); x.ev.offers = 1; return true; })
     .map((x) => { why.set(x.p.id, x.ev); return x.p; });
   const creators = graph.creators.filter((c) => matchAll(norm([c.name, c.slug, c.bio, c.tags.join(" "), c.categories.map((k) => `${k} ${categoryName(k, "he")}`).join(" ")].join(" "))));
   const collections = graph.collections.filter((c) => matchAll(norm([c.title.he, c.title.en, c.description.he, c.description.en, c.category, c.category && categoryName(c.category, "he")].join(" "))));
   const categories = graph.categories.filter((c) => matchAll(norm(`${c.id} ${categoryName(c.id, "he")} ${categoryName(c.id, "en")}`)));
-  return { products, why, creators, collections, categories, total: products.length + creators.length + collections.length + categories.length };
+  const words = (list) => (priceOnly ? [] : list);
+  return { products, why, intent, creators: words(creators), collections: words(collections), categories: words(categories), total: products.length + words(creators).length + words(collections).length + words(categories).length };
 }
 
 /**
