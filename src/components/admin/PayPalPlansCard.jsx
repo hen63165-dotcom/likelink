@@ -62,7 +62,7 @@ export default function PayPalPlansCard() {
           ))}
           {result.created?.length ? <p className="text-muted">נוצרו עכשיו: {result.created.length}</p> : null}
           {result.adopted?.length ? <p className="text-muted">כבר היו קיימים ואומצו: {result.adopted.length}</p> : null}
-          {result.failed?.length ? <p style={{ color: "var(--danger)" }}>נכשלו: {result.failed.map((f) => LABEL[f.key] || f.key).join(", ")}</p> : null}
+          {result.failed?.length ? <p style={{ color: "var(--danger)" }}>נכשלו: {result.failed.map((f) => `${LABEL[f.key] || f.key}${f.detail ? ` (${f.detail})` : ""}`).join(", ")}</p> : null}
         </div>
       ) : null}
     </div>
