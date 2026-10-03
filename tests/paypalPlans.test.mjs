@@ -220,6 +220,24 @@ test("a product list that cannot be read creates no product (no duplicate LikeLi
   assert.equal(paypal.products.length, 0);
 });
 
+test("a live account with no catalog products yet (list answers 404) gets exactly one LikeLink product", async () => {
+  reset();
+  const { ensurePayPalProduct, _resetPayPalCaches } = await import("../api/_utils/paypal.js");
+  _resetPayPalCaches();
+  const realFetch = globalThis.fetch;
+  const posts = [];
+  globalThis.fetch = async (url, init) => {
+    const isList = String(url).includes("/v1/catalog/products") && (init?.method || "GET") === "GET";
+    if (!isList && String(url).endsWith("/v1/catalog/products")) posts.push(init?.headers?.["PayPal-Request-Id"]);
+    return isList && paypal.products.length === 0 ? new Response(JSON.stringify({ name: "RESOURCE_NOT_FOUND" }), { status: 404 }) : realFetch(url, init);
+  };
+  const id = await ensurePayPalProduct({});
+  globalThis.fetch = realFetch;
+  assert.ok(id, "404 = none yet → the product is created");
+  assert.equal(paypal.products.length, 1);
+  assert.deepEqual(posts, ["likelink-catalog-product-v1"], "one idempotent create");
+});
+
 test("a customer's checkout never creates PayPal plans — only the owner's provision button does", async () => {
   reset();
   const { _resetPayPalCaches } = await import("../api/_utils/paypal.js");

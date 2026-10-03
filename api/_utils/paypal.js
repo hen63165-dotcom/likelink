@@ -217,6 +217,9 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(15000),
       });
+      // A live account that has never created a catalog product answers the
+      // list with 404 (nothing to list) — that is "none yet", not a failure.
+      if (listRes.status === 404) break;
       if (!listRes.ok) {
         const e = await listRes.json().catch(() => ({}));
         lastProductError = `product_list_${listRes.status}${e?.name ? `:${String(e.name).slice(0, 40)}` : ""}`;
@@ -237,7 +240,8 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
   try {
     const res = await fetch(`${paypalBase()}/v1/catalog/products`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      // PayPal's idempotency key: a retried request never creates a second product.
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "PayPal-Request-Id": "likelink-catalog-product-v1" },
       body: JSON.stringify({
         name: PRODUCT_NAME,
         description: "LikeLink creator subscriptions",
