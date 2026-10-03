@@ -1,17 +1,42 @@
 [
   {
-    "id": "street-rain",
-    "seed": 4211,
-    "prompt": "young woman with long voluminous curly brown hair, pink blazer, white t-shirt and jeans, frustrated, hand in her frizzy hair, walking on a sunny european street"
+    "id": "p-live-03-0",
+    "prompt": "stylish young woman with long wavy brown hair and big expressive eyes, bright pink blazer suit and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
+    "seed": 29312
   },
   {
-    "id": "desk-cables",
-    "seed": 77,
-    "prompt": "cheerful young woman with curly black hair and freckles, oversized hoodie, sitting at a messy desk with tangled cables, annoyed expression, cozy room"
+    "id": "p-live-03-1",
+    "prompt": "stylish young woman with long wavy brown hair and big expressive eyes, bright pink blazer suit and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
+    "seed": 29313
   },
   {
-    "id": "vlog-creator",
-    "seed": 905,
-    "prompt": "young woman with a short blonde bob and round glasses, cozy sweater, smiling and talking to the camera like a vlogger, bright bedroom with vanity mirror"
+    "id": "p-live-05-0",
+    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
+    "seed": 29314
+  },
+  {
+    "id": "p-live-05-1",
+    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
+    "seed": 29315
+  },
+  {
+    "id": "p-live-01-0",
+    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
+    "seed": 29310
+  },
+  {
+    "id": "p-live-01-1",
+    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
+    "seed": 29311
+  },
+  {
+    "id": "p-live-02-0",
+    "prompt": "friendly young woman with a dark braid and bright eyes, cream knit sweater, wide jeans and a crossbody bag, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
+    "seed": 29311
+  },
+  {
+    "id": "p-live-02-1",
+    "prompt": "friendly young woman with a dark braid and bright eyes, cream knit sweater, wide jeans and a crossbody bag, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
+    "seed": 29312
   }
 ]

@@ -22,8 +22,8 @@ NEGATIVE = ("photo, photograph, photorealistic, realistic, realistic skin textur
             "text, letters, words, watermark, logo, signature, brand name, "
             "cleavage, revealing clothes, short skirt, sexy, nsfw, "
             "deformed, disfigured, extra fingers, extra limbs, bad hands, lowres, blurry, jpeg artifacts")
-STYLE = ("stylized 3d cartoon character, animated feature film still, cute big head, very large expressive eyes, "
-         "smooth stylized skin, soft subsurface lighting, cinematic lighting, vibrant colors, highly detailed, blender render")
+STYLE = ("3d animated feature film still, original stylized character, large expressive eyes, glossy hair, "
+         "soft subsurface lighting, vibrant colors, highly detailed, blender render")
 
 
 def main():

@@ -23,6 +23,14 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+// LikeLink's own music bed (original, generated; commas escaped for lavfi).
+const OWN_BEAT = (() => {
+  const kick = "0.85*sin(2*PI*52*t*(1+1.6*exp(-28*mod(t,0.5))))*exp(-8*mod(t,0.5))";
+  const hat = "0.10*(2*random(0)-1)*exp(-70*mod(t+0.25,0.5))";
+  const pad = "0.05*(sin(2*PI*220*t)+sin(2*PI*277.2*t)+sin(2*PI*329.6*t))*(0.65+0.35*sin(2*PI*0.25*t))";
+  const e = `0.55*(${kick}+${hat}+${pad})`.replace(/,/g, "\\,");
+  return `aevalsrc=exprs=${e}|${e}:s=48000`;
+})();
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => {
@@ -153,8 +161,9 @@ async function renderOne(page, item) {
 
   const encode = async (crf) => {
     await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(concept.fps), "-c:v", "mjpeg", "-i", "-",
-      // Instagram's Reels API requires an AAC track: a silent 48 kHz stereo bed (no third-party music).
-      "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", "-shortest",
+      // Instagram's Reels API requires an AAC track. LikeLink's own beat, generated
+      // here from math (kick, hat, soft chord pad, 120 bpm) — no third-party music.
+      "-f", "lavfi", "-i", OWN_BEAT, "-map", "0:v", "-map", "1:a", "-shortest",
       "-c:v", "libx264", "-preset", "medium", "-crf", String(crf), "-pix_fmt", "yuv420p", "-profile:v", "high", "-r", String(concept.fps),
       "-c:a", "aac", "-b:a", "96k", "-ar", "48000", "-movflags", "+faststart", mp4], {
       input: async (stdin) => {
