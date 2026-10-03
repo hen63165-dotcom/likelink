@@ -226,7 +226,7 @@ export default function PlanCheckout() {
       </label>
     </div>}
 
-    <p className="text-xs text-muted mt-3">התשלום מתבצע בדף המאובטח של PayPal, והמסלול מופעל רק אחרי אישור מאומת מהשרת. ביטול בתוך 14 יום מהתשלום הראשון מזכה בהחזר, בניכוי דמי ביטול של 5% או ₪100 (הנמוך מביניהם).</p>
+    <p className="text-xs text-muted mt-3">התשלום מתבצע בדף המאובטח של PayPal: בחשבון PayPal, או בכרטיס אשראי/דביט כש-PayPal מציע זאת בדף. LikeLink לא רואה ולא שומרת פרטי כרטיס. המסלול מופעל רק אחרי אישור מאומת מהשרת. ביטול בתוך 14 יום מהתשלום הראשון מזכה בהחזר, בניכוי דמי ביטול של 5% או ₪100 (הנמוך מביניהם).</p>
     {catalogReady === false && <p role="status" className="text-sm mt-3">{toHebrewError('paypal_not_configured')}</p>}
     {message && <p role="status" className="text-sm mt-3">{message}</p>}
     {signedIn && <button disabled={busy} className="tap underline text-sm my-3" onClick={() => refresh().catch(() => {})}>בדיקת מצב המנוי</button>}
