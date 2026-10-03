@@ -227,7 +227,7 @@ function Footer() {
         ))}
       </nav>
       <div className="lx-wrap mt-6 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-        <span className="lx-mute">© {year} LikeLink · חן שבתאי · כל הזכויות שמורות</span>
+        <span className="lx-mute">© {year} LikeLink · כל הזכויות שמורות</span>
         <LangToggle />
       </div>
     </footer>

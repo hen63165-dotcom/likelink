@@ -6,7 +6,7 @@
 // Bump LEGAL_VERSION whenever any user-facing text changes materially: users
 // who accepted an older version are asked to accept again before paying.
 
-export const LEGAL_VERSION = "2026-10-03";
+export const LEGAL_VERSION = "2026-10-03b";
 export const LEGAL_LAST_UPDATED = "3 באוקטובר 2026";
 
 export const LEGAL_DOCS = Object.freeze([

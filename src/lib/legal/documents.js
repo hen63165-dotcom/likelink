@@ -13,13 +13,13 @@ import { COOLING_OFF_DAYS, CANCEL_FEE_CAP_ILS, CANCEL_EFFECT_BUSINESS_DAYS } fro
 import { PLANS } from "../plans.js";
 
 const OWNER = {
-  name: "חן שבתאי, הפועלת בשם המסחרי LIKELINK",
-  id: "[OWNER_INPUT: מספר עוסק / ח.פ.]",
-  address: "קהילת ניו ג'רסי 10, ראשון לציון",
+  name: "בעלת האתר LikeLink",
+  id: "שפרטי הזיהוי שלה יימסרו לפי דרישה כדין בפנייה בדוא\"ל",
+  address: "הכתובת שתימסר לפי דרישה כדין בפנייה בדוא\"ל",
   email: "hen63165@gmail.com",
-  phone: "[OWNER_INPUT: מספר טלפון]",
+  phone: "(פניות בדוא\"ל בלבד)",
   court: "מחוז מרכז",
-  a11y: "חן שבתאי · דוא\"ל: hen63165@gmail.com",
+  a11y: "רכזת הנגישות של LikeLink · דוא\"ל: hen63165@gmail.com",
 };
 const L = (slug, text) => `<a href="${legalPath(slug)}">${text}</a>`;
 const S = PLANS.STARTER;
@@ -480,13 +480,13 @@ const DOCS = {
       { title: "פרטי העסק", clauses: [
         `שם: ${OWNER.name}`,
         `מספר עוסק / ח.פ.: ${OWNER.id}`,
-        `מעמד לעניין מע"מ: [OWNER_INPUT: עוסק פטור / עוסק מורשה / חברה]`,
+        `מעמד לעניין מע"מ: יימסר לפי דרישה כדין בפנייה בדוא"ל`,
         `כתובת: ${OWNER.address}`,
       ] },
       { title: "יצירת קשר", clauses: [
         `דוא"ל: ${OWNER.email}`,
         `טלפון: ${OWNER.phone}`,
-        "שעות מענה: [OWNER_INPUT: ימים ושעות]",
+        "שעות מענה: מענה בדוא\"ל",
         "פניות בנושא פרטיות, נגישות, זכויות יוצרים, ביטולים ומחלוקות מתקבלות בכל הדרכים האלה.",
       ] },
       { title: "תשלומים", clauses: [

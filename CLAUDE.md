@@ -165,7 +165,8 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - Yearly PayPal plans are one 12-month term (`total_cycles: 1`), with no automatic renewal (Consumer Protection Law 13א).
   - Refunds are never sent automatically. They go to `billing:refund_requests`; the owner lists them and marks each one done with PayPal's refund ID via `sub=refunds`.
   - Checkout refuses a second paid subscription next to an active one (409), and requires acceptance of the current legal version (428).
-- **Legal pack:**
+- **Legal pack:** the owner's personal name, address and ID are NOT published (owner's request); the pages identify "בעלת האתר LikeLink" and say details are given on lawful request by e-mail. Don't add them back.
+- **Legal pack (details):**
   - Texts: `src/lib/legal/documents.js`, 11 documents. `[OWNER_INPUT: …]` placeholders only; attorney notes and owner-only instructions are kept OUTSIDE this public repository (never on a page, never committed).
   - Version: `src/lib/legal/catalog.js` `LEGAL_VERSION`. Bump it on any material text change; users re-accept.
   - `npm run pages:build` renders `public/pricing.html`, `public/legal.html` and `public/legal/*.html`. `tests/legalPack.test.mjs` and `plansConsistency` fail when a committed page is stale.
@@ -189,7 +190,7 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
 - **Catalog integrity** (`src/lib/discovery/catalogIntegrity.js`), used by distribution plans, brand pulse, the GPT API, the UGC job, the reel render planner (`planRenders`), the Instagram reel selection (`nextInstagramReel`), the public reels feed (`buildPublicGraph`) and the system check:
   - An affiliate link shared by several different products blocks promotion. On the live catalog, 22 seed products shared two links that open the AliExpress home page.
   - A stock photo (`imageProvenance` = `stock_photo`) is never used or labelled as the product's image. `isRealProductPhoto` = not stock and not missing (an unlisted store CDN still counts).
-  - The products stay listed; only promotion (reels, posts, distribution) is withheld.
+  - The public site does not list a product whose link is shared by other products (`buildPublicGraph` filters `isPromotable`), and promotion (reels, posts, distribution) is withheld.
 - **AI images** (`/api/store?mode=ugc-model`):
   - Only the platform owner (`OWNER_EMAIL`) may generate, because it spends the owner's OpenAI budget. It needs `OPENAI_API_KEY`.
   - It requires a real product photo, sent as the reference to `images/edits`. The default is an ORIGINAL 3D cartoon character.
