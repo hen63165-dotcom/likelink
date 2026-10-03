@@ -1,22 +1,22 @@
 [
   {
     "id": "promo-a",
-    "seed": 4111,
-    "prompt": "young woman with a short black bob and freckles, denim jacket, overwhelmed looking at many floating phone screens with product links around her, confused expression, sunny street, one person only, medium shot, upper body"
+    "seed": 5111,
+    "prompt": "stylish young woman with a black bob, beige trench coat, standing on a sunny european street, confused, staring at her phone, full body, golden hour"
   },
   {
     "id": "promo-b",
-    "seed": 4202,
-    "prompt": "young woman with a short black bob and freckles, denim jacket, smiling happily at her phone, holding a shopping bag, sunny street, one person only, medium shot, upper body"
+    "seed": 5202,
+    "prompt": "stylish young woman with a black bob, beige trench coat, walking toward the camera on a sunny european street with a shopping bag, big smile, full body, golden hour"
   },
   {
     "id": "promo-c",
-    "seed": 3301,
-    "prompt": "young woman with long curly brown hair, cozy pink sweater, recording herself with a phone on a ring light, tired overwhelmed expression, cozy bedroom, one person only, medium shot, upper body"
+    "seed": 5301,
+    "prompt": "young woman with long wavy brown hair, bright pink blazer suit, filming herself with a phone on a sunny city street, tired, full body, golden hour"
   },
   {
     "id": "promo-d",
-    "seed": 3503,
-    "prompt": "young woman with long curly brown hair, cozy pink sweater, cheering happily with both arms raised, colorful confetti, bright room, one person only, medium shot, upper body"
+    "seed": 5403,
+    "prompt": "young woman with long wavy brown hair, bright pink blazer suit, walking confidently toward the camera on a sunny city street, big smile, full body, golden hour"
   }
 ]
