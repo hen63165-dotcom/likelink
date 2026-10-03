@@ -13,6 +13,7 @@
 
 User-agent: *
 Disallow: /admin
+Disallow: /owner
 Disallow: /api/
 Disallow: /studio
 Disallow: /sell
@@ -35,6 +36,7 @@ User-agent: Baiduspider
 User-agent: Sogou web spider
 User-agent: NAVER
 Disallow: /admin
+Disallow: /owner
 Disallow: /api/
 Disallow: /studio
 Disallow: /sell
@@ -58,6 +60,7 @@ User-agent: FacebookBot
 User-agent: omgili
 User-agent: omgilibot
 Disallow: /admin
+Disallow: /owner
 Disallow: /api/
 Disallow: /studio
 Disallow: /sell

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import PayPalPlansCard from '../admin/PayPalPlansCard.jsx';
 import { getAllPlans, planFeatureRows, FEATURES } from '../../lib/plans.js';
 import { fetchPlans, fetchMySubscription, startSubscriptionCheckout, cancelMySubscription } from '../../lib/commerce.js';
 import { getSessionToken } from '../../lib/auth.js';
@@ -194,11 +193,10 @@ export default function PlanCheckout() {
       {[['monthly', 'חודשי · מתחדש כל חודש'], ['yearly', 'שנתי · 12 חודשים, בלי חידוש אוטומטי']].map(([id, label]) =>
         <button key={id} role="radio" aria-checked={period === id} disabled={busy} onClick={() => setPeriod(id)} className="tap rounded-full px-3 py-1.5 border" style={{ borderColor: period === id ? 'var(--accent)' : 'var(--border)', fontWeight: period === id ? 700 : 400 }}>{label}</button>)}
     </div>
-    {plan === 'owner' && catalogReady === false ? <div role="note">
-      <p className="text-sm font-bold">בעלת האתר: התשלומים עדיין לא פעילים</p>
-      <p className="text-xs opacity-80">לחיצה אחת יוצרת ב-PayPal את 4 מסלולי המנוי בשקלים (לא מחייבת אף אחד). אחריה הכפתורים נפתחים לכולם.</p>
-      <PayPalPlansCard />
-    </div> : null}
+    {plan === 'owner' ? <p className="text-sm my-2" role="note">
+      <a href="/owner" className="underline font-bold">לוח בעלת האתר ←</a>
+      {catalogReady === false ? ' · התשלומים עדיין לא פעילים, ההפעלה שם' : ''}
+    </p> : null}
     <div className="grid gap-3 sm:grid-cols-3">
       {paid.map((p) => <article key={p.id} id={`plan-${p.id}`} className="surface rounded-xl p-3 flex flex-col" style={requested === p.id ? { outline: '2px solid var(--accent)' } : undefined}>
         <h4 className="font-bold">{p.name.he}{p.comingSoon ? ' · בקרוב' : ''}</h4>
