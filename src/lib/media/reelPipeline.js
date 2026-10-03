@@ -152,10 +152,10 @@ const AI_SCENE = {
 const SD_OUTFIT = ["bright pink blazer suit and white sneakers", "beige trench coat with a leather shoulder bag", "cobalt blue knit midi dress and white sneakers", "cream knit sweater, wide jeans and a crossbody bag"];
 /** Where the virtual creator films herself (ai_ugc), per category. */
 const AI_UGC_SET = {
-  Accessories: "a cozy sunlit bedroom with a vanity mirror", Fashion: "a bright walk-in closet", Beauty: "a clean bright bathroom with soft ring light",
-  Home: "a warm stylish living room", Tech: "a tidy creator desk with soft neon accents", Fitness: "a bright home workout corner",
-  Gifts: "a festive living room with wrapping paper", Travel: "a bright hotel room with an open suitcase", Kids: "a playful bright family kitchen",
-  Pets: "a cozy living room with a dog bed", Other: "a bright cozy apartment",
+  Accessories: "a sunny european city street", Fashion: "a colorful sunny shopping street", Beauty: "a sunny street cafe terrace",
+  Home: "a sunny street outside a flower shop", Tech: "a sunny modern city plaza", Fitness: "a sunny park path",
+  Gifts: "a festive sunny shopping street", Travel: "a sunny old town square", Kids: "a sunny park",
+  Pets: "a sunny park with a cute dog", Other: "a sunny european city street",
 };
 export function aiStoryScenes(product, style = "ai_story", creative = null) {
   const cat = AI_SCENE[product?.category] ? product.category : "Other";
@@ -325,12 +325,13 @@ export function buildReelConcept({ product, creator, style }) {
     productId: product.id,
     style,
     styleLabel: { he: REEL_STYLES[style].he, en: REEL_STYLES[style].en },
-    durationMs: REEL_STYLES[style].durationMs + HOOK_PRELUDE_MS,
+    // AI styles open on the character with the hook on screen (no text-only prelude).
+    durationMs: REEL_STYLES[style].durationMs + (AI_SCENE_STYLES.includes(style) ? 0 : HOOK_PRELUDE_MS),
     fps: REEL_FPS,
     width: REEL_WIDTH,
     height: REEL_HEIGHT,
     image: HTTP.test(text(product.image)) ? product.image : "",
-    hookMs: HOOK_PRELUDE_MS,
+    hookMs: AI_SCENE_STYLES.includes(style) ? 0 : HOOK_PRELUDE_MS,
     creative: creativeFor(product, style),
     story: style === "likeloop_cinematic" ? buildStoryBeats(product) : null,
     street: style === "street_story" ? streetStory(product) : null,
@@ -344,7 +345,7 @@ export function buildReelConcept({ product, creator, style }) {
 
 /** Native reels already registered for each product, by style. */
 /** The current AI scene look. AI reels stamped with an older (or no) look are re-rendered once in this one. */
-export const AI_LOOK_VERSION = "street-v3";
+export const AI_LOOK_VERSION = "street-v3b";
 
 export function registeredStyles(videos = []) {
   const map = new Map();
