@@ -43,7 +43,7 @@ test("the renderer draws street_story, burns in the disclosure and strips emoji 
   assert.match(fn, /דמות מקורית/);
 });
 
-test("text_hook: creator-style text reel from real fields only, comment-for-link CTA, never a claim", async () => {
+test("text_hook: creator-style text reel from real fields only, honest CTA (bio link unless a comment automation is live), never a claim", async () => {
   const { buildReelConcept, STYLE_ORDER, STYLE_CREATIVE, COMMENT_KEYWORD } = await import("../src/lib/media/reelPipeline.js");
   const { HOOK_FORBIDDEN } = await import("../src/lib/growth/likeloop.js");
   const p = { id: "p9", title: "שרשרת יד Smyoue — ₪85", price: 85.36, category: "Accessories", image: "https://ae01.alicdn.com/kf/x.jpg" };
@@ -52,7 +52,12 @@ test("text_hook: creator-style text reel from real fields only, comment-for-link
   assert.ok(STYLE_CREATIVE.text_hook);
   assert.ok(!HOOK_FORBIDDEN.test(c.textHook.hook));
   assert.ok(c.textHook.reveal.some((l) => l.includes("מחיר בקטלוג")));
-  assert.ok(c.textHook.cta.join(" ").includes(COMMENT_KEYWORD));
+  // No automation sends the link today → never promise "comment and I'll DM you".
+  assert.doesNotMatch(c.textHook.cta.join(" "), /תגיבו|בפרטי/);
+  assert.match(c.textHook.cta.join(" "), /בביו/);
+  assert.equal(c.textHook.pill, "הקישור בביו");
+  const { textHookLines } = await import("../src/lib/media/reelPipeline.js");
+  assert.match(textHookLines(p, null, { commentAutomation: true }).cta.join(" "), new RegExp(`תגיבו "${COMMENT_KEYWORD}"`));
   assert.ok(c.disclosure, "the on-frame disclosure is always drawn");
   const scene = (await import("node:fs")).readFileSync(new URL("../scripts/media/reel-scene.html", import.meta.url), "utf8");
   assert.match(scene, /function textHook\(ms\)/);
@@ -78,7 +83,8 @@ test("ai_story: original AI character scenes (labelled), real product photo, no 
   assert.equal(aiStoryScenes(prod).seed, ai.seed, "deterministic per product");
   const c = buildReelConcept({ product: prod, creator: { name: "ALYOSTYLE" }, style: "ai_story" });
   assert.ok(c.aiStory && c.textHook && c.disclosure);
-  assert.ok(c.textHook.cta.join(" ").includes(COMMENT_KEYWORD));
+  assert.match(c.textHook.cta.join(" "), /בביו/);
+  for (const s of ai.scenes) assert.match(s.sdPrompt, /full body/, "full-body street shots (what travels on the owner's account)");
   assert.equal(creativeFor(prod, "ai_story").mediaType === "REAL_UGC", false);
   const scene = readFileSync("scripts/media/reel-scene.html", "utf8");
   assert.match(scene, /function aiStory\(ms\)/);

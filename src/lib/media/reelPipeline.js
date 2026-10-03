@@ -133,20 +133,23 @@ const AI_CHARACTERS = [
   "a confident young woman with a short blonde bob and round glasses",
   "a friendly young woman with a dark braid and bright eyes",
 ];
+// Full-body street moments: on the owner's own account the reels that travel
+// are a character walking a sunny city street toward the camera. Two beats per
+// category: the moment before (something missing) → walking out, confident.
 const AI_SCENE = {
-  Accessories: ["getting ready in front of a mirror in a cozy sunlit bedroom, looking at her bare wrist and neck, unsure", "walking out of her front door into a sunny street, smiling and confident"],
-  Fashion: ["standing in front of an open wardrobe full of clothes, puzzled, nothing to wear", "walking down a colorful city street, smiling and confident in a stylish outfit"],
-  Beauty: ["at a bathroom mirror in the morning, tired, messy bun, too many bottles on the counter", "glowing and smiling at the mirror, fresh morning routine done"],
-  Home: ["in a plain empty living room corner at evening, hands on hips, thinking", "relaxing on a sofa in a warm cozy decorated living room, happy"],
-  Tech: ["at a messy desk with tangled cables, frustrated, laptop and phone", "at a clean tidy desk, smiling, recording a video with her phone"],
-  Fitness: ["sitting on a gym bench, unmotivated, before a workout", "in the middle of a happy energetic workout in a bright studio"],
-  Gifts: ["holding an empty gift bag, thinking hard, birthday party decorations behind her", "handing a wrapped gift to a delighted friend, both smiling"],
-  Travel: ["sitting on an overfull suitcase that will not close, frustrated", "at a sunny airport window with a neat suitcase, excited"],
-  Kids: ["a busy chaotic morning at home with toys on the floor, tired", "a calm happy morning at home, smiling"],
-  Pets: ["on an evening walk with a bored cute dog, looking at her phone", "playing happily in a park with an excited cute dog"],
-  Other: ["on an ordinary day at home, thinking something small is missing", "smiling, the day feels a little better"],
+  Accessories: ["standing on a sunny european city street, touching her bare wrist and neck, thinking", "walking confidently toward the camera on a sunny european city street, big smile"],
+  Fashion: ["standing on a sunny city street looking at a shop window, curious", "walking confidently toward the camera on a colorful european city street, big smile"],
+  Beauty: ["standing on a sunny city street at golden hour, touching her cheek, thinking", "walking toward the camera on a sunny city street, glowing, big smile"],
+  Home: ["standing at the door of a sunny city apartment building, thinking", "walking happily toward the camera on a sunny street with a shopping bag"],
+  Tech: ["standing on a sunny city street looking at her phone, puzzled", "walking confidently toward the camera on a sunny city street, filming with her phone"],
+  Fitness: ["standing on a sunny city sidewalk in sportswear, stretching, thinking", "jogging happily toward the camera on a sunny city street in sportswear"],
+  Gifts: ["standing on a sunny city street holding an empty gift bag, thinking", "walking toward the camera on a festive sunny street with a wrapped gift, big smile"],
+  Travel: ["standing on a sunny street with a suitcase, looking at a map, unsure", "walking toward the camera through a sunny old town with a suitcase, excited"],
+  Kids: ["standing on a sunny city street on a busy morning, thinking", "walking happily toward the camera on a sunny street, relaxed"],
+  Pets: ["standing on a sunny street with a cute dog on a leash, thinking", "walking happily toward the camera on a sunny street with an excited cute dog"],
+  Other: ["standing on a sunny european city street, thinking something small is missing", "walking confidently toward the camera on a sunny city street, big smile"],
 };
-const SD_OUTFIT = ["pink blazer and white t-shirt", "cozy oversized sweater", "denim jacket and striped top", "pastel hoodie"];
+const SD_OUTFIT = ["bright pink blazer suit and white sneakers", "beige trench coat with a leather shoulder bag", "cobalt blue knit midi dress and white sneakers", "cream knit sweater, wide jeans and a crossbody bag"];
 /** Where the virtual creator films herself (ai_ugc), per category. */
 const AI_UGC_SET = {
   Accessories: "a cozy sunlit bedroom with a vanity mirror", Fashion: "a bright walk-in closet", Beauty: "a clean bright bathroom with soft ring light",
@@ -161,7 +164,7 @@ export function aiStoryScenes(product, style = "ai_story", creative = null) {
   const character = AI_CHARACTERS[seed % AI_CHARACTERS.length];
   const prompt = (scene) => `${AI_LOOK}, ${character}, ${scene}, not holding any product`;
   // The own model (SD 1.5) reads ~77 tokens: character + moment, medium shot. Style words live in generate.py.
-  const short = (scene) => `${character.replace(/^a /, "")}, ${SD_OUTFIT[seed % SD_OUTFIT.length]}, ${scene}, medium shot, upper body`;
+  const short = (scene) => `${character.replace(/^a /, "")}, ${SD_OUTFIT[seed % SD_OUTFIT.length]}, ${scene}, full body, golden hour`;
   if (style === "ai_ugc") {
     const set = AI_UGC_SET[cat];
     return {
@@ -194,14 +197,19 @@ export const COMMENT_KEYWORD = "קישור";
  * three beats — hook (a question, never a claim) → what it is (title + catalog
  * price) → comment-for-link CTA. Real fields only.
  */
-export function textHookLines(product, creative) {
+export function textHookLines(product, creative, { commentAutomation = false } = {}) {
   const title = cleanTitle(product?.title) || text(product?.title);
   const price = formatPrice(product?.price, "he");
+  // "Comment for the link" is promised only when an automation really sends
+  // it (IG_COMMENT_AUTOMATION on the server). Otherwise: the bio link.
   return {
     hook: creative?.hook || hookQuestion(product),
     reveal: [title, price ? `${price} · מחיר בקטלוג` : ""].filter(Boolean),
-    cta: ["רוצים את הקישור?", `תגיבו "${COMMENT_KEYWORD}"`, "ואשלח לכם בפרטי"],
-    keyword: COMMENT_KEYWORD,
+    cta: commentAutomation
+      ? ["רוצים את הקישור?", `תגיבו "${COMMENT_KEYWORD}"`, "ואשלח לכם בפרטי"]
+      : ["רוצים את זה?", "הקישור בביו", "או חפשו ב-LikeLink2"],
+    pill: commentAutomation ? `תגיבו: ${COMMENT_KEYWORD}` : "הקישור בביו",
+    keyword: commentAutomation ? COMMENT_KEYWORD : null,
   };
 }
 
@@ -286,6 +294,9 @@ export function creativeFor(product, style, { now = Date.now() } = {}) {
   };
 }
 
+/** A comment-for-link automation is confirmed live only by the server env (set once ManyChat/IG replies really send the link). */
+const commentAutomationLive = () => typeof process !== "undefined" && String(process.env?.IG_COMMENT_AUTOMATION || "").toLowerCase() === "on";
+
 export function buildReelConcept({ product, creator, style }) {
   if (!product?.id || !REEL_STYLES[style]) return null;
   const title = cleanTitle(product.title) || text(product.title);
@@ -323,7 +334,7 @@ export function buildReelConcept({ product, creator, style }) {
     creative: creativeFor(product, style),
     story: style === "likeloop_cinematic" ? buildStoryBeats(product) : null,
     street: style === "street_story" ? streetStory(product) : null,
-    textHook: style === "text_hook" || AI_SCENE_STYLES.includes(style) ? textHookLines(product, creativeFor(product, style)) : null,
+    textHook: style === "text_hook" || AI_SCENE_STYLES.includes(style) ? textHookLines(product, creativeFor(product, style), { commentAutomation: commentAutomationLive() }) : null,
     aiStory: AI_SCENE_STYLES.includes(style) ? aiStoryScenes(product, style, creativeFor(product, style)) : null,
     lines: { hook: creativeFor(product, style)?.hook || hookQuestion(product), kicker: kickers[style], title, facts, cta: creativeFor(product, style)?.ctaText || "לפרטים ב־LikeLink ←", brand: "LikeLink2" },
     disclosure: ON_FRAME_DISCLOSURE.he,
