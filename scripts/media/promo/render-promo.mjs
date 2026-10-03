@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // LikeLink2 self-promo reel: AI scenes (scripts/media/ai-image/generate.py output)
-// + real screenshots of the live site → MP4 (H.264 + silent AAC, 720x1280) at
+// + real screenshots of the live site → MP4 (H.264 + LikeLink's own beat, 720x1280) at
 // public/promo/likelink-studio.mp4, served by the site itself. Preview frames go
 // to scripts/media/promo/preview/ for review before anything is published.
 //   node scripts/media/promo/render-promo.mjs --scenes DIR
@@ -21,19 +21,29 @@ mkdirSync(OUT, { recursive: true }); mkdirSync(PREVIEW, { recursive: true });
 
 // Every line states what the live site does today (no income promise, no numbers).
 const PLAN = {
+  seg: 2.6,
   segments: [
-    { kind: "ai", img: "a", cap: "אותו מוצר, 20 קישורים, 10 מחירים... על מה ללחוץ?", section: "לקונות", sectionColor: "#2b8a6e" },
-    { kind: "site", img: "search", cap: "ב-LikeLink2 כותבים, מדברים, מצלמים או מדביקים קישור — והוא מוצא", bg0: "#d6fff1", bg1: "#a7d8ff" },
-    { kind: "site", img: "product", cap: "וכל תוצאה מראה למה היא כאן: תמונה אמיתית, קישור ישיר, מחיר", bg0: "#d6fff1", bg1: "#a7d8ff" },
-    { kind: "ai", img: "b", cap: "ואת בוחרת מהאפשרויות שנמצאו, בלי ים של לינקים", section: "לקונות", sectionColor: "#2b8a6e" },
-    { kind: "ai", img: "c", cap: "ממליצה על מוצרים כל יום, והקישורים נעלמים בסטורי?", section: "למשפיעניות ולמוכרות" },
-    { kind: "site", img: "sell", cap: "פותחים סטודיו בחינם, מיוצרת קטנה ועד מותג" },
-    { kind: "site", img: "reels", cap: "לונה מכינה רילסים, ורואים כמה קליקים הגיעו לכל מוצר" },
-    { kind: "ai", img: "d", cap: "ובחיפוש, מוצר עם תמונה אמיתית וקישור ישיר עולה למעלה", section: "למשפיעניות ולמוכרות" },
+    { kind: "ai", img: "a", cap: ["אותו מוצר.", "20 קישורים.", "איזה נכון?"], section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "site", img: "search", cap: ["כותבים, מדברים, מצלמים", "או מדביקים קישור"], bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "site", img: "product", cap: ["וכל תוצאה מראה", "למה היא כאן"], bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "ai", img: "b", cap: ["תמונה אמיתית. קישור ישיר.", "את בוחרת."], section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "ai", img: "c", cap: ["ממליצה על מוצרים", "והקישורים נעלמים בסטורי?"], section: "ליוצרות ולמוכרות" },
+    { kind: "site", img: "sell", cap: ["סטודיו בחינם", "מיוצרת קטנה ועד מותג"] },
+    { kind: "site", img: "reels", cap: ["רילסים מלונה", "וקליקים אמיתיים לכל מוצר"] },
+    { kind: "ai", img: "d", cap: ["מוצר אמיתי עם קישור ישיר", "עולה למעלה"], section: "ליוצרות ולמוכרות" },
   ],
   cta: ["קונות? חפשו כל מוצר", "ממליצות? פתחו סטודיו בחינם"],
   url: "likelink2.vercel.app",
 };
+
+// LikeLink's own beat (original, generated from math — no third-party music).
+const OWN_BEAT = (() => {
+  const kick = "0.85*sin(2*PI*52*t*(1+1.6*exp(-28*mod(t,0.5))))*exp(-8*mod(t,0.5))";
+  const hat = "0.10*(2*random(0)-1)*exp(-70*mod(t+0.25,0.5))";
+  const pad = "0.05*(sin(2*PI*220*t)+sin(2*PI*277.2*t)+sin(2*PI*329.6*t))*(0.65+0.35*sin(2*PI*0.25*t))";
+  const e = `0.55*(${kick}+${hat}+${pad})`.replace(/,/g, "\\,");
+  return `aevalsrc=exprs=${e}|${e}:s=48000`;
+})();
 
 function run(cmd, argv, input) {
   return new Promise((res, rej) => {
@@ -70,7 +80,7 @@ await page.evaluate((m) => window.loadAssets(m), {
 const fps = 30, dur = await page.evaluate(() => window.durationS()), frames = fps * dur;
 const mp4 = path.join(OUT, "likelink-studio.mp4");
 await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
-  "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", "-shortest",
+  "-f", "lavfi", "-i", OWN_BEAT, "-map", "0:v", "-map", "1:a", "-shortest",
   "-c:v", "libx264", "-preset", "medium", "-crf", "24", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", mp4], async (stdin) => {
   for (let f = 0; f < frames; f++) {
     const j = await page.evaluate((t) => window.renderFrame(t, 0.9), (f * 1000) / fps);
@@ -78,10 +88,11 @@ await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate
   }
   stdin.end();
 });
-for (const s of [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5, 26.5]) {
+const lastS = dur - 0.5;
+for (const s of [0.3, 1.3, 3.9, 6.5, 9.1, 11.7, 14.3, 16.9, 19.5, lastS]) {
   const j = await page.evaluate((t) => window.renderFrame(t, 0.8), s * 1000);
   writeFileSync(path.join(PREVIEW, `frame-${s}.jpg`), Buffer.from(j.split(",")[1], "base64"));
-  if (s === 26.5) writeFileSync(path.join(OUT, "likelink-studio-poster.jpg"), Buffer.from(j.split(",")[1], "base64"));
+  if (s === lastS) writeFileSync(path.join(OUT, "likelink-studio-poster.jpg"), Buffer.from(j.split(",")[1], "base64"));
 }
 await browser.close();
 console.log(JSON.stringify({ mp4, bytes: readFileSync(mp4).length, frames }));

@@ -32,6 +32,7 @@ export function parsePath(pathname) {
     return { type: "app", tab: "sell", view: parts[1] ? decodeURIComponent(parts[1]) : undefined };
   }
   if (parts[0] === "admin") return { type: "app", tab: "admin" };
+  if (parts[0] === "owner") return { type: "app", tab: "owner" };
   if (parts[0] === "p" && parts[1]) return { type: "product", id: decodeURIComponent(parts[1]) };
   if (parts.length === 0) return { type: "landing" };
   return { type: "landing" };
@@ -43,5 +44,6 @@ export function tabToPath(tab) {
   if (tab === "feed") return "/feed";
   if (tab === "sell") return "/studio";
   if (tab === "admin") return "/admin";
+  if (tab === "owner") return "/owner";
   return "/feed";
 }

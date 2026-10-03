@@ -24,6 +24,7 @@ import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
 // The Studio is its own surface — public visitors never download it.
 const StudioShell = lazy(() => import("./components/studio/StudioShell").then((m) => ({ default: m.StudioShell })));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
+const OwnerConsole = lazy(() => import("./components/admin/OwnerConsole"));
 const MerchantAcquisition = lazy(() => import("./components/public/MerchantAcquisition"));
 // The public LikeLink2 site (home, discover, products, creators, reels, trends,
 // collections, deals, search, saved, product + creator pages) — one chunk.
@@ -126,7 +127,7 @@ function App() {
   useEffect(() => {
     // Public pages set their own SEO (PublicSite / MerchantAcquisition).
     if (route.type !== "landing" && (PUBLIC_TYPES.has(route.type) || route.type === "merchants")) return;
-    if (tab === "admin") {
+    if (tab === "admin" || tab === "owner") {
       updatePageSEO(getDefaultSEO("admin"));
       setNoIndex("admin");
       return;
@@ -237,6 +238,16 @@ function App() {
         </Suspense>
         <Toast message={toast?.msg} />
       </>
+    );
+  }
+
+  // The owner's private console: not linked publicly, noindex, rendered only
+  // after the server confirms the owner (see OwnerConsole).
+  if (tab === "owner") {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <OwnerConsole />
+      </Suspense>
     );
   }
 

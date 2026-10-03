@@ -144,6 +144,10 @@
       "destination": "/"
     },
     {
+      "source": "/owner",
+      "destination": "/"
+    },
+    {
       "source": "/admin/:path*",
       "destination": "/"
     },

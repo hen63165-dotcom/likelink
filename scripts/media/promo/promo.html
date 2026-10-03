@@ -53,37 +53,56 @@ function grad(top = 0.5, bottom = 0.55) {
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgba(0,0,0,${top})`); g.addColorStop(0.35, "rgba(0,0,0,0)"); g.addColorStop(0.8, "rgba(0,0,0,0)"); g.addColorStop(1, `rgba(0,0,0,${bottom})`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
-// The plan (render-promo.mjs) is a list of 3 s segments: { kind: "ai"|"site", img, cap },
+// The plan (render-promo.mjs) is a list of short segments: { kind: "ai"|"site", img, cap: [lines] },
 // followed by the call-to-action card. Every caption states what the site does today.
-const SEG = 3;
+// Creator-style caption: each line on its own bold box; the first line in the accent colour.
+function boxed(lines, y, size, alpha = 1, pop = 1, accent = "#d22f5d") {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.font = `900 ${size}px ${UI}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.direction = "rtl";
+  lines.forEach((l, i) => {
+    const w = ctx.measureText(l).width + size * 0.7, h = size * 1.34, yy = y + i * (h + 10);
+    ctx.save(); ctx.translate(W / 2, yy); const sc = 0.8 + 0.2 * pop; ctx.scale(sc, sc); ctx.rotate((i % 2 ? 1 : -1) * 0.014);
+    ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 18; ctx.fillStyle = i === 0 ? accent : "#fff"; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.28); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = i === 0 ? "#fff" : "#17131f"; ctx.fillText(l, 0, 3); ctx.restore();
+  });
+  ctx.restore();
+}
+const linesOf = (cap) => (Array.isArray(cap) ? cap : wrap(cap, `900 52px ${UI}`, 620, 3));
 window.renderFrame = (ms, q = 0.9) => {
+  const SEG = window.PLAN.seg || 3;
   const t = ms / 1000, P = window.PLAN; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
   const i = Math.floor(t / SEG), local = t - i * SEG, seg = P.segments[i];
-  const fade = (a, b) => ease(win(local, a, a + 0.3)) * (1 - ease(win(local, b - 0.3, b)));
+  // The very first frame already shows the hook (no fade-in at t=0).
+  const appear = i === 0 ? 1 : ease(win(local, 0, 0.25));
+  const pop = i === 0 && local < 0.05 ? 1 : back(win(local, 0, 0.35));
   ctx.fillStyle = "#14101f"; ctx.fillRect(0, 0, W, H);
   if (seg && seg.kind === "ai") {
-    cover(IMG[seg.img], 0, 0, W, H, i % 2 ? 1.12 - 0.06 * ease(local / SEG) : 1.05 + 0.06 * ease(local / SEG));
-    grad();
-    if (seg.section) pill(seg.section, W / 2, 1110, { font: `800 26px ${UI}`, bg: seg.sectionColor || "#d22f5d", h: 52, padX: 22, alpha: fade(0.1, SEG) });
-    outlined(wrap(seg.cap, `900 56px ${UI}`, 640, 3), 210, 56, fade(0.1, SEG));
+    // punch-in at the cut, then a slow push
+    const z = 1.14 - 0.08 * ease(win(local, 0, 0.5)) + 0.04 * ease(local / SEG);
+    cover(IMG[seg.img], 0, 0, W, H, z, 0.5, 0.35);
+    grad(0.35, 0.55);
+    if (seg.section) pill(seg.section, W / 2, 815, { font: `800 26px ${UI}`, bg: seg.sectionColor || "#d22f5d", h: 52, padX: 22, alpha: appear });
+    boxed(linesOf(seg.cap), 900, 52, appear, pop, seg.sectionColor || "#d22f5d");
     pill("דמות מקורית שנוצרה ב-AI", W / 2, 96);
-    ctx.save(); ctx.font = `900 30px ${UI}`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillText("LikeLink2", W / 2, 1210); ctx.restore();
+    ctx.save(); ctx.font = `900 30px ${UI}`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillText("LikeLink2", W / 2, 1215); ctx.restore();
   } else if (seg) {
     const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, seg.bg0 || "#ffd6e7"); bg.addColorStop(1, seg.bg1 || "#b9a7ff"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     phone(IMG[seg.img], local, 0);
-    outlined(wrap(seg.cap, `900 42px ${UI}`, 640, 3), 168, 42, fade(0.1, SEG));
+    boxed(linesOf(seg.cap), 210, 44, appear, pop);
     pill("צילום מסך אמיתי מהאתר", W / 2, 96, { bg: "rgba(43,22,80,.8)" });
   } else {
     const k = t - P.segments.length * SEG;
     const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#2b1650"); bg.addColorStop(1, "#d22f5d"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
     outlined(["LikeLink2"], 330, 96, ease(win(k, 0, 0.4)));
-    P.cta.forEach((line, j) => outlined(wrap(line, `900 48px ${UI}`, 640, 2), 500 + j * 120, 48, ease(win(k, 0.3 + j * 0.3, 0.7 + j * 0.3))));
-    pill(P.url, W / 2, 860, { font: `800 30px ${UI}`, bg: "#fff", fg: "#2b1650", h: 66, padX: 28, alpha: ease(win(k, 1, 1.4)), scale: back(win(k, 1, 1.5)) });
-    pill("הקישור בביו", W / 2, 960, { font: `800 28px ${UI}`, bg: "rgba(255,255,255,.18)", h: 58, alpha: ease(win(k, 1.4, 1.8)) });
+    P.cta.forEach((line, j) => boxed([line], 520 + j * 130, 46, ease(win(k, 0.3 + j * 0.3, 0.7 + j * 0.3)), back(win(k, 0.3 + j * 0.3, 0.8 + j * 0.3)), j ? "#2b1650" : "#d22f5d"));
+    pill("הקישור בביו", W / 2, 860, { font: `900 34px ${UI}`, bg: "#fff", fg: "#2b1650", h: 72, padX: 32, alpha: ease(win(k, 1, 1.4)), scale: back(win(k, 1, 1.5)) });
+    pill(P.url, W / 2, 960, { font: `800 26px ${UI}`, bg: "rgba(255,255,255,.18)", h: 56, alpha: ease(win(k, 1.4, 1.8)) });
   }
+  // white flash on every cut (not on the first frame)
+  if (i > 0 && local < 0.16) { ctx.save(); ctx.globalAlpha = 0.7 * (1 - local / 0.16); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H); ctx.restore(); }
   return cv.toDataURL("image/jpeg", q);
 };
-window.durationS = () => window.PLAN.segments.length * SEG + 4;
+window.durationS = () => window.PLAN.segments.length * (window.PLAN.seg || 3) + 3.5;
 </script>
 </body>
 </html>
