@@ -51,7 +51,7 @@ const browser = await chromium.launch();
 const shots = {};
 const mobile = await browser.newPage({ viewport: { width: 390, height: 1500 }, deviceScaleFactor: 2 });
 for (const [k, p] of [["search", "/search?q=%D7%A6%D7%9E%D7%99%D7%93"], ["product", "/p/p-live-05"], ["sell", "/sell"], ["reels", "/reels"]]) {
-  await mobile.goto(`${SITE}${p}?utm_source=promo_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
+  await mobile.goto(`${SITE}${p}${p.includes("?") ? "&" : "?"}utm_source=promo_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
   await mobile.waitForTimeout(2500);
   shots[k] = `data:image/jpeg;base64,${(await mobile.screenshot({ type: "jpeg", quality: 85 })).toString("base64")}`;
 }
