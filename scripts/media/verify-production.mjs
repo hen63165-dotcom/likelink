@@ -30,7 +30,7 @@ const emitImage = (name, file) => {
 const req = createRequire(import.meta.url);
 const { chromium } = req(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const ROUTES = ["/", "/discover", "/products", "/creators", "/u/alyostyle", "/p/p1", "/reels", "/trends", "/collections", "/deals", "/search?q=%D7%A1%D7%A8%D7%95%D7%9D", "/saved", "/studio"];
+const ROUTES = ["/", "/discover", "/products", "/creators", "/u/alyostyle", "/p/p-live-05", "/reels", "/trends", "/collections", "/deals", "/search?q=%D7%A1%D7%A8%D7%95%D7%9D", "/saved", "/studio"];
 
 async function main() {
   const browser = await chromium.launch({ channel: "chrome" });
@@ -63,7 +63,7 @@ async function main() {
       const row = { vp: vp.n, route: r, status: resp?.status?.() ?? 0, ...m, errors: errors.slice(0, 5) };
       results.push(row);
       summary(`- ${vp.n} ${r}: http ${row.status} · hscroll ${row.hscroll} · broken ${row.broken} · errors ${row.errors.length}${r === "/" ? ` · engine cards ${row.engine.cards} (cid ${row.engine.withCid})` : ""}${row.video ? ` · video rs=${row.video.readyState} t=${row.video.t}s ${row.video.w}x${row.video.h}` : ""}`);
-      if (["/", "/reels", "/p/p1"].includes(r)) {
+      if (["/", "/reels", "/p/p-live-05"].includes(r)) {
         const f = path.join(OUT, `${vp.n}${r.replace(/\W+/g, "_")}.jpg`);
         await page.screenshot({ path: f, type: "jpeg", quality: 55 });
         emitImage(`${vp.n}${r.replace(/\W+/g, "_")}`, f);
@@ -147,6 +147,59 @@ async function main() {
       await Promise.race([ctx.close().catch(() => null), new Promise((r) => setTimeout(r, 10000))]);
     }
   };
+  // Link & button audit, as a visitor inside Instagram's in-app browser:
+  //   • every <a> on the main pages has a real href (no "#", empty or javascript:)
+  //   • every internal link opens a real page (no "not found" h1, http 200)
+  //   • shop links are https and are NOT fetched: requesting an affiliate link
+  //     from a bot would add a fake click at the store
+  //   • in the in-app browser the shop button opens in the same view
+  //   • the logo on the home page answers a tap (scrolls back to the top)
+  const linkAudit = async () => {
+    const IG_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 340.0.0.22.109";
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "he-IL", userAgent: IG_UA });
+    const page = await ctx.newPage();
+    const issues = [];
+    try {
+      const pages = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/search?q=%D7%A6%D7%9E%D7%99%D7%93", "/p/p-live-05", "/u/alyostyle"];
+      const internal = new Set();
+      const shop = new Map();
+      for (const r of pages) {
+        await page.goto(BASE + r, { waitUntil: "load", timeout: 45000 }).catch(() => null);
+        await page.waitForTimeout(2000);
+        const anchors = await page.evaluate(() => [...document.querySelectorAll("a")].map((a) => ({ href: a.getAttribute("href") || "", text: (a.textContent || a.getAttribute("aria-label") || "").trim().slice(0, 40), target: a.getAttribute("target") || "", rel: a.getAttribute("rel") || "" })));
+        for (const a of anchors) {
+          if (!a.href || a.href === "#" || /^javascript:/i.test(a.href)) { issues.push(`${r}: dead link "${a.text}" href="${a.href}"`); continue; }
+          if (a.href.startsWith("/") && !a.href.startsWith("/api/") && !a.href.startsWith("/r?") && !a.href.startsWith("/r/")) internal.add(a.href.split("#")[0]);
+          if (/sponsored/.test(a.rel)) { shop.set(a.href, a.text); if (a.target === "_blank") issues.push(`${r}: shop link opens a new window inside Instagram ("${a.text}")`); }
+        }
+      }
+      for (const href of [...internal].slice(0, 80)) {
+        const resp = await page.goto(BASE + href, { waitUntil: "load", timeout: 45000 }).catch(() => null);
+        await page.waitForTimeout(1200);
+        const h1 = await page.evaluate(() => (document.querySelector("h1")?.textContent || "").trim());
+        const status = resp?.status?.() ?? 0;
+        if (status !== 200 || /לא נמצא|not found/i.test(h1)) issues.push(`${href}: http ${status} · "${h1.slice(0, 40)}"`);
+      }
+      // Shop links: https only (checked as text — never fetched, see above).
+      for (const href of shop.keys()) if (!/^https:\/\//i.test(href)) issues.push(`shop link not https: ${href.slice(0, 80)}`);
+      // Logo tap on the home page.
+      await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
+      await page.waitForTimeout(1500);
+      await page.evaluate(() => window.scrollTo(0, 1200));
+      await page.waitForTimeout(300);
+      await page.locator('a[aria-label="LikeLink2"]:visible').first().click({ timeout: 8000 }).catch((e) => issues.push(`logo click failed: ${String(e.message).split("\n")[0].slice(0, 100)}`));
+      await page.waitForTimeout(1200);
+      const y = await page.evaluate(() => window.scrollY);
+      if (y > 10) issues.push(`logo on the home page did not respond (scrollY ${y})`);
+      summary(`- link audit (Instagram in-app): ${internal.size} internal links, ${shop.size} shop links, logo scrollY after tap ${y}, issues ${issues.length}`);
+      for (const i of issues.slice(0, 40)) summary(`  LINK ${i}`);
+      results.push({ route: "link audit", status: 200, hscroll: 0, broken: 0, errors: issues.slice(0, 40) });
+    } finally {
+      await Promise.race([ctx.close().catch(() => null), new Promise((r) => setTimeout(r, 10000))]);
+    }
+  };
+  const audited = await Promise.race([linkAudit().then(() => "done"), new Promise((r) => setTimeout(() => r("timeout"), 300000))]);
+  if (audited === "timeout") { summary("- link audit: TIMEOUT after 300s"); results.push({ route: "link audit", status: 0, hscroll: 0, broken: 0, errors: ["audit_timeout"] }); }
   const capped = await Promise.race([probe().then(() => "done"), new Promise((r) => setTimeout(() => r("timeout"), 90000))]);
   if (capped === "timeout") {
     summary("- tracking probe: TIMEOUT after 90s");
