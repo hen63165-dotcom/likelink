@@ -53,43 +53,37 @@ function grad(top = 0.5, bottom = 0.55) {
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgba(0,0,0,${top})`); g.addColorStop(0.35, "rgba(0,0,0,0)"); g.addColorStop(0.8, "rgba(0,0,0,0)"); g.addColorStop(1, `rgba(0,0,0,${bottom})`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
-const DUR = 18;
+// The plan (render-promo.mjs) is a list of 3 s segments: { kind: "ai"|"site", img, cap },
+// followed by the call-to-action card. Every caption states what the site does today.
+const SEG = 3;
 window.renderFrame = (ms, q = 0.9) => {
-  const t = ms / 1000; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  const fade = (a, b) => ease(win(t, a, a + 0.3)) * (1 - ease(win(t, b - 0.3, b)));
+  const t = ms / 1000, P = window.PLAN; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  const i = Math.floor(t / SEG), local = t - i * SEG, seg = P.segments[i];
+  const fade = (a, b) => ease(win(local, a, a + 0.3)) * (1 - ease(win(local, b - 0.3, b)));
   ctx.fillStyle = "#14101f"; ctx.fillRect(0, 0, W, H);
-  let label = "";
-  if (t < 3) { cover(IMG.a, 0, 0, W, H, 1.05 + 0.06 * ease(t / 3)); label = "ai"; }
-  else if (t < 6) { cover(IMG.b, 0, 0, W, H, 1.12 - 0.06 * ease((t - 3) / 3)); label = "ai"; }
-  else if (t < 12) {
-    const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#ffd6e7"); bg.addColorStop(1, "#b9a7ff"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    phone(t < 9 ? IMG.sell : IMG.reels, t, t < 9 ? 6 : 9); label = "site";
-  }
-  else if (t < 15) { cover(IMG.c, 0, 0, W, H, 1.04 + 0.08 * ease((t - 12) / 3)); label = "ai"; }
-  else {
+  if (seg && seg.kind === "ai") {
+    cover(IMG[seg.img], 0, 0, W, H, i % 2 ? 1.12 - 0.06 * ease(local / SEG) : 1.05 + 0.06 * ease(local / SEG));
+    grad();
+    if (seg.section) pill(seg.section, W / 2, 1110, { font: `800 26px ${UI}`, bg: seg.sectionColor || "#d22f5d", h: 52, padX: 22, alpha: fade(0.1, SEG) });
+    outlined(wrap(seg.cap, `900 56px ${UI}`, 640, 3), 210, 56, fade(0.1, SEG));
+    pill("דמות מקורית שנוצרה ב-AI", W / 2, 96);
+    ctx.save(); ctx.font = `900 30px ${UI}`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fillText("LikeLink2", W / 2, 1210); ctx.restore();
+  } else if (seg) {
+    const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, seg.bg0 || "#ffd6e7"); bg.addColorStop(1, seg.bg1 || "#b9a7ff"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    phone(IMG[seg.img], local, 0);
+    outlined(wrap(seg.cap, `900 42px ${UI}`, 640, 3), 168, 42, fade(0.1, SEG));
+    pill("צילום מסך אמיתי מהאתר", W / 2, 96, { bg: "rgba(43,22,80,.8)" });
+  } else {
+    const k = t - P.segments.length * SEG;
     const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#2b1650"); bg.addColorStop(1, "#d22f5d"); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    outlined(["LikeLink2"], 330, 96, ease(win(k, 0, 0.4)));
+    P.cta.forEach((line, j) => outlined(wrap(line, `900 48px ${UI}`, 640, 2), 500 + j * 120, 48, ease(win(k, 0.3 + j * 0.3, 0.7 + j * 0.3))));
+    pill(P.url, W / 2, 860, { font: `800 30px ${UI}`, bg: "#fff", fg: "#2b1650", h: 66, padX: 28, alpha: ease(win(k, 1, 1.4)), scale: back(win(k, 1, 1.5)) });
+    pill("הקישור בביו", W / 2, 960, { font: `800 28px ${UI}`, bg: "rgba(255,255,255,.18)", h: 58, alpha: ease(win(k, 1.4, 1.8)) });
   }
-  if (t < 6 || (t >= 12 && t < 15)) grad();
-  const C = window.CAPTIONS;
-  const cap = (txt, a, b, y = 210, size = 58) => { const al = fade(a, b); if (al > 0) outlined(wrap(txt, `900 ${size}px ${UI}`, 640, 3), y, size, al); };
-  cap(C.hook, 0.1, 3);
-  cap(C.open, 3.1, 6);
-  cap(C.links, 6.1, 9, 168, 42);
-  cap(C.reels, 9.1, 12, 168, 42);
-  cap(C.clicks, 12.1, 15);
-  if (t >= 15) {
-    const a = ease(win(t, 15, 15.4));
-    outlined(["LikeLink2"], 420, 96, a);
-    outlined(wrap(C.cta, `900 60px ${UI}`, 640, 2), 600, 60, ease(win(t, 15.3, 15.7)));
-    pill(C.url, W / 2, 860, { font: `800 30px ${UI}`, bg: "#fff", fg: "#2b1650", h: 66, padX: 28, alpha: ease(win(t, 15.6, 16)), scale: back(win(t, 15.6, 16.1)) });
-    pill("הקישור בביו 🔗".replace(/[\u{1F000}-\u{1FFFF}]/gu, "").trim(), W / 2, 960, { font: `800 28px ${UI}`, bg: "rgba(255,255,255,.18)", h: 58, alpha: ease(win(t, 16, 16.4)) });
-  }
-  if (label === "ai") pill("דמות מקורית שנוצרה ב-AI", W / 2, 96);
-  if (label === "site") pill("צילום מסך אמיתי מהאתר", W / 2, 96, { bg: "rgba(43,22,80,.8)" });
-  ctx.save(); ctx.font = `900 30px ${UI}`; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,.92)"; if (t < 6 || (t >= 12 && t < 15)) ctx.fillText("LikeLink2", W / 2, 1210); ctx.restore();
   return cv.toDataURL("image/jpeg", q);
 };
-window.DURATION_S = DUR;
+window.durationS = () => window.PLAN.segments.length * SEG + 4;
 </script>
 </body>
 </html>

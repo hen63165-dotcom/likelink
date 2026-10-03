@@ -19,14 +19,20 @@ const OUT = path.join(ROOT, "public", "promo");
 const PREVIEW = path.join(HERE, "preview");
 mkdirSync(OUT, { recursive: true }); mkdirSync(PREVIEW, { recursive: true });
 
-const CAPTIONS = {
-  hook: "ממליצה על מוצרים לחברות כל הזמן?",
-  open: "ב-LikeLink2 פותחים סטודיו משלך, בחינם",
-  links: "בוחרים מוצרים ומקבלים לכל אחד עמוד וקישור מעקב משלך",
-  reels: "לונה מכינה רילסים מוכנים לשיתוף למוצרים שלך",
-  clicks: "ורואים כמה קליקים הגיעו לכל מוצר",
-  cta: "פתחי סטודיו בחינם",
-  url: "likelink2.vercel.app/sell",
+// Every line states what the live site does today (no income promise, no numbers).
+const PLAN = {
+  segments: [
+    { kind: "ai", img: "a", cap: "ראית מוצר מושלם ברילס... ואין לך מאיפה לקנות?", section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "site", img: "home", cap: "ב-LikeLink2 כל המוצרים מהרילסים מחכים במקום אחד, בעברית", bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "site", img: "product", cap: "תמונה אמיתית של המוצר, מחיר מהקטלוג, ומי המליצה עליו", bg0: "#d6fff1", bg1: "#a7d8ff" },
+    { kind: "ai", img: "b", cap: "לוחצת, ומגיעה ישר לדף המוצר בחנות", section: "לקונות", sectionColor: "#2b8a6e" },
+    { kind: "ai", img: "c", cap: "ממליצה על מוצרים כל יום, וההמלצות נעלמות בסטורי?", section: "למשפיעניות ולמוכרות" },
+    { kind: "site", img: "sell", cap: "פותחים סטודיו בחינם: עמוד משלך וקישור מעקב לכל מוצר" },
+    { kind: "site", img: "reels", cap: "לונה מכינה לך רילסים מוכנים לשיתוף, בעברית" },
+    { kind: "ai", img: "d", cap: "ורואים כמה קליקים הגיעו לכל מוצר", section: "למשפיעניות ולמוכרות" },
+  ],
+  cta: ["קונות? גלו מוצרים", "ממליצות? פתחו סטודיו בחינם"],
+  url: "likelink2.vercel.app",
 };
 
 function run(cmd, argv, input) {
@@ -44,7 +50,7 @@ const browser = await chromium.launch();
 // Real screenshots of the live site at phone size.
 const shots = {};
 const mobile = await browser.newPage({ viewport: { width: 390, height: 1500 }, deviceScaleFactor: 2 });
-for (const [k, p] of [["sell", "/sell"], ["reels", "/reels"]]) {
+for (const [k, p] of [["home", "/"], ["product", "/p/p-live-05"], ["sell", "/sell"], ["reels", "/reels"]]) {
   await mobile.goto(`${SITE}${p}?utm_source=promo_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
   await mobile.waitForTimeout(2500);
   shots[k] = `data:image/jpeg;base64,${(await mobile.screenshot({ type: "jpeg", quality: 85 })).toString("base64")}`;
@@ -53,14 +59,15 @@ await mobile.close();
 
 const page = await browser.newPage({ viewport: { width: 720, height: 1280 } });
 await page.goto(pathToFileURL(path.join(HERE, "promo.html")).href);
-await page.evaluate((c) => { window.CAPTIONS = c; }, CAPTIONS);
+await page.evaluate((p) => { window.PLAN = p; }, PLAN);
 await page.evaluate((m) => window.loadAssets(m), {
   a: dataUrl(path.join(SCENES, "promo-a.png"), "image/png"),
   b: dataUrl(path.join(SCENES, "promo-b.png"), "image/png"),
   c: dataUrl(path.join(SCENES, "promo-c.png"), "image/png"),
-  sell: shots.sell, reels: shots.reels,
+  d: dataUrl(path.join(SCENES, "promo-d.png"), "image/png"),
+  home: shots.home, product: shots.product, sell: shots.sell, reels: shots.reels,
 });
-const fps = 30, dur = await page.evaluate(() => window.DURATION_S), frames = fps * dur;
+const fps = 30, dur = await page.evaluate(() => window.durationS()), frames = fps * dur;
 const mp4 = path.join(OUT, "likelink-studio.mp4");
 await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
   "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", "-shortest",
@@ -71,10 +78,10 @@ await run("ffmpeg", ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate
   }
   stdin.end();
 });
-for (const s of [1.5, 4.5, 7.5, 10.5, 13.5, 16.5]) {
+for (const s of [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5, 26.5]) {
   const j = await page.evaluate((t) => window.renderFrame(t, 0.8), s * 1000);
   writeFileSync(path.join(PREVIEW, `frame-${s}.jpg`), Buffer.from(j.split(",")[1], "base64"));
-  if (s === 16.5) writeFileSync(path.join(OUT, "likelink-studio-poster.jpg"), Buffer.from(j.split(",")[1], "base64"));
+  if (s === 26.5) writeFileSync(path.join(OUT, "likelink-studio-poster.jpg"), Buffer.from(j.split(",")[1], "base64"));
 }
 await browser.close();
 console.log(JSON.stringify({ mp4, bytes: readFileSync(mp4).length, frames }));
