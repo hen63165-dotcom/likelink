@@ -15,6 +15,7 @@
 import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
 import { canonicalProduct, buildProductSeo, renderProductBody } from "../src/lib/discovery/surfaces.js";
+import { isPromotable } from "../src/lib/discovery/catalogIntegrity.js";
 import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
 import { guardPublicRequest, sendGuardRefusal, classifyAgent } from "./_utils/botGuard.mjs";
 
@@ -425,7 +426,9 @@ export default async function handler(req, res) {
         })();
         const found = list.find((p) => p?.id === productId) || null;
         const mk = found ? marketers.find((m) => m && m.id === found.marketerId) : null;
-        if (found && mk && found.status === "approved") {
+        // Same rule as the public site (buildPublicGraph): a product whose link is
+        // shared by other products does not lead to it, so it is not served.
+        if (found && mk && found.status === "approved" && isPromotable(found, list)) {
           product = found;
           owner = mk;
         }

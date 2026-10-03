@@ -413,6 +413,11 @@ export function shopHref(product, creator) {
   return resolveDestinationUrl(tracked) || tracked;
 }
 
+// Instagram / Facebook / TikTok in-app browsers can swallow target="_blank",
+// so there the store opens in the same view (the back button returns here).
+const IN_APP_BROWSER = /Instagram|FBAN|FBAV|FB_IAB|TikTok|musical_ly|Line\//i;
+const inAppBrowser = () => typeof navigator !== "undefined" && IN_APP_BROWSER.test(navigator.userAgent || "");
+
 export function ShopButton({ product, className = "", children, attribution = null }) {
   const { recordClick, marketers } = useMarketplace();
   const { L } = useL();
@@ -424,7 +429,7 @@ export function ShopButton({ product, className = "", children, attribution = nu
   return (
     <a
       href={href}
-      target="_blank"
+      target={inAppBrowser() ? undefined : "_blank"}
       rel="noopener noreferrer sponsored"
       onClick={() => recordClick(product, attribution)}
       className={`lx-btn lx-btn-rose ${className}`}

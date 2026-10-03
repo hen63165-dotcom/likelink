@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PayPalPlansCard from '../admin/PayPalPlansCard.jsx';
 import { getAllPlans, planFeatureRows, FEATURES } from '../../lib/plans.js';
 import { fetchPlans, fetchMySubscription, startSubscriptionCheckout, cancelMySubscription } from '../../lib/commerce.js';
 import { getSessionToken } from '../../lib/auth.js';
@@ -135,6 +136,12 @@ export default function PlanCheckout() {
   const rows = planFeatureRows(plan === 'owner' ? 'professional' : plan);
 
   const paid = getAllPlans().filter((p) => p.price > 0);
+  // Say why the pay button is disabled instead of leaving a dead button.
+  const checkoutBlockedReason = !signedIn
+    ? 'כדי לרכוש מסלול צריך קודם להתחבר לסטודיו.'
+    : catalogReady === false
+      ? 'התשלום באתר עדיין לא נפתח. הסטודיו החינמי פתוח כבר עכשיו, ונעדכן כשאפשר יהיה לשדרג.'
+      : catalogReady !== true ? 'בודקים את זמינות התשלום…' : '';
   return <section dir="rtl" className="rounded-2xl p-4 my-5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }} aria-labelledby="plans-title">
     <div className="flex items-baseline justify-between gap-3 flex-wrap">
       <h2 id="plans-title" className="disp text-lg font-bold">המסלול שלך</h2>
@@ -187,6 +194,11 @@ export default function PlanCheckout() {
       {[['monthly', 'חודשי · מתחדש כל חודש'], ['yearly', 'שנתי · 12 חודשים, בלי חידוש אוטומטי']].map(([id, label]) =>
         <button key={id} role="radio" aria-checked={period === id} disabled={busy} onClick={() => setPeriod(id)} className="tap rounded-full px-3 py-1.5 border" style={{ borderColor: period === id ? 'var(--accent)' : 'var(--border)', fontWeight: period === id ? 700 : 400 }}>{label}</button>)}
     </div>
+    {plan === 'owner' && catalogReady === false ? <div role="note">
+      <p className="text-sm font-bold">בעלת האתר: התשלומים עדיין לא פעילים</p>
+      <p className="text-xs opacity-80">לחיצה אחת יוצרת ב-PayPal את 4 מסלולי המנוי בשקלים (לא מחייבת אף אחד). אחריה הכפתורים נפתחים לכולם.</p>
+      <PayPalPlansCard />
+    </div> : null}
     <div className="grid gap-3 sm:grid-cols-3">
       {paid.map((p) => <article key={p.id} id={`plan-${p.id}`} className="surface rounded-xl p-3 flex flex-col" style={requested === p.id ? { outline: '2px solid var(--accent)' } : undefined}>
         <h4 className="font-bold">{p.name.he}{p.comingSoon ? ' · בקרוב' : ''}</h4>
@@ -198,6 +210,7 @@ export default function PlanCheckout() {
           {p.comingSoon
             ? <button disabled={busy || !signedIn || legal?.waitlist?.includes(p.id)} onClick={() => waitlist(p.id)} className="tap rounded-xl w-full p-2 font-bold border disabled:opacity-50" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>{legal?.waitlist?.includes(p.id) ? 'את ברשימת ההמתנה' : 'הצטרפות לרשימת ההמתנה'}</button>
             : <button disabled={busy || catalogReady !== true || !signedIn || plan === p.id} onClick={() => checkout(p.id)} className="tap rounded-xl w-full p-2 font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'white' }}>{plan === p.id ? 'המסלול הנוכחי שלך' : 'התחילי את החבילה · מעבר לתשלום מאובטח'}</button>}
+          {!p.comingSoon && plan !== p.id && checkoutBlockedReason ? <p className="text-xs mt-2 opacity-80" role="status">{checkoutBlockedReason}</p> : null}
         </div>
       </article>)}
     </div>
