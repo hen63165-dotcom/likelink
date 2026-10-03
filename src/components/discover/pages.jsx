@@ -118,11 +118,11 @@ function Masonry({ products, graph, eagerFirst = false }) {
   );
 }
 
-function Grid({ products, graph, cols = "grid-cols-2 md:grid-cols-3 xl:grid-cols-4" }) {
+function Grid({ products, graph, cols = "grid-cols-2 md:grid-cols-3 xl:grid-cols-4", why = null }) {
   return (
     <div className={`grid ${cols} gap-3 md:gap-4`}>
       {products.map((p) => (
-        <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />
+        <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} why={why ? why.get(p.id) : null} />
       ))}
     </div>
   );
@@ -1288,8 +1288,9 @@ export function SearchPage({ graph }) {
           ) : null}
           {res.products.length ? (
             <div className="mt-10">
-              <SectionHead title={L("מוצרים", "Products")} sub={L(`${res.products.length} מוצרים`, `${res.products.length} products`)} />
-              <Grid products={res.products} graph={graph} />
+              <SectionHead title={L("מוצרים", "Products")} sub={L(`${res.products.length} מוצרים · מסודרים לפי התאמה לחיפוש ואז לפי ראיות אמיתיות`, `${res.products.length} products · ordered by match, then by real evidence`)} />
+              <p className="lx-mute mb-4 text-[12.5px]">{L("לכל מוצר מוצג למה הוא כאן — רק סימנים שקיימים בנתונים. אין כאן דירוגי כוכבים או ביקורות מומצאים.", "Each product shows why it is here — only signals that exist in the data. No invented stars or reviews.")}</p>
+              <Grid products={res.products} graph={graph} why={res.why} />
             </div>
           ) : null}
         </div>

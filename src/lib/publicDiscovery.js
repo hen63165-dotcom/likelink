@@ -23,7 +23,7 @@
 
 import { isPublicCatalogProduct } from "./cloud/catalog.js";
 import { productMediaTruth, classifyMediaRecord, MEDIA_TRUTH } from "./discovery/mediaTruth.js";
-import { IMAGE_PROVENANCE, imageProvenance, isPromotable, sharedAffiliateLinks } from "./discovery/catalogIntegrity.js";
+import { IMAGE_PROVENANCE, imageProvenance, isPromotable, isRealProductPhoto, sharedAffiliateLinks } from "./discovery/catalogIntegrity.js";
 import { creativeClass } from "./media/videoCapability.js";
 
 // Render styles of the native reel pipeline (src/lib/media/reelPipeline.js) —
@@ -334,16 +334,54 @@ function norm(s) {
 }
 
 /**
+ * Evidence behind a product's place in results — real signals only, each one
+ * explainable to the buyer ("why is this here?"). Nothing is invented: no
+ * stars, no reviews, no sales. A signal that is not in the data is absent.
+ *   real_photo    the store's own product photo (not a stock image)
+ *   own_link      its own affiliate link to the product page (not a shared one)
+ *   price         a catalog price is listed
+ *   reel          a playable video exists
+ *   verified      the creator record is verified
+ *   attention     recorded views/clicks on LikeLink in the trend window
+ */
+export const EVIDENCE_LABELS = Object.freeze({
+  real_photo: { he: "תמונה אמיתית מהחנות", en: "Real store photo", w: 3 },
+  own_link: { he: "קישור ישיר למוצר", en: "Direct product link", w: 3 },
+  price: { he: "מחיר מהקטלוג", en: "Catalog price", w: 1 },
+  reel: { he: "יש סרטון", en: "Has a video", w: 1 },
+  verified: { he: "יוצר/ת מאומת/ת", en: "Verified creator", w: 2 },
+  attention: { he: "מתעניינים בו ב-LikeLink", en: "Getting attention on LikeLink", w: 2 },
+});
+export function evidenceOf(p, graph, shared = null) {
+  if (!p) return { signals: [], score: 0 };
+  const sh = shared || graph?.sharedLinks || new Set();
+  const creator = graph?.creatorById?.get(p.marketerId);
+  const link = String(p.affiliateUrl || p.affiliateLink || p.link || "").trim();
+  const signals = [];
+  if (p.media?.image && isRealProductPhoto(p.media.image)) signals.push("real_photo");
+  if (link && !sh.has(link)) signals.push("own_link");
+  if (Number(p.price) > 0) signals.push("price");
+  if (p.media?.video) signals.push("reel");
+  if (creator?.verified) signals.push("verified");
+  const att = (p.attention?.clicks || 0) + (p.attention?.views || 0);
+  if (att > 0) signals.push("attention");
+  const score = signals.reduce((s, k) => s + EVIDENCE_LABELS[k].w, 0) + Math.min(att, 50) / 25;
+  return { signals, score, attention: p.attention || { clicks: 0, views: 0 } };
+}
+
+/**
  * Search everything: products, creators, collections and categories.
  * Every token must match somewhere in the item's real fields.
  */
 export function searchGraph(graph, query) {
   const tokens = norm(query).split(" ").filter(Boolean);
-  const empty = { products: [], creators: [], collections: [], categories: [], total: 0 };
+  const empty = { products: [], why: new Map(), creators: [], collections: [], categories: [], total: 0 };
   if (!tokens.length) return empty;
   const matchAll = (hay) => tokens.every((t) => hay.includes(t) || (t.length > 2 && hay.includes(t.replace(/^(ה|ו|ב|ל|מ|ש)/u, ""))));
   const scoreOf = (title, hay) => tokens.reduce((s, t) => s + (title.includes(t) ? 3 : 0) + (hay.includes(t) ? 1 : 0), 0);
 
+  const why = new Map();
+  const shared = graph.sharedLinks || sharedAffiliateLinks(graph.products);
   const products = graph.products
     .map((p) => {
       const creator = graph.creatorById.get(p.marketerId);
@@ -352,12 +390,15 @@ export function searchGraph(graph, query) {
       return { p, title, hay };
     })
     .filter((x) => matchAll(x.hay))
-    .sort((a, b) => scoreOf(b.title, b.hay) - scoreOf(a.title, a.hay))
-    .map((x) => x.p);
+    // Relevance first (how well the words match); among equally relevant
+    // results, the one with more real evidence comes first.
+    .map((x) => ({ ...x, rel: scoreOf(x.title, x.hay), ev: evidenceOf(x.p, graph, shared) }))
+    .sort((a, b) => b.rel - a.rel || b.ev.score - a.ev.score)
+    .map((x) => { why.set(x.p.id, x.ev); return x.p; });
   const creators = graph.creators.filter((c) => matchAll(norm([c.name, c.slug, c.bio, c.tags.join(" "), c.categories.map((k) => `${k} ${categoryName(k, "he")}`).join(" ")].join(" "))));
   const collections = graph.collections.filter((c) => matchAll(norm([c.title.he, c.title.en, c.description.he, c.description.en, c.category, c.category && categoryName(c.category, "he")].join(" "))));
   const categories = graph.categories.filter((c) => matchAll(norm(`${c.id} ${categoryName(c.id, "he")} ${categoryName(c.id, "en")}`)));
-  return { products, creators, collections, categories, total: products.length + creators.length + collections.length + categories.length };
+  return { products, why, creators, collections, categories, total: products.length + creators.length + collections.length + categories.length };
 }
 
 /**
