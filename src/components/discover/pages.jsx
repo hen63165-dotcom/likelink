@@ -4,6 +4,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpLeft,
+  Camera,
+  Mic,
   Clapperboard,
   Compass,
   Flame,
@@ -25,6 +27,8 @@ import {
   lunaPicks,
   productInsights,
   relatedProducts,
+  offersOf,
+  evidenceOf,
   searchGraph,
   TREND_MIN_EVENTS,
   TREND_WINDOW_DAYS,
@@ -217,9 +221,28 @@ function CategoryRail({ graph }) {
   );
 }
 
-function SearchBox({ value, onChange, onSubmit, autoFocus = false, big = false }) {
-  const { L } = useL();
+const MATCH_LABEL_HE = { same_photo: "נראה כמו אותה תמונה", similar: "התאמה דומה" };
+const MATCH_LABEL_EN = { same_photo: "Looks like the same photo", similar: "Similar match" };
+const SpeechRec = typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
+
+function SearchBox({ value, onChange, onSubmit, autoFocus = false, big = false, onImage = null }) {
+  const { L, lang } = useL();
   const ref = useRef(null);
+  const fileRef = useRef(null);
+  const [listening, setListening] = useState(false);
+  // Voice: the browser's own speech recognition (no provider, no upload by us).
+  function listen() {
+    if (!SpeechRec || listening) return;
+    const rec = new SpeechRec();
+    rec.lang = lang === "he" ? "he-IL" : "en-US";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => { const t = e.results?.[0]?.[0]?.transcript || ""; if (t) { onChange(t); onSubmit?.(t); } };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    setListening(true);
+    rec.start();
+  }
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
   }, [autoFocus]);
@@ -249,6 +272,19 @@ function SearchBox({ value, onChange, onSubmit, autoFocus = false, big = false }
         <button type="button" className="lx-icon-btn" style={{ width: 36, height: 36 }} onClick={() => onChange("")} aria-label={L("ניקוי", "Clear")}>
           <X size={16} />
         </button>
+      ) : null}
+      {big && SpeechRec ? (
+        <button type="button" className="lx-icon-btn" style={{ width: 38, height: 38 }} onClick={listen} aria-label={L("חיפוש קולי", "Voice search")} aria-pressed={listening} title={L("דברו — נחפש בשבילכם", "Speak — we'll search")}>
+          <Mic size={17} style={listening ? { color: "var(--lx-rose)" } : undefined} />
+        </button>
+      ) : null}
+      {big && onImage ? (
+        <>
+          <button type="button" className="lx-icon-btn" style={{ width: 38, height: 38 }} onClick={() => fileRef.current?.click()} aria-label={L("חיפוש לפי תמונה", "Search by image")} title={L("תמונה או צילום מסך של מוצר", "A photo or screenshot of a product")}>
+            <Camera size={17} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImage(f); e.target.value = ""; }} />
+        </>
       ) : null}
       <button type="submit" className="lx-btn lx-btn-rose lx-btn-sm">{L("חיפוש", "Search")}</button>
     </form>
@@ -867,6 +903,7 @@ export function ProductPage({ graph, id, navigate }) {
   const owner = (marketers || []).find((m) => m.id === product.marketerId);
   const insights = productInsights(graph, product).map((i) => (lang === "he" ? i.he : i.en));
   const related = relatedProducts(graph, product, 10);
+  const offers = offersOf(product, graph);
   const more = graph.products.filter((p) => p.marketerId === creator.id && p.id !== product.id).slice(0, 10);
   const boards = collectionsFor(graph, product.id);
   const reels = graph.reels.filter((r) => r.productIds.includes(product.id));
@@ -966,6 +1003,12 @@ export function ProductPage({ graph, id, navigate }) {
         <Section>
           <SectionHead title={L(`עוד מ־${creator.name}`, `More from ${creator.name}`)} to={creatorPath(creator.slug)} />
           <Rail item="minmax(176px, 210px)">{more.map((p) => <ProductCard key={p.id} product={p} creator={creator} showCreator={false} />)}</Rail>
+        </Section>
+      ) : null}
+      {offers.length ? (
+        <Section>
+          <SectionHead title={L(`עוד ${offers.length} המלצות לאותו מוצר`, `${offers.length} more offers for this product`)} sub={L("אותו פריט בחנות, מיוצרים אחרים — מסודר לפי ראיות אמיתיות. אתם בוחרים.", "The same store item from other creators — ordered by real evidence. You choose.")} />
+          <Rail item="minmax(176px, 210px)">{offers.map(({ product: o, evidence }) => <ProductCard key={o.id} product={o} creator={graph.creatorById.get(o.marketerId)} why={evidence} />)}</Rail>
         </Section>
       ) : null}
       {related.length ? (
@@ -1228,6 +1271,23 @@ export function SearchPage({ graph }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft]);
   const res = useMemo(() => searchGraph(graph, q), [graph, q]);
+  const [visual, setVisual] = useState({ state: "idle", matches: [], preview: "" });
+  async function searchByImage(file) {
+    setVisual({ state: "working", matches: [], preview: URL.createObjectURL(file) });
+    try {
+      const { fileSignature, visualMatches } = await import("../../lib/visualSearch.js");
+      const sig = await fileSignature(file);
+      // Image + words/price: compare only within what the words and price already allow.
+      const pool = q.trim() && res.products.length ? res.products : graph.products.filter((p) => {
+        const v = Number(p.price); const it = res.intent || {};
+        return (it.maxPrice == null || (v > 0 && v <= it.maxPrice)) && (it.minPrice == null || v >= it.minPrice);
+      });
+      const matches = await visualMatches(sig, pool, { limit: 12 });
+      setVisual((v) => ({ ...v, state: "done", matches }));
+    } catch {
+      setVisual((v) => ({ ...v, state: "failed", matches: [] }));
+    }
+  }
   const suggestions = useMemo(() => {
     const counts = new Map();
     for (const p of graph.products) for (const t of Array.isArray(p.tags) ? p.tags : []) if (typeof t === "string") counts.set(t, (counts.get(t) || 0) + 1);
@@ -1240,9 +1300,35 @@ export function SearchPage({ graph }) {
         <h1 className="lx-display text-[34px] md:text-[48px]">{L("מה מחפשים?", "What are you looking for?")}</h1>
         <p className="lx-mute mt-2 text-[15px]">{L("מוצרים, יוצרים, אוספים וקטגוריות — במקום אחד.", "Products, creators, collections and categories — in one place.")}</p>
         <div className="mt-5 max-w-3xl">
-          <SearchBox value={draft} onChange={setDraft} onSubmit={(v) => setQParam(v.trim())} autoFocus big />
+          <SearchBox value={draft} onChange={setDraft} onSubmit={(v) => setQParam(v.trim())} autoFocus big onImage={searchByImage} />
+          <p className="lx-mute mt-2 text-[12.5px]">{L("כתבו, דברו 🎙️, צלמו או הדביקו קישור — אפשר גם „סט יוגה עד 150 שקל”.", "Type, speak, snap or paste a link — e.g. “yoga set under 150”.")}</p>
         </div>
       </div>
+      {visual.state !== "idle" ? (
+        <div className="lx-wrap mt-6">
+          <div className="flex items-center gap-3">
+            {visual.preview ? <img src={visual.preview} alt={L("התמונה שלכם", "Your photo")} style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 12 }} /> : null}
+            <div>
+              <p className="text-sm font-bold">{L("חיפוש לפי תמונה", "Search by image")}</p>
+              <p className="lx-mute text-[12px]">{L("התמונה נבדקת אצלכם במכשיר ומושווית לתמונות המוצרים בקטלוג. זו התאמה חזותית — לא זיהוי מוצר.", "Your photo is compared on your device with the catalog's product photos. A visual match — not product recognition.")}</p>
+            </div>
+            <button type="button" className="lx-chip ms-auto" onClick={() => setVisual({ state: "idle", matches: [], preview: "" })}>{L("ניקוי", "Clear")}</button>
+          </div>
+          {visual.state === "working" ? <p className="lx-mute mt-3 text-sm" role="status">{L("משווים לתמונות בקטלוג…", "Comparing with catalog photos…")}</p> : null}
+          {visual.state === "failed" ? <p className="mt-3 text-sm" role="status">{L("לא הצלחנו לקרוא את התמונה. נסו תמונה אחרת.", "We couldn't read that image. Try another one.")}</p> : null}
+          {visual.state === "done" && !visual.matches.length ? <p className="mt-3 text-sm" role="status">{L("לא מצאנו מוצר שנראה דומה בקטלוג. נסו לכתוב מה מחפשים.", "Nothing in the catalog looks similar. Try describing it.")}</p> : null}
+          {visual.matches.length ? (
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
+              {visual.matches.map((m) => (
+                <div key={m.product.id}>
+                  <span className="lx-badge mb-1.5 inline-block text-[11px]">{lang === "he" ? MATCH_LABEL_HE[m.label] : MATCH_LABEL_EN[m.label]} · {Math.round(m.similarity * 100)}%</span>
+                  <ProductCard product={m.product} creator={graph.creatorById.get(m.product.marketerId)} why={evidenceOf(m.product, graph)} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {!q ? (
         <div className="lx-wrap mt-8 space-y-8">
@@ -1266,6 +1352,19 @@ export function SearchPage({ graph }) {
       ) : (
         <div className="lx-wrap mt-8">
           <p className="lx-mute text-sm" role="status" aria-live="polite">{res.total ? L(`${res.total} תוצאות עבור „${q}”`, `${res.total} results for “${q}”`) : ""}</p>
+          {res.link ? (
+            <p className="mt-2 text-[13px]" role="status">{res.link.products.length
+              ? L("זיהינו את הקישור — זה המוצר שהוא מוביל אליו" + (res.link.products.length > 1 ? `, עם ${res.link.products.length} המלצות.` : "."), "We recognised the link — this is the product it leads to.")
+              : L("הקישור הזה לא מוביל למוצר שנמצא כרגע ב-LikeLink. נסו לכתוב את שם המוצר.", "This link doesn't lead to a product on LikeLink yet. Try its name.")}</p>
+          ) : null}
+          {res.intent && (res.intent.maxPrice != null || res.intent.minPrice != null) ? (
+            <div className="mt-2 flex flex-wrap gap-2" aria-label={L("הבנו מהחיפוש", "Understood from your search")}>
+              <span className="lx-mute text-[12.5px]">{L("הבנו:", "Understood:")}</span>
+              {res.intent.maxPrice != null ? <span className="lx-chip">{L(`עד ₪${res.intent.maxPrice}`, `Up to ₪${res.intent.maxPrice}`)}</span> : null}
+              {res.intent.minPrice != null ? <span className="lx-chip">{L(`מ־₪${res.intent.minPrice}`, `From ₪${res.intent.minPrice}`)}</span> : null}
+              {res.intent.text ? <span className="lx-chip">„{res.intent.text}”</span> : null}
+            </div>
+          ) : null}
           {!res.total ? (
             <div className="mt-4">
               <EmptyState icon={Search} title={L(`לא מצאנו תוצאות עבור „${q}”`, `No results for “${q}”`)} body={L("נסו מילה אחרת, קטגוריה, או שם של יוצר/ת.", "Try another word, a category, or a creator's name.")}>

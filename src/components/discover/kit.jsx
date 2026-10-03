@@ -521,6 +521,7 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
           <div className="flex flex-wrap gap-1 pt-0.5" aria-label={L("למה המוצר כאן", "Why this product is here")}>
             <span className="lx-mute text-[10.5px] font-semibold">{L("למה כאן:", "Why here:")}</span>
             {why.signals.slice(0, 3).map((k) => <span key={k} className="lx-badge text-[10px]" style={{ padding: "1px 6px" }}>{lang === "he" ? EVIDENCE_LABELS[k].he : EVIDENCE_LABELS[k].en}</span>)}
+            {why.offers > 1 ? <span className="lx-badge lx-badge-rose text-[10px]" style={{ padding: "1px 6px" }}>{L(`${why.offers} המלצות לאותו מוצר`, `${why.offers} offers`)}</span> : null}
           </div>
         ) : null}
         {saleModelOf(product) === "affiliate" ? (
