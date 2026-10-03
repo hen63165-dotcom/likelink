@@ -136,11 +136,21 @@ export default async function handler(req, res) {
             })),
           },
         ],
-        application_context: {
-          return_url: `${origin}/?paypal_return=1`,
-          cancel_url: `${origin}/`,
-          user_action: "PAY_NOW",
-          shipping_preference: "NO_SHIPPING",
+        // GUEST_CHECKOUT opens PayPal's card form first, so a buyer can pay with a
+        // credit/debit card without a PayPal account (PayPal processes the card;
+        // LikeLink never sees card data). PayPal decides per buyer/country.
+        payment_source: {
+          paypal: {
+            experience_context: {
+              brand_name: "LikeLink",
+              locale: "he-IL",
+              landing_page: "GUEST_CHECKOUT",
+              shipping_preference: "NO_SHIPPING",
+              user_action: "PAY_NOW",
+              return_url: `${origin}/?paypal_return=1`,
+              cancel_url: `${origin}/`,
+            },
+          },
         },
       }),
       signal: AbortSignal.timeout(10000),
@@ -154,7 +164,8 @@ export default async function handler(req, res) {
     }
 
     const order = await orderRes.json();
-    const approvalLink = order.links?.find((l) => l.rel === "approve")?.href;
+    // With payment_source the buyer link is "payer-action" ("approve" on older responses).
+    const approvalLink = order.links?.find((l) => l.rel === "payer-action" || l.rel === "approve")?.href;
     if (!order.id || !approvalLink) { json(res, { ok: false, error: "paypal_order_failed" }, 502, req); return; }
 
     // The authoritative record capture-order will use (and nothing else).
