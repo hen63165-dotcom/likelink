@@ -73,6 +73,12 @@ export function Go({ to, children, onClick, ...rest }) {
         if (/^\/(studio|sell)(\/|$|\?)/.test(String(to || ""))) trackFunnel("studio_cta", typeof window !== "undefined" ? window.location.pathname : "");
         if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
+        // A link to the page you're already on (e.g. the logo on the home page)
+        // still answers the tap: it scrolls back to the top.
+        if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` === String(to)) {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         navigate(to);
       }}
       {...rest}
