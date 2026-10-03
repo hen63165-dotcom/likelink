@@ -51,6 +51,9 @@ async function main() {
     try {
       await page.goto(link, { waitUntil: "domcontentloaded", timeout: 60_000 });
       await page.waitForTimeout(6000);
+      // The price block renders late on some visits: wait for it (up to 20 s more).
+      // A CAPTCHA page is still detected below and stops the run — never bypassed.
+      await page.waitForSelector('[class*="price-default--current"], [class*="product-price-current"], [class*="price--current"]', { timeout: 20_000 }).catch(() => null);
       const found = await page.evaluate(() => {
         const q = (s) => document.querySelector(s);
         // Every price-like element with its class, so the real price can be told
