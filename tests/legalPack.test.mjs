@@ -76,12 +76,17 @@ test("the cancellation policy states exactly the terms the server applies", asyn
   assert.match(html, /אינו מתחדש אוטומטית/);
 });
 
-test("owner placeholders are reported (they must be filled before paid plans open)", async () => {
+test("owner details: no placeholder left, identity only on lawful request by e-mail (owner's privacy)", async () => {
+  // The owner asked that her personal name, address and ID never appear on the
+  // site: the documents name "the owner of LikeLink" and route identity
+  // requests to the contact e-mail. A placeholder must never reach a page.
   const { getLegalDocuments } = await import("../src/lib/legal/documents.js");
   const text = JSON.stringify(getLegalDocuments());
   const placeholders = [...new Set([...text.matchAll(/\[OWNER_INPUT: ([^\]]+)\]/g)].map((m) => m[1]))];
-  assert.ok(placeholders.length > 0);
-  console.log(`# ${placeholders.length} owner placeholders remain: ${placeholders.join(" | ")}`);
+  assert.deepEqual(placeholders, []);
+  assert.match(text, /בעלת האתר LikeLink/);
+  assert.match(text, /יימסרו לפי דרישה כדין בפנייה בדוא/);
+  assert.match(text, /hen63165@gmail\.com/);
 });
 
 // ── acceptance API ───────────────────────────────────────────────────────────

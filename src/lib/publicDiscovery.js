@@ -131,8 +131,14 @@ function recentEvents(clicks = [], now = Date.now()) {
  */
 export function buildPublicGraph({ products = [], marketers = [], collections = [], clicks = [], videos = [], now = Date.now() } = {}) {
   const creatorsList = Array.isArray(marketers) ? marketers.filter((m) => m && m.id) : [];
-  const pub = (Array.isArray(products) ? products : [])
+  const all = Array.isArray(products) ? products : [];
+  const sharedLinks = sharedAffiliateLinks(all);
+  const pub = all
     .filter((p) => isPublicCatalogProduct(p, creatorsList))
+    // A product whose affiliate link is shared by other products does not lead
+    // to THIS product (it opens the store's home page): it is not shown to
+    // buyers at all — a listing must lead where it says (catalogIntegrity.js).
+    .filter((p) => isPromotable(p, all, sharedLinks))
     .map((p) => ({
       ...p,
       displayTitle: cleanTitle(p.title) || textOf(p.title),
@@ -296,7 +302,7 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
   }
   reels.sort((a, b) => b.createdAt - a.createdAt);
 
-  return { products: pub, byId, creators, creatorById, categories, collections: boards, trends, attention, deals, reels };
+  return { products: pub, byId, creators, creatorById, categories, collections: boards, trends, attention, deals, reels, sharedLinks };
 }
 
 function score(p) {

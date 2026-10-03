@@ -123,13 +123,17 @@ export function buildLedger({ videos = [], products = [], marketers = [], clicks
     const asset = videoAsset(v, product);
     const creator = arr(marketers).find((m) => m?.id === (product?.marketerId || v.marketerId)) || null;
     const isPublicProduct = Boolean(product && graph.byId.has(String(product.id)));
+    // A listed product hidden only because its link is shared is a catalog-integrity block, not a visibility one.
+    const sharedLinkHidden = Boolean(product && !isPublicProduct && graph.sharedLinks?.has(String(product.affiliateUrl || "").trim()));
     const reel = reelByUrl.get(asset.assetUrl) || null;
 
     // 2. truth + permissions
     const truthOk = asset.truth === MEDIA_TRUTH.SYNTHETIC_ANIMATION ? v.synthetic === true : asset.truth === MEDIA_TRUTH.REAL_VIDEO;
     const blockedReason = !truthOk
       ? "truth_violation"
-      : !isPublicProduct
+      : sharedLinkHidden
+        ? "catalog_integrity"
+        : !isPublicProduct
         ? "product_not_public"
         : !reel
           ? "catalog_integrity" // shared affiliate link or stock image (publicDiscovery reelWorthy)
