@@ -25,7 +25,7 @@ import {
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useVideos } from "../../context/VideoContext";
-import { buildPublicGraph, categoryName, formatPrice, REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
+import { buildPublicGraph, categoryName, formatPrice, REEL_STYLE_LABELS, EVIDENCE_LABELS } from "../../lib/publicDiscovery.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
@@ -488,7 +488,7 @@ export function PriceLine({ product, large = false }) {
 }
 
 /** ProductCard — media first, then product, creator, price, merchant, disclosure. */
-export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, showCreator = true }) {
+export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, showCreator = true, why = null }) {
   const { L, lang } = useL();
   if (!product) return null;
   const to = productPath(product.id);
@@ -517,6 +517,12 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
           <PriceLine product={product} />
           {product.merchant ? <span className="lx-mute truncate text-[11.5px]">{product.merchant}</span> : null}
         </div>
+        {why && why.signals.length ? (
+          <div className="flex flex-wrap gap-1 pt-0.5" aria-label={L("למה המוצר כאן", "Why this product is here")}>
+            <span className="lx-mute text-[10.5px] font-semibold">{L("למה כאן:", "Why here:")}</span>
+            {why.signals.slice(0, 3).map((k) => <span key={k} className="lx-badge text-[10px]" style={{ padding: "1px 6px" }}>{lang === "he" ? EVIDENCE_LABELS[k].he : EVIDENCE_LABELS[k].en}</span>)}
+          </div>
+        ) : null}
         {saleModelOf(product) === "affiliate" ? (
           <p className="lx-mute text-[10.5px]" title={lang === "he" ? AFFILIATE_DISCLOSURE_HE : undefined}>
             {L("קישור שותפים · עמלה ליוצר/ת", "Affiliate link · creator may earn")}

@@ -219,3 +219,25 @@ test("index.html boots the app and its pre-hydration fallback is the public site
   assert.ok(!html.includes('class="ll-studio"'), "the Studio is not the public first paint");
   assert.ok(!/top creators|המובילות בישראל|הכי גדולה/.test(html), "no unprovable superlatives in public meta");
 });
+
+test("search orders equally relevant products by real evidence and explains why — no invented signals", async () => {
+  const { buildPublicGraph, searchGraph, evidenceOf, EVIDENCE_LABELS } = await import("../src/lib/publicDiscovery.js");
+  const m = { id: "m1", name: "A", slug: "a", status: "approved", verified: true };
+  const base = { status: "approved", marketerId: "m1", category: "Beauty", price: 40, createdAt: 1 };
+  const products = [
+    { ...base, id: "weak", title: "סרום פנים", image: "https://images.unsplash.com/photo-1", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 5 },
+    { ...base, id: "weak2", title: "קרם לילה", image: "https://images.unsplash.com/photo-2", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 4 },
+    { ...base, id: "strong", title: "סרום פנים", image: "https://ae01.alicdn.com/kf/x.jpg", affiliateUrl: "https://s.click.aliexpress.com/e/_own", createdAt: 1 },
+  ];
+  const g = buildPublicGraph({ products, marketers: [m], clicks: [{ productId: "strong", ts: Date.now(), type: "click" }] });
+  const r = searchGraph(g, "סרום");
+  assert.deepEqual(r.products.map((p) => p.id), ["strong", "weak"], "same relevance → more evidence first, newer is not enough");
+  const why = r.why.get("strong").signals;
+  for (const k of ["real_photo", "own_link", "price", "verified", "attention"]) assert.ok(why.includes(k), k);
+  const weak = r.why.get("weak").signals;
+  assert.ok(!weak.includes("real_photo"), "a stock image is not a real photo");
+  assert.ok(!weak.includes("own_link"), "a shared link is not a direct product link");
+  assert.ok(!weak.includes("attention"), "no recorded events → no attention signal");
+  assert.ok(Object.keys(EVIDENCE_LABELS).every((k) => !/כוכב|ביקורת|נמכר|star|review|sold/i.test(EVIDENCE_LABELS[k].he + EVIDENCE_LABELS[k].en)), "no stars, reviews or sales claims");
+  assert.deepEqual(evidenceOf(null, g).signals, []);
+});
