@@ -182,6 +182,12 @@ async function main() {
       }
       // Shop links: https only (checked as text — never fetched, see above).
       for (const href of shop.keys()) if (!/^https:\/\//i.test(href)) issues.push(`shop link not https: ${href.slice(0, 80)}`);
+      // The owner console is private: a visitor without the owner session sees "not found".
+      await page.goto(BASE + "/owner", { waitUntil: "load", timeout: 45000 }).catch(() => null);
+      await page.waitForTimeout(3000);
+      const ownerView = await page.evaluate(() => document.body.innerText || "");
+      if (!/העמוד לא נמצא/.test(ownerView) || /לוח בעלת האתר|יצירה \/ אימות מסלולים/.test(ownerView)) issues.push("/owner is visible to an anonymous visitor");
+      else summary("- /owner: anonymous visitor sees 'page not found' (private)");
       // Logo tap on the home page.
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
       await page.waitForTimeout(1500);
