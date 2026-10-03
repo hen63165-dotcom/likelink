@@ -188,7 +188,13 @@ let productCache = null;
  * Plan). Idempotent: adopts an existing product with the same name, creates it
  * once otherwise, caches in-memory + KV. Creating a product NEVER moves money.
  */
+// Why the last product lookup/creation failed (PayPal status + issue name only,
+// never a credential) — shown to the owner in the provisioning report.
+let lastProductError = null;
+export const productFailure = () => lastProductError;
+
 export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
+  lastProductError = null;
   if (productCache) return productCache;
   if (!paypalConfigured()) return null;
   try {
@@ -201,7 +207,7 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
     }
   } catch { /* ignore — fall through to API */ }
   const token = await getPayPalToken();
-  if (!token) return null;
+  if (!token) { lastProductError = "paypal_auth_failed"; return null; }
   // Adopt LikeLink's own product first (exact name "LikeLink Cloud"; every
   // page is checked). Other products in the account are never touched. When
   // the list cannot be read we cannot know → nothing is created (no duplicate).
@@ -211,9 +217,13 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(15000),
       });
-      if (!listRes.ok) return null;
+      if (!listRes.ok) {
+        const e = await listRes.json().catch(() => ({}));
+        lastProductError = `product_list_${listRes.status}${e?.name ? `:${String(e.name).slice(0, 40)}` : ""}`;
+        return null;
+      }
       const listData = await listRes.json().catch(() => null);
-      if (!listData) return null;
+      if (!listData) { lastProductError = "product_list_bad_json"; return null; }
       const found = (listData.products || []).find((p) => p.name === PRODUCT_NAME);
       if (found?.id) {
         productCache = found.id;
@@ -222,7 +232,7 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
       }
       if (!(Number(listData.total_pages) > page)) break;
     }
-  } catch { return null; }
+  } catch { lastProductError = "product_list_network"; return null; }
   // First run only: create the platform product once.
   try {
     const res = await fetch(`${paypalBase()}/v1/catalog/products`, {
@@ -241,7 +251,8 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
       if (kvSet) { try { await kvSet(PRODUCT_KV_KEY, data.id); } catch { /* best-effort */ } }
       return data.id;
     }
-  } catch { /* ignore */ }
+    lastProductError = `product_create_${res.status}${data?.name ? `:${String(data.name).slice(0, 40)}` : ""}${data?.details?.[0]?.issue ? `:${String(data.details[0].issue).slice(0, 40)}` : ""}`;
+  } catch { lastProductError = "product_create_network"; }
   return null;
 }
 
@@ -403,7 +414,7 @@ export async function ensureBillingPlans({ kvGet, kvSet, report = null } = {}) {
   if (valid && plansComplete(valid)) { plansCache = valid; return valid; }
 
   const productId = await ensurePayPalProduct({ kvGet, kvSet });
-  if (!productId) { report?.failed.push({ key: "product", error: "paypal_product_failed" }); return valid || {}; }
+  if (!productId) { report?.failed.push({ key: "product", error: "paypal_product_failed", detail: lastProductError }); return valid || {}; }
 
   const defs = getProvisionedPlans();
   const out = { ...(valid || {}), currency: PLAN_CURRENCY, productId };
