@@ -23,6 +23,8 @@ import {
   buildReelRecords,
   RENDER_PROVIDER,
   RENDERER_VERSION,
+  AI_LOOK_VERSION,
+  AI_SCENE_STYLES,
   STYLE_ORDER,
   HOOK_QUESTIONS,
   hookQuestion,
@@ -136,7 +138,9 @@ test("concepts use only real product fields and carry the disclosure", () => {
 
 test("the plan never repeats a registered (product, style) and skips non-public products", () => {
   const products = [product("p1"), product("p2"), product("draft", { status: "pending" }), product("noimg", { image: "" })];
-  const videos = STYLE_ORDER.map((style) => ({ source: RENDER_PROVIDER, style, productTags: [{ productId: "p1" }] }));
+  const videos = STYLE_ORDER.map((style) => ({ source: RENDER_PROVIDER, style, look: AI_LOOK_VERSION, productTags: [{ productId: "p1" }] }));
+  // An AI reel in an older look is re-rendered once in the current one.
+  assert.ok(planRenders({ products: [product("p1")], marketers: [creator], videos: videos.map((v) => ({ ...v, look: undefined })), limit: 6 }).plan.some((x) => AI_SCENE_STYLES.includes(x.style)));
   const { plan } = planRenders({ products, marketers: [creator], videos, limit: 5 });
   assert.deepEqual(plan.map((x) => x.productId), ["p2"], "p1 has every style; draft/no-image are not eligible");
   const partial = planRenders({ products: [product("p1")], marketers: [creator], videos: [videos[0]], limit: 1 }).plan;

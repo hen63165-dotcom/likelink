@@ -343,10 +343,14 @@ export function buildReelConcept({ product, creator, style }) {
 }
 
 /** Native reels already registered for each product, by style. */
+/** The current AI scene look. AI reels stamped with an older (or no) look are re-rendered once in this one. */
+export const AI_LOOK_VERSION = "street-v3";
+
 export function registeredStyles(videos = []) {
   const map = new Map();
   for (const v of Array.isArray(videos) ? videos : []) {
     if (v?.source !== RENDER_PROVIDER || !STYLE_ORDER.includes(v.style)) continue;
+    if (AI_SCENE_STYLES.includes(v.style) && v.look !== AI_LOOK_VERSION) continue;
     for (const t of Array.isArray(v.productTags) ? v.productTags : []) {
       if (!t?.productId) continue;
       if (!map.has(t.productId)) map.set(t.productId, new Set());
@@ -507,6 +511,7 @@ export function buildReelRecords({ product, style, videoUrl, posterUrl, bytes, s
     width: REEL_WIDTH,
     height: REEL_HEIGHT,
     createdAt: now,
+    ...(AI_SCENE_STYLES.includes(style) ? { look: AI_LOOK_VERSION } : {}),
     // Style, prompt, product reference and generation status of this asset.
     ...(merged ? { creative: { ...merged, generationStatus: "GENERATED", provider } } : {}),
   };
