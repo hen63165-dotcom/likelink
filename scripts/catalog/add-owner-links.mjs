@@ -58,16 +58,19 @@ async function main() {
         const all = [...document.querySelectorAll('[class*="price"]')]
           .filter((el) => el.children.length <= 6 && /(₪|ILS|\$)\s*[\d.,]+|[\d.,]+\s*₪/.test(el.textContent || "") && (el.textContent || "").length < 60)
           .map((el) => ({ cls: String(el.className || "").slice(0, 70), text: el.textContent.trim().slice(0, 40), banner: Boolean(el.closest('[class*="banner"], [class*="welcome"], [class*="newuser"], [class*="new-user"], [class*="coupon"]')) }));
-        const main = all.find((x) => !x.banner && /price-default--current|product-price-current|price--currentPriceText|price--current/.test(x.cls));
+        const CURRENT = /price-default--current|product-price-current|price--currentPriceText|price--current/;
+        // AliExpress now renders even the normal price inside a "banner" wrapper,
+        // so the current price is looked up anywhere; the promo check below decides.
+        const main = all.find((x) => !x.banner && CURRENT.test(x.cls)) || all.find((x) => CURRENT.test(x.cls));
         // A first-order / welcome price is shown to a new visitor only; it is not
         // the product's price. If the price area mentions it, no price is taken.
         const mainEl = main ? [...document.querySelectorAll('[class*="price"]')].find((el) => el.textContent.trim().slice(0, 40) === main.text) : null;
         let area = mainEl;
         for (let i = 0; i < 4 && area?.parentElement; i++) area = area.parentElement;
-        const welcome = /welcome|new (user|shopper|customer|buyer)|first order|לקונ(ה|ים) חדש|משתמש(ים)? חדש|הזמנה ראשונה|ברוכים הבאים/i.test(area?.innerText || "");
-        // With a welcome deal on the page, the regular price is the struck-through
-        // one: every buyer pays at most that. It is taken as the product's price.
-        const original = welcome ? all.find((x) => /original|del|origin/i.test(x.cls)) : null;
+        // A welcome / new-shopper price or a time-limited promo ("Ends …", "Save ₪…")
+        // is not the product's price: the regular, struck-through one is taken.
+        const welcome = /welcome|new (user|shopper|customer|buyer)|first order|\bends\b|\bsave\b|לקונ(ה|ים) חדש|משתמש(ים)? חדש|הזמנה ראשונה|ברוכים הבאים|מסתיים|חסכו/i.test(area?.innerText || "") || Boolean(main?.banner && all.some((x) => /original/i.test(x.cls)));
+        const original = welcome ? all.find((x) => /original|del|origin/i.test(x.cls) && !/save|ends/i.test(x.text)) : null;
         const priceEl = !main ? null : welcome ? (original ? { textContent: original.text } : null) : { textContent: main.text };
         return {
           prices: all.slice(0, 12),
