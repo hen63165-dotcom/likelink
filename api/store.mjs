@@ -719,7 +719,12 @@ async function subsAuthHandler(req, res, sub, body) {
       }
       // LAW 05: the plan comes only from the canonical entitlement resolver —
       // a pending / expired / unverified record never unlocks a paid plan.
-      const ent = resolveEntitlement({ subscription: expiredNow ? { ...mine, status: "expired" } : mine, now: Date.now() });
+      // The platform owner (OWNER_EMAIL, matched on the server-verified e-mail)
+      // resolves to the internal "owner" plan — the same rule the quotas use —
+      // so the studio shows her the owner-only controls (e.g. PayPal plan setup).
+      const ownerEmail = String(process.env.OWNER_EMAIL || "").trim().toLowerCase();
+      const isPlatformOwner = Boolean(ownerEmail && authUser.email && String(authUser.email).trim().toLowerCase() === ownerEmail);
+      const ent = resolveEntitlement({ subscription: expiredNow ? { ...mine, status: "expired" } : mine, isPlatformOwner, now: Date.now() });
       return json(res, {
         ok: true,
         subscription: mine || null,
