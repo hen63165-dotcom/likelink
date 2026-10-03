@@ -18,9 +18,10 @@ export default function OwnerConsole() {
     let alive = true;
     (async () => {
       const token = await getSessionToken().catch(() => null);
-      if (!token) { if (alive) setState({ status: "hidden" }); return; }
+      if (!token) { if (alive) setState({ status: "signed_out" }); return; }
       const me = await fetchMySubscription(token).catch(() => null);
-      if (!me?.ok || me.plan !== "owner") { if (alive) setState({ status: "hidden" }); return; }
+      if (!me?.ok) { if (alive) setState({ status: "error" }); return; }
+      if (me.plan !== "owner") { if (alive) setState({ status: "hidden" }); return; }
       const plans = await fetchPlans().catch(() => null);
       if (alive) setState({ status: "owner", paypalReady: Boolean(plans?.ok && plans.paypalConfigured), paypalConnected: Boolean(plans?.paypalConnected) });
     })();
@@ -29,6 +30,17 @@ export default function OwnerConsole() {
 
   if (state.status === "checking") {
     return <div dir="rtl" className="min-h-[60vh] flex items-center justify-center"><Loader2 className="animate-spin" size={22} /></div>;
+  }
+  // A signed-out visitor is told to sign in (the page itself stays hidden); the
+  // owner controls render only for the server-confirmed owner.
+  if (state.status === "signed_out" || state.status === "error") {
+    return (
+      <div dir="rtl" className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-center p-6">
+        <h1 className="text-xl font-bold">{state.status === "signed_out" ? "צריך להתחבר" : "לא ניתן לבדוק כרגע"}</h1>
+        <p className="text-sm opacity-80">{state.status === "signed_out" ? "התחברי קודם בסטודיו, באותו דפדפן, ואז חזרי לעמוד הזה." : "נסי לרענן בעוד רגע."}</p>
+        <a href="/studio" className="underline">לסטודיו</a>
+      </div>
+    );
   }
   if (state.status !== "owner") {
     return (

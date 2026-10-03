@@ -18,7 +18,8 @@ test("owner console: private route, noindex, server-confirmed owner only", async
   assert.match(app, /tab === "admin" \|\| tab === "owner"/, "noindex like /admin");
   const consoleSrc = read("src/components/admin/OwnerConsole.jsx");
   assert.match(consoleSrc, /me\.plan !== "owner"/, "renders only for the server-confirmed owner plan");
-  assert.match(consoleSrc, /העמוד לא נמצא/, "everyone else sees not-found");
+  assert.match(consoleSrc, /העמוד לא נמצא/, "a signed-in non-owner sees not-found");
+  assert.match(consoleSrc, /signed_out/, "a signed-out visitor is told to sign in");
   // The Studio shows the owner only a link, never the owner controls themselves.
   const checkout = read("src/components/sell/PlanCheckout.jsx");
   assert.doesNotMatch(checkout, /PayPalPlansCard/);

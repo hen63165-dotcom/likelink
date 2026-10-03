@@ -186,8 +186,8 @@ async function main() {
       await page.goto(BASE + "/owner", { waitUntil: "load", timeout: 45000 }).catch(() => null);
       await page.waitForTimeout(3000);
       const ownerView = await page.evaluate(() => document.body.innerText || "");
-      if (!/העמוד לא נמצא/.test(ownerView) || /לוח בעלת האתר|יצירה \/ אימות מסלולים/.test(ownerView)) issues.push("/owner is visible to an anonymous visitor");
-      else summary("- /owner: anonymous visitor sees 'page not found' (private)");
+      if (/לוח בעלת האתר|יצירה \/ אימות מסלולים/.test(ownerView) || !/צריך להתחבר|העמוד לא נמצא/.test(ownerView)) issues.push("/owner is visible to an anonymous visitor");
+      else summary("- /owner: anonymous visitor sees no owner controls (private)");
       // Logo tap on the home page.
       await page.goto(BASE + "/", { waitUntil: "load", timeout: 45000 }).catch(() => null);
       await page.waitForTimeout(1500);
