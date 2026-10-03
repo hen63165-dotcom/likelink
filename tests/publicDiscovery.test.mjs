@@ -130,7 +130,7 @@ test("a reel is listed only for a product whose link is its own and whose image 
     now: NOW,
   });
   assert.deepEqual(g.reels.map((r) => r.id).sort(), ["v-good", "v-untagged"]);
-  assert.equal(g.products.length, 4, "the products themselves stay listed — only promotion is withheld");
+  assert.deepEqual(g.products.map((p) => p.id).sort(), ["ok", "st"], "a product whose link is shared (leads to the store home page) is not listed at all; a stock image stays listed but never gets a reel");
 });
 
 test("collections state their rule and contain only public products", () => {
@@ -225,8 +225,9 @@ test("search orders equally relevant products by real evidence and explains why 
   const m = { id: "m1", name: "A", slug: "a", status: "approved", verified: true };
   const base = { status: "approved", marketerId: "m1", category: "Beauty", price: 40, createdAt: 1 };
   const products = [
-    { ...base, id: "weak", title: "סרום פנים", image: "https://images.unsplash.com/photo-1", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 5 },
-    { ...base, id: "weak2", title: "קרם לילה", image: "https://images.unsplash.com/photo-2", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 4 },
+    { ...base, id: "weak", title: "סרום פנים", image: "https://images.unsplash.com/photo-1", affiliateUrl: "https://s.click.aliexpress.com/e/_weak", createdAt: 5 },
+    { ...base, id: "hidden1", title: "סרום פנים", image: "https://ae01.alicdn.com/kf/h.jpg", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 6 },
+    { ...base, id: "hidden2", title: "קרם לילה", image: "https://ae01.alicdn.com/kf/h2.jpg", affiliateUrl: "https://s.click.aliexpress.com/e/_shared", createdAt: 4 },
     { ...base, id: "strong", title: "סרום פנים", image: "https://ae01.alicdn.com/kf/x.jpg", affiliateUrl: "https://s.click.aliexpress.com/e/_own", createdAt: 1 },
   ];
   const g = buildPublicGraph({ products, marketers: [m], clicks: [{ productId: "strong", ts: Date.now(), type: "click" }] });
@@ -236,7 +237,8 @@ test("search orders equally relevant products by real evidence and explains why 
   for (const k of ["real_photo", "own_link", "price", "verified", "attention"]) assert.ok(why.includes(k), k);
   const weak = r.why.get("weak").signals;
   assert.ok(!weak.includes("real_photo"), "a stock image is not a real photo");
-  assert.ok(!weak.includes("own_link"), "a shared link is not a direct product link");
+  assert.ok(weak.includes("own_link"));
+  assert.ok(!r.products.some((p) => p.id.startsWith("hidden")), "products whose link is shared never reach search results");
   assert.ok(!weak.includes("attention"), "no recorded events → no attention signal");
   assert.ok(Object.keys(EVIDENCE_LABELS).every((k) => !/כוכב|ביקורת|נמכר|star|review|sold/i.test(EVIDENCE_LABELS[k].he + EVIDENCE_LABELS[k].en)), "no stars, reviews or sales claims");
   assert.deepEqual(evidenceOf(null, g).signals, []);
