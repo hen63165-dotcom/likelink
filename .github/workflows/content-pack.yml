@@ -1,0 +1,42 @@
+# LikeLink content pack: a "picked this week" carousel from the live product
+# pages + a real screen-recording reel of the live site → public/content/<date>,
+# committed to the working branch for review (it reaches the site, and
+# Instagram/Facebook, only after review). Manual or on changes to the renderer.
+name: Content pack render
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/content/**", ".github/workflows/content-pack.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: content-pack
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/likelink2-design-execution-f0ga6q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core fonts-dejavu-core >/dev/null
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium >/dev/null
+      - name: Render
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+        run: node scripts/media/content/render-pack.mjs --out "public/content/$(date -u +%Y-%m-%d)"
+      - name: Commit for review
+        run: |
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add public/content
+          git commit -m "Content pack: rendered for review" || exit 0
+          git pull --rebase -q origin claude/likelink2-design-execution-f0ga6q && git push -q origin HEAD:claude/likelink2-design-execution-f0ga6q
