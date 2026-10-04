@@ -282,3 +282,13 @@ test("a pasted link resolves only to the exact item it points to — never a gue
   assert.equal(none.total, 0);
   assert.equal(none.link.kind, "unknown");
 });
+
+test("a store's rating / review / sales line is never shown as a fact on a public page", async () => {
+  const { stripUnverifiedClaims, buildPublicGraph } = await import("../src/lib/publicDiscovery.js");
+  assert.equal(stripUnverifiedClaims("עגילי חן מכסף. 4.8 כוכבים מעל 1,400 ביקורות. מתאים ליומיום."), "עגילי חן מכסף. מתאים ליומיום.");
+  assert.equal(stripUnverifiedClaims("Sterling 925 ring. 10,000+ sold! Gift box."), "Sterling 925 ring. Gift box.");
+  assert.equal(stripUnverifiedClaims("שרשרת מצופה 14K באורך 45 ס\"מ."), "שרשרת מצופה 14K באורך 45 ס\"מ.", "plain facts stay whole (decimals included)");
+  const src = (await import("node:fs")).readFileSync(new URL("../src/lib/publicDiscovery.js", import.meta.url), "utf8");
+  assert.match(src, /description: stripUnverifiedClaims\(p\.description\)/, "every public product passes through the filter");
+  void buildPublicGraph;
+});
