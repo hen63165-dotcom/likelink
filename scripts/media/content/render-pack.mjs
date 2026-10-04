@@ -102,9 +102,14 @@ const caption = (lines, accent = "#d22f5d") => page.evaluate(([ls, a, ui]) => {
   }
   el.innerHTML = ls.map((l, i) => `<span style="background:${i === 0 ? a : "#fff"};color:${i === 0 ? "#fff" : "#17131f"};font-weight:900;font-size:21px;padding:6px 14px;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)">${l}</span>`).join("");
 }, [lines, accent, UI]);
-const t0 = Date.now();
+const tRec = Date.now(); // the recording starts with the page
 await page.goto(`${SITE}/?utm_source=content_render`, { waitUntil: "networkidle", timeout: 60_000 }).catch(() => null);
+await page.waitForSelector("#lx-q", { timeout: 20_000 }).catch(() => null);
 await caption(["ראיתי צמיד ברילס", "ולא ידעתי איפה לקנות"]);
+await page.waitForTimeout(150);
+// The reel starts here: the site is loaded and the question is on screen (no loading frames).
+const startS = (Date.now() - tRec) / 1000;
+const t0 = Date.now();
 await page.waitForTimeout(2600);
 await caption(["כותבים ב-LikeLink2"]);
 const box = page.locator("#lx-q").first();
@@ -131,11 +136,11 @@ const hat = "0.10*(2*random(0)-1)*exp(-70*mod(t+0.25,0.5))";
 const pad = "0.05*(sin(2*PI*220*t)+sin(2*PI*277.2*t)+sin(2*PI*329.6*t))*(0.65+0.35*sin(2*PI*0.25*t))";
 const beat = `0.5*(${kick}+${hat}+${pad})`.replace(/,/g, "\\,");
 const mp4 = path.join(OUT, "screen-reel.mp4");
-await run("ffmpeg", ["-y", "-loglevel", "error", "-i", path.join(recDir, webm), "-f", "lavfi", "-i", `aevalsrc=exprs=${beat}|${beat}:s=48000`,
+await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", startS.toFixed(2), "-i", path.join(recDir, webm), "-f", "lavfi", "-i", `aevalsrc=exprs=${beat}|${beat}:s=48000`,
   "-map", "0:v", "-map", "1:a", "-shortest", "-vf", "scale=720:1280,fps=30", "-c:v", "libx264", "-preset", "medium", "-crf", "23", "-pix_fmt", "yuv420p",
   "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", mp4]);
-await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1", "-i", mp4, "-frames:v", "1", "-q:v", "4", path.join(OUT, "screen-reel-poster.jpg")]);
-for (const s of [1, 4, 8, 12, 16]) await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(s), "-i", mp4, "-frames:v", "1", "-vf", "scale=360:-1", "-q:v", "6", path.join(OUT, `_preview-${s}.jpg`)]).catch(() => null);
+await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "0.3", "-i", mp4, "-frames:v", "1", "-q:v", "4", path.join(OUT, "screen-reel-poster.jpg")]);
+for (const s of [0.3, 3, 6, 10, 14]) await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(s), "-i", mp4, "-frames:v", "1", "-vf", "scale=360:-1", "-q:v", "6", path.join(OUT, `_preview-${s}.jpg`)]).catch(() => null);
 rmSync(recDir, { recursive: true, force: true });
 await browser.close();
 writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify({ generatedAt: new Date().toISOString(), products: facts, carousel: files, reel: "screen-reel.mp4", recordedSeconds: Math.round(durS) }, null, 2));
