@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-10-04T09:00:53.913Z",
+  "products": [
+    {
+      "id": "p-live-01",
+      "title": "טבעת כסף 925 קלאסית עם זרקון מרקיז",
+      "price": 10.62,
+      "image": "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png"
+    },
+    {
+      "id": "p-live-04",
+      "title": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט",
+      "price": 85.36,
+      "image": "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg"
+    },
+    {
+      "id": "p-live-05",
+      "title": "עגילי Smyoue מואסניט ורודים 0.2-3 קראט",
+      "price": 47.17,
+      "image": "https://ae01.alicdn.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg"
+    },
+    {
+      "id": "p-live-03",
+      "title": "צמיד טניס מואסניט Smyoue מצופה פלטינה",
+      "price": 228.96,
+      "image": "https://ae-pic-a1.aliexpress-media.com/kf/S6a13c7593c184263ae9204f295447043t.jpg"
+    },
+    {
+      "id": "p-live-02",
+      "title": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן",
+      "price": 378.4,
+      "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc174e158c0634a38be6508fa62db71f7p.jpg"
+    }
+  ],
+  "carousel": [
+    "carousel-01.jpg",
+    "carousel-02.jpg",
+    "carousel-03.jpg",
+    "carousel-04.jpg",
+    "carousel-05.jpg",
+    "carousel-06.jpg",
+    "carousel-07.jpg"
+  ],
+  "reel": "screen-reel.mp4",
+  "recordedSeconds": 21
+}
