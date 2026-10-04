@@ -558,3 +558,81 @@ export async function verifyPayPalWebhook(req, rawBodyObject) {
     return { ok: false, reason: "verification_network_error" };
   }
 }
+
+// ── Prepaid plans (one-time PayPal Orders) ───────────────────────────────────
+// A plan period bought as ONE payment (a month or a year), with no automatic
+// renewal: it uses the Orders API ("PayPal payments"), not the Subscriptions
+// API. GUEST_CHECKOUT opens PayPal's card form first, so a buyer can pay by
+// credit/debit card without a PayPal account (PayPal processes the card;
+// LikeLink never sees card data). The amount always comes from plans.js on
+// the server; the capture is checked against the stored order.
+
+/** Create a one-time order for a plan period → { orderId, approveUrl } | { error }. */
+export async function createPlanOrder({ amount, currency = PLAN_CURRENCY, customId, description, returnUrl, cancelUrl, requestId }) {
+  const token = await getPayPalToken();
+  if (!token) return { error: "paypal_auth_failed" };
+  try {
+    const res = await fetch(`${paypalBase()}/v2/checkout/orders`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "PayPal-Request-Id": String(requestId || customId).slice(0, 100) },
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        purchase_units: [{
+          custom_id: String(customId).slice(0, 127),
+          description: String(description || "LikeLink plan").slice(0, 127),
+          amount: { currency_code: currency, value: planPriceIls(amount) },
+        }],
+        payment_source: {
+          paypal: {
+            experience_context: {
+              brand_name: "LikeLink",
+              locale: "he-IL",
+              landing_page: "GUEST_CHECKOUT",
+              shipping_preference: "NO_SHIPPING",
+              user_action: "PAY_NOW",
+              return_url: returnUrl,
+              cancel_url: cancelUrl,
+            },
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.id) return { error: `paypal_order_failed_${res.status}`, detail: String(data?.details?.[0]?.issue || data?.name || "").slice(0, 80) || null };
+    const approve = (data.links || []).find((l) => l.rel === "payer-action" || l.rel === "approve");
+    if (!approve?.href) return { error: "paypal_no_approval_link" };
+    return { orderId: data.id, approveUrl: approve.href };
+  } catch {
+    return { error: "paypal_order_network_failed" };
+  }
+}
+
+/** Capture an approved order → { status, captureId, amount, currency, customId } | { error }. Idempotent at PayPal. */
+export async function capturePlanOrder(orderId) {
+  const token = await getPayPalToken();
+  if (!token) return { error: "paypal_auth_failed" };
+  const read = (data) => {
+    const unit = data?.purchase_units?.[0] || {};
+    const cap = unit?.payments?.captures?.[0] || {};
+    return { status: String(cap.status || data?.status || "").toUpperCase(), captureId: cap.id || null, amount: Number(cap?.amount?.value), currency: cap?.amount?.currency_code || null, customId: cap.custom_id || unit.custom_id || null };
+  };
+  try {
+    const res = await fetch(`${paypalBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "PayPal-Request-Id": `cap-${orderId}` },
+      signal: AbortSignal.timeout(20000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return read(data);
+    // Already captured (a retried return): read the order instead of failing.
+    if (res.status === 422 && /ORDER_ALREADY_CAPTURED/.test(JSON.stringify(data))) {
+      const g = await fetch(`${paypalBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) });
+      const od = await g.json().catch(() => ({}));
+      if (g.ok) return read(od);
+    }
+    return { error: `paypal_capture_failed_${res.status}`, detail: String(data?.details?.[0]?.issue || data?.name || "").slice(0, 80) || null };
+  } catch {
+    return { error: "paypal_capture_network_failed" };
+  }
+}

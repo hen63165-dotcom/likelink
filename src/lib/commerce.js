@@ -191,6 +191,16 @@ export function fetchMySubscription(token) {
   return subsPost("get", token, {});
 }
 
+/** One-time plan period (card or PayPal, no auto-renewal) → { approveUrl, orderId }. */
+export function startPrepaidCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
+  return subsPost("prepaid-checkout", token, { planId, billingPeriod });
+}
+
+/** After PayPal's return: the server captures and verifies the order, then opens the plan. */
+export function capturePrepaid(token, orderId) {
+  return subsPost("prepaid-capture", token, { orderId });
+}
+
 /** Create a real PayPal Billing subscription → { approveUrl } for redirect. */
 export function startSubscriptionCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
   return subsPost("checkout", token, { planId, billingPeriod });
