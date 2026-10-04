@@ -34,7 +34,7 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription, paypalBase } from "./_utils/paypal.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
 import { imageProvenance, isRealProductPhoto, isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 import { reelAttachments, applyReelAttachments } from "../src/lib/cloud/reelAttach.js";
@@ -612,7 +612,10 @@ async function subsHandler(req, res) {
     // The last attempt's outcome (ids, statuses and PayPal error codes — never a
     // credential) is kept server-side and logged, so a failure can be diagnosed
     // without asking the owner for a screenshot.
-    const outcome = { at: new Date().toISOString(), ok: report.failed.length === 0 && verified.every((v) => v.ok), productId: plans?.productId || null, created: report.created, adopted: report.adopted, failed: report.failed, verified: verified.map((v) => ({ key: v.key, ok: v.ok, status: v.status || null, reason: v.reason || null })) };
+    // Which PayPal app the site uses: the first 6 characters of the Client ID
+    // (a public identifier — never the secret), to match it to the owner's app.
+    const clientIdPrefix = String(process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || "").slice(0, 6) || null;
+    const outcome = { at: new Date().toISOString(), clientIdPrefix, env: paypalBase().includes("sandbox") ? "sandbox" : "live", ok: report.failed.length === 0 && verified.every((v) => v.ok), productId: plans?.productId || null, created: report.created, adopted: report.adopted, failed: report.failed, verified: verified.map((v) => ({ key: v.key, ok: v.ok, status: v.status || null, reason: v.reason || null })) };
     console.log("[paypal-provision]", JSON.stringify(outcome));
     await kvSet("marketplace:paypal_provision_last", outcome).catch(() => {});
     return json(res, {
