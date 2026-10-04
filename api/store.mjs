@@ -609,6 +609,12 @@ async function subsHandler(req, res) {
     const plans = await ensureBillingPlans({ kvGet, kvSet, report });
     const verified = await verifyBillingPlans(plans);
     const planIds = Object.fromEntries(Object.entries(plans || {}).filter(([k]) => k.includes(":")));
+    // The last attempt's outcome (ids, statuses and PayPal error codes — never a
+    // credential) is kept server-side and logged, so a failure can be diagnosed
+    // without asking the owner for a screenshot.
+    const outcome = { at: new Date().toISOString(), ok: report.failed.length === 0 && verified.every((v) => v.ok), productId: plans?.productId || null, created: report.created, adopted: report.adopted, failed: report.failed, verified: verified.map((v) => ({ key: v.key, ok: v.ok, status: v.status || null, reason: v.reason || null })) };
+    console.log("[paypal-provision]", JSON.stringify(outcome));
+    await kvSet("marketplace:paypal_provision_last", outcome).catch(() => {});
     return json(res, {
       ok: report.failed.length === 0 && verified.every((v) => v.ok),
       currency: PLAN_CURRENCY,
