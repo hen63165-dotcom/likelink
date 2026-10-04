@@ -1,6 +1,9 @@
 name: Visual audit (live site)
 on:
   workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/audit/**", ".github/workflows/visual-audit.yml"]
 permissions:
   contents: read
 jobs:
