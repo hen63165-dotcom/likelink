@@ -14,6 +14,7 @@ import {
   Package,
   Search,
   Sparkles,
+  Store,
   Tag,
   TrendingUp,
   Users,
@@ -38,6 +39,7 @@ import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js"
 import { trackReferralClick } from "../../lib/referral.js";
 import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
+import { currentMoment, momentProducts } from "../../lib/moments.js";
 import {
   categoryName,
   CollectionCard,
@@ -381,6 +383,12 @@ export function HomePage({ graph, navigate }) {
         </div>
       </section>
 
+      {/* THE MOMENT — re-themes itself by the Israeli calendar, no deploy */}
+      <MomentBand graph={graph} />
+
+      {/* ONE CLICK FOR EACH SIDE */}
+      <ForEverySide />
+
       {/* CATEGORY RAIL */}
       {graph.categories.length ? (
         <Section className="!mt-10">
@@ -496,6 +504,72 @@ export function HomePage({ graph, navigate }) {
         <CreatorBand />
       </Section>
     </>
+  );
+}
+
+function MomentBand({ graph }) {
+  const { L, lang } = useL();
+  const moment = useMemo(() => currentMoment(), []);
+  const items = useMemo(() => momentProducts(moment, graph.products.filter((p) => p.media.image), 10), [moment, graph]);
+  if (items.length < 2) return null;
+  const copy = lang === "he" ? moment.he : moment.en;
+  return (
+    <Section labelledBy="h-moment">
+      <SectionHead
+        id="h-moment"
+        kicker={<><Sparkles size={14} /> {L("הרגע עכשיו · לפי לוח השנה", "Right now · by the calendar")}</>}
+        title={copy.title}
+        sub={`${copy.line} ${L("המבחר מתחלף לבד לפי התאריך — לא לפי מכירות.", "This edit changes by itself with the date — not by sales.")}`}
+      />
+      <Rail item="minmax(176px, 220px)">{items.map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
+    </Section>
+  );
+}
+
+// The three sides of the network, each with its problem and one button.
+// Every line describes something live today.
+function ForEverySide() {
+  const { L, Forward } = useL();
+  const sides = [
+    {
+      icon: Search,
+      who: L("לקונים", "Buyers"),
+      pain: L("ראית מוצר בסרטון ואין לך מושג איפה הקישור האמיתי?", "Saw it in a video and can't find the real link?"),
+      fix: L("הדביקו קישור, צלמו תמונה או פשוט תגידו מה ראיתם — ותקבלו את המוצר עם תמונה אמיתית, מחיר קטלוג וחנות ברורה.", "Paste a link, snap a photo or just say what you saw — get the product with a real photo, catalog price and a clear store."),
+      to: "/search",
+      cta: L("למצוא מוצר", "Find a product"),
+    },
+    {
+      icon: Sparkles,
+      who: L("ליוצרות וליוצרים", "Creators"),
+      pain: L("ממליצה על מוצרים ולא יודעת מה באמת עבד?", "You recommend products but never know what worked?"),
+      fix: L("סטודיו חינם: עמוד אישי, קישור מעקב לכל מוצר, ערכת שיתוף לכל רשת וספירת קליקים אמיתית.", "A free Studio: your own page, a tracking link per product, a share kit per network and real click counts."),
+      to: "/studio",
+      cta: L("לפתוח סטודיו חינם", "Open a free Studio"),
+    },
+    {
+      icon: Store,
+      who: L("למוכרים ולמותגים", "Sellers & brands"),
+      pain: L("רוצים שיוצרות ימליצו על המוצרים שלכם, בלי סוכנות?", "Want creators to recommend your products, without an agency?"),
+      fix: L("מעלים מוצר עם קישור ותמונה אמיתית. אחרי בדיקה הוא נכנס לגילוי, עם סימון שקוף של קישור שותפים.", "List a product with a link and a real photo. Once checked it enters discovery, with a clear affiliate disclosure."),
+      to: "/merchants",
+      cta: L("להוסיף מוצרים", "List products"),
+    },
+  ];
+  return (
+    <Section labelledBy="h-sides">
+      <SectionHead id="h-sides" kicker={L("אתר אחד, שלושה צדדים", "One site, three sides")} title={L("כל אחד מקבל את מה שהוא צריך — בקליק", "Everyone gets what they need — in one click")} />
+      <div className="grid gap-4 md:grid-cols-3">
+        {sides.map((s) => (
+          <div key={s.to} className="flex h-full flex-col rounded-[20px] p-5" style={{ background: "var(--lx-surface)", border: "1px solid var(--lx-line)" }}>
+            <p className="lx-kicker"><s.icon size={14} /> {s.who}</p>
+            <p className="mt-2 text-[17px] font-bold leading-snug">{s.pain}</p>
+            <p className="lx-mute mt-2 flex-1 text-[14px] leading-6">{s.fix}</p>
+            <Go to={s.to} className="lx-btn lx-btn-primary lx-btn-sm mt-4 self-start">{s.cta} <Forward size={15} /></Go>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
