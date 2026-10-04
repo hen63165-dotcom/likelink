@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getAllPlans, planFeatureRows, FEATURES } from '../../lib/plans.js';
-import { fetchPlans, fetchMySubscription, startSubscriptionCheckout, cancelMySubscription } from '../../lib/commerce.js';
+import { fetchPlans, fetchMySubscription, startSubscriptionCheckout, cancelMySubscription, startPrepaidCheckout, capturePrepaid } from '../../lib/commerce.js';
 import { getSessionToken } from '../../lib/auth.js';
 import { toHebrewError } from '../../lib/errorMessages.js';
 import { cancellationTerms } from '../../lib/billing/cancellation.js';
@@ -48,6 +48,8 @@ export default function PlanCheckout() {
   const [subscription, setSubscription] = useState(null);
   const [plan, setPlan] = useState('free');
   const [catalogReady, setCatalogReady] = useState(null);
+  // One-time plan periods (card or PayPal, no auto-renewal) when billing plans are not available.
+  const [prepaid, setPrepaid] = useState(false);
   const [legal, setLegal] = useState(null);
   const [consent, setConsent] = useState(false);
   const [usage, setUsage] = useState(null);
@@ -68,7 +70,24 @@ export default function PlanCheckout() {
 
   useEffect(() => {
     let active = true;
-    fetchPlans().then((r) => { if (active) setCatalogReady(Boolean(r.ok && r.paypalConfigured)); }).catch(() => setCatalogReady(false));
+    fetchPlans().then((r) => {
+      if (!active) return;
+      const pre = Boolean(r.ok && !r.paypalConfigured && r.prepaidAvailable);
+      setPrepaid(pre);
+      setCatalogReady(Boolean(r.ok && (r.paypalConfigured || pre)));
+    }).catch(() => setCatalogReady(false));
+    // Back from PayPal with a one-time order: the SERVER captures and verifies it.
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get('sub') === 'prepaid' && qs.get('token')) {
+      const orderId = qs.get('token');
+      run(async (token) => {
+        setMessage('מאמתים את התשלום מול PayPal…');
+        const r = await capturePrepaid(token, orderId);
+        setMessage(r.ok ? 'התשלום אומת והמסלול פעיל. תודה!' : toHebrewError(r.error, 'התשלום לא אומת — המסלול לא הופעל. אם חויבת, נבדוק ונחזיר.'));
+        try { window.history.replaceState({}, '', '/studio/products'); } catch { /* ignore */ }
+        await refresh();
+      });
+    }
     refresh().catch(() => {});
     // Bounded read-only polling after returning from PayPal; the redirect itself never grants access.
     let count = 0;
@@ -93,7 +112,7 @@ export default function PlanCheckout() {
     if (!consent) { setMessage(toHebrewError('legal_acceptance_required')); return; }
     const a = await acceptLegal(token, 'checkout');
     if (!a.ok) { setMessage(toHebrewError(a.error, 'לא הצלחנו לרשום את האישור — לא בוצע חיוב.')); return; }
-    const r = await startSubscriptionCheckout(token, planId, period);
+    const r = prepaid ? await startPrepaidCheckout(token, planId, period) : await startSubscriptionCheckout(token, planId, period);
     if (!r.ok) { setMessage(toHebrewError(r.error, 'לא ניתן להתחיל את התשלום כרגע — לא בוצע חיוב.')); return; }
     if (r.approveUrl) window.location.assign(r.approveUrl);
     else { setMessage('התשלום נוצר אך חסר קישור אישור. לא הופעל מסלול.'); await refresh(); }
@@ -106,7 +125,8 @@ export default function PlanCheckout() {
     const t = r.terms || {};
     const refund = t.refund?.amount > 0 ? ` יוחזרו לך ₪${t.refund.amount.toFixed(2)} לחשבון ה-PayPal תוך 14 ימים${t.refund.fee ? ` (בניכוי דמי ביטול של ₪${t.refund.fee.toFixed(2)})` : ''}.` : '';
     const until = t.accessUntil && Date.parse(t.accessUntil) > Date.now() + 60000 ? ` הגישה למסלול נשארת עד ${fmtDate(t.accessUntil)}.` : ' הגישה עברה למסלול החינמי.';
-    setMessage(`המנוי בוטל ב-PayPal, ולא יהיו חיובים נוספים.${until}${refund}`);
+    const head = r.subscription?.provider === 'paypal_order' ? 'המסלול בוטל (תשלום חד־פעמי, אין חיובים נוספים).' : 'המנוי בוטל ב-PayPal, ולא יהיו חיובים נוספים.';
+    setMessage(`${head}${until}${refund}`);
     await refresh();
   });
 
@@ -207,7 +227,8 @@ export default function PlanCheckout() {
         <div className="mt-auto">
           {p.comingSoon
             ? <button disabled={busy || !signedIn || legal?.waitlist?.includes(p.id)} onClick={() => waitlist(p.id)} className="tap rounded-xl w-full p-2 font-bold border disabled:opacity-50" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>{legal?.waitlist?.includes(p.id) ? 'את ברשימת ההמתנה' : 'הצטרפות לרשימת ההמתנה'}</button>
-            : <button disabled={busy || catalogReady !== true || !signedIn || plan === p.id} onClick={() => checkout(p.id)} className="tap rounded-xl w-full p-2 font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'white' }}>{plan === p.id ? 'המסלול הנוכחי שלך' : 'התחילי את החבילה · מעבר לתשלום מאובטח'}</button>}
+            : <button disabled={busy || catalogReady !== true || !signedIn || plan === p.id} onClick={() => checkout(p.id)} className="tap rounded-xl w-full p-2 font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'white' }}>{plan === p.id ? 'המסלול הנוכחי שלך' : prepaid ? `לתשלום ${period === 'yearly' ? 'לשנה' : 'לחודש'} · אשראי או PayPal` : 'התחילי את החבילה · מעבר לתשלום מאובטח'}</button>}
+          {prepaid && !p.comingSoon && plan !== p.id ? <p className="text-xs mt-1 opacity-80">תשלום חד־פעמי ל{period === 'yearly' ? '12 חודשים' : 'חודש'}, בלי חידוש אוטומטי.</p> : null}
           {!p.comingSoon && plan !== p.id && checkoutBlockedReason ? <p className="text-xs mt-2 opacity-80" role="status">{checkoutBlockedReason}</p> : null}
         </div>
       </article>)}

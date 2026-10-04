@@ -34,7 +34,8 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
-import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription, paypalBase } from "./_utils/paypal.js";
+import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription, paypalBase, createPlanOrder, capturePlanOrder } from "./_utils/paypal.js";
+import { getPurchasablePlans } from "../src/lib/plans.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
 import { imageProvenance, isRealProductPhoto, isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 import { reelAttachments, applyReelAttachments } from "../src/lib/cloud/reelAttach.js";
@@ -523,7 +524,8 @@ async function subsHandler(req, res) {
         paypalConfigured: { monthly: await ready(p.id, "monthly"), yearly: await ready(p.id, "yearly") },
       })));
       const anyReady = plans.some((p) => p.paypalConfigured.monthly || p.paypalConfigured.yearly);
-      return json(res, { ok: true, plans, paypalConfigured: anyReady, paypalConnected: connected, selfProvisioning: false }, 200, req);
+      // prepaidAvailable: one-time plan orders need only PayPal payments (no billing plans).
+      return json(res, { ok: true, plans, paypalConfigured: anyReady, paypalConnected: connected, prepaidAvailable: connected, selfProvisioning: false }, 200, req);
     } catch (e) {
       return json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
@@ -658,6 +660,8 @@ async function subsHandler(req, res) {
 
 // Server-only (not browser-writable, not in the public RLS allowlist).
 const REFUNDS_KEY = "billing:refund_requests";
+// Prepaid plan orders (server-only): orderId → { userId, planId, period, amount, customId, status }.
+const PREPAID_KEY = "billing:prepaid_orders";
 
 // ── Session-protected subscription actions (identity = verified token only) ──
 async function subsAuthHandler(req, res, sub, body) {
@@ -767,8 +771,8 @@ async function subsAuthHandler(req, res, sub, body) {
       const base = isApprovedOrigin(origin) ? origin : originFromRequest(req);
       const result = await createPayPalSubscription({
         paypalPlanId,
-        returnUrl: `${base}/studio?sub=return`,
-        cancelUrl: `${base}/studio?sub=cancel`,
+        returnUrl: `${base}/studio/products?sub=return`,
+        cancelUrl: `${base}/studio/products?sub=cancel`,
         customId: authId,
       });
       if (result.error) return json(res, { ok: false, error: result.error }, 502, req);
@@ -780,6 +784,88 @@ async function subsAuthHandler(req, res, sub, body) {
       record.authEmail = String(authUser.email || "");
       await kvSet(SUBS_KEY, [...superseded, record]);
       return json(res, { ok: true, approveUrl: result.approveUrl, subscriptionId: result.subscriptionId }, 200, req);
+    }
+
+    // ── Prepaid plan (one-time PayPal order, card or PayPal, no auto-renewal) ──
+    // Works with the Orders API ("PayPal payments") alone — no billing plans
+    // needed. The price comes only from plans.js; access opens only after the
+    // server captures the order and the captured amount/currency/custom_id
+    // match the stored order (never a client value, never the redirect alone).
+    if (sub === "prepaid-checkout") {
+      const planId = String(body.planId || "").toLowerCase();
+      const billingPeriod = body.billingPeriod === "yearly" ? "yearly" : "monthly";
+      const plan = getPurchasablePlans().find((p) => p.id === planId);
+      if (!plan) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
+      if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
+      const acceptances = (await kvGet(ACCEPTANCES_KEY)) || {};
+      if (!hasAcceptedCurrent(acceptances[authId])) {
+        return json(res, { ok: false, error: "legal_acceptance_required", version: LEGAL_VERSION }, 428, req);
+      }
+      const current = (await kvGet(SUBS_KEY, [])) || [];
+      const nowMs = Date.now();
+      if (current.some((s) => s && s.userId === authId && (s.status === "active" || s.status === "trial") && !(s.expiresAt && Date.parse(s.expiresAt) < nowMs))) {
+        return json(res, { ok: false, error: "active_subscription_exists" }, 409, req);
+      }
+      const amount = billingPeriod === "yearly" ? plan.priceYearly : plan.price;
+      const nonce = Math.random().toString(36).slice(2, 10);
+      const customId = `pp:${authId}:${planId}:${billingPeriod}:${nonce}`.slice(0, 127);
+      const origin = getHeader(req, "origin");
+      const base = isApprovedOrigin(origin) ? origin : originFromRequest(req);
+      const r = await createPlanOrder({
+        amount, customId, requestId: `likelink-prepaid-${authId}-${nonce}`,
+        description: `LikeLink ${plan.name?.en || planId} · ${billingPeriod === "yearly" ? "12 months" : "1 month"}`,
+        returnUrl: `${base}/studio/products?sub=prepaid`, cancelUrl: `${base}/studio/products?sub=cancel`,
+      });
+      if (r.error) return json(res, { ok: false, error: r.error }, 502, req);
+      const orders = (await kvGet(PREPAID_KEY, {})) || {};
+      orders[r.orderId] = { userId: authId, planId, billingPeriod, amount: Number(amount), currency: PLAN_CURRENCY, customId, status: "created", createdAt: new Date(nowMs).toISOString() };
+      await kvSet(PREPAID_KEY, orders);
+      return json(res, { ok: true, approveUrl: r.approveUrl, orderId: r.orderId }, 200, req);
+    }
+
+    if (sub === "prepaid-capture") {
+      const orderId = String(body.orderId || "").trim().slice(0, 64);
+      if (!/^[A-Z0-9]{8,40}$/.test(orderId)) return json(res, { ok: false, error: "invalid_order" }, 400, req);
+      const orders = (await kvGet(PREPAID_KEY, {})) || {};
+      const rec = orders[orderId];
+      if (!rec || rec.userId !== authId) return json(res, { ok: false, error: "order_not_found" }, 404, req);
+      const all = (await kvGet(SUBS_KEY, [])) || [];
+      const existing = all.find((s) => s && s.providerOrderId === orderId);
+      if (existing) return json(res, { ok: true, subscription: existing, plan: existing.planId }, 200, req);
+      const cap = await capturePlanOrder(orderId);
+      if (cap.error) return json(res, { ok: false, error: cap.error }, 502, req);
+      const matches = cap.status === "COMPLETED" && cap.currency === rec.currency && Number(cap.amount) === Number(rec.amount) && cap.customId === rec.customId;
+      if (!matches) {
+        orders[orderId] = { ...rec, status: "mismatch_or_incomplete", captureStatus: cap.status || null };
+        await kvSet(PREPAID_KEY, orders).catch(() => {});
+        return json(res, { ok: false, error: cap.status === "COMPLETED" ? "capture_mismatch" : "payment_not_completed", status: cap.status || null }, 409, req);
+      }
+      const nowMs = Date.now();
+      const days = rec.billingPeriod === "yearly" ? 365 : 30;
+      const record = {
+        id: `sub_pp_${orderId}`,
+        userId: authId,
+        authEmail: String(authUser.email || ""),
+        planId: rec.planId,
+        billingPeriod: rec.billingPeriod,
+        status: "active",
+        provider: "paypal_order",
+        providerRef: cap.captureId,
+        providerOrderId: orderId,
+        autoRenew: false,
+        amount: rec.amount,
+        currency: rec.currency,
+        startedAt: new Date(nowMs).toISOString(),
+        lastBillingAt: new Date(nowMs).toISOString(),
+        expiresAt: new Date(nowMs + days * 86400000).toISOString(),
+        createdAt: new Date(nowMs).toISOString(),
+      };
+      const superseded = all.map((s) => (s && s.userId === authId && s.status === "pending" ? { ...s, status: "cancelled", supersededBy: record.id, cancelledAt: record.startedAt } : s));
+      await kvSet(SUBS_KEY, [...superseded, record]);
+      orders[orderId] = { ...rec, status: "captured", captureId: cap.captureId, capturedAt: record.startedAt };
+      await kvSet(PREPAID_KEY, orders).catch(() => {});
+      const readBack = ((await kvGet(SUBS_KEY, [])) || []).find((s) => s && s.id === record.id);
+      return json(res, { ok: Boolean(readBack), subscription: readBack || null, plan: readBack ? record.planId : null }, readBack ? 200 : 500, req);
     }
 
     // ── Create pending subscription locally (idempotent per user) ──
