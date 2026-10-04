@@ -316,7 +316,7 @@ export function HomePage({ graph, navigate }) {
         <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 85% 0%, rgba(255,159,90,.22), transparent 70%), radial-gradient(50% 60% at 0% 30%, rgba(210,47,93,.12), transparent 70%)" }} />
         <div className="lx-wrap relative grid items-center gap-10 pb-6 pt-8 md:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="lx-rise">
-            <p className="lx-kicker"><Sparkles size={14} /> {L("Creator commerce בעברית", "Creator commerce, Hebrew first")}</p>
+            <p className="lx-kicker"><Sparkles size={14} /> {L("קניות דרך יוצרות · בעברית", "Creator commerce, Hebrew first")}</p>
             <nav aria-label={L("מה עושים כאן", "What you can do here")} className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[13px] font-semibold" style={{ color: "var(--lx-ink-2)" }}>
               {[["/discover", L("לגלות", "Discover")], ["/products", L("לקנות", "Shop")], ["/reels", L("לצפות", "Watch")], ["/creators", L("לעקוב", "Follow")], ["/studio", L("ליצור", "Create")], ["/studio", L("להרוויח", "Earn")]].map(([to, label], i) => (
                 <Go key={label} to={to} className="hover:underline">{i ? "· " : ""}{label}</Go>
@@ -344,20 +344,15 @@ export function HomePage({ graph, navigate }) {
               <Go to="/discover" className="lx-btn lx-btn-primary">{L("התחילו לגלות", "Start discovering")} <Forward size={16} /></Go>
               <Go to="/creators" className="lx-btn lx-btn-ghost">{L("הכירו את היוצרים", "Meet the creators")}</Go>
             </div>
-            <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+            {/* What the site does — not small vanity counts. */}
+            <ul className="mt-8 flex flex-wrap gap-2 text-[13px]" aria-label={L("מה יש כאן", "What you get")}>
               {[
-                [graph.products.length, L("מוצרים מאושרים", "approved products")],
-                [graph.creators.length, L(graph.creators.length === 1 ? "יוצרת" : "יוצרים", graph.creators.length === 1 ? "creator" : "creators")],
-                [graph.categories.length, L("קטגוריות", "categories")],
-                [graph.collections.length, L("אוספים", "collections")],
-              ].map(([n, label]) => (
-                <div key={label} className="flex items-baseline gap-1.5">
-                  <dt className="lx-sr">{label}</dt>
-                  <dd className="lx-display text-[26px]">{n}</dd>
-                  <span className="lx-mute">{label}</span>
-                </div>
-              ))}
-            </dl>
+                L("חיפוש בטקסט, בקול, בתמונה או בקישור", "Search by text, voice, photo or link"),
+                L("כל תוצאה מראה למה היא כאן", "Every result shows why it's here"),
+                L("תמונה אמיתית וקישור ישיר לחנות", "Real photo, direct store link"),
+                L("סטודיו חינם ליוצרות", "Free studio for creators"),
+              ].map((t) => <li key={t} className="lx-chip">{t}</li>)}
+            </ul>
           </div>
 
           {heroProducts.length >= 3 ? (
@@ -908,6 +903,7 @@ export function ProductPage({ graph, id, navigate }) {
   const boards = collectionsFor(graph, product.id);
   const reels = graph.reels.filter((r) => r.productIds.includes(product.id));
   const tags = (Array.isArray(product.tags) ? product.tags : []).filter((t) => typeof t === "string").slice(0, 6);
+  const heroVideo = product.media.video && (product.media.state === "REAL_VIDEO" || !product.media.image) ? product.media.video : null;
 
   return (
     <>
@@ -917,11 +913,13 @@ export function ProductPage({ graph, id, navigate }) {
           <Go to={`/discover/${encodeURIComponent(product.category || "Other")}`} className="hover:underline">{categoryName(product.category, lang)}</Go>
         </nav>
         <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-10 lg:grid-cols-[1.15fr_1fr]">
-          {/* MEDIA */}
+          {/* MEDIA — the buyer sees the real product photo first; an animated
+              (synthetic) reel opens the page only when there is no photo. The
+              reels stay one scroll below, in "בסרטונים". */}
           <div className="md:sticky md:top-24 md:self-start">
-            <div className="lx-card" style={product.media.video ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
-              <Media src={product.media.image} video={product.media.video} poster={product.media.poster} alt={product.displayTitle} ratio={product.media.video ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(product.media.video)}>
-                {product.media.video ? null : (
+            <div className="lx-card" style={heroVideo ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
+              <Media src={product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)}>
+                {heroVideo ? null : (
                   <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
                     <MediaBadge state={product.media.state} showImage />
                     {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
@@ -930,7 +928,7 @@ export function ProductPage({ graph, id, navigate }) {
               </Media>
               <SaveButton productId={product.id} className="absolute end-3 top-3" />
             </div>
-            {product.media.video ? (
+            {heroVideo ? (
               <div className="mt-2 flex flex-wrap justify-center gap-1.5">
                 <MediaBadge state={product.media.state} showImage />
                 <StyleBadge style={product.media.style} />

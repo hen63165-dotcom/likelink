@@ -60,6 +60,7 @@ import CreativeLab from "./CreativeLab.jsx";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
+import StudioWelcome from "./StudioWelcome.jsx";
 import { fetchPlatformStatus, PLATFORM_STATE, PLATFORM_STATE_LABEL, PLATFORM_STATE_COLOR } from "../../lib/cloud/lunaStatus.js";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
@@ -172,7 +173,12 @@ function ActivityStrip() {
   );
 }
 
-const OverviewPanel = ({ onNavigate }) => <StudioHome onNavigate={onNavigate} />;
+// A signed-out visitor gets the Studio explainer, not an empty dashboard.
+function OverviewPanel({ onNavigate }) {
+  const { currentMarketer } = useMarketplace();
+  if (!currentMarketer) return <StudioWelcome onSignup={() => onNavigate(VIEW_IDS.PRODUCTS)} />;
+  return <StudioHome onNavigate={onNavigate} />;
+}
 
 /** Truthful auth gate — routes to the real login/registration flow (SellView). */
 function AuthGate({ onNavigate, feature }) {

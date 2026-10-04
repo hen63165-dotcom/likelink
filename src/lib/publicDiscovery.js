@@ -129,6 +129,15 @@ function recentEvents(clicks = [], now = Date.now()) {
  * Build the public graph from the marketplace context's real data.
  * @returns {{products, byId, creators, creatorById, categories, collections, trends, attention, deals, reels}}
  */
+/** Remove sentences that claim ratings, review counts, sales or rankings (unverified store copy). */
+const UNVERIFIED_CLAIM = /(כוכבים|כוכב|ביקורות|ביקורת|דירוג|מדורג|נמכר(?:ו)?\s+\d|יחידות נמכרו|רב[\s-]?מכר|הכי נמכר|מספר\s*1|#1|best[\s-]?seller|\d[\d,.]*\+?\s*(?:reviews?|ratings?|sold)|\bstars?\b)/i;
+export function stripUnverifiedClaims(text) {
+  if (typeof text !== "string" || !text) return text;
+  // A sentence ends at . ! ? followed by whitespace (so "4.8" stays whole), or at a newline.
+  const parts = text.split(/(?<=[.!?])\s+|\n+/);
+  return parts.filter((s) => !UNVERIFIED_CLAIM.test(s)).join(" ").trim();
+}
+
 export function buildPublicGraph({ products = [], marketers = [], collections = [], clicks = [], videos = [], now = Date.now() } = {}) {
   const creatorsList = Array.isArray(marketers) ? marketers.filter((m) => m && m.id) : [];
   const all = Array.isArray(products) ? products : [];
@@ -141,6 +150,9 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
     .filter((p) => isPromotable(p, all, sharedLinks))
     .map((p) => ({
       ...p,
+      // A store's own rating/review/sales line is not verified by LikeLink and
+      // is never shown as a fact (no invented trust signals).
+      description: stripUnverifiedClaims(p.description),
       displayTitle: cleanTitle(p.title) || textOf(p.title),
       merchant: merchantOf(p),
       deal: dealOf(p),
