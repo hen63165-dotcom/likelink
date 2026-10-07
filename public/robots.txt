@@ -8,7 +8,7 @@
 # crawler: a named group replaces the * group for that crawler, so
 # each group below repeats the same rules.
 # Automated collection beyond these rules is not permitted — see
-# https://likelink2.vercel.app/legal/acceptable-use
+# /legal/acceptable-use
 # ============================================================
 
 User-agent: *
@@ -67,4 +67,4 @@ Disallow: /sell
 Disallow: /r?
 Allow: /
 
-Sitemap: https://likelink2.vercel.app/sitemap.xml
+Sitemap: /sitemap.xml
