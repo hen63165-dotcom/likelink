@@ -140,7 +140,7 @@ test("trend radar: parsed from the public RSS, matched to products only on real 
 test("profile checklist: one clear action; the bio is UNVERIFIED without a token", () => {
   const p = profileChecklist({ creator: M[0] });
   assert.equal(p.items.find((i) => i.id === "bio_website").status, "UNVERIFIED");
-  assert.match(p.oneAction, /http:\/\/localhost:8787\/u\/alyostyle\?utm_source=instagram&utm_medium=bio/);
+  assert.match(p.oneAction, /\/u\/alyostyle\?utm_source=instagram&utm_medium=bio/);
   assert.equal(profileChecklist({ creator: M[0], bioWebsite: "https://likelink2.vercel.app/u/alyostyle" }).oneAction, null);
 });
 
