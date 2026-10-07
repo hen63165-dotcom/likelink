@@ -7,7 +7,6 @@
  *
  * APPROVED ORIGINS:
  *   - localhost (development)
- *   - https://likelink2.vercel.app (production)
  *   - any custom domain listed in the PUBLIC_ORIGIN / ALLOWED_ORIGINS env vars
  *
  * NOTE: `likelink.com` / `likelink.app` are NOT owned by this project and are
@@ -36,7 +35,6 @@ const APPROVED_ORIGINS = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
-  "https://likelink2.vercel.app",
   ...String(process.env.PUBLIC_ORIGIN || "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
@@ -44,10 +42,6 @@ const APPROVED_ORIGINS = new Set([
   ...ENV_ORIGINS,
 ]);
 
-// 🔒 Allow our own preview/deploy subdomains (e.g. likelink2-git-branch.vercel.app)
-// but NEVER a host we do not control. `*.vercel.app` is ours only when it
-// belongs to this project; we accept the project prefix explicitly.
-const APPROVED_PATTERN = /^https:\/\/likelink2(-[a-z0-9-]+)?\.vercel\.app$/;
 
 export function isApprovedOrigin(origin) {
   if (!origin) return false;
@@ -56,7 +50,6 @@ export function isApprovedOrigin(origin) {
   // in ALLOWED_ORIGINS by mistake.
   if (LEGACY_HOSTS.includes(hostOf(normalized))) return false;
   if (APPROVED_ORIGINS.has(normalized)) return true;
-  if (APPROVED_PATTERN.test(normalized)) return true;
   return false;
 }
 
