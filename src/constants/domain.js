@@ -29,7 +29,7 @@ export function publicOrigin(fallback) {
   }
 
   if (fallback && !isLegacyOrigin(fallback)) return stripTrailingSlash(fallback);
-  return PRODUCTION_ORIGIN;
+  return PRODUCTION_ORIGIN || "http://localhost:8787";
 }
 
 export function isLegacyOrigin(value) {
