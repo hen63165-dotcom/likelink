@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const src = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
-const canonicalNormalized = (html) => html.replace(/https:\/\/likelink2\.vercel\.app(?=\/)/g, "");
+const canonicalNormalized = (html) => html.replace(/https:\/\/likelink2\.vercel\.app(?=\/)|http:\/\/localhost:8787(?=\/)/g, "");
 
 test("public/pricing.html is exactly what plans.js renders (run `npm run pages:build`)", async () => {
   const { renderPricingPage } = await import("../src/lib/staticPages/pricingPage.js");
