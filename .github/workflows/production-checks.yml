@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,14 +24,16 @@ jobs:
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build
-      - run: |
+      - run: npm run portable:check
+      - name: Portable runtime smoke test
+        run: |
           set -euo pipefail
-          response=$(curl --fail-with-body --silent --show-error --max-time 30 \
-            -X POST \
-            -H "content-type: application/json" \
-            --data '{"action":"status"}' \
-            "https://likelink2.vercel.app/api/autopilot?mode=status")
-          echo "$response"
-          echo "$response" | grep -q '"scheduler"' 
-          echo "$response" | grep -q '"queue"' 
-          echo "$response" | grep -q '"jobCount"'
+          npm start > /tmp/likelink-portable.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:8787/ > /tmp/likelink-home.html; then break; fi
+            sleep 1
+          done
+          grep -q 'LikeLink' /tmp/likelink-home.html
+          test -s /tmp/likelink-home.html
