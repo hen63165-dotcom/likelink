@@ -48,5 +48,5 @@ export function hostOf(value) {
 }
 
 function stripTrailingSlash(value) {
-  return String(value).replace(/\\/+$/, "");
+  return String(value).replace(/\/+$/, "");
 }
