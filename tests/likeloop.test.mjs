@@ -141,7 +141,7 @@ test("profile checklist: one clear action; the bio is UNVERIFIED without a token
   const p = profileChecklist({ creator: M[0] });
   assert.equal(p.items.find((i) => i.id === "bio_website").status, "UNVERIFIED");
   assert.match(p.oneAction, /\/u\/alyostyle\?utm_source=instagram&utm_medium=bio/);
-  assert.equal(profileChecklist({ creator: M[0], bioWebsite: "https://likelink2.vercel.app/u/alyostyle" }).oneAction, null);
+  assert.match(profileChecklist({ creator: M[0], bioWebsite: "https://likelink2.vercel.app/u/alyostyle" }).oneAction, /באינסטגרם:/);
 });
 
 function fakeKv(extra = {}, { trendsOk = true } = {}) {
