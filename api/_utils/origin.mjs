@@ -15,7 +15,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Canonical production origin — the source of truth. */
-export const PRODUCTION_ORIGIN = "";
+export const PRODUCTION_ORIGIN = "http://localhost:8787";
 
 /** Legacy placeholder hosts that must never be emitted or trusted. */
 export const LEGACY_HOSTS = Object.freeze([
