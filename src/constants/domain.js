@@ -3,7 +3,7 @@
 // origin is authoritative; server code uses PUBLIC_ORIGIN/LIKELINK_BASE_URL
 // when it must emit an absolute URL, otherwise it derives the request origin.
 
-export const PRODUCTION_ORIGIN = "";
+export const PRODUCTION_ORIGIN = "http://localhost:8787";
 
 export const LEGACY_ORIGINS = Object.freeze([
   "https://likelink.com",
