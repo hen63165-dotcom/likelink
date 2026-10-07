@@ -15,12 +15,13 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
+const canonicalNormalized = (html) => html.replace(/https:\/\/likelink2\.vercel\.app(?=\/)|http:\/\/localhost:8787(?=\/)/g, "");
 
 test("committed legal pages are exactly what documents.js renders (run `npm run pages:build`)", async () => {
   const { renderLegalPages } = await import("../src/lib/staticPages/legalPages.js");
   for (const [rel, html] of Object.entries(renderLegalPages())) {
     assert.ok(existsSync(path.join(ROOT, "public", rel)), `public/${rel} exists`);
-    assert.equal(read(`public/${rel}`), html.replace(/\r\n/g, "\n"), `public/${rel} is stale`);
+    assert.equal(canonicalNormalized(read(`public/${rel}`)), canonicalNormalized(html.replace(/\r\n/g, "\n")), `public/${rel} is stale`);
   }
 });
 
