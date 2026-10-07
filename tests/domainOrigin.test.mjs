@@ -79,7 +79,7 @@ test("index.html canonical, og:url, og:image, twitter:image and JSON-LD all use 
     const tag = html.split("\n").find((line) => line.includes(marker));
     assert.ok(tag, `index.html is missing ${marker}`);
     assert.ok(
-      tag.includes('href="/" ') || tag.includes('content="/" ') || tag.includes('content="/icons/'),
+      tag.includes('href="/"') || tag.includes('content="/"') || tag.includes('content="/icons/'),
       `${marker} must use a relative current-origin URL, got: ${tag.trim()}`,
     );
   }
