@@ -73,7 +73,7 @@ function fakeSupabase({ products = [product("p1"), product("p2")], corruptReadba
   ]);
   const objects = new Map();
   const calls = [];
-  const env = { url: "https://sb.test", service: "SERVICE", anon: "ANON", telegramBot: telegram ? "BOT" : "", telegramChat: telegram ? "@chan" : "", webhook: "", origin: "https://likelink2.vercel.app" };
+  const env = { url: "https://sb.test", service: "SERVICE", anon: "ANON", telegramBot: telegram ? "BOT" : "", telegramChat: telegram ? "@chan" : "", webhook: "", origin: "https://likelink.test" };
   const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { "content-type": "application/json" } });
   async function fetchImpl(url, opts = {}) {
     const u = new URL(url);
@@ -462,7 +462,7 @@ test("instagram: two-phase publish, PUBLISHED only with a read-back media id, lo
   const create = graph.calls.find((c) => c.path.endsWith("/IGUSER/media"));
   assert.equal(create.body.media_type, "REELS");
   assert.ok(create.body.caption.includes("#פרסומת"));
-  assert.ok(create.body.video_url.startsWith("http://localhost:8787/api/og?mode=media"));
+  assert.ok(create.body.video_url.startsWith("https://likelink.test/api/og?mode=media"));
   assert.equal((await instagramPublishStep({ ...io, now: now + 1000 })).status, "PROCESSING");
   const c = await instagramPublishStep({ ...io, now: now + 2000 });
   assert.equal(c.status, "PUBLISHED");
