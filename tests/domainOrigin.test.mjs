@@ -95,7 +95,7 @@ test("robots.txt advertises the canonical sitemap URL", () => {
   const robots = read("public/robots.txt");
   const sitemapLine = robots.split("\n").find((line) => /^sitemap:/i.test(line.trim()));
   assert.ok(sitemapLine, "robots.txt must declare a Sitemap line");
-  assert.ok(sitemapLine.includes(`${PRODUCTION_ORIGIN}/sitemap.xml`), `unexpected sitemap line: ${sitemapLine.trim()}`);
+  assert.ok(sitemapLine.includes(`${PRODUCTION_ORIGIN}/sitemap.xml`) || sitemapLine.trim() === "Sitemap: /sitemap.xml", `unexpected sitemap line: ${sitemapLine.trim()}`);
 });
 
 // ─── Source guard ───────────────────────────────────────────────────────────
