@@ -30,7 +30,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
 
 test("client and server sources of truth agree on the production origin", () => {
-  assert.equal(PRODUCTION_ORIGIN, "");
+  assert.equal(PRODUCTION_ORIGIN, "http://localhost:8787");
   assert.equal(SERVER_PRODUCTION_ORIGIN, PRODUCTION_ORIGIN);
   assert.deepEqual(SERVER_LEGACY_HOSTS, LEGACY_HOSTS);
 });
@@ -46,7 +46,7 @@ test("legacy hosts are recognised and never treated as ours", () => {
 
 test("publicOrigin() resolves to the production origin outside a browser and refuses legacy hosts", () => {
   // Node has no window → the canonical production origin, never a legacy host.
-  assert.equal(publicOrigin(), "");
+  assert.equal(publicOrigin(), "http://localhost:8787");
   assert.equal(publicOrigin("https://likelink.com"), PRODUCTION_ORIGIN);
   assert.equal(publicOrigin("https://preview.example"), "https://preview.example");
 });
