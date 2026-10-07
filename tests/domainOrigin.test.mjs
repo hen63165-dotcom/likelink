@@ -30,7 +30,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
 
 test("client and server sources of truth agree on the production origin", () => {
-  assert.equal(PRODUCTION_ORIGIN, "https://likelink2.vercel.app");
+  assert.equal(PRODUCTION_ORIGIN, "");
   assert.equal(SERVER_PRODUCTION_ORIGIN, PRODUCTION_ORIGIN);
   assert.deepEqual(SERVER_LEGACY_HOSTS, LEGACY_HOSTS);
 });
@@ -39,16 +39,16 @@ test("legacy hosts are recognised and never treated as ours", () => {
   for (const legacy of ["https://likelink.com", "https://www.likelink.com", "likelink.com", "www.likelink.com", "https://likelink.app"]) {
     assert.equal(isLegacyOrigin(legacy), true, `${legacy} must be legacy`);
   }
-  assert.equal(isLegacyOrigin("https://likelink2.vercel.app"), false);
+  assert.equal(isLegacyOrigin("https://example.invalid"), false);
   assert.equal(isLegacyOrigin(""), false);
   assert.equal(hostOf("https://www.likelink.com/x?y=1"), "www.likelink.com");
 });
 
 test("publicOrigin() resolves to the production origin outside a browser and refuses legacy hosts", () => {
   // Node has no window → the canonical production origin, never a legacy host.
-  assert.equal(publicOrigin(), PRODUCTION_ORIGIN);
+  assert.equal(publicOrigin(), "");
   assert.equal(publicOrigin("https://likelink.com"), PRODUCTION_ORIGIN);
-  assert.equal(publicOrigin("https://preview-abc.vercel.app"), "https://preview-abc.vercel.app");
+  assert.equal(publicOrigin("https://preview.example"), "https://preview.example");
 });
 
 // ─── Deployed artifacts ─────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ test("index.html canonical, og:url, og:image, twitter:image and JSON-LD all use 
     const tag = html.split("\n").find((line) => line.includes(marker));
     assert.ok(tag, `index.html is missing ${marker}`);
     assert.ok(
-      tag.includes(PRODUCTION_ORIGIN),
-      `${marker} must use ${PRODUCTION_ORIGIN}, got: ${tag.trim()}`,
+      tag.includes('href="/" ') || tag.includes('content="/" ') || tag.includes('content="/icons/'),
+      `${marker} must use a relative current-origin URL, got: ${tag.trim()}`,
     );
   }
   // JSON-LD @id / url / logo / search target.
