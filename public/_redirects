@@ -9,5 +9,12 @@
 # Site-verification / security metadata must never be rewritten to the SPA shell.
 /.well-known/*   /.well-known/:splat   200
 
+# The API (Supabase Edge Function "api", which runs the api/*.mjs handlers).
+# Proxied so the site stays first-party: same origin, same /r tracking links.
+/api/*           https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/:splat   200
+/r               https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/r        200
+/google-feed.xml https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/google-feed.xml  200!
+/discover.xml    https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/discover.xml     200!
+
 # Classic SPA fallback: every other route returns the app shell (index.html).
 /*               /index.html            200

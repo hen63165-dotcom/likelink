@@ -17,7 +17,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Canonical production origin — the source of truth. */
-export const PRODUCTION_ORIGIN = "https://likelink2.vercel.app";
+export const PRODUCTION_ORIGIN = "https://mylikelink.netlify.app";
 
 /** Legacy placeholder hostnames. Kept ONLY so we can detect and refuse them. */
 export const LEGACY_ORIGINS = Object.freeze([
