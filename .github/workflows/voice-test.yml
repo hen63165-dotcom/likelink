@@ -24,18 +24,27 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
-          key: own-voice-v1
+            ~/.cache/dicta
+          key: own-voice-v2
       - name: Install (CPU torch + Chatterbox)
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
           pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
-          pip install -q chatterbox-tts
-          pip install -q dicta-onnx || echo "dicta-onnx unavailable (Hebrew diacritics off)"
+          pip install -q chatterbox-tts dicta-onnx faster-whisper
+      - name: Hebrew niqqud model (Dicta, open)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p ~/.cache/dicta
+          gh release download model-files-v1.0 -R thewh1teagle/dicta-onnx -p '*.onnx' -D ~/.cache/dicta --skip-existing
+          ls -la ~/.cache/dicta
+          f=$(ls ~/.cache/dicta/*int8*.onnx 2>/dev/null | head -1); [ -n "$f" ] || f=$(ls ~/.cache/dicta/*.onnx | head -1)
+          echo "DICTA_MODEL=$f" >> "$GITHUB_ENV"
       - name: Speak
         run: |
-          mkdir -p scripts/media/voice/samples
+          rm -rf scripts/media/voice/samples; mkdir -p scripts/media/voice/samples
           for s in scripts/media/voice/scripts/*.json; do
-            python scripts/media/voice/speak.py --script "$s" --out scripts/media/voice/samples 2>&1 | tee -a /tmp/voice.log
+            python scripts/media/voice/speak.py --script "$s" --out scripts/media/voice/samples 2>&1 | tr "\r" "\n" | grep --line-buffered -v -E "it/s\]|s/it\]|alignment_stream_analyzer" | tee -a /tmp/voice.log
           done
           cp /tmp/voice.log scripts/media/voice/samples/log.txt || true
       - name: Commit clips for review
