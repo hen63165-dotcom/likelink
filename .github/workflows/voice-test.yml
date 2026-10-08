@@ -1,0 +1,49 @@
+# Feasibility test for Luna's own voice (no account, no key): Hebrew TTS with
+# open weights (Chatterbox Multilingual, MIT) on the CPU runner. Runs on pushes
+# that touch the voice runner and commits the clips back to the same branch for
+# review. Nothing here publishes anything.
+name: Own voice — test
+on:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/voice/speak.py", "scripts/media/voice/scripts/**", ".github/workflows/voice-test.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  speak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: own-voice-v1
+      - name: Install (CPU torch + Chatterbox)
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q chatterbox-tts
+          pip install -q dicta-onnx || echo "dicta-onnx unavailable (Hebrew diacritics off)"
+      - name: Speak
+        run: |
+          mkdir -p scripts/media/voice/samples
+          for s in scripts/media/voice/scripts/*.json; do
+            python scripts/media/voice/speak.py --script "$s" --out scripts/media/voice/samples 2>&1 | tee -a /tmp/voice.log
+          done
+          cp /tmp/voice.log scripts/media/voice/samples/log.txt || true
+      - name: Commit clips for review
+        if: always()
+        run: |
+          mkdir -p scripts/media/voice/samples
+          cp /tmp/voice.log scripts/media/voice/samples/log.txt 2>/dev/null || true
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add scripts/media/voice/samples
+          git commit -m "Own voice: Hebrew clips from the CPU runner" || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
