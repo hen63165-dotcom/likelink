@@ -49,7 +49,7 @@ function mockRes() {
 function mockReq({ method = "POST", url = "/api/store", token = "", body = null, headers = {} }) {
   return { method, url, body, headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.81", ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers }, [Symbol.asyncIterator]: async function* () { if (body) yield Buffer.from(JSON.stringify(body)); } };
 }
-const REEL = "http://localhost:8787/api/og?mode=media&path=reels/m1/1790800071271-abc.mp4";
+const REEL = "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/1790800071271-abc.mp4";
 const video = (over = {}) => ({ id: "v1", title: "ריל", videoUrl: REEL, marketerId: "m1", productId: "p1", productTags: [{ productId: "p1" }], public: true, synthetic: true, createdAt: 1790800071271, ...over });
 function seed() {
   kv.clear(); storageCalls.length = 0;
@@ -65,9 +65,9 @@ test("isPublicVideo accepts the private-bucket proxy URL (and still rejects draf
   const { isPublicVideo } = await import("../src/lib/videoSync.js");
   assert.equal(isPublicVideo(video()), true);
   assert.equal(isPublicVideo(video({ videoUrl: REEL.replace(".mp4", ".webm") })), true);
-  assert.equal(isPublicVideo(video({ videoUrl: "blob:http://localhost:8787/x" })), false);
-  assert.equal(isPublicVideo(video({ videoUrl: "http://localhost:8787/api/og?mode=media&path=reels/m1/a.svg" })), false);
-  assert.equal(isPublicVideo(video({ videoUrl: "http://localhost:8787/api/og?mode=media&path=health/x/a.mp4" })), false);
+  assert.equal(isPublicVideo(video({ videoUrl: "blob:https://likelink2.vercel.app/x" })), false);
+  assert.equal(isPublicVideo(video({ videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/a.svg" })), false);
+  assert.equal(isPublicVideo(video({ videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=health/x/a.mp4" })), false);
   assert.equal(isPublicVideo(video({ public: false })), false);
 });
 

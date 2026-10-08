@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      LIKELINK_API: https://likelink2.vercel.app
+      LIKELINK_API: https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1
       AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
     steps:
       - uses: actions/checkout@v4
