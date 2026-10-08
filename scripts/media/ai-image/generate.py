@@ -24,6 +24,11 @@ NEGATIVE = ("photo, photograph, photorealistic, realistic, realistic skin textur
             "deformed, disfigured, extra fingers, extra limbs, bad hands, lowres, blurry, jpeg artifacts")
 STYLE = ("3d animated feature film still, original stylized character, large expressive eyes, glossy hair, "
          "soft subsurface lighting, vibrant colors, highly detailed, blender render")
+# Talking-object mascots (series F): no human cues in the style, and people are
+# pushed out by the negative prompt, or the model turns every object into a girl.
+OBJECT_STYLE = "3d cartoon render, cute anthropomorphic object mascot with big eyes and a mouth, pixar style, soft light, vibrant"
+OBJECT_NEGATIVE = NEGATIVE + ", human, person, woman, man, girl, boy, child, people, human face, hair, body, legs"
+KINDS = {"character": (STYLE, NEGATIVE), "object": (OBJECT_STYLE, OBJECT_NEGATIVE)}
 
 
 def main():
@@ -50,7 +55,8 @@ def main():
     for job in json.load(open(a.jobs)):
         t = time.time()
         g = torch.Generator("cpu").manual_seed(int(job.get("seed", 1)))
-        img = pipe(prompt=f"{STYLE}, {job['prompt']}", negative_prompt=NEGATIVE, num_inference_steps=a.steps,
+        style, negative = KINDS.get(job.get("kind", "character"), KINDS["character"])
+        img = pipe(prompt=f"{style}, {job['prompt']}", negative_prompt=negative, num_inference_steps=a.steps,
                    guidance_scale=1.5, width=a.width, height=a.height, generator=g).images[0]
         path = os.path.join(a.out, f"{job['id']}.png")
         img.save(path)
