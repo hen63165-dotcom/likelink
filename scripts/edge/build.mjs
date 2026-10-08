@@ -30,12 +30,19 @@ import { createRequire as __createRequire } from "node:module";
 const require = __createRequire("file:///likelink-edge/api.mjs");
 globalThis.process ??= __process;
 globalThis.Buffer ??= __Buffer;
-try {
-  const e = globalThis.process.env;
+// Every "process.env" in the bundle reads this object (esbuild define): some
+// hosts (Supabase Edge) expose env read-only, and the handlers need the
+// Supabase-provided names mapped to the ones they read.
+const __likelinkEnv = (() => {
+  let src = {};
+  try { src = globalThis.Deno?.env?.toObject?.() || {}; } catch { /* no Deno */ }
+  if (!Object.keys(src).length) { try { src = { ...__process.env }; } catch { /* no env */ } }
+  const e = { ...src };
   if (!e.VITE_SUPABASE_URL && e.SUPABASE_URL) e.VITE_SUPABASE_URL = e.SUPABASE_URL;
   if (!e.VITE_SUPABASE_ANON_KEY && e.SUPABASE_ANON_KEY) e.VITE_SUPABASE_ANON_KEY = e.SUPABASE_ANON_KEY;
   if (!e.PUBLIC_ORIGIN) e.PUBLIC_ORIGIN = ${JSON.stringify(PRODUCTION_ORIGIN)};
-} catch { /* read-only env */ }
+  return e;
+})();
 `.trim();
 
 const out = "edge/bundle/api.mjs";
@@ -51,6 +58,7 @@ await build({
   minify: true,
   legalComments: "none",
   banner: { js: banner },
+  define: { "process.env": "__likelinkEnv" },
   plugins: [nodePrefix],
   logLevel: "warning",
 });
