@@ -62,3 +62,29 @@ Collab post: when a creator opens a studio, offer an Instagram Collab post. The 
 - **Instagram:** connected (Windsor). Reels, carousels and stories.
 - **Facebook page:** connect `facebook_organic` in Windsor. After that, the same posts go to the page (photo + text + link).
 - **TikTok / YouTube Shorts / Pinterest:** upload the same MP4 manually. Pinterest suits product images with a link.
+
+## Series F: "החפצים מדברים" (talking-object tips)
+
+The format of the big Israeli tip accounts: a Pixar-style 3D everyday object with a face gives one useful tip, a hook sits in a box at the bottom, and a brand tag sits in the corner. We take the format only, never another account's name, characters or tag. Our objects come from the world of shopping, and our tag is "LikeLink2 · טיפ".
+
+The owner generates each 8-second clip with Veo (Gemini). The prompts ask for no text and no logos. We then add:
+- the hook box;
+- the corner tag;
+- "דמות שנוצרה ב-AI";
+- `#פרסומת · קישור שותפים`, on product episodes only.
+
+Every tip is true, and every site claim is something the site does today.
+
+| # | Character | Hook on screen | Line (Hebrew, for the character to say) | Goal |
+|---|---|---|---|---|
+| F1 | crying delivery box | הזמנת מסרטון… והגיע משהו אחר? | הזמנת אותי מרילס? לפני שקונים – תבדקי שיש תמונה אמיתית וקישור שמוביל למוצר עצמו! | buyers |
+| F2 | golden link vs sneaky grey link | אותו מוצר. 20 קישורים. רק אחד אמיתי. | הרבה קישורים מובילים לדף הבית של החנות. לחיצה ארוכה – ותראי לאן הקישור באמת לוקח אותך. | buyers |
+| F3 | silver ring with a marquise stone | איך יודעים שזה באמת כסף? | תסתכלי בפנים שלי – אם כתוב 925, אני כסף אמיתי. ואם לא כתוב? תשאלי את המוכר. | product (p-live-01) |
+| F4 | dramatic smartphone | ממליצה לחברות על מוצרים כל יום? בחינם? | את ממליצה על מוצרים כל יום! בלייקלינק פותחים סטודיו בחינם – עמוד משלך וקישור מעקב לכל מוצר. | creator sign-ups |
+| F5 | price tag in a carnival mask | המבצע הזה… באמת מבצע? | ששש… אני "מבצע"! אבל הנחה אמיתית יש רק כשהיה מחיר קודם אמיתי. תבדקי! | buyers |
+
+Veo prompt template (English works best). Paste the Hebrew line in place of LINE:
+
+> Pixar-style 3D animation. CHARACTER, cute expressive face, SETTING. It looks at the camera and says in Hebrew, clearly and warmly: "LINE". Soft cinematic light, shallow depth of field, vertical 9:16, 8 seconds, no on-screen text, no logos.
+
+Cadence: one per day. F4 (creators) runs twice a week. The episode with the most saves sets the next week's opening hook.
