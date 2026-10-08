@@ -68,7 +68,7 @@ test("creative matrix: 3×3×2×2 = 36 stable ids, each with its own tracked URL
   assert.equal(new Set(m.map((c) => c.creativeId)).size, 36);
   assert.deepEqual(buildCreativeMatrix(real).map((c) => c.creativeId), m.map((c) => c.creativeId), "deterministic");
   const u = new URL(creativeUrl(m[0], "instagram"));
-  assert.equal(u.origin, "http://localhost:8787");
+  assert.equal(u.origin, "https://likelink2.vercel.app");
   assert.equal(u.pathname, "/p/real");
   assert.equal(u.searchParams.get("cid"), m[0].creativeId);
   assert.equal(u.searchParams.get("utm_content"), m[0].hookType);
@@ -140,8 +140,8 @@ test("trend radar: parsed from the public RSS, matched to products only on real 
 test("profile checklist: one clear action; the bio is UNVERIFIED without a token", () => {
   const p = profileChecklist({ creator: M[0] });
   assert.equal(p.items.find((i) => i.id === "bio_website").status, "UNVERIFIED");
-  assert.match(p.oneAction, /\/u\/alyostyle\?utm_source=instagram&utm_medium=bio/);
-  assert.match(profileChecklist({ creator: M[0], bioWebsite: "https://likelink2.vercel.app/u/alyostyle" }).oneAction, /באינסטגרם:/);
+  assert.match(p.oneAction, /likelink2\.vercel\.app\/u\/alyostyle\?utm_source=instagram&utm_medium=bio/);
+  assert.equal(profileChecklist({ creator: M[0], bioWebsite: "https://likelink2.vercel.app/u/alyostyle" }).oneAction, null);
 });
 
 function fakeKv(extra = {}, { trendsOk = true } = {}) {
