@@ -1,27 +1,26 @@
 [transformers] `CLIPImageProcessor` requires torchvision (not installed); falling back to `CLIPImageProcessorPil` for backward compatibility. Install torchvision to use the default backend, or import `CLIPImageProcessorPil` directly to silence this warning.
 [transformers] `SiglipImageProcessor` requires torchvision (not installed); falling back to `SiglipImageProcessorPil` for backward compatibility. Install torchvision to use the default backend, or import `SiglipImageProcessorPil` directly to silence this warning.
-/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
   deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
-Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  6.57it/s]
-Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 8444.70it/s]
-Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00, 14.14it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
-Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 15.92it/s]
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
+Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00, 32.06it/s]
+Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 5758.38it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 26.47it/s]
 The config attributes {'skip_prk_steps': True} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
 No LoRA keys associated to CLIPTextModel found with the prefix='text_encoder'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModel related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
-{"loaded_ms": 4400, "model": "Lykon/dreamshaper-8"}
-[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (78 > 77). Running this sequence through the model will result in indexing errors
+{"loaded_ms": 4557, "model": "Lykon/dreamshaper-8"}
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (83 > 77). Running this sequence through the model will result in indexing errors
 [transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer CLIPTokenizer. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['hour']
-{"id": "p-live-03-0", "ms": 125536, "bytes": 630829}
-{"id": "p-live-03-1", "ms": 125661, "bytes": 620669}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['hour']
-{"id": "p-live-05-0", "ms": 125999, "bytes": 685014}
-{"id": "p-live-05-1", "ms": 125270, "bytes": 682487}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['hour']
-{"id": "p-live-01-0", "ms": 126539, "bytes": 612354}
-{"id": "p-live-01-1", "ms": 125541, "bytes": 677495}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: [', golden hour']
-{"id": "p-live-02-0", "ms": 125486, "bytes": 693584}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['golden hour']
-{"id": "p-live-02-1", "ms": 125500, "bytes": 707597}
+The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['body portrait , soft pastel purple gradient background']
+{"id": "luna-a-0", "ms": 126429, "bytes": 505157}
+The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['body portrait , soft pastel purple gradient background']
+{"id": "luna-a-1", "ms": 127964, "bytes": 517411}
+{"id": "luna-b-0", "ms": 126517, "bytes": 580723}
+{"id": "luna-b-1", "ms": 127054, "bytes": 566534}
+{"id": "f1-parcel-0", "ms": 126766, "bytes": 586201}
+{"id": "f1-parcel-1", "ms": 126680, "bytes": 573571}
+The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['style']
+{"id": "f2-links-0", "ms": 126532, "bytes": 563322}
+{"id": "f4-phone-0", "ms": 126554, "bytes": 524928}
+{"id": "f5-pricetag-0", "ms": 126714, "bytes": 589439}
