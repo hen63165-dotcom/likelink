@@ -1,4 +1,4 @@
-// Build the host-independent API bundle: edge/dist/api.mjs.
+// Build the host-independent API bundle: edge/bundle/api.mjs.
 // One ESM file with every API handler, runnable on Deno (Supabase Edge
 // Functions) or Node 18+. Node built-ins stay external as "node:*" imports.
 import { build } from "esbuild";
@@ -36,7 +36,7 @@ try {
 } catch { /* read-only env */ }
 `.trim();
 
-const out = "edge/dist/api.mjs";
+const out = "edge/bundle/api.mjs";
 await build({
   entryPoints: ["edge/entry.mjs"],
   bundle: true,
@@ -54,5 +54,5 @@ await build({
 });
 const bytes = readFileSync(out);
 const sha = createHash("sha256").update(bytes).digest("hex");
-writeFileSync("edge/dist/api.sha256", `${sha}\n`);
+writeFileSync("edge/bundle/api.sha256", `${sha}\n`);
 console.log(`built ${out} ${(bytes.length / 1024).toFixed(0)} KB sha256=${sha.slice(0, 16)}`);
