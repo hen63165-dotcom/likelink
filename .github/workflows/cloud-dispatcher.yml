@@ -20,4 +20,4 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$AUTOPILOT_SECRET"
-          curl --fail-with-body --silent --show-error --max-time 200             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/autopilot?cron=light"
+          curl --fail-with-body --silent --show-error --max-time 200             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://likelink2.vercel.app/api/autopilot?cron=light"
