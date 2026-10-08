@@ -1,7 +1,9 @@
 import __process from "node:process";
 import { Buffer as __Buffer } from "node:buffer";
 import { createRequire as __createRequire } from "node:module";
-const require = __createRequire(import.meta.url);
+// A fixed file URL: the bundle may be loaded from https, and only Node
+// built-ins are ever required (every package is bundled).
+const require = __createRequire("file:///likelink-edge/api.mjs");
 globalThis.process ??= __process;
 globalThis.Buffer ??= __Buffer;
 try {
