@@ -11,7 +11,7 @@ permissions:
 jobs:
   sample:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,12 +22,14 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
-          key: own-image-model-v1
+          key: own-image-model-v2
       - name: Install (CPU torch + diffusers)
         run: |
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q "diffusers>=0.30" transformers accelerate peft safetensors
       - name: Generate samples
+        env:
+          LIKELINK_IMAGE_ENGINE: ssd1b
         run: python scripts/media/ai-image/generate.py --jobs scripts/media/ai-image/sample-jobs.json --out scripts/media/ai-image/samples 2>&1 | tee /tmp/gen.log; mkdir -p scripts/media/ai-image/samples; cp /tmp/gen.log scripts/media/ai-image/samples/log.txt || true
       - name: Commit samples for review
         run: |

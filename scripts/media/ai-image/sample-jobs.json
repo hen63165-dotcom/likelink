@@ -1,13 +1,10 @@
 [
-  {"id": "luna-c-0", "prompt": "adult woman in her late twenties, high ponytail of wavy chestnut hair, violet hoodie, holding a small pink shopping bag, friendly smile, upper body, pastel violet background", "seed": 51001},
-  {"id": "luna-c-1", "prompt": "adult woman in her late twenties, high ponytail of wavy chestnut hair, violet hoodie, holding a small pink shopping bag, friendly smile, upper body, pastel violet background", "seed": 51002},
-  {"id": "luna-c-2", "prompt": "adult woman in her late twenties, high ponytail of wavy chestnut hair, violet hoodie, raising one finger to share a tip, friendly smile, upper body, pastel violet background", "seed": 51003},
-  {"id": "f1-parcel-2", "kind": "object", "prompt": "a sad cardboard delivery box with big teary eyes and tiny arms, sitting on a doorstep, morning light", "seed": 52001},
-  {"id": "f1-parcel-3", "kind": "object", "prompt": "a sad cardboard delivery box with big teary eyes and tiny arms, sitting on a doorstep, morning light", "seed": 52002},
-  {"id": "f2-links-1", "kind": "object", "prompt": "a shiny golden chain link with a happy face next to a grey chain link with a fake mustache and sunglasses", "seed": 53001},
-  {"id": "f2-links-2", "kind": "object", "prompt": "a shiny golden chain link with a happy face next to a grey chain link with a fake mustache and sunglasses", "seed": 53002},
-  {"id": "f4-phone-1", "kind": "object", "prompt": "a smartphone with a surprised face and little arms, hearts and chat bubbles flying around, pastel background", "seed": 54001},
-  {"id": "f4-phone-2", "kind": "object", "prompt": "a smartphone with a surprised face and little arms, hearts and chat bubbles flying around, pastel background", "seed": 54002},
-  {"id": "f5-pricetag-1", "kind": "object", "prompt": "a paper price tag with a face wearing a small carnival eye mask, sneaky smile, supermarket shelf background", "seed": 55001},
-  {"id": "f5-pricetag-2", "kind": "object", "prompt": "a paper price tag with a face wearing a small carnival eye mask, sneaky smile, supermarket shelf background", "seed": 55002}
+  {"id": "x-parcel-0", "kind": "object", "prompt": "a cardboard delivery box character with big teary eyes and tiny arms, sitting sadly on a doorstep, morning light", "seed": 61001},
+  {"id": "x-parcel-1", "kind": "object", "prompt": "a cardboard delivery box character with big teary eyes and tiny arms, sitting sadly on a doorstep, morning light", "seed": 61002},
+  {"id": "x-ring-0", "kind": "object", "prompt": "a silver ring character with a sparkling marquise gem on top, cute smiling face, on a velvet jewelry tray", "seed": 62001},
+  {"id": "x-links-0", "kind": "object", "prompt": "two chain link characters, a shiny golden link smiling and a grey link wearing a fake mustache and sunglasses", "seed": 63001},
+  {"id": "x-phone-0", "kind": "object", "prompt": "a smartphone character with a surprised face and little arms, floating hearts and chat bubbles, pastel background", "seed": 64001},
+  {"id": "x-pricetag-0", "kind": "object", "prompt": "a paper price tag character wearing a tiny carnival eye mask, sneaky grin, supermarket aisle background", "seed": 65001},
+  {"id": "x-luna-0", "prompt": "pixar style 3d young woman character, wavy chestnut ponytail, violet hoodie, raising one finger to share a tip, warm smile, upper body, pastel violet background", "seed": 66001},
+  {"id": "x-luna-1", "prompt": "pixar style 3d young woman character, wavy chestnut ponytail, violet hoodie, holding a pink shopping bag, winking, upper body, pastel violet background", "seed": 66002}
 ]

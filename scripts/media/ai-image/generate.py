@@ -26,9 +26,35 @@ STYLE = ("3d animated feature film still, original stylized character, large exp
          "soft subsurface lighting, vibrant colors, highly detailed, blender render")
 # Talking-object mascots (series F): no human cues in the style, and people are
 # pushed out by the negative prompt, or the model turns every object into a girl.
-OBJECT_STYLE = "3d cartoon render, cute anthropomorphic object mascot with big eyes and a mouth, pixar style, soft light, vibrant"
+OBJECT_STYLE = "pixar style 3d render, cute anthropomorphic mascot with big glossy eyes and an expressive mouth, soft light, vibrant, high detail"
 OBJECT_NEGATIVE = NEGATIVE + ", human, person, woman, man, girl, boy, child, people, human face, hair, body, legs"
 KINDS = {"character": (STYLE, NEGATIVE), "object": (OBJECT_STYLE, OBJECT_NEGATIVE)}
+
+
+# A stronger open model for 3D "talking object" mascots: Segmind SSD-1B (a
+# distilled SDXL, Apache-2.0) with its LCM-LoRA (4–8 steps). Still CPU-only,
+# no account, no key, no credits — just slower than SD 1.5 per image.
+SDXL_ENGINES = {
+    "ssd1b": ("segmind/SSD-1B", "latent-consistency/lcm-lora-ssd-1b"),
+}
+
+
+def load_pipeline(engine):
+    import torch
+    from diffusers import LCMScheduler
+    if engine in SDXL_ENGINES:
+        from diffusers import StableDiffusionXLPipeline
+        model, lora = SDXL_ENGINES[engine]
+        pipe = StableDiffusionXLPipeline.from_pretrained(model, torch_dtype=torch.float32)
+    else:
+        from diffusers import StableDiffusionPipeline
+        model, lora = MODEL, LCM_LORA
+        pipe = StableDiffusionPipeline.from_pretrained(model, torch_dtype=torch.float32, safety_checker=None, requires_safety_checker=False)
+    pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+    pipe.load_lora_weights(lora)
+    pipe.fuse_lora()
+    pipe.set_progress_bar_config(disable=True)
+    return pipe, model
 
 
 def main():
@@ -38,18 +64,16 @@ def main():
     ap.add_argument("--steps", type=int, default=6)
     ap.add_argument("--width", type=int, default=512)
     ap.add_argument("--height", type=int, default=912)
+    ap.add_argument("--engine", default=os.environ.get("LIKELINK_IMAGE_ENGINE", "sd15"), choices=["sd15", *SDXL_ENGINES])
     a = ap.parse_args()
     import torch
-    from diffusers import StableDiffusionPipeline, LCMScheduler
 
     torch.set_num_threads(os.cpu_count() or 4)
     t0 = time.time()
-    pipe = StableDiffusionPipeline.from_pretrained(MODEL, torch_dtype=torch.float32, safety_checker=None, requires_safety_checker=False)
-    pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
-    pipe.load_lora_weights(LCM_LORA)
-    pipe.fuse_lora()
-    pipe.set_progress_bar_config(disable=True)
-    print(json.dumps({"loaded_ms": int((time.time() - t0) * 1000), "model": MODEL}), flush=True)
+    pipe, model = load_pipeline(a.engine)
+    # SDXL-family models are trained at ~1 megapixel; SD 1.5 at 512.
+    width, height = (768, 1344) if a.engine in SDXL_ENGINES and a.width == 512 else (a.width, a.height)
+    print(json.dumps({"loaded_ms": int((time.time() - t0) * 1000), "model": model, "engine": a.engine}), flush=True)
 
     os.makedirs(a.out, exist_ok=True)
     for job in json.load(open(a.jobs)):
@@ -57,7 +81,7 @@ def main():
         g = torch.Generator("cpu").manual_seed(int(job.get("seed", 1)))
         style, negative = KINDS.get(job.get("kind", "character"), KINDS["character"])
         img = pipe(prompt=f"{style}, {job['prompt']}", negative_prompt=negative, num_inference_steps=a.steps,
-                   guidance_scale=1.5, width=a.width, height=a.height, generator=g).images[0]
+                   guidance_scale=1.5, width=width, height=height, generator=g).images[0]
         path = os.path.join(a.out, f"{job['id']}.png")
         img.save(path)
         print(json.dumps({"id": job["id"], "ms": int((time.time() - t) * 1000), "bytes": os.path.getsize(path)}), flush=True)
