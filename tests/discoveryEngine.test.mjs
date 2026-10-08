@@ -266,7 +266,7 @@ test("/p/:id serves the SEO the engine audits (meta description, JSON-LD, OG)", 
   assert.match(html, /<meta name="description" content="צמיד זהב עדין בעיצוב מינימליסטי/);
   assert.match(html, /"@type":"Product"/);
   assert.match(html, /"offers"/);
-  assert.match(html, /<link rel="canonical" href="https:\/\/likelink2\.vercel\.app\/p\/p1"/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/mylikelink\.netlify\.app\/p\/p1"/);
   const { canonicalProduct, buildProductSeo } = await import("../src/lib/discovery/surfaces.js");
   const seo = buildProductSeo(canonicalProduct(PRODUCTS[0], MARKETERS[0]));
   assert.ok(html.includes(`<title>${seo.title}</title>`), "served title == audited title");

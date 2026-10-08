@@ -73,7 +73,7 @@ function fakeSupabase({ products = [product("p1"), product("p2")], corruptReadba
   ]);
   const objects = new Map();
   const calls = [];
-  const env = { url: "https://sb.test", service: "SERVICE", anon: "ANON", telegramBot: telegram ? "BOT" : "", telegramChat: telegram ? "@chan" : "", webhook: "", origin: "https://likelink2.vercel.app" };
+  const env = { url: "https://sb.test", service: "SERVICE", anon: "ANON", telegramBot: telegram ? "BOT" : "", telegramChat: telegram ? "@chan" : "", webhook: "", origin: "https://mylikelink.netlify.app" };
   const json = (v, status = 200) => new Response(JSON.stringify(v), { status, headers: { "content-type": "application/json" } });
   async function fetchImpl(url, opts = {}) {
     const u = new URL(url);
@@ -161,13 +161,13 @@ test("ingest validation and media sniffing", () => {
 });
 
 test("a render is a disclosed SYNTHETIC_ANIMATION that the public video filter accepts", () => {
-  const url = "https://likelink2.vercel.app/api/og?mode=media&path=ugc/p1/1-cinematic3d.mp4";
+  const url = "https://mylikelink.netlify.app/api/og?mode=media&path=ugc/p1/1-cinematic3d.mp4";
   const { truth, video, asset } = buildReelRecords({ product: product("p1"), style: "ugc_style", videoUrl: url, posterUrl: url.replace(".mp4", "-poster.jpg"), bytes: 10, sha256: "a".repeat(64), probe: { durationMs: 9000 } });
   assert.equal(truth, MEDIA_TRUTH.SYNTHETIC_ANIMATION);
   assert.equal(video.synthetic, true);
   assert.equal(asset.disclosed, true);
   assert.equal(isPublicVideo({ ...video, public: true }), true);
-  assert.equal(isPublicVideo({ ...video, public: true, videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=../x.mp4" }), false);
+  assert.equal(isPublicVideo({ ...video, public: true, videoUrl: "https://mylikelink.netlify.app/api/og?mode=media&path=../x.mp4" }), false);
   // The product's own field must not turn a render into a filmed video.
   const p = product("p1", { videoUrl: url, videoProvider: RENDER_PROVIDER, videoSynthetic: true, videoStyle: "cinematic3d" });
   assert.equal(productMediaTruth(p).state, MEDIA_TRUTH.SYNTHETIC_ANIMATION);
@@ -395,7 +395,7 @@ test("social pack: every network, real fields, both disclosures, tracked canonic
   assert.ok((ig.caption.match(/#[^\s#]+/g) || []).length <= 6, "a few specific hashtags, not a wall");
   assert.ok(ig.caption.includes("₪45") && ig.caption.includes("מחיר קטלוג"));
   for (const [n, x] of Object.entries(pack.networks)) {
-    assert.ok(x.link.startsWith("https://likelink2.vercel.app/p/p1?"), `${n} links to the canonical product page`);
+    assert.ok(x.link.startsWith("https://mylikelink.netlify.app/p/p1?"), `${n} links to the canonical product page`);
     assert.equal(new URL(x.link).searchParams.get("utm_source"), n);
     const all = JSON.stringify(x);
     assert.ok(!FORBIDDEN_CLAIMS.test(all), `${n}: no invented claims`);
@@ -462,7 +462,7 @@ test("instagram: two-phase publish, PUBLISHED only with a read-back media id, lo
   const create = graph.calls.find((c) => c.path.endsWith("/IGUSER/media"));
   assert.equal(create.body.media_type, "REELS");
   assert.ok(create.body.caption.includes("#פרסומת"));
-  assert.ok(create.body.video_url.startsWith("https://likelink2.vercel.app/api/og?mode=media"));
+  assert.ok(create.body.video_url.startsWith("https://mylikelink.netlify.app/api/og?mode=media"));
   assert.equal((await instagramPublishStep({ ...io, now: now + 1000 })).status, "PROCESSING");
   const c = await instagramPublishStep({ ...io, now: now + 2000 });
   assert.equal(c.status, "PUBLISHED");
@@ -492,7 +492,7 @@ test("instagram: a failed publish is FAILED (no id, no log) and the daily cap ho
 test("audit also checks older in-browser renders: one whose file is no longer public is kept but marked not public, and the public graph skips it", async () => {
   _resetKvReadGuard();
   const sb = fakeSupabase();
-  const legacy = { id: "old1", title: "אנימציית מוצר · p1", videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/1790845976061-cqe3nc.webm", source: "likelink_auto_ugc", synthetic: true, public: true, marketerId: "m1", productTags: [{ productId: "p1" }], createdAt: 5 };
+  const legacy = { id: "old1", title: "אנימציית מוצר · p1", videoUrl: "https://mylikelink.netlify.app/api/og?mode=media&path=reels/m1/1790845976061-cqe3nc.webm", source: "likelink_auto_ugc", synthetic: true, public: true, marketerId: "m1", productTags: [{ productId: "p1" }], createdAt: 5 };
   sb.kv.set("marketplace:videos", JSON.stringify([legacy]));
   const a = await auditReels({ env: sb.env, fetchImpl: sb.fetchImpl });
   assert.equal(a.ok, true);
@@ -506,7 +506,7 @@ test("audit also checks older in-browser renders: one whose file is no longer pu
 });
 
 test("a reel tagged only with non-public products never reaches the public reels", () => {
-  const video = { id: "x1", title: "אנימציית מוצר", videoUrl: "https://likelink2.vercel.app/api/og?mode=media&path=reels/m1/a.webm", source: "likelink_auto_ugc", synthetic: true, marketerId: "m1", productTags: [{ productId: "archived-1" }], createdAt: 5 };
+  const video = { id: "x1", title: "אנימציית מוצר", videoUrl: "https://mylikelink.netlify.app/api/og?mode=media&path=reels/m1/a.webm", source: "likelink_auto_ugc", synthetic: true, marketerId: "m1", productTags: [{ productId: "archived-1" }], createdAt: 5 };
   const graph = buildPublicGraph({ products: [product("p1"), product("archived-1", { status: "archived" })], marketers: [creator], collections: [], clicks: [], videos: [video] });
   assert.equal(graph.reels.some((r) => r.id === "v-x1"), false);
 });
