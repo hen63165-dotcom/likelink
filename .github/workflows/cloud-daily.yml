@@ -36,7 +36,7 @@ jobs:
           test -n "$AUTOPILOT_SECRET"
           curl --fail-with-body --silent --show-error --max-time 320 \
             -H "Authorization: Bearer $AUTOPILOT_SECRET" \
-            -o daily.json "https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/autopilot?cron=daily"
+            -o daily.json "https://likelink2.vercel.app/api/autopilot?cron=daily"
           head -c 4000 daily.json; echo
 
       - name: Price watch
@@ -48,5 +48,5 @@ jobs:
           test -n "$AUTOPILOT_SECRET"
           curl --fail-with-body --silent --show-error --max-time 120 \
             -H "Authorization: Bearer $AUTOPILOT_SECRET" \
-            -o price-watch.json "https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/price-watch"
+            -o price-watch.json "https://likelink2.vercel.app/api/price-watch"
           head -c 4000 price-watch.json; echo

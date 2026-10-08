@@ -73,7 +73,7 @@ test("OpenAPI 3.1: exactly the five read-mostly actions, bearer auth, no publish
   const res = await call({ url: "/api/store?mode=gpt&op=openapi" });
   const spec = res.body;
   assert.equal(spec.openapi, "3.1.0");
-  assert.equal(spec.servers[0].url, "https://mylikelink.netlify.app");
+  assert.equal(spec.servers[0].url, "https://likelink2.vercel.app");
   assert.deepEqual(spec.components.securitySchemes.ApiKey, { type: "http", scheme: "bearer", description: spec.components.securitySchemes.ApiKey.description });
   const ops = Object.entries(spec.paths).flatMap(([p, m]) => Object.entries(m).map(([method, o]) => `${method.toUpperCase()} ${p} ${o.operationId}`));
   assert.deepEqual(ops.map((o) => o.split(" ")[2]).sort(), ["create_content_draft", "get_draft_status", "get_tracking_link", "list_drafts", "list_products"]);

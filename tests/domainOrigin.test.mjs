@@ -30,7 +30,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
 
 test("client and server sources of truth agree on the production origin", () => {
-  assert.equal(PRODUCTION_ORIGIN, "https://mylikelink.netlify.app");
+  assert.equal(PRODUCTION_ORIGIN, "https://likelink2.vercel.app");
   assert.equal(SERVER_PRODUCTION_ORIGIN, PRODUCTION_ORIGIN);
   assert.deepEqual(SERVER_LEGACY_HOSTS, LEGACY_HOSTS);
 });
