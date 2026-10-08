@@ -26,7 +26,7 @@ STYLE = ("3d animated feature film still, original stylized character, large exp
          "soft subsurface lighting, vibrant colors, highly detailed, blender render")
 # Talking-object mascots (series F): no human cues in the style, and people are
 # pushed out by the negative prompt, or the model turns every object into a girl.
-OBJECT_STYLE = "pixar style 3d render, cute anthropomorphic mascot with big glossy eyes and an expressive mouth, soft light, vibrant, high detail"
+OBJECT_STYLE = "stylized 3d animated film render, cute anthropomorphic mascot with big glossy eyes and an expressive mouth, soft light, vibrant, high detail"
 OBJECT_NEGATIVE = NEGATIVE + ", human, person, woman, man, girl, boy, child, people, human face, hair, body, legs"
 KINDS = {"character": (STYLE, NEGATIVE), "object": (OBJECT_STYLE, OBJECT_NEGATIVE)}
 

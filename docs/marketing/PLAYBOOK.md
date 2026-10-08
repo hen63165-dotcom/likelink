@@ -65,7 +65,7 @@ Collab post: when a creator opens a studio, offer an Instagram Collab post. The 
 
 ## Series F: "החפצים מדברים" (talking-object tips)
 
-The format of the big Israeli tip accounts: a Pixar-style 3D everyday object with a face gives one useful tip, a hook sits in a box at the bottom, and a brand tag sits in the corner. We take the format only, never another account's name, characters or tag. Our objects come from the world of shopping, and our tag is "LikeLink2 · טיפ".
+The format of the big Israeli tip accounts: a stylized 3D animated everyday object with a face gives one useful tip, a hook sits in a box at the bottom, and a brand tag sits in the corner. We take the format only, never another account's name, characters or tag. Our objects come from the world of shopping, and our tag is "LikeLink2 · טיפ".
 
 The owner generates each 8-second clip with Veo (Gemini). The prompts ask for no text and no logos. We then add:
 - the hook box;
@@ -85,6 +85,6 @@ Every tip is true, and every site claim is something the site does today.
 
 Veo prompt template (English works best). Paste the Hebrew line in place of LINE:
 
-> Pixar-style 3D animation. CHARACTER, cute expressive face, SETTING. It looks at the camera and says in Hebrew, clearly and warmly: "LINE". Soft cinematic light, shallow depth of field, vertical 9:16, 8 seconds, no on-screen text, no logos.
+> Stylized 3D animated-film look, original character. CHARACTER, cute expressive face, SETTING. It looks at the camera and says in Hebrew, clearly and warmly: "LINE". Soft cinematic light, shallow depth of field, vertical 9:16, 8 seconds, no on-screen text, no logos.
 
 Cadence: one per day. F4 (creators) runs twice a week. The episode with the most saves sets the next week's opening hook.

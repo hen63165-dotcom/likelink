@@ -5,6 +5,6 @@
   {"id": "x-links-0", "kind": "object", "prompt": "two chain link characters, a shiny golden link smiling and a grey link wearing a fake mustache and sunglasses", "seed": 63001},
   {"id": "x-phone-0", "kind": "object", "prompt": "a smartphone character with a surprised face and little arms, floating hearts and chat bubbles, pastel background", "seed": 64001},
   {"id": "x-pricetag-0", "kind": "object", "prompt": "a paper price tag character wearing a tiny carnival eye mask, sneaky grin, supermarket aisle background", "seed": 65001},
-  {"id": "x-luna-0", "prompt": "pixar style 3d young woman character, wavy chestnut ponytail, violet hoodie, raising one finger to share a tip, warm smile, upper body, pastel violet background", "seed": 66001},
-  {"id": "x-luna-1", "prompt": "pixar style 3d young woman character, wavy chestnut ponytail, violet hoodie, holding a pink shopping bag, winking, upper body, pastel violet background", "seed": 66002}
+  {"id": "x-luna-0", "prompt": "stylized 3d animated young woman character, wavy chestnut ponytail, violet hoodie, raising one finger to share a tip, warm smile, upper body, pastel violet background", "seed": 66001},
+  {"id": "x-luna-1", "prompt": "stylized 3d animated young woman character, wavy chestnut ponytail, violet hoodie, holding a pink shopping bag, winking, upper body, pastel violet background", "seed": 66002}
 ]
