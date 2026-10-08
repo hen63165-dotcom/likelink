@@ -3,61 +3,277 @@
  "license": "MIT",
  "language": "he",
  "watermark": "perth (built in)",
+ "niqqud": true,
+ "asr": "ivrit-ai/whisper-large-v3-turbo-ct2",
+ "gate": {
+  "maxCer": 0.25,
+  "minCharsPerSec": 6
+ },
  "variants": [
   {
    "id": "lively",
-   "exaggeration": 0.75,
-   "cfg": 0.35,
+   "exaggeration": 0.65,
+   "cfg": 0.4,
+   "temperature": 0.7,
    "seed": 7,
    "full": "studio-phone-lively-full.m4a",
+   "pass": false,
    "clips": [
     {
      "line": 1,
      "file": "studio-phone-lively-01.m4a",
-     "seconds": 4.08,
-     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+     "seconds": 2.46,
+     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?",
+     "heard": "כמה אנשים לחצו על ההמלצות שלך החודש?",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.46,
+       "cer": 0.0,
+       "charsPerSec": 11.8,
+       "heard": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+      },
+      {
+       "take": 1,
+       "seconds": 3.82,
+       "cer": 0.207,
+       "charsPerSec": 7.6,
+       "heard": "כמה אנשים לחצו על ההמלצות שלך חודש? אחינו."
+      },
+      {
+       "take": 2,
+       "seconds": 2.3,
+       "cer": 0.0,
+       "charsPerSec": 12.6,
+       "heard": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+      }
+     ]
     },
     {
      "line": 2,
      "file": "studio-phone-lively-02.m4a",
-     "seconds": 6.28,
-     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות."
+     "seconds": 3.98,
+     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות.",
+     "heard": "את ממליצה לחברות על מוצרים, ב-Story, בוואטסאפ, בקבוצות.",
+     "cer": 0.116,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 3.46,
+       "cer": 0.14,
+       "charsPerSec": 12.4,
+       "heard": "את ממליצה לחברות על מוצרים ב-Story בוואטסאפ לקבוצות."
+      },
+      {
+       "take": 1,
+       "seconds": 3.45,
+       "cer": 0.209,
+       "charsPerSec": 12.5,
+       "heard": "מביצה לחברות על מוצרים, ב-Story, בוואטסאפ, בקבוצות."
+      },
+      {
+       "take": 2,
+       "seconds": 3.98,
+       "cer": 0.116,
+       "charsPerSec": 10.8,
+       "heard": "את ממליצה לחברות על מוצרים, ב-Story, בוואטסאפ, בקבוצות."
+      }
+     ]
     },
     {
      "line": 3,
      "file": "studio-phone-lively-03.m4a",
-     "seconds": 3.16,
-     "say": "ובסוף? עשרים הודעות של: איפה קנית?"
+     "seconds": 2.87,
+     "say": "ובסוף? עשרים הודעות של: איפה קנית?",
+     "heard": "ובסוף, 20 הודעות של איפה קנית.",
+     "cer": 0.192,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.87,
+       "cer": 0.192,
+       "charsPerSec": 9.1,
+       "heard": "ובסוף, 20 הודעות של איפה קנית."
+      },
+      {
+       "take": 1,
+       "seconds": 2.71,
+       "cer": 0.192,
+       "charsPerSec": 9.6,
+       "heard": "‫ובסוף, 20 הודעות של איפה קנית."
+      },
+      {
+       "take": 2,
+       "seconds": 3.01,
+       "cer": 0.192,
+       "charsPerSec": 8.6,
+       "heard": "ובסוף, 20 הודעות של איפה קנית."
+      }
+     ]
     },
     {
      "line": 4,
      "file": "studio-phone-lively-04.m4a",
-     "seconds": 9.84,
-     "say": "ואפס מושג כמה באמת לחצו."
+     "seconds": 2.33,
+     "say": "ואפס מושג כמה באמת לחצו.",
+     "heard": "ואפס מושג כמה באמת לחצו.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.33,
+       "cer": 0.0,
+       "charsPerSec": 8.2,
+       "heard": "ואפס מושג כמה באמת לחצו."
+      },
+      {
+       "take": 1,
+       "seconds": 2.52,
+       "cer": 0.053,
+       "charsPerSec": 7.5,
+       "heard": "‫ובאפס מושג כמה באמת לחצו."
+      },
+      {
+       "take": 2,
+       "seconds": 2.49,
+       "cer": 0.0,
+       "charsPerSec": 7.6,
+       "heard": "ואפס מושג כמה באמת לחצו."
+      }
+     ]
     },
     {
      "line": 5,
      "file": "studio-phone-lively-05.m4a",
-     "seconds": 3.72,
-     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+     "seconds": 2.34,
+     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה.",
+     "heard": "בלייק לינק פותחים סטודיו בחינם, בדקה.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.34,
+       "cer": 0.0,
+       "charsPerSec": 12.8,
+       "heard": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+      },
+      {
+       "take": 1,
+       "seconds": 2.75,
+       "cer": 0.0,
+       "charsPerSec": 10.9,
+       "heard": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+      },
+      {
+       "take": 2,
+       "seconds": 11.53,
+       "cer": 1.5,
+       "charsPerSec": 2.6,
+       "heard": "בלייק לינק פותחים סטודיו בחינם, בדקה. פילה למשל, אלבעיה, הוא שאך מתווה לשאלות ב-mobin-alakcine,"
+      }
+     ]
     },
     {
      "line": 6,
      "file": "studio-phone-lively-06.m4a",
-     "seconds": 12.32,
-     "say": "עמוד אישי עם כל ההמלצות שלך."
+     "seconds": 2.1,
+     "say": "עמוד אישי עם כל ההמלצות שלך.",
+     "heard": "עמוד אישי עם כל ההמלצות שלך.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.18,
+       "cer": 0.273,
+       "charsPerSec": 10.1,
+       "heard": "עמוד 90 כל ההמלצות שלך."
+      },
+      {
+       "take": 1,
+       "seconds": 4.08,
+       "cer": 0.682,
+       "charsPerSec": 5.4,
+       "heard": "עמוד 90 כל ההמלצות שלך. כמה זה איתן."
+      },
+      {
+       "take": 2,
+       "seconds": 2.1,
+       "cer": 0.0,
+       "charsPerSec": 10.5,
+       "heard": "עמוד אישי עם כל ההמלצות שלך."
+      }
+     ]
     },
     {
      "line": 7,
      "file": "studio-phone-lively-07.m4a",
-     "seconds": 3.8,
-     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת."
+     "seconds": 5.74,
+     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת.",
+     "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 3.49,
+       "cer": 0.053,
+       "charsPerSec": 10.9,
+       "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומה זורשת."
+      },
+      {
+       "take": 1,
+       "seconds": 4.42,
+       "cer": 0.105,
+       "charsPerSec": 8.6,
+       "heard": "קישור מעקב לכל מוצר, ורואים כמה הלך קצור ומאיזו רשת."
+      },
+      {
+       "take": 2,
+       "seconds": 5.74,
+       "cer": 0.0,
+       "charsPerSec": 6.6,
+       "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת."
+      }
+     ]
     },
     {
      "line": 8,
      "file": "studio-phone-lively-08.m4a",
-     "seconds": 4.52,
-     "say": "סטודיו חינם. הקישור בביו."
+     "seconds": 4.28,
+     "say": "סטודיו חינם. הקישור בביו.",
+     "heard": "‫סטודיו חינם, הקישור בביו.",
+     "cer": 0.0,
+     "pass": false,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 4.28,
+       "cer": 0.0,
+       "charsPerSec": 4.7,
+       "heard": "‫סטודיו חינם, הקישור בביו."
+      },
+      {
+       "take": 1,
+       "seconds": 4.31,
+       "cer": 0.0,
+       "charsPerSec": 4.6,
+       "heard": "‫סטודיו חינם. הקישור בביו."
+      },
+      {
+       "take": 2,
+       "seconds": 4.68,
+       "cer": 0.0,
+       "charsPerSec": 4.3,
+       "heard": "סטודיו חינם, הקישור בביו."
+      }
+     ]
     }
    ]
   },
@@ -65,56 +281,266 @@
    "id": "calm",
    "exaggeration": 0.5,
    "cfg": 0.5,
-   "seed": 7,
+   "temperature": 0.6,
+   "seed": 11,
    "full": "studio-phone-calm-full.m4a",
+   "pass": true,
    "clips": [
     {
      "line": 1,
      "file": "studio-phone-calm-01.m4a",
-     "seconds": 10.88,
-     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+     "seconds": 2.27,
+     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?",
+     "heard": "כמה אנשים לחצו על ההמלצות של החודש?",
+     "cer": 0.034,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.27,
+       "cer": 0.034,
+       "charsPerSec": 12.8,
+       "heard": "כמה אנשים לחצו על ההמלצות של החודש?"
+      },
+      {
+       "take": 1,
+       "seconds": 2.46,
+       "cer": 0.034,
+       "charsPerSec": 11.8,
+       "heard": "כמה אנשים לחצו על ההמלצות שלך חודש?"
+      },
+      {
+       "take": 2,
+       "seconds": 3.38,
+       "cer": 0.034,
+       "charsPerSec": 8.6,
+       "heard": "כמה אנשים לחצו על ההמלצות שלך חודש?"
+      }
+     ]
     },
     {
      "line": 2,
      "file": "studio-phone-calm-02.m4a",
-     "seconds": 4.48,
-     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות."
+     "seconds": 3.54,
+     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות.",
+     "heard": "את ממליצה לחברות על מוצרים ב-Story, בוואטסאפ, בקבוצות?",
+     "cer": 0.116,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 3.33,
+       "cer": 0.233,
+       "charsPerSec": 12.9,
+       "heard": "את ממליצה לחברות על מוצרים ב-Story בבצאפ בקבוצות."
+      },
+      {
+       "take": 1,
+       "seconds": 3.09,
+       "cer": 0.14,
+       "charsPerSec": 13.9,
+       "heard": "את ממליצה לחברות על מוצבים, ב-Story, בוואטסאפ, בקבוצות."
+      },
+      {
+       "take": 2,
+       "seconds": 3.54,
+       "cer": 0.116,
+       "charsPerSec": 12.1,
+       "heard": "את ממליצה לחברות על מוצרים ב-Story, בוואטסאפ, בקבוצות?"
+      }
+     ]
     },
     {
      "line": 3,
      "file": "studio-phone-calm-03.m4a",
-     "seconds": 3.08,
-     "say": "ובסוף? עשרים הודעות של: איפה קנית?"
+     "seconds": 3.7,
+     "say": "ובסוף? עשרים הודעות של: איפה קנית?",
+     "heard": "ובסוף, אסלים הודעות של איפה קנית.",
+     "cer": 0.115,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.34,
+       "cer": 0.192,
+       "charsPerSec": 11.1,
+       "heard": "ובסוף, 20 הודעות של איפה קנית."
+      },
+      {
+       "take": 1,
+       "seconds": 3.7,
+       "cer": 0.115,
+       "charsPerSec": 7.0,
+       "heard": "ובסוף, אסלים הודעות של איפה קנית."
+      },
+      {
+       "take": 2,
+       "seconds": 2.45,
+       "cer": 0.192,
+       "charsPerSec": 10.6,
+       "heard": "ובסוף, 20 הודעות של איפה קנית."
+      }
+     ]
     },
     {
      "line": 4,
      "file": "studio-phone-calm-04.m4a",
-     "seconds": 11.56,
-     "say": "ואפס מושג כמה באמת לחצו."
+     "seconds": 2.37,
+     "say": "ואפס מושג כמה באמת לחצו.",
+     "heard": "ואפס מושג כמה באמת לחצו.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 3.59,
+       "cer": 0.158,
+       "charsPerSec": 5.3,
+       "heard": "‫באפס מוסד כמה באמת לחצו."
+      },
+      {
+       "take": 1,
+       "seconds": 2.37,
+       "cer": 0.0,
+       "charsPerSec": 8.0,
+       "heard": "ואפס מושג כמה באמת לחצו."
+      },
+      {
+       "take": 2,
+       "seconds": 3.02,
+       "cer": 0.0,
+       "charsPerSec": 6.3,
+       "heard": "‫ואפס מושג כמה באמת לחצו."
+      }
+     ]
     },
     {
      "line": 5,
      "file": "studio-phone-calm-05.m4a",
-     "seconds": 3.16,
-     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+     "seconds": 2.32,
+     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה.",
+     "heard": "בלייק לינק פותחים סטודיו בחינם בדקה.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.39,
+       "cer": 0.033,
+       "charsPerSec": 12.6,
+       "heard": "לייק לינק פותחים סטודיו בחינם, בדקה."
+      },
+      {
+       "take": 1,
+       "seconds": 18.54,
+       "cer": 4.133,
+       "charsPerSec": 1.6,
+       "heard": "בלייק לינק פותחים סטודיו בחינם, בדקה. F פחות אבל בסן הוא שמונשו אבה לא אלף כזי, מסתמש הוא. בלייק לינק פותחים סטודיו שמונשו אבה לפזש את המדענו האחד מלשים, או מדלק בדין האישיו שלנו, של השורה של הנעים."
+      },
+      {
+       "take": 2,
+       "seconds": 2.32,
+       "cer": 0.0,
+       "charsPerSec": 12.9,
+       "heard": "בלייק לינק פותחים סטודיו בחינם בדקה."
+      }
+     ]
     },
     {
      "line": 6,
      "file": "studio-phone-calm-06.m4a",
-     "seconds": 8.44,
-     "say": "עמוד אישי עם כל ההמלצות שלך."
+     "seconds": 3.47,
+     "say": "עמוד אישי עם כל ההמלצות שלך.",
+     "heard": "עמוד אישי עם כל ההמלצות שלך.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 3.47,
+       "cer": 0.0,
+       "charsPerSec": 6.3,
+       "heard": "עמוד אישי עם כל ההמלצות שלך."
+      },
+      {
+       "take": 1,
+       "seconds": 1.47,
+       "cer": 0.0,
+       "charsPerSec": 15.0,
+       "heard": "עמוד אישי עם כל ההמלצות שלך."
+      },
+      {
+       "take": 2,
+       "seconds": 4.28,
+       "cer": 0.0,
+       "charsPerSec": 5.1,
+       "heard": "עמוד אישי עם כל ההמלצות שלך."
+      }
+     ]
     },
     {
      "line": 7,
      "file": "studio-phone-calm-07.m4a",
-     "seconds": 5.2,
-     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת."
+     "seconds": 4.42,
+     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת.",
+     "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת.",
+     "cer": 0.0,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 4.11,
+       "cer": 0.158,
+       "charsPerSec": 9.2,
+       "heard": "כי שום מעקב לכל מוצר, ורואים כמה לחצו ומאיזור רשת. אמן."
+      },
+      {
+       "take": 1,
+       "seconds": 4.42,
+       "cer": 0.0,
+       "charsPerSec": 8.6,
+       "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת."
+      },
+      {
+       "take": 2,
+       "seconds": 4.35,
+       "cer": 0.0,
+       "charsPerSec": 8.7,
+       "heard": "קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת."
+      }
+     ]
     },
     {
      "line": 8,
      "file": "studio-phone-calm-08.m4a",
-     "seconds": 3.88,
-     "say": "סטודיו חינם. הקישור בביו."
+     "seconds": 2.03,
+     "say": "סטודיו חינם. הקישור בביו.",
+     "heard": "דודיו חינם, הקישור בביו",
+     "cer": 0.1,
+     "pass": true,
+     "takes": [
+      {
+       "take": 0,
+       "seconds": 2.03,
+       "cer": 0.1,
+       "charsPerSec": 9.9,
+       "heard": "דודיו חינם, הקישור בביו"
+      },
+      {
+       "take": 1,
+       "seconds": 4.13,
+       "cer": 0.0,
+       "charsPerSec": 4.8,
+       "heard": "סטודיו חינם, הקישור בביו"
+      },
+      {
+       "take": 2,
+       "seconds": 3.78,
+       "cer": 0.1,
+       "charsPerSec": 5.3,
+       "heard": "דודיו חינם. הקישור בביו."
+      }
+     ]
     }
    ]
   }
