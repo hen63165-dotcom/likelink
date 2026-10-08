@@ -1,42 +1,47 @@
 [
   {
-    "id": "p-live-03-0",
-    "prompt": "stylish young woman with long wavy brown hair and big expressive eyes, bright pink blazer suit and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
-    "seed": 29312
+    "id": "luna-a-0",
+    "prompt": "friendly young woman character with a short glossy dark bob haircut with one lavender streak, lavender blouse, holding a smartphone in one hand and pointing up with one finger like sharing a smart tip, warm confident smile, upper body portrait, soft pastel purple gradient background",
+    "seed": 41001
   },
   {
-    "id": "p-live-03-1",
-    "prompt": "stylish young woman with long wavy brown hair and big expressive eyes, bright pink blazer suit and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
-    "seed": 29313
+    "id": "luna-a-1",
+    "prompt": "friendly young woman character with a short glossy dark bob haircut with one lavender streak, lavender blouse, holding a smartphone in one hand and pointing up with one finger like sharing a smart tip, warm confident smile, upper body portrait, soft pastel purple gradient background",
+    "seed": 41002
   },
   {
-    "id": "p-live-05-0",
-    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
-    "seed": 29314
+    "id": "luna-b-0",
+    "prompt": "cheerful young woman character with a high ponytail of wavy chestnut hair, round golden earrings, violet hoodie, holding a small pink shopping bag and winking, upper body portrait, soft pastel pink and violet background",
+    "seed": 41003
   },
   {
-    "id": "p-live-05-1",
-    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
-    "seed": 29315
+    "id": "luna-b-1",
+    "prompt": "cheerful young woman character with a high ponytail of wavy chestnut hair, round golden earrings, violet hoodie, holding a small pink shopping bag and winking, upper body portrait, soft pastel pink and violet background",
+    "seed": 41004
   },
   {
-    "id": "p-live-01-0",
-    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
-    "seed": 29310
+    "id": "f1-parcel-0",
+    "prompt": "cute cardboard delivery box character with a face, big teary eyes and tiny arms, sitting sadly on the doorstep of an apartment building, one tear on its cheek, morning sunlight, pixar style",
+    "seed": 42001
   },
   {
-    "id": "p-live-01-1",
-    "prompt": "confident young woman with a short blonde bob and round glasses, cobalt blue knit midi dress and white sneakers, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
-    "seed": 29311
+    "id": "f1-parcel-1",
+    "prompt": "cute cardboard delivery box character with a face, big teary eyes and tiny arms, sitting sadly on the doorstep of an apartment building, one tear on its cheek, morning sunlight, pixar style",
+    "seed": 42002
   },
   {
-    "id": "p-live-02-0",
-    "prompt": "friendly young woman with a dark braid and bright eyes, cream knit sweater, wide jeans and a crossbody bag, standing on a sunny european city street, touching her bare wrist and neck, thinking, full body, golden hour",
-    "seed": 29311
+    "id": "f2-links-0",
+    "prompt": "two cute chain link characters with faces standing on a giant glowing smartphone screen, a shiny golden chain link smiling kindly and a sneaky grey chain link wearing a fake mustache and sunglasses tiptoeing away, playful, pixar style",
+    "seed": 43001
   },
   {
-    "id": "p-live-02-1",
-    "prompt": "friendly young woman with a dark braid and bright eyes, cream knit sweater, wide jeans and a crossbody bag, walking confidently toward the camera on a sunny european city street, big smile, full body, golden hour",
-    "seed": 29312
+    "id": "f4-phone-0",
+    "prompt": "cute smartphone character with a big expressive face and little arms, hands on its cheeks, dramatic surprised expression, colorful chat bubbles with hearts and little shopping bags flying around it, pastel colors, pixar style",
+    "seed": 44001
+  },
+  {
+    "id": "f5-pricetag-0",
+    "prompt": "cute paper price tag character with a face wearing a carnival eye mask and a tiny red cape, sneaking on tiptoes through a bright supermarket aisle, comedic, pixar style",
+    "seed": 45001
   }
 ]
