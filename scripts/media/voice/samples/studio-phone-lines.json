@@ -1,0 +1,122 @@
+{
+ "engine": "chatterbox-multilingual",
+ "license": "MIT",
+ "language": "he",
+ "watermark": "perth (built in)",
+ "variants": [
+  {
+   "id": "lively",
+   "exaggeration": 0.75,
+   "cfg": 0.35,
+   "seed": 7,
+   "full": "studio-phone-lively-full.m4a",
+   "clips": [
+    {
+     "line": 1,
+     "file": "studio-phone-lively-01.m4a",
+     "seconds": 4.08,
+     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+    },
+    {
+     "line": 2,
+     "file": "studio-phone-lively-02.m4a",
+     "seconds": 6.28,
+     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות."
+    },
+    {
+     "line": 3,
+     "file": "studio-phone-lively-03.m4a",
+     "seconds": 3.16,
+     "say": "ובסוף? עשרים הודעות של: איפה קנית?"
+    },
+    {
+     "line": 4,
+     "file": "studio-phone-lively-04.m4a",
+     "seconds": 9.84,
+     "say": "ואפס מושג כמה באמת לחצו."
+    },
+    {
+     "line": 5,
+     "file": "studio-phone-lively-05.m4a",
+     "seconds": 3.72,
+     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+    },
+    {
+     "line": 6,
+     "file": "studio-phone-lively-06.m4a",
+     "seconds": 12.32,
+     "say": "עמוד אישי עם כל ההמלצות שלך."
+    },
+    {
+     "line": 7,
+     "file": "studio-phone-lively-07.m4a",
+     "seconds": 3.8,
+     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת."
+    },
+    {
+     "line": 8,
+     "file": "studio-phone-lively-08.m4a",
+     "seconds": 4.52,
+     "say": "סטודיו חינם. הקישור בביו."
+    }
+   ]
+  },
+  {
+   "id": "calm",
+   "exaggeration": 0.5,
+   "cfg": 0.5,
+   "seed": 7,
+   "full": "studio-phone-calm-full.m4a",
+   "clips": [
+    {
+     "line": 1,
+     "file": "studio-phone-calm-01.m4a",
+     "seconds": 10.88,
+     "say": "כמה אנשים לחצו על ההמלצות שלך החודש?"
+    },
+    {
+     "line": 2,
+     "file": "studio-phone-calm-02.m4a",
+     "seconds": 4.48,
+     "say": "את ממליצה לחברות על מוצרים, בסטורי, בוואטסאפ, בקבוצות."
+    },
+    {
+     "line": 3,
+     "file": "studio-phone-calm-03.m4a",
+     "seconds": 3.08,
+     "say": "ובסוף? עשרים הודעות של: איפה קנית?"
+    },
+    {
+     "line": 4,
+     "file": "studio-phone-calm-04.m4a",
+     "seconds": 11.56,
+     "say": "ואפס מושג כמה באמת לחצו."
+    },
+    {
+     "line": 5,
+     "file": "studio-phone-calm-05.m4a",
+     "seconds": 3.16,
+     "say": "בלייק לינק פותחים סטודיו בחינם, בדקה."
+    },
+    {
+     "line": 6,
+     "file": "studio-phone-calm-06.m4a",
+     "seconds": 8.44,
+     "say": "עמוד אישי עם כל ההמלצות שלך."
+    },
+    {
+     "line": 7,
+     "file": "studio-phone-calm-07.m4a",
+     "seconds": 5.2,
+     "say": "קישור מעקב לכל מוצר, ורואים כמה לחצו, ומאיזו רשת."
+    },
+    {
+     "line": 8,
+     "file": "studio-phone-calm-08.m4a",
+     "seconds": 3.88,
+     "say": "סטודיו חינם. הקישור בביו."
+    }
+   ]
+  }
+ ]
+}
