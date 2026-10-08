@@ -200,7 +200,7 @@ test("public discovery routes are in the router and served by the SPA rewrites",
 });
 
 test("public surfaces carry no fabricated claims", () => {
-  const files = ["src/components/discover/kit.jsx", "src/components/discover/PublicSite.jsx", "src/components/discover/pages.jsx", "src/components/discover/PublicShell.jsx"];
+  const files = ["src/components/discover/kit.jsx", "src/components/discover/PublicSite.jsx", "src/components/discover/pages.jsx", "src/components/discover/PublicShell.jsx", "src/components/discover/hero.jsx"];
   for (const f of files) {
     const src = read(f);
     assert.ok(!/pixar/i.test(src), `${f} must not reference Pixar`);

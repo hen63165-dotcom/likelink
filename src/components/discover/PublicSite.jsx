@@ -98,15 +98,7 @@ export default function PublicSite({ route, navigate }) {
   const graph = useGraph();
   const { lang } = useL();
 
-  // Overscroll / safe-area background matches the paper canvas.
-  useEffect(() => {
-    const prev = document.body.style.background;
-    document.body.style.background = "#faf7f2";
-    return () => {
-      document.body.style.background = prev;
-    };
-  }, []);
-
+  // (The shell keeps the overscroll / safe-area background on the theme's canvas.)
   useEffect(() => {
     updatePageSEO(pageSEO(route, graph, lang));
     // route identity is what matters; graph changes only refresh copy
