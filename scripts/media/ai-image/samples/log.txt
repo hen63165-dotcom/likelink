@@ -1,26 +1,23 @@
 [transformers] `CLIPImageProcessor` requires torchvision (not installed); falling back to `CLIPImageProcessorPil` for backward compatibility. Install torchvision to use the default backend, or import `CLIPImageProcessorPil` directly to silence this warning.
 [transformers] `SiglipImageProcessor` requires torchvision (not installed); falling back to `SiglipImageProcessorPil` for backward compatibility. Install torchvision to use the default backend, or import `SiglipImageProcessorPil` directly to silence this warning.
-/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
   deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
-Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
-Loading pipeline components...:  67%|██████▋   | 4/6 [00:00<00:00, 32.06it/s]
-Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 5758.38it/s]
-Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 26.47it/s]
+Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]Loading pipeline components...:  17%|█▋        | 1/6 [00:00<00:00,  9.95it/s]CLIPFeatureExtractor appears to have been deprecated in transformers. Using CLIPImageProcessor instead.
+
+Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 3631.46it/s]
+Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 18.32it/s]Loading pipeline components...: 100%|██████████| 6/6 [00:00<00:00, 17.57it/s]
 The config attributes {'skip_prk_steps': True} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
 No LoRA keys associated to CLIPTextModel found with the prefix='text_encoder'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModel related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
-{"loaded_ms": 4557, "model": "Lykon/dreamshaper-8"}
-[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (83 > 77). Running this sequence through the model will result in indexing errors
-[transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer CLIPTokenizer. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['body portrait , soft pastel purple gradient background']
-{"id": "luna-a-0", "ms": 126429, "bytes": 505157}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['body portrait , soft pastel purple gradient background']
-{"id": "luna-a-1", "ms": 127964, "bytes": 517411}
-{"id": "luna-b-0", "ms": 126517, "bytes": 580723}
-{"id": "luna-b-1", "ms": 127054, "bytes": 566534}
-{"id": "f1-parcel-0", "ms": 126766, "bytes": 586201}
-{"id": "f1-parcel-1", "ms": 126680, "bytes": 573571}
-The following part of your input was truncated because CLIP can only handle sequences up to 77 tokens: ['style']
-{"id": "f2-links-0", "ms": 126532, "bytes": 563322}
-{"id": "f4-phone-0", "ms": 126554, "bytes": 524928}
-{"id": "f5-pricetag-0", "ms": 126714, "bytes": 589439}
+{"loaded_ms": 5186, "model": "Lykon/dreamshaper-8"}
+{"id": "luna-c-0", "ms": 151521, "bytes": 609601}
+{"id": "luna-c-1", "ms": 151836, "bytes": 502600}
+{"id": "luna-c-2", "ms": 151435, "bytes": 557336}
+[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (92 > 77). Running this sequence through the model will result in indexing errors
+{"id": "f1-parcel-2", "ms": 151076, "bytes": 542742}
+{"id": "f1-parcel-3", "ms": 150865, "bytes": 459734}
+{"id": "f2-links-1", "ms": 150894, "bytes": 429713}
+{"id": "f2-links-2", "ms": 151757, "bytes": 565764}
+{"id": "f4-phone-1", "ms": 151537, "bytes": 445053}
+{"id": "f4-phone-2", "ms": 151312, "bytes": 420454}
+{"id": "f5-pricetag-1", "ms": 151065, "bytes": 580419}
+{"id": "f5-pricetag-2", "ms": 151531, "bytes": 528730}
