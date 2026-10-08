@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Talking-object tip reel (series F) → MP4 (H.264 720x1280 30fps + AAC 48 kHz).
 //   node scripts/media/tips/render-tip.mjs --spec scripts/media/tips/specs/<id>.json
-//        [--voice voice.m4a] [--out DIR] [--fonts node_modules/@fontsource/heebo/files]
+//        [--voice voice.m4a | --voice-lines samples/<id>-lines.json --variant lively]
+//        [--out DIR] [--fonts node_modules/@fontsource/heebo/files]
 // The character is an original AI image (scripts/media/ai-image/generate.py);
 // every line says only what is true / what the site does today. Without a
 // voice track the reel carries LikeLink's own beat (generated from math).
@@ -21,6 +22,32 @@ const OUT = path.resolve(arg("out", path.join(ROOT, "public", "content", "tips")
 const FONTS = path.resolve(arg("fonts", path.join(ROOT, "node_modules", "@fontsource", "heebo", "files")));
 const VOICE = arg("voice", null);
 mkdirSync(OUT, { recursive: true });
+
+// --voice-lines <lines.json from scripts/media/voice/speak.py> [--variant id]:
+// one clip per sentence (hook, each line, end card). The voice sets the pace:
+// every caption stays up exactly as long as its sentence, and the character
+// "talks" only while the voice plays.
+const VOICE_LINES = arg("voice-lines", null);
+let voiceClips = null;
+if (VOICE_LINES) {
+  const report = JSON.parse(readFileSync(VOICE_LINES, "utf8"));
+  const want = arg("variant", null);
+  const v = want ? report.variants.find((x) => x.id === want) : report.variants[0];
+  if (!v) throw new Error(`variant ${want} is not in ${VOICE_LINES}`);
+  if (v.clips.length !== spec.lines.length + 2) throw new Error(`need ${spec.lines.length + 2} clips (hook, lines, end), got ${v.clips.length}`);
+  const dir = path.dirname(path.resolve(VOICE_LINES));
+  const LEAD = 0.1, TAIL = 0.3;
+  const fit = (s, min) => Math.max(min, Number((LEAD + s + TAIL).toFixed(2)));
+  spec.hookDur = fit(v.clips[0].seconds, 1.4);
+  spec.hookVoice = LEAD + v.clips[0].seconds;
+  spec.lines.forEach((l, i) => { const c = v.clips[i + 1]; l.dur = fit(c.seconds, 1.2); l.voice = LEAD + c.seconds; });
+  spec.end.dur = fit(v.clips[v.clips.length - 1].seconds, spec.end.dur);
+  const starts = [LEAD];
+  let t = spec.hookDur;
+  for (const l of spec.lines) { starts.push(t + LEAD); t += l.dur; }
+  starts.push(t + LEAD);
+  voiceClips = v.clips.map((c, i) => ({ file: path.join(dir, c.file), at: starts[i] }));
+}
 
 const dataUrl = (file) => {
   const ext = path.extname(file).slice(1).toLowerCase();
@@ -60,11 +87,28 @@ const total = await page.evaluate(([s, a]) => window.load(s, a), [spec, {
 const fps = 30;
 const frames = Math.round(total * fps);
 const mp4 = path.join(OUT, `${spec.id}.mp4`);
-const hasVoice = Boolean(VOICE && existsSync(VOICE));
-const audioArgs = hasVoice
-  ? ["-i", VOICE, "-f", "lavfi", "-t", String(total), "-i", OWN_BEAT,
-     "-filter_complex", "[2:a]volume=0.18[b];[1:a][b]amix=inputs=2:duration=longest:normalize=0[a]", "-map", "0:v", "-map", "[a]"]
-  : ["-f", "lavfi", "-t", String(total), "-i", OWN_BEAT, "-map", "0:v", "-map", "1:a"];
+const hasVoice = Boolean(voiceClips) || Boolean(VOICE && existsSync(VOICE));
+const lineAudio = () => {
+  const n = voiceClips.length;
+  const placed = voiceClips.map((c, i) => `[${i + 1}:a]aresample=48000,adelay=delays=${Math.round(c.at * 1000)}:all=1[v${i}]`);
+  const voices = voiceClips.map((_, i) => `[v${i}]`).join("");
+  return [
+    ...voiceClips.flatMap((c) => ["-i", c.file]),
+    "-f", "lavfi", "-t", String(total), "-i", OWN_BEAT,
+    "-filter_complex", [
+      ...placed,
+      `${voices}amix=inputs=${n}:duration=longest:normalize=0,loudnorm=I=-15:TP=-1.5,aresample=48000[vo]`,
+      `[${n + 1}:a]volume=0.16[b]`,
+      "[vo][b]amix=inputs=2:duration=longest:normalize=0[a]",
+    ].join(";"),
+    "-map", "0:v", "-map", "[a]",
+  ];
+};
+const audioArgs = voiceClips ? lineAudio()
+  : hasVoice
+    ? ["-i", VOICE, "-f", "lavfi", "-t", String(total), "-i", OWN_BEAT,
+       "-filter_complex", "[2:a]volume=0.18[b];[1:a][b]amix=inputs=2:duration=longest:normalize=0[a]", "-map", "0:v", "-map", "[a]"]
+    : ["-f", "lavfi", "-t", String(total), "-i", OWN_BEAT, "-map", "0:v", "-map", "1:a"];
 const previewAt = { hook: 0.9, middle: spec.hookDur + 3.2, end: total - 0.8 };
 
 await run("ffmpeg", [

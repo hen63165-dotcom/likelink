@@ -54,14 +54,20 @@
     $("#end .sub").textContent = spec.end.sub;
     $("#end .url").textContent = spec.end.url;
     // Timeline: hook, then each line, then the end card.
+    // With a voice, each cue also knows when its sentence stops (voiceTo), so
+    // the character "talks" exactly while the voice plays.
     let t = 0;
-    S.cues = [{ text: spec.hook, from: 0, to: spec.hookDur, hook: true }];
+    S.cues = [{ text: spec.hook, from: 0, to: spec.hookDur, hook: true, voiceTo: spec.hookVoice }];
     t = spec.hookDur;
-    for (const l of spec.lines) { S.cues.push({ text: l.text, from: t, to: t + l.dur }); t += l.dur; }
+    for (const l of spec.lines) { S.cues.push({ text: l.text, from: t, to: t + l.dur, voiceTo: l.voice != null ? t + l.voice : undefined }); t += l.dur; }
     S.endFrom = t; S.total = t + spec.end.dur;
     // Bubbles: fixed pseudo-random positions so every render is identical.
     const host = $("#bubbles"); host.innerHTML = "";
-    const b = spec.bubbles || { items: [] };
+    const b = { items: [], ...(spec.bubbles || {}) };
+    if (b.untilCue != null) {
+      b.to = S.cues[b.untilCue].to - 0.1;
+      b.every = Math.min(b.every, (b.to - b.from - 0.3) / Math.max(1, b.items.length));
+    }
     S.bub = b.items.map((text, i) => {
       const el = document.createElement("div");
       el.className = "bubble" + (i % 3 === 1 ? " g" : "");
@@ -88,7 +94,8 @@
     const cue = S.cues.find((c) => t >= c.from && t < c.to) || S.cues[S.cues.length - 1];
     const local = t - cue.from;
     // Character: slow push-in, breathing, and a "talking" bounce while a line plays.
-    const talk = cue.hook ? 0 : Math.abs(Math.sin(local * Math.PI * 4.2)) * 0.012;
+    const speaking = cue.voiceTo != null ? t < cue.voiceTo : !cue.hook;
+    const talk = speaking ? Math.abs(Math.sin(local * Math.PI * 4.2)) * 0.012 : 0;
     const sc = 1.06 + t * 0.006 + Math.sin(t * 1.7) * 0.008 + talk;
     const rot = Math.sin(t * 2.3) * 0.6 + (cue.hook ? Math.sin(t * 9) * 1.2 * Math.max(0, 1 - t / 1.2) : 0);
     $("#char").style.transform = `scale(${sc}) rotate(${rot}deg)`;
