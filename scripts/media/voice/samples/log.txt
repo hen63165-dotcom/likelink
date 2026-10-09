@@ -1,0 +1,241 @@
+niqqud: ON (dicta-1.0.int8.onnx)
+niqqud sample: כַּמָּה אֲנָשִׁים לָחֲצוּ עַל הַהַמְלָצוֹת שֶׁלְּךָ הַחֹודֶשׁ?
+
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/models/lora.py:393: FutureWarning: `LoRACompatibleLinear` is deprecated and will be removed in version 1.0.0. Use of `LoRACompatibleLinear` is deprecated. Please switch to PEFT backend by installing PEFT: `pip install peft`.
+  deprecate("LoRACompatibleLinear", "1.0.0", deprecation_message)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Downloading: "https://github.com/explosion/spacy-pkuseg/releases/download/v0.0.26/spacy_ontonotes.zip" to /home/runner/.pkuseg/spacy_ontonotes.zip
+
+loaded PerthNet (Implicit) at step 250,000
+tts loaded in 22s, sample rate 24000
+asr loaded: ivrit-ai/whisper-large-v3-turbo-ct2
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+The following generation flags are not valid and may be ignored: ['output_attentions']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+WARNING:transformers.generation.configuration_utils:The following generation flags are not valid and may be ignored: ['output_attentions']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+
+line 1 take 0: 2.46s cer 0.00 rate 11.8 in 50s | כמה אנשים לחצו על ההמלצות שלך החודש?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 1 take 1: 3.82s cer 0.21 rate 7.6 in 51s | כמה אנשים לחצו על ההמלצות שלך חודש? אחינו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 1 take 2: 2.30s cer 0.00 rate 12.6 in 40s | כמה אנשים לחצו על ההמלצות שלך החודש?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 2 take 0: 3.46s cer 0.14 rate 12.4 in 49s | את ממליצה לחברות על מוצרים ב-Story בוואטסאפ לקבוצות.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 2 take 1: 3.45s cer 0.21 rate 12.5 in 50s | מביצה לחברות על מוצרים, ב-Story, בוואטסאפ, בקבוצות.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 2 take 2: 3.98s cer 0.12 rate 10.8 in 52s | את ממליצה לחברות על מוצרים, ב-Story, בוואטסאפ, בקבוצות.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 0: 2.87s cer 0.19 rate 9.1 in 44s | ובסוף, 20 הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 1: 2.71s cer 0.19 rate 9.6 in 42s | ‫ובסוף, 20 הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 2: 3.01s cer 0.19 rate 8.6 in 45s | ובסוף, 20 הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 4 take 0: 2.33s cer 0.00 rate 8.2 in 41s | ואפס מושג כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 4 take 1: 2.52s cer 0.05 rate 7.5 in 44s | ‫ובאפס מושג כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 4 take 2: 2.49s cer 0.00 rate 7.6 in 40s | ואפס מושג כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 5 take 0: 2.34s cer 0.00 rate 12.8 in 45s | בלייק לינק פותחים סטודיו בחינם, בדקה.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 5 take 1: 2.75s cer 0.00 rate 10.9 in 43s | בלייק לינק פותחים סטודיו בחינם, בדקה.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 5 take 2: 11.53s cer 1.50 rate 2.6 in 108s | בלייק לינק פותחים סטודיו בחינם, בדקה. פילה למשל, אלבעיה, הוא שאך מתווה לשאלות ב-mobin-alakcine,
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 6 take 0: 2.18s cer 0.27 rate 10.1 in 38s | עמוד 90 כל ההמלצות שלך.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 6 take 1: 4.08s cer 0.68 rate 5.4 in 50s | עמוד 90 כל ההמלצות שלך. כמה זה איתן.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 6 take 2: 2.10s cer 0.00 rate 10.5 in 37s | עמוד אישי עם כל ההמלצות שלך.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 7 take 0: 3.49s cer 0.05 rate 10.9 in 49s | קישור מעקב לכל מוצר ורואים כמה לחצו ומה זורשת.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 7 take 1: 4.42s cer 0.10 rate 8.6 in 54s | קישור מעקב לכל מוצר, ורואים כמה הלך קצור ומאיזו רשת.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 7 take 2: 5.74s cer 0.00 rate 6.6 in 64s | קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 0: 4.28s cer 0.00 rate 4.7 in 51s | ‫סטודיו חינם, הקישור בביו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 1: 4.31s cer 0.00 rate 4.6 in 53s | ‫סטודיו חינם. הקישור בביו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 2: 4.68s cer 0.00 rate 4.3 in 55s | סטודיו חינם, הקישור בביו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 1 take 0: 2.27s cer 0.03 rate 12.8 in 40s | כמה אנשים לחצו על ההמלצות של החודש?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 1 take 1: 2.46s cer 0.03 rate 11.8 in 41s | כמה אנשים לחצו על ההמלצות שלך חודש?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 1 take 2: 3.38s cer 0.03 rate 8.6 in 45s | כמה אנשים לחצו על ההמלצות שלך חודש?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 2 take 0: 3.33s cer 0.23 rate 12.9 in 49s | את ממליצה לחברות על מוצרים ב-Story בבצאפ בקבוצות.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 2 take 1: 3.09s cer 0.14 rate 13.9 in 46s | את ממליצה לחברות על מוצבים, ב-Story, בוואטסאפ, בקבוצות.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 2 take 2: 3.54s cer 0.12 rate 12.1 in 50s | את ממליצה לחברות על מוצרים ב-Story, בוואטסאפ, בקבוצות?
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 0: 2.34s cer 0.19 rate 11.1 in 41s | ובסוף, 20 הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 1: 3.70s cer 0.12 rate 7.0 in 49s | ובסוף, אסלים הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 3 take 2: 2.45s cer 0.19 rate 10.6 in 40s | ובסוף, 20 הודעות של איפה קנית.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 4 take 0: 3.59s cer 0.16 rate 5.3 in 46s | ‫באפס מוסד כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 4 take 1: 2.37s cer 0.00 rate 8.0 in 38s | ואפס מושג כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 4 take 2: 3.02s cer 0.00 rate 6.3 in 43s | ‫ואפס מושג כמה באמת לחצו.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 5 take 0: 2.39s cer 0.03 rate 12.6 in 46s | לייק לינק פותחים סטודיו בחינם, בדקה.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 5 take 1: 18.54s cer 4.13 rate 1.6 in 170s | בלייק לינק פותחים סטודיו בחינם, בדקה. F פחות אבל בסן הוא שמונשו אבה לא אלף כזי, מסתמש הוא. בלייק לינק פותחים סטודיו שמונשו אבה לפזש את המדענו האחד מלשים, או מדלק בדין האישיו שלנו, של השורה של הנעים.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 5 take 2: 2.32s cer 0.00 rate 12.9 in 40s | בלייק לינק פותחים סטודיו בחינם בדקה.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 6 take 0: 3.47s cer 0.00 rate 6.3 in 46s | עמוד אישי עם כל ההמלצות שלך.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 6 take 1: 1.47s cer 0.00 rate 15.0 in 34s | עמוד אישי עם כל ההמלצות שלך.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 6 take 2: 4.28s cer 0.00 rate 5.1 in 51s | עמוד אישי עם כל ההמלצות שלך.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 7 take 0: 4.11s cer 0.16 rate 9.2 in 54s | כי שום מעקב לכל מוצר, ורואים כמה לחצו ומאיזור רשת. אמן.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+line 7 take 1: 4.42s cer 0.00 rate 8.6 in 55s | קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 7 take 2: 4.35s cer 0.00 rate 8.7 in 54s | קישור מעקב לכל מוצר ורואים כמה לחצו ומאיזו רשת.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 0: 2.03s cer 0.10 rate 9.9 in 37s | דודיו חינם, הקישור בביו
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 1: 4.13s cer 0.00 rate 4.8 in 51s | סטודיו חינם, הקישור בביו
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+
+
+line 8 take 2: 3.78s cer 0.10 rate 5.3 in 48s | דודיו חינם. הקישור בביו.
+variant lively: pass=False cer=[0.0, 0.116, 0.192, 0.0, 0.0, 0.0, 0.0, 0.0]
+variant calm: pass=True cer=[0.034, 0.116, 0.115, 0.0, 0.0, 0.0, 0.0, 0.1]

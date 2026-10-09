@@ -4,8 +4,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpLeft,
-  Camera,
-  Mic,
   Clapperboard,
   Compass,
   Flame,
@@ -40,6 +38,7 @@ import { trackReferralClick } from "../../lib/referral.js";
 import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { currentMoment, momentProducts } from "../../lib/moments.js";
+import { HomeHero, imageHandoff, SearchBox, TrustMarquee } from "./hero";
 import {
   categoryName,
   CollectionCard,
@@ -206,101 +205,13 @@ function CategoryChips({ graph, active, base = "/discover", allLabel }) {
   );
 }
 
-/** Category rail — round covers from real product images. */
-function CategoryRail({ graph }) {
-  const { lang } = useL();
-  return (
-    <Rail item="minmax(92px, 104px)" label="categories">
-      {graph.categories.map((c) => (
-        <Go key={c.id} to={`/discover/${encodeURIComponent(c.id)}`} className="group flex flex-col items-center gap-2 text-center">
-          <span className="block h-[84px] w-[84px] overflow-hidden rounded-full border-[3px] border-white shadow-md transition-transform group-hover:scale-105" style={{ background: "var(--lx-sunk)" }}>
-            <Img src={sized(c.cover, 200)} />
-          </span>
-          <span className="text-[13px] font-semibold leading-tight">{categoryName(c.id, lang)}</span>
-        </Go>
-      ))}
-    </Rail>
-  );
-}
-
 const MATCH_LABEL_HE = { same_photo: "נראה כמו אותה תמונה", similar: "התאמה דומה" };
 const MATCH_LABEL_EN = { same_photo: "Looks like the same photo", similar: "Similar match" };
-const SpeechRec = typeof window !== "undefined" ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
-
-function SearchBox({ value, onChange, onSubmit, autoFocus = false, big = false, onImage = null }) {
-  const { L, lang } = useL();
-  const ref = useRef(null);
-  const fileRef = useRef(null);
-  const [listening, setListening] = useState(false);
-  // Voice: the browser's own speech recognition (no provider, no upload by us).
-  function listen() {
-    if (!SpeechRec || listening) return;
-    const rec = new SpeechRec();
-    rec.lang = lang === "he" ? "he-IL" : "en-US";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (e) => { const t = e.results?.[0]?.[0]?.transcript || ""; if (t) { onChange(t); onSubmit?.(t); } };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    setListening(true);
-    rec.start();
-  }
-  useEffect(() => {
-    if (autoFocus) ref.current?.focus();
-  }, [autoFocus]);
-  return (
-    <form
-      role="search"
-      className="lx-search"
-      style={big ? { minHeight: 62 } : undefined}
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit?.(value);
-      }}
-    >
-      <Search size={20} className="lx-mute shrink-0" aria-hidden="true" />
-      <label htmlFor="lx-q" className="lx-sr">{L("חיפוש", "Search")}</label>
-      <input
-        id="lx-q"
-        ref={ref}
-        type="search"
-        enterKeyHint="search"
-        autoComplete="off"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={L("מה מחפשים? מוצר, יוצר/ת, קטגוריה…", "Search products, creators, categories…")}
-      />
-      {value ? (
-        <button type="button" className="lx-icon-btn" style={{ width: 36, height: 36 }} onClick={() => onChange("")} aria-label={L("ניקוי", "Clear")}>
-          <X size={16} />
-        </button>
-      ) : null}
-      {big && SpeechRec ? (
-        <button type="button" className="lx-icon-btn" style={{ width: 38, height: 38 }} onClick={listen} aria-label={L("חיפוש קולי", "Voice search")} aria-pressed={listening} title={L("דברו — נחפש בשבילכם", "Speak — we'll search")}>
-          <Mic size={17} style={listening ? { color: "var(--lx-rose)" } : undefined} />
-        </button>
-      ) : null}
-      {big && onImage ? (
-        <>
-          <button type="button" className="lx-icon-btn" style={{ width: 38, height: 38 }} onClick={() => fileRef.current?.click()} aria-label={L("חיפוש לפי תמונה", "Search by image")} title={L("תמונה או צילום מסך של מוצר", "A photo or screenshot of a product")}>
-            <Camera size={17} />
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImage(f); e.target.value = ""; }} />
-        </>
-      ) : null}
-      <button type="submit" className="lx-btn lx-btn-rose lx-btn-sm">{L("חיפוש", "Search")}</button>
-    </form>
-  );
-}
-
 /* --------------------------------------------------------------------- home */
 
 export function HomePage({ graph, navigate }) {
-  const { L, lang, Forward } = useL();
+  const { L, lang } = useL();
   const { favorites, following } = useMarketplace();
-  const [q, setQ] = useState("");
-  const heroProducts = graph.products.filter((p) => p.media.image).slice(0, 5);
-  const creator = graph.creators[0];
   const picks = useMemo(() => lunaPicks(graph, { favorites, following, viewed: viewedIds() }), [graph, favorites, following]);
   const [cat, setCat] = useState("");
   const gridProducts = (cat ? graph.products.filter((p) => p.category === cat) : graph.products).slice(0, 12);
@@ -313,88 +224,17 @@ export function HomePage({ graph, navigate }) {
 
   return (
     <>
-      {/* HERO DISCOVERY */}
-      <section className="relative overflow-hidden" aria-labelledby="lx-hero-title">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 60% at 85% 0%, rgba(255,159,90,.22), transparent 70%), radial-gradient(50% 60% at 0% 30%, rgba(210,47,93,.12), transparent 70%)" }} />
-        <div className="lx-wrap relative grid items-center gap-10 pb-6 pt-8 md:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-          <div className="lx-rise">
-            <p className="lx-kicker"><Sparkles size={14} /> {L("קניות דרך יוצרות · בעברית", "Creator commerce, Hebrew first")}</p>
-            <nav aria-label={L("מה עושים כאן", "What you can do here")} className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[13px] font-semibold" style={{ color: "var(--lx-ink-2)" }}>
-              {[["/discover", L("לגלות", "Discover")], ["/products", L("לקנות", "Shop")], ["/reels", L("לצפות", "Watch")], ["/creators", L("לעקוב", "Follow")], ["/studio", L("ליצור", "Create")], ["/studio", L("להרוויח", "Earn")]].map(([to, label], i) => (
-                <Go key={label} to={to} className="hover:underline">{i ? "· " : ""}{label}</Go>
-              ))}
-            </nav>
-            <h1 id="lx-hero-title" className="lx-display mt-3 text-[42px] leading-[1.02] sm:text-[54px] lg:text-[68px]">
-              {L("גלו מה שווה לקנות", "Discover what's worth buying")}
-              <span className="block" style={{ color: "var(--lx-rose)" }}>{L("דרך אנשים.", "through people.")}</span>
-            </h1>
-            <p className="lx-mute mt-4 max-w-xl text-[16px] leading-7 md:text-[18px]">
-              {L(
-                "מוצרים שיוצרים בחרו, אוספים, סרטונים וטרנדים — עם מחיר אמיתי, חנות ברורה וגילוי נאות.",
-                "Creator-picked products, collections, reels and trends — with real prices, a clear store and honest disclosure."
-              )}
-            </p>
-            <div className="mt-6 max-w-xl">
-              <SearchBox value={q} onChange={setQ} big onSubmit={(v) => navigate(`/search${v.trim() ? `?q=${encodeURIComponent(v.trim())}` : ""}`)} />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {graph.categories.slice(0, 5).map((c) => (
-                <Go key={c.id} to={`/discover/${encodeURIComponent(c.id)}`} className="lx-chip">{categoryName(c.id, lang)}</Go>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Go to="/discover" className="lx-btn lx-btn-primary">{L("התחילו לגלות", "Start discovering")} <Forward size={16} /></Go>
-              <Go to="/creators" className="lx-btn lx-btn-ghost">{L("הכירו את היוצרים", "Meet the creators")}</Go>
-            </div>
-            {/* What the site does — not small vanity counts. */}
-            <ul className="mt-8 flex flex-wrap gap-2 text-[13px]" aria-label={L("מה יש כאן", "What you get")}>
-              {[
-                L("חיפוש בטקסט, בקול, בתמונה או בקישור", "Search by text, voice, photo or link"),
-                L("כל תוצאה מראה למה היא כאן", "Every result shows why it's here"),
-                L("תמונה אמיתית וקישור ישיר לחנות", "Real photo, direct store link"),
-                L("סטודיו חינם ליוצרות", "Free studio for creators"),
-              ].map((t) => <li key={t} className="lx-chip">{t}</li>)}
-            </ul>
-          </div>
+      {/* HERO — gradient headline, search with live suggestions, bento grid */}
+      <HomeHero graph={graph} navigate={navigate} />
 
-          {heroProducts.length >= 3 ? (
-            <div className="relative">
-              <div className="lx-hero-mosaic">
-                {heroProducts.map((p, i) => (
-                  <Go key={p.id} to={productPath(p.id)} className={`lx-tile group ${i === 1 ? "lx-drift" : ""}`} aria-label={p.displayTitle}>
-                    <Media src={p.media.image} alt={p.displayTitle} ratio="auto" style={{ height: "100%" }} eager={i < 2} width={480} />
-                    <span className="absolute bottom-2 start-2 rounded-full bg-white/95 px-2.5 py-1 text-[12px] font-bold shadow" style={{ color: "var(--lx-ink)" }}>
-                      {formatPrice(p.price, lang)}
-                    </span>
-                  </Go>
-                ))}
-              </div>
-              {creator ? (
-                <Go to={creatorPath(creator.slug)} className="absolute -bottom-5 end-4 flex items-center gap-2.5 rounded-full bg-white py-2.5 pe-4 ps-2.5 md:end-8" style={{ boxShadow: "var(--lx-shadow-lift)" }}>
-                  <CreatorAvatar creator={creator} size={36} />
-                  <span className="text-[13px] leading-tight">
-                    <span className="block font-bold">{creator.name}</span>
-                    <span className="lx-mute">{L(`${creator.productIds.length} בחירות`, `${creator.productIds.length} picks`)}</span>
-                  </span>
-                </Go>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </section>
+      {/* TRUST — what a buyer can count on, and the stores products come from */}
+      <TrustMarquee graph={graph} />
 
       {/* THE MOMENT — re-themes itself by the Israeli calendar, no deploy */}
       <MomentBand graph={graph} />
 
       {/* ONE CLICK FOR EACH SIDE */}
       <ForEverySide />
-
-      {/* CATEGORY RAIL */}
-      {graph.categories.length ? (
-        <Section className="!mt-10">
-          <CategoryRail graph={graph} />
-        </Section>
-      ) : null}
 
       {/* TRENDING NOW — evidence only; otherwise "just added" (by real createdAt) */}
       {graph.trends.length ? (
@@ -1096,8 +936,9 @@ export function ProductPage({ graph, id, navigate }) {
         </Section>
       ) : null}
 
-      {/* Mobile sticky commerce bar (above the tab bar) */}
-      <div className="fixed inset-x-0 z-40 border-t px-4 py-2.5 md:hidden" style={{ bottom: "calc(58px + env(safe-area-inset-bottom))", background: "rgba(255,255,255,.96)", borderColor: "var(--lx-line)" }}>
+      {/* Mobile floating commerce bar (above the dock) */}
+      {/* Not wrapped: index.css gives every "main > div" will-change: transform, which would trap a fixed child. */}
+      <div className="lx-buybar lx-glass-strong md:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold">{product.displayTitle}</p>
@@ -1106,7 +947,7 @@ export function ProductPage({ graph, id, navigate }) {
           <ShopButton product={product} className="lx-btn-sm">{L("לחנות", "Shop")}</ShopButton>
         </div>
       </div>
-      <div className="h-16 md:hidden" aria-hidden="true" />
+      <div className="h-20 md:hidden" aria-hidden="true" />
     </>
   );
 }
@@ -1193,7 +1034,7 @@ export function ReelsPage({ graph }) {
                 {/* A LikeLink render already carries its title on-frame. */}
                 {reel?.title && !reel.style ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
                 {product ? (
-                  <div className="mt-3 flex items-center gap-3 rounded-2xl p-2.5" style={{ background: "rgba(255,255,255,.95)", color: "var(--lx-ink)" }}>
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl p-2.5" style={{ background: "rgba(12,11,18,.6)", color: "#fff", border: "1px solid rgba(255,255,255,.14)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
                     <Go to={productPath(product.id)} className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--lx-sunk)" }}>
                         <Img src={sized(product.media.image, 120)} />
@@ -1360,6 +1201,14 @@ export function SearchPage({ graph }) {
       setVisual((v) => ({ ...v, state: "failed", matches: [] }));
     }
   }
+  // A photo picked in the home search arrives here in memory.
+  useEffect(() => {
+    if (!imageHandoff.file) return;
+    const file = imageHandoff.file;
+    imageHandoff.file = null;
+    searchByImage(file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const suggestions = useMemo(() => {
     const counts = new Map();
     for (const p of graph.products) for (const t of Array.isArray(p.tags) ? p.tags : []) if (typeof t === "string") counts.set(t, (counts.get(t) || 0) + 1);
