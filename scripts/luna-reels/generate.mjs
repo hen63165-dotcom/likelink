@@ -2,7 +2,7 @@
  * Luna Reels generator — autonomous premium video engine.
  *
  *   live storefront photos (canonical cloud origin) + Pexels aesthetic B-roll
- *   → Edge-TTS (he-IL-AvriNeural) → ASS captions (LOWER-MIDDLE, 2–3 words,
+ *   → Edge-TTS (he-IL-AvriNeural) → ASS captions (LOWER-MIDDLE, 1–2 words per flashing cue,
  *   yellow/white bold text, black outline, no boxes) + `#פרסומת` / `AI` corner
  *   tags → ffmpeg render with a text-logo closing screen and animated CTA.
  *
