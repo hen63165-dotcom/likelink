@@ -22,3 +22,4 @@ build_output.txt
 # Python bytecode
 __pycache__/
 *.pyc
+scripts/luna_reels/out/

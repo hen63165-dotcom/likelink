@@ -1,0 +1,9 @@
+# Luna reels — every package is free and open source (pip install -r requirements.txt).
+# System dependency: FFmpeg (ffmpeg + ffprobe on PATH).
+moviepy==2.2.1        # video assembly (MIT)
+Pillow>=10.0          # drawing the Hebrew overlays (HPND)
+python-bidi>=0.6      # right-to-left word order (LGPL)
+numpy>=1.24           # frames
+requests>=2.31        # product photos, optional Pexels / Drive clips
+edge-tts==7.2.8       # voice: Microsoft Edge voices (GPL-3.0 package; free, unofficial service)
+gTTS==2.5.4           # voice fallback: Google Translate (MIT package; free, unofficial service)
