@@ -70,11 +70,22 @@ export const SHARE_TARGETS = Object.freeze({
   telegram: (url, text) => `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
   x: (url, text) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
   facebook: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
-  email: (url, text) => `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(url)}`,
+  // Pinterest needs the real product image; without one there is no pin.
+  pinterest: (url, text, media) => (media
+    ? `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&media=${encodeURIComponent(media)}&description=${encodeURIComponent(text)}`
+    : null),
+  email: (url, text) => `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(`${text}\n${url}`)}`,
 });
 
 /** Ordered share buttons for the RTL Hebrew UI (native share is separate). */
 export const SHARE_ORDER = Object.freeze(["whatsapp", "telegram", "x", "facebook", "email"]);
+
+/**
+ * The site's own share sheet: WhatsApp first (Israel), then the networks that
+ * take a link. The operating system's share dialog (on Windows: Microsoft's)
+ * is only an extra "more apps" option, never the default.
+ */
+export const SHARE_SHEET_ORDER = Object.freeze(["whatsapp", "telegram", "facebook", "pinterest", "x", "email"]);
 
 
 /**
@@ -133,10 +144,10 @@ export function categoryPath(category) {
   return `/discover/${encodeURIComponent(String(category || ""))}`;
 }
 
-export function buildShareLink(target, url, text = "") {
+export function buildShareLink(target, url, text = "", media = "") {
   const fn = SHARE_TARGETS[target];
   if (!fn) return null;
-  try { return fn(url, text); } catch { return null; }
+  try { return fn(url, text, /^https:\/\//i.test(String(media || "")) ? media : "") || null; } catch { return null; }
 }
 
 /** Machine key for the attribution `share_target` event. */

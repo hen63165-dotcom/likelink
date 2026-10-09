@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Share2, Link2, Check, MessageCircle, Send, Twitter, Facebook, Mail } from "lucide-react";
+import { Link2, Check, MessageCircle, MoreHorizontal, Send, Twitter, Facebook, Mail } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { SHARE_ORDER, buildShareLink, shareTargetKey, publicUrl, withAttribution, utmFor } from "../../lib/acquisition.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
@@ -10,6 +10,14 @@ const ICONS = {
   x: Twitter,
   facebook: Facebook,
   email: Mail,
+};
+
+const NAMES = {
+  whatsapp: ["וואטסאפ", "WhatsApp"],
+  telegram: ["טלגרם", "Telegram"],
+  x: ["X", "X"],
+  facebook: ["פייסבוק", "Facebook"],
+  email: ["מייל", "Email"],
 };
 
 /**
@@ -68,16 +76,6 @@ export default function ShareBar({ path, title, text, productId, marketerId, sto
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "mt-1"}`} data-testid="share-bar">
-      {canNative && (
-        <button
-          type="button"
-          onClick={handleNative}
-          className="tap flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold text-white"
-          style={{ background: "var(--accent)" }}
-        >
-          <Share2 size={14} /> {L("שיתוף", "Share")}
-        </button>
-      )}
       {SHARE_ORDER.map((target) => {
         const Icon = ICONS[target];
         return (
@@ -85,7 +83,7 @@ export default function ShareBar({ path, title, text, productId, marketerId, sto
             key={target}
             type="button"
             onClick={() => handleTarget(target)}
-            aria-label={L(`שיתוף ב-${target}`, `Share on ${target}`)}
+            aria-label={L(`שיתוף ב${NAMES[target]?.[0] || target}`, `Share on ${NAMES[target]?.[1] || target}`)}
             className="tap flex items-center justify-center rounded-full p-2"
             style={{ background: "var(--bg-subtle)", color: "var(--text)" }}
           >
@@ -103,6 +101,17 @@ export default function ShareBar({ path, title, text, productId, marketerId, sto
         {copied ? <Check size={14} /> : <Link2 size={14} />}
         {copied ? L("הועתק", "Copied") : L("העתקה", "Copy")}
       </button>
+      {/* The device's own dialog (on Windows: Microsoft's) is an extra, never the first choice. */}
+      {canNative && (
+        <button
+          type="button"
+          onClick={handleNative}
+          className="tap flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold"
+          style={{ background: "var(--bg-subtle)", color: "var(--text)" }}
+        >
+          <MoreHorizontal size={14} /> {L("עוד אפליקציות", "More apps")}
+        </button>
+      )}
     </div>
   );
 }

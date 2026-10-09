@@ -45,6 +45,39 @@ export const TREND_WINDOW_DAYS = 14;
 export const TREND_MIN_EVENTS = 3;
 const DAY = 86_400_000;
 
+// Counted nouns, written the way people write them: "מוצר אחד" / "5 מוצרים",
+// "צפייה אחת" / "3 צפיות" (never "1 צפיות"), "1 view" / "2 views".
+const COUNT_WORDS = Object.freeze({
+  products: { one: "מוצר אחד", many: "מוצרים", en: ["product", "products"] },
+  creators: { one: "יוצר/ת אחד/ת", many: "יוצרים", en: ["creator", "creators"] },
+  categories: { one: "קטגוריה אחת", many: "קטגוריות", en: ["category", "categories"] },
+  collections: { one: "אוסף אחד", many: "אוספים", en: ["collection", "collections"] },
+  views: { one: "צפייה אחת", many: "צפיות", en: ["view", "views"] },
+  clicks: { one: "קליק אחד", many: "קליקים", en: ["click", "clicks"] },
+  picks: { one: "בחירה אחת", many: "בחירות", en: ["pick", "picks"] },
+  results: { one: "תוצאה אחת", many: "תוצאות", en: ["result", "results"] },
+  reels: { one: "סרטון אחד", many: "סרטונים", en: ["video", "videos"] },
+});
+
+export function heCount(n, word) {
+  const k = Number(n) || 0;
+  const w = COUNT_WORDS[word];
+  if (!w) return String(k);
+  return k === 1 ? w.one : `${k} ${w.many}`;
+}
+
+export function enCount(n, word) {
+  const k = Number(n) || 0;
+  const w = COUNT_WORDS[word];
+  if (!w) return String(k);
+  return `${k} ${k === 1 ? w.en[0] : w.en[1]}`;
+}
+
+/** "A ו־3 B" / "A וקליק אחד": the hyphen joins "ו" to a number only. */
+export function heAnd(a, b) {
+  return `${a} ו${/^\d/.test(String(b)) ? "־" : ""}${b}`;
+}
+
 export const CATEGORY_META = Object.freeze({
   Fashion: { he: "אופנה", en: "Fashion", board: { he: "עריכת הסטייל", en: "The Style Edit" } },
   Beauty: { he: "יופי וטיפוח", en: "Beauty", board: { he: "בחירות טיפוח", en: "Beauty Picks" } },
@@ -244,7 +277,7 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
       id: "under-100",
       kind: "price",
       title: { he: "עד ₪100", en: "Under ₪100" },
-      description: { he: `${under100.length} מוצרים שהמחיר הרשום שלהם נמוך מ־₪100`, en: `${under100.length} products listed under ₪100` },
+      description: { he: `${heCount(under100.length, "products")} במחיר רשום של פחות מ־₪100`, en: `${enCount(under100.length, "products")} listed under ₪100` },
       productIds: under100.map((p) => p.id),
       creatorIds: [...new Set(under100.map((p) => p.marketerId))],
     });
@@ -525,14 +558,14 @@ export function productInsights(graph, product) {
   const creator = graph.creatorById.get(product.marketerId);
   if (creator) out.push({ kind: "creator", he: `נבחר ונוסף על ידי ${creator.name}`, en: `Picked and added by ${creator.name}` });
   const boards = collectionsFor(graph, product.id).filter((b) => b.kind !== "creator");
-  if (boards.length) out.push({ kind: "collection", he: `מופיע ב־${boards.map((b) => b.title.he).join(", ")}`, en: `Featured in ${boards.map((b) => b.title.en).join(", ")}` });
+  if (boards.length) out.push({ kind: "collection", he: `${boards.length === 1 ? "מופיע באוסף" : "מופיע באוספים"} ${boards.map((b) => `„${b.title.he}”`).join(", ")}`, en: `Featured in ${boards.map((b) => b.title.en).join(", ")}` });
   const peers = graph.products.filter((p) => p.category === product.category && Number(p.price) > 0).map((p) => Number(p.price)).sort((a, b) => a - b);
   if (peers.length >= 3 && Number(product.price) > 0) {
     const median = peers[Math.floor(peers.length / 2)];
     if (Number(product.price) < median) out.push({ kind: "price", he: `מתחת למחיר החציוני בקטגוריה (${formatPrice(median, "he")})`, en: `Below the category median price (${formatPrice(median, "en")})` });
   }
   const a = product.attention || { clicks: 0, views: 0 };
-  if (a.clicks + a.views > 0) out.push({ kind: "attention", he: `${a.views} צפיות ו־${a.clicks} קליקים נרשמו ב־${TREND_WINDOW_DAYS} הימים האחרונים`, en: `${a.views} views and ${a.clicks} clicks recorded in the last ${TREND_WINDOW_DAYS} days` });
+  if (a.clicks + a.views > 0) out.push({ kind: "attention", he: `${heAnd(heCount(a.views, "views"), heCount(a.clicks, "clicks"))} נרשמו ב־${TREND_WINDOW_DAYS} הימים האחרונים`, en: `${enCount(a.views, "views")} and ${enCount(a.clicks, "clicks")} recorded in the last ${TREND_WINDOW_DAYS} days` });
   if (product.deal) out.push({ kind: "deal", he: `המחיר ירד מ־${formatPrice(product.deal.was, "he")}`, en: `Price dropped from ${formatPrice(product.deal.was, "en")}` });
   return out;
 }

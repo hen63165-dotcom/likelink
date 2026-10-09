@@ -4,7 +4,7 @@
 // picks one. The Studio is a separate, dark surface — the header only links to it.
 import React, { useEffect, useRef, useState } from "react";
 import { Compass, Heart, Home, Menu, Moon, Play, Search, Sparkles, Sun, X, Languages } from "lucide-react";
-import { Go, useL } from "./kit";
+import { Go, HoverTips, useL } from "./kit";
 
 const THEME_KEY = "ll_theme";
 const PAPER = { light: "#f6f6fb", dark: "#070709" };
@@ -233,6 +233,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
       <main id="lx-main" className={immersive ? "" : "pb-28 lg:pb-0"}>{children}</main>
 
       {!immersive ? <Footer /> : null}
+      <HoverTips />
 
       {/* Floating dock: the active tab fills with colour and bounces once. */}
       <div className="lg:hidden">

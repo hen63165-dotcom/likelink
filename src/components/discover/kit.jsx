@@ -1,19 +1,26 @@
 // LikeLink2 public component kit — the visual building blocks of the public
 // discovery experience. Every card renders data from buildPublicGraph only;
 // every badge is backed by a real field (see src/lib/publicDiscovery.js).
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
   Check,
   Clapperboard,
+  Copy,
   ExternalLink,
+  Facebook,
   Heart,
-  Link2,
   Loader2,
+  Mail,
+  MessageCircle,
+  MoreHorizontal,
   Pause,
+  Pin,
   Play,
+  Send,
   Volume2,
   VolumeX,
   Share2,
@@ -21,15 +28,16 @@ import {
   Sparkles,
   UserCheck,
   UserPlus,
+  X,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { useVideos } from "../../context/VideoContext";
-import { buildPublicGraph, categoryName, formatPrice, REEL_STYLE_LABELS, EVIDENCE_LABELS } from "../../lib/publicDiscovery.js";
+import { buildPublicGraph, categoryName, enCount, formatPrice, heCount, REEL_STYLE_LABELS, EVIDENCE_LABELS } from "../../lib/publicDiscovery.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
-import { creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
+import { SHARE_SHEET_ORDER, buildShareLink, creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
 
@@ -232,14 +240,19 @@ function MuteToggle({ muted, onToggle }) {
 
 /** Media truth badge — only for motion. A photo needs no badge on a card. */
 export function MediaBadge({ state, showImage = false }) {
-  const { lang } = useL();
+  const { lang, L } = useL();
   if (!state) return null;
   if (state === MEDIA_TRUTH.STATIC_IMAGE && !showImage) return null;
   if (state === MEDIA_TRUTH.MISSING_MEDIA) return null;
   const label = MEDIA_TRUTH_LABEL[state]?.[lang] || "";
   const Icon = state === MEDIA_TRUTH.REAL_VIDEO ? Play : state === MEDIA_TRUTH.STATIC_IMAGE ? null : Clapperboard;
+  const tip = state === MEDIA_TRUTH.REAL_VIDEO
+    ? L("סרטון אמיתי של המוצר", "A real video of the product")
+    : state === MEDIA_TRUTH.STATIC_IMAGE
+      ? L("תמונה מעמוד המוצר בחנות", "A photo from the store's product page")
+      : L("אנימציה ממוחשבת, לא צילום של המוצר", "A computer animation, not footage of the product");
   return (
-    <span className="lx-badge lx-badge-glass">
+    <span className="lx-badge lx-badge-glass" data-tip={tip}>
       {Icon ? <Icon size={11} fill={state === MEDIA_TRUTH.REAL_VIDEO ? "currentColor" : "none"} /> : null}
       {label}
     </span>
@@ -325,10 +338,10 @@ export function LunaInsight({ title, lines = [], children, compact = false }) {
 /** Trust badges — each kind maps to a fact the system can prove. */
 export function TrustBadge({ kind }) {
   const { L } = useL();
-  if (kind === "verified") return <span className="lx-badge lx-badge-mint"><BadgeCheck size={12} /> {L("יוצר/ת מאומת/ת", "Verified creator")}</span>;
-  if (kind === "attributed") return <span className="lx-badge lx-badge-mint"><ShieldCheck size={12} /> {L("ייחוס יוצר/ת נבדק", "Creator attribution checked")}</span>;
-  if (kind === "approved") return <span className="lx-badge lx-badge-line"><Check size={12} /> {L("מוצר מאושר בקטלוג", "Approved catalog product")}</span>;
-  if (kind === "affiliate") return <span className="lx-badge lx-badge-amber">{L("קישור שותפים", "Affiliate link")}</span>;
+  if (kind === "verified") return <span className="lx-badge lx-badge-mint" data-tip={L("הפרופיל אומת על ידי LikeLink", "LikeLink verified this profile")}><BadgeCheck size={12} /> {L("יוצר/ת מאומת/ת", "Verified creator")}</span>;
+  if (kind === "attributed") return <span className="lx-badge lx-badge-mint" data-tip={L("נבדק שהמוצר שייך לחנות של מי שהוסיף אותו", "Checked: the product belongs to the shop that added it")}><ShieldCheck size={12} /> {L("ייחוס יוצר/ת נבדק", "Creator attribution checked")}</span>;
+  if (kind === "approved") return <span className="lx-badge lx-badge-line" data-tip={L("יש לו קישור משלו שמוביל למוצר עצמו, ותמונה אמיתית מהחנות", "It has its own link that opens this product, and a real store photo")}><Check size={12} /> {L("מוצר מאושר בקטלוג", "Approved catalog product")}</span>;
+  if (kind === "affiliate") return <span className="lx-badge lx-badge-amber" data-tip={L("קונים דרך הקישור? היוצר/ת עשוי/ה לקבל עמלה מהחנות. המחיר שלך לא משתנה.", "Buy through the link and the creator may earn a commission. Your price stays the same.")}>{L("קישור שותפים", "Affiliate link")}</span>;
   return null;
 }
 
@@ -339,6 +352,101 @@ export function Disclosure({ product }) {
     <p className="lx-mute text-[12px] leading-5">
       {L(AFFILIATE_DISCLOSURE_HE, "Disclosure: affiliate link — the creator may earn a commission, at no extra cost to you.")}
     </p>
+  );
+}
+
+/* ------------------------------------------------------------ hover tips */
+
+/**
+ * One explanation layer for the whole public site. Hover (or keyboard focus)
+ * over an icon-only button shows its name; any element with data-tip shows
+ * that explanation (a badge, a price note). On a phone, tapping an explained
+ * badge shows it. Never on top of a native title (no double tooltips).
+ */
+export function HoverTips() {
+  const [tip, setTip] = useState(null);
+  const active = useRef(null);
+  const timer = useRef(0);
+
+  useEffect(() => {
+    const find = (node) => {
+      const el = node instanceof Element ? node.closest("[data-tip], button[aria-label], a[aria-label]") : null;
+      if (!el || !el.closest(".lx") || el.hasAttribute("title")) return null;
+      const explicit = el.getAttribute("data-tip");
+      if (explicit) return { el, text: explicit };
+      if ((el.innerText || "").trim()) return null;
+      const label = el.getAttribute("aria-label");
+      return label ? { el, text: label } : null;
+    };
+    const hide = () => {
+      clearTimeout(timer.current);
+      active.current = null;
+      setTip(null);
+    };
+    const show = ({ el, text }) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      const below = r.top < 64;
+      const vw = window.innerWidth;
+      const half = Math.min(130, vw / 2 - 8);
+      const x = Math.min(Math.max(r.left + r.width / 2, half + 8), vw - half - 8);
+      setTip({ text, x, y: below ? r.bottom + 8 : r.top - 8, below });
+    };
+    const onOver = (e) => {
+      if (e.pointerType === "touch") return;
+      const hit = find(e.target);
+      if (hit && hit.el === active.current) return;
+      hide();
+      if (!hit) return;
+      active.current = hit.el;
+      timer.current = setTimeout(() => show(hit), 280);
+    };
+    const onFocus = (e) => {
+      const hit = find(e.target);
+      let keyboard = false;
+      try { keyboard = e.target.matches(":focus-visible"); } catch { keyboard = false; }
+      if (!hit || !keyboard) return;
+      hide();
+      active.current = hit.el;
+      show(hit);
+    };
+    const onClick = (e) => {
+      const el = e.target instanceof Element ? e.target.closest("[data-tip]") : null;
+      // Buttons and links act on a tap; only plain explained text toggles a tip.
+      if (!el || el.closest("a,button")) {
+        if (active.current) hide();
+        return;
+      }
+      if (active.current === el) return hide();
+      hide();
+      active.current = el;
+      show({ el, text: el.getAttribute("data-tip") });
+    };
+    const onKey = (e) => e.key === "Escape" && hide();
+    document.addEventListener("pointerover", onOver);
+    document.addEventListener("focusin", onFocus);
+    document.addEventListener("focusout", hide);
+    document.addEventListener("click", onClick);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", hide, { passive: true, capture: true });
+    window.addEventListener("resize", hide);
+    return () => {
+      clearTimeout(timer.current);
+      document.removeEventListener("pointerover", onOver);
+      document.removeEventListener("focusin", onFocus);
+      document.removeEventListener("focusout", hide);
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", hide, { capture: true });
+      window.removeEventListener("resize", hide);
+    };
+  }, []);
+
+  if (!tip) return null;
+  return (
+    <div role="tooltip" className={`lx-tip ${tip.below ? "is-below" : ""}`} style={{ left: tip.x, top: tip.y }}>
+      {tip.text}
+    </div>
   );
 }
 
@@ -354,6 +462,7 @@ export function SaveButton({ productId, className = "" }) {
       className={`lx-icon-btn ${className}`}
       aria-pressed={saved}
       aria-label={saved ? L("הסרה מהשמורים", "Remove from saved") : L("שמירה", "Save")}
+      data-tip={saved ? L("הסרה מהשמורים", "Remove from saved") : L("שמירה במכשיר הזה, בלי הרשמה", "Save on this device, no sign-up")}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -366,48 +475,222 @@ export function SaveButton({ productId, className = "" }) {
   );
 }
 
-export function ShareButton({ path, title, productId, marketerId, variant = "icon", className = "" }) {
-  const { showToast } = useMarketplace();
-  const { L } = useL();
-  const [copied, setCopied] = useState(false);
-  const url = withAttribution(publicUrl(path), { ...utmFor({ source: "share", medium: "social", campaign: "share_loop" }), ...(marketerId ? { ref: marketerId } : {}) });
-  const meta = { page: path, productId, marketerId };
+/** X (formerly Twitter) mark — lucide only ships the old bird. */
+function XMark({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+    </svg>
+  );
+}
 
-  async function onShare(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      trackSiteEvent("share_started", { ...meta, target: "native" });
-      try {
-        await navigator.share({ title, url });
-        trackSiteEvent("share_completed", { ...meta, target: "native" });
-      } catch {
-        /* cancelled */
+// Brand colours darkened just enough for a white icon to stay legible (≥4.2:1).
+const SHARE_NETWORKS = {
+  whatsapp: { he: "וואטסאפ", en: "WhatsApp", color: "#168c46", Icon: MessageCircle },
+  telegram: { he: "טלגרם", en: "Telegram", color: "#1b7fbf", Icon: Send },
+  facebook: { he: "פייסבוק", en: "Facebook", color: "#1877f2", Icon: Facebook },
+  pinterest: { he: "פינטרסט", en: "Pinterest", color: "#e60023", Icon: Pin },
+  x: { he: "X", en: "X", color: "#0f1419", Icon: XMark },
+  email: { he: "מייל", en: "Email", color: "#5f6368", Icon: Mail },
+};
+
+/**
+ * The site's own share sheet. It used to call navigator.share() directly,
+ * which on a Windows computer opens Microsoft's share dialog (Teams, Mail,
+ * nearby sharing) instead of WhatsApp. Now every visitor gets the same sheet:
+ * one tap to WhatsApp / Telegram / Facebook / Pinterest / X / e-mail, the
+ * link to copy, and the device's own dialog only as "more apps".
+ * Each network gets its own utm_source, so a share is attributed to where it
+ * went. A dialog: labelled, focus kept inside, Escape and the backdrop close
+ * it, focus returns to the button.
+ */
+function ShareSheet({ title, image, linkFor, meta, anchor, onClose }) {
+  const { L, he } = useL();
+  const { showToast } = useMarketplace();
+  const panel = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const [root, setRoot] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const titleId = useId();
+  const copyUrl = linkFor("copy");
+  const canNative = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const inApp = inAppBrowser();
+
+  // Render inside the public root so the .lx tokens apply.
+  useEffect(() => {
+    setRoot(anchor.current?.closest(".lx") || document.body);
+  }, [anchor]);
+
+  useEffect(() => {
+    if (!root) return undefined;
+    const el = panel.current;
+    el?.querySelector("a[href],button")?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+        return;
       }
+      if (e.key !== "Tab" || !el) return;
+      const items = [...el.querySelectorAll("a[href],button:not([disabled]),input")];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [root]);
+
+  async function copy() {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(copyUrl);
+      ok = true;
+    } catch {
+      // Older or in-app browsers: copy from the visible field instead.
+      const input = panel.current?.querySelector("input");
+      if (input) {
+        input.focus();
+        input.select();
+        try { ok = document.execCommand("copy"); } catch { ok = false; }
+      }
+    }
+    if (!ok) {
+      showToast(L("סמנו את הקישור והעתיקו", "Select the link and copy it"));
       return;
     }
+    trackSiteEvent("share_completed", { ...meta, target: "copy" });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+    showToast(L("הקישור הועתק", "Link copied"));
+  }
+
+  async function shareNative() {
+    trackSiteEvent("share_started", { ...meta, target: "native" });
     try {
-      await navigator.clipboard.writeText(url);
-      trackSiteEvent("share_completed", { ...meta, target: "copy" });
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-      showToast(L("הקישור הועתק", "Link copied"));
+      await navigator.share({ title, url: linkFor("native") });
+      // Resolved == the visitor really completed the device's share dialog.
+      trackSiteEvent("share_completed", { ...meta, target: "native" });
+      closeRef.current();
     } catch {
-      showToast(url);
+      /* cancelled */
     }
   }
 
+  if (!root) return null;
+  return createPortal(
+    // Clicks stay inside the sheet: the button that opened it may sit inside a card link.
+    <div className="lx-share-layer" onClick={(e) => e.stopPropagation()}>
+      <button type="button" tabIndex={-1} className="lx-share-scrim" onClick={() => closeRef.current()} aria-label={L("סגירה", "Close")} />
+      <div ref={panel} className="lx-share-panel lx-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} dir={he ? "rtl" : "ltr"}>
+        <div className="flex items-center gap-3">
+          {/* Every .lx img fills its box (public.css), so the box sets the size. */}
+          {image ? (
+            <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--lx-sunk)" }}>
+              <img src={image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }} />
+            </span>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="lx-display text-lg leading-tight">{L("שיתוף", "Share")}</h2>
+            {title ? <p className="lx-mute truncate text-[13px]">{title}</p> : null}
+          </div>
+          <button type="button" className="lx-icon-btn shrink-0" onClick={() => closeRef.current()} aria-label={L("סגירה", "Close")}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="lx-share-grid mt-5">
+          {SHARE_SHEET_ORDER.map((id) => {
+            const href = buildShareLink(id, linkFor(id), title || "", image);
+            if (!href) return null;
+            const n = SHARE_NETWORKS[id];
+            return (
+              <a
+                key={id}
+                href={href}
+                target={id === "email" || inApp ? undefined : "_blank"}
+                rel="noopener noreferrer"
+                className="lx-share-target"
+                onClick={() => {
+                  trackSiteEvent("share_started", { ...meta, target: id });
+                  setTimeout(() => closeRef.current(), 0);
+                }}
+              >
+                <span className="lx-share-icon" style={{ background: n.color }} aria-hidden="true"><n.Icon size={22} /></span>
+                <span className="text-[12px] font-semibold">{he ? n.he : n.en}</span>
+              </a>
+            );
+          })}
+          {canNative ? (
+            <button type="button" className="lx-share-target" onClick={shareNative}>
+              <span className="lx-share-icon" style={{ background: "#6d4aff" }} aria-hidden="true"><MoreHorizontal size={22} /></span>
+              <span className="text-[12px] font-semibold">{L("עוד אפליקציות", "More apps")}</span>
+            </button>
+          ) : null}
+        </div>
+
+        <div className="lx-share-copy">
+          <label className="lx-sr" htmlFor={`${titleId}-url`}>{L("קישור לשיתוף", "Link to share")}</label>
+          <input id={`${titleId}-url`} readOnly value={copyUrl} onFocus={(e) => e.target.select()} />
+          <button type="button" onClick={copy} className="lx-btn lx-btn-primary lx-btn-sm shrink-0" aria-live="polite">
+            {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? L("הועתק", "Copied") : L("העתקת קישור", "Copy link")}
+          </button>
+        </div>
+      </div>
+    </div>,
+    root,
+  );
+}
+
+export function ShareButton({ path, title, image = "", productId, marketerId, variant = "icon", className = "" }) {
+  const { L } = useL();
+  const [open, setOpen] = useState(false);
+  const button = useRef(null);
+  const meta = { page: path, productId, marketerId };
+  const linkFor = (target) =>
+    withAttribution(publicUrl(path), { ...utmFor({ source: target, medium: "social", campaign: "share_loop" }), ...(marketerId ? { ref: marketerId } : {}) });
+
+  function onOpen(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(true);
+  }
+  function onClose() {
+    setOpen(false);
+    button.current?.focus();
+  }
+
+  const sheet = open ? <ShareSheet title={title} image={image} linkFor={linkFor} meta={meta} anchor={button} onClose={onClose} /> : null;
   if (variant === "button") {
     return (
-      <button type="button" onClick={onShare} className={`lx-btn lx-btn-ghost ${className}`}>
-        {copied ? <Check size={16} /> : <Share2 size={16} />} {copied ? L("הועתק", "Copied") : L("שיתוף", "Share")}
-      </button>
+      <>
+        <button ref={button} type="button" onClick={onOpen} aria-haspopup="dialog" aria-expanded={open} className={`lx-btn lx-btn-ghost ${className}`}>
+          <Share2 size={16} /> {L("שיתוף", "Share")}
+        </button>
+        {sheet}
+      </>
     );
   }
   return (
-    <button type="button" onClick={onShare} className={`lx-icon-btn ${className}`} aria-label={L("שיתוף", "Share")}>
-      {copied ? <Link2 size={17} /> : <Share2 size={17} />}
-    </button>
+    <>
+      <button ref={button} type="button" onClick={onOpen} aria-haspopup="dialog" aria-expanded={open} className={`lx-icon-btn ${className}`} aria-label={L("שיתוף", "Share")} data-tip={L("שיתוף בוואטסאפ, טלגרם, פייסבוק ועוד", "Share on WhatsApp, Telegram, Facebook and more")}>
+        <Share2 size={17} />
+      </button>
+      {sheet}
+    </>
   );
 }
 
@@ -529,14 +812,14 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
           {product.merchant ? <span className="lx-mute truncate text-[11.5px]">{product.merchant}</span> : null}
         </div>
         {why && why.signals.length ? (
-          <div className="flex flex-wrap gap-1 pt-0.5" aria-label={L("למה המוצר כאן", "Why this product is here")}>
+          <div className="flex flex-wrap gap-1 pt-0.5" aria-label={L("למה המוצר כאן", "Why this product is here")} data-tip={L("רק סימנים שקיימים בנתונים. בלי כוכבים או ביקורות מומצאים.", "Only signals that exist in the data. No invented stars or reviews.")}>
             <span className="lx-mute text-[10.5px] font-semibold">{L("למה כאן:", "Why here:")}</span>
             {why.signals.slice(0, 3).map((k) => <span key={k} className="lx-badge text-[10px]" style={{ padding: "1px 6px" }}>{lang === "he" ? EVIDENCE_LABELS[k].he : EVIDENCE_LABELS[k].en}</span>)}
             {why.offers > 1 ? <span className="lx-badge lx-badge-rose text-[10px]" style={{ padding: "1px 6px" }}>{L(`${why.offers} המלצות לאותו מוצר`, `${why.offers} offers`)}</span> : null}
           </div>
         ) : null}
         {saleModelOf(product) === "affiliate" ? (
-          <p className="lx-mute text-[10.5px]" title={lang === "he" ? AFFILIATE_DISCLOSURE_HE : undefined}>
+          <p className="lx-mute text-[10.5px]" data-tip={lang === "he" ? AFFILIATE_DISCLOSURE_HE : "Affiliate link: the creator may earn a commission, at no extra cost to you."}>
             {L("קישור שותפים · עמלה ליוצר/ת", "Affiliate link · creator may earn")}
           </p>
         ) : null}
@@ -576,7 +859,7 @@ export function CreatorCard({ creator, graph }) {
           ))}
         </div>
         <p className="lx-mute mt-2.5 text-[12px]">
-          {L(`${creator.productIds.length} מוצרים בחנות`, `${creator.productIds.length} products in the shop`)}
+          {L(`${heCount(creator.productIds.length, "products")} בחנות`, `${enCount(creator.productIds.length, "products")} in the shop`)}
           {graph?.reels?.some((r) => r.creatorId === creator.id) ? L(" · יש סרטונים", " · has reels") : ""}
         </p>
         <div className="mt-auto flex gap-2 pt-4">
@@ -617,7 +900,7 @@ export function TrendCard({ trend, graph }) {
       <Media src={trend.cover} alt={categoryName(trend.category, lang)} ratio="4 / 5" width={500}>
         <div className="lx-reel-shade" />
         <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-          <span className="lx-badge lx-badge-glass">{L(`${trend.views} צפיות · ${trend.clicks} קליקים · ${trend.windowDays} ימים`, `${trend.views} views · ${trend.clicks} clicks · ${trend.windowDays} days`)}</span>
+          <span className="lx-badge lx-badge-glass">{L(`${heCount(trend.views, "views")} · ${heCount(trend.clicks, "clicks")} · ${trend.windowDays} ימים`, `${enCount(trend.views, "views")} · ${enCount(trend.clicks, "clicks")} · ${trend.windowDays} days`)}</span>
           <h3 className="lx-display mt-2 text-[26px]">{categoryName(trend.category, lang)}</h3>
           <div className="mt-2 flex items-center gap-2">
             <div className="flex -space-x-2 rtl:space-x-reverse">
@@ -627,7 +910,7 @@ export function TrendCard({ trend, graph }) {
                 </span>
               ))}
             </div>
-            <span className="text-[13px] font-semibold">{L(`${trend.productIds.length} מוצרים · גלו`, `${trend.productIds.length} products · Explore`)}</span>
+            <span className="text-[13px] font-semibold">{L(`${heCount(trend.productIds.length, "products")} · גלו`, `${enCount(trend.productIds.length, "products")} · Explore`)}</span>
           </div>
         </div>
       </Media>
