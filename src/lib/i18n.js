@@ -157,7 +157,7 @@ export const translations = {
       createBtn: "יצירת הסטודיו שלי",
       enterBtn: "כניסה לסטודיו",
       forgot: "שכחתי סיסמה",
-      note: "כניסה מאובטחת דרך Supabase כשמוגדר — אחרת במצב דמו מקומי. כמה שניות והסטודיו מוכן.",
+      note: "כניסה מאובטחת. כמה שניות והסטודיו מוכן.",
     },
     form: {
       newListing: "מוצר חדש",
@@ -473,7 +473,7 @@ export const translations = {
       createBtn: "Create my studio",
       enterBtn: "Enter studio",
       forgot: "Forgot password?",
-      note: "Secure sign-in via Supabase when configured — otherwise a local demo mode. Your studio is ready in seconds.",
+      note: "Secure sign-in. Your studio is ready in seconds.",
     },
     form: {
       newListing: "New listing",

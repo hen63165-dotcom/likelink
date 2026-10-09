@@ -242,7 +242,7 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
   - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
   - A key served from it is read-only (`snapshot_read_only`).
   - Cloud-hosted media is dropped from the copy.
-  - The home pill says "עותק מ־<time>".
+  - The home pill says "נכון ל־<time>" (as of), and the studio sign-up screen shows `CLOUD_PAUSED_HE` instead of a raw error while the cloud cannot answer (`isCloudUnavailable`).
   - Refresh the copy with SQL when the catalog changes and the API is down.
 - **Real product video reels** (`scripts/media/product-video/`, Actions → "Product video reels"):
   - Chrome reads the seller's own video from each product page (read-only; a CAPTCHA stops the run).

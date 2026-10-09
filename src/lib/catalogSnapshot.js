@@ -84,6 +84,19 @@ export function snapshotTakenAt() {
   return served.size ? takenAt : null;
 }
 
+/**
+ * True when an error says our cloud could not answer at all (a restricted
+ * project, a network failure), as opposed to a real answer such as "wrong
+ * password". Used to show visitors a calm message instead of the raw error.
+ */
+export function isCloudUnavailable(error) {
+  const text = String(error?.message || error?.error || error || "");
+  return /restricted|exceed_\w*quota|\b402\b|failed to fetch|load failed|networkerror|network request failed/i.test(text);
+}
+
+/** What a visitor is told while studio sign-up and login cannot reach the cloud. */
+export const CLOUD_PAUSED_HE = "פתיחת סטודיו וכניסה לסטודיו חוזרות בקרוב, אנחנו בתחזוקה קצרה. בינתיים אפשר לגלוש באתר ולקנות דרך הקישורים כרגיל.";
+
 /** Test hook: forget what this module loaded and served. */
 export function resetSnapshotForTests() {
   pending = null;

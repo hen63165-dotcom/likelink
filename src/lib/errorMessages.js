@@ -5,6 +5,8 @@
 // reports a failed server call goes through `toHebrewError`, which returns a
 // human sentence and falls back to a generic message for unknown codes.
 
+import { CLOUD_PAUSED_HE } from "./catalogSnapshot.js";
+
 const MESSAGES = {
   // Identity / permissions
   authentication_required: "צריך להתחבר לסטודיו כדי לבצע את הפעולה",
@@ -137,6 +139,8 @@ export function authErrorHe(res, fallback = GENERIC) {
   if (has("rate_limit", "rate limit", "too many", "over_email_send_rate_limit", "over_request_rate_limit")) return "יותר מדי ניסיונות — נסי שוב בעוד כמה דקות";
   if (has("signup_disabled", "signups not allowed")) return "הרשמה חדשה סגורה כרגע";
   if (has("not configured", "missing .env")) return "שירות ההתחברות לא זמין כרגע — פני לתמיכה";
+  // The project is restricted (e.g. a quota): not the visitor's mistake — never "check your password".
+  if (has("restricted", "exceed_", "quota")) return CLOUD_PAUSED_HE;
   if (has("failed to fetch", "network", "timeout", "aborted")) return "אין חיבור לשרת — בדקי את החיבור ונסי שוב";
   return fallback;
 }

@@ -10,8 +10,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  CLOUD_PAUSED_HE,
   SNAPSHOT_KEYS,
   isCloudMediaUrl,
+  isCloudUnavailable,
   resetSnapshotForTests,
   servedFromSnapshot,
   snapshotGet,
@@ -99,4 +101,28 @@ test("storage: the live read path falls back to the copy only after a failure", 
   // The live answer is returned as-is; the copy appears only in the failure paths.
   assert.match(get, /return data \? \{ key, value: data\.value, shared: true \} : null;/);
   assert.match(get, /catch \(e\) \{[\s\S]*snapshotFallback\(key\)/);
+});
+
+test("cloud down: visitors get a calm Hebrew message, real answers still show as themselves", () => {
+  for (const e of [
+    "Service for this project is restricted due to the following violations: exceed_cached_egress_quota.",
+    new TypeError("Failed to fetch"),
+    { message: "Load failed" },
+    "NetworkError when attempting to fetch resource.",
+  ]) assert.ok(isCloudUnavailable(e), String(e?.message || e));
+  for (const e of ["Invalid login credentials", "User already registered", "Password should be at least 6 characters", ""]) {
+    assert.ok(!isCloudUnavailable(e), e);
+  }
+  assert.doesNotMatch(CLOUD_PAUSED_HE, /supabase|402|quota|error/i, "no technical words for visitors");
+  const sell = readFileSync(new URL("../src/components/sell/SellView.jsx", import.meta.url), "utf8");
+  assert.match(sell, /isCloudUnavailable\(result\.error\)\) setErr\(CLOUD_PAUSED_HE\)/, "sign-up/login failures map to the calm message");
+  const i18n = readFileSync(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
+  assert.doesNotMatch(i18n, /via Supabase|דרך Supabase|local demo mode|במצב דמו מקומי/, "no developer wording on the sign-up screen");
+});
+
+test("sign-up/login: a restricted project is never reported as a password problem", async () => {
+  const { authErrorHe } = await import("../src/lib/errorMessages.js");
+  const res = { ok: false, error: "Service for this project is restricted due to the following violations: exceed_cached_egress_quota." };
+  assert.equal(authErrorHe(res, "הכניסי סיסמה (לפחות 6 תווים)"), CLOUD_PAUSED_HE);
+  assert.equal(authErrorHe({ ok: false, error: "Invalid login credentials" }), "האימייל או הסיסמה שגויים");
 });
