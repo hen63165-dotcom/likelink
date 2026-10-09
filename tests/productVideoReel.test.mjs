@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { videoUrlsInText } from "../scripts/media/product-video/find-videos.mjs";
-import { KEYWORD, buildCaption, pickHook } from "../scripts/media/product-video/make-reel.mjs";
+import { KEYWORD, VARIANTS, buildCaption, creatorHooks, pickHook, variantHooks } from "../scripts/media/product-video/make-reel.mjs";
 import { HOOK_FORBIDDEN } from "../src/lib/growth/likeloop.js";
 
 const products = JSON.parse(readFileSync(new URL("../public/snapshot/kv.json", import.meta.url), "utf8")).keys["marketplace:products"];
@@ -38,4 +38,18 @@ test("captions: the product's own facts, the comment keyword, the ad disclosure,
     assert.ok((c.match(/#[^\s#·]+/g) || []).length <= 6, "a few relevant hashtags");
     assert.ok(c.length <= 2200, "Instagram caption limit");
   }
+});
+
+test("creator cut: three honest hooks per product, no prices, 'on Ali' only for AliExpress items", () => {
+  for (const p of products) {
+    const hooks = variantHooks(p);
+    assert.equal(hooks.length, VARIANTS.length, `${p.id}: one hook per variant`);
+    assert.equal(new Set(hooks.map((h) => h.text)).size, hooks.length, `${p.id}: the variants differ`);
+    for (const h of hooks) {
+      assert.doesNotMatch(h.text, HOOK_FORBIDDEN, `${p.id}: ${h.text}`);
+      assert.doesNotMatch(h.text, /₪|\d/, `${p.id}: no price in a hook`);
+    }
+  }
+  const notAli = { id: "x", category: "Home", affiliateUrl: "https://example-shop.test/p/1" };
+  assert.ok(creatorHooks(notAli).every((h) => !/אלי/.test(h.text)), "a non-AliExpress product is never called 'from Ali'");
 });
