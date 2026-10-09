@@ -64,6 +64,14 @@ jobs:
           LIKELINK_CANONICAL_URL: ${{ vars.LIKELINK_CANONICAL_URL || 'https://likelink.to' }}
           LUNA_REELS_PER_DAY: ${{ vars.LUNA_REELS_PER_DAY || '6' }}
         run: node scripts/luna-reels/generate.mjs
+      - name: Upload rendered reel to Instagram Reels (Meta Graph API)
+        env:
+          INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        continue-on-error: true
+        run: |
+          node scripts/instagram/upload.mjs --manifest out/luna-reels/manifest.json
+
 
       - name: Upload rendered reel
         uses: actions/upload-artifact@v4
