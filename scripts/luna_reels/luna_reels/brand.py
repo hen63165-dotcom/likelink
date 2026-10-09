@@ -22,18 +22,15 @@ CAPTION_BOX = (13, 12, 20, 178)
 
 FONT_BOLD = ASSETS / "Heebo-ExtraBold.ttf"
 FONT_TEXT = ASSETS / "Heebo-Medium.ttf"
-LOGO = ASSETS / "logo.png"
 LUNA = ASSETS / "luna.png"
 
 SITE_URL = "likelink2.vercel.app"
-SERIES_TAG = "לונה · LikeLink2"
 
 # Truth labels (CLAUDE.md: an AI character is always labelled; an affiliate
 # post always carries the ad tag). Burned into the frames, not only the caption.
 AI_LABEL = "דמות שנוצרה בבינה מלאכותית"
 AI_VOICE_LABEL = "דמות וקול שנוצרו בבינה מלאכותית"
 VOICE_LABEL = "קול ממוחשב"          # a computer voice over a backdrop with no character
-BRAND_TAG = "LikeLink2"             # the tag when Luna is not on screen
 
 
 def corner_label(character: bool, voiced: bool) -> str | None:

@@ -102,48 +102,6 @@ def product_card(photo: Image.Image | None, claim: str) -> Image.Image:
     return text.soft_shadow(card)
 
 
-def end_card(title: str, sub: str, *, ad: bool, slogan: str | None = None, branded: bool = True,
-             logo: str | None = None, backdrop: Image.Image | None = None, truth: str | None = brand.AI_LABEL) -> Image.Image:
-    """The closing screen: Luna blurred behind a white card with the call to action.
-    Branded (free tier): LikeLink2 logo, the slogan and the site address.
-    Unbranded (pro): the call to action only, with the creator's own logo if given."""
-    bg = (cover(backdrop) if backdrop is not None else blurred(Image.open(brand.LUNA), radius=22, darken=0.6)).convert("RGBA")
-    card_w = brand.WIDTH - 140
-    blocks = []
-    if slogan:
-        blocks.append(text.text_block(slogan, 50, card_w, color=brand.VIOLET, pad=(20, 4)))
-    blocks += [text.text_block(title, 96, card_w, color=brand.INK, emphasis=brand.ROSE, pad=(20, 8)),
-               text.text_block(sub, 56, card_w, color=brand.INK, bold=False, pad=(20, 4))]
-    url = text.pill(brand.SITE_URL, 44, brand.VIOLET + (255,)) if branded else None
-    mark = None
-    if branded:
-        mark = Image.open(brand.LOGO).convert("RGBA").resize((150, 150), Image.LANCZOS)
-    elif logo:
-        mark = Image.open(logo).convert("RGBA")
-        mark.thumbnail((320, 160), Image.LANCZOS)
-    inner_h = (mark.height + 30 if mark else 0) + sum(b.height for b in blocks) + (24 + url.height if url else 0)
-    card = Image.new("RGBA", (card_w, inner_h + 120), (0, 0, 0, 0))
-    ImageDraw.Draw(card).rounded_rectangle((0, 0, card_w, card.height), radius=56, fill=brand.WHITE + (246,))
-    y = 60
-    if mark:
-        card.alpha_composite(mark, ((card_w - mark.width) // 2, y))
-        y += mark.height + 30
-    for b in blocks:
-        card.alpha_composite(b, ((card_w - b.width) // 2, y))
-        y += b.height
-    if url:
-        y += 24
-        card.alpha_composite(url, ((card_w - url.width) // 2, y))
-    bg.alpha_composite(text.soft_shadow(card), ((brand.WIDTH - card.width - 72) // 2, (brand.HEIGHT - card.height) // 2 - 80))
-    lines = ([brand.AD_TAG] if ad else []) + ([truth] if truth else [])
-    y = brand.HEIGHT - 230
-    for line in lines:
-        lab = text.label(line, 34)
-        bg.alpha_composite(lab, ((brand.WIDTH - lab.width) // 2, y))
-        y += lab.height
-    return bg
-
-
 def outro(frame: Image.Image, *, slogan: str | None, title: str, sub: str, branded: bool,
           logo: str | None, labels: list[str]) -> tuple[Image.Image, int]:
     """The closing screen: the reel's own last frame, blurred and darkened, with

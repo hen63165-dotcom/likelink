@@ -40,7 +40,6 @@ POP_Y = 1250          # pop words centre: lower-middle, below faces and products
 HOOK_Y = 1230
 CARD_Y = 740          # product card centre (karaoke)
 CARD_Y_POP = 620      # product card centre (pop)
-LABELS_Y = 1440
 TOP_Y = 236
 OUTRO_SLOGAN = "גלו מה שווה לקנות דרך אנשים"
 
