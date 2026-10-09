@@ -10,10 +10,15 @@
 //
 // A CAPTCHA stops the run: no retries, no workaround.
 //
+// Videos already found (<out dir>/videos.json + <id>.mp4, restored by the
+// workflow from the "product-video-sources" release) are reused: only products
+// without one are visited, so re-editing a reel never asks the store again.
+// Naming product ids forces a fresh visit for those products.
+//
 //   node scripts/media/product-video/find-videos.mjs <out dir> [productId...]
 // Products come from public/snapshot/kv.json (the public storefront copy).
 import { execFileSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
@@ -42,14 +47,21 @@ function probe(file) {
 
 async function main() {
   const doc = JSON.parse(readFileSync(new URL("../../../public/snapshot/kv.json", import.meta.url), "utf8"));
-  const products = (doc.keys["marketplace:products"] || []).filter((p) => p.affiliateUrl && (!only.size || only.has(p.id)));
+  const all = (doc.keys["marketplace:products"] || []).filter((p) => p.affiliateUrl);
   mkdirSync(out, { recursive: true });
-  summary(`## Real product videos — ${new Date().toISOString()} (${products.length} products)`);
+  const prior = existsSync(join(out, "videos.json")) ? JSON.parse(readFileSync(join(out, "videos.json"), "utf8")).results || [] : [];
+  const kept = new Map(prior.filter((r) => r.status === "FOUND" && existsSync(join(out, `${r.productId}.mp4`))).map((r) => [r.productId, r]));
+  const products = all.filter((p) => (only.size ? only.has(p.id) : !kept.has(p.id)));
+  const results = all.filter((p) => kept.has(p.id) && !products.includes(p)).map((p) => kept.get(p.id));
+  summary(`## Real product videos — ${new Date().toISOString()} (${results.length} kept from earlier runs, ${products.length} to look for)`);
+  if (!products.length) {
+    writeFileSync(join(out, "videos.json"), JSON.stringify({ at: new Date().toISOString(), run: process.env.GITHUB_RUN_ID || "", results }, null, 2));
+    return;
+  }
 
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || "chrome" });
   const ctx = await browser.newContext({ locale: "en-US", viewport: { width: 1280, height: 900 } });
-  const results = [];
   for (const p of products) {
     const page = await ctx.newPage();
     const seen = new Set();
@@ -88,9 +100,11 @@ async function main() {
             const type = res.headers.get("content-type") || "";
             const buf = Buffer.from(await res.arrayBuffer());
             if (!res.ok || buf.length < 50_000 || (!/video|octet-stream/i.test(type))) continue;
-            writeFileSync(file, buf);
-            const info = probe(file);
+            // Written aside first: a bad download never replaces a good video found earlier.
+            writeFileSync(`${file}.part`, buf);
+            const info = probe(`${file}.part`);
             if (!info.video || info.seconds < 2) continue;
+            renameSync(`${file}.part`, file);
             Object.assign(row, { status: "FOUND", videoUrl: u, bytes: statSync(file).size, ...info });
             saved = true;
             break;
@@ -104,13 +118,16 @@ async function main() {
       row.error = String(e?.message || e).slice(0, 200);
       summary(`- ${p.id}: FAILED ${row.error}`);
     } finally {
-      results.push(row.status ? row : { ...row, status: "UNKNOWN" });
+      // A fresh look that found nothing never throws away a video found earlier.
+      results.push(row.status === "FOUND" || !kept.has(p.id) ? (row.status ? row : { ...row, status: "UNKNOWN" }) : kept.get(p.id));
       await page.close();
     }
   }
   await browser.close();
+  // Products a CAPTCHA kept us from re-checking keep the video found earlier.
+  for (const p of products) if (!results.some((r) => r.productId === p.id) && kept.has(p.id)) results.push(kept.get(p.id));
   writeFileSync(join(out, "videos.json"), JSON.stringify({ at: new Date().toISOString(), run: process.env.GITHUB_RUN_ID || "", results }, null, 2));
-  summary(`Found: ${results.filter((r) => r.status === "FOUND").length}/${products.length}`);
+  summary(`With a seller video: ${results.filter((r) => r.status === "FOUND").length}/${all.length}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.error(e); process.exitCode = 1; });
