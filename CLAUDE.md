@@ -234,6 +234,10 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
 ## Repo notes
 
 - The many root-level `.bat`/`.ps1`/`.vbs`/`fix_*.js`/`git-*.js` files are ad-hoc helper scripts, not part of the build or deploy.
+- **likelink2.vercel.app is served through a Vercel project route** (dashboard → Routing, id `serve-current-build`, promoted 2026-10-09). Vercel cannot deploy ("Account is blocked"), so the route proxies every path to the immutable Netlify deploy `https://6ac8f1369dcb990008a996f9--mylikelink.netlify.app` (main ece9c02). That build includes the API via Netlify `_redirects` → Supabase edge function `api`.
+  - Netlify non-production deploys were made public for this (visitor access: SSO off).
+  - New code reaches likelink2.vercel.app only after you point the route's `dest` at a newer Netlify deploy permalink (stage_routes + promote).
+  - Remove the route once Vercel deploys again.
 - **Snapshot mode** (`src/lib/catalogSnapshot.js`, `public/snapshot/kv.json`): when a live read of a public storefront key fails (cloud down/restricted), `storage.get` answers from the shipped copy. Rules:
   - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
   - A key served from it is read-only (`snapshot_read_only`).
