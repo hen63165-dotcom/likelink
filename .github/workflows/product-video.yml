@@ -15,7 +15,7 @@ on:
         default: ""
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/media/product-video/**", ".github/workflows/product-video.yml"]
+    paths: ["scripts/media/product-video/**", "src/lib/growth/likeloop.js", ".github/workflows/product-video.yml"]
 
 concurrency:
   group: product-video
@@ -23,6 +23,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   reels:
@@ -39,8 +40,37 @@ jobs:
         run: |
           npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
+      # Seller videos found earlier are kept in the "product-video-sources" release
+      # (seeded once from the newest run whose artifact has them), so editing
+      # reels again never visits the store for a product it already has.
+      - name: Restore the seller videos found earlier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p product-videos
+          if gh release download product-video-sources -D product-videos --clobber 2>/dev/null; then
+            echo "restored from the product-video-sources release"; exit 0
+          fi
+          for rid in $(gh run list --workflow product-video.yml --status success -L 15 --json databaseId -q '.[].databaseId'); do
+            rm -rf /tmp/seed && gh run download "$rid" -n product-videos -D /tmp/seed 2>/dev/null || continue
+            if grep -q '"FOUND"' /tmp/seed/product-videos/videos.json 2>/dev/null; then
+              cp /tmp/seed/product-videos/*.mp4 /tmp/seed/product-videos/videos.json product-videos/
+              echo "seeded from run $rid"; exit 0
+            fi
+          done
+          echo "no earlier seller videos"
       - name: Find the seller's product videos
         run: node scripts/media/product-video/find-videos.mjs product-videos ${{ github.event.inputs.products }}
+      - name: Keep the seller videos for the next run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(product-videos/*.mp4)
+          [ ${#files[@]} -gt 0 ] || exit 0
+          gh release view product-video-sources >/dev/null 2>&1 || gh release create product-video-sources --prerelease --title "Seller videos (sources for reels)" \
+            --notes "The sellers' own product videos found on the store product pages, kept so reels can be edited again without visiting the store."
+          gh release upload product-video-sources "${files[@]}" product-videos/videos.json --clobber
       - name: Edit the reels
         run: node scripts/media/product-video/make-reel.mjs product-videos reels
       - name: Attach the reels to the "reels" release

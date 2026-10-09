@@ -124,7 +124,7 @@ export const HOOK_TYPES = Object.freeze(["problem", "curiosity", "before_after",
 
 /** Category nouns and the everyday moment each category lives in (scene words, not claims). */
 const CATEGORY_WORLD = {
-  Accessories: { noun: "תכשיט", moment: "רגע לפני שיוצאים", missing: "הלוק מוכן, אבל משהו חסר", fixed: "פרט אחד, והלוק סגור", gift: "מתנה קטנה שנשארת על היד" },
+  Accessories: { noun: "תכשיט", moment: "רגע לפני שיוצאים", missing: "הלוק מוכן, אבל משהו חסר", fixed: "פרט אחד, והלוק סגור", gift: "מתנה קטנה שעונדים כל יום" }, // not "on the hand": accessories include earrings and necklaces
   Fashion: { noun: "פריט", moment: "מול הארון בבוקר", missing: "שוב אין מה ללבוש", fixed: "פריט אחד שמסדר את הלוק", gift: "מתנה שלובשים" },
   Beauty: { noun: "מוצר טיפוח", moment: "בשגרת הבוקר", missing: "השגרה עמוסה מדי", fixed: "צעד אחד פשוט יותר", gift: "פינוק קטן למישהי אהובה" },
   Home: { noun: "פריט לבית", moment: "בערב בבית", missing: "הפינה הזאת מבקשת שינוי", fixed: "שינוי קטן בפינה", gift: "מתנה לבית חדש" },
