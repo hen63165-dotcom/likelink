@@ -61,7 +61,8 @@ const OWN_BEAT = (() => {
   const kick = "0.85*sin(2*PI*52*t*(1+1.6*exp(-28*mod(t,0.5))))*exp(-8*mod(t,0.5))";
   const hat = "0.10*(2*random(0)-1)*exp(-70*mod(t+0.25,0.5))";
   const pad = "0.05*(sin(2*PI*220*t)+sin(2*PI*277.2*t)+sin(2*PI*329.6*t))*(0.65+0.35*sin(2*PI*0.25*t))";
-  const e = `0.55*(${kick}+${hat}+${pad})`.replace(/,/g, "\\,");
+  // ffmpeg filter syntax: escape backslashes first, then the commas.
+  const e = `0.55*(${kick}+${hat}+${pad})`.replace(/\\/g, "\\\\").replace(/,/g, "\\,");
   return `aevalsrc=exprs=${e}|${e}:s=48000`;
 })();
 
