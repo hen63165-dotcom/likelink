@@ -17,10 +17,22 @@
  * If Supabase env vars are missing, shared reads/writes fall back to
  * localStorage ONLY in local dev (so nothing crashes). In production a
  * missing config is a deployment error and we refuse silently.
+ *
+ * A failed read of a public storefront key is answered from the catalog
+ * snapshot shipped with the build (catalogSnapshot.js); those keys then stay
+ * read-only for the visit.
  */
 
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
 import { getSessionToken } from "./auth.js";
+import { servedFromSnapshot, snapshotGet } from "./catalogSnapshot.js";
+
+// A failed live read of a public storefront key falls back to the copy shipped
+// with the build (src/lib/catalogSnapshot.js), so the site never goes empty.
+async function snapshotFallback(key) {
+  const value = await snapshotGet(key).catch(() => null);
+  return value == null ? null : { key, value: JSON.stringify(value), shared: true, snapshot: true };
+}
 
 const PREFIX = "sch:";
 const scoped = (key, shared) => PREFIX + (shared ? "shared:" : "local:") + key;
@@ -118,7 +130,7 @@ export const storage = {
       }
 
       console.warn(`[storage] Production-safe mode: refusing browser localStorage fallback for shared key "${key}" because Supabase is not configured.`);
-      return null;
+      return snapshotFallback(key);
     }
 
     try {
@@ -128,14 +140,18 @@ export const storage = {
     } catch (e) {
       console.error("storage.get (supabase) failed; refusing stale localStorage fallback in production", key, e);
       if (isLocalRuntime()) {
-        return localGet(key, shared);
+        return (await localGet(key, shared)) || snapshotFallback(key);
       }
-      return null;
+      return snapshotFallback(key);
     }
   },
 
   async set(key, value, shared = false) {
     if (!shared) return localSet(key, value, shared);
+
+    // A copy is not the live data: what was read from the snapshot is never
+    // written back (it would overwrite newer cloud rows once the cloud returns).
+    if (servedFromSnapshot(key)) throw new Error("snapshot_read_only");
 
     if (!supabaseConfigured) {
       if (isLocalRuntime()) {
