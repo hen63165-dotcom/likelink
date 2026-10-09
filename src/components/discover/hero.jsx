@@ -405,7 +405,7 @@ export function HomeHero({ graph, navigate }) {
               {loading && !graph.products.length
                 ? L("טוען את הקטלוג מהענן…", "Loading the catalog from the cloud…")
                 : copyAt
-                  ? L(`הקטלוג האמיתי · עותק מ־${copyWhen}`, `The real catalog · copy from ${copyWhen}`)
+                  ? L(`הקטלוג האמיתי · נכון ל־${copyWhen}`, `The real catalog · as of ${copyWhen}`)
                   : L(`נתונים אמיתיים מהקטלוג · נטענו ב־${time}`, `Real catalog data · loaded at ${time}`)}
             </span>
           </div>

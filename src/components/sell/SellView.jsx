@@ -14,6 +14,7 @@ import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT
 import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
 import { getSellerPayoutSummary } from "../../lib/payments.js";
 import { resetPassword, authConfigured, getSessionToken } from "../../lib/auth.js";
+import { CLOUD_PAUSED_HE, isCloudUnavailable, snapshotTakenAt } from "../../lib/catalogSnapshot.js";
 import { rememberSignupConsent, flushSignupConsent } from "../../lib/legalConsent.js";
 import { LEGAL_VERSION, legalPath } from "../../lib/legal/catalog.js";
 import { fetchProductInfo } from "../../lib/productInfo.js";
@@ -981,10 +982,11 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       } else if (result?.ok === false) {
         if (result.error === "EMAIL_ALREADY_REGISTERED") setErr("הכתובת כבר רשומה והסיסמה לא תואמת. עברי ל«כניסה» או השתמשי ב«שכחתי סיסמה».");
         else if (result.error === "STUDIO_EMAIL_ALREADY_LINKED") setErr("לכתובת הזו כבר קיים סטודיו. עברי ל«כניסה» כדי להמשיך.");
+        else if (isCloudUnavailable(result.error)) setErr(CLOUD_PAUSED_HE);
         else setErr(result.error || t(mode === "signup" ? "auth.errPassword" : "auth.errLogin"));
       }
-    } catch {
-      setErr("אירעה שגיאה מאובטחת בתהליך. נסי שוב.");
+    } catch (e) {
+      setErr(isCloudUnavailable(e) ? CLOUD_PAUSED_HE : "אירעה שגיאה מאובטחת בתהליך. נסי שוב.");
     } finally {
       setSubmitting(false);
     }
@@ -1000,6 +1002,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
     try {
       const res = await resetPassword(cleanEmail);
       if (!res.ok) {
+        if (isCloudUnavailable(res.error)) return setErr(CLOUD_PAUSED_HE);
         const msg = String(res.error || "").toLowerCase();
         if (msg.includes("rate") || msg.includes("too many")) return setErr("נשלחו יותר מדי בקשות. נסי שוב בעוד כמה דקות.");
         return setErr("לא ניתן לשלוח כרגע איפוס סיסמה. בדקי את הכתובת ונסי שוב.");
@@ -1019,6 +1022,10 @@ function AuthGate({ marketers, onLogin, onSignup }) {
       </div>
       <p className="disp text-xl font-semibold">{t("auth.title")}</p>
       <p className="text-sm text-muted mt-2 max-w-[300px]">{t("auth.subtitle")}</p>
+      {/* The catalog came from the shipped copy: the cloud is not answering, so say so before anyone fills the form. */}
+      {snapshotTakenAt() && (
+        <p role="status" className="w-full mt-5 rounded-xl px-3.5 py-3 text-xs leading-5 text-right surface-subtle" dir="rtl">{CLOUD_PAUSED_HE}</p>
+      )}
       <div className="w-full mt-6 flex rounded-full p-1 surface-subtle">
         {["signup", "login"].map((m) => (
           <button
