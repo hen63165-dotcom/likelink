@@ -15,7 +15,7 @@ on:
         default: ""
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/media/product-video/**", ".github/workflows/product-video.yml"]
+    paths: ["scripts/media/product-video/**", "src/lib/growth/likeloop.js", ".github/workflows/product-video.yml"]
 
 concurrency:
   group: product-video
