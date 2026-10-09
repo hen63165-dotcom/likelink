@@ -105,11 +105,19 @@ async function serveMedia(path, res, rangeHeader = "") {
   const sbUrl = process.env.VITE_SUPABASE_URL;
   const anon = process.env.VITE_SUPABASE_ANON_KEY;
   if (!sbUrl || !anon) { res.status(503); res.end("Media storage is not configured."); return; }
+  // A single, well-formed byte range is forwarded to Storage, so a video
+  // player's many range requests (and a 1 KB verification probe) download
+  // only the bytes they ask for — never the whole file each time, which is
+  // what used up the Storage egress quota. Anything else asks for the file.
+  const wanted = /^bytes=(\d+-\d*|-\d+)$/.test(String(rangeHeader || "").trim()) ? String(rangeHeader).trim() : "";
   try {
     const upstream = await fetch(`${sbUrl}/storage/v1/object/authenticated/${MEDIA_BUCKET}/${path}`, {
-      headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+      headers: { apikey: anon, Authorization: `Bearer ${anon}`, ...(wanted ? { Range: wanted } : {}) },
       signal: AbortSignal.timeout(10000),
     });
+    if (upstream.status === 416) {
+      res.status(416); res.setHeader("content-range", upstream.headers.get("content-range") || "bytes */0"); res.end(); return;
+    }
     // Denied and missing look the same from outside (never reveal which).
     if (!upstream.ok) { res.status(404); res.setHeader("cache-control", "no-store"); res.end("Not found."); return; }
     const type = String(upstream.headers.get("content-type") || "application/octet-stream").split(";")[0].toLowerCase();
@@ -120,6 +128,15 @@ async function serveMedia(path, res, rangeHeader = "") {
     res.setHeader("x-content-type-options", "nosniff");
     // Video players (iOS Safari in particular) require byte ranges.
     res.setHeader("accept-ranges", "bytes");
+    const upstreamRange = upstream.status === 206 ? upstream.headers.get("content-range") : "";
+    if (upstreamRange) {
+      res.status(206);
+      res.setHeader("content-range", upstreamRange);
+      res.setHeader("cache-control", "public, max-age=600, s-maxage=3600");
+      res.end(bytes);
+      return;
+    }
+    // Storage answered with the whole file: slice the asked range here.
     const range = rangeHeader ? parseByteRange(rangeHeader, bytes.length) : null;
     if (range?.unsatisfiable) {
       res.status(416); res.setHeader("content-range", `bytes */${bytes.length}`); res.end(); return;

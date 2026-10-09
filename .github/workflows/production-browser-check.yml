@@ -3,11 +3,11 @@
 # contact sheets to the log (base64 between ===IMG markers).
 name: Production browser check
 
+# Manual only: a real browser plays every reel on the live site, which
+# downloads the videos from Storage. It used to run after every reels run and
+# was a large share of the Storage egress that got the project restricted.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Native reels"]
-    types: [completed]
 
 permissions:
   contents: read
