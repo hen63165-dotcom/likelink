@@ -1,0 +1,64 @@
+# Real product video reels: the seller's own footage from the store's product
+# page → a 9:16 reel with an honest Hebrew hook, the "comment רוצה" call to
+# action and the ad disclosure on every frame, plus its caption.
+# Read-only on the store (one page view per product, no clicks); a CAPTCHA
+# stops the run. Finished reels are attached to the "reels" release so they can
+# be saved from a phone and posted with a trending sound. Nothing is posted
+# from here.
+name: Product video reels
+
+on:
+  workflow_dispatch:
+    inputs:
+      products:
+        description: "Product ids (space separated); empty = every public product"
+        default: ""
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/product-video/**", ".github/workflows/product-video.yml"]
+
+concurrency:
+  group: product-video
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (drives the runner's Google Chrome), ffmpeg and Hebrew fonts
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
+      - name: Find the seller's product videos
+        run: node scripts/media/product-video/find-videos.mjs product-videos ${{ github.event.inputs.products }}
+      - name: Edit the reels
+        run: node scripts/media/product-video/make-reel.mjs product-videos reels
+      - name: Attach the reels to the "reels" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(reels/*.mp4 reels/*.txt reels/*.jpg)
+          [ ${#files[@]} -gt 0 ] || { echo "no reels this run"; exit 0; }
+          gh release view reels >/dev/null 2>&1 || gh release create reels --prerelease --title "Reels ready to post" \
+            --notes "Real product footage (the seller's own video from the product page) edited for Instagram Reels. Each .mp4 has a matching .txt caption. Add a trending sound in the Instagram app before posting."
+          gh release upload reels "${files[@]}" --clobber
+          for f in "${files[@]}"; do echo "- https://github.com/${GITHUB_REPOSITORY}/releases/download/reels/$(basename "$f")" >> "$GITHUB_STEP_SUMMARY"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-videos
+          path: |
+            product-videos
+            reels
+          retention-days: 3
