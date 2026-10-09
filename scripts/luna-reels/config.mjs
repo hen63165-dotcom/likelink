@@ -112,12 +112,49 @@ export const BRAND = {
   closingSec: 2.8,
 };
 
-/** Hebrew ad scripts — one is picked per run so daily outputs stay fresh. */
-export const SCRIPTS = [
-  "מה אם החנות שלך הייתה מוכרת גם כשאת ישנה? עם לייקלינק את בונה חנות, מפרסמת ב automátia, ומקבלת תשלומים ישר לנייד. הצטרפי היום ותתחילי למכור",
-  "די לקמפיינים מסובכים. פוסט אחד, לינק אחד, ולקוחות חדשים מגיעים לבד. לייקלינק מפעילה את החנות שלך מסביב לשעון. בואי נתחיל",
-  "הבוקר את קמה, הערב את רואה מכירות. לייקלינק מנהלת את המוצרים, את הפרסומים ואת הלקוחות בשבילך. לחצי על הלינק והתחילי היום",
+/**
+ * Hebrew conversion scripts — strictly high-converting, FOMO-driven
+ * psychological hooks for the Edge-TTS engine. NO descriptive product copy.
+ * Templates:
+ *   1. "הסוד הצרכני"      — insider pricing secret, don't-be-a-sucker framing.
+ *   2. "פתרון כאוס הקישורים" — kill the "link in comments" chaos, one trusted click.
+ *   3. Scarcity / loss-aversion and social-proof closers.
+ */
+export const HOOK_TEMPLATES = [
+  {
+    id: "consumer-secret",
+    kind: "הסוד הצרכני",
+    text: "אל תהיו פראיירים. המותגים הגדולים קונים את זה בעשרה שקלים, ומוכרים לכם בשלוש מאות. אותו מוצר, אותו מפעל, ואתם משלמים את הפער. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
+  {
+    id: "link-chaos-fix",
+    kind: "פתרון כאוס הקישורים",
+    text: "תפסיקו לכתוב לינק בתגובות ולחכות יומיים. שום דבר לא מגיע, והמבצע נגמר. הכל מחכה לכם בקליק אחד, מסודר ואמין בלייקלינק. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח.",
+  },
+  {
+    id: "stock-scarcity",
+    kind: "מחסור",
+    text: "בפעם שעברה המלאי נגמר תוך יומיים, ומי שחיכתה נשארה בלי. עכשיו זה חזר, אבל לא להרבה זמן. אל תפספסו שוב. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
+  {
+    id: "social-proof",
+    kind: "הוכחה חברתית",
+    text: "אלפי קונות כבר גילו את הסוד הזה, והן לא חוזרות לשלם מחיר מלא. הגיע הזמן שגם את תדעי. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
+  {
+    id: "price-gap",
+    kind: "הסוד הצרכני",
+    text: "אותו מוצר בדיוק, שליש מהמחיר. החנויות הגדולות סומכות על זה שאתם לא בודקים. עכשיו אתם יודעים. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
+  {
+    id: "one-click-trust",
+    kind: "פתרון כאוס הקישורים",
+    text: "די לרדוף אחרי קישורים שבורים ומוכרים מפוקפקים. קישור אחד אמיתי, מחיר אחד אמיתי, בלי הפתעות. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
 ];
+
+/** Flat string list consumed by the generator (kept in template order). */
+export const SCRIPTS = HOOK_TEMPLATES.map((t) => t.text);
 
 /** Autonomous schedule mirrored in .github/workflows/luna-reels.yml (UTC). */
 export const SCHEDULE = ["0 8 * * *", "0 17 * * *"];

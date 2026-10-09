@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildAss, buildCues, chunkWords, hexToAss } from "../scripts/luna-reels/captions.mjs";
-import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, BRAND, CANONICAL, REELS, SCHEDULE } from "../scripts/luna-reels/config.mjs";
+import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, BRAND, CANONICAL, HOOK_TEMPLATES, REELS, SCHEDULE, SCRIPTS, pickScript } from "../scripts/luna-reels/config.mjs";
 import { pickVideoFile, pickKeywords } from "../scripts/luna-reels/fetch-background.mjs";
 import { pickProductImages } from "../scripts/luna-reels/storefront.mjs";
 import { buildRenderArgs } from "../scripts/luna-reels/render.mjs";
@@ -17,6 +17,25 @@ test("canonical domain and daily volume are wired for likelink.to", () => {
   assert.equal(BRAND.outro, "גלו מה שווה לקנות דרך אנשים - בקליק אחד, אמין ומאובטח ב-LikeLink");
   assert.equal(REELS.perDay, 6);
   assert.equal(REELS.perRun, 3);
+});
+
+test("scripts are conversion hooks only — FOMO, zero product description", () => {
+  assert.ok(HOOK_TEMPLATES.length >= 6);
+  const kinds = HOOK_TEMPLATES.map((t) => t.kind);
+  assert.ok(kinds.includes("הסוד הצרכני"));
+  assert.ok(kinds.includes("פתרון כאוס הקישורים"));
+  for (const t of HOOK_TEMPLATES) {
+    assert.equal(typeof t.text, "string");
+    assert.ok(t.text.length > 40, `${t.id} must be a full TTS script`);
+    assert.ok(/פראייר|מבצע|מלאי|נגמר|תפספס|אלפי|לינק|קליק אחד|אמין ומאובטח|מחיר/.test(t.text), `${t.id} must carry a conversion trigger`);
+    assert.ok(!/מפרט|מידות|צבעים|דגם|SKU|משקל/i.test(t.text), `${t.id} must not be descriptive copy`);
+    assert.ok(t.text.includes("לייקלינק") || t.text.includes("LikeLink"), `${t.id} closes on the platform`);
+  }
+  assert.deepEqual(SCRIPTS, HOOK_TEMPLATES.map((t) => t.text));
+  // Deterministic rotation stays in bounds for every reel slot of a run.
+  for (const seed of [0, 1, 5, 6, 7919, Date.now()]) {
+    assert.ok(SCRIPTS.includes(pickScript(seed)));
+  }
 });
 
 test("live storefront images pick approved, real-photo products only", () => {
