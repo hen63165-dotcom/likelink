@@ -23,14 +23,16 @@ export const VOICE = {
 export const VIDEO = { w: 720, h: 1280, fps: 30, crf: 20, preset: "veryfast" };
 
 /**
- * Caption styling — explicitly LOWER-MIDDLE, 2–3 words per frame,
- * yellow/white text with a bold black outline and NO background boxes.
+ * Caption styling — explicitly LOWER-MIDDLE, 1–2 words per flashing cue,
+ * yellow/white text with a heavy black outline and NO background boxes.
+ * Ultra-high-speed pacing: cues flip every ~0.45–0.7s across the 15s reel.
  */
 export const CAPTION = {
   position: "lower-middle",
-  maxWords: 3,
-  minWords: 2,
-  fontSize: 74,
+  maxWords: 2,
+  minWords: 1,
+  cueSeconds: [0.45, 0.7],
+  fontSize: 78,
   primaryColor: "#FBBF24",
   alternateColor: "#FFFFFF",
   outlineColor: "#000000",
@@ -55,21 +57,73 @@ export const CORNER_TAGS = {
   alpha: 0.72,
 };
 
-/** Pure aesthetic lifestyle keywords for the Pexels background fetcher. */
+/** Macro close-up keywords for viral aesthetic backgrounds (Pexels). */
 export const AESTHETIC_KEYWORDS = [
-  "morning light coffee aesthetic",
-  "slow motion linen fabric",
-  "minimal beige interior",
-  "golden hour ocean waves",
-  "cozy candle warm ambience",
-  "soft pastel flowers blooming",
-  "city night bokeh lights",
-  "green leaves sunlight nature",
-  "spa wellness still life",
-  "marble table flat lay",
-  "silk fabric flowing",
-  "sunset sky timelapse calm",
+  "minimalist jewelry portrait",
+  "luxury silk movement",
+  "neutral studio morning aesthetic",
+  "macro gold ring closeup",
+  "soft textile macro fabric",
+  "elegant unboxing hands aesthetic",
+  "perfume bottle macro light",
+  "satin waves slow motion",
+  "jewelry hands soft window light",
+  "cream cosmetic texture macro",
+  "gift box ribbon unboxing",
+  "morning skincare aesthetic",
 ];
+
+/**
+ * Trending feed sourcing — Supabase active items ranked by category.
+ * High-ranking viral categories surface first for reel B-roll priority.
+ */
+export const TRENDING_CATEGORIES = [
+  "Aesthetic Accessories",
+  "Premium Jewelry",
+  "Modern Lifestyle Gadgets",
+];
+
+/**
+ * Trust filter middleware — Choice-grade gate for every sourced product.
+ * Mirrors AliExpress Choice standards: >4.5 stars + fast delivery metrics.
+ * Items failing the gate are dropped before any frame renders (trust first).
+ */
+export const TRUST_FILTER = {
+  minRating: 4.5,
+  requireFastDelivery: true,
+  requireVerifiedReviews: true,
+  minReviewCount: 50,
+};
+
+export function passesTrustFilter(item = {}) {
+  const rating = Number(item.rating ?? item.stars ?? 0);
+  if (!(rating > TRUST_FILTER.minRating)) return false;
+  if (TRUST_FILTER.requireFastDelivery && item.fastDelivery !== true && item.shipping !== "fast") return false;
+  if (TRUST_FILTER.requireVerifiedReviews && Number(item.reviewCount ?? item.reviews ?? 0) < TRUST_FILTER.minReviewCount) return false;
+  if (item.inStock === false) return false;
+  return true;
+}
+
+/** Category rank (lower = hotter): trending categories first, rest after. */
+export function categoryRank(category) {
+  const i = TRENDING_CATEGORIES.findIndex(
+    (c) => String(c).toLowerCase() === String(category || "").toLowerCase(),
+  );
+  return i === -1 ? TRENDING_CATEGORIES.length : i;
+}
+
+/**
+ * Scan Supabase active items → trusted, category-ranked sourcing queue.
+ * Placeholder middleware shape: { items: [{category, rating, ...}], limit }.
+ */
+export function rankSourcingQueue({ items = [], limit = 6 } = {}) {
+  return items
+    .filter((it) => it && it.active !== false)
+    .filter(passesTrustFilter)
+    .sort((a, b) => categoryRank(a.category) - categoryRank(b.category)
+      || Number(b.rating ?? b.stars ?? 0) - Number(a.rating ?? a.stars ?? 0))
+    .slice(0, Math.max(1, limit));
+}
 
 export const PEXELS = {
   endpoint: "https://api.pexels.com/videos/search",
@@ -113,14 +167,21 @@ export const BRAND = {
 };
 
 /**
- * Hebrew conversion scripts — strictly high-converting, FOMO-driven
- * psychological hooks for the Edge-TTS engine. NO descriptive product copy.
- * Templates:
- *   1. "הסוד הצרכני"      — insider pricing secret, don't-be-a-sucker framing.
- *   2. "פתרון כאוס הקישורים" — kill the "link in comments" chaos, one trusted click.
- *   3. Scarcity / loss-aversion and social-proof closers.
+ * Hebrew viral scripts — 15-second, fast-paced, curiosity-driven narration
+ * for edge-tts (he-IL-AvriNeural). Aggressive viral hooks only.
+ * NO descriptive product copy. Every closer lands on the one trusted click.
  */
 export const HOOK_TEMPLATES = [
+  {
+    id: "secret-factory",
+    kind: "הסוד הצרכני",
+    text: "בנות, אל תהיו פראייריות. המפעל הסודי של המותג הזה מוכר את זה בעשרה שקלים, ובחנות מוכרים לכן בשלוש מאות. אותו מוצר בדיוק. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
+  {
+    id: "viral-unboxing",
+    kind: "חבילה ויראלית",
+    text: "החבילה הכי מטורפת שהגיעה אליי השבוע שברה את הרשת. פתחתי, צילמתי, וכולן שאלו מאיפה. אז הנה הלינק האחד. גלו מה שווה לקנות דרך אנשים, בקליק אחד, אמין ומאובטח בלייקלינק.",
+  },
   {
     id: "consumer-secret",
     kind: "הסוד הצרכני",

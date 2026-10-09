@@ -1,6 +1,7 @@
 /**
  * Background fetch module — pulls free vertical stock footage from the Pexels
- * API using pure aesthetic lifestyle keywords (no people-focused/brand stock).
+ * API using macro close-up queries only: jewelry, silk, soft textiles,
+ * unboxing sequences. No people-focused/brand stock, no wide lifestyle shots.
  */
 import { createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ export function apiKeyFromEnv(env = process.env) {
   return (env.PEXELS_API_KEY || env.PEXELS_TOKEN || "").trim();
 }
 
-/** One aesthetic query — rotated deterministically so runs stay varied. */
+/** One macro close-up query — rotated deterministically so runs stay varied. */
 export function pickKeywords(count = 1, seed = Math.floor(Date.now() / 3600000)) {
   const out = [];
   for (let i = 0; i < count; i += 1) {

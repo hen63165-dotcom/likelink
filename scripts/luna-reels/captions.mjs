@@ -3,8 +3,9 @@
  *
  * Emits an ASS subtitle file burned in a single libass pass, so Hebrew bidi
  * shaping is correct:
- *   • captions → LOWER-MIDDLE (bottom-centre, lifted by MarginV), 2–3 words per
- *     frame, yellow #FBBF24 / white, bold black outline, NO background boxes
+ *   • captions → LOWER-MIDDLE (bottom-centre, lifted by MarginV), 1–2 words
+ *     per flashing cue, yellow #FBBF24 / white, heavy black outline (w=7),
+ *     NO background boxes — cues flip at ultra-high speed (~0.45–0.7s)
  *   • tiny corner tags `#פרסומת` (top-left) and `AI` (top-right)
  *   • clean text-logo + minimal closing screen copy (CTA label pulses)
  */
@@ -38,7 +39,7 @@ export function hexToAss(hex, alpha = 0) {
   return `&H${a}${b}${g}${r}`.toUpperCase();
 }
 
-/** Split words into frames of 2–3 words (max enforced, no dangling single). */
+/** Split words into ultra-fast 1–2 word cues (max enforced, no dangling single). */
 export function chunkWords(text, { min = CAPTION.minWords, max = CAPTION.maxWords } = {}) {
   const words = strip(text).split(" ").filter(Boolean);
   const frames = [];
@@ -56,7 +57,7 @@ export function chunkWords(text, { min = CAPTION.minWords, max = CAPTION.maxWord
   return frames.map((frame) => frame.join(" "));
 }
 
-/** Distribute frames across the narration, weighted by word length. */
+/** Distribute 1–2 word cues at viral flashing speed, weighted by word length. */
 export function buildCues(text, durationMs, opts = {}) {
   const frames = chunkWords(text, opts);
   if (!frames.length) return [];

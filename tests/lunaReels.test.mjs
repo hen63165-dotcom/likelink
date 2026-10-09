@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildAss, buildCues, chunkWords, hexToAss } from "../scripts/luna-reels/captions.mjs";
-import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, BRAND, CANONICAL, HOOK_TEMPLATES, REELS, SCHEDULE, SCRIPTS, pickScript } from "../scripts/luna-reels/config.mjs";
+import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, BRAND, CANONICAL, HOOK_TEMPLATES, REELS, SCHEDULE, SCRIPTS, TRENDING_CATEGORIES, TRUST_FILTER, categoryRank, passesTrustFilter, pickScript, rankSourcingQueue } from "../scripts/luna-reels/config.mjs";
 import { pickVideoFile, pickKeywords } from "../scripts/luna-reels/fetch-background.mjs";
 import { pickProductImages } from "../scripts/luna-reels/storefront.mjs";
 import { buildRenderArgs } from "../scripts/luna-reels/render.mjs";
@@ -19,11 +19,13 @@ test("canonical domain and daily volume are wired for likelink.to", () => {
   assert.equal(REELS.perRun, 3);
 });
 
-test("scripts are conversion hooks only — FOMO, zero product description", () => {
+test("scripts are viral hooks only — FOMO, zero product description", () => {
   assert.ok(HOOK_TEMPLATES.length >= 6);
   const kinds = HOOK_TEMPLATES.map((t) => t.kind);
   assert.ok(kinds.includes("הסוד הצרכני"));
   assert.ok(kinds.includes("פתרון כאוס הקישורים"));
+  assert.ok(HOOK_TEMPLATES.some((t) => /המפעל הסודי/.test(t.text)), "secret-factory hook present");
+  assert.ok(HOOK_TEMPLATES.some((t) => /שברה את הרשת/.test(t.text)), "viral-unboxing hook present");
   for (const t of HOOK_TEMPLATES) {
     assert.equal(typeof t.text, "string");
     assert.ok(t.text.length > 40, `${t.id} must be a full TTS script`);
@@ -36,6 +38,27 @@ test("scripts are conversion hooks only — FOMO, zero product description", () 
   for (const seed of [0, 1, 5, 6, 7919, Date.now()]) {
     assert.ok(SCRIPTS.includes(pickScript(seed)));
   }
+});
+
+test("viral feed sourcing: trending categories rank first, trust gate drops junk", () => {
+  assert.deepEqual(TRENDING_CATEGORIES, ["Aesthetic Accessories", "Premium Jewelry", "Modern Lifestyle Gadgets"]);
+  assert.ok(TRUST_FILTER.minRating > 4.5 - 1e-9 && TRUST_FILTER.minRating < 4.51, "Choice-grade bar");
+  assert.equal(TRUST_FILTER.requireFastDelivery, true);
+  const trusted = { active: true, category: "Premium Jewelry", rating: 4.8, fastDelivery: true, reviewCount: 320 };
+  assert.equal(passesTrustFilter(trusted), true);
+  assert.equal(passesTrustFilter({ ...trusted, rating: 4.4 }), false, "below 4.5 stars is out");
+  assert.equal(passesTrustFilter({ ...trusted, fastDelivery: false }), false, "slow shipping is out");
+  assert.equal(passesTrustFilter({ ...trusted, reviewCount: 3 }), false, "unreviewed is out");
+  assert.equal(passesTrustFilter({ ...trusted, inStock: false }), false, "out of stock is out");
+  const queue = rankSourcingQueue({ items: [
+    { active: true, category: "Kitchen", rating: 4.9, fastDelivery: true, reviewCount: 900, id: "k" },
+    { active: true, category: "Premium Jewelry", rating: 4.7, fastDelivery: true, reviewCount: 120, id: "j" },
+    { active: false, category: "Aesthetic Accessories", rating: 5, fastDelivery: true, reviewCount: 500, id: "dead" },
+    { active: true, category: "Aesthetic Accessories", rating: 4.6, fastDelivery: true, reviewCount: 80, id: "a" },
+    { active: true, category: "Premium Jewelry", rating: 4.4, fastDelivery: true, reviewCount: 999, id: "low" },
+  ], limit: 3 });
+  assert.deepEqual(queue.map((q) => q.id), ["a", "j", "k"], "trending categories win, junk never queues");
+  assert.equal(categoryRank("Modern Lifestyle Gadgets"), 2);
 });
 
 test("live storefront images pick approved, real-photo products only", () => {
@@ -53,15 +76,19 @@ test("live storefront images pick approved, real-photo products only", () => {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
 
-test("captions are chunked into 2–3 word frames without losing words", () => {
-  const text = "מה אם החנות שלך הייתה מוכרת גם כשאת ישנה לגמרי";
+test("captions flash at ultra-high speed: 1–2 words per lower-middle cue", () => {
+  const text = "בנות אל תהיו פראייריות המפעל הסודי מוכר בעשרה שקלים";
   const frames = chunkWords(text);
   for (const frame of frames) {
     const count = frame.split(" ").length;
-    assert.ok(count >= 2 && count <= 3, `frame must hold 2–3 words: "${frame}"`);
+    assert.ok(count >= 1 && count <= 2, `cue must flash 1–2 words: "${frame}"`);
   }
   assert.equal(frames.join(" ").split(" ").length, text.split(" ").length);
   assert.deepEqual(chunkWords("מילה"), ["מילה"]);
+  assert.equal(CAPTION.maxWords, 2);
+  assert.equal(CAPTION.minWords, 1);
+  assert.deepEqual(CAPTION.cueSeconds, [0.45, 0.7]);
+  assert.equal(CAPTION.outlineWidth, 7);
 });
 
 test("caption cues stay inside the narration window and never overlap", () => {
@@ -102,9 +129,14 @@ test("tts layer targets the fluent free Hebrew voice", () => {
   assert.match(VOICE.name, /^he-IL-/);
 });
 
-test("background fetch uses pure aesthetic lifestyle keywords + portrait files", () => {
+test("background fetch pulls macro close-ups: jewelry, silk, unboxing", () => {
   assert.ok(AESTHETIC_KEYWORDS.length >= 6);
   for (const kw of AESTHETIC_KEYWORDS) assert.match(kw, /^[a-z0-9 ]+$/i);
+  const blob = AESTHETIC_KEYWORDS.join(" | ");
+  assert.match(blob, /jewelry/i);
+  assert.match(blob, /silk/i);
+  assert.match(blob, /unboxing/i);
+  assert.ok(!/coffee|ocean|city night|leaves/i.test(blob), "no wide lifestyle filler");
   assert.equal(new Set(pickKeywords(4)).size >= 2, true);
   const file = pickVideoFile({ video_files: [
     { link: "https://a/low.mp4", width: 640, height: 360 },
