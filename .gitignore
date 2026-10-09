@@ -19,3 +19,6 @@ scripts/ship-production.ps1
 .vscode/
 netlify/
 build_output.txt
+# Python bytecode
+__pycache__/
+*.pyc
