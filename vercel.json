@@ -76,6 +76,38 @@
       "destination": "/api/og?mode=fetch"
     },
     {
+      "source": "/products",
+      "destination": "/"
+    },
+    {
+      "source": "/products/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/reels",
+      "destination": "/"
+    },
+    {
+      "source": "/deals",
+      "destination": "/"
+    },
+    {
+      "source": "/collections",
+      "destination": "/"
+    },
+    {
+      "source": "/collections/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/search",
+      "destination": "/"
+    },
+    {
+      "source": "/join",
+      "destination": "/"
+    },
+    {
       "source": "/feed",
       "destination": "/"
     },

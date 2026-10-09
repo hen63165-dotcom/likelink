@@ -1,12 +1,11 @@
-// Regression test: the dark premium LikeLink2 Studio is the DEFAULT root surface.
+// Contract: PUBLIC WEBSITE and STUDIO are two different experiences.
 //
-// Before this contract existed, `/` parsed to { type: "landing" }, App did not
-// handle "landing" at all, and the root fell through to the cream/beige
-// marketplace shell (AppShell + TopBar + FeedView). The dark Studio existed but
-// was only reachable at /studio, so production still looked like the old
-// marketplace. These tests fail the build if any of that regresses:
-//   • the router stops resolving studio deep links
-//   • App stops routing the landing/root surface to StudioShell
+// The root "/" is the consumer-facing public website (PublicSite: discovery,
+// products, creators, reels…). The dark premium Studio lives at /studio/:view.
+// (Until 2026-09 the root rendered the Studio; the product direction changed.)
+// These tests fail the build if any of that regresses:
+//   • the router stops resolving studio deep links or the public routes
+//   • App stops routing public routes to PublicSite / /studio to StudioShell
 //   • the Studio loses views, RTL handling, or its dark stylesheet
 //   • fabricated metrics creep back into the Studio surface
 import test from "node:test";
@@ -51,7 +50,12 @@ const REQUIRED_VIEWS = [
 ];
 
 test("router resolves the Studio deep links the shell depends on", () => {
-  assert.deepEqual(parsePath("/"), { type: "landing" });
+  assert.deepEqual(parsePath("/"), { type: "home" });
+  assert.deepEqual(parsePath("/products/Beauty"), { type: "products", category: "Beauty" });
+  assert.deepEqual(parsePath("/reels"), { type: "reels" });
+  assert.deepEqual(parsePath("/collections/cat-Home"), { type: "collections", id: "cat-Home" });
+  assert.deepEqual(parsePath("/search"), { type: "search" });
+  assert.deepEqual(parsePath("/studio/google-merchant"), { type: "app", tab: "sell", view: "google-merchant" });
   assert.deepEqual(parsePath("/studio"), { type: "app", tab: "sell", view: undefined });
   assert.deepEqual(parsePath("/studio/luna"), { type: "app", tab: "sell", view: "luna" });
   assert.deepEqual(parsePath("/studio/product-intelligence"), {
@@ -68,21 +72,11 @@ test("router resolves the Studio deep links the shell depends on", () => {
   assert.equal(tabToPath("sell"), "/studio");
 });
 
-test("App routes the root/landing surface to the dark Studio, not the marketplace shell", () => {
-  const landingBranch = APP.match(/if \(route\.type === "landing"[\s\S]*?\n  \}/);
-  assert.ok(landingBranch, "App must special-case the landing route");
-  assert.ok(
-    landingBranch[0].includes("StudioShell"),
-    "landing route must render StudioShell (the cream marketplace shell is not the default)"
-  );
-  assert.ok(
-    /setTheme\("dark", false\)/.test(APP),
-    "App must force the dark theme for the Studio surface"
-  );
-  assert.ok(
-    /if \(tab === "sell"\)[\s\S]*?<StudioShell/.test(APP),
-    "the sell tab must still mount StudioShell"
-  );
+test("App routes the root to the public website and /studio to the dark Studio", () => {
+  assert.ok(/PUBLIC_ROUTE_TYPES\.includes\(route\.type\)[\s\S]*?<PublicSite/.test(APP), "public routes must render PublicSite");
+  assert.ok(!/route\.type === "landing"/.test(APP), "the root must not fall back to the Studio");
+  assert.ok(/setTheme\("dark", false\)/.test(APP), "App must force the dark theme for the Studio surface");
+  assert.ok(/if \(tab === "sell"\)[\s\S]*?<StudioShell/.test(APP), "the sell tab must still mount StudioShell");
 });
 
 test("Studio declares the full command-center navigation", () => {

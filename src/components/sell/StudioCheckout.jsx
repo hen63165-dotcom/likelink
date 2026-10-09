@@ -81,14 +81,14 @@ export default function StudioCheckout() {
         <h3 className="font-bold">{p.name.he}</h3>
         <p className="text-xl font-bold my-2">₪{period === 'yearly' ? p.priceYearly : p.price}</p>
         <p className="text-xs mb-3">{p.tagline.he}</p>
-        <button disabled={busy || catalogReady !== true} onClick={() => checkout(p.id)} className="tap rounded-xl w-full p-2 font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'white' }}>לתשלום מאובטח</button>
+        <button disabled={busy || catalogReady !== true} onClick={() => checkout(p.id)} className="tap rounded-xl w-full p-2 font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: 'white' }}>התחילי את החבילה · מעבר לתשלום מאובטח</button>
       </article>)}
     </div>
     <p className="text-xs text-muted mt-3">אמצעי התשלום הזמינים יוצגו בדף המאובטח בהתאם למכשיר ולהגדרות הסליקה.</p>
     {catalogReady === false && <p role="status" className="text-sm mt-3">{messages.PAYMENT_PROVIDER_REQUIRED}</p>}
     {subscription?.status && <p role="status" className="text-sm mt-3">מנוי נוכחי: {(getAllPlans().find(p => p.id === subscription.planId)?.name?.he) || subscription.planId} · {subscription.billingPeriod === 'yearly' ? 'שנתי' : 'חודשי'} · {SUB_STATUS_HE[subscription.status] || subscription.status}{subscription.verification === 'mismatch' ? ' · התשלום ב-PayPal לא תואם למסלול — פני לתמיכה' : ''}</p>}
     {message && <p role="status" className="text-sm mt-3">{message}</p>}
-    <button disabled={busy} className="tap underline text-sm my-3" onClick={() => refresh().catch(() => setMessage(messages.UNAUTHENTICATED))}>רענון מצב המנוי</button>
+    <button disabled={busy} className="tap underline text-sm my-3" onClick={() => refresh().catch(() => setMessage(messages.UNAUTHENTICATED))}>בדיקת מצב המנוי</button>
     {subscription?.status === 'active' && <button disabled={busy} className="tap underline text-sm block" onClick={async () => { const token = await getSessionToken(); const r = await cancelMySubscription(token); setMessage(r.ok ? 'המנוי בוטל. הגישה תישאר לפי תנאי המנוי המאושר.' : subscriptionError(r.error, 'לא ניתן לבטל כרגע.')); await refresh(); }}>ביטול מנוי</button>}
   </section>;
 }

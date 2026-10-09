@@ -10,6 +10,8 @@ import './luxury.css'
 // LikeLink2 Studio — dark premium command-center surface (2026 redesign).
 import './studio.css'
 import './studio-home.css'
+// LikeLink public website — light, media-first visual commerce (scoped to .ll-site).
+import './site.css'
 // Auto-Heal runtime — catches errors, repairs corrupt storage, and keeps
 // the app booting cleanly on every visit (self-updating, self-repairing).
 import { installGlobalErrorHealing } from './lib/autoHeal.js'

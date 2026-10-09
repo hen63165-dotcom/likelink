@@ -26,7 +26,7 @@ test("discovery groups only real products and never invents categories", () => {
 
 test("public acquisition routes are represented in the SPA router", () => {
   const app = read("src/App.jsx");
-  assert.ok(app.includes('route.type === "landing" ? "home"'), "the root must use the root canonical, not /feed");
+  assert.ok(app.includes('route.type === "home" ? "home"'), "the root must use the root canonical, not /feed");
   assert.deepEqual(parsePath("/creators"), { type: "creators", category: null });
   assert.deepEqual(parsePath("/creators/Beauty"), { type: "creators", category: "Beauty" });
   assert.deepEqual(parsePath("/merchants"), { type: "merchants", category: null });

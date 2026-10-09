@@ -138,7 +138,10 @@ export default function AutoVideoStudio({ product, marketer, onClose, showToast,
         videoUrl: remoteUrl || result.url,
         marketerId: marketer?.id,
         productTags: [{ productId: product.id }],
-        source: "studio",
+        // Rendered in the browser from the product photos — a synthetic
+        // animation, never presented as a filmed video.
+        source: "likelink_first_party_studio",
+        synthetic: true,
         public: Boolean(remoteUrl),
       });
       showToast?.(

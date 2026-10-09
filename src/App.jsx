@@ -5,9 +5,8 @@ import { LangProvider, useI18n } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
 import { PLATFORM_FEE_PERCENT_DEFAULT } from "./constants/keys.js";
-import { parsePath } from "./utils/routing.js";
+import { parsePath, PUBLIC_ROUTE_TYPES } from "./utils/routing.js";
 import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo.js";
-import { isPublicCatalogProduct } from "./lib/cloud/catalog.js";
 import { initReferral } from "./lib/referral.js";
 
 // Modern Layout & UI
@@ -23,16 +22,14 @@ import FloatingAIHelper from "./components/FloatingAIHelper";
 import { capturePayPalCheckout } from "./lib/paymentFlow.js";
 import { toHebrewError } from "./lib/errorMessages.js";
 import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
+// The public website (consumer experience) — separate from the Studio.
+import PublicSite from "./components/site/PublicSite.jsx";
 
 // View Components — lazy-loaded for faster first paint (code-splitting)
-const FeedView = lazy(() => import("./components/feed/FeedView"));
 const SellView = lazy(() => import("./components/sell/SellView"));
 const AdminView = lazy(() => import("./components/admin/AdminView"));
-const ProductShowcase = lazy(() => import("./components/public/ProductShowcase"));
 const CreatorAcquisition = lazy(() => import("./components/public/CreatorAcquisition"));
 const MerchantAcquisition = lazy(() => import("./components/public/MerchantAcquisition"));
-const DiscoveryPage = lazy(() => import("./components/public/DiscoveryPage"));
-const CreatorProfilePage = lazy(() => import("./PAGES/CreatorProfilePage"));
 
 export default function AppRoot() {
   useEffect(() => {
@@ -94,16 +91,18 @@ function App() {
   }, []);
 
   // The seller Studio is a dark premium surface — force dark whenever the Studio
-  // is the active surface (tab "sell" OR the landing/feed view showing the Studio).
+  // is the active surface (/studio). The public site keeps its own light design.
   useEffect(() => {
-    const showStudio = tab === "sell" || route.type === "landing" || tab === "feed";
+    // Only the Studio is forced dark; the public site carries its own light design.
+    const showStudio = route.type === "app" && tab === "sell";
     if (showStudio) setTheme("dark", false);
     else setTheme(storedTheme, false);
   }, [tab, route.type, storedTheme, setTheme]);
 
   // SEO: public pages indexable; studio/admin noindex. Never fabricate product attribution.
   useEffect(() => {
-    if (["creator", "product", "creators", "merchants", "discover"].includes(route.type)) return;
+    // Public pages set their own title/description/canonical/JSON-LD.
+    if (PUBLIC_ROUTE_TYPES.includes(route.type) || route.type === "merchants" || route.type === "join") return;
     if (tab === "admin") {
       updatePageSEO(getDefaultSEO("admin"));
       setNoIndex("admin");
@@ -114,7 +113,7 @@ function App() {
       setNoIndex("studio");
       return;
     }
-    updatePageSEO(getDefaultSEO(route.type === "landing" ? "home" : tab === "feed" ? "feed" : "home"));
+    updatePageSEO(getDefaultSEO(route.type === "home" ? "home" : tab === "feed" ? "feed" : "home"));
   }, [tab, route.type]);
 
   useEffect(() => {
@@ -165,65 +164,32 @@ function App() {
   }, [tab, route]);
 
   function navigate(path) {
-    window.history.pushState({}, "", path);
-    setRoute(parsePath(path));
+    // Paths may carry a query (/search?q=…) — route on the pathname only.
+    const u = new URL(path, window.location.origin);
+    window.history.pushState({}, "", `${u.pathname}${u.search}${u.hash}`);
+    setRoute(parsePath(u.pathname));
   }
 
   if (loading) return <LoadingScreen />;
 
-  // Public acquisition + discovery surfaces — real catalog only.
-  if (route.type === "creators" || route.type === "merchants" || route.type === "discover") {
-    const PublicPage = route.type === "creators" ? CreatorAcquisition : route.type === "merchants" ? MerchantAcquisition : DiscoveryPage;
+  // PUBLIC WEBSITE — home, discover, products, creators, reels, deals,
+  // collections, search, product and creator pages (real catalog only).
+  if (PUBLIC_ROUTE_TYPES.includes(route.type)) {
+    return (
+      <>
+        <PublicSite route={route} navigate={navigate} />
+        <Toast message={toast?.msg} />
+      </>
+    );
+  }
+
+  // Acquisition pages for creators (/join) and merchants (/merchants).
+  if (route.type === "join" || route.type === "merchants") {
+    const PublicPage = route.type === "join" ? CreatorAcquisition : MerchantAcquisition;
     return (
       <AppShell>
         <Suspense fallback={<LoadingScreen />}>
           <PublicPage category={route.category} navigate={navigate} />
-        </Suspense>
-        <Toast message={toast?.msg} />
-      </AppShell>
-    );
-  }
-
-  // Creator Profile Route
-  if (route.type === "creator") {
-    return (
-      <AppShell>
-        <Suspense fallback={<LoadingScreen />}>
-          <CreatorProfilePage
-            slug={route.slug}
-            marketers={marketers}
-            products={products}
-            collections={collections}
-            favorites={favorites}
-            onToggleFavorite={toggleFavorite}
-            following={following}
-            onToggleFollow={toggleFollow}
-            recordClick={recordClick}
-            showToast={showToast}
-            navigate={navigate}
-            lang={lang}
-            setLang={setLang}
-            currentSellerId={settings?.currentSellerId || null}
-          />
-        </Suspense>
-        <Toast message={toast?.msg} />
-      </AppShell>
-    );
-  }
-
-  // Product Showcase Route — fail-closed without valid creator attribution
-  if (route.type === "product") {
-    const product = products.find((p) => p.id === route.id);
-    const owner = product ? marketers.find((m) => m.id === product.marketerId) : null;
-    const publicOk = product && owner && isPublicCatalogProduct(product, marketers);
-    return (
-      <AppShell>
-        <Suspense fallback={<LoadingScreen />}>
-          <ProductShowcase
-            product={publicOk ? product : null}
-            owner={publicOk ? owner : null}
-            navigate={navigate}
-          />
         </Suspense>
         <Toast message={toast?.msg} />
       </AppShell>
@@ -244,51 +210,13 @@ function App() {
     );
   }
 
-  // The root is the premium Studio command center. Public acquisition/discovery
-  // remains available through the dedicated routes (/discover, /creators, /merchants)
-  // while /feed stays the shopper-facing marketplace surface.
-  if (route.type === "landing") {
-    return (
-      <>
-        <StudioShell
-          view={route.view}
-          onNavigate={(v) => navigate(`/studio/${v}`)}
-        />
-        <Toast message={toast?.msg} />
-      </>
-    );
-  }
-
+  // Legacy /feed → the public products page.
   if (tab === "feed") {
     return (
-      <AppShell>
-        <TopBar
-          tab={tab}
-          feeRate={settings?.platformFeePercent ?? PLATFORM_FEE_PERCENT_DEFAULT}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onScreenshotSearch={() => setScreenshotOpen(true)}
-          activeNav={activeNav}
-          onNavChange={setActiveNav}
-        />
-        <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
-          <Suspense fallback={<LoadingScreen />}>
-            <FeedView
-              navigate={navigate}
-              query={searchQuery}
-              setQuery={setSearchQuery}
-              activeNav={activeNav}
-            />
-          </Suspense>
-        </main>
-        <BottomNav tab={tab} setTab={setTab} />
+      <>
+        <PublicSite route={{ type: "products", category: null }} navigate={navigate} />
         <Toast message={toast?.msg} />
-        <ScreenshotSearchModal
-          isOpen={screenshotOpen}
-          onClose={() => setScreenshotOpen(false)}
-        />
-        <FloatingAIHelper />
-      </AppShell>
+      </>
     );
   }
 
@@ -307,16 +235,6 @@ function App() {
 
       <main className="flex-1 w-full max-w-app mx-auto pb-24 px-4">
         <Suspense fallback={<LoadingScreen />}>
-          {tab === "feed" && (
-            <FeedView
-              navigate={navigate}
-              query={searchQuery}
-              setQuery={setSearchQuery}
-              activeNav={activeNav}
-              setActiveNav={setActiveNav}
-              onScreenshotSearch={() => setScreenshotOpen(true)}
-            />
-          )}
           {tab === "admin" && <AdminView />}
         </Suspense>
       </main>

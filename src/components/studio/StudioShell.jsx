@@ -26,6 +26,7 @@ import {
   Megaphone, TrendingUp, Send, BarChart3, ShieldCheck, Bot, Lightbulb,
   Settings, LogOut, Moon, Sun, Languages, ChevronLeft, Store, Copy,
   Activity, Menu, Brain, AlertCircle, CheckCircle, MessageCircle, Users,
+  Wand2, Link2, CreditCard, Search,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -63,6 +64,7 @@ import CreatorInbox from "./CreatorInbox";
 import CreatorCommandCenter from "./CreatorCommandCenter";
 import UGCCampaignStudio from "./UGCCampaignStudio";
 import AdsStudio from "../ads/AdsStudio.jsx";
+import { GoogleMerchantPanel, AffiliatePanel, PaymentsPanel, GrowthPanel, LunaCampaignEntry, RealVideoUploadCard } from "./StudioBusinessPanels.jsx";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -88,6 +90,10 @@ const VIEW_IDS = {
   RECOMMENDATIONS: "recommendations",
   SETTINGS: "settings",
   ADS: "ads",
+  GROWTH: "growth",
+  GOOGLE_MERCHANT: "google-merchant",
+  AFFILIATE: "affiliate",
+  PAYMENTS: "payments",
 };
 
 const TIERS = {
@@ -986,6 +992,7 @@ const NAV_SECTIONS = [
   {
     id: "grow",
     items: [
+      { view: VIEW_IDS.GROWTH, icon: Wand2, he: "לונה · צמיחה וקמפיינים", en: "Luna · Growth" },
       { view: VIEW_IDS.SELF_MARKETING, icon: Megaphone, he: "שיווק עצמי", en: "Self-Marketing" },
       { view: VIEW_IDS.INBOX, icon: MessageCircle, he: "מסרים", en: "Messages" },
       { view: VIEW_IDS.CAMPAIGNS, icon: Send, he: "קמפיינים", en: "Campaigns" },
@@ -998,6 +1005,9 @@ const NAV_SECTIONS = [
   {
     id: "operate",
     items: [
+      { view: VIEW_IDS.GOOGLE_MERCHANT, icon: Search, he: "Google Merchant", en: "Google Merchant" },
+      { view: VIEW_IDS.AFFILIATE, icon: Link2, he: "שותפים ומעקב קליקים", en: "Affiliate & tracking" },
+      { view: VIEW_IDS.PAYMENTS, icon: CreditCard, he: "תשלומים וחבילות", en: "Payments & plans" },
       { view: VIEW_IDS.TRUST, icon: ShieldCheck, he: "אמון", en: "Trust" },
       { view: VIEW_IDS.AUTOPILOT, icon: Bot, he: "טייס אוטומטי", en: "AutoPilot" },
       { view: VIEW_IDS.RECOMMENDATIONS, icon: Lightbulb, he: "המלצות", en: "Recommendations" },
@@ -1087,6 +1097,22 @@ const VIEW_SUBTITLES = {
   [VIEW_IDS.SETTINGS]: {
     he: "חשבון, שפה, ערכת נושא, תשלומים ובריאות המערכת.",
     en: "Account, language, theme, payouts and system health.",
+  },
+  [VIEW_IDS.GROWTH]: {
+    he: "המלצות של לונה עם הסיבה האמיתית, עמודים לחיזוק, ותכנון קמפיין הפצה חינמי.",
+    en: "Luna's recommendations with their real reasons, pages to improve, and free distribution campaigns.",
+  },
+  [VIEW_IDS.GOOGLE_MERCHANT]: {
+    he: "פיד המוצרים ל-Google: אילו מוצרים זכאים, מה בדיוק חוסם, ואיך מחברים.",
+    en: "The Google product feed: which products qualify, exactly what blocks them, and how to connect.",
+  },
+  [VIEW_IDS.AFFILIATE]: {
+    he: "קישורי השותפים שלך, החנות שאליה הם מובילים, והקליקים שנמדדו בפועל.",
+    en: "Your affiliate links, the store they lead to, and the clicks actually measured.",
+  },
+  [VIEW_IDS.PAYMENTS]: {
+    he: "חבילת הסטודיו, יעד התשלומים שלך, והכנסות מתועדות.",
+    en: "Your studio plan, payout destination and recorded earnings.",
   },
   [VIEW_IDS.ADS]: {
     he: "מערכת מודעות LikeLink2 עם אפשרויות מותאמות אישית — קמפיינים אוטונומיים וסטטוס בזמן אמת.",
@@ -1256,11 +1282,15 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
       case VIEW_IDS.PRODUCT_INTELLIGENCE: return <IntelligencePanel highlight="product" />;
       case VIEW_IDS.SELF_MARKETING: return <><CreatorGrowthWorkspace onNavigate={navigate} /><IntelligencePanel highlight="self" /></>;
       case VIEW_IDS.INBOX: return <CreatorInbox onNavigate={navigate} />;
-      case VIEW_IDS.UGC: return <UgcPanel onNavigate={navigate} />;
-      case VIEW_IDS.VIDEO: return <VideoPanel onNavigate={navigate} />;
+      case VIEW_IDS.UGC: return <><RealVideoUploadCard /><UgcPanel onNavigate={navigate} /></>;
+      case VIEW_IDS.VIDEO: return <><RealVideoUploadCard /><VideoPanel onNavigate={navigate} /></>;
       case VIEW_IDS.CREATOR_LAB: return <CreatorLabPanel onNavigate={navigate} />;
       case VIEW_IDS.CONTENT: return <ContentPanel onNavigate={navigate} />;
-      case VIEW_IDS.CAMPAIGNS: return <CampaignsPanel onNavigate={navigate} />;
+      case VIEW_IDS.CAMPAIGNS: return <><LunaCampaignEntry onNavigate={navigate} /><CampaignsPanel onNavigate={navigate} /></>;
+      case VIEW_IDS.GROWTH: return <GrowthPanel onNavigate={navigate} platform={platform} />;
+      case VIEW_IDS.GOOGLE_MERCHANT: return <GoogleMerchantPanel onNavigate={navigate} />;
+      case VIEW_IDS.AFFILIATE: return <AffiliatePanel onNavigate={navigate} />;
+      case VIEW_IDS.PAYMENTS: return <PaymentsPanel onNavigate={navigate} />;
       case VIEW_IDS.TRENDS: return <TrendsPanel />;
       case VIEW_IDS.PUBLISHING: return <PublishingPanel onNavigate={navigate} />;
       case VIEW_IDS.PERFORMANCE: return <PerformancePanel onNavigate={navigate} />;
