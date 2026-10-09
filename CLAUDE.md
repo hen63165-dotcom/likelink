@@ -234,6 +234,20 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
 ## Repo notes
 
 - The many root-level `.bat`/`.ps1`/`.vbs`/`fix_*.js`/`git-*.js` files are ad-hoc helper scripts, not part of the build or deploy.
+- **Snapshot mode** (`src/lib/catalogSnapshot.js`, `public/snapshot/kv.json`): when a live read of a public storefront key fails (cloud down/restricted), `storage.get` answers from the shipped copy. Rules:
+  - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
+  - A key served from it is read-only (`snapshot_read_only`).
+  - Cloud-hosted media is dropped from the copy.
+  - The home pill says "עותק מ־<time>".
+  - Refresh the copy with SQL when the catalog changes and the API is down.
+- **Real product video reels** (`scripts/media/product-video/`, Actions → "Product video reels"):
+  - Chrome reads the seller's own video from each product page (read-only; a CAPTCHA stops the run).
+  - `make-reel.mjs` edits it to 9:16 with a `buildHookSet` hook (no price hooks), the `רוצה` comment call to action and `#פרסומת · קישור שותפים` + "צילום המוצר: המוכר" on every frame.
+  - Reels and captions are attached to the `reels` release. Nothing is posted from there.
+- **Instagram comment bot** (`scripts/instagram/comment-bot.mjs`, every 15 min):
+  - It answers comments asking for the link (`רוצה`/`לינק`/`קישור`) with ONE official private reply carrying the product's own link and the disclosure, plus a public "sent you a DM" reply, which marks the comment as handled.
+  - It only answers within 7 days of the comment and caps each run at 40 replies.
+  - Without `IG_ACCESS_TOKEN`/`IG_USER_ID` it sends nothing.
 - `scripts/viral/viral_reel.py` (one click: Actions → "Viral reel") makes a Hebrew reel with paid APIs (ElevenLabs voice, Replicate video, MoviePy edit) and posts it through the Instagram Graph API with a permalink read-back. It refuses to post while the site's data API is down, never adds a random music track, and labels the video as AI-made. Keys live only in repository secrets.
 - Don't touch `.env*` files or Vercel env vars unless asked. `.env.example` lists only `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `ADMIN_CODE`. The API reads many more, such as `SUPABASE_SERVICE_ROLE_KEY`, `PAYPAL_*`, `AUTOPILOT_SECRET`, `STORE_SIGN_SECRET`, `ADMIN_SESSION_SECRET`, `RESEND_API_KEY`, `OPENAI_API_KEY`, and `ALLOWED_ORIGINS`.
 - After a push, verify that the Vercel deployment reaches READY and then hit the live changed endpoints. A READY deploy can still have functions that crash on first invocation.

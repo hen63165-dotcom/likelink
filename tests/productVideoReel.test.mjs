@@ -23,6 +23,7 @@ test("reel hooks are honest: no purchase, stock, rating or popularity claims", (
     const hook = pickHook(p, i);
     assert.ok(hook && hook.text, `${p.id} has a hook`);
     assert.doesNotMatch(hook.text, HOOK_FORBIDDEN, `${p.id}: ${hook.text}`);
+    assert.doesNotMatch(hook.text, /₪|\d/, `${p.id}: no price burned into the video`);
   });
 });
 

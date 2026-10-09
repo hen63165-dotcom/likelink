@@ -42,7 +42,8 @@ const firstSentence = (s) => (String(s || "").split(/(?<=[.!?])\s/)[0] || "").tr
 /** The hook for this product: a fixed rotation over honest hook types. */
 export function pickHook(product, index = 0) {
   const hooks = buildHookSet(product);
-  const order = ["question", "problem", "curiosity", "didnt_know", "gift"];
+  // No price hooks: a price burned into a video goes stale when the store changes it.
+  const order = ["question", "problem", "didnt_know", "gift", "story"];
   const type = order[index % order.length];
   return hooks.find((h) => h.type === type) || hooks[0];
 }
