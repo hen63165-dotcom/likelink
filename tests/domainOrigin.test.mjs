@@ -143,3 +143,12 @@ test("no module outside the source of truth hardcodes a legacy origin", () => {
   }
   assert.deepEqual(offenders, [], `hardcoded legacy origin found:\n${offenders.join("\n")}`);
 });
+
+test("CORS: our two storefronts are approved, look-alike hosts are not", async () => {
+  const { isApprovedOrigin } = await import("../api/_utils/cors.js");
+  assert.equal(isApprovedOrigin(PRODUCTION_ORIGIN), true);
+  assert.equal(isApprovedOrigin("https://mylikelink.netlify.app"), true, "the Netlify storefront proxies /api to Supabase");
+  for (const o of ["https://evil.netlify.app", "https://mylikelink.netlify.app.evil.com", "http://mylikelink.netlify.app", "https://likelink.com"]) {
+    assert.equal(isApprovedOrigin(o), false, o);
+  }
+});

@@ -1,0 +1,15 @@
+# Netlify: the second storefront for LikeLink2 (Vercel is the first).
+# Netlify only serves the static build; the API and data live in Supabase.
+# public/_redirects proxies /api/*, /r and the feeds to the Supabase Edge
+# Function "api", so every page and tracking link works the same on both hosts.
+[build]
+  command = "npm run build"
+  publish = "dist"
+  # The older Netlify copies under netlify/ (edge functions on /r and /u/*, a
+  # feed function) would run before _redirects and bypass the Supabase API.
+  # Point Netlify at directories that do not exist so none of them deploy.
+  functions = "netlify/_off/functions"
+  edge_functions = "netlify/_off/edge-functions"
+
+[build.environment]
+  NODE_VERSION = "22"

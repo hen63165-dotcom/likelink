@@ -8,6 +8,8 @@
  * APPROVED ORIGINS:
  *   - localhost (development)
  *   - https://likelink2.vercel.app (production)
+ *   - https://mylikelink.netlify.app (our second storefront: Netlify serves the
+ *     same build and proxies /api to the Supabase Edge Function)
  *   - any custom domain listed in the PUBLIC_ORIGIN / ALLOWED_ORIGINS env vars
  *
  * NOTE: `likelink.com` / `likelink.app` are NOT owned by this project and are
@@ -38,6 +40,8 @@ const APPROVED_ORIGINS = new Set([
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
   "https://likelink2.vercel.app",
+  // Our own Netlify site (exact host only — never *.netlify.app).
+  "https://mylikelink.netlify.app",
   ...String(process.env.PUBLIC_ORIGIN || "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
