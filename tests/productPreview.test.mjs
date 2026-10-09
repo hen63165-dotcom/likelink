@@ -7,11 +7,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { listedFromSnapshot, prerender, productHead } from "../scripts/prerender-products.mjs";
 import { enCount, heAnd, heCount } from "../src/lib/publicDiscovery.js";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const doc = JSON.parse(readFileSync(join(ROOT, "public/snapshot/kv.json"), "utf8"));
 const shell = readFileSync(join(ROOT, "index.html"), "utf8");
 
