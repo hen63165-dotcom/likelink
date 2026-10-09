@@ -1,0 +1,47 @@
+# Real product video: the seller's own footage from the store's product page,
+# for reels that show the real product instead of an animation.
+# Read-only on the store (one page view per product, no clicks); a CAPTCHA
+# stops the run. The videos found are uploaded as a short-lived artifact for
+# review. Nothing is published from here.
+name: Product video — find
+
+on:
+  workflow_dispatch:
+    inputs:
+      products:
+        description: "Product ids (space separated); empty = every public product"
+        default: ""
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/product-video/**", ".github/workflows/product-video.yml"]
+
+concurrency:
+  group: product-video
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (drives the runner's Google Chrome) and ffmpeg
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+      - name: Find the seller's product videos
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+        run: node scripts/media/product-video/find-videos.mjs product-videos ${{ github.event.inputs.products }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-videos
+          path: product-videos
+          retention-days: 3
