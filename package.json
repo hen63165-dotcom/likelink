@@ -2,6 +2,7 @@
   "name": "likelink",
   "private": true,
   "version": "0.1.0",
+  "homepage": "https://github.io",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "feed:google": "node scripts/generate-google-feed.mjs",
-    "cloud:check": "node scripts/cloud-check.mjs"
+    "cloud:check": "node scripts/cloud-check.mjs",
+    "reels:generate": "node scripts/luna-reels/generate.mjs",
+    "reels:captions": "node scripts/luna-reels/captions.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
