@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-10-09T19:19:36.463Z",
+  "dryRun": false,
+  "voice": "he-IL-AvriNeural",
+  "durationMs": 17200,
+  "caption": {
+    "position": "lower-middle",
+    "maxWordsPerFrame": 3,
+    "colors": [
+      "#FBBF24",
+      "#FFFFFF"
+    ],
+    "outline": {
+      "color": "#000000",
+      "width": 7
+    },
+    "backgroundBox": false,
+    "cornerTags": [
+      "#פרסומת",
+      "AI"
+    ]
+  },
+  "closing": {
+    "logo": "LikeLink",
+    "tagline": "החנות שלך. לגמרי אוטומטית.",
+    "cta": "לרכישה עכשיו",
+    "animatedButton": true
+  },
+  "background": {
+    "source": "fallback-gradient",
+    "count": 4,
+    "keywords": [
+      "morning light coffee aesthetic",
+      "slow motion linen fabric",
+      "minimal beige interior",
+      "golden hour ocean waves",
+      "cozy candle warm ambience",
+      "soft pastel flowers blooming",
+      "city night bokeh lights",
+      "green leaves sunlight nature",
+      "spa wellness still life",
+      "marble table flat lay",
+      "silk fabric flowing",
+      "sunset sky timelapse calm"
+    ],
+    "clips": [
+      "bg-01.mp4",
+      "bg-02.mp4",
+      "bg-03.mp4",
+      "bg-04.mp4"
+    ]
+  },
+  "schedule": [
+    "0 8 * * *",
+    "0 17 * * *"
+  ],
+  "cues": 9,
+  "file": "luna-2026-10-09T19-19-33.mp4",
+  "bytes": 1291048,
+  "root": "/home/runner/work/likelink/likelink"
+}
