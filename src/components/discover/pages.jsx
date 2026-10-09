@@ -29,6 +29,8 @@ import {
   offersOf,
   evidenceOf,
   searchGraph,
+  enCount,
+  heCount,
   TREND_MIN_EVENTS,
   TREND_WINDOW_DAYS,
 } from "../../lib/publicDiscovery.js";
@@ -507,7 +509,7 @@ export function DiscoverPage({ graph, category }) {
     const boards = graph.collections.filter((c) => c.category === category || c.productIds.some((id) => graph.byId.get(id)?.category === category && c.kind === "curated"));
     return (
       <>
-        <PageHero kicker={<><Compass size={14} /> {L("גילוי", "Discover")}</>} title={categoryName(category, lang)} sub={inCat.length ? L(`${inCat.length} מוצרים מאושרים בקטגוריה`, `${inCat.length} approved products in this category`) : L("אין כרגע מוצרים מאושרים בקטגוריה הזו.", "No approved products in this category yet.")}>
+        <PageHero kicker={<><Compass size={14} /> {L("גילוי", "Discover")}</>} title={categoryName(category, lang)} sub={inCat.length ? L(`${inCat.length === 1 ? "מוצר מאושר אחד" : `${inCat.length} מוצרים מאושרים`} בקטגוריה`, `${inCat.length} approved ${inCat.length === 1 ? "product" : "products"} in this category`) : L("אין כרגע מוצרים מאושרים בקטגוריה הזו.", "No approved products in this category yet.")}>
           <CategoryChips graph={graph} active={category} />
         </PageHero>
         <section className="lx-wrap mt-8">
@@ -575,7 +577,7 @@ export function DiscoverPage({ graph, category }) {
 
       {graph.categories.map((c) => (
         <Section key={c.id}>
-          <SectionHead title={categoryName(c.id, lang)} sub={L(`${c.count} מוצרים`, `${c.count} products`)} to={`/discover/${encodeURIComponent(c.id)}`} />
+          <SectionHead title={categoryName(c.id, lang)} sub={L(heCount(c.count, "products"), enCount(c.count, "products"))} to={`/discover/${encodeURIComponent(c.id)}`} />
           <Rail item="minmax(176px, 210px)">{c.productIds.slice(0, 10).map((id) => { const p = graph.byId.get(id); return <ProductCard key={id} product={p} creator={graph.creatorById.get(p.marketerId)} />; })}</Rail>
         </Section>
       ))}
@@ -603,7 +605,7 @@ export function ProductsPage({ graph, category }) {
 
   return (
     <>
-      <PageHero kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(`${list.length} מוצרים`, `${list.length} products`)}>
+      <PageHero kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(heCount(list.length, "products"), enCount(list.length, "products"))}>
         <CategoryChips graph={graph} active={category} base="/products" />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button type="button" className="lx-chip" aria-pressed={!price} onClick={() => setPrice("")}>{L("כל המחירים", "Any price")}</button>
@@ -708,8 +710,8 @@ export function CreatorPage({ graph, slug, navigate }) {
                   {creator.verified ? <TrustBadge kind="verified" /> : null}
                 </h1>
                 <p className="lx-mute text-[14px]">
-                  {L(`${products.length} מוצרים · ${creator.categories.length} קטגוריות`, `${products.length} products · ${creator.categories.length} categories`)}
-                  {boards.length ? L(` · ${boards.length} אוספים`, ` · ${boards.length} collections`) : ""}
+                  {L(`${heCount(products.length, "products")} · ${heCount(creator.categories.length, "categories")}`, `${enCount(products.length, "products")} · ${enCount(creator.categories.length, "categories")}`)}
+                  {boards.length ? L(` · ${heCount(boards.length, "collections")}`, ` · ${enCount(boards.length, "collections")}`) : ""}
                 </p>
               </div>
             </div>
@@ -750,8 +752,8 @@ export function CreatorPage({ graph, slug, navigate }) {
               title={hasAttention ? L(`הבולטים אצל ${creator.name}`, `${creator.name}'s standouts`) : L(`מה כדאי לראות אצל ${creator.name}`, `Where to start with ${creator.name}`)}
               lines={
                 hasAttention
-                  ? standouts.filter((p) => p.attention.clicks + p.attention.views > 0).map((p) => L(`${p.displayTitle} — ${p.attention.views} צפיות, ${p.attention.clicks} קליקים ב־${TREND_WINDOW_DAYS} ימים`, `${p.displayTitle} — ${p.attention.views} views, ${p.attention.clicks} clicks in ${TREND_WINDOW_DAYS} days`))
-                  : [L("עוד לא נרשמו מספיק צפיות כדי לדרג — הנה הבחירות האחרונות.", "Not enough recorded views to rank yet — here are the latest picks."), ...topCategories.slice(0, 2).map((c) => L(`${products.filter((p) => p.category === c).length} בחירות ב${categoryName(c, "he")}`, `${products.filter((p) => p.category === c).length} picks in ${categoryName(c, "en")}`))].slice(0, 3)
+                  ? standouts.filter((p) => p.attention.clicks + p.attention.views > 0).map((p) => L(`${p.displayTitle} — ${heCount(p.attention.views, "views")}, ${heCount(p.attention.clicks, "clicks")} ב־${TREND_WINDOW_DAYS} ימים`, `${p.displayTitle} — ${enCount(p.attention.views, "views")}, ${enCount(p.attention.clicks, "clicks")} in ${TREND_WINDOW_DAYS} days`))
+                  : [L("עוד לא נרשמו מספיק צפיות כדי לדרג — הנה הבחירות האחרונות.", "Not enough recorded views to rank yet — here are the latest picks."), ...topCategories.slice(0, 2).map((c) => L(`${heCount(products.filter((p) => p.category === c).length, "picks")} ב${categoryName(c, "he")}`, `${enCount(products.filter((p) => p.category === c).length, "picks")} in ${categoryName(c, "en")}`))].slice(0, 3)
               }
             />
           </div>
@@ -782,7 +784,7 @@ export function CreatorPage({ graph, slug, navigate }) {
 
       {/* SHOP */}
       <Section id="shop">
-        <SectionHead title={L(`החנות של ${creator.name}`, `${creator.name}'s shop`)} sub={L(`${shop.length} מוצרים`, `${shop.length} products`)} />
+        <SectionHead title={L(`החנות של ${creator.name}`, `${creator.name}'s shop`)} sub={L(heCount(shop.length, "products"), enCount(shop.length, "products"))} />
         <div className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: "none" }}>
           <div className="flex w-max gap-2">
             <button type="button" className="lx-chip" aria-pressed={!cat} onClick={() => setCat("")}>{L("הכל", "All")}</button>
@@ -869,12 +871,12 @@ export function ProductPage({ graph, id, navigate }) {
               <PriceLine product={product} large />
               {product.merchant ? <span className="lx-mute text-[13px]">{L(`נמכר ב־${product.merchant}`, `Sold at ${product.merchant}`)}</span> : null}
             </div>
-            <p className="lx-mute mt-1 text-[12px]">{L("מחיר קטלוג. המחיר והמלאי הסופיים נקבעים אצל החנות.", "Catalog price. Final price and stock are set by the store.")}</p>
+            <p className="lx-mute mt-1 text-[12px]" data-tip={L("המחיר נלקח מעמוד המוצר בחנות. משלוח, מטבע ומבצעים יכולים לשנות אותו, והמחיר הקובע הוא המחיר בקופה של החנות.", "Taken from the store's product page. Shipping, currency and sales can change it; the store's checkout price is final.")}>{L("מחיר קטלוג. המחיר והמלאי הסופיים נקבעים אצל החנות.", "Catalog price. Final price and stock are set by the store.")}</p>
 
             <div className="mt-5 flex flex-wrap gap-2">
               <ShopButton product={product} className="flex-1" />
               <SaveButton productId={product.id} className="!h-11 !w-11" />
-              <ShareButton path={productPath(product.id)} title={`${product.displayTitle} | LikeLink2`} productId={product.id} marketerId={creator.id} className="!h-11 !w-11" />
+              <ShareButton path={productPath(product.id)} title={`${product.displayTitle} | LikeLink2`} image={product.media?.image || ""} productId={product.id} marketerId={creator.id} className="!h-11 !w-11" />
             </div>
             <div className="mt-3"><Disclosure product={product} /></div>
 
@@ -1015,7 +1017,7 @@ export function ReelsPage({ graph }) {
               {/* Side actions */}
               <div className="absolute bottom-40 end-3 flex flex-col items-center gap-3">
                 {product ? <SaveButton productId={product.id} /> : null}
-                {product ? <ShareButton path={productPath(product.id)} title={product.displayTitle} productId={product.id} marketerId={creator?.id} /> : null}
+                {product ? <ShareButton path={productPath(product.id)} title={product.displayTitle} image={product.media?.image || ""} productId={product.id} marketerId={creator?.id} /> : null}
                 {creator ? (
                   <Go to={creatorPath(creator.slug)} aria-label={creator.name}><CreatorAvatar creator={creator} size={40} ring /></Go>
                 ) : null}
@@ -1087,7 +1089,7 @@ export function TrendsPage({ graph }) {
                 <div className="lx-reel-shade" />
                 <div className="absolute inset-x-0 bottom-0 p-3 text-white">
                   <p className="lx-display text-[20px]">{categoryName(c.id, lang)}</p>
-                  <p className="text-[12px] opacity-85">{L(`${c.count} מוצרים`, `${c.count} products`)}</p>
+                  <p className="text-[12px] opacity-85">{L(heCount(c.count, "products"), enCount(c.count, "products"))}</p>
                 </div>
               </Media>
             </Go>
@@ -1161,7 +1163,7 @@ export function DealsPage({ graph }) {
         if (!list.length) return null;
         return (
           <Section key={b.id}>
-            <SectionHead title={lang === "he" ? b.he : b.en} sub={L(`${list.length} מוצרים לפי המחיר הרשום`, `${list.length} products by listed price`)} to={`/products?price=${b.id}`} />
+            <SectionHead title={lang === "he" ? b.he : b.en} sub={L(`${heCount(list.length, "products")} לפי המחיר הרשום`, `${enCount(list.length, "products")} by listed price`)} to={`/products?price=${b.id}`} />
             <Rail item="minmax(176px, 210px)">{list.slice(0, 12).map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} ratio="1 / 1" />)}</Rail>
           </Section>
         );
@@ -1272,7 +1274,7 @@ export function SearchPage({ graph }) {
         </div>
       ) : (
         <div className="lx-wrap mt-8">
-          <p className="lx-mute text-sm" role="status" aria-live="polite">{res.total ? L(`${res.total} תוצאות עבור „${q}”`, `${res.total} results for “${q}”`) : ""}</p>
+          <p className="lx-mute text-sm" role="status" aria-live="polite">{res.total ? L(`${heCount(res.total, "results")} עבור „${q}”`, `${enCount(res.total, "results")} for “${q}”`) : ""}</p>
           {res.link ? (
             <p className="mt-2 text-[13px]" role="status">{res.link.products.length
               ? L("זיהינו את הקישור — זה המוצר שהוא מוביל אליו" + (res.link.products.length > 1 ? `, עם ${res.link.products.length} המלצות.` : "."), "We recognised the link — this is the product it leads to.")
@@ -1308,7 +1310,7 @@ export function SearchPage({ graph }) {
           ) : null}
           {res.products.length ? (
             <div className="mt-10">
-              <SectionHead title={L("מוצרים", "Products")} sub={L(`${res.products.length} מוצרים · מסודרים לפי התאמה לחיפוש ואז לפי ראיות אמיתיות`, `${res.products.length} products · ordered by match, then by real evidence`)} />
+              <SectionHead title={L("מוצרים", "Products")} sub={L(`${heCount(res.products.length, "products")} · מסודרים לפי התאמה לחיפוש ואז לפי ראיות אמיתיות`, `${enCount(res.products.length, "products")} · ordered by match, then by real evidence`)} />
               <p className="lx-mute mb-4 text-[12.5px]">{L("לכל מוצר מוצג למה הוא כאן — רק סימנים שקיימים בנתונים. אין כאן דירוגי כוכבים או ביקורות מומצאים.", "Each product shows why it is here — only signals that exist in the data. No invented stars or reviews.")}</p>
               <Grid products={res.products} graph={graph} why={res.why} />
             </div>

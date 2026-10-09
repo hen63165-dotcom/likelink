@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpLeft, ArrowUpRight, BadgeCheck, Clapperboard, Eye, Flame, Lock, Search, ShieldCheck, Sparkles, Store, Tag, TrendingUp, Users } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { searchGraph, TREND_WINDOW_DAYS } from "../../lib/publicDiscovery.js";
+import { enCount, heCount, searchGraph, TREND_WINDOW_DAYS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { snapshotTakenAt } from "../../lib/catalogSnapshot.js";
 import { categoryName, CreatorAvatar, formatPrice, Go, Img, sized, useL } from "./kit";
@@ -290,7 +290,7 @@ function Bento({ graph }) {
           </span>
         ) : null}
       >
-        <Data dot>{L(`${graph.products.length} מוצרים בקטלוג`, `${graph.products.length} products in the catalog`)}</Data>
+        <Data dot>{L(`${heCount(graph.products.length, "products")} בקטלוג`, `${enCount(graph.products.length, "products")} in the catalog`)}</Data>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="lx-cell-title">{L("התחילו לגלות", "Start discovering")}</p>
@@ -305,7 +305,7 @@ function Bento({ graph }) {
         <div className="flex items-center justify-between gap-3">
           <Data>
             {verified ? <BadgeCheck size={12} style={{ color: "var(--lx-mint)" }} /> : <Users size={12} />}
-            {verified ? L(verified === 1 ? "פרופיל מאומת" : `${verified} פרופילים מאומתים`, verified === 1 ? "1 verified profile" : `${verified} verified profiles`) : L(`${graph.creators.length} יוצרים`, `${graph.creators.length} creators`)}
+            {verified ? L(verified === 1 ? "פרופיל מאומת" : `${verified} פרופילים מאומתים`, verified === 1 ? "1 verified profile" : `${verified} verified profiles`) : L(heCount(graph.creators.length, "creators"), enCount(graph.creators.length, "creators"))}
           </Data>
           <span className="lx-avatars">
             {graph.creators.slice(0, 5).map((c) => <CreatorAvatar key={c.id} creator={c} size={34} ring />)}
@@ -323,7 +323,7 @@ function Bento({ graph }) {
       {/* 3–4 · Top categories by real product count */}
       {[catA, catB].map((c, k) => (c ? (
         <Cell key={c.id} to={`/discover/${encodeURIComponent(c.id)}`} i={2 + k} soft={k === 1} media={c.cover ? <Img src={sized(c.cover, 420)} /> : null}>
-          <Data>{L(`${c.count} מוצרים`, `${c.count} products`)}</Data>
+          <Data>{L(heCount(c.count, "products"), enCount(c.count, "products"))}</Data>
           <div className="flex items-end justify-between gap-2">
             <p className="lx-cell-title min-w-0">{categoryName(c.id, lang)}</p>
             <GoArrow />
@@ -338,7 +338,7 @@ function Bento({ graph }) {
 
       {/* 5 · Reels — counted only from playable media */}
       <Cell to="/reels" i={4} media={reel?.poster || withImg[4]?.media.image ? <Img src={sized(reel?.poster || withImg[4].media.image, 420)} /> : null}>
-        <Data><Clapperboard size={12} /> {graph.reels.length ? L(`${graph.reels.length} סרטונים`, `${graph.reels.length} reels`) : L("סיפורי מוצר", "Product stories")}</Data>
+        <Data><Clapperboard size={12} /> {graph.reels.length ? L(heCount(graph.reels.length, "reels"), enCount(graph.reels.length, "reels")) : L("סיפורי מוצר", "Product stories")}</Data>
         <div className="flex items-end justify-between gap-2">
           <div className="min-w-0">
             <p className="lx-cell-title">{L("סרטונים", "Reels")}</p>
@@ -351,7 +351,7 @@ function Bento({ graph }) {
       {/* 6 · Attention — recorded events only; otherwise what's new */}
       {trend ? (
         <Cell to={`/discover/${encodeURIComponent(trend.category)}`} i={5} media={trend.cover ? <Img src={sized(trend.cover, 420)} /> : null} soft>
-          <Data><Flame size={12} /> {L(`${trend.views} צפיות · ${trend.clicks} קליקים`, `${trend.views} views · ${trend.clicks} clicks`)}</Data>
+          <Data><Flame size={12} /> {L(`${heCount(trend.views, "views")} · ${heCount(trend.clicks, "clicks")}`, `${enCount(trend.views, "views")} · ${enCount(trend.clicks, "clicks")}`)}</Data>
           <div className="min-w-0">
             <p className="lx-cell-sub">{L(`עכשיו חם · ${trend.windowDays} ימים`, `Trending · ${trend.windowDays} days`)}</p>
             <p className="lx-cell-title">{categoryName(trend.category, lang)}</p>
@@ -359,7 +359,7 @@ function Bento({ graph }) {
         </Cell>
       ) : (
         <Cell to="/products" i={5} media={withImg[0] ? <Img src={sized(withImg[0].media.image, 420)} /> : null} soft>
-          <Data>{attention.views + attention.clicks ? <><Eye size={12} /> {L(`${attention.views} צפיות · ${TREND_WINDOW_DAYS} ימים`, `${attention.views} views · ${TREND_WINDOW_DAYS} days`)}</> : <><Sparkles size={12} /> {L("נוסף לאחרונה", "Just added")}</>}</Data>
+          <Data>{attention.views + attention.clicks ? <><Eye size={12} /> {L(`${heCount(attention.views, "views")} · ${TREND_WINDOW_DAYS} ימים`, `${enCount(attention.views, "views")} · ${TREND_WINDOW_DAYS} days`)}</> : <><Sparkles size={12} /> {L("נוסף לאחרונה", "Just added")}</>}</Data>
           <div className="min-w-0">
             <p className="lx-cell-title">{L("חדש בקטלוג", "New in the catalog")}</p>
             {withImg[0] ? <p className="lx-cell-sub lx-clamp-2 mt-0.5">{withImg[0].displayTitle}</p> : null}
@@ -392,7 +392,7 @@ export function HomeHero({ graph, navigate }) {
   const time = loadedAt.toLocaleTimeString(lang === "he" ? "he-IL" : "en-GB", { hour: "2-digit", minute: "2-digit" });
   // The cloud did not answer: the page shows the catalog copy, and says from when.
   const copyAt = snapshotTakenAt();
-  const copyWhen = copyAt ? new Date(copyAt).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const copyWhen = copyAt ? new Date(copyAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric" }) : "";
 
   return (
     <section className="relative" aria-labelledby="lx-hero-title">
@@ -405,7 +405,7 @@ export function HomeHero({ graph, navigate }) {
               {loading && !graph.products.length
                 ? L("טוען את הקטלוג מהענן…", "Loading the catalog from the cloud…")
                 : copyAt
-                  ? L(`הקטלוג האמיתי · נכון ל־${copyWhen}`, `The real catalog · as of ${copyWhen}`)
+                  ? L(`מחירי קטלוג נכונים ל־${copyWhen} · המחיר הסופי בחנות`, `Catalog prices as of ${copyWhen} · final price at the store`)
                   : L(`נתונים אמיתיים מהקטלוג · נטענו ב־${time}`, `Real catalog data · loaded at ${time}`)}
             </span>
           </div>

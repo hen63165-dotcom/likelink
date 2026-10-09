@@ -242,8 +242,14 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
   - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
   - A key served from it is read-only (`snapshot_read_only`).
   - Cloud-hosted media is dropped from the copy.
-  - The home pill says "נכון ל־<time>" (as of), and the studio sign-up screen shows `CLOUD_PAUSED_HE` instead of a raw error while the cloud cannot answer (`isCloudUnavailable`).
+  - The home pill says "מחירי קטלוג נכונים ל־<date>", and the studio sign-up screen shows `CLOUD_PAUSED_HE` instead of a raw error while the cloud cannot answer (`isCloudUnavailable`).
   - Refresh the copy with SQL when the catalog changes and the API is down.
+- **Server-free pieces of the storefront (Netlify):**
+  - `/r` is the static forwarder `public/r.html` + `public/r.js` (`decideRedirect`): it forwards only to a product link in the catalog copy (by `pid` or the exact stored link), shows a "leaving LikeLink" page for anything else, refuses non-http and `/r` loops. No click is recorded there. On Vercel `/r` is still `api/og.mjs`.
+  - `npm run build` runs `postbuild` → `scripts/prerender-products.mjs`: one `dist/p/<id>.html` per listed product with that product's `<head>` from `buildProductSeo` (WhatsApp/Facebook previews), the matching rewrites inserted before the SPA fallback in `dist/_redirects`, and `dist/sitemap-static.xml` (served at `/sitemap.xml` on Netlify only).
+- **Share sheet** (`ShareSheet` in `src/components/discover/kit.jsx`): the share button opens the site's own dialog (WhatsApp first, Telegram, Facebook, Pinterest with a real image, X, e-mail, copy link), each with its own `utm_source`. `navigator.share` (on Windows, Microsoft's dialog) is only the "עוד אפליקציות" button.
+- **Hover explanations** (`HoverTips`, mounted once in `PublicShell`): icon-only buttons show their `aria-label`; any element with `data-tip` shows that explanation on hover/keyboard focus (tap on a phone). Never on an element that has a native `title`.
+- Counted Hebrew nouns go through `heCount`/`enCount`/`heAnd` (`publicDiscovery.js`): "צפייה אחת", never "1 צפיות".
 - **Real product video reels** (`scripts/media/product-video/`, Actions → "Product video reels"):
   - Chrome reads the seller's own video from each product page (read-only; a CAPTCHA stops the run).
   - `make-reel.mjs` edits it to 9:16 with a `buildHookSet` hook (no price hooks), the `רוצה` comment call to action and `#פרסומת · קישור שותפים` + "צילום המוצר: המוכר" on every frame.

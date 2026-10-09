@@ -880,6 +880,70 @@ html body .lx img {
 @keyframes lx-sheet { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 .lx-sheet { animation: lx-sheet 0.28s var(--lx-ease) both; }
 
+/* Share sheet — the site's own (the device's dialog is only "more apps").
+   A bottom sheet on phones, a centred card from 640px. */
+.lx-share-layer { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; }
+.lx-share-scrim { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgba(13, 12, 20, 0.5); cursor: default; }
+.lx-share-panel {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--lx-surface);
+  color: var(--lx-ink);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -18px 50px -20px rgba(13, 12, 20, 0.45);
+}
+@media (min-width: 640px) {
+  .lx-share-layer { align-items: center; padding: 24px; }
+  .lx-share-panel { border-radius: 24px; box-shadow: 0 30px 80px -30px rgba(13, 12, 20, 0.55); }
+}
+.lx-share-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 6px; }
+.lx-share-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--lx-ink);
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) { .lx-share-target:hover { background: var(--lx-sunk); } }
+.lx-share-target:focus-visible { outline: 3px solid var(--lx-violet); outline-offset: 2px; }
+.lx-share-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 999px; color: #fff; }
+.lx-share-copy { display: flex; align-items: center; gap: 8px; margin-top: 18px; padding: 6px; border: 1px solid var(--lx-line-strong); border-radius: 16px; background: var(--lx-paper); }
+.lx-share-copy input { flex: 1; min-width: 0; padding: 0 8px; border: 0; outline: none; background: transparent; color: var(--lx-ink-2); font-size: 13px; direction: ltr; text-align: left; }
+
+/* Hover / focus explanations (HoverTips in kit.jsx). */
+.lx-tip {
+  position: fixed;
+  z-index: 90;
+  max-width: 260px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: var(--lx-ink);
+  color: var(--lx-on-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.55);
+  animation: lx-tip 0.14s ease-out both;
+}
+.lx-tip.is-below { transform: translate(-50%, 0); }
+@keyframes lx-tip { from { opacity: 0; } to { opacity: 1; } }
+.lx [data-tip]:not(a):not(button) { cursor: help; }
+
 @media (prefers-reduced-motion: reduce) {
   .lx *, .lx *::before, .lx *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .lx-marquee-track { width: auto; flex-wrap: wrap; }
