@@ -1,0 +1,388 @@
+{
+ "takenAt": "2026-10-09T10:37:09Z",
+ "source": "Supabase kv, read with SQL while the API was restricted. Public storefront rows only: the creator's public profile (no e-mail, no payout data), recorded click/view events, and the products the public site lists (approved, with their own affiliate link).",
+ "keys": {
+  "marketplace:clicks": [
+   {
+    "id": "mu60iej872mkup",
+    "ts": 1789678735892,
+    "productId": "p-07",
+    "marketerId": "cr-noa"
+   },
+   {
+    "id": "mu60ifgzb0wh75",
+    "ts": 1789678737107,
+    "productId": "p-07",
+    "marketerId": "cr-noa"
+   },
+   {
+    "id": "mur104j79e4xte",
+    "ts": 1790949352435,
+    "src": "likelink2-6vckbks0k-hen63165-8727s-projects.vercel.app",
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur105xjafma9d",
+    "ts": 1790949354247,
+    "src": "likelink2-6vckbks0k-hen63165-8727s-projects.vercel.app",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1ogpk02k3kf",
+    "ts": 1790950487960,
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1p0uy1b6ljb",
+    "ts": 1790950514074,
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1qqtoae5f06",
+    "ts": 1790950594380,
+    "type": "view",
+    "productId": "p-live-04",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1ugps4l7xl2",
+    "ts": 1790950767904,
+    "type": "view",
+    "productId": "p1",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1v5p1x8v5fm",
+    "ts": 1790950800277,
+    "type": "view",
+    "productId": "p2",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1vue4wilnsw",
+    "ts": 1790950832284,
+    "type": "view",
+    "productId": "p4",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1wjmyhsbbql",
+    "ts": 1790950865002,
+    "type": "view",
+    "productId": "p5",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1x8pxosjrfv",
+    "ts": 1790950897509,
+    "type": "view",
+    "productId": "p6",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1xxnveel77e",
+    "ts": 1790950929835,
+    "type": "view",
+    "productId": "p7",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1y4keadntqb",
+    "ts": 1790950938782,
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1yiq6ask4ak",
+    "ts": 1790950957134,
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1ymnibts2ou",
+    "ts": 1790950962222,
+    "type": "view",
+    "productId": "p8",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur1zc3b4jwi25",
+    "ts": 1790950995191,
+    "type": "view",
+    "productId": "p9",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur200g7uqr22a",
+    "ts": 1790951026759,
+    "type": "view",
+    "productId": "p10",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mur20pcsk1l9sn",
+    "ts": 1790951059036,
+    "type": "view",
+    "productId": "p11",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "musieu4wmgkpp7",
+    "ts": 1791039058448,
+    "src": "l.instagram.com",
+    "type": "view",
+    "productId": "p3",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "musif9lex8ofmy",
+    "ts": 1791039078482,
+    "src": "l.instagram.com",
+    "type": "view",
+    "productId": "p1",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "musinvetnsyuqx",
+    "ts": 1791039480005,
+    "src": "l.instagram.com",
+    "type": "view",
+    "productId": "p-live-03",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "musiobyi3tqg3b",
+    "ts": 1791039501450,
+    "src": "l.instagram.com",
+    "type": "view",
+    "productId": "p-live-01",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "musiohnhbr14jn",
+    "ts": 1791039508829,
+    "src": "l.instagram.com",
+    "productId": "p-live-01",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mutsq0j7r8cgt9",
+    "ts": 1791116842291,
+    "src": "likelink2-ktwlz6l64-hen63165-8727s-projects.vercel.app",
+    "type": "view",
+    "productId": "p-live-04",
+    "marketerId": "msd6go4kff49s5"
+   },
+   {
+    "id": "mutsqe53ljm8g4",
+    "ts": 1791116859927,
+    "src": "likelink2-ktwlz6l64-hen63165-8727s-projects.vercel.app",
+    "type": "view",
+    "productId": "p-live-02",
+    "marketerId": "msd6go4kff49s5"
+   }
+  ],
+  "marketplace:products": [
+   {
+    "id": "p-live-01",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png",
+    "price": 10.62,
+    "title": "טבעת כסף 925 קלאסית עם זרקון מרקיז",
+    "clicks": 1,
+    "status": "approved",
+    "category": "Accessories",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117823273-x70lz9.mp4",
+    "createdAt": 1789929013056,
+    "updatedAt": 1790873580436,
+    "commission": 8,
+    "marketerId": "msd6go4kff49s5",
+    "videoStyle": null,
+    "description": "טבעת אלגנטית מכסף סטרלינג 925 עם אבן זרקון בחיתוך מרקיז. עיצוב קלאסי ונקי, מתאימה לאירוסין, חתונה, או כפריט יומיומי.",
+    "imageSource": {
+     "via": "store_product_page_og_image",
+     "probe": {
+      "type": "image/webp",
+      "bytes": 29866,
+      "status": 200
+     },
+     "itemId": "3256811986400982",
+     "itemUrl": "https://www.aliexpress.us/item/3256811986400982.html",
+     "previous": "https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=900&q=80",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-10-01T16:53:00.436Z",
+     "storeTitle": "925 Sterling Silver Fashion Classic Marquise Zircon Ring For",
+     "observedInRun": "36880720408"
+    },
+    "videoPoster": null,
+    "videoStatus": "completed",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c2JrC8fJ",
+    "videoAssetId": null,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
+    "videoUpdatedAt": 1791494179206
+   },
+   {
+    "id": "p-live-02",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc174e158c0634a38be6508fa62db71f7p.jpg",
+    "price": 378.4,
+    "title": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן",
+    "clicks": 0,
+    "status": "approved",
+    "category": "Accessories",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117828322-m60ezx.mp4",
+    "createdAt": 1789842613056,
+    "updatedAt": 1790873582271,
+    "commission": 8,
+    "marketerId": "msd6go4kff49s5",
+    "videoStyle": null,
+    "description": "צמיד טניס מרשים מכסף סטרלינג 925 עם אבני מואסניט DVVS1 בחיתוך עגול. גימור זהב לבן מלוטש שמעניק ברק יהלום אמיתי.",
+    "imageSource": {
+     "via": "store_product_page_og_image",
+     "probe": {
+      "type": "image/webp",
+      "bytes": 86082,
+      "status": 200
+     },
+     "itemId": "3256803802176656",
+     "itemUrl": "https://www.aliexpress.us/item/3256803802176656.html",
+     "previous": "https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=900&q=80",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-10-01T16:53:02.271Z",
+     "storeTitle": "Moissanite Tennis Bracelet 4.0mm D VVS1 White Gold Plated",
+     "observedInRun": "36880720408"
+    },
+    "videoPoster": null,
+    "videoStatus": "completed",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c2wFWkxn",
+    "videoAssetId": null,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
+    "videoUpdatedAt": 1791494178464
+   },
+   {
+    "id": "p-live-03",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S6a13c7593c184263ae9204f295447043t.jpg",
+    "price": 228.96,
+    "title": "צמיד טניס מואסניט Smyoue מצופה פלטינה",
+    "clicks": 0,
+    "status": "approved",
+    "category": "Accessories",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117832579-52wthh.mp4",
+    "createdAt": 1789756213056,
+    "updatedAt": 1790873583627,
+    "commission": 8,
+    "marketerId": "msd6go4kff49s5",
+    "videoStyle": null,
+    "description": "צמיד טניס עדין מכסף 925 עם אבני מואסניט אמיתיות, מצופה פלטינה. אפשרות לבחור עובי אבן מ-2 עד 6.5 מ״מ.",
+    "imageSource": {
+     "via": "store_product_page_og_image",
+     "probe": {
+      "type": "image/webp",
+      "bytes": 225318,
+      "status": 200
+     },
+     "itemId": "3256804734954745",
+     "itemUrl": "https://www.aliexpress.us/item/3256804734954745.html",
+     "previous": "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=900&q=80",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-10-01T16:53:03.627Z",
+     "storeTitle": "Smyoue 925 Silver Moissanite Tennis Bracelet for Women",
+     "observedInRun": "36880720408"
+    },
+    "videoPoster": null,
+    "videoStatus": "completed",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c3TSpOjP",
+    "videoAssetId": null,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
+    "videoUpdatedAt": 1791494179206
+   },
+   {
+    "id": "p-live-04",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg",
+    "price": 85.36,
+    "title": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט",
+    "clicks": 0,
+    "status": "approved",
+    "category": "Accessories",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117837130-73u3do.mp4",
+    "createdAt": 1789669813056,
+    "updatedAt": 1790873585345,
+    "commission": 8,
+    "marketerId": "msd6go4kff49s5",
+    "videoStyle": null,
+    "description": "שרשרת יד עדינה מכסף 925 מצופה 14K, עם תליוני מואסניט קטנים לאורך השרשרת. מתכווננת מ-14 עד 21 ס״מ.",
+    "imageSource": {
+     "via": "store_product_page_og_image",
+     "probe": {
+      "type": "image/webp",
+      "bytes": 88302,
+      "status": 200
+     },
+     "itemId": "3256809429011376",
+     "itemUrl": "https://www.aliexpress.us/item/3256809429011376.html",
+     "previous": "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=900&q=80",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-10-01T16:53:05.345Z",
+     "storeTitle": "Smyoue 14K Plated Certified Moissanite Bracelets for Women G",
+     "observedInRun": "36880720408"
+    },
+    "videoPoster": null,
+    "videoStatus": "completed",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c4CoPLhr",
+    "videoAssetId": null,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
+    "videoUpdatedAt": 1791494178464
+   },
+   {
+    "id": "p-live-05",
+    "image": "https://ae01.alicdn.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg",
+    "price": 47.17,
+    "title": "עגילי Smyoue מואסניט ורודים 0.2-3 קראט",
+    "clicks": 0,
+    "status": "approved",
+    "category": "Accessories",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791119352106-01xeux.mp4",
+    "createdAt": 1789583413056,
+    "commission": 8,
+    "marketerId": "msd6go4kff49s5",
+    "videoStyle": null,
+    "description": "עגילי חן קלאסיים מכסף סטרלינג 925 עם אבני מואסניט בגוון רוז גולד.",
+    "videoPoster": null,
+    "videoStatus": "completed",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c45JuVY5",
+    "videoAssetId": null,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
+    "videoUpdatedAt": 1791494179206
+   }
+  ],
+  "marketplace:marketers": [
+   {
+    "id": "msd6go4kff49s5",
+    "bio": "LikeLink Official — curated by ALYOSTYLE. Luxury staples, beauty, and tech essentials.",
+    "name": "ALYOSTYLE",
+    "slug": "alyostyle",
+    "color": "#C1356C",
+    "createdAt": 1789497013056,
+    "brandWorld": {
+     "emoji": "🦋",
+     "worldId": "pixar",
+     "alterEgo": "לונה"
+    },
+    "trackingId": "trk-noa",
+    "paymentMethod": "paypal"
+   }
+  ]
+ }
+}

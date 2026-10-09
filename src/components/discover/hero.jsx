@@ -8,6 +8,7 @@ import { ArrowUpLeft, ArrowUpRight, BadgeCheck, Clapperboard, Eye, Flame, Lock, 
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { searchGraph, TREND_WINDOW_DAYS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
+import { snapshotTakenAt } from "../../lib/catalogSnapshot.js";
 import { categoryName, CreatorAvatar, formatPrice, Go, Img, sized, useL } from "./kit";
 
 /* ------------------------------------------------------------------ icons */
@@ -389,6 +390,9 @@ export function HomeHero({ graph, navigate }) {
   // When this catalog snapshot reached the page (it is read once per visit).
   const loadedAt = useMemo(() => new Date(), [graph]);
   const time = loadedAt.toLocaleTimeString(lang === "he" ? "he-IL" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+  // The cloud did not answer: the page shows the catalog copy, and says from when.
+  const copyAt = snapshotTakenAt();
+  const copyWhen = copyAt ? new Date(copyAt).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 
   return (
     <section className="relative" aria-labelledby="lx-hero-title">
@@ -400,7 +404,9 @@ export function HomeHero({ graph, navigate }) {
               <span className="lx-dot" aria-hidden="true" />
               {loading && !graph.products.length
                 ? L("טוען את הקטלוג מהענן…", "Loading the catalog from the cloud…")
-                : L(`נתונים אמיתיים מהקטלוג · נטענו ב־${time}`, `Real catalog data · loaded at ${time}`)}
+                : copyAt
+                  ? L(`הקטלוג האמיתי · עותק מ־${copyWhen}`, `The real catalog · copy from ${copyWhen}`)
+                  : L(`נתונים אמיתיים מהקטלוג · נטענו ב־${time}`, `Real catalog data · loaded at ${time}`)}
             </span>
           </div>
           <h1 id="lx-hero-title" className="lx-display mt-5 text-[44px] leading-[1.02] sm:text-[62px] lg:text-[84px]" style={{ "--i": 1, letterSpacing: "-0.035em" }}>
