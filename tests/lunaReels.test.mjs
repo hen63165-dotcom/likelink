@@ -4,9 +4,32 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildAss, buildCues, chunkWords, hexToAss } from "../scripts/luna-reels/captions.mjs";
-import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, SCHEDULE } from "../scripts/luna-reels/config.mjs";
+import { VOICE, CAPTION, CORNER_TAGS, AESTHETIC_KEYWORDS, BRAND, CANONICAL, REELS, SCHEDULE } from "../scripts/luna-reels/config.mjs";
 import { pickVideoFile, pickKeywords } from "../scripts/luna-reels/fetch-background.mjs";
+import { pickProductImages } from "../scripts/luna-reels/storefront.mjs";
 import { buildRenderArgs } from "../scripts/luna-reels/render.mjs";
+
+test("canonical domain and daily volume are wired for likelink.to", () => {
+  assert.equal(CANONICAL.origin, "https://likelink.to");
+  assert.equal(CANONICAL.snapshotPath, "/snapshot/kv.json");
+  assert.ok(!/github|netlify/i.test(CANONICAL.origin), "no github/netlify text in the canonical origin");
+  assert.equal(BRAND.domain, "likelink.to");
+  assert.equal(BRAND.outro, "גלו מה שווה לקנות דרך אנשים - בקליק אחד, אמין ומאובטח ב-LikeLink");
+  assert.equal(REELS.perDay, 6);
+  assert.equal(REELS.perRun, 3);
+});
+
+test("live storefront images pick approved, real-photo products only", () => {
+  const doc = { keys: { "marketplace:products": [
+    { id: "p1", status: "approved", title: "שמלה", image: "https://cdn.example/p1.jpg" },
+    { id: "p2", status: "draft", image: "https://cdn.example/p2.jpg" },
+    { id: "p3", status: "approved" },
+    { id: "p4", status: "approved", image: "https://cdn.example/p1.jpg" },
+    { id: "p5", status: "approved", image: "https://cdn.example/p5.jpg" },
+  ] } };
+  assert.deepEqual(pickProductImages(doc, 2).map((p) => p.id), ["p1", "p5"]);
+  assert.deepEqual(pickProductImages({}, 3), []);
+});
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
@@ -94,6 +117,8 @@ test("autonomy + deployment wiring: crons, secrets and static publish", () => {
   assert.match(reels, /cron: "0 17 \* \* \*"/);
   assert.match(reels, /PEXELS_API_KEY/);
   assert.match(reels, /he-IL-AvriNeural/);
+  assert.match(reels, /LIKELINK_CANONICAL_URL/);
+  assert.match(reels, /likelink\.to/);
   assert.deepEqual(SCHEDULE, ["0 8 * * *", "0 17 * * *"]);
 
   const deploy = read(".github/workflows/deploy-frontend.yml");
@@ -101,5 +126,6 @@ test("autonomy + deployment wiring: crons, secrets and static publish", () => {
   assert.match(deploy, /npm run build/);
   assert.match(deploy, /gh-pages/);
 
-  assert.equal(JSON.parse(read("package.json")).homepage, "https://github.io");
+  assert.equal(JSON.parse(read("package.json")).homepage, "https://likelink.to");
+  assert.equal(read("public/CNAME").trim(), "likelink.to");
 });

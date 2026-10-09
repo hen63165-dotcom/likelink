@@ -3,7 +3,7 @@
   "private": true,
   "license": "UNLICENSED",
   "version": "0.1.0",
-  "homepage": "https://github.io",
+  "homepage": "https://likelink.to",
   "type": "module",
   "scripts": {
     "dev": "vite",

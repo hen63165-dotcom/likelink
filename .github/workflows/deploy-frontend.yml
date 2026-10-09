@@ -80,6 +80,10 @@ jobs:
           stage="$(mktemp -d)"
           cp -r dist/. "$stage/"
           printf '' > "$stage/.nojekyll"
+          # Keep the premium domain on the primary host only: never publish
+          # public/CNAME into the gh-pages mirror (GitHub would redirect
+          # the mirror's *.github.io URL to the CNAME domain).
+          rm -f "$stage/CNAME"
           # SPA fallback: GitHub Pages answers unknown paths with 404.html, so
           # the React router can take over deep links (/discover, /p/:id, …).
           cp "$stage/index.html" "$stage/404.html"

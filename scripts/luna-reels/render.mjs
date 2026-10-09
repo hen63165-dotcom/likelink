@@ -89,7 +89,9 @@ export async function renderReel(opts) {
   return out;
 }
 
-/** Offline fallback background (no Pexels key): slow luxury gradient loop. */
+/**
+ * Offline fallback background (no Pexels key): slow luxury gradient loop.
+ */
 export async function makeFallbackClip({ out, seconds = 6 }) {
   mkdirSync(path.dirname(out), { recursive: true });
   const gradient = [
@@ -108,5 +110,30 @@ export async function makeFallbackClip({ out, seconds = 6 }) {
       String(out),
     ]);
   }
+  return out;
+}
+
+/**
+ * A live storefront product photo → a looping 9:16 Ken Burns clip, so real
+ * merchandise from the canonical site becomes premium B-roll.
+ */
+export async function makeImageClip({ image, out, seconds = 4 }) {
+  mkdirSync(path.dirname(out), { recursive: true });
+  const frames = Math.round(seconds * VIDEO.fps);
+  await runTool("ffmpeg", [
+    "-y", "-i", String(image),
+    "-vf",
+    [
+      `scale=${VIDEO.w * 3}:${VIDEO.h * 3}:force_original_aspect_ratio=increase`,
+      `crop=${VIDEO.w * 3}:${VIDEO.h * 3}`,
+      `zoompan=z='min(1+0.0009*on,1.22)':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${VIDEO.w}x${VIDEO.h}:fps=${VIDEO.fps}`,
+      "format=yuv420p",
+    ].join(","),
+    "-frames:v", String(frames),
+    "-r", String(VIDEO.fps),
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p",
+    String(out),
+  ]);
+  if (!existsSync(out)) throw new Error("image_clip_missing_output");
   return out;
 }

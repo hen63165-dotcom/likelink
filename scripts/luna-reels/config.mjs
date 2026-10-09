@@ -78,10 +78,33 @@ export const PEXELS = {
   minHeight: 1080,
 };
 
+/**
+ * Canonical storefront origin — the premium custom domain.
+ * Product photos for the reels are pulled live from this origin's catalog
+ * snapshot; if the origin ever 404s, the fetch transparently falls back to
+ * the always-on production origin so the daily reel cron never breaks.
+ */
+export const CANONICAL = {
+  origin: (process.env.LIKELINK_CANONICAL_URL || "https://likelink.to").replace(/\/+$/, ""),
+  fallbackOrigin: (process.env.LIKELINK_FALLBACK_ORIGIN || "https://likelink2.vercel.app").replace(/\/+$/, ""),
+  snapshotPath: "/snapshot/kv.json",
+};
+
+/** 6 viral reels a day = 2 autonomous cron runs (08:00 / 17:00 UTC) × 3 reels. */
+export const REELS = {
+  perDay: Math.max(1, Number(process.env.LUNA_REELS_PER_DAY || 6)),
+  runsPerDay: 2,
+  get perRun() { return Math.max(1, Math.ceil(this.perDay / this.runsPerDay)); },
+  productClips: 3,
+  aestheticClips: 3,
+};
+
 /** Brand / closing-screen styling (clean text logo + animated button). */
 export const BRAND = {
   name: "LikeLink",
+  domain: "likelink.to",
   tagline: "החנות שלך. לגמרי אוטומטית.",
+  outro: "גלו מה שווה לקנות דרך אנשים - בקליק אחד, אמין ומאובטח ב-LikeLink",
   cta: "לרכישה עכשיו",
   accent: "#B78F4F",
   bg: "#0A0A0A",

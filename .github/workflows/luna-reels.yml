@@ -61,6 +61,8 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           LUNA_VOICE: ${{ vars.LUNA_VOICE || 'he-IL-AvriNeural' }}
           LUNA_SCRIPT: ${{ inputs.text }}
+          LIKELINK_CANONICAL_URL: ${{ vars.LIKELINK_CANONICAL_URL || 'https://likelink.to' }}
+          LUNA_REELS_PER_DAY: ${{ vars.LUNA_REELS_PER_DAY || '6' }}
         run: node scripts/luna-reels/generate.mjs
 
       - name: Upload rendered reel

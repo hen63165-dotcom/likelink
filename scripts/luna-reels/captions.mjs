@@ -88,9 +88,11 @@ const STYLE_ROWS = [
   ["Luna", CAPTION.fontFamily, CAPTION.fontSize, C(CAPTION.primaryColor), C(CAPTION.alternateColor), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, CAPTION.backgroundBox ? 3 : 1, CAPTION.outlineWidth, 0, CAPTION.alignment, CAPTION.marginL, CAPTION.marginR, CAPTION.marginV],
   // Tiny corner tags.
   ["Corner", CAPTION.fontFamily, CORNER_TAGS.fontSize, hexToAss(CORNER_TAGS.color, 0), hexToAss(CORNER_TAGS.color, 0), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, 1, 3, 0, 7, CORNER_TAGS.margin, CORNER_TAGS.margin, CORNER_TAGS.margin],
-  // Closing screen: clean text logo, tagline, CTA label.
+  // Closing screen: clean text logo, tagline, premium outro, CTA label.
   ["Logo", CAPTION.fontFamily, 92, C(BRAND.text), C(BRAND.text), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, 1, 4, 0, 5, 40, 40, 0],
   ["Tagline", CAPTION.fontFamily, 40, C(BRAND.text), C(BRAND.text), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, 1, 3, 0, 5, 60, 60, 0],
+  ["Outro", CAPTION.fontFamily, 48, C(CAPTION.primaryColor), C(CAPTION.alternateColor), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, 1, 5, 0, 5, 70, 70, 0],
+  ["Domain", CAPTION.fontFamily, 36, C(BRAND.text), C(BRAND.text), C(CAPTION.outlineColor), TRANSPARENT_BACK, -1, 1, 3, 0, 5, 60, 60, 0],
   ["Button", CAPTION.fontFamily, 46, C("#1A140B"), C("#1A140B"), C("#FFF8EC"), TRANSPARENT_BACK, -1, 1, 2, 0, 5, 60, 60, 0],
 ];
 
@@ -114,13 +116,15 @@ export function buildAssHeader() {
   return head.join("\n");
 }
 
-/** Closing screen: text logo fades in, then the CTA label pulses. */
+/** Closing screen: text logo, premium outro pointing at the live domain, CTA. */
 function closingLines({ startMs, durationMs }) {
   const end = startMs + durationMs;
   const cx = Math.round(VIDEO.w / 2);
   const lines = [
     `Dialogue: 1,${ASS_TIME(startMs)},${ASS_TIME(end)},Logo,,0,0,0,,{\\pos(${cx},470)\\an5\\fad(300,0)}${BRAND.name}`,
     `Dialogue: 1,${ASS_TIME(startMs + 120)},${ASS_TIME(end)},Tagline,,0,0,0,,{\\pos(${cx},585)\\an5\\fad(450,0)}${BRAND.tagline}`,
+    `Dialogue: 1,${ASS_TIME(startMs + 240)},${ASS_TIME(end)},Outro,,0,0,0,,{\\pos(${cx},688)\\an5\\fad(600,0)}${BRAND.outro}`,
+    `Dialogue: 1,${ASS_TIME(startMs + 360)},${ASS_TIME(end)},Domain,,0,0,0,,{\\pos(${cx},770)\\an5\\fad(600,0)}${BRAND.domain}`,
   ];
   const pulseStart = startMs + Math.round(durationMs * 0.25);
   for (let t = pulseStart; t + 140 < end; t += 500) {
