@@ -69,6 +69,31 @@ test("media proxy: asks Storage with the PUBLIC key; denied and missing are indi
   assert.equal(calls.length, before, "an invalid path never reaches Storage");
 });
 
+test("media proxy: a byte range is asked of Storage, never the whole file per request (egress)", async () => {
+  const calls = [];
+  const file = Buffer.alloc(900000, 7);
+  globalThis.fetch = async (url, init = {}) => {
+    const range = (init.headers || {}).Range || "";
+    calls.push({ url: String(url), range });
+    const m = /^bytes=(\d+)-(\d*)$/.exec(range);
+    if (m) {
+      const start = Number(m[1]); const end = m[2] ? Number(m[2]) : file.length - 1;
+      return new Response(file.subarray(start, end + 1), { status: 206, headers: { "content-type": "video/mp4", "content-range": `bytes ${start}-${end}/${file.length}` } });
+    }
+    return new Response(file, { status: 200, headers: { "content-type": "video/mp4" } });
+  };
+  const { default: og } = await import("../api/og.mjs");
+  const get = async (range) => { const res = mockRes(); await og({ method: "GET", url: "/api/og?mode=media&path=ugc/p1/1-a.mp4", headers: { host: "likelink2.vercel.app", ...(range ? { range } : {}) } }, res); return res; };
+  let res = await get("bytes=0-1023");
+  assert.equal(calls.at(-1).range, "bytes=0-1023", "the range reaches Storage");
+  assert.equal(res.statusCode, 206);
+  assert.equal(res.headers["content-range"], "bytes 0-1023/900000");
+  assert.equal(res.sent.length, 1024, "only the asked bytes travel");
+  res = await get("bytes=0-1;rm -rf");
+  assert.equal(calls.at(-1).range, "", "a malformed range is never forwarded");
+  assert.equal(res.statusCode, 200);
+});
+
 test("system check: storage GREEN needs a private bucket, 5 policies and a fresh real self-test", async () => {
   const { evaluateSystem } = await import("../src/lib/discovery/systemCheck.js");
   const now = Date.now();

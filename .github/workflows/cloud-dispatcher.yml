@@ -3,7 +3,9 @@ name: LikeLink2 cloud dispatcher
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Hourly (was every 15 min): the light cron is time-boxed and catches up on
+    # due jobs, and every beat reads cloud state (counts toward free egress).
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:

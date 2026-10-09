@@ -14,8 +14,10 @@ on:
         description: "Max reels this run (1-6)"
         default: "4"
   schedule:
-    # Every 3 hours: new styles for new products keep the feed fresh.
-    - cron: "23 */3 * * *"
+    # Once a day. Each run uploads and reads back its reels from Storage; every
+    # 3 hours (with the browser check after it) used up the free plan's
+    # monthly Storage egress, so the cadence is daily.
+    - cron: "23 6 * * *"
 
 concurrency:
   group: native-reels
