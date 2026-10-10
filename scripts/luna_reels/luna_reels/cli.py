@@ -66,7 +66,7 @@ def _visual(requested: str, episode: Episode, beats, total: float, work: Path) -
         env = dict(os.environ)
         if os.environ.get("SADTALKER_VENV"):  # SadTalker's own Python (old numpy/imageio), first on PATH for talk.sh
             env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
-        subprocess.run(["bash", str(TALK), str(visuals.brand.LUNA), str(track), str(out), "full-move"], check=True, timeout=7200, env=env)
+        subprocess.run(["bash", str(TALK), str(visuals.brand.LUNA), str(track), str(out), "full-move"], check=True, timeout=4 * 3600, env=env)
         return f"video:{out / 'luna-full-move.mp4'}"
     if requested.startswith("pexels:"):
         clip = visuals.pexels_clip(requested[7:] or "aesthetic jewelry", work / "media")
@@ -79,7 +79,7 @@ def _visual(requested: str, episode: Episode, beats, total: float, work: Path) -
 
 def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | None, strict_voice: bool,
          captions: str = "pop", tier: str = "free", logo: str | None = None, edge_voice: str | None = None,
-         extra_meta: dict | None = None) -> dict:
+         extra_meta: dict | None = None, footage: str = "auto") -> dict:
     t0 = time.time()
     catalog = load_catalog(SNAPSHOT)
     check_truth(episode, catalog)
@@ -92,6 +92,11 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         # Luna (or a character clip you made) on screen → the AI-character label and Luna's voice.
         # Stock footage or the brand backdrop has no character → only the voice is labelled (Avri by default).
         character = not (requested == "aurora" or requested.startswith("pexels:"))
+        # Real footage (a person filmed it, e.g. the owner's own unboxing clip): never
+        # labelled as an AI character; an AI voice over it is still labelled.
+        real = footage == "real" and requested.startswith("video:")
+        if real:
+            character = False
         voice_name = edge_voice or episode.voice or (EDGE_VOICE if character else STOCK_VOICE)
         clips, used = synthesize(compose.spoken(episode), voice, work / "voice", eid=episode.id,
                                  fallback=not strict_voice, edge_voice=voice_name)
@@ -106,10 +111,10 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
                                             tier=tier, logo=logo, character=character)
         mp4 = out / f"{episode.id}.mp4"
         compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg")
-        meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character)
+        meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character, real=real)
         # The look in one word, for the site's reels feed (scripts/reels-feed.mjs):
         # talking | still | aurora | pexels | video.
-        look = "talking" if requested == "talking" else requested.split(":", 1)[0]
+        look = "real" if real else "talking" if requested == "talking" else requested.split(":", 1)[0]
         meta.update({"file": mp4.name, "look": look, "captions": captions, "tier": tier, "music": music or "none",
                      "edgeVoice": voice_name if used == "edge" else None,
                      "renderSeconds": round(time.time() - t0, 1), **(extra_meta or {})})
@@ -157,6 +162,8 @@ def main(argv=None) -> int:
     m.add_argument("--logo", default=None, help="pro tier: your own logo (.png)")
     m.add_argument("--out", default="out")
     m.add_argument("--strict-voice", action="store_true", help="fail instead of falling back to another voice")
+    m.add_argument("--footage", default="auto", choices=["auto", "real"],
+                   help="real = the video: clip was filmed by a person (no AI-character label)")
     i = sub.add_parser("idea", help="one idea line → a script (and render it)")
     i.add_argument("idea")
     i.add_argument("--id", default="idea")
@@ -208,7 +215,7 @@ def main(argv=None) -> int:
             return 0
         make_variants(load_episode(a.script), a.variants, voice=a.voice, visual=a.visual, out=Path(a.out),
                       music=a.music, strict_voice=a.strict_voice, captions=a.captions, tier=a.tier, logo=a.logo,
-                      edge_voice=a.edge_voice)
+                      edge_voice=a.edge_voice, footage=a.footage)
         return 0
     except ScriptError as exc:
         print(f"✗ script refused: {exc}", file=sys.stderr)

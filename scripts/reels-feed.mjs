@@ -5,14 +5,17 @@
 // .github/workflows/deploy-frontend.yml after the build: it picks, for every
 // product the public site lists, the best reel made about that product (a
 // talking-Luna reel before a still one, then the newest), copies the video and
-// its preview into dist/media/reels/ and writes dist/media/reels/index.json.
+// one frame of it as the cover into dist/media/reels/ and writes
+// dist/media/reels/index.json.
 // The site reads that file (src/lib/reelsFeed.js) on every host, so the same
 // videos play on github.io and on the main address.
 //
-// Truth rules: only reels the engine marked synthetic, whose product is listed
-// on the site, with the disclosure labels the engine burned into the frames.
+// Truth rules: only reels whose details say what made them (the engine marked
+// it synthetic, or a person filmed it), whose product is listed on the site,
+// with the disclosure labels burned into the frames.
 // Tip reels that show no product stay on Instagram (they have no product page).
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -20,7 +23,9 @@ import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "./prerender-products.mjs";
 
 const SAFE = /^[a-z0-9][a-z0-9-]{0,80}$/;
-const LOOK_RANK = { talking: 3, video: 2, pexels: 1, still: 1, aurora: 0 };
+// Real footage first (a person filmed it), then talking Luna, then the rest.
+const LOOK_RANK = { real: 4, talking: 3, video: 2, pexels: 1, still: 1, aurora: 0 };
+export const SELLER_LABELS = Object.freeze(["צילום המוצר: המוכר", "#פרסומת · קישור שותפים"]);
 
 /** Assets of the release → [{ base, mp4, json, jpg, updatedAt }] for each reel. */
 export function groupAssets(assets = []) {
@@ -49,7 +54,9 @@ export function pickReels(reels, listed) {
     const meta = r.meta || {};
     const productId = String(meta.product?.id || "");
     if (!productId || !listed.has(productId)) continue;
-    if (meta.synthetic !== true || !Array.isArray(meta.labels) || !meta.labels.length) continue;
+    // Engine-made reels say so (synthetic); a real clip says a person filmed it (humanFilmed).
+    const truthful = meta.synthetic === true || (meta.synthetic === false && meta.humanFilmed === true && meta.look === "real");
+    if (!truthful || !Array.isArray(meta.labels) || !meta.labels.length) continue;
     const rank = LOOK_RANK[String(meta.look || (String(meta.visual || "").startsWith("video:") ? "video" : meta.visual || "still"))] ?? 0;
     const cur = best.get(productId);
     if (!cur || rank > cur.rank || (rank === cur.rank && r.updatedAt > cur.updatedAt)) best.set(productId, { ...r, rank, productId });
@@ -58,19 +65,60 @@ export function pickReels(reels, listed) {
 }
 
 /** The feed entry the site reads (paths relative to index.json). */
-export function feedEntry(r) {
+export function feedEntry(r, owners = new Map(), poster = "") {
   const m = r.meta || {};
+  const look = String(m.look || "still");
   return {
     id: `luna-${r.base}`,
     productId: r.productId,
     video: `${r.base}.mp4`,
-    poster: r.jpg ? `${r.base}-preview.jpg` : "",
+    poster,
     title: String(m.title || "").slice(0, 120),
     seconds: Number(m.seconds) || 0,
-    look: String(m.look || "still"),
+    look,
     labels: m.labels.map((l) => String(l).slice(0, 80)).slice(0, 4),
     createdAt: r.updatedAt,
+    // A real clip belongs to the studio whose product it shows (REAL_UGC needs a known source).
+    ...(look === "real" && owners.get(r.productId) ? { marketerId: owners.get(r.productId) } : {}),
   };
+}
+
+/**
+ * The sellers' own product videos (the "reels" release, scripts/media/product-video):
+ * <productId>.mp4 (+ -b/-c variants), one per listed product, labelled as the seller's video
+ * (never as UGC: nobody here knows who filmed it, or whether it was filmed at all).
+ */
+export function sellerReels(assets = [], listed = new Set()) {
+  const by = new Map();
+  for (const a of Array.isArray(assets) ? assets : []) {
+    const m = String(a?.name || "").match(/^([A-Za-z0-9_-]+?)(-[bc])?\.mp4$/);
+    if (!m || m[2] || !listed.has(m[1])) continue;
+    by.set(m[1], { productId: m[1], mp4: a, updatedAt: Date.parse(a.updated_at || a.created_at || "") || 0 });
+  }
+  return [...by.values()].map((g) => ({
+    ...g,
+    entry: {
+      id: `seller-${g.productId}`,
+      productId: g.productId,
+      video: `seller-${g.productId}.mp4`,
+      poster: "",
+      title: "",
+      seconds: 0,
+      look: "seller",
+      labels: [...SELLER_LABELS],
+      createdAt: g.updatedAt,
+    },
+  }));
+}
+
+/**
+ * One real frame of the video as its cover. The release previews are 3-frame
+ * contact sheets, which a 9:16 card would crop badly. Without ffmpeg the cover
+ * stays empty and the site shows the product's own photo.
+ */
+export function coverFrame(mp4, jpg, at = 1) {
+  const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-ss", String(at), "-i", mp4, "-frames:v", "1", "-vf", "scale=540:-2", "-q:v", "4", jpg], { timeout: 60_000 });
+  return r.status === 0 && existsSync(jpg) && statSync(jpg).size > 2048;
 }
 
 async function api(path, token) {
@@ -88,7 +136,9 @@ async function download(url, file, token) {
 export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOSITORY || "hen63165-dotcom/likelink", token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "" } = {}) {
   const snapshot = join(dist, "snapshot", "kv.json");
   if (!existsSync(snapshot)) return { reels: 0, reason: "no catalog copy in dist" };
-  const listed = new Set(listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8"))).products.map((x) => String(x.product.id)));
+  const listedRows = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8"))).products;
+  const listed = new Set(listedRows.map((x) => String(x.product.id)));
+  const owners = new Map(listedRows.map((x) => [String(x.product.id), String(x.product.marketerId || "")]));
   let release;
   try {
     release = await api(`/repos/${repo}/releases/tags/luna-reels`, token);
@@ -110,12 +160,25 @@ export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOS
   for (const r of chosen) {
     try {
       await download(r.mp4.url, join(out, `${r.base}.mp4`), token);
-      if (r.jpg) await download(r.jpg.url, join(out, `${r.base}-preview.jpg`), token);
-      entries.push(feedEntry(r));
+      const cover = `${r.base}-cover.jpg`;
+      entries.push(feedEntry(r, owners, coverFrame(join(out, `${r.base}.mp4`), join(out, cover)) ? cover : ""));
     } catch (e) {
       console.warn(`reels-feed: skipped ${r.base} (${e.message})`);
     }
   }
+  // The sellers' own product videos, labelled as the seller's.
+  try {
+    const sellers = sellerReels((await api(`/repos/${repo}/releases/tags/reels`, token)).assets, listed);
+    for (const r of sellers) {
+      try {
+        await download(r.mp4.url, join(out, r.entry.video), token);
+        const cover = `seller-${r.productId}-cover.jpg`;
+        entries.push({ ...r.entry, poster: coverFrame(join(out, r.entry.video), join(out, cover)) ? cover : "" });
+      } catch (e) {
+        console.warn(`reels-feed: skipped seller video ${r.productId} (${e.message})`);
+      }
+    }
+  } catch { /* no reels release: Luna reels only */ }
   writeFileSync(join(out, "index.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), reels: entries }, null, 1)}\n`);
   return { reels: entries.length, of: groups.length };
 }

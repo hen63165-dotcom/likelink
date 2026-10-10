@@ -21,7 +21,7 @@ BASE_TAGS = {
 
 
 def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: str, seconds: float,
-          character: bool = True) -> dict:
+          character: bool = True, real: bool = False) -> dict:
     hook = spoken_text(episode.hook.say)
     body = [spoken_text(line.say) for line in episode.lines[:4]]
     lines = []
@@ -53,13 +53,15 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
         "title": episode.title or hook,
         "caption": caption,
         "hashtags": tags,
-        "altText": f"דמות מונפשת בשם לונה מסבירה: {hook}" if character else f"טיפ קניות מונפש: {hook}",
+        "altText": f"צילום אמיתי עם כתוביות: {hook}" if real else f"דמות מונפשת בשם לונה מסבירה: {hook}" if character else f"טיפ קניות מונפש: {hook}",
         "commentKeyword": brand.COMMENT_KEYWORD if product else (episode.keyword or None),
         "product": {"id": product["id"], "claim": product.get("claim", "")} if product else None,
         "voice": voice_engine,
         "visual": visual.split(":", 1)[0],
         "seconds": round(seconds, 2),
-        "synthetic": True,
+        # A clip a person filmed is real footage (humanFilmed); everything else is made by the engine.
+        "synthetic": not real,
+        "humanFilmed": real,
         "labels": ([truth] if truth else []) + ([brand.AD_TAG] if product else []),
         "postingTips": [
             "העלי מהטלפון והוסיפי סאונד טרנדי מספריית אינסטגרם (בעוצמה נמוכה מתחת לקול)",
