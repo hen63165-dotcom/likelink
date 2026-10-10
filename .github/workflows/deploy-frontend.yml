@@ -7,9 +7,9 @@ name: Deploy frontend to GitHub Pages
 on:
   push:
     branches: [main]
-  # New reels (luna-reels release) and synced store prices reach the site right away.
+  # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels"]
     types: [completed]
   workflow_dispatch:
 

@@ -1,6 +1,7 @@
 # Real product video reels: the seller's own footage from the store's product
-# page → a 9:16 reel with an honest Hebrew hook, the "comment רוצה" call to
-# action and the ad disclosure on every frame, plus its caption.
+# page → a premium 9:16 cut (premium.mjs: picked shots, slow-motion hero,
+# light sweep, dissolves, grade) with an honest Hebrew hook, the "comment
+# רוצה" call to action and the ad disclosure on every frame, plus its caption.
 # Read-only on the store (one page view per product, no clicks); a CAPTCHA
 # stops the run. Finished reels are attached to the "reels" release so they can
 # be saved from a phone and posted with a trending sound. Nothing is posted
@@ -28,9 +29,10 @@ permissions:
 jobs:
   reels:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     env:
       PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+      FONTSOURCE_DIR: /tmp/pw/node_modules/@fontsource
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,7 +40,8 @@ jobs:
           node-version: 22
       - name: Install Playwright (drives the runner's Google Chrome), ffmpeg and Hebrew fonts
         run: |
-          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          # Frank Ruhl Libre + Heebo (Google Fonts, OFL) for the premium cut's type.
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 @fontsource/frank-ruhl-libre@5.3.0 @fontsource/heebo@5.3.0 >/dev/null
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
       # Seller videos found earlier are kept in the "product-video-sources" release
       # (seeded once from the newest run whose artifact has them), so editing
