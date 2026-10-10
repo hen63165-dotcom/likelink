@@ -3,7 +3,7 @@
   "private": true,
   "license": "UNLICENSED",
   "version": "0.1.0",
-  "homepage": "https://likelink.to",
+  "homepage": "https://likelink2.vercel.app",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,9 +15,7 @@
     "cloud:check": "node scripts/cloud-check.mjs",
     "pages:build": "node scripts/generate-static-pages.mjs",
     "start": "node server/portable.mjs",
-    "portable:check": "node scripts/portable-check.mjs",
-    "reels:generate": "node scripts/luna-reels/generate.mjs",
-    "reels:captions": "node scripts/luna-reels/captions.mjs"
+    "portable:check": "node scripts/portable-check.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

@@ -33,7 +33,8 @@ export function decideRedirect({ search = "", origin = "", products = [] } = {})
 
 async function loadCatalog() {
   try {
-    const res = await fetch("/snapshot/kv.json", { cache: "no-cache" });
+    // Relative to this page: /r on the main host, /likelink/r on the GitHub Pages mirror.
+    const res = await fetch(new URL("snapshot/kv.json", location.href), { cache: "no-cache" });
     if (!res.ok) return [];
     const doc = await res.json();
     const list = doc?.keys?.["marketplace:products"];

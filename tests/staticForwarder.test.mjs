@@ -46,7 +46,7 @@ test("Netlify serves /r from the static page, not the cloud function", () => {
   assert.doesNotMatch(redirects, /^\/r\s+https:\/\//m);
   const page = readFileSync(new URL("../public/r.html", import.meta.url), "utf8");
   assert.match(page, /noindex/);
-  assert.match(page, /<script type="module" src="\/r\.js"><\/script>/);
+  assert.match(page, /<script type="module" src="r\.js"><\/script>/);
 });
 
 test("share sheet: WhatsApp first, each network gets its own link, Pinterest only with a real image", () => {

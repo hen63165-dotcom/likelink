@@ -3,10 +3,9 @@ import react from '@vitejs/plugin-react'
 
 /**
  * Base path for the emitted asset URLs.
- * Production serves from the absolute root `/` on the premium custom domain
- * (https://likelink.to); there is no nested repo folder, no "github" text.
- * `VITE_BASE` stays as an override for secondary mirrors (the GitHub Pages
- * copy of the site is still published under `/<repo>/`).
+ * Production serves from the absolute root `/` (likelink2.vercel.app → Netlify).
+ * `VITE_BASE` is the override for the GitHub Pages mirror, published under
+ * `/<repo>/` by .github/workflows/deploy-frontend.yml.
  */
 function resolveBase() {
   if (process.env.VITE_BASE) return process.env.VITE_BASE

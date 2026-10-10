@@ -23,6 +23,7 @@ build_output.txt
 # Python bytecode
 __pycache__/
 *.pyc
+scripts/luna_reels/out/
 # Luna reels generator scratch + rendered output (produced by CI, never committed)
 tmp/
 out/
