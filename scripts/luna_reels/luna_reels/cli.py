@@ -63,7 +63,10 @@ def _visual(requested: str, episode: Episode, beats, total: float, work: Path) -
         track = compose.voice_track(beats, total, work / "voice-track.wav")
         out = work / "talking"
         import subprocess  # noqa: PLC0415
-        subprocess.run(["bash", str(TALK), str(visuals.brand.LUNA), str(track), str(out), "full-move"], check=True, timeout=7200)
+        env = dict(os.environ)
+        if os.environ.get("SADTALKER_VENV"):  # SadTalker's own Python (old numpy/imageio), first on PATH for talk.sh
+            env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
+        subprocess.run(["bash", str(TALK), str(visuals.brand.LUNA), str(track), str(out), "full-move"], check=True, timeout=7200, env=env)
         return f"video:{out / 'luna-full-move.mp4'}"
     if requested.startswith("pexels:"):
         clip = visuals.pexels_clip(requested[7:] or "aesthetic jewelry", work / "media")
