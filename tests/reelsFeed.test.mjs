@@ -94,6 +94,11 @@ test("the sellers' own videos: one per listed product, labelled as the seller's 
   assert.equal(reel.creativeClass, CREATIVE_CLASS.REAL_PRODUCT_VIDEO);
   assert.match(REEL_STYLE_LABELS.seller_video.he, /המוכר/);
   assert.doesNotMatch(REEL_STYLE_LABELS.seller_video.he, /אמיתי|UGC/, "a seller video may itself be AI-made");
+  // …and the generic "סרטון אמיתי" badge stays off it on the reel cards.
+  const kit = readFileSync(new URL("../src/components/discover/kit.jsx", import.meta.url), "utf8");
+  assert.match(kit, /state === MEDIA_TRUTH\.REAL_VIDEO && style === "seller_video"\) return null/);
+  const pages = readFileSync(new URL("../src/components/discover/pages.jsx", import.meta.url), "utf8");
+  for (const src of [kit, pages]) assert.doesNotMatch(src, /<MediaBadge state=\{reel\.state\}(?![^>]*style=)/, "every reel badge gets the reel's style");
 });
 
 test("a clip a person filmed is real UGC only with the engine's word for it and a known studio", () => {

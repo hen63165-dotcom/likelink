@@ -253,11 +253,14 @@ function MuteToggle({ muted, onToggle }) {
 }
 
 /** Media truth badge — only for motion. A photo needs no badge on a card. */
-export function MediaBadge({ state, showImage = false }) {
+export function MediaBadge({ state, showImage = false, style = "" }) {
   const { lang, L } = useL();
   if (!state) return null;
   if (state === MEDIA_TRUTH.STATIC_IMAGE && !showImage) return null;
   if (state === MEDIA_TRUTH.MISSING_MEDIA) return null;
+  // A seller's video is named by its style badge ("סרטון של המוכר"), never
+  // "real": nobody here knows how the seller made it.
+  if (state === MEDIA_TRUTH.REAL_VIDEO && style === "seller_video") return null;
   const label = MEDIA_TRUTH_LABEL[state]?.[lang] || "";
   const Icon = state === MEDIA_TRUTH.REAL_VIDEO ? Play : state === MEDIA_TRUTH.STATIC_IMAGE ? null : Clapperboard;
   const tip = state === MEDIA_TRUTH.REAL_VIDEO
@@ -959,7 +962,7 @@ export function ReelCard({ reel, graph }) {
     <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-card block">
       <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio="9 / 16" width={400}>
         <div className="lx-reel-shade" />
-        <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} /><StyleBadge style={reel.style} /></div>
+        <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /><StyleBadge style={reel.style} /></div>
         <div className="absolute inset-x-0 bottom-0 p-3 text-white">
           {creator ? <p className="text-[13px] font-bold">{creator.name}</p> : null}
           {product ? <p className="lx-clamp-2 text-[12px] opacity-90">{product.displayTitle}</p> : null}
