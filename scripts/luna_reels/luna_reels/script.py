@@ -80,6 +80,7 @@ class Episode:
     voice: str = ""      # an Edge voice for this episode (e.g. he-IL-AvriNeural); "" = Luna's
     visual: str = ""     # a default visual for this episode (e.g. "aurora"); "" = Luna
     pexels: str = ""     # a stock-footage search for the backdrop (used with a free PEXELS_API_KEY)
+    keyword: str = ""    # the comment word the Instagram bot answers (e.g. "מדריך" → the site's free guide)
 
     @property
     def beats(self) -> list[Line]:
@@ -170,7 +171,19 @@ def parse_episode(data: dict) -> Episode:
     return Episode(id=eid, goal=goal, hook=hook, lines=lines, product=product, cta=cta, hashtags=hashtags[:8],
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
-                   pexels=screen_text(data.get("pexels") or ""))
+                   pexels=screen_text(data.get("pexels") or ""),
+                   keyword=_keyword(data.get("keyword")))
+
+
+# Comment words the bot answers (scripts/instagram/comment-bot.mjs).
+KEYWORDS = ("רוצה", "מדריך")
+
+
+def _keyword(value) -> str:
+    k = str(value or "").strip()
+    if k and k not in KEYWORDS:
+        raise ScriptError(f"keyword must be one of {KEYWORDS} (the comment bot answers only those)")
+    return k
 
 
 def with_hook(episode: Episode, hook: Line, suffix: str) -> Episode:

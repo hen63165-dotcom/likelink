@@ -50,3 +50,25 @@ test("plan: a burst is capped per run", () => {
   const comments = Array.from({ length: MAX_PER_RUN + 10 }, (_, i) => ({ id: `c${i}`, text: "רוצה", username: `u${i}`, timestamp: iso(1) }));
   assert.equal(plan({ media: [{ id: "m", caption: p.title, comments }], products, ownUsername: "me", now }).length, MAX_PER_RUN);
 });
+
+test("a guide post answers 'מדריך' with the site's free guide, and only on guide posts", async () => {
+  const { isGuidePost } = await import("../scripts/instagram/comment-bot.mjs");
+  const now = Date.parse("2026-10-10T12:00:00Z");
+  const at = new Date(now - 3_600_000).toISOString();
+  const caption = 'רוצה את המדריך המלא?\n👇 כתבי "מדריך" בתגובות ואשלח לך את המדריך החינמי בפרטי';
+  assert.ok(isGuidePost(caption));
+  const media = [
+    { id: "g1", caption, comments: [
+      { id: "c1", text: "מדריך!!", username: "a", timestamp: at },
+      { id: "c2", text: "לא צריכה", username: "b", timestamp: at },
+      { id: "c3", text: "מדריך", username: "c", timestamp: at, replies: [{ username: "me" }] },
+    ] },
+    { id: "p1", caption: products[0].title, comments: [{ id: "c4", text: "מדריך", username: "d", timestamp: at }] },
+  ];
+  const todo = plan({ media, products, ownUsername: "me", now, origin: "https://hen63165-dotcom.github.io/likelink" });
+  assert.deepEqual(todo.map((t) => t.commentId), ["c1"], "only the guide post; a product post does not answer 'מדריך'");
+  assert.equal(todo[0].productId, "guide");
+  assert.match(todo[0].message, /^היי! הנה המדריך החינמי/);
+  assert.match(todo[0].message, /https:\/\/hen63165-dotcom\.github\.io\/likelink\/guide\?utm_source=instagram&utm_medium=dm&utm_campaign=guide/);
+  assert.match(todo[0].message, /#פרסומת/);
+});

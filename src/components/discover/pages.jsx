@@ -4,12 +4,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpLeft,
+  BookOpen,
   Clapperboard,
   Compass,
   Flame,
   Heart,
   LayoutGrid,
   Package,
+  Printer,
   Search,
   Sparkles,
   Store,
@@ -35,6 +37,7 @@ import {
   TREND_WINDOW_DAYS,
 } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
+import { GUIDE, GUIDE_PATH, guideExamples } from "../../lib/guide.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
 import { trackLanding } from "../../lib/funnel.js";
@@ -1173,6 +1176,61 @@ export function DealsPage({ graph }) {
           </Section>
         );
       })}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------- guide */
+
+/** Luna's free shopping guide (/guide): the page the "comment מדריך" reels lead to. */
+export function GuidePage({ graph }) {
+  const { L, lang } = useL();
+  const t = (x) => (lang === "he" ? x.he : x.en);
+  return (
+    <>
+      <PageHero kicker={<><BookOpen size={14} /> {t(GUIDE.kicker)}</>} title={t(GUIDE.title)} sub={t(GUIDE.intro)}>
+        <div className="mt-6 flex flex-wrap gap-2 print:hidden">
+          <ShareButton path={GUIDE_PATH} title={`${t(GUIDE.title)} | LikeLink2`} variant="button" />
+          <button type="button" className="lx-btn lx-btn-ghost" onClick={() => window.print()} data-tip={L("שמירה כ־PDF או הדפסה, מתפריט ההדפסה של הדפדפן", "Save as PDF or print, from the browser's print menu")}>
+            <Printer size={16} aria-hidden="true" /> {L("שמירה כ־PDF", "Save as PDF")}
+          </button>
+        </div>
+      </PageHero>
+      <ol className="lx-wrap mt-10 grid gap-4 md:grid-cols-2" aria-label={t(GUIDE.title)}>
+        {GUIDE.checks.map((c, i) => {
+          const examples = guideExamples(c, graph.products, 3);
+          return (
+            <li key={c.id} id={c.id} className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+              <div className="flex items-start gap-3">
+                <span className="lx-chip shrink-0 font-extrabold" aria-hidden="true">{i + 1}</span>
+                <div className="min-w-0">
+                  <h2 className="text-[19px] font-extrabold leading-7">{t(c.title)}</h2>
+                  <p className="lx-mute mt-2 text-[15px] leading-7">{t(c.body)}</p>
+                </div>
+              </div>
+              {examples.length ? (
+                <div className="mt-4 print:hidden">
+                  <p className="lx-mute mb-2 text-[12.5px]">{L("לתרגול, מהקטלוג (לפי מה שהמוכר מציין):", "To practice, from the catalog (as the seller states):")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {examples.map((p) => <Go key={p.id} to={productPath(p.id)} className="lx-chip max-w-full truncate">{p.displayTitle}</Go>)}
+                  </div>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      <Section className="print:hidden">
+        <div className="lx-card p-6 md:p-8" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+          <h2 className="text-[22px] font-extrabold">{L("רוצה להמליץ על מוצרים משלך?", "Want to recommend products of your own?")}</h2>
+          <p className="lx-mute mt-2 max-w-2xl text-[15px] leading-7">{L("בסטודיו של לייקלינק בונים עמוד המלצות עם קישור לכל מוצר, ורואים כמה קליקים הגיעו מכל רשת. הפתיחה בחינם.", "In the LikeLink Studio you build a recommendations page with a link per product and see the clicks from each network. Opening it is free.")}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Go to="/studio" className="lx-btn lx-btn-rose">{L("פתיחת סטודיו חינם", "Open a free studio")}</Go>
+            <Go to="/products" className="lx-btn lx-btn-ghost">{L("לכל המוצרים", "All products")}</Go>
+          </div>
+          <p className="lx-mute mt-4 text-[12px]">{L("קישורי המוצרים באתר הם קישורי שותפים (#פרסומת): קנייה דרכם יכולה להעניק עמלה, בלי עלות נוספת לך.", "Product links on the site are affiliate links (#ad): buying through them may earn a commission, at no extra cost to you.")}</p>
+        </div>
+      </Section>
     </>
   );
 }

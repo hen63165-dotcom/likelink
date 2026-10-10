@@ -266,6 +266,7 @@ function Footer() {
         { to: "/studio", he: "פתיחת Studio", en: "Open the Studio" },
         { to: "/creators", he: "קהילת היוצרים", en: "Creator community" },
         { to: "/merchants", he: "יש לך מוצרים?", en: "Have products?" },
+        { to: "/guide", he: "המדריך החינמי של לונה", en: "Luna's free guide" },
       ],
     },
   ];
