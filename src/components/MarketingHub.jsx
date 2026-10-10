@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { PLATFORMS } from "../lib/marketing.js";
 import { CAMPAIGN_TEMPLATES, shareToPlatform, shareNative } from "../lib/campaigns.js";
+import { withBase } from "../lib/basePath.js";
 
 export default function MarketingHub({ product, sellerId, onClose, video, showToast }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -50,7 +51,7 @@ export default function MarketingHub({ product, sellerId, onClose, video, showTo
   };
 
   const openAutoPilot = () => {
-    window.history.pushState({}, "", "/studio/autopilot");
+    window.history.pushState({}, "", withBase("/studio/autopilot"));
     window.dispatchEvent(new PopStateEvent("popstate"));
     onClose?.();
   };

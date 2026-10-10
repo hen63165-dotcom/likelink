@@ -6,6 +6,7 @@ import { toHebrewError } from '../../lib/errorMessages.js';
 import { cancellationTerms } from '../../lib/billing/cancellation.js';
 import { LEGAL_VERSION, legalPath } from '../../lib/legal/catalog.js';
 import { fetchLegalStatus, acceptLegal, setMarketingConsent, joinWaitlist, flushSignupConsent } from '../../lib/legalConsent.js';
+import { withBase } from '../../lib/basePath.js';
 
 // Plans, "what's included", checkout, cancellation and the Elite waitlist —
 // all from src/lib/plans.js (the same source as /pricing and the server).
@@ -31,9 +32,9 @@ async function fetchQuotas(token) {
 
 function LegalLinks() {
   return <>
-    <a className="underline" href={legalPath('terms')} target="_blank" rel="noreferrer">תנאי השימוש</a>,{' '}
-    <a className="underline" href={legalPath('privacy')} target="_blank" rel="noreferrer">מדיניות הפרטיות</a> ו
-    <a className="underline" href={legalPath('cancellation')} target="_blank" rel="noreferrer">מדיניות הביטולים וההחזרים</a>
+    <a className="underline" href={withBase(legalPath('terms'))} target="_blank" rel="noreferrer">תנאי השימוש</a>,{' '}
+    <a className="underline" href={withBase(legalPath('privacy'))} target="_blank" rel="noreferrer">מדיניות הפרטיות</a> ו
+    <a className="underline" href={withBase(legalPath('cancellation'))} target="_blank" rel="noreferrer">מדיניות הביטולים וההחזרים</a>
   </>;
 }
 
@@ -84,7 +85,7 @@ export default function PlanCheckout() {
         setMessage('מאמתים את התשלום מול PayPal…');
         const r = await capturePrepaid(token, orderId);
         setMessage(r.ok ? 'התשלום אומת והמסלול פעיל. תודה!' : toHebrewError(r.error, 'התשלום לא אומת — המסלול לא הופעל. אם חויבת, נבדוק ונחזיר.'));
-        try { window.history.replaceState({}, '', '/studio/products'); } catch { /* ignore */ }
+        try { window.history.replaceState({}, '', withBase('/studio/products')); } catch { /* ignore */ }
         await refresh();
       });
     }
@@ -164,7 +165,7 @@ export default function PlanCheckout() {
   return <section dir="rtl" className="rounded-2xl p-4 my-5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }} aria-labelledby="plans-title">
     <div className="flex items-baseline justify-between gap-3 flex-wrap">
       <h2 id="plans-title" className="disp text-lg font-bold">המסלול שלך</h2>
-      <a href="/pricing" className="text-xs underline" target="_blank" rel="noreferrer">השוואת כל המסלולים</a>
+      <a href={withBase("/pricing")} className="text-xs underline" target="_blank" rel="noreferrer">השוואת כל המסלולים</a>
     </div>
 
     {signedIn === false && <p role="status" className="text-sm mt-2">צריך להתחבר לסטודיו כדי לבחור מסלול.</p>}
@@ -194,7 +195,7 @@ export default function PlanCheckout() {
           הביטול נשלח ל-PayPal מיד, ולא יהיו חיובים נוספים.{' '}
           {preview?.refund?.amount > 0 ? `יוחזרו לך ₪${preview.refund.amount.toFixed(2)}${preview.refund.fee ? ` (בניכוי דמי ביטול של ₪${preview.refund.fee.toFixed(2)})` : ''}. ` : ''}
           {preview && Date.parse(preview.accessUntil) > Date.now() + 60000 ? `הגישה נשארת עד ${fmtDate(preview.accessUntil)}.` : 'הגישה למסלול תסתיים עכשיו.'}
-          {' '}<a className="underline" href={legalPath('cancellation')} target="_blank" rel="noreferrer">איך זה מחושב</a>
+          {' '}<a className="underline" href={withBase(legalPath('cancellation'))} target="_blank" rel="noreferrer">איך זה מחושב</a>
         </p>
         <div className="flex gap-3 mt-2">
           <button disabled={busy} className="tap rounded-lg px-3 py-1.5 text-sm font-bold" style={{ background: 'var(--danger, #b42318)', color: 'white' }} onClick={cancel}>כן, לבטל</button>

@@ -70,6 +70,7 @@ import CreatorInbox from "./CreatorInbox";
 import CreatorCommandCenter from "./CreatorCommandCenter";
 import UGCCampaignStudio from "./UGCCampaignStudio";
 import AdsStudio from "../ads/AdsStudio.jsx";
+import { withBase } from "../../lib/basePath.js";
 
 // The full real seller studio (products, collections, payouts, launch) is
 // code-split so it never blocks the marketplace first paint.
@@ -483,7 +484,7 @@ function VideoPanel({ onNavigate }) {
                   {he ? "קליפ מיידי בדפדפן" : "Instant clip in browser"}
                 </button>
                 {latest ? (
-                  <a href={`/p/${encodeURIComponent(p.id)}`} target="_blank" rel="noreferrer" className="ll-tap rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text)" }}>
+                  <a href={withBase(`/p/${encodeURIComponent(p.id)}`)} target="_blank" rel="noreferrer" className="ll-tap rounded-xl px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text)" }}>
                     {he ? "צפייה באתר" : "View on site"}
                   </a>
                 ) : null}

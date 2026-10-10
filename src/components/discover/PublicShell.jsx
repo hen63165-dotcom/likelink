@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Compass, Heart, Home, Menu, Moon, Play, Search, Sparkles, Sun, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
+import { withBase } from "../../lib/basePath.js";
 
 const THEME_KEY = "ll_theme";
 const PAPER = { light: "#f6f6fb", dark: "#070709" };
@@ -308,7 +309,7 @@ function Footer() {
           ["/legal/accessibility", "נגישות", "Accessibility"],
           ["/legal", "כל המסמכים", "All documents"],
         ].map(([href, heLabel, enLabel]) => (
-          <a key={href} href={href} className="lx-mute hover:underline">{he ? heLabel : enLabel}</a>
+          <a key={href} href={withBase(href)} className="lx-mute hover:underline">{he ? heLabel : enLabel}</a>
         ))}
       </nav>
       <div className="lx-wrap mt-6 flex flex-wrap items-center justify-between gap-3 text-[12px]">

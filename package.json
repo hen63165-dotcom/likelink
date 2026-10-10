@@ -9,7 +9,7 @@
     "dev": "vite",
     "test": "node --test tests/*.test.mjs",
     "build": "vite build",
-    "postbuild": "node scripts/prerender-products.mjs",
+    "postbuild": "node scripts/prerender-products.mjs && node scripts/rebase-static-pages.mjs",
     "preview": "vite preview",
     "feed:google": "node scripts/generate-google-feed.mjs",
     "cloud:check": "node scripts/cloud-check.mjs",

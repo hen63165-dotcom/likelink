@@ -2,7 +2,10 @@
 // Share Target handling and Web Push subscription.
 // Imported once from main.jsx — everything else is event-driven.
 
-const SW_URL = "/sw.js";
+import { withBase } from "./basePath.js";
+
+// "/sw.js" on the main host, "/likelink/sw.js" on the GitHub Pages copy.
+const SW_URL = withBase("/sw.js");
 
 let deferredInstallPrompt = null;
 
