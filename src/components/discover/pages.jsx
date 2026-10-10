@@ -57,6 +57,7 @@ import {
   Media,
   MediaBadge,
   PriceLine,
+  priceCheckedAt,
   ProductCard,
   Rail,
   ReelCard,
@@ -871,7 +872,11 @@ export function ProductPage({ graph, id, navigate }) {
               <PriceLine product={product} large />
               {product.merchant ? <span className="lx-mute text-[13px]">{L(`נמכר ב־${product.merchant}`, `Sold at ${product.merchant}`)}</span> : null}
             </div>
-            <p className="lx-mute mt-1 text-[12px]" data-tip={L("המחיר נלקח מעמוד המוצר בחנות. משלוח, מטבע ומבצעים יכולים לשנות אותו, והמחיר הקובע הוא המחיר בקופה של החנות.", "Taken from the store's product page. Shipping, currency and sales can change it; the store's checkout price is final.")}>{L("מחיר קטלוג. המחיר והמלאי הסופיים נקבעים אצל החנות.", "Catalog price. Final price and stock are set by the store.")}</p>
+            <p className="lx-mute mt-1 text-[12px]" data-tip={L("המחיר נקרא מ־AliExpress דרך הממשק הרשמי, בשקלים ועם משלוח לישראל. הוא משתנה לפי האפשרות שבוחרים (מידה, צבע) ולפי מבצעי החנות, והמחיר הקובע הוא המחיר בקופה.", "Read from AliExpress through its official API, in ILS, shipping to Israel. It depends on the option you pick and on store sales; the checkout price is final.")}>
+              {priceCheckedAt(product)
+                ? L(`נבדק מול החנות ב־${new Date(priceCheckedAt(product)).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })} · המחיר והמלאי הסופיים בקופה של החנות.`, `Checked with the store on ${new Date(priceCheckedAt(product)).toLocaleDateString("en-GB", { day: "numeric", month: "numeric" })} · final price and stock at the store's checkout.`)
+                : L("את המחיר, המשלוח והמלאי המעודכנים מציגה החנות. לחיצה על הכפתור פותחת את המוצר עצמו.", "The store shows the current price, shipping and stock. The button opens the product itself.")}
+            </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
               <ShopButton product={product} className="flex-1" />

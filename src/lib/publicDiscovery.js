@@ -39,6 +39,8 @@ export const REEL_STYLE_LABELS = Object.freeze({
   ai_ugc: { he: "יוצרת וירטואלית (AI) · לא אדם אמיתי · המוצר בתמונה אמיתית", en: "Virtual AI creator · not a real person · real product photo" },
   text_hook: { he: "הוק טקסט על תמונת המוצר · ממוחשב", en: "Text hook over the product photo · computer-made" },
   studio: { he: "קליפ מהסטודיו · אנימציה ממוחשבת", en: "Studio clip · computer animation" },
+  luna_talking: { he: "לונה מסבירה · דמות וקול AI מונפשים · המוצר בתמונה אמיתית", en: "Luna explains · animated AI character and voice · real product photo" },
+  luna_tip: { he: "לונה מסבירה · דמות וקול AI · המוצר בתמונה אמיתית", en: "Luna explains · AI character and voice · real product photo" },
 });
 
 export const TREND_WINDOW_DAYS = 14;

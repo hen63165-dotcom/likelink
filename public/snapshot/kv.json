@@ -195,7 +195,6 @@
    {
     "id": "p-live-01",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png",
-    "price": 10.62,
     "title": "טבעת כסף 925 קלאסית עם זרקון מרקיז",
     "clicks": 1,
     "status": "approved",
@@ -228,12 +227,13 @@
     "videoAssetId": null,
     "videoProvider": "likelink_studio_reel",
     "videoSynthetic": true,
-    "videoUpdatedAt": 1791494179206
+    "videoUpdatedAt": 1791494179206,
+    "catalogPrice": 10.62,
+    "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)"
    },
    {
     "id": "p-live-02",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc174e158c0634a38be6508fa62db71f7p.jpg",
-    "price": 378.4,
     "title": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן",
     "clicks": 0,
     "status": "approved",
@@ -266,12 +266,13 @@
     "videoAssetId": null,
     "videoProvider": "likelink_studio_reel",
     "videoSynthetic": true,
-    "videoUpdatedAt": 1791494178464
+    "videoUpdatedAt": 1791494178464,
+    "catalogPrice": 378.4,
+    "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)"
    },
    {
     "id": "p-live-03",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S6a13c7593c184263ae9204f295447043t.jpg",
-    "price": 228.96,
     "title": "צמיד טניס מואסניט Smyoue מצופה פלטינה",
     "clicks": 0,
     "status": "approved",
@@ -304,12 +305,13 @@
     "videoAssetId": null,
     "videoProvider": "likelink_studio_reel",
     "videoSynthetic": true,
-    "videoUpdatedAt": 1791494179206
+    "videoUpdatedAt": 1791494179206,
+    "catalogPrice": 228.96,
+    "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)"
    },
    {
     "id": "p-live-04",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg",
-    "price": 85.36,
     "title": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט",
     "clicks": 0,
     "status": "approved",
@@ -342,12 +344,13 @@
     "videoAssetId": null,
     "videoProvider": "likelink_studio_reel",
     "videoSynthetic": true,
-    "videoUpdatedAt": 1791494178464
+    "videoUpdatedAt": 1791494178464,
+    "catalogPrice": 85.36,
+    "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)"
    },
    {
     "id": "p-live-05",
     "image": "https://ae01.alicdn.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg",
-    "price": 47.17,
     "title": "עגילי Smyoue מואסניט ורודים 0.2-3 קראט",
     "clicks": 0,
     "status": "approved",
@@ -364,7 +367,9 @@
     "videoAssetId": null,
     "videoProvider": "likelink_studio_reel",
     "videoSynthetic": true,
-    "videoUpdatedAt": 1791494179206
+    "videoUpdatedAt": 1791494179206,
+    "catalogPrice": 47.17,
+    "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)"
    }
   ],
   "marketplace:marketers": [

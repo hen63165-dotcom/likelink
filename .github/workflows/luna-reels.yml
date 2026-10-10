@@ -1,6 +1,9 @@
 # Luna reels: free Hebrew tip reels (scripts/luna_reels).
 # Runs by itself every day at 08:00 and 17:00 UTC: each run renders the next
-# episode in rotation (3 variants), so the release gets 6 new reels a day.
+# episode in rotation (3 variants); in scheduled runs variant a is talking Luna
+# (SadTalker on the CPU runner, about 2 hours), b and c keep her still.
+# When a run finishes, the GitHub Pages site picks up the product reels
+# (deploy-frontend.yml → scripts/reels-feed.mjs).
 # Or one click: Actions → Luna reels → Run workflow. Results go to the
 # "luna-reels" release (video, caption .txt, preview .jpg, details .json per
 # variant) and to the run's artifacts. Nothing is posted anywhere: posting
@@ -34,7 +37,8 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: luna-reels
+  # One render per episode at a time; different episodes may render side by side.
+  group: luna-reels-${{ github.event.inputs.episode || github.event_name }}
   cancel-in-progress: false
 jobs:
   render:
@@ -44,7 +48,7 @@ jobs:
       EPISODE: ${{ github.event.inputs.episode || (github.event_name == 'schedule' && 'next') || 'silver-925 link-chaos' }}
       VARIANTS: ${{ github.event.inputs.variants || '3' }}
       VOICE: ${{ github.event.inputs.voice || 'edge' }}
-      VISUAL: ${{ github.event.inputs.visual || 'auto' }}
+      VISUAL: ${{ github.event.inputs.visual || (github.event_name == 'schedule' && 'talking') || 'auto' }}
       TIER: ${{ github.event.inputs.tier || 'free' }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       GH_TOKEN: ${{ github.token }}
@@ -71,6 +75,11 @@ jobs:
         run: |
           python -m unittest discover -s tests -v
           python -m luna_reels check episodes/
+      - uses: actions/cache@v4
+        if: env.VISUAL == 'talking'
+        with:
+          path: ~/sadtalker
+          key: sadtalker-v0.0.2-rc
       - name: Talking Luna needs SadTalker (only when asked)
         if: env.VISUAL == 'talking'
         run: |

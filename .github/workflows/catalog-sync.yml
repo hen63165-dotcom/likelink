@@ -1,0 +1,57 @@
+# Catalog sync from AliExpress (official affiliate API), free on GitHub Actions.
+# Every morning: real shekel prices (ship to Israel), the store's own gallery
+# (the photo with the least banner text on the card) and the seller's own
+# product video, written into the catalog copy the site ships
+# (public/snapshot/kv.json) with the date they were read. Then the GitHub Pages
+# site is rebuilt (deploy-frontend.yml runs after this workflow).
+# Needs the repository secrets ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET and
+# ALIEXPRESS_TRACKING_ID; without them it only says so.
+# A push to the work branch that changes the sync runs it as a report only.
+name: Catalog sync
+on:
+  schedule:
+    - cron: "10 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/catalog/sync-aliexpress.mjs", ".github/workflows/catalog-sync.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: catalog-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+      ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+      ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+      WRITE: ${{ github.event_name != 'push' && '--write' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref || 'main' }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: OCR for choosing the cleanest store photo
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y tesseract-ocr
+      - name: Read prices, photos and videos from AliExpress
+        run: |
+          node scripts/catalog/sync-aliexpress.mjs $WRITE | tee /tmp/sync.json
+          { echo "### Catalog sync"; echo '```json'; cat /tmp/sync.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the copy (the site's own rules)
+        if: env.WRITE != ''
+        run: node --test tests/catalogSnapshot.test.mjs tests/publicDiscovery.test.mjs tests/staticForwarder.test.mjs
+      - name: Commit the updated catalog copy
+        if: env.WRITE != ''
+        run: |
+          git diff --quiet -- public/snapshot/kv.json && { echo "no change"; exit 0; }
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add public/snapshot/kv.json
+          git commit -m "catalog: store prices (ILS), photos and videos from AliExpress $(date -u +%F)"
+          git push origin HEAD:main

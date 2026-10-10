@@ -39,6 +39,7 @@ import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfac
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import { SHARE_SHEET_ORDER, buildShareLink, creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
 import { stripBase, withBase } from "../../lib/basePath.js";
+import { loadReelsFeed } from "../../lib/reelsFeed.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
 
@@ -60,13 +61,25 @@ export function useL() {
   };
 }
 
+/** Reels from the GitHub Pages feed (src/lib/reelsFeed.js), read once per page view. */
+function useReelsFeed() {
+  const [feed, setFeed] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    loadReelsFeed().then((list) => { if (alive) setFeed(list); });
+    return () => { alive = false; };
+  }, []);
+  return feed;
+}
+
 /** The public graph, rebuilt only when the underlying real data changes. */
 export function useGraph() {
   const { products, marketers, collections, clicks } = useMarketplace();
   const { videos } = useVideos();
+  const feed = useReelsFeed();
   return useMemo(
-    () => buildPublicGraph({ products, marketers, collections, clicks, videos }),
-    [products, marketers, collections, clicks, videos]
+    () => buildPublicGraph({ products, marketers, collections, clicks, videos: feed.length ? [...videos, ...feed] : videos }),
+    [products, marketers, collections, clicks, videos, feed]
   );
 }
 
@@ -770,13 +783,31 @@ export function CreatorAvatar({ creator, size = 40, ring = false }) {
   );
 }
 
+/** When the store's own price was read by the official API (scripts/catalog/sync-aliexpress.mjs), else 0. */
+export function priceCheckedAt(product) {
+  return product?.priceSource === "aliexpress_api" ? Date.parse(product.priceCheckedAt || "") || 0 : 0;
+}
+
 export function PriceLine({ product, large = false }) {
-  const { lang } = useL();
+  const { L, lang } = useL();
   const price = formatPrice(product.price, lang);
-  if (!price) return null;
+  // No price the store itself confirmed: say where the price is, never guess one.
+  if (!price) {
+    return (
+      <span className={large ? "text-[15px] font-bold" : "text-[12.5px] font-semibold"} style={{ color: "var(--lx-ink)" }}
+        data-tip={L("את המחיר המעודכן מציגה החנות עצמה. כאן יופיע מחיר רק אחרי שנבדק מול החנות", "The store shows the current price. A price appears here only after it was checked with the store")}>
+        {L("המחיר המעודכן בחנות", "Current price at the store")}
+      </span>
+    );
+  }
+  const checked = priceCheckedAt(product);
+  const when = checked ? new Date(checked).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric" }) : "";
+  const tip = checked
+    ? L(`המחיר בחנות נבדק ב־${when} מול AliExpress · הוא משתנה לפי האפשרות שבוחרים (מידה, צבע)`, `Store price checked with AliExpress on ${when} · it depends on the option you pick`)
+    : L("מחיר מהקטלוג · המחיר הסופי מופיע בחנות", "Catalog price · the final price is at the store");
   return (
-    <span className="inline-flex items-baseline gap-2">
-      <span className={large ? "text-[28px] font-extrabold" : "text-[15px] font-bold"} style={{ color: "var(--lx-ink)" }}>{price}</span>
+    <span className="inline-flex items-baseline gap-2" data-tip={tip}>
+      <span className={large ? "text-[28px] font-extrabold" : "text-[15px] font-bold"} style={{ color: "var(--lx-ink)" }}>{product.priceFrom ? <span className="text-[0.7em] font-bold">{L("מ־", "from ")}</span> : null}{price}</span>
       {product.deal ? <s className="lx-mute text-[13px]">{formatPrice(product.deal.was, lang)}</s> : null}
     </span>
   );
