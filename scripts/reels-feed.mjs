@@ -26,6 +26,7 @@ const SAFE = /^[a-z0-9][a-z0-9-]{0,80}$/;
 // Real footage first (a person filmed it), then talking Luna, then the rest.
 const LOOK_RANK = { real: 4, talking: 3, video: 2, pexels: 1, still: 1, aurora: 0 };
 export const SELLER_LABELS = Object.freeze(["צילום המוצר: המוכר", "#פרסומת · קישור שותפים"]);
+export const OWN_LABELS = Object.freeze(["צילום: LikeLink2", "#פרסומת · קישור שותפים"]);
 
 /** Assets of the release → [{ base, mp4, json, jpg, updatedAt }] for each reel. */
 export function groupAssets(assets = []) {
@@ -121,6 +122,38 @@ export function coverFrame(mp4, jpg, at = 1) {
   return r.status === 0 && existsSync(jpg) && statSync(jpg).size > 2048;
 }
 
+/**
+ * Our own footage of a product (product-video.yml "clip" → <productId>-own.mp4):
+ * filmed by a person with the real product, so it is real footage; with the
+ * product's studio it is REAL_UGC on the site (src/lib/reelsFeed.js, look "real").
+ */
+export function ownReels(assets = [], listed = new Set(), owners = new Map()) {
+  const out = [];
+  for (const a of Array.isArray(assets) ? assets : []) {
+    const m = String(a?.name || "").match(/^([A-Za-z0-9_-]+?)-own\.mp4$/);
+    if (!m || !listed.has(m[1])) continue;
+    const updatedAt = Date.parse(a.updated_at || a.created_at || "") || 0;
+    out.push({
+      productId: m[1],
+      mp4: a,
+      updatedAt,
+      entry: {
+        id: `own-${m[1]}`,
+        productId: m[1],
+        video: `own-${m[1]}.mp4`,
+        poster: "",
+        title: "",
+        seconds: 0,
+        look: "real",
+        labels: [...OWN_LABELS],
+        createdAt: updatedAt,
+        ...(owners.get(m[1]) ? { marketerId: owners.get(m[1]) } : {}),
+      },
+    });
+  }
+  return out;
+}
+
 async function api(path, token) {
   const res = await fetch(`https://api.github.com${path}`, { headers: { accept: "application/vnd.github+json", ...(token ? { authorization: `Bearer ${token}` } : {}) } });
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
@@ -166,16 +199,16 @@ export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOS
       console.warn(`reels-feed: skipped ${r.base} (${e.message})`);
     }
   }
-  // The sellers' own product videos, labelled as the seller's.
+  // Our own footage first, then the sellers' own product videos, each labelled as whose it is.
   try {
-    const sellers = sellerReels((await api(`/repos/${repo}/releases/tags/reels`, token)).assets, listed);
-    for (const r of sellers) {
+    const assets = (await api(`/repos/${repo}/releases/tags/reels`, token)).assets;
+    for (const r of [...ownReels(assets, listed, owners), ...sellerReels(assets, listed)]) {
       try {
         await download(r.mp4.url, join(out, r.entry.video), token);
-        const cover = `seller-${r.productId}-cover.jpg`;
+        const cover = `${r.entry.id}-cover.jpg`;
         entries.push({ ...r.entry, poster: coverFrame(join(out, r.entry.video), join(out, cover)) ? cover : "" });
       } catch (e) {
-        console.warn(`reels-feed: skipped seller video ${r.productId} (${e.message})`);
+        console.warn(`reels-feed: skipped ${r.entry.id} (${e.message})`);
       }
     }
   } catch { /* no reels release: Luna reels only */ }

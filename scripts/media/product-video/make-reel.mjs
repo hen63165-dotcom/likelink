@@ -24,7 +24,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileS
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { HOOK_FORBIDDEN, buildHookSet, worldOf } from "../../../src/lib/growth/likeloop.js";
-import { FPS, H, SHOT_EXCLUDE, SHOT_FRAMING, SHOTS, W, analyze, duration, joinFilter, planShots, shotFilter, shotStarts, totalSeconds } from "./premium.mjs";
+import { CLEAN_TRANSITIONS, FPS, H, SHOT_EXCLUDE, SHOT_FRAMING, SHOTS, W, XFADE, analyze, duration, joinFilter, planShots, shotFilter, shotStarts, totalSeconds } from "./premium.mjs";
 
 export const VARIANTS = ["a", "b", "c"];
 export const KEYWORD = "רוצה";
@@ -79,7 +79,7 @@ export function pickHook(product, index = 0) {
 }
 
 /** The post caption: hook, the product's own facts, the comment keyword, disclosure. */
-export function buildCaption(product, hook) {
+export function buildCaption(product, hook, footage = "seller") {
   const tags = HASHTAGS[product.category] || HASHTAGS.Other;
   return [
     hook.text,
@@ -90,7 +90,7 @@ export function buildCaption(product, hook) {
     `כתבו "${KEYWORD}" בתגובות ואשלח לכם את הקישור בפרטי 📩`,
     "",
     "#פרסומת · קישור שותפים: אם תקנו דרכו ייתכן שאקבל עמלה, בלי עלות נוספת לכם. המחיר והמלאי הסופיים נקבעים בחנות.",
-    "צילום המוצר: המוכר, מעמוד המוצר בחנות.",
+    footage === "owner" ? "צילום: LikeLink2, צילום אמיתי של המוצר." : "צילום המוצר: המוכר, מעמוד המוצר בחנות.",
     "",
     tags.join(" "),
   ].filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
@@ -128,7 +128,9 @@ const CSS = `
 .cta .k{background:#e9c46a;color:#1b1406;font-size:128px;font-weight:900;padding:0 64px 10px;border-radius:26px;box-shadow:0 10px 40px rgba(233,196,106,.35)}
 .sweep{position:absolute;inset:0;background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,250,235,.16) 46%,rgba(255,255,255,.42) 50%,rgba(255,250,235,.16) 54%,rgba(255,255,255,0) 62%)}
 `;
-const labels = `<div class="labels"><span>#פרסומת · קישור שותפים</span><span>צילום המוצר: המוכר</span></div>`;
+// Whose footage it is: the seller's (from the product page) or our own (filmed with the real product).
+export const FOOTAGE_LABEL = Object.freeze({ seller: "צילום המוצר: המוכר", owner: "צילום: LikeLink2" });
+const labelsFor = (footage) => `<div class="labels"><span>#פרסומת · קישור שותפים</span><span>${FOOTAGE_LABEL[footage] || FOOTAGE_LABEL.seller}</span></div>`;
 const shortName = (title) => {
   const t = noEmoji(title).replace(/\s+/g, " ").trim();
   if (t.length <= 42) return t;
@@ -138,9 +140,9 @@ const shortName = (title) => {
 };
 
 /** The overlay layers of a premium reel (transparent PNGs drawn by Chromium). */
-export function overlays(product, hook) {
+export function overlays(product, hook, footage = "seller") {
   return {
-    labels,
+    labels: labelsFor(footage),
     hook: `<div class="hook serif">${esc(noEmoji(hook.text))}</div>`,
     name: `<div class="name"><i></i><b>${esc(shortName(product.title))}</b></div>`,
     cta: `<div class="cta"><div class="l">כתבי בתגובות</div><div class="k serif">${KEYWORD}</div><div class="l">ואשלח לך את הקישור בפרטי</div></div>`,
@@ -169,14 +171,30 @@ function renderShots(src, product, dir) {
   });
 }
 
+// Variant a is the clean cut (what product videographers post: no text on the
+// footage, the teaser goes in the caption); b and c keep the hook on screen so
+// the account can compare openings.
+export const CLEAN_VARIANT = 0;
+export const LAYERS = Object.freeze({ clean: ["labels", "name", "sweep"], hook: ["labels", "hook", "name", "cta", "sweep"] });
+
 /**
  * The finishing filter: the shots joined, the labels on every frame, the hook,
  * the product name and the call to action fading in turn, one light sweep.
- * Inputs: n shots, the silent audio, then labels, hook, name, cta, sweep images.
+ * Inputs: n shots, the silent audio, then the images of LAYERS (clean: labels,
+ * name, sweep; hook: labels, hook, name, cta, sweep).
  */
-export function reelFilter(n = SHOTS.length) {
+export function reelFilter(n = SHOTS.length, { clean = false } = {}) {
   const img = (i) => n + 1 + i; // input index of each overlay image
   const fade = (st, d, end) => `format=rgba,fade=t=in:st=${st}:d=${d}:alpha=1${end ? `,fade=t=out:st=${end}:d=0.25:alpha=1` : ""}`;
+  if (clean) {
+    return [
+      joinFilter(SHOTS, XFADE, CLEAN_TRANSITIONS),
+      `[${img(1)}:v]${fade(CTA_AT_S, 0.6)}[nm]`,
+      `[cut][${img(0)}:v]overlay=0:0[v1]`,
+      `[v1][nm]overlay=0:0[v2]`,
+      `[v2][${img(2)}:v]overlay=x='-w+(t-${SWEEP_AT_S})*(W+w)/${SWEEP_S}':y=0:enable='between(t,${SWEEP_AT_S},${SWEEP_AT_S + SWEEP_S})',format=yuv420p[v]`,
+    ].join(";");
+  }
   return [
     joinFilter(),
     `[${img(1)}:v]${fade(0.12, 0.35, (HOOK_END_S - 0.25).toFixed(2))}[hk]`,
@@ -190,14 +208,14 @@ export function reelFilter(n = SHOTS.length) {
   ].join(";");
 }
 
-function renderReel(shots, pngs, mp4) {
+function renderReel(shots, pngs, mp4, clean = false) {
   const n = shots.length;
-  const filter = reelFilter(n);
+  const filter = reelFilter(n, { clean });
   execFileSync("ffmpeg", [
     "-y", "-loglevel", "error",
     ...shots.flatMap((s) => ["-i", s.file]),
     "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
-    ...["labels", "hook", "name", "cta", "sweep"].flatMap((k) => ["-loop", "1", "-framerate", String(FPS), "-i", pngs[k]]),
+    ...LAYERS[clean ? "clean" : "hook"].flatMap((k) => ["-loop", "1", "-framerate", String(FPS), "-i", pngs[k]]),
     "-filter_complex", filter, "-map", "[v]", "-map", `${n}:a`,
     "-t", String(TOTAL_S), "-r", String(FPS), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-movflags", "+faststart", mp4,
@@ -207,12 +225,15 @@ function renderReel(shots, pngs, mp4) {
 async function main() {
   const [videos = "product-videos", out = "reels"] = process.argv.slice(2);
   const found = JSON.parse(readFileSync(join(videos, "videos.json"), "utf8")).results.filter((r) => r.status === "FOUND");
+  // FOOTAGE=owner: a clip we filmed ourselves (product-video.yml "clip"); its reels are <id>-own*.mp4.
+  const footage = process.env.FOOTAGE === "owner" ? "owner" : "seller";
+  const suffix = footage === "owner" ? "-own" : "";
   const doc = JSON.parse(readFileSync(new URL("../../../public/snapshot/kv.json", import.meta.url), "utf8"));
   const byId = new Map((doc.keys["marketplace:products"] || []).map((p) => [p.id, p]));
   mkdirSync(out, { recursive: true });
   const work = join(out, ".work");
   mkdirSync(work, { recursive: true });
-  summary(`## Premium reels from the sellers' product videos (${found.length})`);
+  summary(footage === "owner" ? `## Premium reels from our own footage (${found.length})` : `## Premium reels from the sellers' product videos (${found.length})`);
   if (!found.length) return;
 
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -229,17 +250,17 @@ async function main() {
       continue;
     }
     for (const [k, hook] of variantHooks(product).entries()) {
-      const name = k === 0 ? r.productId : `${r.productId}-${VARIANTS[k]}`;
+      const name = k === 0 ? `${r.productId}${suffix}` : `${r.productId}${suffix}-${VARIANTS[k]}`;
       const pngs = {};
-      for (const [part, html] of Object.entries(overlays(product, hook))) {
+      for (const [part, html] of Object.entries(overlays(product, hook, footage))) {
         await page.setContent(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><style>${faces}${CSS}</style></head><body>${html}</body></html>`);
         await page.evaluate(() => document.fonts.ready);
         pngs[part] = join(work, `${name}-${part}.png`);
         await page.screenshot({ path: pngs[part], omitBackground: true });
       }
       const mp4 = join(out, `${name}.mp4`);
-      renderReel(shots, pngs, mp4);
-      writeFileSync(join(out, `${name}.txt`), buildCaption(product, hook) + "\n");
+      renderReel(shots, pngs, mp4, k === CLEAN_VARIANT);
+      writeFileSync(join(out, `${name}.txt`), buildCaption(product, hook, footage) + "\n");
       // A small preview (hook · hero · call to action) for review without playing the video.
       const at = [1.2, SWEEP_AT_S + 0.2, TOTAL_S - 1].map((t) => t.toFixed(2));
       execFileSync("ffmpeg", [
@@ -248,7 +269,7 @@ async function main() {
         "-filter_complex", "[0:v]scale=360:-2[a];[1:v]scale=360:-2[b];[2:v]scale=360:-2[c];[a][b][c]hstack=inputs=3",
         "-frames:v", "1", "-q:v", "4", join(out, `${name}-preview.jpg`),
       ]);
-      summary(`- ${name}: ${TOTAL_S} s premium cut · shots ${shots.map((s) => `${s.shot.in}s×${s.shot.speed}`).join(", ")} · hook (${hook.type}) "${hook.text}"`);
+      summary(`- ${name}: ${TOTAL_S} s premium cut${k === CLEAN_VARIANT ? " (clean)" : ""} · shots ${shots.map((s) => `${s.shot.in}s×${s.shot.speed}`).join(", ")} · hook (${hook.type}) "${hook.text}"`);
     }
   }
   await browser.close();

@@ -14,6 +14,12 @@ on:
       products:
         description: "Product ids (space separated); empty = every public product"
         default: ""
+      clip:
+        description: "Your own filmed clip of the real product (a Google Drive 'anyone with the link' share, or an https .mp4/.mov). Gets the same premium cut, labelled 'צילום: LikeLink2'"
+        default: ""
+      clip_product:
+        description: "With a clip: the product it shows (e.g. p-live-01)"
+        default: ""
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/media/product-video/**", "src/lib/growth/likeloop.js", ".github/workflows/product-video.yml"]
@@ -46,7 +52,27 @@ jobs:
       # Seller videos found earlier are kept in the "product-video-sources" release
       # (seeded once from the newest run whose artifact has them), so editing
       # reels again never visits the store for a product it already has.
+      - name: Your own clip → the premium cut
+        if: github.event.inputs.clip != ''
+        env:
+          CLIP: ${{ github.event.inputs.clip }}
+          PRODUCT: ${{ github.event.inputs.clip_product }}
+        run: |
+          set -euo pipefail
+          echo "$CLIP" | grep -Eq '^https://(drive\.google\.com/[A-Za-z0-9/?=_&.-]{8,200}|[A-Za-z0-9.-]+/[A-Za-z0-9/._%-]{1,200}\.(mp4|mov|m4v))$' \
+            || { echo "clip: a Google Drive share link or an https link to an .mp4/.mov file"; exit 2; }
+          echo "$PRODUCT" | grep -Eq '^[A-Za-z0-9_-]{1,80}$' || { echo "clip_product: a product id such as p-live-01"; exit 2; }
+          node -e 'const d=require("./public/snapshot/kv.json");if(!(d.keys["marketplace:products"]||[]).some(p=>p.id===process.argv[1])){console.error("no such product: "+process.argv[1]);process.exit(2)}' "$PRODUCT"
+          mkdir -p own-videos
+          id=$(printf '%s' "$CLIP" | sed -nE 's#.*/d/([A-Za-z0-9_-]+).*#\1#p; s#.*[?&]id=([A-Za-z0-9_-]+).*#\1#p' | head -1)
+          url="$CLIP"; [ -n "$id" ] && url="https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t"
+          curl -fsSL --max-filesize 400000000 -o "own-videos/${PRODUCT}.mp4" "$url"
+          len=$(ffprobe -v error -select_streams v:0 -show_entries format=duration -of csv=p=0 "own-videos/${PRODUCT}.mp4" || echo 0)
+          awk -v l="$len" 'BEGIN{exit !(l>=4 && l<=180)}' || { echo "::error::the clip is not a 4 s – 3 min video (is the Drive link shared with 'anyone with the link'?)"; exit 2; }
+          printf '{"results":[{"productId":"%s","status":"FOUND","source":"owner"}]}' "$PRODUCT" > own-videos/videos.json
+          FOOTAGE=owner node scripts/media/product-video/make-reel.mjs own-videos reels
       - name: Restore the seller videos found earlier
+        if: github.event.inputs.clip == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -63,8 +89,10 @@ jobs:
           done
           echo "no earlier seller videos"
       - name: Find the seller's product videos
+        if: github.event.inputs.clip == ''
         run: node scripts/media/product-video/find-videos.mjs product-videos ${{ github.event.inputs.products }}
       - name: Keep the seller videos for the next run
+        if: github.event.inputs.clip == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,6 +103,7 @@ jobs:
             --notes "The sellers' own product videos found on the store product pages, kept so reels can be edited again without visiting the store."
           gh release upload product-video-sources "${files[@]}" product-videos/videos.json --clobber
       - name: Edit the reels
+        if: github.event.inputs.clip == ''
         run: node scripts/media/product-video/make-reel.mjs product-videos reels
       - name: Attach the reels to the "reels" release
         env:

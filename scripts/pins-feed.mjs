@@ -65,10 +65,11 @@ export function buildPins({ products = [], reels = [], feedBase = PINS_FEED_HOME
     const product = byId.get(String(r?.productId || ""));
     if (!product || !/^[a-z0-9][a-z0-9-]{0,80}-cover\.jpg$/.test(String(r.poster || ""))) continue;
     const seller = r.look === "seller";
-    const what = seller ? "סרטון של המוכר" : "לונה (דמות AI) מסבירה";
+    const real = r.look === "real";
+    const what = seller ? "סרטון המוכר" : real ? "צילום אמיתי של המוצר" : "לונה (דמות AI) מסבירה";
     pins.push({
       guid: `reel-${r.id}`,
-      title: clip(seller ? product.title : r.title || product.title, 100),
+      title: clip(seller || real ? product.title : r.title || product.title, 100),
       description: clip(`${what}: ${clip(r.title || product.title, 200)}. הסרטון המלא באתר. ${PIN_AD}`, 500),
       link: pinLink(`/reels?r=${encodeURIComponent(`v-${r.id}`)}`, "pins_reel", origin),
       image: `${feedBase}/media/reels/${r.poster}`,

@@ -136,3 +136,21 @@ test("feed reels join the graph only — VideoContext never stores or uploads th
   const kit = readFileSync(new URL("../src/components/discover/kit.jsx", import.meta.url), "utf8");
   assert.match(kit, /videos: feed\.length \? \[\.\.\.videos, \.\.\.feed\] : videos/);
 });
+
+test("our own clips (<id>-own.mp4) join first as real footage; with the product's studio they are REAL_UGC", async () => {
+  const { ownReels, OWN_LABELS } = await import("../scripts/reels-feed.mjs");
+  const owner = snap["marketplace:products"].find((p) => p.id === "p-live-01").marketerId;
+  const listed = new Set(["p-live-01", "p-live-02"]);
+  const picked = ownReels([asset("p-live-01-own.mp4"), asset("p-live-01-own-b.mp4"), asset("p-gone-own.mp4"), asset("p-live-02.mp4")], listed, new Map([["p-live-01", owner]]));
+  assert.deepEqual(picked.map((r) => r.entry.id), ["own-p-live-01"]);
+  const e = picked[0].entry;
+  assert.equal(e.look, "real");
+  assert.equal(e.marketerId, owner);
+  assert.deepEqual(e.labels, [...OWN_LABELS]);
+  assert.ok(!sellerReels([asset("p-live-01-own.mp4")], listed).length, "our clip is never taken for the seller's");
+  const [v] = feedToVideos({ reels: [e] }, REELS_FEED_HOME);
+  assert.equal(v.humanFilmed, true);
+  assert.equal(v.style, "real_ugc");
+  const graph = buildPublicGraph({ products: snap["marketplace:products"], marketers: snap["marketplace:marketers"], collections: [], clicks: [], videos: [v] });
+  assert.equal(graph.reels.find((r) => r.id === "v-own-p-live-01").creativeClass, CREATIVE_CLASS.REAL_UGC);
+});
