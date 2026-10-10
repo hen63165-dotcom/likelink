@@ -791,7 +791,15 @@ export function priceCheckedAt(product) {
 export function PriceLine({ product, large = false }) {
   const { L, lang } = useL();
   const price = formatPrice(product.price, lang);
-  if (!price) return null;
+  // No price the store itself confirmed: say where the price is, never guess one.
+  if (!price) {
+    return (
+      <span className={large ? "text-[15px] font-bold" : "text-[12.5px] font-semibold"} style={{ color: "var(--lx-ink)" }}
+        data-tip={L("את המחיר המעודכן מציגה החנות עצמה. כאן יופיע מחיר רק אחרי שנבדק מול החנות", "The store shows the current price. A price appears here only after it was checked with the store")}>
+        {L("המחיר המעודכן בחנות", "Current price at the store")}
+      </span>
+    );
+  }
   const checked = priceCheckedAt(product);
   const when = checked ? new Date(checked).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric" }) : "";
   const tip = checked
