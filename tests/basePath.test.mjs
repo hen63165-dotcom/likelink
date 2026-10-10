@@ -90,7 +90,10 @@ test("a sub-folder build: sections answer 200 from their own file, /legal opens 
   mkdirSync(join(dist, "legal"));
   writeFileSync(join(dist, "legal", "terms.html"), `<a href="/legal">all</a>`);
   writeFileSync(join(dist, "manifest.json"), JSON.stringify({ start_url: "/", icons: [{ src: "/i.webp" }] }));
+  mkdirSync(join(dist, "snapshot"));
+  writeFileSync(join(dist, "snapshot", "kv.json"), read("public/snapshot/kv.json"));
   rebaseDist(dist, "/likelink");
+  assert.equal(readFileSync(join(dist, "u", "alyostyle.html"), "utf8"), `<a href="/likelink/discover">x</a>`, "a listed creator's page answers 200 too");
   for (const route of ["discover", "products", "reels", "search"]) {
     assert.ok(SPA_SECTIONS.includes(route));
     assert.equal(readFileSync(join(dist, `${route}.html`), "utf8"), `<a href="/likelink/discover">x</a>`, `${route}.html is the rebased shell`);
