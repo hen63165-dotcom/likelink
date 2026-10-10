@@ -53,3 +53,45 @@ test("creator cut: three honest hooks per product, no prices, 'on Ali' only for 
   const notAli = { id: "x", category: "Home", affiliateUrl: "https://example-shop.test/p/1" };
   assert.ok(creatorHooks(notAli).every((h) => !/אלי/.test(h.text)), "a non-AliExpress product is never called 'from Ali'");
 });
+
+test("premium cut: five shots from usable footage, never the excluded part, full-screen around the jewelry", async () => {
+  const { SHOTS, SHOT_EXCLUDE, XFADE, coverCrop, joinFilter, planShots, shotStarts, totalSeconds, usableRanges } = await import("../scripts/media/product-video/premium.mjs");
+  assert.equal(totalSeconds(), Number((SHOTS.reduce((s, x) => s + x.out, 0) - XFADE * (SHOTS.length - 1)).toFixed(2)));
+  assert.ok(totalSeconds() >= 10 && totalSeconds() <= 15, "a short reel that loops");
+  // The diamond-tester demo on the moissanite bracelet is never used (moissanite is not diamond).
+  assert.deepEqual(usableRanges(32, SHOT_EXCLUDE["p-live-03"]), [[0.6, 19.5]]);
+  const samples = Array.from({ length: 64 }, (_, i) => ({ t: i / 2, sharp: i > 40 ? 99 : 10 + (i % 5), cx: 0.3 }));
+  const plan = planShots(samples, 32, { exclude: SHOT_EXCLUDE["p-live-03"] });
+  assert.equal(plan.length, SHOTS.length);
+  for (const s of plan) {
+    assert.ok(s.in >= 0.6 && s.in + s.srcLen <= 19.5 + 1e-6, `shot ${s.in}+${s.srcLen} stays out of the tester part`);
+    assert.ok(s.speed > 0 && s.speed <= 1.25);
+    assert.equal(s.cx, 0.3);
+  }
+  assert.deepEqual(plan.map((s) => s.in), [...plan.map((s) => s.in)].sort((a, b) => a - b), "shots follow the clip's order");
+  // A short clip still gives five shots, none past its end.
+  const short = planShots(Array.from({ length: 20 }, (_, i) => ({ t: i / 2, sharp: 5, cx: 0.5 })), 10);
+  assert.equal(short.length, SHOTS.length);
+  assert.ok(short.every((s) => s.in + s.srcLen <= 9.7 + 1e-6));
+  // Framing: covers 1080×1920 and keeps the detail in view without leaving the frame.
+  assert.deepEqual(coverCrop(1280, 720, 0.5), { sw: 3414, sh: 1920, x: 1167, y: 0 });
+  assert.equal(coverCrop(1280, 720, 0).x, 0);
+  assert.equal(coverCrop(1280, 720, 1).x, 3414 - 1080);
+  // A glint (white flash) into the slow-motion hero shot, dissolves elsewhere.
+  const join = joinFilter();
+  assert.equal((join.match(/xfade=/g) || []).length, SHOTS.length - 1);
+  assert.equal((join.match(/fadewhite/g) || []).length, SHOTS.filter((s) => s.sweep).length);
+  assert.equal(shotStarts()[0], 0);
+});
+
+test("premium cut: the labels are on every frame; hook, name and call to action in turn", async () => {
+  const { reelFilter, overlays, CTA_AT_S, HOOK_END_S, TOTAL_S } = await import("../scripts/media/product-video/make-reel.mjs");
+  const f = reelFilter(5);
+  assert.match(f, /\[cut\]\[6:v\]overlay=0:0\[v1\]/, "the labels image is laid over the whole reel, with no time limit");
+  assert.ok(HOOK_END_S < CTA_AT_S && CTA_AT_S < TOTAL_S - 2, "the call to action has time to be read");
+  const o = overlays(products[0], { text: "תסתכלי על הפרטים מקרוב" });
+  assert.match(o.labels, /#פרסומת · קישור שותפים/);
+  assert.match(o.labels, /צילום המוצר: המוכר/);
+  assert.match(o.cta, new RegExp(KEYWORD));
+  assert.doesNotMatch(Object.values(o).join(""), /₪|כוכבים|הכי נמכר|נגמר/);
+});
