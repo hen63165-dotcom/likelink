@@ -17,7 +17,9 @@
  *   • The site says it is showing a copy, and from when (snapshotTakenAt).
  */
 
-export const SNAPSHOT_URL = "/snapshot/kv.json";
+// Under the site's base path, so the GitHub Pages mirror (/likelink/) finds it too.
+const BASE = String((typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL) || "/").replace(/\/+$/, "");
+export const SNAPSHOT_URL = `${BASE}/snapshot/kv.json`;
 
 export const SNAPSHOT_KEYS = Object.freeze(["marketplace:products", "marketplace:marketers", "marketplace:clicks", "marketplace:collections", "marketplace:videos"]);
 

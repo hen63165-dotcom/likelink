@@ -3,6 +3,7 @@
   "private": true,
   "license": "UNLICENSED",
   "version": "0.1.0",
+  "homepage": "https://likelink2.vercel.app",
   "type": "module",
   "scripts": {
     "dev": "vite",

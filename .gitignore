@@ -9,6 +9,7 @@ likelink2/
 .vercel
 .env*
 # Local ship/scratch tooling + editor/backup artifacts (never commit)
+.claude/
 _ship_*.ps1
 _ship_evidence.txt
 cli-override-temp.json
@@ -23,3 +24,6 @@ build_output.txt
 __pycache__/
 *.pyc
 scripts/luna_reels/out/
+# Luna reels generator scratch + rendered output (produced by CI, never committed)
+tmp/
+out/

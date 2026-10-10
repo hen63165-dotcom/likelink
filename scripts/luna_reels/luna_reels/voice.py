@@ -31,9 +31,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 EDGE_VOICE = os.environ.get("LUNA_EDGE_VOICE", "he-IL-HilaNeural")
-EDGE_RATE = os.environ.get("LUNA_EDGE_RATE", "+6%")
+EDGE_RATE = os.environ.get("LUNA_EDGE_RATE", "+12%")
 CHARS_PER_SEC = 13.0      # silent / single-file timing: an easy Hebrew reading pace
-MIN_BEAT, PAD = 1.4, 0.18  # never flash a caption; a breath between beats
+MIN_BEAT, PAD = 1.4, 0.12  # never flash a caption; a short breath between beats
 
 
 @dataclass

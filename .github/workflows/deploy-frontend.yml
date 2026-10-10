@@ -1,0 +1,98 @@
+name: Deploy frontend to GitHub Pages
+
+# Vercel-free static delivery: builds the Vite production bundle with the
+# Supabase endpoints injected from GitHub Secrets and force-pushes only the
+# static assets to the `gh-pages` branch (served by GitHub Pages).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve public base path
+        id: base
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY#*/}"
+          if [[ "$repo" == *.github.io ]]; then base="/"; else base="/${repo}/"; fi
+          echo "path=$base" >> "$GITHUB_OUTPUT"
+          echo "Base path: $base"
+
+      - name: Inject Supabase configuration from GitHub Secrets
+        # The anon key is public by design (it ships inside the client bundle),
+        # so a repository *variable* is an accepted fallback for the *secret*.
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          # The client bundle reads VITE_* (src/lib/env.js); accept the
+          # NEXT_PUBLIC_* names as aliases so either set works.
+          url="${VITE_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
+          key="${VITE_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::error::Supabase URL/anon key missing — add repository secrets (or variables) NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+          {
+            echo "VITE_SUPABASE_URL=$url"
+            echo "VITE_SUPABASE_ANON_KEY=$key"
+          } >> "$GITHUB_ENV"
+
+      - name: Build production static bundle
+        env:
+          VITE_BASE: ${{ steps.base.outputs.path }}
+        run: npm run build
+
+      - name: Publish dist to gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_PATH: ${{ steps.base.outputs.path }}
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          stage="$(mktemp -d)"
+          cp -r dist/. "$stage/"
+          printf '' > "$stage/.nojekyll"
+          # Keep the premium domain on the primary host only: never publish
+          # public/CNAME into the gh-pages mirror (GitHub would redirect
+          # the mirror's *.github.io URL to the CNAME domain).
+          rm -f "$stage/CNAME"
+          # SPA fallback: GitHub Pages answers unknown paths with 404.html, so
+          # the React router can take over deep links (/discover, /p/:id, …).
+          cp "$stage/index.html" "$stage/404.html"
+          cd "$stage"
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "deploy: ${GITHUB_SHA::7} static frontend"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin gh-pages
