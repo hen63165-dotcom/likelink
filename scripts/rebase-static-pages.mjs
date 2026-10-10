@@ -8,10 +8,11 @@
 // pricing/legal pages (public/pricing.html, public/legal/*.html) or the web app
 // manifest, so on github.io those would leave /likelink/ and hit GitHub's own
 // 404 page. The main host builds with base "/" and this script does nothing.
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync, copyFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, copyFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { normalizeBase, withBase } from "../src/lib/basePath.js";
+import { listedFromSnapshot } from "./prerender-products.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -80,6 +81,19 @@ export function rebaseDist(dist, base) {
       if (existsSync(file)) continue;
       copyFileSync(shell, file);
       files += 1;
+    }
+    // Creator pages (/u/<slug>): the link a creator puts in a bio. The list is
+    // the one the public site shows, from the catalog copy shipped in dist.
+    const snapshot = join(dist, "snapshot", "kv.json");
+    if (existsSync(snapshot)) {
+      const { creators } = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8")));
+      for (const { slug } of creators) {
+        const file = join(dist, "u", `${slug}.html`);
+        if (existsSync(file)) continue;
+        mkdirSync(join(dist, "u"), { recursive: true });
+        copyFileSync(shell, file);
+        files += 1;
+      }
     }
   }
   // GitHub Pages serves /legal/ (a folder) before legal.html: give the folder
