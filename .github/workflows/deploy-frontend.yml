@@ -84,6 +84,11 @@ jobs:
           command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; } || echo "::warning::no ffmpeg: covers fall back to the product photos"
           node scripts/reels-feed.mjs dist || echo "::warning::reels feed skipped"
 
+      - name: Pinterest feed (pins.xml, read by Pinterest's auto-publish)
+        # Products, reel covers and the size meter as an RSS feed the owner's
+        # Pinterest account picks up by itself (scripts/pins-feed.mjs).
+        run: node scripts/pins-feed.mjs dist || echo "::warning::pins feed skipped"
+
       - name: Publish dist to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,3 +115,9 @@ jobs:
           git commit -q -m "deploy: ${GITHUB_SHA::7} static frontend"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin gh-pages
+
+      - name: Tell search engines about the pages (IndexNow)
+        # Bing, Yandex, Seznam, Naver… share one free endpoint (scripts/indexnow.mjs).
+        # Only after a code push: the page list does not change with new reels.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: node scripts/indexnow.mjs dist || echo "::warning::indexnow skipped"

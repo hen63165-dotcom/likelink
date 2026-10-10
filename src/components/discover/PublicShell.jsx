@@ -267,6 +267,7 @@ function Footer() {
         { to: "/creators", he: "קהילת היוצרים", en: "Creator community" },
         { to: "/merchants", he: "יש לך מוצרים?", en: "Have products?" },
         { to: "/guide", he: "המדריך החינמי של לונה", en: "Luna's free guide" },
+        { to: "/size", he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
       ],
     },
   ];

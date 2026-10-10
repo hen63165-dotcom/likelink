@@ -168,6 +168,10 @@
       "destination": "/"
     },
     {
+      "source": "/size",
+      "destination": "/"
+    },
+    {
       "source": "/search",
       "destination": "/"
     },
