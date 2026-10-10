@@ -9,7 +9,7 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { enCount, heCount, searchGraph, TREND_WINDOW_DAYS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { snapshotTakenAt } from "../../lib/catalogSnapshot.js";
-import { categoryName, CreatorAvatar, formatPrice, Go, Img, sized, useL } from "./kit";
+import { categoryName, CreatorAvatar, formatPrice, Go, Img, priceCheckedAt, sized, useL } from "./kit";
 
 /* ------------------------------------------------------------------ icons */
 
@@ -393,6 +393,10 @@ export function HomeHero({ graph, navigate }) {
   // The cloud did not answer: the page shows the catalog copy, and says from when.
   const copyAt = snapshotTakenAt();
   const copyWhen = copyAt ? new Date(copyAt).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric" }) : "";
+  // Every listed price read from the store itself (official API): say when.
+  const checks = graph.products.map(priceCheckedAt);
+  const storeChecked = checks.length && checks.every((t) => t > 0) ? Math.min(...checks) : 0;
+  const storeWhen = storeChecked ? new Date(storeChecked).toLocaleDateString(lang === "he" ? "he-IL" : "en-GB", { day: "numeric", month: "numeric" }) : "";
 
   return (
     <section className="relative" aria-labelledby="lx-hero-title">
@@ -404,7 +408,9 @@ export function HomeHero({ graph, navigate }) {
               <span className="lx-dot" aria-hidden="true" />
               {loading && !graph.products.length
                 ? L("טוען את הקטלוג מהענן…", "Loading the catalog from the cloud…")
-                : copyAt
+                : storeWhen
+                  ? L(`המחירים נבדקו מול AliExpress ב־${storeWhen} · בשקלים, משלוח לישראל`, `Prices checked with AliExpress on ${storeWhen} · in ILS, shipping to Israel`)
+                  : copyAt
                   ? L(`מחירי קטלוג נכונים ל־${copyWhen} · המחיר הסופי בחנות`, `Catalog prices as of ${copyWhen} · final price at the store`)
                   : L(`נתונים אמיתיים מהקטלוג · נטענו ב־${time}`, `Real catalog data · loaded at ${time}`)}
             </span>

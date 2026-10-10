@@ -104,7 +104,10 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         mp4 = out / f"{episode.id}.mp4"
         compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg")
         meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character)
-        meta.update({"file": mp4.name, "captions": captions, "tier": tier, "music": music or "none",
+        # The look in one word, for the site's reels feed (scripts/reels-feed.mjs):
+        # talking | still | aurora | pexels | video.
+        look = "talking" if requested == "talking" else requested.split(":", 1)[0]
+        meta.update({"file": mp4.name, "look": look, "captions": captions, "tier": tier, "music": music or "none",
                      "edgeVoice": voice_name if used == "edge" else None,
                      "renderSeconds": round(time.time() - t0, 1), **(extra_meta or {})})
         metadata.write(meta, out)
@@ -119,7 +122,12 @@ def make_variants(episode: Episode, n: int, *, captions: str = "pop", music: str
     if n <= 1:
         return [make(episode, captions=captions, music=music, **kw)]
     results = []
+    talking = kw.get("visual") == "talking"
     for spec in VARIANTS[:min(n, 3)]:
+        # Talking Luna takes about 40 minutes of CPU per 14 seconds of video, so
+        # only variant a talks; the others keep Luna's still with a camera move.
+        if talking:
+            kw = {**kw, "visual": "talking" if spec["suffix"] == "a" else "still"}
         hook = episode.hooks[spec["hook"] % len(episode.hooks)] if episode.hooks else episode.hook
         extra = {"variant": spec["suffix"]}
         if spec.get("trend"):
