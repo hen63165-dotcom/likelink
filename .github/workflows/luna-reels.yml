@@ -31,6 +31,9 @@ on:
       tier:
         description: "free (LikeLink2 wordmark + outro) | pro (none)"
         default: "free"
+      clip:
+        description: "your own filmed clip (e.g. an unboxing): a Google Drive 'anyone with the link' share link or an https .mp4. Captions, hook and labels go on top; it is marked as real footage"
+        default: ""
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/luna_reels/**", ".github/workflows/luna-reels.yml"]
@@ -43,13 +46,14 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 350
     env:
       EPISODE: ${{ github.event.inputs.episode || (github.event_name == 'schedule' && 'next') || 'silver-925 link-chaos' }}
       VARIANTS: ${{ github.event.inputs.variants || '3' }}
       VOICE: ${{ github.event.inputs.voice || 'edge' }}
       VISUAL: ${{ github.event.inputs.visual || (github.event_name == 'schedule' && 'talking') || 'auto' }}
       TIER: ${{ github.event.inputs.tier || 'free' }}
+      CLIP: ${{ github.event.inputs.clip || '' }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -77,6 +81,10 @@ jobs:
           echo "$VOICE" | grep -Eq '^(edge|gtts|chatterbox|none)$' || { echo "voice: edge|gtts|chatterbox|none"; exit 2; }
           echo "$VISUAL" | grep -Eq '^(auto|still|aurora|talking|pexels:[A-Za-z0-9 ,-]{1,60})$' || { echo "visual: auto|still|aurora|talking|pexels:SEARCH"; exit 2; }
           echo "$TIER" | grep -Eq '^(free|pro)$' || { echo "tier: free|pro"; exit 2; }
+          if [ -n "$CLIP" ]; then
+            echo "$CLIP" | grep -Eq '^https://(drive\.google\.com/[A-Za-z0-9/?=_&.-]{8,200}|[A-Za-z0-9.-]+/[A-Za-z0-9/._%-]{1,200}\.(mp4|mov|m4v))$' \
+              || { echo "clip: a Google Drive share link or an https link to an .mp4/.mov file"; exit 2; }
+          fi
       - name: Tests (no render without them)
         working-directory: scripts/luna_reels
         run: |
@@ -127,7 +135,11 @@ jobs:
           status=0
           for ep in $list; do
             [ -f "episodes/$ep.json" ] || { echo "::error::no episode '$ep'"; status=1; continue; }
-            python -m luna_reels make "episodes/$ep.json" --variants "$VARIANTS" --voice "$VOICE" --visual "$VISUAL" --tier "$TIER" --out out || status=1
+            if [ -n "$CLIP" ]; then
+              python -m luna_reels make "episodes/$ep.json" --variants 1 --voice "$VOICE" --visual "video:$CLIP" --footage real --tier "$TIER" --out out || status=1
+            else
+              python -m luna_reels make "episodes/$ep.json" --variants "$VARIANTS" --voice "$VOICE" --visual "$VISUAL" --tier "$TIER" --out out || status=1
+            fi
           done
           ls -la out || true
           exit $status

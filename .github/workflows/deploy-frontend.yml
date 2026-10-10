@@ -74,12 +74,15 @@ jobs:
           VITE_BASE: ${{ steps.base.outputs.path }}
         run: npm run build
 
-      - name: Add the product reels (luna-reels release → media/reels)
-        # One reel per listed product, served by GitHub Pages to every host
-        # (scripts/reels-feed.mjs). A failure here never blocks the site.
+      - name: Add the product reels (luna-reels + reels releases → media/reels)
+        # One reel per listed product plus the sellers' own videos, served by
+        # GitHub Pages to every host (scripts/reels-feed.mjs). ffmpeg cuts one
+        # frame of each video as its cover. A failure here never blocks the site.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/reels-feed.mjs dist || echo "::warning::reels feed skipped"
+        run: |
+          command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; } || echo "::warning::no ffmpeg: covers fall back to the product photos"
+          node scripts/reels-feed.mjs dist || echo "::warning::reels feed skipped"
 
       - name: Publish dist to gh-pages
         env:

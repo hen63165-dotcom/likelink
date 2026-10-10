@@ -117,6 +117,21 @@ class Truth(unittest.TestCase):
         self.assertNotIn("#פרסומת", plain["caption"])
         self.assertIn(brand.AI_LABEL, plain["caption"])
 
+    def test_real_footage_is_marked_filmed_never_ai_character(self):
+        ep = load_episode(HERE / "episodes" / "silver-925.json")
+        real = metadata.build(ep, product={"id": "p-live-02", "claim": "x"}, voice_engine="none", visual="video:x",
+                              seconds=20, character=False, real=True)
+        self.assertIs(real["synthetic"], False)
+        self.assertIs(real["humanFilmed"], True)
+        self.assertEqual(real["labels"], [brand.AD_TAG])
+        self.assertNotIn("לונה", real["altText"])
+        voiced = metadata.build(ep, product={"id": "p-live-02", "claim": "x"}, voice_engine="edge", visual="video:x",
+                                seconds=20, character=False, real=True)
+        self.assertIn(brand.VOICE_LABEL, voiced["labels"], "an AI voice over real footage is still labelled")
+        engine = metadata.build(ep, product={"id": "p-live-02", "claim": "x"}, voice_engine="edge", visual="still", seconds=20)
+        self.assertIs(engine["synthetic"], True)
+        self.assertIs(engine["humanFilmed"], False)
+
 
 class Trends(unittest.TestCase):
     def test_calendar_dates(self):
