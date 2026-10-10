@@ -95,3 +95,31 @@ test("premium cut: the labels are on every frame; hook, name and call to action 
   assert.match(o.cta, new RegExp(KEYWORD));
   assert.doesNotMatch(Object.values(o).join(""), /₪|כוכבים|הכי נמכר|נגמר/);
 });
+
+test("clean variant: no text on the footage (the teaser goes in the caption), soft wipes, labels still on every frame", async () => {
+  const { reelFilter, CLEAN_VARIANT, LAYERS } = await import("../scripts/media/product-video/make-reel.mjs");
+  const { CLEAN_TRANSITIONS } = await import("../scripts/media/product-video/premium.mjs");
+  assert.equal(CLEAN_VARIANT, 0, "the site plays variant a: the clean cut");
+  assert.deepEqual(LAYERS.clean, ["labels", "name", "sweep"]);
+  const f = reelFilter(5, { clean: true });
+  assert.match(f, /\[cut\]\[6:v\]overlay=0:0\[v1\]/, "labels over the whole reel");
+  assert.doesNotMatch(f, /fadewhite/, "no flash in the clean cut");
+  for (const t of CLEAN_TRANSITIONS) assert.match(f, new RegExp(`transition=${t}`));
+  assert.equal((f.match(/overlay=/g) || []).length, 3, "labels, the name at the end, the light sweep — nothing else");
+});
+
+test("our own footage: the same premium cut, labelled as ours, never as the seller's", async () => {
+  const { overlays, buildCaption, FOOTAGE_LABEL } = await import("../scripts/media/product-video/make-reel.mjs");
+  const p = products[0];
+  const own = overlays(p, { text: "x" }, "owner").labels;
+  assert.match(own, new RegExp(FOOTAGE_LABEL.owner));
+  assert.doesNotMatch(own, /המוכר/);
+  assert.match(own, /#פרסומת · קישור שותפים/);
+  const caption = buildCaption(p, { text: "x" }, "owner");
+  assert.match(caption, /צילום אמיתי של המוצר/);
+  assert.doesNotMatch(caption, /צילום המוצר: המוכר/);
+  assert.match(buildCaption(p, { text: "x" }), /צילום המוצר: המוכר/);
+  const wf = readFileSync(new URL("../.github/workflows/product-video.yml", import.meta.url), "utf8");
+  assert.match(wf, /FOOTAGE=owner node scripts\/media\/product-video\/make-reel\.mjs own-videos reels/);
+  assert.match(wf, /clip_product: a product id/);
+});

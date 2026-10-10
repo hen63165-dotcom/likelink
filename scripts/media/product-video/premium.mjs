@@ -119,14 +119,18 @@ export function coverCrop(w, h, cx = 0.5, outW = W, outH = H) {
 
 /** The ffmpeg filter for one shot (speed, framing, push-in, grade). */
 export function shotFilter(shot, src) {
-  const { sw } = coverCrop(src.w, src.h, shot.cx);
   const [z0, z1] = shot.zoom;
+  // A phone clip (4K) is scaled down first to what the frame needs, so slow motion stays fast to compute.
+  const need = Math.max(W / src.w, H / src.h) * Math.max(z0, z1);
+  const pre = need < 1 ? `scale=trunc(iw*${need.toFixed(4)}/2)*2:-2:flags=lanczos,` : "";
+  const dims = need < 1 ? { w: Math.round(src.w * need), h: Math.round(src.h * need) } : src;
+  const { sw } = coverCrop(dims.w, dims.h, shot.cx);
   const d = shot.out;
   const motion = shot.speed < 1
     ? `setpts=(PTS-STARTPTS)/${shot.speed},minterpolate=fps=${FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`
     : `setpts=(PTS-STARTPTS)/${shot.speed},fps=${FPS}`;
   return [
-    motion,
+    `${pre}${motion}`,
     `scale=w='trunc(${sw}*(${z0}+(${z1 - z0})*min(t/${d},1))/2)*2':h=-2:eval=frame:flags=lanczos`,
     `crop=${W}:${H}:x='max(0,min(iw-${W},${shot.cx}*iw-${W / 2}))':y='max(0,min(ih-${H},${shot.cy ?? 0.5}*ih-${H / 2}))'`,
     "eq=contrast=1.06:saturation=1.03:brightness=0.004",
@@ -136,13 +140,16 @@ export function shotFilter(shot, src) {
   ].join(",");
 }
 
-/** The dissolve chain: a glint (white flash) into the hero shot, soft dissolves elsewhere. */
-export function joinFilter(shots = SHOTS, xfade = XFADE) {
+// The clean cut, like a jewelry videographer's reel: soft wipes and dissolves, no flash.
+export const CLEAN_TRANSITIONS = Object.freeze(["smoothleft", "fade", "smoothright", "fade"]);
+
+/** The dissolve chain: a glint (white flash) into the hero shot, soft dissolves elsewhere (or the given transitions). */
+export function joinFilter(shots = SHOTS, xfade = XFADE, transitions = null) {
   const starts = shotStarts(shots, xfade);
   const parts = [];
   let last = "[0:v]";
   for (let k = 1; k < shots.length; k++) {
-    const transition = shots[k].sweep ? "fadewhite" : "fade";
+    const transition = transitions?.[k - 1] || (shots[k].sweep ? "fadewhite" : "fade");
     const offset = (starts[k]).toFixed(3);
     const outLabel = k === shots.length - 1 ? "[cut]" : `[x${k}]`;
     parts.push(`${last}[${k}:v]xfade=transition=${transition}:duration=${xfade}:offset=${offset}${outLabel}`);

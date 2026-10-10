@@ -122,7 +122,11 @@ test("Pinterest feed: listed products with real photos, disclosure on every pin,
     if (!p.guid.startsWith("tool-")) assert.ok(p.description.includes(PIN_AD), `${p.guid} carries the disclosure`);
   }
   assert.match(pins.find((p) => p.guid === "reel-luna-ring-size-a").description, /דמות AI/);
-  assert.match(pins.find((p) => p.guid === "reel-seller-p-live-03").description, /סרטון של המוכר/);
+  assert.match(pins.find((p) => p.guid === "reel-seller-p-live-03").description, /סרטון המוכר/);
+  const own = buildPins({ products, reels: [{ id: "own-p-live-01", productId: "p-live-01", poster: "own-p-live-01-cover.jpg", look: "real", createdAt: 5 }] });
+  const ownPin = own.find((p) => p.guid === "reel-own-p-live-01");
+  assert.match(ownPin.description, /צילום אמיתי של המוצר/);
+  assert.doesNotMatch(ownPin.description, /AI/, "a clip a person filmed is never called AI");
   assert.match(pins.find((p) => p.guid === "tool-size").description, /דמות AI/);
   assert.match(pins.find((p) => p.guid === "reel-luna-ring-size-a").link, /\/reels\?r=v-luna-ring-size-a/);
 
