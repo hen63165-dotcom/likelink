@@ -234,7 +234,7 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
 ## Repo notes
 
 - The many root-level `.bat`/`.ps1`/`.vbs`/`fix_*.js`/`git-*.js` files are ad-hoc helper scripts, not part of the build or deploy.
-- **likelink2.vercel.app is served through a Vercel project route** (dashboard → Routing, id `serve-current-build`, promoted 2026-10-09). Vercel cannot deploy ("Account is blocked"), so the route proxies every path to an immutable Netlify deploy permalink (2026-10-10: `https://6aca6ea815dedb0008cf0815--mylikelink.netlify.app`, the PR #93 preview build 7f8e2da = main cb8cbfa; Netlify builds only PR previews, so use the preview permalink whose tree equals main). That build includes the API via Netlify `_redirects` → Supabase edge function `api`.
+- **likelink2.vercel.app is served through a Vercel project route** (dashboard → Routing, id `serve-current-build`, promoted 2026-10-09). Vercel cannot deploy ("Account is blocked"), so the route proxies every path to an immutable Netlify deploy permalink (2026-10-10: `https://6acac6e69f99880008155517--mylikelink.netlify.app`, the PR #94 preview build d08e34b = main 6fcbe90; Netlify builds only PR previews, so use the preview permalink whose tree equals main). That build includes the API via Netlify `_redirects` → Supabase edge function `api`.
   - Netlify non-production deploys were made public for this (visitor access: SSO off).
   - New code reaches likelink2.vercel.app only after you point the route's `dest` at a newer Netlify deploy permalink. `edit_route` only STAGES a version: promote it (`update_route_versions` action `promote`), then check `/r?pid=…` answers the static page, not a 402.
   - Remove the route once Vercel deploys again.
