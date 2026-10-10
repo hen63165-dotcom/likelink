@@ -14,6 +14,8 @@
 // disclosure. Without IG_ACCESS_TOKEN + IG_USER_ID it sends nothing and says
 // what is missing. Tokens never reach logs (Authorization header only).
 import { appendFileSync, readFileSync } from "node:fs";
+import { GUIDE_KEYWORD, guideMessage } from "../../src/lib/guide.js";
+import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 
 export const KEYWORDS = ["רוצה", "לינק", "קישור", "link"];
 export const WINDOW_DAYS = 7; // Instagram's private-reply window
@@ -35,6 +37,12 @@ export function productForCaption(caption, products) {
   return products.filter((p) => p.title && c.includes(p.title)).sort((a, b) => b.title.length - a.title.length)[0] || null;
 }
 
+/** A guide post: its caption asks for the comment "מדריך" (Luna's guide reel). */
+export function isGuidePost(caption) {
+  const c = String(caption || "");
+  return [`"${GUIDE_KEYWORD}"`, `״${GUIDE_KEYWORD}״`, `“${GUIDE_KEYWORD}”`].some((k) => c.includes(k));
+}
+
 /** The private message: the link and the disclosure, nothing invented. */
 export function privateMessage(product) {
   return [
@@ -46,19 +54,22 @@ export function privateMessage(product) {
 }
 
 /** Which comments to answer now (pure: the decision, not the sending). */
-export function plan({ media = [], products = [], ownUsername = "", now = Date.now() }) {
+export function plan({ media = [], products = [], ownUsername = "", now = Date.now(), origin = PRODUCTION_ORIGIN }) {
   const out = [];
   const cutoff = now - WINDOW_DAYS * 86_400_000;
   for (const m of media) {
-    const product = productForCaption(m.caption, products);
-    if (!product || !product.affiliateUrl) continue;
+    // A guide post answers "מדריך" with the site's free guide; a product post
+    // answers "רוצה" with that product's own link.
+    const guide = isGuidePost(m.caption);
+    const product = guide ? null : productForCaption(m.caption, products);
+    if (!guide && (!product || !product.affiliateUrl)) continue;
     for (const c of m.comments || []) {
       if (out.length >= MAX_PER_RUN) return out;
       if (!c.id || Date.parse(c.timestamp) < cutoff) continue;
       if (String(c.username || "").toLowerCase() === ownUsername.toLowerCase()) continue;
-      if (!asksForLink(c.text)) continue;
+      if (!asksForLink(c.text, guide ? [GUIDE_KEYWORD, ...KEYWORDS] : KEYWORDS)) continue;
       if ((c.replies || []).some((r) => String(r.username || "").toLowerCase() === ownUsername.toLowerCase())) continue; // handled
-      out.push({ mediaId: m.id, commentId: c.id, productId: product.id, message: privateMessage(product) });
+      out.push({ mediaId: m.id, commentId: c.id, productId: guide ? "guide" : product.id, message: guide ? guideMessage(origin) : privateMessage(product) });
     }
   }
   return out;

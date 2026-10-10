@@ -33,6 +33,8 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
     lines.append("")
     if product:
         lines.append(f"👇 כתבי \"{brand.COMMENT_KEYWORD}\" בתגובות ואשלח לך את הקישור בפרטי")
+    elif episode.keyword:
+        lines.append(f"👇 כתבי \"{episode.keyword}\" בתגובות ואשלח לך את המדריך החינמי בפרטי")
     elif episode.cta.get("title"):
         title, sub = spoken_text(episode.cta["title"]), spoken_text(episode.cta.get("sub", ""))
         icon = "👇" if "ביו" in title else "📌"
@@ -52,7 +54,7 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
         "caption": caption,
         "hashtags": tags,
         "altText": f"דמות מונפשת בשם לונה מסבירה: {hook}" if character else f"טיפ קניות מונפש: {hook}",
-        "commentKeyword": brand.COMMENT_KEYWORD if product else None,
+        "commentKeyword": brand.COMMENT_KEYWORD if product else (episode.keyword or None),
         "product": {"id": product["id"], "claim": product.get("claim", "")} if product else None,
         "voice": voice_engine,
         "visual": visual.split(":", 1)[0],

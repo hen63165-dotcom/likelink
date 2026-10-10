@@ -17,7 +17,7 @@ import { listedFromSnapshot } from "./prerender-products.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Top-level app sections that open from a typed or shared link.
-export const SPA_SECTIONS = ["discover", "products", "creators", "reels", "trends", "collections", "deals", "search", "saved", "merchants", "feed", "studio", "sell"];
+export const SPA_SECTIONS = ["discover", "products", "creators", "reels", "trends", "collections", "deals", "guide", "search", "saved", "merchants", "feed", "studio", "sell"];
 
 /** Root-relative href/src/action attributes → inside the base folder. */
 export function rebaseHtml(html, base) {

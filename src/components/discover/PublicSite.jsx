@@ -9,6 +9,7 @@ import {
   CreatorPage,
   CreatorsPage,
   DealsPage,
+  GuidePage,
   DiscoverPage,
   HomePage,
   NotFound,
@@ -74,6 +75,8 @@ function pageSEO(route, graph, lang) {
     }
     case "deals":
       return page("/deals", he ? "דילים" : "Deals", "ירידות מחיר אמיתיות בלבד, ובחירות לפי תקציב.");
+    case "guide":
+      return page("/guide", he ? "המדריך החינמי: 8 בדיקות לפני שקונים באליאקספרס" : "Free guide: 8 checks before buying on AliExpress", "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.");
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -136,6 +139,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "deals":
       page = <DealsPage graph={graph} />;
+      break;
+    case "guide":
+      page = <GuidePage graph={graph} />;
       break;
     case "search":
       page = <SearchPage key={route.nav || "search"} graph={graph} />;
