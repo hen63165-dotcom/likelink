@@ -38,6 +38,7 @@ import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.j
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import { SHARE_SHEET_ORDER, buildShareLink, creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
+import { stripBase, withBase } from "../../lib/basePath.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
 
@@ -74,16 +75,16 @@ export function Go({ to, children, onClick, ...rest }) {
   const navigate = useContext(NavCtx);
   return (
     <a
-      href={to}
+      href={withBase(to)}
       onClick={(e) => {
         onClick?.(e);
         // A Studio CTA click is a funnel step (first-party, never blocks navigation).
-        if (/^\/(studio|sell)(\/|$|\?)/.test(String(to || ""))) trackFunnel("studio_cta", typeof window !== "undefined" ? window.location.pathname : "");
+        if (/^\/(studio|sell)(\/|$|\?)/.test(String(to || ""))) trackFunnel("studio_cta", typeof window !== "undefined" ? stripBase(window.location.pathname) : "");
         if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
         // A link to the page you're already on (e.g. the logo on the home page)
         // still answers the tap: it scrolls back to the top.
-        if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` === String(to)) {
+        if (typeof window !== "undefined" && `${stripBase(window.location.pathname)}${window.location.search}` === String(to)) {
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
         }

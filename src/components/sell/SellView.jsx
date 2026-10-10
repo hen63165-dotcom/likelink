@@ -47,6 +47,7 @@ import { lunaPersona } from "../../lib/lunaAvatar.js";
 import { worldStoryStyle, worldVideoPalette, worldHook } from "../../lib/brandWorlds.js";
 import { toHebrewError } from "../../lib/errorMessages.js";
 import { trackFunnel } from "../../lib/funnel.js";
+import { withBase } from "../../lib/basePath.js";
 
 // Loaded on demand so the heavy charting library stays out of the main bundle
 // and doesn't load for shoppers just browsing the public feed.
@@ -1085,9 +1086,9 @@ function AuthGate({ marketers, onLogin, onSignup }) {
             <label className="flex items-start gap-2">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" />
               <span>
-                קראתי ואני מסכימה ל<a className="underline" href={legalPath("terms")} target="_blank" rel="noreferrer">תנאי השימוש</a>,{" "}
-                <a className="underline" href={legalPath("privacy")} target="_blank" rel="noreferrer">מדיניות הפרטיות</a> ו
-                <a className="underline" href={legalPath("cancellation")} target="_blank" rel="noreferrer">מדיניות הביטולים</a> (גרסה <span dir="ltr" className="whitespace-nowrap">{LEGAL_VERSION}</span>), ואני בת 18 ומעלה.
+                קראתי ואני מסכימה ל<a className="underline" href={withBase(legalPath("terms"))} target="_blank" rel="noreferrer">תנאי השימוש</a>,{" "}
+                <a className="underline" href={withBase(legalPath("privacy"))} target="_blank" rel="noreferrer">מדיניות הפרטיות</a> ו
+                <a className="underline" href={withBase(legalPath("cancellation"))} target="_blank" rel="noreferrer">מדיניות הביטולים</a> (גרסה <span dir="ltr" className="whitespace-nowrap">{LEGAL_VERSION}</span>), ואני בת 18 ומעלה.
               </span>
             </label>
             <label className="flex items-start gap-2">
@@ -1100,7 +1101,7 @@ function AuthGate({ marketers, onLogin, onSignup }) {
         {notice && <p role="status" className="text-xs" style={{ color: "var(--success)" }}>{notice}</p>}
         <Button onClick={submit} disabled={submitting}>{mode === "signup" ? t("auth.createBtn") : t("auth.enterBtn")}</Button>
         <p className="text-[11px] text-muted text-center">
-          <a className="underline" href="/pricing" target="_blank" rel="noreferrer">מסלולים ומחירים</a> · <a className="underline" href="/legal" target="_blank" rel="noreferrer">מסמכים משפטיים</a>
+          <a className="underline" href={withBase("/pricing")} target="_blank" rel="noreferrer">מסלולים ומחירים</a> · <a className="underline" href={withBase("/legal")} target="_blank" rel="noreferrer">מסמכים משפטיים</a>
         </p>
       </div>
       <p className="text-[11px] text-muted mt-4 max-w-[280px]">{t("auth.note")}</p>

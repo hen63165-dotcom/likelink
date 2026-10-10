@@ -5,6 +5,7 @@ import { LangProvider } from "./lib/LangContext";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VideoProvider } from "./context/VideoContext";
 import { parsePath } from "./utils/routing.js";
+import { stripBase, withBase } from "./lib/basePath.js";
 import { updatePageSEO, getDefaultSEO, setNoIndex } from "./lib/seo.js";
 import { initReferral } from "./lib/referral.js";
 import { trackLanding } from "./lib/funnel.js";
@@ -42,15 +43,15 @@ function initialRoute() {
   if (typeof window === "undefined") return { type: "landing" };
   try {
     const id = new URLSearchParams(window.location.search).get("product");
-    const route = parsePath(window.location.pathname);
+    const route = parsePath(stripBase(window.location.pathname));
     if (id && (route.type === "landing" || route.type === "creator" || (route.type === "app" && route.tab === "feed"))) {
       const path = `/p/${encodeURIComponent(id)}`;
-      window.history.replaceState({}, "", path);
+      window.history.replaceState({}, "", withBase(path));
       return parsePath(path);
     }
     return route;
   } catch {
-    return parsePath(window.location.pathname);
+    return parsePath(stripBase(window.location.pathname));
   }
 }
 
@@ -161,7 +162,7 @@ function App() {
         if (!result.ok) throw new Error(result.error || "capture_failed");
         sessionStorage.removeItem("likelink_pending_checkout");
         clearCart();
-        window.history.replaceState({}, "", "/");
+        window.history.replaceState({}, "", withBase("/"));
         showToast(result.alreadyRecorded ? "ההזמנה כבר נקלטה" : "התשלום הצליח וההזמנה נקלטה");
       })
       // The exact reason: "not charged" and "charged but not recorded" are
@@ -170,7 +171,7 @@ function App() {
   }, [clearCart, showToast]);
 
   useEffect(() => {
-    const onPop = () => setRoute({ ...parsePath(window.location.pathname), nav: Date.now() });
+    const onPop = () => setRoute({ ...parsePath(stripBase(window.location.pathname)), nav: Date.now() });
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -188,11 +189,14 @@ function App() {
   }, [tab, route]);
 
   function navigate(path) {
+    // `path` is an app route ("/p/x"); the address bar also carries the base
+    // path on the GitHub Pages copy ("/likelink/p/x").
     const url = new URL(path, window.location.origin);
-    window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    const route = stripBase(url.pathname);
+    window.history.pushState({}, "", `${withBase(route)}${url.search}${url.hash}`);
     // `nav` makes every navigation a new route object, so a page that reads
     // its query string (search, filters) refreshes on same-path navigation.
-    setRoute({ ...parsePath(url.pathname), nav: Date.now() });
+    setRoute({ ...parsePath(route), nav: Date.now() });
   }
 
   if (loading) return <LoadingScreen />;

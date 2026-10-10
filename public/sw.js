@@ -12,20 +12,25 @@
  *   • הגבלת גודל cache עם ניקוי ישן-ביותר
  */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL_CACHE = `likelink-shell-${VERSION}`;
 const ASSET_CACHE = `likelink-assets-${VERSION}`;
 const IMG_CACHE = `likelink-img-${VERSION}`;
 const API_CACHE = `likelink-api-${VERSION}`;
 const MAX_IMAGES = 200;
 
+// The folder this worker serves: "/" on the main host, "/likelink/" on the
+// GitHub Pages copy (the same file is published to both).
+const ROOT = new URL("./", self.location.href).pathname;
+const at = (path) => `${ROOT}${path}`;
+
 const PRECACHE = [
-  "/",
-  "/index.html",
-  "/offline.html",
-  "/manifest.json",
-  "/icons/icon-192.webp",
-  "/icons/icon-512.webp",
+  at(""),
+  at("index.html"),
+  at("offline.html"),
+  at("manifest.json"),
+  at("icons/icon-192.webp"),
+  at("icons/icon-512.webp"),
 ];
 
 // endpoints שאסור לגעת ב-cache שלהם
@@ -93,7 +98,7 @@ async function networkFirst(request, cacheName, fallbackUrl) {
     if (fallbackUrl) {
       const shell = await caches.open(SHELL_CACHE);
       const fallback =
-        (await shell.match(fallbackUrl)) || (await shell.match("/index.html"));
+        (await shell.match(fallbackUrl)) || (await shell.match(at("index.html")));
       if (fallback) return fallback;
     }
     return new Response("Offline", { status: 503, statusText: "Offline" });
@@ -109,12 +114,12 @@ self.addEventListener("fetch", (event) => {
 
   // ניווט בין דפים — האפליקציה עצמה
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, SHELL_CACHE, "/index.html"));
+    event.respondWith(networkFirst(request, SHELL_CACHE, at("index.html")));
     return;
   }
 
   // קבצי build מגובשים — SWR (immutably cached content + refresh in background)
-  if (url.pathname.startsWith("/assets/")) {
+  if (url.pathname.startsWith(at("assets/"))) {
     event.respondWith(staleWhileRevalidate(request, ASSET_CACHE));
     return;
   }
@@ -160,21 +165,21 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Likelink";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/icons/icon-192.webp",
-    badge: "/icons/icon-96.webp",
+    icon: data.icon || at("icons/icon-192.webp"),
+    badge: at("icons/icon-96.webp"),
     dir: "rtl",
     lang: "he",
     tag: data.tag || "likelink",
     renotify: Boolean(data.renotify),
     vibrate: [80, 40, 80],
-    data: { url: data.url || "/" },
+    data: { url: data.url || ROOT },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/";
+  const target = (event.notification.data && event.notification.data.url) || ROOT;
   event.waitUntil(
     (async () => {
       const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
