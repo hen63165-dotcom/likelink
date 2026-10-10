@@ -15,6 +15,7 @@ export function parsePath(pathname) {
   if (parts[0] === "trends") return { type: "trends" };
   if (parts[0] === "deals") return { type: "deals" };
   if (parts[0] === "guide") return { type: "guide" };
+  if (parts[0] === "size") return { type: "size" };
   if (parts[0] === "search") return { type: "search" };
   if (parts[0] === "saved") return { type: "saved" };
   if (parts[0] === "products") {

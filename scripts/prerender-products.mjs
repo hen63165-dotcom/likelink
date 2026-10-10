@@ -20,6 +20,8 @@ import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
 import { buildProductSeo, canonicalProduct } from "../src/lib/discovery/surfaces.js";
 import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
+import { SIZE_PAGE } from "../src/lib/sizeTool.js";
+import { GUIDE } from "../src/lib/guide.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -50,6 +52,45 @@ export function productHead(shell, seo, alt = "") {
   html = setMeta(html, "name", "twitter:image", seo.og.image);
   if (seo.jsonLd) html = html.replace("</head>", `    <script type="application/ld+json">${jsonLdSafe(seo.jsonLd)}</script>\n  </head>`);
   return html;
+}
+
+/** The app shell's <head> for a public section page (title, description, canonical, card). */
+export function pageHead(shell, { title, description, canonical, jsonLd = null }) {
+  let html = shell.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`);
+  html = setMeta(html, "name", "description", description);
+  html = setMeta(html, "name", "robots", "index,follow");
+  html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${esc(canonical)}" />`);
+  html = setMeta(html, "property", "og:type", "website");
+  html = setMeta(html, "property", "og:url", canonical);
+  html = setMeta(html, "property", "og:title", title);
+  html = setMeta(html, "property", "og:description", description);
+  html = setMeta(html, "name", "twitter:title", title);
+  html = setMeta(html, "name", "twitter:description", description);
+  if (jsonLd) html = html.replace("</head>", `    <script type="application/ld+json">${jsonLdSafe(jsonLd)}</script>\n  </head>`);
+  return html;
+}
+
+/** Section pages a search can land on, each with its own head (the same text the app sets). */
+export function sectionPages(origin = PRODUCTION_ORIGIN) {
+  const sizeUrl = `${origin}/size`;
+  return [
+    {
+      path: "/size",
+      title: `${SIZE_PAGE.seoTitle} | LikeLink2`,
+      description: SIZE_PAGE.seoDescription,
+      canonical: sizeUrl,
+      jsonLd: [
+        { "@context": "https://schema.org", "@type": "WebApplication", name: "המודד של לונה", url: sizeUrl, applicationCategory: "UtilitiesApplication", operatingSystem: "Any", inLanguage: "he", description: SIZE_PAGE.seoDescription, offers: { "@type": "Offer", price: "0", priceCurrency: "ILS" } },
+        { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: SIZE_PAGE.faq.map((f) => ({ "@type": "Question", name: f.q.he, acceptedAnswer: { "@type": "Answer", text: f.a.he } })) },
+      ],
+    },
+    {
+      path: "/guide",
+      title: `המדריך החינמי: ${GUIDE.title.he} | LikeLink2`,
+      description: "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.",
+      canonical: `${origin}/guide`,
+    },
+  ];
 }
 
 export function sitemapXml(origin, paths, today) {
@@ -83,16 +124,21 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(join(dist, "p", `${product.id}.html`), productHead(shell, seo, String(product.title || "")));
     rules.push(`/p/${product.id}  /p/${product.id}.html  200`);
   }
-  // The per-product rules go before the SPA fallback.
+  for (const page of sectionPages(origin)) {
+    const file = `${page.path.slice(1)}.html`;
+    writeFileSync(join(dist, file), pageHead(shell, page));
+    rules.push(`${page.path}  /${file}  200`);
+  }
+  // The per-product and section rules go before the SPA fallback.
   const redirectsPath = join(dist, "_redirects");
   if (existsSync(redirectsPath) && rules.length) {
     const text = readFileSync(redirectsPath, "utf8");
     const at = text.search(/^\/\*\s+\/index\.html\s+200\s*$/m);
-    const block = `# Product pages with their own preview (scripts/prerender-products.mjs)\n${rules.join("\n")}\n\n`;
+    const block = `# Product and section pages with their own preview (scripts/prerender-products.mjs)\n${rules.join("\n")}\n\n`;
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);
-  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/pricing", "/legal",
+  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/pricing", "/legal",
     ...creators.map((c) => `/u/${c.slug}`), ...products.map(({ product }) => `/p/${product.id}`)];
   writeFileSync(join(dist, "sitemap-static.xml"), sitemapXml(origin, paths, today));
   return { pages: products.length, urls: paths.length };

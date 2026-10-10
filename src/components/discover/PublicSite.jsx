@@ -10,6 +10,7 @@ import {
   CreatorsPage,
   DealsPage,
   GuidePage,
+  SizePage,
   DiscoverPage,
   HomePage,
   NotFound,
@@ -23,6 +24,7 @@ import {
 import { categoryName, findCollection, findCreator } from "../../lib/publicDiscovery.js";
 import { getCreatorSEO, getDefaultSEO, getProductSEO, updatePageSEO } from "../../lib/seo.js";
 import { publicUrl } from "../../lib/acquisition.js";
+import { SIZE_PAGE } from "../../lib/sizeTool.js";
 
 export const PUBLIC_ROUTE_TYPES = Object.freeze([
   "landing",
@@ -77,6 +79,8 @@ function pageSEO(route, graph, lang) {
       return page("/deals", he ? "דילים" : "Deals", "ירידות מחיר אמיתיות בלבד, ובחירות לפי תקציב.");
     case "guide":
       return page("/guide", he ? "המדריך החינמי: 8 בדיקות לפני שקונים באליאקספרס" : "Free guide: 8 checks before buying on AliExpress", "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.");
+    case "size":
+      return page("/size", he ? SIZE_PAGE.seoTitle : "Ring and bracelet size meter, free, on your screen", SIZE_PAGE.seoDescription);
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -142,6 +146,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "guide":
       page = <GuidePage graph={graph} />;
+      break;
+    case "size":
+      page = <SizePage graph={graph} />;
       break;
     case "search":
       page = <SearchPage key={route.nav || "search"} graph={graph} />;

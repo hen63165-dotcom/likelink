@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Package,
   Printer,
+  Ruler,
   Search,
   Sparkles,
   Store,
@@ -38,6 +39,7 @@ import {
 } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { GUIDE, GUIDE_PATH, guideExamples } from "../../lib/guide.js";
+import { braceletFromWrist, CARD_MM, CARD_PX, pxPerMm, RING_DIAMETER_MM, ringFromCircumference, ringFromDiameter, SIZE_PAGE, SIZE_PATH, sizeProducts } from "../../lib/sizeTool.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
 import { trackLanding } from "../../lib/funnel.js";
@@ -241,6 +243,23 @@ export function HomePage({ graph, navigate }) {
 
       {/* ONE CLICK FOR EACH SIDE */}
       <ForEverySide />
+
+      {/* LUNA'S FREE TOOLS — useful on their own, and worth sending to a friend */}
+      <Section labelledBy="h-tools">
+        <SectionHead id="h-tools" kicker={<><Ruler size={14} /> {L("כלים חינמיים של לונה", "Luna's free tools")}</>} title={L("רגע לפני שמזמינים", "Right before you order")} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Go to={SIZE_PATH} className="lx-card block p-5 md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+            <p className="lx-kicker"><Ruler size={14} aria-hidden="true" /> {L("מודד מידות", "Size meter")}</p>
+            <p className="mt-2 text-[20px] font-extrabold leading-7">{L("מה מידת הטבעת שלך? מגלים מהמסך תוך דקה", "What's your ring size? Find out on your screen in a minute")}</p>
+            <p className="lx-mute mt-1 text-[14px]">{L("עם כרטיס וטבעת שיש לך. וגם אורך צמיד לפי פרק היד.", "With a card and a ring you own. Plus bracelet length from your wrist.")}</p>
+          </Go>
+          <Go to={GUIDE_PATH} className="lx-card block p-5 md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+            <p className="lx-kicker"><BookOpen size={14} aria-hidden="true" /> {L("המדריך החינמי", "The free guide")}</p>
+            <p className="mt-2 text-[20px] font-extrabold leading-7">{lang === "he" ? GUIDE.title.he : GUIDE.title.en}</p>
+            <p className="lx-mute mt-1 text-[14px]">{L("כסף 925, מואסניט, מבצעים אמיתיים והגנת קונה. אפשר לשמור כ־PDF.", "Silver 925, moissanite, real sales and buyer protection. Save it as a PDF.")}</p>
+          </Go>
+        </div>
+      </Section>
 
       {/* TRENDING NOW — evidence only; otherwise "just added" (by real createdAt) */}
       {graph.trends.length ? (
@@ -887,6 +906,11 @@ export function ProductPage({ graph, id, navigate }) {
               <ShareButton path={productPath(product.id)} title={`${product.displayTitle} | LikeLink2`} image={product.media?.image || ""} productId={product.id} marketerId={creator.id} className="!h-11 !w-11" />
             </div>
             <div className="mt-3"><Disclosure product={product} /></div>
+            {sizeProducts([product], "ring").length || sizeProducts([product], "bracelet").length ? (
+              <Go to={SIZE_PATH} className="lx-chip mt-3 inline-flex items-center gap-1.5">
+                <Ruler size={14} aria-hidden="true" /> {sizeProducts([product], "ring").length ? L("לא בטוחה במידה? מודדים מהמסך תוך דקה", "Not sure of the size? Measure it on your screen") : L("איזה אורך צמיד לבחור? מודדים בדקה", "Which bracelet length? Measure in a minute")}
+              </Go>
+            ) : null}
 
             <div className="mt-4 flex flex-wrap gap-1.5">
               <TrustBadge kind="approved" />
@@ -980,7 +1004,8 @@ export function ReelsPage({ graph }) {
     if (!target) return;
     const el = scroller.current?.querySelector(`[data-key="${CSS.escape(target)}"]`);
     el?.scrollIntoView({ block: "start" });
-  }, [target]);
+    // Again once the reels feed arrives (a shared /reels?r=… link opens before it loads).
+  }, [target, items.length]);
 
   if (!items.length) {
     return (
@@ -1230,6 +1255,194 @@ export function GuidePage({ graph }) {
           </div>
           <p className="lx-mute mt-4 text-[12px]">{L("קישורי המוצרים באתר הם קישורי שותפים (#פרסומת): קנייה דרכם יכולה להעניק עמלה, בלי עלות נוספת לך.", "Product links on the site are affiliate links (#ad): buying through them may earn a commission, at no extra cost to you.")}</p>
         </div>
+      </Section>
+    </>
+  );
+}
+
+/* --------------------------------------------------------------------- size */
+
+const CAL_KEY = "lx:size:card-height-px";
+function readCalibration() {
+  try {
+    const v = Number(localStorage.getItem(CAL_KEY));
+    return Number.isFinite(v) && v >= CARD_PX.min && v <= CARD_PX.max ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function SizeNumber({ label, value, hint }) {
+  return (
+    <div className="lx-card p-4 text-center" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+      <p className="lx-mute text-[12.5px]">{label}</p>
+      <p className="lx-display mt-1 text-[40px] leading-none">{value}</p>
+      {hint ? <p className="lx-mute mt-2 text-[12px]">{hint}</p> : null}
+    </div>
+  );
+}
+
+function Stepper({ value, onChange, min, max, step, unit, label }) {
+  const { L } = useL();
+  const set = (v) => onChange(Math.min(max, Math.max(min, Math.round(v / step) * step)));
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <button type="button" className="lx-icon-btn" onClick={() => set(value - step)} aria-label={L(`פחות (${label})`, `Less (${label})`)}>−</button>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => set(Number(e.target.value))} aria-label={label} className="min-w-0 flex-1" style={{ accentColor: "var(--lx-rose)" }} />
+      <button type="button" className="lx-icon-btn" onClick={() => set(value + step)} aria-label={L(`יותר (${label})`, `More (${label})`)}>+</button>
+      <span className="w-[72px] shrink-0 text-center text-sm font-bold tabular-nums" dir="ltr">{unit(value)}</span>
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange, suffix, placeholder }) {
+  return (
+    <label className="mt-3 block max-w-xs">
+      <span className="text-sm font-bold">{label}</span>
+      <span className="mt-1 flex items-center gap-2 rounded-2xl border px-3 py-2" style={{ borderColor: "var(--lx-line-strong)", background: "var(--lx-surface)" }}>
+        <input type="number" inputMode="decimal" min="0" step="0.1" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="min-w-0 flex-1 bg-transparent text-[18px] font-bold outline-none" dir="ltr" />
+        <span className="lx-mute text-sm">{suffix}</span>
+      </span>
+    </label>
+  );
+}
+
+function RingResult({ ring }) {
+  const { L } = useL();
+  if (!ring) return null;
+  return (
+    <div className="mt-5" role="status" aria-live="polite">
+      <div className="grid grid-cols-2 gap-3">
+        <SizeNumber label={L("מידה אמריקאית (רוב המוכרים באליאקספרס)", "US size (most AliExpress sellers)")} value={ring.us} />
+        <SizeNumber label={L("מידה אירופאית / ישראלית", "EU / Israel size")} value={ring.eu} />
+      </div>
+      <p className="lx-mute mt-2 text-[12.5px]" dir="rtl">{L(`קוטר פנימי ${ring.diameter.toFixed(1)} מ״מ · היקף ${ring.circumference.toFixed(1)} מ״מ. בין שתי מידות? בוחרים את הגדולה.`, `Inner diameter ${ring.diameter.toFixed(1)} mm · circumference ${ring.circumference.toFixed(1)} mm. Between two sizes? Take the larger.`)}</p>
+    </div>
+  );
+}
+
+export function SizePage({ graph }) {
+  const { L, lang } = useL();
+  const t = (x) => (lang === "he" ? x.he : x.en);
+  const [mode, setMode] = useState("screen");
+  const [cardPx, setCardPx] = useState(() => readCalibration() || CARD_PX.start);
+  const [calibrated, setCalibrated] = useState(() => readCalibration() > 0);
+  const [diameter, setDiameter] = useState(17.3);
+  const [strip, setStrip] = useState("");
+  const [wrist, setWrist] = useState("");
+  const ppm = pxPerMm(cardPx);
+  const screenRing = calibrated ? ringFromDiameter(diameter) : null;
+  const stripRing = strip ? ringFromCircumference(strip) : null;
+  const bracelet = wrist ? braceletFromWrist(wrist) : null;
+  const rings = useMemo(() => sizeProducts(graph.products, "ring"), [graph.products]);
+  const bracelets = useMemo(() => sizeProducts(graph.products, "bracelet"), [graph.products]);
+  const kind = mode === "bracelet" ? "bracelet" : "ring";
+  const matches = kind === "bracelet" ? bracelets : rings;
+
+  function confirmCard() {
+    setCalibrated(true);
+    try {
+      localStorage.setItem(CAL_KEY, String(cardPx));
+    } catch {
+      /* the measurement still works for this visit */
+    }
+  }
+
+  const modes = [
+    { id: "screen", he: "טבעת שיש לך · מהמסך", en: "A ring you own · on screen" },
+    { id: "strip", he: "פס נייר סביב האצבע", en: "Paper strip around the finger" },
+    { id: "bracelet", he: "אורך צמיד", en: "Bracelet length" },
+  ];
+  const card = { boxShadow: "none", border: "1px solid var(--lx-line)" };
+
+  return (
+    <>
+      <PageHero kicker={<><Ruler size={14} /> {t(SIZE_PAGE.kicker)}</>} title={t(SIZE_PAGE.title)} sub={t(SIZE_PAGE.intro)}>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <ShareButton path={SIZE_PATH} title={L("מה מידת הטבעת שלך? מודדים מהמסך תוך דקה | LikeLink2", "What's your ring size? Measure it on your screen | LikeLink2")} variant="button" />
+          <Go to={GUIDE_PATH} className="lx-btn lx-btn-ghost"><BookOpen size={16} aria-hidden="true" /> {L("המדריך החינמי", "The free guide")}</Go>
+        </div>
+      </PageHero>
+
+      <div className="lx-wrap mt-8">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={L("שיטת מדידה", "Measuring method")}>
+          {modes.map((m) => (
+            <button key={m.id} type="button" className="lx-chip" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>{lang === "he" ? m.he : m.en}</button>
+          ))}
+        </div>
+
+        {mode === "screen" ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <section className="lx-card p-5 md:p-6" style={card} aria-labelledby="size-step1">
+              <h2 id="size-step1" className="text-[19px] font-extrabold">{L("1. מכיילים את המסך עם כרטיס", "1. Calibrate the screen with a card")}</h2>
+              <p className="lx-mute mt-2 text-[14.5px] leading-7">{L("מניחים כרטיס אשראי, תעודת זהות חכמה או כרטיס מועדון על המסגרת, לאורך. מזיזים עד שהגובה של המסגרת בדיוק כמו הכרטיס, מלמעלה עד למטה.", "Place a credit card, smart ID or club card on the frame, upright. Adjust until the frame's height matches the card exactly, top to bottom.")}</p>
+              <div className="mt-4 flex justify-center">
+                <div aria-hidden="true" style={{ width: cardPx * (CARD_MM.short / CARD_MM.long), height: cardPx, border: "2px dashed var(--lx-rose)", borderRadius: Math.max(6, cardPx * 0.04), background: "var(--lx-rose-soft)", maxWidth: "100%" }} />
+              </div>
+              <Stepper value={cardPx} onChange={(v) => { setCardPx(v); setCalibrated(false); }} min={CARD_PX.min} max={CARD_PX.max} step={0.5} label={L("גובה הכרטיס על המסך", "Card height on screen")} unit={(v) => `${Math.round(v)}px`} />
+              <button type="button" className={`lx-btn mt-4 ${calibrated ? "lx-btn-ghost" : "lx-btn-rose"}`} onClick={confirmCard} aria-pressed={calibrated}>
+                {calibrated ? L("✓ המסך מכויל", "✓ Screen calibrated") : L("זה בדיוק בגודל של הכרטיס", "It matches the card exactly")}
+              </button>
+            </section>
+            <section className="lx-card p-5 md:p-6" style={{ ...card, opacity: calibrated ? 1 : 0.55 }} aria-labelledby="size-step2">
+              <h2 id="size-step2" className="text-[19px] font-extrabold">{L("2. מניחים טבעת על העיגול", "2. Put a ring on the circle")}</h2>
+              <p className="lx-mute mt-2 text-[14.5px] leading-7">{calibrated ? L("טבעת שיושבת עליך טוב. מזיזים עד שהעיגול נוגע בדיוק בשפה הפנימית שלה.", "A ring that fits you. Adjust until the circle exactly touches its inner edge.") : L("קודם מכיילים את המסך בשלב 1.", "Calibrate the screen in step 1 first.")}</p>
+              <div className="mt-4 flex min-h-[170px] items-center justify-center">
+                <div aria-hidden="true" style={{ width: diameter * ppm, height: diameter * ppm, borderRadius: "50%", border: "2px solid var(--lx-rose)", boxShadow: "0 0 0 6px var(--lx-rose-soft)" }} />
+              </div>
+              {calibrated ? (
+                <>
+                  <Stepper value={diameter} onChange={setDiameter} min={RING_DIAMETER_MM.min} max={RING_DIAMETER_MM.max} step={0.1} label={L("קוטר פנימי", "Inner diameter")} unit={(v) => `${v.toFixed(1)} mm`} />
+                  <RingResult ring={screenRing} />
+                </>
+              ) : null}
+            </section>
+          </div>
+        ) : null}
+
+        {mode === "strip" ? (
+          <section className="lx-card mt-5 p-5 md:p-6" style={card} aria-labelledby="size-strip">
+            <h2 id="size-strip" className="text-[19px] font-extrabold">{L("פס נייר או חוט סביב האצבע", "A paper strip or string around the finger")}</h2>
+            <p className="lx-mute mt-2 text-[14.5px] leading-7">{L("כורכים פס נייר סביב הבסיס של האצבע, לא חזק מדי, ומסמנים איפה הוא נפגש. מודדים בסרגל את האורך עד הסימון וכותבים כאן במילימטרים.", "Wrap a paper strip around the base of the finger, not too tight, and mark where it meets. Measure the length to the mark with a ruler and enter it in millimeters.")}</p>
+            <NumberField label={L("אורך הפס", "Strip length")} value={strip} onChange={setStrip} suffix={L("מ״מ", "mm")} placeholder="54" />
+            {strip && !stripRing ? <p className="mt-3 text-sm" role="status">{L("זה לא נראה כמו היקף של אצבע (בדרך כלל 44–75 מ״מ). כדאי למדוד שוב.", "That doesn't look like a finger circumference (usually 44–75 mm). Measure again.")}</p> : null}
+            <RingResult ring={stripRing} />
+          </section>
+        ) : null}
+
+        {mode === "bracelet" ? (
+          <section className="lx-card mt-5 p-5 md:p-6" style={card} aria-labelledby="size-wrist">
+            <h2 id="size-wrist" className="text-[19px] font-extrabold">{L("אורך צמיד לפי פרק היד", "Bracelet length from your wrist")}</h2>
+            <p className="lx-mute mt-2 text-[14.5px] leading-7">{L("כורכים פס נייר סביב פרק היד, מסמנים ומודדים בסרגל. כותבים כאן בסנטימטרים.", "Wrap a paper strip around your wrist, mark it and measure. Enter it in centimeters.")}</p>
+            <NumberField label={L("היקף פרק היד", "Wrist circumference")} value={wrist} onChange={setWrist} suffix={L("ס״מ", "cm")} placeholder="15.5" />
+            {wrist && !bracelet ? <p className="mt-3 text-sm" role="status">{L("זה לא נראה כמו היקף של פרק יד (בדרך כלל 11–25 ס״מ). כדאי למדוד שוב.", "That doesn't look like a wrist (usually 11–25 cm). Measure again.")}</p> : null}
+            {bracelet ? (
+              <div className="mt-5" role="status" aria-live="polite">
+                <SizeNumber label={L("אורך צמיד מומלץ", "Suggested bracelet length")} value={<span dir="ltr">{bracelet.min}–{bracelet.max}</span>} hint={L("ס״מ. עצה כללית: מוסיפים 1.5–2 ס״מ לפרק היד, לפי כמה רפוי את אוהבת. בצמיד מתכוונן בודקים בעמוד המוצר מה הטווח שלו.", "cm. General advice: add 1.5–2 cm to the wrist, depending on how loose you like it. For an adjustable bracelet, check its range on the product page.")} />
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+
+      {matches.length ? (
+        <Section labelledBy="size-matches">
+          <SectionHead id="size-matches" title={kind === "bracelet" ? L("צמידים בקטלוג", "Bracelets in the catalog") : L("טבעות בקטלוג", "Rings in the catalog")} sub={L("את המידה בוחרים בעמוד המוצר, לפי טבלת המידות של המוכר.", "Pick the size on the product page, by the seller's size table.")} />
+          <Grid products={matches} graph={graph} />
+        </Section>
+      ) : null}
+
+      <Section labelledBy="size-faq">
+        <h2 id="size-faq" className="text-[22px] font-extrabold">{L("שאלות נפוצות", "Questions")}</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {SIZE_PAGE.faq.map((f) => (
+            <details key={f.q.he} className="lx-card p-5" style={card}>
+              <summary className="cursor-pointer text-[16px] font-bold">{t(f.q)}</summary>
+              <p className="lx-mute mt-2 text-[14.5px] leading-7">{t(f.a)}</p>
+            </details>
+          ))}
+        </div>
+        <p className="lx-mute mt-6 text-[12px]">{L("המדידה נעשית אצלך במכשיר ולא נשמרת אצלנו (רק כיול המסך נשמר בדפדפן שלך, לפעם הבאה). קישורי המוצרים באתר הם קישורי שותפים (#פרסומת): קנייה דרכם יכולה להעניק עמלה, בלי עלות נוספת לך.", "Measuring happens on your device and is not stored by us (only the screen calibration is kept in your browser for next time). Product links on the site are affiliate links (#ad): buying through them may earn a commission, at no extra cost to you.")}</p>
       </Section>
     </>
   );
