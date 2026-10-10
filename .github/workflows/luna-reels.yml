@@ -92,7 +92,8 @@ jobs:
         run: |
           "${{ steps.py310.outputs.python-path }}" -m venv ~/sadtalker-venv
           V=~/sadtalker-venv/bin/pip
-          $V install -q --upgrade pip setuptools wheel
+          # librosa 0.9 imports pkg_resources (removed from new setuptools).
+          $V install -q --upgrade pip wheel "setuptools<70"
           # CPU builds by their +cpu tags; PyPI stays reachable for build tools.
           $V install -q torch==2.0.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu \
             --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
