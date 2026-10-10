@@ -1034,7 +1034,7 @@ export function ReelsPage({ graph }) {
               <div className="absolute inset-x-0 bottom-0 p-4 text-white">
                 {kind === "reel" ? (
                   <div className="mb-2 flex flex-wrap gap-1">
-                    <MediaBadge state={reel.state} showImage />
+                    <MediaBadge state={reel.state} style={reel.style} showImage />
                     <StyleBadge style={reel.style} />
                   </div>
                 ) : null}
