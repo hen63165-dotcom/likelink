@@ -34,7 +34,8 @@ test("every post opens with the disclosure, carries its own tracked link and nam
     assert.ok(safeCopy(text.replace(/https?:\/\/\S+/g, "")), "the whole post passes the rules");
   }
   for (const [net, text] of [["whatsapp", p.whatsapp.text], ["telegram", p.telegram.text], ["facebook", p.facebook.text], ["youtube", p.shorts.description]]) {
-    assert.match(text, new RegExp(`${PRODUCTION_ORIGIN.replace(/\./g, "\\.")}/p/${d.product.id}\\?utm_source=${net}&utm_medium=social&utm_campaign=daily_drop_20261010`));
+    const link = `${PRODUCTION_ORIGIN}/p/${d.product.id}?utm_source=${net}&utm_medium=social&utm_campaign=daily_drop_20261010`;
+    assert.ok(text.includes(link), `${net} carries ${link}`);
   }
   assert.match(p.tiktok.bioLink, /utm_source=tiktok/);
   assert.match(p.instagram.caption, /צילום המוצר: המוכר|דמות AI|צילום אמיתי/);
