@@ -89,7 +89,9 @@ test("the reels feed is read from the site's own address first, then GitHub Page
 test("the home page names whose video and image it is, keeps the disclosure and shows no counters", () => {
   const luxe = read("src/components/discover/luxe.jsx");
   assert.match(luxe, /styleLabel\(reel\.style, lang\)/, "the featured video names whose it is");
-  assert.match(luxe, /styleLabel\(r\.style, lang\)/, "every video tile names whose it is");
+  // Every video tile is a shared ReelCard post, which names whose video it is under the footage.
+  assert.match(luxe, /<ReelCard key=\{r\.id\} reel=\{r\} graph=\{graph\} shoppable/, "every video tile is a shoppable post");
+  assert.match(read("src/components/discover/kit.jsx"), /const source = REEL_STYLE_LABELS\[reel\.style\]\?\.\[lang\]/, "every video tile names whose it is");
   assert.match(luxe, /lookLabel\(/, "a clean image is named as the seller's");
   assert.match(luxe, /קישור שותפים/);
   assert.doesNotMatch(luxe, /heCount|enCount|attention|\.views|\.clicks|TREND_/, "no counters on the home page");

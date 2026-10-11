@@ -9,13 +9,15 @@
     "dev": "vite",
     "test": "node --test tests/*.test.mjs",
     "build": "vite build",
-    "postbuild": "node scripts/prerender-products.mjs && node scripts/rebase-static-pages.mjs",
+    "postbuild": "node scripts/prerender-products.mjs && node scripts/rebase-static-pages.mjs && node scripts/write-version.mjs && node scripts/skills/run.mjs",
     "preview": "vite preview",
     "feed:google": "node scripts/generate-google-feed.mjs",
     "cloud:check": "node scripts/cloud-check.mjs",
     "pages:build": "node scripts/generate-static-pages.mjs",
     "start": "node server/portable.mjs",
-    "portable:check": "node scripts/portable-check.mjs"
+    "portable:check": "node scripts/portable-check.mjs",
+    "ops:doctor": "node scripts/ops/doctor.mjs",
+    "skills:run": "node scripts/skills/run.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

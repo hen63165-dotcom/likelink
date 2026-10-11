@@ -172,6 +172,10 @@
       "destination": "/"
     },
     {
+      "source": "/status",
+      "destination": "/"
+    },
+    {
       "source": "/search",
       "destination": "/"
     },

@@ -26,6 +26,17 @@
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
 import { getSessionToken } from "./auth.js";
 import { servedFromSnapshot, snapshotGet } from "./catalogSnapshot.js";
+import { cloudFailureKind, createBreaker, dedupe, READ_TIMEOUT_MS, withTimeout } from "./cloudBreaker.js";
+
+// While the cloud is known to be down (402 restricted, or unreachable), reads
+// go straight to the shipped copy and writes fail fast (src/lib/cloudBreaker.js).
+const breaker = createBreaker({ store: (() => { try { return typeof sessionStorage === "undefined" ? null : sessionStorage; } catch { return null; } })() });
+const inflight = new Map();
+
+/** { state: "ok" } or { state: "restricted" | "unreachable", since, until }: what the cloud did last. */
+export function cloudStatus() {
+  return breaker.status();
+}
 
 // A failed live read of a public storefront key falls back to the copy shipped
 // with the build (src/lib/catalogSnapshot.js), so the site never goes empty.
@@ -133,17 +144,28 @@ export const storage = {
       return snapshotFallback(key);
     }
 
-    try {
-      const { data, error } = await supabase.from("kv").select("value").eq("key", key).maybeSingle();
-      if (error) throw error;
-      return data ? { key, value: data.value, shared: true } : null;
-    } catch (e) {
-      console.error("storage.get (supabase) failed; refusing stale localStorage fallback in production", key, e);
-      if (isLocalRuntime()) {
-        return (await localGet(key, shared)) || snapshotFallback(key);
+    // Known down: no doomed request per key, the shipped copy answers.
+    if (breaker.isOpen()) return snapshotFallback(key);
+
+    return dedupe(inflight, key, async () => {
+      try {
+        const { data, error } = await withTimeout(supabase.from("kv").select("value").eq("key", key).maybeSingle(), READ_TIMEOUT_MS, "kv_read");
+        if (error) throw error;
+        return data ? { key, value: data.value, shared: true } : null;
+      } catch (e) {
+        const kind = cloudFailureKind(e);
+        if (kind) {
+          // One line per outage, not one per key; never the error object (it can carry request details).
+          if (breaker.trip(kind, e?.message)) console.warn(`[storage] cloud ${kind} — serving the shipped catalog copy until ${new Date(breaker.status().until).toLocaleTimeString()}`);
+        } else {
+          console.error("storage.get (supabase) failed; refusing stale localStorage fallback in production", key, String(e?.message || e).slice(0, 160));
+        }
+        if (isLocalRuntime()) {
+          return (await localGet(key, shared)) || snapshotFallback(key);
+        }
+        return snapshotFallback(key);
       }
-      return snapshotFallback(key);
-    }
+    });
   },
 
   async set(key, value, shared = false) {
@@ -162,6 +184,10 @@ export const storage = {
       console.warn(`[storage] Production-safe mode: refusing to write shared key "${key}" to browser localStorage because Supabase is not configured.`);
       return { key, value, shared: true };
     }
+
+    // A restricted project refuses every write: say so now instead of waiting
+    // for the same refusal (errorMessages.js maps "restricted" to CLOUD_PAUSED_HE).
+    if (breaker.status().state === "restricted") throw new Error("cloud_restricted");
 
     // The secure path: writes go through the server gate.
     return serverSet(key, value);

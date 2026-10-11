@@ -243,8 +243,10 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
       {!immersive ? <Footer /> : null}
       <HoverTips />
 
-      {/* Floating dock: the active tab fills with colour and bounces once. */}
-      <div className="lg:hidden">
+      {/* Floating dock: the active tab fills with colour and bounces once. On a
+          product page the buy bar takes the bottom instead (two stacked bars
+          covered a fifth of a phone's first screen); the header keeps menu and search. */}
+      {routeType === "product" ? null : <div className="lg:hidden">
         <nav className="lx-dock" aria-label={L("ניווט מהיר", "Quick navigation")}>
           <div className="lx-dock-bar lx-glass-strong">
             {TABS.map(({ to, type, icon: Icon, he: h, en }) => (
@@ -255,7 +257,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
             ))}
           </div>
         </nav>
-      </div>
+      </div>}
 
       <Drawer open={menu} onClose={() => setMenu(false)} routeType={routeType} theme={theme} onTheme={toggle} />
     </div>

@@ -15,6 +15,18 @@ export const REELS_FEED_HOME = "https://hen63165-dotcom.github.io/likelink/media
  */
 export const SELLER_SKIP = Object.freeze({ "p-live-02": "the clip features a necklace; the listing is a bracelet" });
 
+/**
+ * Seller clips a person checked frame by frame: the listed item is the
+ * subject (productId → date). The media-matching skill (src/lib/skills)
+ * calls a seller clip MATCHED only when it is here; any other seller clip is
+ * UNCERTAIN until someone looks, and a clip in SELLER_SKIP is REJECTED.
+ */
+export const SELLER_REVIEWED = Object.freeze({
+  "p-live-03": "2026-10-11", // moissanite tennis bracelet, on fabric
+  "p-live-04": "2026-10-11", // 14K hand chain, on black
+  "p-live-05": "2026-10-11", // moissanite stud earrings, close-up
+});
+
 const FILE = /^[a-z0-9][a-z0-9-]{0,80}\.mp4$/;
 const POSTER = /^[a-z0-9][a-z0-9-]{0,80}-(cover|preview)\.jpg$/;
 const ID = /^[A-Za-z0-9_-]{1,80}$/;
