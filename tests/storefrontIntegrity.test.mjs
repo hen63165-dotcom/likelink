@@ -123,3 +123,10 @@ test("the reels page names the creator as the one who picked the product", () =>
   assert.match(reels, /className="pe-14"/, "the labels stay clear of the side buttons");
   assert.match(reels, /המחיר המעודכן בחנות/, "no price → the store's price, never an empty or invented one");
 });
+
+test("on a product page the buy bar is the only bar at the bottom of a phone", () => {
+  const shell = read("src/components/discover/PublicShell.jsx");
+  assert.match(shell, /\{routeType === "product" \? null : <div className="lg:hidden">/, "no dock on a product page");
+  const css = read("src/public.css");
+  assert.match(css.slice(css.indexOf(".lx-buybar {")), /^\.lx-buybar \{[^}]*bottom: calc\(12px \+ env\(safe-area-inset-bottom\)\)/, "the buy bar sits at the bottom edge");
+});

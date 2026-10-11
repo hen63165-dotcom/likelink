@@ -846,7 +846,8 @@ html body .lx img {
 .lx-buybar {
   position: fixed;
   inset-inline: 12px;
-  bottom: calc(86px + env(safe-area-inset-bottom));
+  /* The only bar at the bottom of a product page (PublicShell hides the dock there). */
+  bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 40;
   padding: 10px 10px 10px 14px;
   border-radius: 20px;
