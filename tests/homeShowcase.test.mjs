@@ -61,13 +61,14 @@ test("the reels feed is read from the site's own address first, then GitHub Page
   const asked = [];
   const doc = { reels: [{ id: "seller-p-live-02", productId: "p-live-02", video: "seller-p-live-02.mp4", poster: "seller-p-live-02-cover.jpg", look: "seller" }] };
   // The own address answers the SPA page (no proxy) → falls through to GitHub Pages; media resolve there.
+  const own = "https://own.example/media/reels/index.json";
   const fetchImpl = async (url) => {
     asked.push(url);
-    if (url.startsWith("https://own.example")) return { ok: true, json: async () => { throw new SyntaxError("html"); } };
+    if (url === own) return { ok: true, json: async () => { throw new SyntaxError("html"); } };
     return { ok: true, json: async () => doc };
   };
-  const list = await loadReelsFeed(fetchImpl, ["https://own.example/media/reels/index.json", REELS_FEED_HOME]);
-  assert.deepEqual(asked, ["https://own.example/media/reels/index.json", REELS_FEED_HOME]);
+  const list = await loadReelsFeed(fetchImpl, [own, REELS_FEED_HOME]);
+  assert.deepEqual(asked, [own, REELS_FEED_HOME]);
   assert.equal(list[0].videoUrl, "https://hen63165-dotcom.github.io/likelink/media/reels/seller-p-live-02.mp4");
 });
 
