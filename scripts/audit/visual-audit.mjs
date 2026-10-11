@@ -16,7 +16,8 @@ const ALL = [["home", "/"], ["search", "/search?q=%D7%A6%D7%9E%D7%99%D7%93"], ["
 const pick = String(process.env.PAGES || "home,product,creator,reels,products,studio").split(",").map((s) => s.trim());
 const PAGES = ALL.filter(([name]) => pick.includes(name));
 const FULL = process.env.FULL === "1";
-const emit = (name, file) => { const b = readFileSync(file).toString("base64"); const n = Math.ceil(b.length / 4000); for (let i = 0; i < n; i++) console.log(`===IMG ${name} ${i + 1}/${n}===${b.slice(i * 4000, (i + 1) * 4000)}`); };
+// EMIT=0: the workflow publishes the files to the ops/screenshots branch instead of the log.
+const emit = (name, file) => { if (process.env.EMIT === "0") return; const b = readFileSync(file).toString("base64"); const n = Math.ceil(b.length / 4000); for (let i = 0; i < n; i++) console.log(`===IMG ${name} ${i + 1}/${n}===${b.slice(i * 4000, (i + 1) * 4000)}`); };
 const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
 // Which build is live (scripts/write-version.mjs); older builds have no /version.json.
 console.log(`LIVE_VERSION ${await fetch(`${BASE}/version.json`).then((r) => (r.ok ? r.text() : `http_${r.status}`)).catch((e) => String(e)).then((t) => t.replace(/\s+/g, " ").slice(0, 200))}`);

@@ -5,7 +5,8 @@ on:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/audit/**", ".github/workflows/visual-audit.yml"]
 permissions:
-  contents: read
+  # write: the screenshots go to the ops/screenshots branch (overwritten each run)
+  contents: write
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -22,4 +23,19 @@ jobs:
       - name: Audit
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
-        run: node scripts/audit/visual-audit.mjs
+          EMIT: "0"
+        run: node scripts/audit/visual-audit.mjs | tee "$RUNNER_TEMP/audit-log.txt"
+      - name: Publish the screenshots to the ops/screenshots branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd "$RUNNER_TEMP/audit"
+          cp "$RUNNER_TEMP/audit-log.txt" log.txt
+          printf 'Screenshots of https://likelink2.vercel.app by the Visual audit workflow, run %s (%s). Overwritten on every run.\n' "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
+          git init -q -b ops/screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Visual audit run $GITHUB_RUN_ID"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/ops/screenshots
