@@ -36,6 +36,7 @@ import { useVideos } from "../../context/VideoContext";
 import { buildPublicGraph, categoryName, enCount, formatPrice, heCount, REEL_STYLE_LABELS, EVIDENCE_LABELS } from "../../lib/publicDiscovery.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
+import { lookLabel, lookOf } from "../../lib/looks.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import { SHARE_SHEET_ORDER, buildShareLink, creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
 import { stripBase, withBase } from "../../lib/basePath.js";
@@ -821,11 +822,13 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
   const { L, lang } = useL();
   if (!product) return null;
   const to = productPath(product.id);
+  // A clean frame from the seller's own video replaces a store photo with banners or text (src/lib/looks.js).
+  const look = lookOf(product.id);
   return (
     <article className="lx-card flex h-full flex-col">
       <Go to={to} aria-label={product.displayTitle} className="block">
         {/* Cards stay photo-first; a reel exists → truth badge, playback in /reels and on the product page. */}
-        <Media src={product.media.image} video={ratio === "9 / 16" ? product.media.video : ""} poster={product.media.poster} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
+        <Media src={look?.src || product.media.image} video={ratio === "9 / 16" ? product.media.video : ""} poster={product.media.poster} alt={product.displayTitle} ratio={ratio} eager={eager} label={product.displayTitle}>
           <div className="absolute start-2.5 top-2.5 flex flex-wrap gap-1.5">
             <MediaBadge state={product.media.state} />
             {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
@@ -844,7 +847,7 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
         <Go to={to} className="lx-clamp-2 text-[14px] font-semibold leading-snug">{product.displayTitle}</Go>
         <div className="mt-auto flex items-end justify-between gap-2 pt-1">
           <PriceLine product={product} />
-          {product.merchant ? <span className="lx-mute truncate text-[11.5px]">{product.merchant}</span> : null}
+          {product.merchant || look ? <span className="lx-mute truncate text-[11.5px]">{[product.merchant, look ? lookLabel(look.source, lang) : ""].filter(Boolean).join(" · ")}</span> : null}
         </div>
         {why && why.signals.length ? (
           <div className="flex flex-wrap gap-1 pt-0.5" aria-label={L("למה המוצר כאן", "Why this product is here")} data-tip={L("רק סימנים שקיימים בנתונים. בלי כוכבים או ביקורות מומצאים.", "Only signals that exist in the data. No invented stars or reviews.")}>
