@@ -24,5 +24,10 @@
 # dynamic feed (vercel.json).
 /sitemap.xml     /sitemap-static.xml    200
 
+# The reels feed lives on GitHub Pages (scripts/reels-feed.mjs). Proxied so the
+# site reads it from its own address: no cross-site request to fail
+# (src/lib/reelsFeed.js tries this first, then GitHub Pages itself).
+/media/reels/*   https://hen63165-dotcom.github.io/likelink/media/reels/:splat   200
+
 # Classic SPA fallback: every other route returns the app shell (index.html).
 /*               /index.html            200

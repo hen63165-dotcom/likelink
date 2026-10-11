@@ -14,6 +14,16 @@ export function reelsFeedUrl(base = BASE, origin = typeof location !== "undefine
   return base && origin ? `${origin}${base}/media/reels/index.json` : REELS_FEED_HOME;
 }
 
+/**
+ * Where to read the feed, in order: the site's own address first (Netlify
+ * proxies /media/reels/* to GitHub Pages, public/_redirects), so no
+ * cross-site request can fail; then GitHub Pages itself.
+ */
+export function reelsFeedUrls(base = BASE, origin = typeof location !== "undefined" ? location.origin : "") {
+  const own = origin ? `${origin}${base}/media/reels/index.json` : "";
+  return [...new Set([own, REELS_FEED_HOME].filter(Boolean))];
+}
+
 /** index.json → marketplace:videos-shaped records (synthetic, public, product-tagged). */
 export function feedToVideos(doc, feedUrl = REELS_FEED_HOME) {
   const list = Array.isArray(doc?.reels) ? doc.reels : [];
@@ -49,16 +59,33 @@ export function feedToVideos(doc, feedUrl = REELS_FEED_HOME) {
   return out;
 }
 
+async function readFeed(url, fetchImpl) {
+  try {
+    const res = await fetchImpl(url, { cache: "no-cache" });
+    if (!res.ok) return null;
+    const doc = await res.json();
+    return Array.isArray(doc?.reels) ? doc : null;
+  } catch {
+    return null; // an SPA fallback page (no proxy here) or a network error
+  }
+}
+
 let pending = null;
-/** Loads the feed once per page view; an empty list when it cannot be read. */
-export function loadReelsFeed(fetchImpl = typeof fetch === "function" ? fetch : null) {
+/**
+ * Loads the feed once per page view; an empty list when it cannot be read.
+ * Every copy is the same GitHub Pages file, so the media always resolve
+ * against GitHub Pages (byte ranges for iOS, no proxy bandwidth).
+ */
+export function loadReelsFeed(fetchImpl = typeof fetch === "function" ? fetch : null, urls = reelsFeedUrls()) {
   if (!fetchImpl) return Promise.resolve([]);
   if (!pending) {
-    const url = reelsFeedUrl();
-    pending = fetchImpl(url, { cache: "no-cache" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((doc) => feedToVideos(doc, url))
-      .catch(() => []);
+    pending = (async () => {
+      for (const url of urls) {
+        const doc = await readFeed(url, fetchImpl);
+        if (doc) return feedToVideos(doc, REELS_FEED_HOME);
+      }
+      return [];
+    })();
   }
   return pending;
 }
