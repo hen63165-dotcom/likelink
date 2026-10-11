@@ -126,6 +126,16 @@ export function dealOf(product = {}) {
   return { price, was, discountPct: Math.round(((was - price) / was) * 100), saved: Math.round((was - price) * 100) / 100 };
 }
 
+/**
+ * Price filters and price sorting appear only when a product has a price
+ * (`price`, from the store). Hand-entered catalog prices are not shown as
+ * prices (they did not match the store), so without one the chips would
+ * filter everything out.
+ */
+export function hasStorePrices(products = []) {
+  return Array.isArray(products) && products.some((p) => Number(p?.price) > 0);
+}
+
 export function formatPrice(value, lang = "he") {
   const n = Number(value);
   if (!(n > 0)) return "";

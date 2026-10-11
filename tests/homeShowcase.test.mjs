@@ -6,8 +6,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { collectionOrder, footageByProduct, heroProduct } from "../src/lib/homeShowcase.js";
-import { HERO_LOOK, LOOKS, lookLabel, lookOf } from "../src/lib/looks.js";
+import { curatedProducts, footageByProduct, spotlight } from "../src/lib/homeShowcase.js";
+import { CLEAN_STORE_PHOTOS, cleanImage, LOOKS, lookLabel, lookOf } from "../src/lib/looks.js";
+import { feedToVideos, SELLER_SKIP } from "../src/lib/reelsFeed.js";
 import { frameArgs, plan } from "../scripts/media/look-frames.mjs";
 import { loadReelsFeed, reelsFeedUrls, REELS_FEED_HOME } from "../src/lib/reelsFeed.js";
 
@@ -27,14 +28,27 @@ test("only real footage plays on the home page: a person's clip beats the seller
   assert.equal(f.get("p-live-02").id, "v-own-02");
 });
 
-test("the home page opens on the hero image's product, and the collection leads with clean images", () => {
+test("every image matches its product: the home page shows only products with a clean image of the item itself", () => {
   const products = ["p-live-01", "p-live-02", "p-live-03", "p-live-04", "p-live-05"].map((id) => product(id));
-  assert.equal(heroProduct(products).id, HERO_LOOK.productId);
-  assert.equal(heroProduct(products.filter((p) => p.id !== HERO_LOOK.productId)).id in LOOKS, true);
-  assert.equal(heroProduct([product("x", "")]), null);
-  const order = collectionOrder(products).map((p) => p.id);
-  assert.equal(order.at(-1), "p-live-01", "a product without a clean image comes last");
-  assert.deepEqual(collectionOrder([]), []);
+  const ids = curatedProducts(products).map((p) => p.id);
+  assert.ok(!ids.includes("p-live-02"), "p-live-02's seller clip shows a necklace; its bracelet has no clean image yet");
+  assert.ok(ids.includes("p-live-01") && CLEAN_STORE_PHOTOS.includes("p-live-01"), "a store photo checked by eye counts");
+  assert.ok(!("p-live-02" in LOOKS));
+  assert.equal(cleanImage(product("p-live-02")), null);
+  assert.equal(cleanImage(product("p-live-01")).source, "", "a store photo is the store's, not a video frame");
+  assert.deepEqual(curatedProducts([]), []);
+  const footage = footageByProduct([reel("v-seller-p-live-05", "p-live-05", "seller_video"), reel("v-seller-p-live-02", "p-live-02", "seller_video")]);
+  assert.equal(spotlight(products, footage).id, "p-live-05", "the featured video is footage of a product whose image matches");
+});
+
+test("a seller video that doesn't show the listed item never reaches the site, even from an older feed", () => {
+  assert.ok(SELLER_SKIP["p-live-02"]);
+  const list = feedToVideos({ reels: [
+    { id: "seller-p-live-02", productId: "p-live-02", video: "seller-p-live-02.mp4", look: "seller" },
+    { id: "seller-p-live-05", productId: "p-live-05", video: "seller-p-live-05.mp4", look: "seller" },
+    { id: "luna-silver-925", productId: "p-live-02", video: "silver-925.mp4", look: "talking" },
+  ] });
+  assert.deepEqual(list.map((v) => v.id), ["seller-p-live-05", "luna-silver-925"], "Luna's labelled tip reel stays; the mismatched seller clip goes");
 });
 
 test("every clean image ships with the site, is a real JPEG and is named as the seller's", () => {
@@ -45,8 +59,8 @@ test("every clean image ships with the site, is a real JPEG and is named as the 
     assert.deepEqual([...readFileSync(path).subarray(0, 2)], [0xff, 0xd8], `${file} is a JPEG`);
     assert.equal(spec.source, "seller_video");
   }
-  assert.equal(lookOf("p-live-02", "").src, "/looks/p-live-02.jpg");
-  assert.equal(lookOf("p-live-02", "/likelink").src, "/likelink/looks/p-live-02.jpg");
+  assert.equal(lookOf("p-live-05", "").src, "/looks/p-live-05.jpg");
+  assert.equal(lookOf("p-live-05", "/likelink").src, "/likelink/looks/p-live-05.jpg");
   assert.equal(lookOf("unknown"), null);
   assert.equal(lookLabel("seller_video"), "מתוך סרטון המוכר");
   assert.doesNotMatch(lookLabel("seller_video"), /אמיתי|UGC/);
@@ -59,7 +73,7 @@ test("the reels feed is read from the site's own address first, then GitHub Page
   assert.deepEqual(reelsFeedUrls("/likelink", "https://hen63165-dotcom.github.io"), [REELS_FEED_HOME]);
   assert.match(read("public/_redirects"), /^\/media\/reels\/\*\s+https:\/\/hen63165-dotcom\.github\.io\/likelink\/media\/reels\/:splat\s+200$/m);
   const asked = [];
-  const doc = { reels: [{ id: "seller-p-live-02", productId: "p-live-02", video: "seller-p-live-02.mp4", poster: "seller-p-live-02-cover.jpg", look: "seller" }] };
+  const doc = { reels: [{ id: "seller-p-live-05", productId: "p-live-05", video: "seller-p-live-05.mp4", poster: "seller-p-live-05-cover.jpg", look: "seller" }] };
   // The own address answers the SPA page (no proxy) → falls through to GitHub Pages; media resolve there.
   const own = "https://own.example/media/reels/index.json";
   const fetchImpl = async (url) => {
@@ -69,12 +83,12 @@ test("the reels feed is read from the site's own address first, then GitHub Page
   };
   const list = await loadReelsFeed(fetchImpl, [own, REELS_FEED_HOME]);
   assert.deepEqual(asked, [own, REELS_FEED_HOME]);
-  assert.equal(list[0].videoUrl, "https://hen63165-dotcom.github.io/likelink/media/reels/seller-p-live-02.mp4");
+  assert.equal(list[0].videoUrl, "https://hen63165-dotcom.github.io/likelink/media/reels/seller-p-live-05.mp4");
 });
 
 test("the home page names whose video and image it is, keeps the disclosure and shows no counters", () => {
   const luxe = read("src/components/discover/luxe.jsx");
-  assert.match(luxe, /styleLabel\(reel\.style, lang\)/, "the opening video names whose it is");
+  assert.match(luxe, /styleLabel\(reel\.style, lang\)/, "the featured video names whose it is");
   assert.match(luxe, /styleLabel\(r\.style, lang\)/, "every video tile names whose it is");
   assert.match(luxe, /lookLabel\(/, "a clean image is named as the seller's");
   assert.match(luxe, /קישור שותפים/);

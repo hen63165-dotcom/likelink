@@ -1,14 +1,15 @@
-// Public site chrome: floating glass header (desktop nav + inline search),
-// floating dock on mobile, full-menu drawer and footer, over the aurora
-// background. Light and carbon-dark themes follow the device until the visitor
-// picks one. The Studio is a separate, dark surface — the header only links to it.
+// Public site chrome, on LTK's black-and-white idea: a black header bar (desktop
+// nav + inline search), a full-screen black menu, a quiet dock on mobile and a
+// black footer. Light and carbon-dark themes follow the device until the
+// visitor picks one. The Studio is a separate, dark surface — the header only
+// links to it.
 import React, { useEffect, useRef, useState } from "react";
 import { Compass, Heart, Home, Menu, Moon, Play, Search, Sparkles, Sun, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
 
 const THEME_KEY = "ll_theme";
-const PAPER = { light: "#f6f6fb", dark: "#070709" };
+const PAPER = { light: "#faf9f7", dark: "#070709" };
 
 function storedTheme() {
   try {
@@ -119,7 +120,7 @@ function StudioLink({ compact = false }) {
   const { L } = useL();
   return (
     <Go to="/studio" className="lx-studio">
-      <Sparkles size={15} style={{ color: "#cbbcff" }} aria-hidden="true" />
+      <Sparkles size={15} aria-hidden="true" />
       {compact ? "Studio" : L("פתחו את ה־Studio", "Open the Studio")}
       <span className="lx-dot" aria-hidden="true" />
     </Go>
@@ -160,14 +161,16 @@ function HeaderSearch({ navigate }) {
   );
 }
 
+// The full menu, like LTK's: a black screen, big links, the language, and
+// two clear buttons (the Studio, and the merchants' page).
 function Drawer({ open, onClose, routeType, theme, onTheme }) {
-  const { L, he } = useL();
+  const { L, he, lang, setLang } = useL();
   const panel = useRef(null);
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    panel.current?.querySelector("a,button")?.focus();
+    panel.current?.querySelector(".lx-menu-link")?.focus();
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -177,25 +180,29 @@ function Drawer({ open, onClose, routeType, theme, onTheme }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={L("תפריט", "Menu")}>
-      <button type="button" className="absolute inset-0 h-full w-full" style={{ background: "rgba(23,19,31,.42)" }} onClick={onClose} aria-label={L("סגירה", "Close")} />
-      <div ref={panel} className="lx-sheet absolute inset-y-0 flex w-[min(86vw,360px)] flex-col overflow-y-auto p-5" style={{ background: "var(--lx-paper)", [he ? "right" : "left"]: 0 }}>
-        <div className="mb-6 flex items-center justify-between">
-          <span className="lx-display text-xl">{L("לאן הולכים?", "Where to?")}</span>
-          <button type="button" className="lx-icon-btn" onClick={onClose} aria-label={L("סגירה", "Close")}><X size={18} /></button>
+    <div ref={panel} className="lx-menu" role="dialog" aria-modal="true" aria-label={L("תפריט", "Menu")}>
+      <div className="lx-menu-top">
+        <Logo />
+        <button type="button" className="lx-menu-close" onClick={onClose} aria-label={L("סגירה", "Close")}><X size={26} strokeWidth={1.75} /></button>
+      </div>
+      <nav className="lx-menu-nav" aria-label={L("ניווט ראשי", "Main navigation")}>
+        {[...PUBLIC_NAV, { to: "/search", type: "search", he: "חיפוש", en: "Search" }, { to: "/saved", type: "saved", he: "שמורים", en: "Saved" }, { to: "/size", type: "size", he: "מודד מידות", en: "Size meter" }].map((n) => (
+          <Go key={n.to} to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className="lx-menu-link">
+            {he ? n.he : n.en}
+          </Go>
+        ))}
+      </nav>
+      <div className="lx-menu-foot">
+        <div className="lx-menu-row">
+          <button type="button" className="lx-menu-lang" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
+            <Languages size={18} aria-hidden="true" /> {lang === "he" ? "עברית · English" : "English · עברית"}
+          </button>
+          <button type="button" className="lx-menu-lang" onClick={onTheme} aria-label={theme === "dark" ? L("מצב בהיר", "Light mode") : L("מצב כהה", "Dark mode")}>
+            {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
         </div>
-        <nav className="flex flex-col" aria-label={L("ניווט ראשי", "Main navigation")}>
-          {[...PUBLIC_NAV, { to: "/search", type: "search", he: "חיפוש", en: "Search" }, { to: "/saved", type: "saved", he: "שמורים", en: "Saved" }].map((n) => (
-            <Go key={n.to} to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className="lx-display border-b py-3.5 text-[22px]" style={{ borderColor: "var(--lx-line)", color: routeType === n.type ? "var(--lx-rose)" : "var(--lx-ink)" }}>
-              {he ? n.he : n.en}
-            </Go>
-          ))}
-        </nav>
-        <div className="mt-6 flex flex-col gap-3">
-          <StudioLink />
-          <Go to="/merchants" onClick={onClose} className="lx-btn lx-btn-ghost">{L("יש לך מוצרים? לסוחרים", "Have products? For merchants")}</Go>
-          <div className="flex flex-wrap gap-2"><LangToggle /><ThemeToggle theme={theme} onToggle={onTheme} withLabel /></div>
-        </div>
+        <Go to="/studio" onClick={onClose} className="lx-menu-btn lx-menu-btn-white">{L("פתיחת Studio", "Open the Studio")}</Go>
+        <Go to="/merchants" onClick={onClose} className="lx-menu-btn lx-menu-btn-line">{L("יש לך מוצרים? לסוחרים", "Have products? For merchants")}</Go>
       </div>
     </div>
   );
@@ -211,7 +218,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
     <div className="lx" dir={he ? "rtl" : "ltr"} data-theme={theme}>
       <div className="lx-aurora" aria-hidden="true"><span /><span /><span /><span /></div>
       <a href="#lx-main" className="lx-sr lx-skip">{L("דילוג לתוכן", "Skip to content")}</a>
-      <header className="lx-header">
+      <header className="lx-header lx-header-black">
         <div className="lx-header-bar lx-glass-strong flex h-[58px] items-center gap-3 px-2.5 md:h-[62px] md:gap-4 md:px-4">
           <Logo />
           <nav className="hidden flex-1 items-center justify-center gap-5 lg:flex" aria-label={L("ניווט ראשי", "Main navigation")}>
@@ -221,7 +228,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
           </nav>
           <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <HeaderSearch navigate={navigate} />
-            <div className="hidden sm:block xl:hidden"><Go to="/search" className="lx-icon-btn" aria-label={L("חיפוש", "Search")}><Search size={18} /></Go></div>
+            <div className="xl:hidden"><Go to="/search" className="lx-icon-btn" aria-label={L("חיפוש", "Search")}><Search size={18} /></Go></div>
             <div className="hidden sm:block"><ThemeToggle theme={theme} onToggle={toggle} /></div>
             <div className="hidden md:block"><LangToggle /></div>
             <div className="hidden sm:block"><StudioLink /></div>
@@ -272,7 +279,7 @@ function Footer() {
     },
   ];
   return (
-    <footer className="mt-16 border-t pb-32 pt-12 lg:pb-12" style={{ borderColor: "var(--lx-line)", background: "var(--lx-surface)" }}>
+    <footer className="lx-footer mt-16 pb-32 pt-12 lg:pb-12">
       <div className="lx-wrap grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <Logo />

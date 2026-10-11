@@ -3,11 +3,11 @@
 // filmed (real_ugc), then the seller's own video in LikeLink2's cut
 // (seller_video). Luna's AI reels stay on /reels with their labels; they
 // never become the home page's opening video or a product's image.
-import { HERO_LOOK, LOOKS } from "./looks.js";
+import { cleanImage } from "./looks.js";
 
 export const FOOTAGE_RANK = Object.freeze({ real_ugc: 2, seller_video: 1 });
 // The cuts that read best large go first in the collection.
-export const SHOWCASE = Object.freeze(["p-live-02", "p-live-05", "p-live-04", "p-live-03"]);
+export const SHOWCASE = Object.freeze(["p-live-05", "p-live-04", "p-live-01", "p-live-03"]);
 
 export function showcaseRank(id) {
   const i = SHOWCASE.indexOf(id);
@@ -26,14 +26,16 @@ export function footageByProduct(reels = []) {
   return best;
 }
 
-/** The product the home page opens on: the hero image's product, else one with a clean image, else one with a photo. */
-export function heroProduct(products = []) {
-  return products.find((p) => p.id === HERO_LOOK.productId) || products.find((p) => LOOKS[p.id]) || products.find((p) => p.media?.image) || null;
+/**
+ * The home page's collection: products with a clean image (the listed item is
+ * the subject, no banners or text), in showcase order. Every product stays
+ * on /products; this only decides what leads.
+ */
+export function curatedProducts(products = [], limit = 8) {
+  return products.filter((p) => cleanImage(p)).sort((a, b) => showcaseRank(a.id) - showcaseRank(b.id)).slice(0, limit);
 }
 
-/** The collection: products with a clean image first (showcase order), then the rest. */
-export function collectionOrder(products = [], limit = 10) {
-  return [...products]
-    .sort((a, b) => (Number(Boolean(LOOKS[b.id])) - Number(Boolean(LOOKS[a.id]))) || (showcaseRank(a.id) - showcaseRank(b.id)))
-    .slice(0, limit);
+/** The video the home page features: footage of a curated product, showcase order first. */
+export function spotlight(products = [], footage = new Map()) {
+  return curatedProducts(products).find((p) => footage.has(p.id)) || null;
 }

@@ -21,6 +21,9 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "./prerender-products.mjs";
+import { SELLER_SKIP } from "../src/lib/reelsFeed.js";
+
+export { SELLER_SKIP };
 
 const SAFE = /^[a-z0-9][a-z0-9-]{0,80}$/;
 // Real footage first (a person filmed it), then talking Luna, then the rest.
@@ -93,7 +96,7 @@ export function sellerReels(assets = [], listed = new Set()) {
   const by = new Map();
   for (const a of Array.isArray(assets) ? assets : []) {
     const m = String(a?.name || "").match(/^([A-Za-z0-9_-]+?)(-[bc])?\.mp4$/);
-    if (!m || m[2] || !listed.has(m[1])) continue;
+    if (!m || m[2] || !listed.has(m[1]) || SELLER_SKIP[m[1]]) continue;
     by.set(m[1], { productId: m[1], mp4: a, updatedAt: Date.parse(a.updated_at || a.created_at || "") || 0 });
   }
   return [...by.values()].map((g) => ({
