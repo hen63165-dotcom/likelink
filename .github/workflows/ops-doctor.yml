@@ -1,0 +1,34 @@
+name: Ops doctor
+
+# One low-cost pass over production (scripts/ops/doctor.mjs): routes, live
+# revision vs main, catalog copy, purchase links, prices, reels/images (first
+# KB only), database, sign-in and the site API — each labelled with whose move
+# it is. Report only: it writes nothing and prints no key values.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-doctor
+  cancel-in-progress: true
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Diagnose production
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+        run: node scripts/ops/doctor.mjs --summary

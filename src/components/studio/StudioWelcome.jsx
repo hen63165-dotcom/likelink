@@ -6,6 +6,9 @@
 import React from "react";
 import { Link2, ShieldCheck, Clapperboard, LineChart, Sparkles } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
+import { useMarketplace } from "../../context/MarketplaceContext";
+import { cloudStatus } from "../../lib/storage.js";
+import { CLOUD_PAUSED_HE, snapshotTakenAt } from "../../lib/catalogSnapshot.js";
 
 const STEPS = [
   { icon: Link2, he: "מדביקה קישור למוצר שאת ממליצה עליו", en: "Paste a link to a product you recommend" },
@@ -17,6 +20,10 @@ const STEPS = [
 export default function StudioWelcome({ onSignup }) {
   const { lang } = useI18n();
   const he = lang === "he";
+  // Re-render once the catalog load ends: then we know whether the cloud answered.
+  const { loading } = useMarketplace();
+  // The cloud refuses or does not answer: say so here, before two more screens and a form that cannot work.
+  const paused = !loading && (Boolean(snapshotTakenAt()) || cloudStatus().state !== "ok");
   return (
     <div dir={he ? "rtl" : "ltr"} className="space-y-5 max-w-3xl mx-auto">
       <section className="ll-card rounded-3xl p-6 sm:p-8 text-center">
@@ -29,6 +36,11 @@ export default function StudioWelcome({ onSignup }) {
         <p className="mt-3 text-sm text-[var(--text-secondary)]">
           {he ? "בלי קוד ובלי כרטיס אשראי. פותחים סטודיו בדקה ומתחילים לשתף." : "No code, no credit card. Open a studio in a minute and start sharing."}
         </p>
+        {paused ? (
+          <p role="status" className="mt-4 rounded-xl px-3.5 py-3 text-xs leading-5 surface-subtle">
+            {he ? CLOUD_PAUSED_HE : "Opening and signing in to the Studio is back soon (short maintenance). You can browse the site and buy through the links as usual."}
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={onSignup}

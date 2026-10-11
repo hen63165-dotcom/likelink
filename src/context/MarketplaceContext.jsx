@@ -1,6 +1,8 @@
 import { landingAttribution } from "../lib/attribution.js";
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { storage } from "../lib/storage.js";
+import { studioDataWanted, withTimeout } from "../lib/cloudBreaker.js";
+import { stripBase } from "../lib/basePath.js";
 import { recordActivity, getActivity } from "../lib/studioActivity.js";
 import { supabase } from "../lib/supabaseClient.js";
 import { signUpSeller, signInSeller, signOutSeller, authConfigured, getSessionToken } from "../lib/auth.js";
@@ -97,6 +99,19 @@ function mergePrivateInto(setMarketers, rows) {
   }));
 }
 
+function studioDataWantedHere() {
+  try {
+    let session = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || "";
+      if (/^sb-.+-auth-token$/.test(k) || k.endsWith(`local:${K.session}`)) session = true;
+    }
+    return studioDataWanted(stripBase(window.location.pathname), session, Boolean(sessionStorage.getItem("ll_admin_token")));
+  } catch {
+    return true;
+  }
+}
+
 async function getJSON(key, shared, fallback) {
   const res = await storage.get(key, shared);
   if (res == null || res.value == null) return fallback;
@@ -158,8 +173,39 @@ export function MarketplaceProvider({ children }) {
   const [introSeen, setIntroSeen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const applyStudioData = useCallback((po, ch, nt) => {
+    setPayouts(
+      toArr(po).map((x) => ({
+        ...x,
+        amount: toNum(x?.amount, 0),
+        ts: toNum(x?.ts, 0),
+        paidAt: x?.paidAt == null ? null : toNum(x?.paidAt, 0),
+      }))
+    );
+    setCharges(
+      toArr(ch).map((x) => ({
+        ...x,
+        marketerId: toStr(x?.marketerId),
+        amount: toNum(x?.amount, 0),
+        ts: toNum(x?.ts, 0),
+      }))
+    );
+    setNotifications(toArr(nt).slice(0, 60));
+  }, []);
+
+  // Read once, when a studio session appears (login) or the admin asks for it.
+  const studioLoaded = useRef(false);
+  const loadStudioData = useCallback(async () => {
+    if (studioLoaded.current) return;
+    studioLoaded.current = true;
+    const [po, ch, nt] = await Promise.all([getJSON(K.payouts, true, []), getJSON(K.charges, true, []), getJSON(K.notifications, true, [])]);
+    applyStudioData(po, ch, nt);
+  }, [applyStudioData]);
+
   useEffect(() => {
     (async () => {
+      const wantStudio = studioDataWantedHere();
+      if (wantStudio) studioLoaded.current = true;
       const [m, p, c, s, st, sess, fav, intro, cols, follow, po, ch, nt] = await Promise.all([
         getJSON(K.marketers, true, []),
         getJSON(K.products, true, []),
@@ -171,9 +217,9 @@ export function MarketplaceProvider({ children }) {
         getJSON(K.introSeen, false, false),
         getJSON(K.collections, true, []),
         getJSON(K.following, false, []),
-        getJSON(K.payouts, true, []),
-        getJSON(K.charges, true, []),
-        getJSON(K.notifications, true, []),
+        wantStudio ? getJSON(K.payouts, true, []) : [],
+        wantStudio ? getJSON(K.charges, true, []) : [],
+        wantStudio ? getJSON(K.notifications, true, []) : [],
       ]);
 
             const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
@@ -266,7 +312,8 @@ export function MarketplaceProvider({ children }) {
         // localStorage without a session would show the studio while every
         // save is refused by the server.
         let resolved = null;
-        try { resolved = await resolveCurrentMarketer(safeMarketers); } catch { resolved = null; }
+        // Bounded: a cloud that never answers must not keep the site and the Studio loading forever.
+        try { resolved = await withTimeout(resolveCurrentMarketer(safeMarketers), 12_000, "identity"); } catch { resolved = null; }
         activeMarketerId = resolved?.marketerId || null;
         if (resolved?.private) mergePrivateInto(setMarketers, [resolved.private]);
       }
@@ -283,26 +330,15 @@ export function MarketplaceProvider({ children }) {
         }))
       );
       setFollowing(toArr(follow));
-      setPayouts(
-        toArr(po).map((x) => ({
-          ...x,
-          amount: toNum(x?.amount, 0),
-          ts: toNum(x?.ts, 0),
-          paidAt: x?.paidAt == null ? null : toNum(x?.paidAt, 0),
-        }))
-      );
-      setCharges(
-        toArr(ch).map((x) => ({
-          ...x,
-          marketerId: toStr(x?.marketerId),
-          amount: toNum(x?.amount, 0),
-          ts: toNum(x?.ts, 0),
-        }))
-      );
-      setNotifications(toArr(nt).slice(0, 60));
+      if (wantStudio) applyStudioData(po, ch, nt);
       setLoading(false);
     })();
-  }, []);
+  }, [applyStudioData]);
+
+  // A login (or a session resolved after load) brings the Studio-only data in.
+  useEffect(() => {
+    if (sessionMarketerId) loadStudioData();
+  }, [sessionMarketerId, loadStudioData]);
 
   // Retroactive audit: flag saved products whose affiliateUrl is a placeholder
   // or lacks an AliExpress tracking ID, so the owner can fix them manually.
@@ -833,7 +869,7 @@ export function MarketplaceProvider({ children }) {
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
       toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t,
-      openStudioForVerifiedUser,
+      openStudioForVerifiedUser, loadStudioData,
     ]
   );
 

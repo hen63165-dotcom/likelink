@@ -93,7 +93,8 @@ export function snapshotTakenAt() {
  */
 export function isCloudUnavailable(error) {
   const text = String(error?.message || error?.error || error || "");
-  return /restricted|exceed_\w*quota|\b402\b|failed to fetch|load failed|networkerror|network request failed/i.test(text);
+  // "402" also inside codes like store_http_402 ("_" is a word character, so \b would miss it).
+  return /restricted|exceed_\w*quota|(^|\D)402(\D|$)|failed to fetch|load failed|networkerror|network request failed/i.test(text);
 }
 
 /** What a visitor is told while studio sign-up and login cannot reach the cloud. */

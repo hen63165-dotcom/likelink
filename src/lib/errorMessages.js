@@ -165,6 +165,9 @@ export function toHebrewError(codeOrError, fallback = GENERIC) {
   if (code === "webhook_verification_not_configured") return MESSAGES.not_configured;
   if (/^unsafe_url(:|$)/.test(code)) return "אי אפשר להשתמש בקישור הזה — הדביקי קישור ציבורי לדף המוצר";
   if (/^store_http_(401|403)$/.test(code)) return MESSAGES.authentication_required;
+  // The cloud refuses every save while the project is restricted (a quota):
+  // not the visitor's mistake, and nothing was saved (src/lib/cloudBreaker.js).
+  if (code === "cloud_restricted" || /^store_http_402$/.test(code) || /restricted|exceed_\w*quota/i.test(code)) return CLOUD_PAUSED_HE;
   if (/^(store_)?http_5\d\d$/.test(code)) return MESSAGES.internal_server_error;
   if (/timeout|aborted|failed to fetch|network/i.test(code)) {
     return "אין חיבור לשרת — בדקי את החיבור ונסי שוב";

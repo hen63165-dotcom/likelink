@@ -50,6 +50,7 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
   - Anonymous visitors may only append click/view events and bump a product's `clicks` counter by 1.
   - Creating an unowned record returns 401 or 403.
   - `src/lib/storage.js` sends the admin token or the Supabase session token.
+- **Cloud breaker (browser)** (`src/lib/cloudBreaker.js`, used by `src/lib/storage.js`): a read that fails with a 402/restricted/quota answer (or a timeout/network error) opens a breaker for 5 min (1 min for network), kept per tab in sessionStorage. While open, reads go straight to the snapshot (no request per key) and writes throw `cloud_restricted` (→ `CLOUD_PAUSED_HE`), never a false success. Concurrent reads of a key share one request; every read has a 12 s timeout, and the session lookup in `MarketplaceContext` has one too, so nothing loads forever. One console line per outage. Payouts, charges and notifications are read only on `/studio|/sell|/admin`, on a device with a studio/admin session, or after login (`studioDataWanted`, `loadStudioData`); a shopper's visit skips them (`tests/opsResilience.test.mjs`).
 - **Failed reads never become writes:** every server kv helper uses `src/lib/cloud/kvReadGuard.js`. A failed read marks the key, and `kvSet` refuses to write it until a read succeeds. Keep this for any new kv helper.
 - **Migrations deploy on push.** A Supabase GitHub integration applies every file pushed to `supabase/migrations/` on `main` to PRODUCTION.
   - Observed: `20260930000000_product_images_bucket` was applied about 70 s after its push, recorded under the file's own version. `20260928000000_kv_lockdown` was applied the same way. No workflow in this repo does it.
@@ -242,6 +243,7 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
   - Netlify non-production deploys were made public for this (visitor access: SSO off).
   - New code reaches likelink2.vercel.app only after you point the route's `dest` at a newer Netlify deploy permalink. `edit_route` only STAGES a version: promote it (`update_route_versions` action `promote`), then check `/r?pid=…` answers the static page, not a 402.
   - Remove the route once Vercel deploys again.
+- **Operations** (skill `.claude/skills/likelink-ops/SKILL.md`): `npm run ops:doctor` (`scripts/ops/doctor.mjs`; Actions → "Ops doctor", daily + on demand) checks routes, the live revision (`/version.json`, written by `scripts/write-version.mjs` in `postbuild` from `COMMIT_REF`/`GITHUB_SHA`/git) against main, the catalog copy, purchase links, prices, reels and images (1 KB ranges only), the database, sign-in and the site API, and labels each APP_DEFECT / PROVIDER_LIMIT / MISSING_CREDENTIAL / EXTERNAL_ACTION / NOT_TESTED. Report only; prints no key values.
 - **Snapshot mode** (`src/lib/catalogSnapshot.js`, `public/snapshot/kv.json`): when a live read of a public storefront key fails (cloud down/restricted), `storage.get` answers from the shipped copy. Rules:
   - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
   - A key served from it is read-only (`snapshot_read_only`).

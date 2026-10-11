@@ -20,7 +20,9 @@ const EarningsChart = lazy(() => import("../charts/EarningsChart").then(m => ({ 
 export default function AdminView() {
   const { t, lang } = useI18n();
   const L = (he, en) => (lang === "he" ? he : en);
-  const { marketers, products, clicks, sales, settings, onSetStatus, onRemove, onSetFee, loadAdminPrivate } = useMarketplace();
+  const { marketers, products, clicks, sales, settings, onSetStatus, onRemove, onSetFee, loadAdminPrivate, loadStudioData } = useMarketplace();
+  // Payouts/charges/notifications are read on demand (MarketplaceContext); the admin needs them.
+  useEffect(() => { loadStudioData?.(); }, [loadStudioData]);
   
   const [unlocked, setUnlocked] = useState(false);
   const [code, setCode] = useState("");
