@@ -11,6 +11,7 @@ import {
   Heart,
   LayoutGrid,
   Package,
+  Play,
   Printer,
   Ruler,
   Search,
@@ -46,6 +47,8 @@ import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { imageHandoff, SearchBox } from "./hero";
 import { LuxeHome } from "./luxe";
 import { lookLabel, lookOf } from "../../lib/looks.js";
+import { rankProducts } from "../../lib/skills/catalogRules.js";
+import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
 import { FOOTAGE_RANK } from "../../lib/homeShowcase.js";
 import {
   categoryName,
@@ -343,9 +346,20 @@ export function ProductsPage({ graph, category }) {
   const { loading } = useMarketplace();
   const [price, setPrice] = useQueryParam("price");
   const [sort, setSort] = useQueryParam("sort");
+  const [only, setOnly] = useQueryParam("only");
   const priced = hasStorePrices(graph.products);
   const band = priced ? PRICE_BANDS.find((b) => b.id === price) : null;
-  let list = graph.products.filter((p) => (!category || p.category === category) && (!band || band.test(Number(p.price))));
+  // Products with a playable, labelled video (graph.reels holds only playable media).
+  const withVideo = useMemo(() => new Set(graph.reels.flatMap((r) => r.productIds)), [graph.reels]);
+  // The default order is the discovery-ranking skill's (src/lib/skills/catalogRules.js): own store link,
+  // a video a person checked, a clean image, a checked price. Never popularity.
+  const order = useMemo(() => {
+    const checked = new Set(graph.reels.filter((r) => (r.style === "seller_video" && SELLER_REVIEWED[r.productIds[0]]) || r.style === "real_ugc").map((r) => r.productIds[0]));
+    return new Map(rankProducts(graph.products, { verifiedVideoIds: checked }).map((r, i) => [r.id, i]));
+  }, [graph.products, graph.reels]);
+  const videoOnly = only === "video";
+  let list = graph.products.filter((p) => (!category || p.category === category) && (!band || band.test(Number(p.price))) && (!videoOnly || withVideo.has(p.id)));
+  list = [...list].sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
   if (priced && sort === "price-asc") list = [...list].sort((a, b) => (Number(a.price) || Infinity) - (Number(b.price) || Infinity));
   if (priced && sort === "price-desc") list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 
@@ -353,6 +367,15 @@ export function ProductsPage({ graph, category }) {
     <>
       <PageHero kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(heCount(list.length, "products"), enCount(list.length, "products"))}>
         <CategoryChips graph={graph} active={category} base="/products" />
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" className="lx-chip" aria-pressed={videoOnly} onClick={() => setOnly(videoOnly ? "" : "video")}>
+            <Play size={13} aria-hidden="true" /> {L("עם סרטון", "With video")} <span className="opacity-60">{graph.products.filter((p) => (!category || p.category === category) && withVideo.has(p.id)).length}</span>
+          </button>
+          <span className="lx-mute text-[12.5px]">
+            {L("הסדר: קודם מוצרים עם קישור משלהם לחנות, סרטון שנבדק ותמונה נקייה. לא לפי פופולריות.", "Order: products with their own store link, a checked video and a clean image first. Never by popularity.")}{" "}
+            <Go to="/status" className="underline underline-offset-2">{L("מה נבדק", "What was checked")}</Go>
+          </span>
+        </div>
         {priced ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button type="button" className="lx-chip" aria-pressed={!price} onClick={() => setPrice("")}>{L("כל המחירים", "Any price")}</button>
@@ -375,8 +398,8 @@ export function ProductsPage({ graph, category }) {
       <section className="lx-wrap mt-8">
         {list.length ? (
           <Grid products={list} graph={graph} />
-        ) : band ? (
-          <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => setPrice("")}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>
+        ) : band || videoOnly ? (
+          <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => { setPrice(""); setOnly(""); }}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>
         ) : (
           <EmptyState icon={Package} title={loading ? L("המוצרים נטענים…", "Loading the products…") : category ? L("אין עדיין מוצרים בקטגוריה הזאת", "No products in this category yet") : L("אין עדיין מוצרים באתר", "No products on the site yet")}>
             {category && !loading ? <Go to="/products" className="lx-btn lx-btn-primary lx-btn-sm">{L("לכל המוצרים", "All products")}</Go> : null}

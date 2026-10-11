@@ -4,6 +4,7 @@
 import React, { useEffect } from "react";
 import { NavCtx, useGraph, useL } from "./kit";
 import { PublicShell } from "./PublicShell";
+import { StatusPage } from "./status";
 import {
   CollectionsPage,
   CreatorPage,
@@ -81,6 +82,8 @@ function pageSEO(route, graph, lang) {
       return page("/guide", he ? "המדריך החינמי: 8 בדיקות לפני שקונים באליאקספרס" : "Free guide: 8 checks before buying on AliExpress", "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.");
     case "size":
       return page("/size", he ? SIZE_PAGE.seoTitle : "Ring and bracelet size meter, free, on your screen", SIZE_PAGE.seoDescription);
+    case "status":
+      return { ...page("/status", he ? "מצב האתר ומה כל תווית אומרת" : "Site status and what each label means", "מה נבדק בקטלוג, מתי, ומה עוד חסר: קישורים, מחירים, התאמת תמונות וסרטונים למוצרים."), robots: "noindex,follow" };
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -149,6 +152,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "size":
       page = <SizePage graph={graph} />;
+      break;
+    case "status":
+      page = <StatusPage graph={graph} />;
       break;
     case "search":
       page = <SearchPage key={route.nav || "search"} graph={graph} />;

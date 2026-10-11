@@ -32,3 +32,5 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
         run: node scripts/ops/doctor.mjs --summary
+      - name: Catalog skills (integrity, links, prices, media, ranking, content)
+        run: node scripts/skills/run.mjs catalog-health --out "$RUNNER_TEMP/skills.json" --summary

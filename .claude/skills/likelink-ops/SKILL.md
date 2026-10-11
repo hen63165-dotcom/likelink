@@ -35,6 +35,10 @@ Every line has a kind. Act by kind:
 
 A 402 is never "fixed" in code. Code can only stop wasting requests (the browser breaker, `src/lib/cloudBreaker.js`), fail writes honestly (`cloud_restricted` → `CLOUD_PAUSED_HE`) and keep the storefront up from `public/snapshot/kv.json`.
 
+## 2b. The catalog skills
+
+`npm run skills:run` (or `node scripts/skills/run.mjs --feed <url|file|none> --out <file>`) runs the `catalog-health` workflow (`src/lib/skills/`) on the catalog copy and the reels feed; every build writes `/ops/skills.json` and `/status` shows it. A new deterministic check is a `defineSkill` in `src/lib/skills/catalog.js` plus a step in `CATALOG_HEALTH` and a test in `tests/skills.test.mjs`. After a person checks a seller clip frame by frame, add it to `SELLER_REVIEWED` (`src/lib/reelsFeed.js`); a clip of another item goes to `SELLER_SKIP`.
+
 ## 3. Check before shipping
 
 ```bash
