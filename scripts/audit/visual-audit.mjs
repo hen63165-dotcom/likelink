@@ -13,7 +13,7 @@ const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODUL
 const ALL = [["home", "/"], ["search", "/search?q=%D7%A6%D7%9E%D7%99%D7%93"], ["product", "/p/p-live-05"], ["reels", "/reels"], ["creator", "/u/alyostyle"], ["products", "/products"], ["discover", "/discover"], ["sell", "/sell"], ["studio", "/studio"], ["pricing", "/pricing"], ["status", "/status"]];
 // PAGES=home,product (names) picks pages; FULL=1 takes full-page phone shots. The
 // default (the first screen of the key pages) keeps the log small enough to read back.
-const pick = String(process.env.PAGES || "home,product,creator,reels,products,studio").split(",").map((s) => s.trim());
+const pick = String(process.env.PAGES || "home,search,product,creator,reels,products,studio,status").split(",").map((s) => s.trim());
 const PAGES = ALL.filter(([name]) => pick.includes(name));
 const FULL = process.env.FULL === "1";
 // EMIT=0: the workflow publishes the files to the ops/screenshots branch instead of the log.
