@@ -16,7 +16,7 @@ import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
-import { Go, Img, NavCtx, Rail, SaveButton, useL, useReducedMotion } from "./kit";
+import { Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
 
 function styleLabel(style, lang) {
   const l = REEL_STYLE_LABELS[style];
@@ -218,29 +218,17 @@ function Spotlight({ product, reel }) {
   );
 }
 
-function Motion({ graph, footage, skip }) {
-  const { L, lang } = useL();
+/** LTK's feed: shoppable posts, each video with its product right under it (ReelCard). */
+function Posts({ graph, footage, skip }) {
+  const { L } = useL();
   const reels = [...footage.values()].filter((r) => r.id !== skip);
   if (!reels.length) return null;
   return (
-    <section className="lx-wrap lx-luxe-section" aria-labelledby="h-motion">
-      <Head id="h-motion" kicker={L("בתנועה", "In motion")} title={L("עוד סרטונים.", "More videos.")} to="/reels" linkLabel={L("לכל הסרטונים", "All videos")} />
-      <Rail item="minmax(170px, 230px)" label={L("סרטוני מוצרים", "Product videos")}>
-        {reels.map((r) => {
-          const product = graph.byId.get(r.productIds[0]);
-          const picture = product ? cleanImage(product) : null;
-          return (
-            <Go key={r.id} to={`/reels?r=${encodeURIComponent(r.id)}`} className="lx-luxe-reel">
-              <span className="lx-luxe-reel-media">
-                <Img src={r.poster || picture?.src || ""} alt={product?.displayTitle || ""} />
-                <span className="lx-luxe-reel-play" aria-hidden="true"><Play size={16} fill="currentColor" /></span>
-              </span>
-              <span className="lx-luxe-reel-name">{product?.displayTitle}</span>
-              <small className="lx-luxe-sub">{styleLabel(r.style, lang)}</small>
-            </Go>
-          );
-        })}
-      </Rail>
+    <section className="lx-wrap lx-luxe-section" aria-labelledby="h-posts">
+      <Head id="h-posts" kicker={L("פוסטים", "Posts")} title={L("צופים, ובאותו מקום קונים.", "Watch it, shop it, right there.")} to="/reels" linkLabel={L("לכל הסרטונים", "All videos")} />
+      <div className="lx-posts">
+        {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} shoppable ratio="4 / 5" attribution={{ src: "likelink_home", camp: r.id }} />)}
+      </div>
     </section>
   );
 }
@@ -298,7 +286,7 @@ export function LuxeHome({ graph, extra = null }) {
       <HowItWorks />
       <Collection items={items} footage={footage} />
       {featured && featuredReel ? <Spotlight product={featured} reel={featuredReel} /> : null}
-      <Motion graph={graph} footage={footage} skip={featuredReel?.id} />
+      <Posts graph={graph} footage={footage} skip={featuredReel?.id} />
       {extra}
       <Creators />
       <Tools />

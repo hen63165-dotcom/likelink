@@ -956,22 +956,57 @@ export function TrendCard({ trend, graph }) {
   );
 }
 
-/** ReelCard — vertical, playable media only (classified by mediaTruth). */
-export function ReelCard({ reel, graph }) {
-  const { L } = useL();
+/**
+ * ReelCard — a shoppable post, LTK's unit: the video, and under it (never on
+ * it) who picked the product, whose video it is, and the product itself with
+ * its page and its store. A name printed over the footage would read as the
+ * person filmed in it; the creator only picked the product.
+ *   showCreator  false on the creator's own page
+ *   shoppable    the product row with "לפרטים" / "לחנות"; off where the page is already that product's
+ */
+export function ReelCard({ reel, graph, showCreator = true, shoppable = false, ratio = "9 / 16", attribution = null }) {
+  const { L, lang } = useL();
   const creator = graph.creatorById.get(reel.creatorId);
   const product = reel.productIds.length ? graph.byId.get(reel.productIds[0]) : null;
+  const source = REEL_STYLE_LABELS[reel.style]?.[lang] || "";
+  const thumb = product ? lookOf(product.id)?.src || product.media?.image || "" : "";
   return (
-    <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-card block">
-      <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio="9 / 16" width={400}>
-        <div className="lx-reel-shade" />
-        <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /><StyleBadge style={reel.style} /></div>
-        <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-          {creator ? <p className="text-[13px] font-bold">{creator.name}</p> : null}
-          {product ? <p className="lx-clamp-2 text-[12px] opacity-90">{product.displayTitle}</p> : null}
-        </div>
-      </Media>
-    </Go>
+    <article className="lx-post">
+      <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-post-media" aria-label={product ? L(`לצפייה: ${product.displayTitle}`, `Watch: ${product.displayTitle}`) : L("לצפייה בסרטון", "Watch the video")}>
+        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400}>
+          <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /></div>
+        </Media>
+      </Go>
+      <div className="lx-post-meta">
+        {showCreator && creator ? (
+          <Go to={creatorPath(creator.slug)} className="lx-post-creator">
+            <CreatorAvatar creator={creator} size={22} />
+            <span className="min-w-0 truncate"><span className="lx-mute">{L("בחירה של", "Picked by")} </span><b>{creator.name}</b></span>
+          </Go>
+        ) : null}
+        {source ? <p className="lx-post-source">{source}</p> : null}
+        {product && shoppable ? (
+          <div className="lx-post-product">
+            <Go to={productPath(product.id)} className="lx-post-thumb" aria-hidden="true" tabIndex={-1}>
+              {thumb ? <Img src={thumb} /> : null}
+            </Go>
+            <div className="min-w-0 flex-1">
+              <Go to={productPath(product.id)} className="lx-clamp-2 block text-[13px] font-semibold leading-snug">{product.displayTitle}</Go>
+              {/* A price only when the store's own price is known; the product page says where it is otherwise. */}
+              {formatPrice(product.price, lang) ? <PriceLine product={product} /> : null}
+            </div>
+          </div>
+        ) : product ? (
+          <Go to={productPath(product.id)} className="lx-clamp-2 block text-[13px] font-semibold leading-snug">{product.displayTitle}</Go>
+        ) : null}
+        {product && shoppable ? (
+          <div className="lx-post-actions">
+            <Go to={productPath(product.id)} className="lx-btn lx-btn-ghost lx-btn-sm">{L("לפרטים", "Details")}</Go>
+            <ShopButton product={product} className="lx-btn-sm" attribution={attribution || { src: "likelink_posts", camp: reel.id }}>{L("לחנות", "Shop")}</ShopButton>
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
 }
 

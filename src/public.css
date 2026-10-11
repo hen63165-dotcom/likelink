@@ -1134,13 +1134,42 @@ html body .lx img {
 .lx-luxe-spot-media video { opacity: 0; transition: opacity 0.6s var(--lx-ease); }
 .lx-luxe-spot-media video.is-on { opacity: 1; }
 
-/* Videos. */
-.lx-luxe-reel { display: block; min-width: 0; }
-.lx-luxe-reel-media { position: relative; display: block; aspect-ratio: 9 / 16; overflow: hidden; border-radius: 10px; background: var(--lx-soft); }
-.lx-luxe-reel-media img { position: absolute; inset: 0; transition: transform 0.9s var(--lx-ease); }
-.lx-luxe-reel:hover .lx-luxe-reel-media img { transform: scale(1.035); }
-.lx-luxe-reel-play { position: absolute; top: 50%; left: 50%; z-index: 1; display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 50%; background: rgba(0, 0, 0, 0.25); color: #fff; transform: translate(-50%, -50%); }
-.lx-luxe-reel-name { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin-top: 10px; font-size: 14px; font-weight: 600; }
+/* Shoppable posts (ReelCard): the video, and under it who picked it, whose
+   video it is and the product with its page and store. Nothing on the footage. */
+.lx-posts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
+@media (min-width: 768px) { .lx-posts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 18px; } }
+@media (min-width: 1200px) { .lx-posts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.lx-post { display: flex; flex-direction: column; min-width: 0; }
+.lx-post-media { display: block; overflow: hidden; border-radius: 12px; background: var(--lx-soft); }
+/* The media-truth badge is the only thing on the footage, and it is never cut off. */
+.lx-post-media .lx-badge { max-width: calc(100% - 20px); white-space: normal; line-height: 1.3; }
+.lx-post-meta { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+.lx-post-creator { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; }
+.lx-post-creator:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.lx-post-source { font-size: 11.5px; line-height: 1.45; color: var(--lx-mute); }
+.lx-post-product { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--lx-line); border-radius: 10px; }
+.lx-post-thumb { position: relative; flex-shrink: 0; width: 46px; height: 56px; overflow: hidden; border-radius: 6px; background: var(--lx-soft); }
+.lx-post-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lx-post-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lx-post-actions > * { justify-content: center; min-width: 0; padding-inline: 8px; }
+
+/* Creator page: a storefront like LTK's (a black profile, then the posts). */
+.lx-profile { background: var(--lx-black); color: #fff; }
+.lx-profile-in { display: flex; flex-direction: column; gap: 18px; padding-block: 34px 30px; }
+@media (min-width: 768px) { .lx-profile-in { flex-direction: row; align-items: flex-end; justify-content: space-between; padding-block: 56px 44px; } }
+.lx-profile-who { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.lx-profile-name { font-family: var(--lx-serif); font-weight: 700; font-size: clamp(30px, 7vw, 52px); line-height: 1.05; overflow-wrap: anywhere; }
+.lx-profile-bio { margin-top: 8px; max-width: 52ch; font-size: 14.5px; line-height: 1.6; color: rgba(255, 255, 255, 0.72); }
+.lx-profile-facts { margin-top: 8px; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.lx-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lx-profile .lx-btn-primary { background: #fff; color: #0b0b0c; }
+.lx-profile .lx-btn-ghost { border-color: rgba(255, 255, 255, 0.5); color: #fff; background: transparent; }
+.lx-tabs { position: sticky; top: 58px; z-index: 5; border-bottom: 1px solid var(--lx-line); background: var(--lx-paper); }
+@media (min-width: 768px) { .lx-tabs { top: 62px; } }
+.lx-tabs-in { display: flex; gap: 26px; overflow-x: auto; scrollbar-width: none; }
+.lx-tab { flex-shrink: 0; padding-block: 15px 13px; border-bottom: 2px solid transparent; font-size: 15px; font-weight: 600; color: var(--lx-mute); }
+.lx-tab[aria-selected="true"] { border-color: var(--lx-ink); color: var(--lx-ink); }
+.lx-tab:focus-visible { outline: 2px solid var(--lx-ink); outline-offset: 2px; border-radius: 4px; }
 
 /* Creators: a black band, like LTK's "Collaborate with brands you love". */
 .lx-luxe-band { margin-top: 96px; background: var(--lx-black); color: #fff; }
@@ -1160,6 +1189,6 @@ html body .lx img {
 
 @media (prefers-reduced-motion: reduce) {
   .lx-menu { animation: none; }
-  .lx-luxe-tile img, .lx-luxe-shot img, .lx-luxe-reel-media img, .lx-luxe-spot-media video { transition: none; }
-  .lx-luxe-tile:hover img, .lx-luxe-piece:hover .lx-luxe-shot img, .lx-luxe-reel:hover .lx-luxe-reel-media img { transform: none; }
+  .lx-luxe-tile img, .lx-luxe-shot img, .lx-luxe-spot-media video { transition: none; }
+  .lx-luxe-tile:hover img, .lx-luxe-piece:hover .lx-luxe-shot img { transform: none; }
 }

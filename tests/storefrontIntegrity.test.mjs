@@ -91,6 +91,30 @@ test("the product page and the home hero show the product's own clean image firs
   assert.match(search, /hasStorePrices\(graph\.products\)\s*\?\s*L\("כתבו, דברו 🎙️, צלמו או הדביקו קישור — אפשר גם „סט יוגה עד 150 שקל”/, "a price example only when prices exist");
 });
 
+test("a video post never prints a name over the footage; who picked it, whose video it is and the product sit under it", () => {
+  const kit = read("src/components/discover/kit.jsx");
+  const card = kit.slice(kit.indexOf("export function ReelCard"), kit.indexOf("export function Spinner"));
+  const onFootage = card.slice(card.indexOf("<Media"), card.indexOf("</Media>"));
+  assert.ok(onFootage.length > 0);
+  assert.doesNotMatch(onFootage, /creator|displayTitle\}<|source\}/, "only the media-truth badge sits on the video");
+  const under = card.slice(card.indexOf("</Media>"));
+  assert.match(under, /L\("בחירה של", "Picked by"\)/, "the creator is the one who picked the product");
+  assert.match(under, /\{source \? <p className="lx-post-source">\{source\}<\/p> : null\}/, "whose video it is");
+  assert.match(under, /<ShopButton product=\{product\}/, "the product's own store link, under the video");
+  assert.match(under, /<PriceLine product=\{product\}/, "a price only from the store, else 'המחיר המעודכן בחנות'");
+});
+
+test("the creator page is a storefront of real content: no followers, views or clicks", () => {
+  const pages = read("src/components/discover/pages.jsx");
+  const page = pages.slice(pages.indexOf("export function CreatorPage"), pages.indexOf("export function ProductPage"));
+  assert.match(page, /role="tablist"/);
+  assert.match(page, /<ReelCard key=\{r\.id\} reel=\{r\} graph=\{graph\} showCreator=\{false\} shoppable/, "her videos are shoppable posts, with no name over them");
+  assert.doesNotMatch(page, /\.attention\b|"views"|"clicks"|followerCount|followers\.length/, "no counters on a creator's page");
+  assert.match(page, /creator\.verified \? <TrustBadge kind="verified" \/> : null/, "verified only from the record");
+  const productPage = pages.slice(pages.indexOf("export function ProductPage"), pages.indexOf("export function ReelsPage"));
+  assert.match(productPage, /<ReelCard key=\{r\.id\} reel=\{r\} graph=\{graph\} showCreator=\{false\} \/>/);
+});
+
 test("the reels page names the creator as the one who picked the product", () => {
   const pages = read("src/components/discover/pages.jsx");
   const reels = pages.slice(pages.indexOf("export function ReelsPage"), pages.indexOf("export function TrendsPage"));

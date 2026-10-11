@@ -46,6 +46,7 @@ import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { imageHandoff, SearchBox } from "./hero";
 import { LuxeHome } from "./luxe";
 import { lookLabel, lookOf } from "../../lib/looks.js";
+import { FOOTAGE_RANK } from "../../lib/homeShowcase.js";
 import {
   categoryName,
   CollectionCard,
@@ -425,6 +426,7 @@ export function CreatorPage({ graph, slug, navigate }) {
   const { L, lang } = useL();
   const creator = findCreator(graph, slug);
   const [cat, setCat] = useState("");
+  const [tab, setTab] = useQueryParam("tab");
 
   useEffect(() => {
     try {
@@ -438,118 +440,84 @@ export function CreatorPage({ graph, slug, navigate }) {
   if (!creator) return <NotFound navigate={navigate} what="creator" />;
   const products = creator.productIds.map((id) => graph.byId.get(id));
   const shop = cat ? products.filter((p) => p.category === cat) : products;
-  const reels = graph.reels.filter((r) => r.creatorId === creator.id);
+  // Footage of the real product first (a person's own clip, then the seller's video), then Luna's labelled reels.
+  const reels = graph.reels.filter((r) => r.creatorId === creator.id).sort((a, b) => (FOOTAGE_RANK[b.style] || 0) - (FOOTAGE_RANK[a.style] || 0));
   const boards = graph.collections.filter((c) => c.creatorIds.includes(creator.id) && c.kind !== "creator");
-  const standouts = [...products].sort((a, b) => b.attention.clicks * 2 + b.attention.views - (a.attention.clicks * 2 + a.attention.views)).slice(0, 4);
-  const hasAttention = standouts.some((p) => p.attention.clicks + p.attention.views > 0);
-  const hero = products.find((p) => p.media.image);
-  const topCategories = [...creator.categories].sort((a, b) => products.filter((p) => p.category === b).length - products.filter((p) => p.category === a).length);
+  // LTK's storefront: the creator's posts first (each video with its product
+  // under it), then the products, then the collections. Only real counts of
+  // what is on the page; no followers, views or clicks.
+  const tabs = [
+    reels.length ? { id: "videos", he: "סרטונים", en: "Videos", n: reels.length } : null,
+    { id: "products", he: "מוצרים", en: "Products", n: products.length },
+    boards.length ? { id: "collections", he: "אוספים", en: "Collections", n: boards.length } : null,
+  ].filter(Boolean);
+  const active = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
+  const current = tabs.find((t) => t.id === active);
 
   return (
     <>
-      {/* PROFILE */}
-      <section className="relative">
-        <div className="grid h-[180px] grid-cols-4 gap-0.5 overflow-hidden md:h-[260px]" aria-hidden="true">
-          {creator.covers.concat(creator.covers).slice(0, 4).map((src, i) => (
-            <div key={i} className="relative" style={{ background: "var(--lx-sunk)" }}>
-              <Img src={sized(src, 500)} loading={i < 2 ? "eager" : "lazy"} />
-            </div>
-          ))}
-        </div>
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, var(--lx-paper) 0%, rgba(250,247,242,.2) 60%, transparent)" }} aria-hidden="true" />
-        <div className="lx-wrap relative -mt-14 md:-mt-20">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-              <CreatorAvatar creator={creator} size={104} ring />
-              <div className="min-w-0 pb-1">
-                <h1 className="lx-display flex items-center gap-2 text-[34px] md:text-[44px]">
-                  <span className="truncate">{creator.name}</span>
-                  {creator.verified ? <TrustBadge kind="verified" /> : null}
-                </h1>
-                <p className="lx-mute text-[14px]">
-                  {L(`${heCount(products.length, "products")} · ${heCount(creator.categories.length, "categories")}`, `${enCount(products.length, "products")} · ${enCount(creator.categories.length, "categories")}`)}
-                  {boards.length ? L(` · ${heCount(boards.length, "collections")}`, ` · ${enCount(boards.length, "collections")}`) : ""}
+      <section className="lx-profile" aria-labelledby="h-creator">
+        <div className="lx-wrap lx-profile-in">
+          <div className="min-w-0">
+            <div className="lx-profile-who">
+              <CreatorAvatar creator={creator} size={84} ring />
+              <div className="min-w-0">
+                <h1 id="h-creator" className="lx-profile-name">{creator.name}</h1>
+                <p className="lx-profile-facts">
+                  {[L(heCount(products.length, "products"), enCount(products.length, "products")), reels.length ? L(heCount(reels.length, "reels"), enCount(reels.length, "reels")) : "", boards.length ? L(heCount(boards.length, "collections"), enCount(boards.length, "collections")) : ""].filter(Boolean).join(" · ")}
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <FollowButton creatorId={creator.id} />
-              <ShareButton variant="button" path={creatorPath(creator.slug)} title={`${creator.name} | LikeLink2`} marketerId={creator.id} />
-              <a href="#shop" className="lx-btn lx-btn-rose">{L("לחנות", "Shop")}</a>
+            {creator.bio ? <p className="lx-profile-bio">{creator.bio}</p> : null}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {creator.verified ? <TrustBadge kind="verified" /> : null}
+              <TrustBadge kind="attributed" />
             </div>
+          </div>
+          <div className="lx-profile-actions">
+            <FollowButton creatorId={creator.id} />
+            <ShareButton variant="button" path={creatorPath(creator.slug)} title={`${creator.name} | LikeLink2`} marketerId={creator.id} />
           </div>
         </div>
       </section>
 
-      {/* HERO CONTENT + ABOUT */}
-      <Section className="!mt-10">
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          {hero ? (
-            <Go to={productPath(hero.id)} className="lx-card block">
-              <Media src={hero.media.image} alt={hero.displayTitle} ratio="16 / 10" width={900} eager>
-                <div className="lx-reel-shade" />
-                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-                  <span className="lx-badge lx-badge-glass">{L("הבחירה האחרונה", "Latest pick")}</span>
-                  <p className="lx-display mt-2 text-[26px] leading-tight">{hero.displayTitle}</p>
-                  <p className="mt-1 font-bold">{formatPrice(hero.price, lang)}</p>
-                </div>
-              </Media>
-            </Go>
-          ) : null}
-          <div className="flex flex-col gap-4">
-            <div className="lx-card p-5">
-              <p className="lx-kicker">{L("אודות", "About")}</p>
-              <p className="mt-2 text-[15px] leading-7">{creator.bio || L(`${creator.name} בוחר/ת מוצרים בלייקלינק.`, `${creator.name} picks products on LikeLink.`)}</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {creator.categories.map((c) => <Go key={c} to={`/discover/${encodeURIComponent(c)}`} className="lx-badge lx-badge-line">{categoryName(c, lang)}</Go>)}
-              </div>
-              <div className="mt-3"><TrustBadge kind="attributed" /></div>
+      <nav className="lx-tabs" aria-label={L(`התוכן של ${creator.name}`, `${creator.name}'s content`)}>
+        <div className="lx-wrap lx-tabs-in" role="tablist">
+          {tabs.map((t) => (
+            <button key={t.id} type="button" role="tab" id={`tab-${t.id}`} aria-selected={active === t.id} aria-controls="creator-panel" className="lx-tab" onClick={() => setTab(t.id === tabs[0].id ? "" : t.id)}>
+              {lang === "he" ? t.he : t.en} <span className="opacity-60">{t.n}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <section id="creator-panel" role="tabpanel" aria-labelledby={`tab-${active}`} className="lx-wrap mt-6 md:mt-8">
+        <h2 className="lx-sr">{lang === "he" ? current.he : current.en}</h2>
+        {active === "videos" ? (
+          <>
+            <p className="lx-mute mb-5 text-[13px]">{L(`המוצרים ש־${creator.name} בחר/ה, בסרטונים. מתחת לכל סרטון כתוב של מי הוא, ומה המוצר.`, `The products ${creator.name} picked, on video. Under each one: whose video it is, and the product.`)}</p>
+            <div className="lx-posts">
+              {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} shoppable ratio="4 / 5" attribution={{ src: "likelink_creator", camp: r.id }} />)}
             </div>
-            <LunaInsight
-              title={hasAttention ? L(`הבולטים אצל ${creator.name}`, `${creator.name}'s standouts`) : L(`מה כדאי לראות אצל ${creator.name}`, `Where to start with ${creator.name}`)}
-              lines={
-                hasAttention
-                  ? standouts.filter((p) => p.attention.clicks + p.attention.views > 0).map((p) => L(`${p.displayTitle} — ${heCount(p.attention.views, "views")}, ${heCount(p.attention.clicks, "clicks")} ב־${TREND_WINDOW_DAYS} ימים`, `${p.displayTitle} — ${enCount(p.attention.views, "views")}, ${enCount(p.attention.clicks, "clicks")} in ${TREND_WINDOW_DAYS} days`))
-                  : [L("עוד לא נרשמו מספיק צפיות כדי לדרג — הנה הבחירות האחרונות.", "Not enough recorded views to rank yet — here are the latest picks."), ...topCategories.slice(0, 2).map((c) => L(`${heCount(products.filter((p) => p.category === c).length, "picks")} ב${categoryName(c, "he")}`, `${enCount(products.filter((p) => p.category === c).length, "picks")} in ${categoryName(c, "en")}`))].slice(0, 3)
-              }
-            />
-          </div>
-        </div>
-      </Section>
-
-      {/* FEATURED COLLECTIONS */}
-      {boards.length ? (
-        <Section>
-          <SectionHead title={L("אוספים", "Collections")} />
-          <Rail item="minmax(260px, 320px)">{boards.map((c) => <CollectionCard key={c.id} collection={c} />)}</Rail>
-        </Section>
-      ) : null}
-
-      {/* REELS */}
-      {reels.length ? (
-        <Section>
-          <SectionHead kicker="Reels" title={L("סרטונים", "Reels")} to="/reels" />
-          <Rail item="minmax(160px, 200px)">{reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} />)}</Rail>
-        </Section>
-      ) : null}
-
-      {/* RECOMMENDED */}
-      <Section>
-        <SectionHead title={L("מומלצים", "Recommended")} sub={hasAttention ? L("לפי תשומת לב שנרשמה", "By recorded attention") : L("הבחירות האחרונות", "Latest picks")} />
-        <Rail item="minmax(176px, 210px)">{standouts.map((p) => <ProductCard key={p.id} product={p} creator={creator} showCreator={false} />)}</Rail>
-      </Section>
-
-      {/* SHOP */}
-      <Section id="shop">
-        <SectionHead title={L(`החנות של ${creator.name}`, `${creator.name}'s shop`)} sub={L(heCount(shop.length, "products"), enCount(shop.length, "products"))} />
-        <div className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: "none" }}>
-          <div className="flex w-max gap-2">
-            <button type="button" className="lx-chip" aria-pressed={!cat} onClick={() => setCat("")}>{L("הכל", "All")}</button>
-            {creator.categories.map((c) => <button key={c} type="button" className="lx-chip" aria-pressed={cat === c} onClick={() => setCat(c)}>{categoryName(c, lang)}</button>)}
-          </div>
-        </div>
-        <Masonry products={shop} graph={graph} />
-      </Section>
+          </>
+        ) : null}
+        {active === "products" ? (
+          <>
+            {creator.categories.length > 1 ? (
+              <div className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: "none" }}>
+                <div className="flex w-max gap-2">
+                  <button type="button" className="lx-chip" aria-pressed={!cat} onClick={() => setCat("")}>{L("הכל", "All")}</button>
+                  {creator.categories.map((c) => <button key={c} type="button" className="lx-chip" aria-pressed={cat === c} onClick={() => setCat(c)}>{categoryName(c, lang)}</button>)}
+                </div>
+              </div>
+            ) : null}
+            <Grid products={shop} graph={graph} />
+          </>
+        ) : null}
+        {active === "collections" ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{boards.map((c) => <CollectionCard key={c.id} collection={c} />)}</div>
+        ) : null}
+      </section>
     </>
   );
 }
@@ -679,7 +647,7 @@ export function ProductPage({ graph, id, navigate }) {
       {reels.length ? (
         <Section>
           <SectionHead title={L("בסרטונים", "In reels")} />
-          <Rail item="minmax(160px, 200px)">{reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} />)}</Rail>
+          <Rail item="minmax(160px, 200px)">{reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} />)}</Rail>
         </Section>
       ) : null}
       {more.length ? (
