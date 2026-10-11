@@ -5,6 +5,8 @@ import React, { useEffect } from "react";
 import { NavCtx, useGraph, useL } from "./kit";
 import { PublicShell } from "./PublicShell";
 import { StatusPage } from "./status";
+import { JoinPage } from "./join";
+import { JOIN_PATH, JOIN_SEO } from "../../lib/growth/join.js";
 import {
   CollectionsPage,
   CreatorPage,
@@ -84,6 +86,8 @@ function pageSEO(route, graph, lang) {
       return page("/size", he ? SIZE_PAGE.seoTitle : "Ring and bracelet size meter, free, on your screen", SIZE_PAGE.seoDescription);
     case "status":
       return { ...page("/status", he ? "מצב האתר ומה כל תווית אומרת" : "Site status and what each label means", "מה נבדק בקטלוג, מתי, ומה עוד חסר: קישורים, מחירים, התאמת תמונות וסרטונים למוצרים."), robots: "noindex,follow" };
+    case "join":
+      return page(JOIN_PATH, he ? JOIN_SEO.title : "A creator page on LikeLink2: your link in bio, as a small shop", JOIN_SEO.description);
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -155,6 +159,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "status":
       page = <StatusPage graph={graph} />;
+      break;
+    case "join":
+      page = <JoinPage graph={graph} />;
       break;
     case "search":
       page = <SearchPage key={route.nav || "search"} graph={graph} />;

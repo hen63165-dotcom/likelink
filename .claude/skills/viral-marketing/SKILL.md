@@ -13,6 +13,7 @@ runs on GitHub (Actions + Pages) and never needs the Supabase cloud.
 | When | What | Where it lands |
 |---|---|---|
 | 06:40 Israel (deploy-frontend.yml schedule) | **Daily drop**: today's product + its best video + Google Trends Israel → the post for TikTok, Reels, Shorts, WhatsApp, Telegram, Facebook, a story poll | https://hen63165-dotcom.github.io/likelink/drop/ (+ `today.json`) |
+| Same page, same time | **Creator recruitment post** (`src/lib/growth/recruit.js`): one angle a day (`CREATOR_ANGLES`) → Instagram/TikTok/WhatsApp/Facebook text, each with its own `/join?utm_source=…&utm_campaign=creators_<date>_<angle>` link | the "פוסט גיוס יוצרות להיום" block of the drop + `creators` in `today.json` |
 | Every deploy | Pinterest feed (products, reel covers, size meter) | `/likelink/pins.xml` (the owner's Pinterest auto-publish reads it) |
 | After a code push | IndexNow → Bing & co. | `scripts/indexnow.mjs` |
 | 08:00 / 17:00 UTC | Luna tip reels | `luna-reels` release |
@@ -38,6 +39,14 @@ To refresh today's drop now: Actions → "Deploy frontend to GitHub Pages" → R
 6. Comment-to-DM: "כתבי 'רוצה' בתגובות" (the Instagram bot answers once IG is connected).
 
 New formulas go into `dropHooks` (src/lib/growth/dailyDrop.js) with a test in `tests/dailyDrop.test.mjs`.
+
+## Two engines: buyers and creators
+
+- **Buyers** come from product posts (the drop, reels, Pinterest, the size meter, the guide).
+- **Creators** come from the recruitment post. Each creator who opens a page brings her own audience, so this is the loop that grows by itself. Brands now prefer small creators for trust, and creators want a page their followers can buy from — `/join` is that offer, said only with what is live (the free plan is read from `plans.js`).
+- `/join` (`src/components/discover/join.jsx`): how it works, a real post from the site, the free plan, why the audience can trust it. While Studio sign-up is paused, its button is a mail to the legal pack's public address (`CONTACT_EMAIL`) carrying where the visit came from (`הגעתי מ: instagram (creators_…)`), so the owner sees which network brings creators and answers each one. No form provider: nothing new to pay for, nothing that can spend the free hosting plan.
+- Recruitment posts never promise income, user counts or "spots left" (`RECRUIT_FORBIDDEN` on top of `HOOK_FORBIDDEN` + `DROP_FORBIDDEN`), say that LikeLink2 is the owner's own project, and never use another company's name or brand. Tests: `tests/recruit.test.mjs`.
+- Owner routine: post the recruitment text from her own account; reply to every creator's mail the same day; when the cloud is back, send each one the `/studio` link.
 
 ## Making a video look like a videographer's reel
 

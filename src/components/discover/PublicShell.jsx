@@ -272,6 +272,7 @@ function Footer() {
     {
       title: L("ליוצרים ולסוחרים", "Creators & merchants"),
       links: [
+        { to: "/join", he: "דף יוצרת בחינם", en: "A free creator page" },
         { to: "/studio", he: "פתיחת Studio", en: "Open the Studio" },
         { to: "/creators", he: "קהילת היוצרים", en: "Creator community" },
         { to: "/merchants", he: "יש לך מוצרים?", en: "Have products?" },

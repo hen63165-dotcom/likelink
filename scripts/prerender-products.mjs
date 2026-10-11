@@ -22,6 +22,7 @@ import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { SIZE_PAGE } from "../src/lib/sizeTool.js";
 import { GUIDE } from "../src/lib/guide.js";
+import { JOIN_PATH, JOIN_SEO } from "../src/lib/growth/join.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -85,6 +86,12 @@ export function sectionPages(origin = PRODUCTION_ORIGIN) {
       ],
     },
     {
+      path: JOIN_PATH,
+      title: `${JOIN_SEO.title} | LikeLink2`,
+      description: JOIN_SEO.description,
+      canonical: `${origin}${JOIN_PATH}`,
+    },
+    {
       path: "/guide",
       title: `המדריך החינמי: ${GUIDE.title.he} | LikeLink2`,
       description: "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.",
@@ -138,7 +145,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);
-  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/pricing", "/legal",
+  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/join", "/pricing", "/legal",
     ...creators.map((c) => `/u/${c.slug}`), ...products.map(({ product }) => `/p/${product.id}`)];
   writeFileSync(join(dist, "sitemap-static.xml"), sitemapXml(origin, paths, today));
   return { pages: products.length, urls: paths.length };

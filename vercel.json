@@ -176,6 +176,10 @@
       "destination": "/"
     },
     {
+      "source": "/join",
+      "destination": "/"
+    },
+    {
       "source": "/search",
       "destination": "/"
     },
