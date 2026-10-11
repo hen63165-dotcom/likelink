@@ -215,6 +215,7 @@ Vercel Hobby allows **at most 12 serverless functions per deployment**. Going ov
 
 - `src/main.jsx` → `src/App.jsx`. Routing is custom (`src/utils/routing.js` `parsePath`), not react-router.
   - **Public site** (`src/components/discover/`, one lazy chunk `PublicSite.jsx`): `/` home, `/discover[/cat]`, `/products[/cat]`, `/creators[/cat]`, `/u/:slug`, `/p/:id`, `/reels`, `/trends`, `/collections[/id]`, `/deals`, `/search?q=`, `/saved`. `/feed` maps to Discover; `/?product=<id>` (Google feed links) redirects to `/p/<id>`. New public paths need a `vercel.json` SPA rewrite (a test checks).
+  - The home page (`luxe.jsx`, chosen in `src/lib/homeShowcase.js`): a dark hero playing the best real footage (a person's own clip, then the seller's premium cut; never a Luna AI reel), labelled with whose video it is plus `#פרסומת · קישור שותפים`; three promise lines; the collection as large images (the reel's cover frame when a product has footage, the first one plays); the videos; the size meter and guide; one seller band. No counters on the home page (`tests/homeShowcase.test.mjs`). `luxury.css` forces every `<img>` to `display:block` and centered `object-position` with `!important`, so hidden layers are divs with a background and per-photo focus goes through `--lx-focus`.
   - Every public surface renders only `buildPublicGraph` (`src/lib/publicDiscovery.js`): approved + attributed products, trends only from recorded click/view events, deals only from a real previous price, reels only from playable media classified by `mediaTruth`, "verified" only when the record says so, Luna picks only from local signals. `tests/publicDiscovery.test.mjs` pins this.
   - Design system: `src/public.css` (scoped to `.lx`, loaded after Tailwind — don't combine an `lx-*` class that sets display/position with a responsive Tailwind display/position utility on the same element; wrap it). `luxury.css` has global `!important` image rules, neutralized inside `.lx`.
   - The dark `StudioShell` (`src/components/studio/`) is lazy-loaded at `/studio`; admin at `/admin`. `tests/studioShellContract.test.mjs` locks the separation. In `src/PAGES/`, the remaining files are unused duplicates.
@@ -242,7 +243,7 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
   - The copy holds only listable products, public creator rows and click events (`tests/catalogSnapshot.test.mjs`).
   - A key served from it is read-only (`snapshot_read_only`).
   - Cloud-hosted media is dropped from the copy.
-  - The home pill says "מחירי קטלוג נכונים ל־<date>", and the studio sign-up screen shows `CLOUD_PAUSED_HE` instead of a raw error while the cloud cannot answer (`isCloudUnavailable`).
+  - The home page shows no prices; product prices say "המחיר המעודכן בחנות". The studio sign-up screen shows `CLOUD_PAUSED_HE` instead of a raw error while the cloud cannot answer (`isCloudUnavailable`).
   - Refresh the copy with SQL when the catalog changes and the API is down.
 - **Server-free pieces of the storefront (Netlify):**
   - `/r` is the static forwarder `public/r.html` + `public/r.js` (`decideRedirect`): it forwards only to a product link in the catalog copy (by `pid` or the exact stored link), shows a "leaving LikeLink" page for anything else, refuses non-http and `/r` loops. No click is recorded there. On Vercel `/r` is still `api/og.mjs`.

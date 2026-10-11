@@ -135,7 +135,7 @@ export function sized(url, width = 600) {
   }
 }
 
-function useReducedMotion() {
+export function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;

@@ -15,11 +15,9 @@ import {
   Ruler,
   Search,
   Sparkles,
-  Store,
   Tag,
   TrendingUp,
   Users,
-  X,
 } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import {
@@ -44,8 +42,8 @@ import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js"
 import { trackReferralClick } from "../../lib/referral.js";
 import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
-import { currentMoment, momentProducts } from "../../lib/moments.js";
-import { HomeHero, imageHandoff, SearchBox, TrustMarquee } from "./hero";
+import { imageHandoff, SearchBox } from "./hero";
+import { LuxeHome } from "./luxe";
 import {
   categoryName,
   CollectionCard,
@@ -217,225 +215,13 @@ const MATCH_LABEL_HE = { same_photo: "נראה כמו אותה תמונה", simi
 const MATCH_LABEL_EN = { same_photo: "Looks like the same photo", similar: "Similar match" };
 /* --------------------------------------------------------------------- home */
 
-export function HomePage({ graph, navigate }) {
-  const { L, lang } = useL();
-  const { favorites, following } = useMarketplace();
-  const picks = useMemo(() => lunaPicks(graph, { favorites, following, viewed: viewedIds() }), [graph, favorites, following]);
-  const [cat, setCat] = useState("");
-  const gridProducts = (cat ? graph.products.filter((p) => p.category === cat) : graph.products).slice(0, 12);
-  const editorial = graph.products.filter((p) => p.media.image).slice(5, 10);
-  const budget = graph.products.filter((p) => Number(p.price) > 0 && Number(p.price) < 100);
-
+export function HomePage({ graph }) {
   useEffect(() => {
     trackSiteEvent("landing_view", { page: "/" });
   }, []);
-
-  return (
-    <>
-      {/* HERO — gradient headline, search with live suggestions, bento grid */}
-      <HomeHero graph={graph} navigate={navigate} />
-
-      {/* TRUST — what a buyer can count on, and the stores products come from */}
-      <TrustMarquee graph={graph} />
-
-      {/* THE MOMENT — re-themes itself by the Israeli calendar, no deploy */}
-      <MomentBand graph={graph} />
-
-      {/* ONE CLICK FOR EACH SIDE */}
-      <ForEverySide />
-
-      {/* LUNA'S FREE TOOLS — useful on their own, and worth sending to a friend */}
-      <Section labelledBy="h-tools">
-        <SectionHead id="h-tools" kicker={<><Ruler size={14} /> {L("כלים חינמיים של לונה", "Luna's free tools")}</>} title={L("רגע לפני שמזמינים", "Right before you order")} />
-        <div className="grid gap-3 md:grid-cols-2">
-          <Go to={SIZE_PATH} className="lx-card block p-5 md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
-            <p className="lx-kicker"><Ruler size={14} aria-hidden="true" /> {L("מודד מידות", "Size meter")}</p>
-            <p className="mt-2 text-[20px] font-extrabold leading-7">{L("מה מידת הטבעת שלך? מגלים מהמסך תוך דקה", "What's your ring size? Find out on your screen in a minute")}</p>
-            <p className="lx-mute mt-1 text-[14px]">{L("עם כרטיס וטבעת שיש לך. וגם אורך צמיד לפי פרק היד.", "With a card and a ring you own. Plus bracelet length from your wrist.")}</p>
-          </Go>
-          <Go to={GUIDE_PATH} className="lx-card block p-5 md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
-            <p className="lx-kicker"><BookOpen size={14} aria-hidden="true" /> {L("המדריך החינמי", "The free guide")}</p>
-            <p className="mt-2 text-[20px] font-extrabold leading-7">{lang === "he" ? GUIDE.title.he : GUIDE.title.en}</p>
-            <p className="lx-mute mt-1 text-[14px]">{L("כסף 925, מואסניט, מבצעים אמיתיים והגנת קונה. אפשר לשמור כ־PDF.", "Silver 925, moissanite, real sales and buyer protection. Save it as a PDF.")}</p>
-          </Go>
-        </div>
-      </Section>
-
-      {/* TRENDING NOW — evidence only; otherwise "just added" (by real createdAt) */}
-      {graph.trends.length ? (
-        <Section labelledBy="h-trends">
-          <SectionHead id="h-trends" kicker={<><Flame size={14} /> {L("עכשיו חם", "Trending now")}</>} title={L("מה מעניין אנשים השבוע", "What people are into")} sub={L(`לפי צפיות וקליקים שנרשמו ב־${TREND_WINDOW_DAYS} הימים האחרונים`, `Based on views and clicks recorded in the last ${TREND_WINDOW_DAYS} days`)} to="/trends" />
-          <Rail item="minmax(230px, 280px)">{graph.trends.map((t) => <TrendCard key={t.category} trend={t} graph={graph} />)}</Rail>
-        </Section>
-      ) : (
-        <Section labelledBy="h-new">
-          <SectionHead id="h-new" kicker={<><Sparkles size={14} /> {L("חדש בקטלוג", "Just added")}</>} title={L("נוספו לאחרונה", "Fresh finds")} sub={L("המוצרים האחרונים שיוצרים הוסיפו", "The latest products creators added")} to="/products" />
-          <Rail item="minmax(176px, 220px)">{graph.products.slice(0, 10).map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
-        </Section>
-      )}
-
-      {/* LUNA PROMOTES NOW — the marketing engine's own published site-feed posts */}
-      <EnginePicks graph={graph} />
-
-      {/* CREATORS TO DISCOVER */}
-      {graph.creators.length ? (
-        <Section labelledBy="h-creators">
-          <SectionHead id="h-creators" kicker={<><Users size={14} /> {L("יוצרים שכדאי להכיר", "Creators to know")}</>} title={L("האנשים מאחורי הבחירות", "The people behind the picks")} to="/creators" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {graph.creators.slice(0, 2).map((c) => <CreatorCard key={c.id} creator={c} graph={graph} />)}
-            <JoinCreatorsCard />
-          </div>
-        </Section>
-      ) : null}
-
-      {/* REELS */}
-      <Section labelledBy="h-reels">
-        <SectionHead id="h-reels" kicker={<><Clapperboard size={14} /> LikeLink Reels</>} title={L("לראות את המוצר בתנועה", "See products in motion")} to="/reels" linkLabel={L("לחוויה המלאה", "Open reels")} />
-        {graph.reels.length ? (
-          <Rail item="minmax(160px, 200px)">{graph.reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} />)}</Rail>
-        ) : (
-          <ReelsEmptyBand graph={graph} />
-        )}
-      </Section>
-
-      {/* SHOPPING DISCOVERY — editorial bento */}
-      {editorial.length >= 3 ? (
-        <Section labelledBy="h-edit">
-          <SectionHead id="h-edit" kicker={<><LayoutGrid size={14} /> {L("גילוי קניות", "Shopping discovery")}</>} title={L("העריכה של השבוע", "This week's edit")} sub={L("מבחר מהקטלוג — כל פריט מוביל לפרטים, ליוצר/ת ולחנות", "From the catalog — every item leads to details, the creator and the store")} />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:grid-rows-2 md:gap-4">
-            {editorial.map((p, i) => (
-              <div key={p.id} className={i === 0 ? "col-span-2 row-span-2" : ""}>
-                <ProductCard product={p} creator={graph.creatorById.get(p.marketerId)} ratio={i === 0 ? "1 / 1" : "4 / 5"} />
-              </div>
-            ))}
-          </div>
-        </Section>
-      ) : null}
-
-      {/* FEATURED COLLECTIONS */}
-      {graph.collections.length ? (
-        <Section labelledBy="h-cols">
-          <SectionHead id="h-cols" kicker={L("אוספים", "Collections")} title={L("לוחות שכדאי לדפדף", "Boards worth browsing")} to="/collections" />
-          <Rail item="minmax(260px, 320px)">{graph.collections.slice(0, 8).map((c) => <CollectionCard key={c.id} collection={c} />)}</Rail>
-        </Section>
-      ) : null}
-
-      {/* DEALS — real price drops only; otherwise budget picks, labelled as such */}
-      <Section labelledBy="h-deals">
-        {graph.deals.length ? (
-          <>
-            <SectionHead id="h-deals" kicker={<><Tag size={14} /> {L("דילים", "Deals")}</>} title={L("ירידות מחיר אמיתיות", "Real price drops")} to="/deals" />
-            <Rail item="minmax(176px, 220px)">{graph.deals.map((p) => <DealCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
-          </>
-        ) : budget.length ? (
-          <>
-            <SectionHead id="h-deals" kicker={<><Tag size={14} /> {L("לפי תקציב", "By budget")}</>} title={L("שווים, עד ₪100", "Good finds under ₪100")} sub={L("לפי המחיר הרשום. הנחה מוצגת רק כשיש מחיר קודם אמיתי.", "By listed price. A discount is shown only with a real previous price.")} to="/deals" />
-            <Rail item="minmax(176px, 220px)">{budget.slice(0, 10).map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} ratio="1 / 1" />)}</Rail>
-          </>
-        ) : null}
-      </Section>
-
-      {/* PRODUCTS */}
-      <Section labelledBy="h-products">
-        <SectionHead id="h-products" kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={L("כל מה שבקטלוג", "Everything in the catalog")} to={cat ? `/products/${encodeURIComponent(cat)}` : "/products"} />
-        <div className="-mx-4 mb-5 overflow-x-auto px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: "none" }}>
-          <div className="flex w-max gap-2">
-            <button type="button" className="lx-chip" aria-pressed={!cat} onClick={() => setCat("")}>{L("הכל", "All")}</button>
-            {graph.categories.map((c) => (
-              <button key={c.id} type="button" className="lx-chip" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{categoryName(c.id, lang)}</button>
-            ))}
-          </div>
-        </div>
-        <Grid products={gridProducts} graph={graph} />
-      </Section>
-
-      {/* LUNA PICKS */}
-      <Section labelledBy="h-luna">
-        <SectionHead id="h-luna" kicker={<><Sparkles size={14} /> Luna</>} title={L("נבחר עבורך", "Picked for you")} />
-        {picks.products.length ? (
-          <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
-            <LunaInsight title={L("למה דווקא אלה?", "Why these?")} lines={[pickReason(picks.reason, L), L("רק לפי מה שעשית באתר הזה, במכשיר הזה.", "Only from what you did on this site, on this device.")]} />
-            <Rail item="minmax(176px, 210px)">{picks.products.map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
-          </div>
-        ) : (
-          <LunaInsight title={L("Luna עוד לא מכירה את הטעם שלך", "Luna doesn't know your taste yet")} lines={[L("שמרו מוצר (♡), צפו במוצרים או עקבו אחרי יוצר/ת — ו־Luna תבחר עבורכם מוצרים דומים.", "Save a product (♡), view products or follow a creator — Luna will pick similar ones."), L("ההתאמה מבוססת רק על הפעולות שלכם כאן. בלי ניחושים.", "Matching uses only your actions here. No guessing.")]}>
-            <Go to="/discover" className="lx-btn lx-btn-ghost lx-btn-sm mt-4">{L("להתחיל לגלות", "Start discovering")}</Go>
-          </LunaInsight>
-        )}
-      </Section>
-
-      {/* CREATOR CTA */}
-      <Section>
-        <CreatorBand />
-      </Section>
-    </>
-  );
-}
-
-function MomentBand({ graph }) {
-  const { L, lang } = useL();
-  const moment = useMemo(() => currentMoment(), []);
-  const items = useMemo(() => momentProducts(moment, graph.products.filter((p) => p.media.image), 10), [moment, graph]);
-  if (items.length < 2) return null;
-  const copy = lang === "he" ? moment.he : moment.en;
-  return (
-    <Section labelledBy="h-moment">
-      <SectionHead
-        id="h-moment"
-        kicker={<><Sparkles size={14} /> {L("הרגע עכשיו · לפי לוח השנה", "Right now · by the calendar")}</>}
-        title={copy.title}
-        sub={`${copy.line} ${L("המבחר מתחלף לבד לפי התאריך — לא לפי מכירות.", "This edit changes by itself with the date — not by sales.")}`}
-      />
-      <Rail item="minmax(176px, 220px)">{items.map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</Rail>
-    </Section>
-  );
-}
-
-// The three sides of the network, each with its problem and one button.
-// Every line describes something live today.
-function ForEverySide() {
-  const { L, Forward } = useL();
-  const sides = [
-    {
-      icon: Search,
-      who: L("לקונים", "Buyers"),
-      pain: L("ראית מוצר בסרטון ואין לך מושג איפה הקישור האמיתי?", "Saw it in a video and can't find the real link?"),
-      fix: L("הדביקו קישור, צלמו תמונה או פשוט תגידו מה ראיתם — ותקבלו את המוצר עם תמונה אמיתית, מחיר קטלוג וחנות ברורה.", "Paste a link, snap a photo or just say what you saw — get the product with a real photo, catalog price and a clear store."),
-      to: "/search",
-      cta: L("למצוא מוצר", "Find a product"),
-    },
-    {
-      icon: Sparkles,
-      who: L("ליוצרות וליוצרים", "Creators"),
-      pain: L("ממליצה על מוצרים ולא יודעת מה באמת עבד?", "You recommend products but never know what worked?"),
-      fix: L("סטודיו חינם: עמוד אישי, קישור מעקב לכל מוצר, ערכת שיתוף לכל רשת וספירת קליקים אמיתית.", "A free Studio: your own page, a tracking link per product, a share kit per network and real click counts."),
-      to: "/studio",
-      cta: L("לפתוח סטודיו חינם", "Open a free Studio"),
-    },
-    {
-      icon: Store,
-      who: L("למוכרים ולמותגים", "Sellers & brands"),
-      pain: L("רוצים שיוצרות ימליצו על המוצרים שלכם, בלי סוכנות?", "Want creators to recommend your products, without an agency?"),
-      fix: L("מעלים מוצר עם קישור ותמונה אמיתית. אחרי בדיקה הוא נכנס לגילוי, עם סימון שקוף של קישור שותפים.", "List a product with a link and a real photo. Once checked it enters discovery, with a clear affiliate disclosure."),
-      to: "/merchants",
-      cta: L("להוסיף מוצרים", "List products"),
-    },
-  ];
-  return (
-    <Section labelledBy="h-sides">
-      <SectionHead id="h-sides" kicker={L("אתר אחד, שלושה צדדים", "One site, three sides")} title={L("כל אחד מקבל את מה שהוא צריך — בקליק", "Everyone gets what they need — in one click")} />
-      <div className="grid gap-4 md:grid-cols-3">
-        {sides.map((s) => (
-          <div key={s.to} className="flex h-full flex-col rounded-[20px] p-5" style={{ background: "var(--lx-surface)", border: "1px solid var(--lx-line)" }}>
-            <p className="lx-kicker"><s.icon size={14} /> {s.who}</p>
-            <p className="mt-2 text-[17px] font-bold leading-snug">{s.pain}</p>
-            <p className="lx-mute mt-2 flex-1 text-[14px] leading-6">{s.fix}</p>
-            <Go to={s.to} className="lx-btn lx-btn-primary lx-btn-sm mt-4 self-start">{s.cta} <Forward size={15} /></Go>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
+  // One promise, real footage, clean imagery (luxe.jsx). The engine's own
+  // published picks join only when it has some.
+  return <LuxeHome graph={graph} extra={<EnginePicks graph={graph} />} />;
 }
 
 function pickReason(reason, L) {
@@ -443,76 +229,6 @@ function pickReason(reason, L) {
   if (reason.kind === "saved") return L(`כי שמרת את „${reason.productTitle}”`, `Because you saved “${reason.productTitle}”`);
   if (reason.kind === "viewed") return L(`כי צפית ב„${reason.productTitle}”`, `Because you viewed “${reason.productTitle}”`);
   return L(`כי את/ה עוקב/ת אחרי ${reason.creatorName}`, `Because you follow ${reason.creatorName}`);
-}
-
-function JoinCreatorsCard() {
-  const { L } = useL();
-  return (
-    <div className="flex h-full flex-col justify-between rounded-[20px] p-6 text-white" style={{ background: "linear-gradient(150deg,#17131f,#3b2160 60%,#d22f5d)" }}>
-      <div>
-        <p className="text-[12px] font-semibold opacity-80">{L("ליוצרים", "For creators")}</p>
-        <p className="lx-display mt-2 text-[26px] leading-tight">{L("יש לך קהל וטעם טוב? פתחו כאן חנות.", "Got an audience and taste? Open a shop here.")}</p>
-        <p className="mt-2 text-[14px] leading-6 opacity-85">{L("מוצרים, אוספים, סרטונים וקישורים עם ייחוס — מנוהלים מה־Studio.", "Products, collections, reels and attributed links — run from the Studio.")}</p>
-      </div>
-      <Go to="/studio" className="lx-btn mt-6 self-start bg-white" style={{ color: "#17131f" }}>{L("פתחו Studio", "Open the Studio")}</Go>
-    </div>
-  );
-}
-
-function CreatorBand() {
-  const { L } = useL();
-  const items = [
-    [L("חנות אישית", "Your storefront"), L("עמוד יוצר/ת עם מוצרים, אוספים וסרטונים", "A creator page with products, collections and reels")],
-    [L("תוכן ו־UGC", "Content & UGC"), L("כלי יצירה ב־Studio, עם סימון כן של תוכן ממוחשב", "Creation tools, with honest labels for computer-made content")],
-    [L("מדידה אמיתית", "Real measurement"), L("צפיות וקליקים שנרשמו בפועל — בלי מספרים מומצאים", "Views and clicks that actually happened — no invented numbers")],
-  ];
-  return (
-    <div className="overflow-hidden rounded-[28px] p-7 text-white md:p-12" style={{ background: "radial-gradient(90% 120% at 100% 0%, #3a2a7a 0%, transparent 60%), linear-gradient(140deg,#0b0d1a,#1b1733)" }}>
-      <p className="lx-kicker" style={{ color: "#c9b5ff" }}><Sparkles size={14} /> LikeLink2 Studio</p>
-      <h2 className="lx-display mt-3 max-w-2xl text-[32px] md:text-[48px]">{L("הגילוי שלך יכול להיות עסק.", "Your taste can be a business.")}</h2>
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        {items.map(([t, d]) => (
-          <div key={t} className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)" }}>
-            <p className="font-bold">{t}</p>
-            <p className="mt-1 text-[14px] leading-6 opacity-80">{d}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Go to="/studio" className="lx-btn bg-white" style={{ color: "#0b0d1a" }}>{L("פתחו את ה־Studio", "Open the Studio")}</Go>
-        <Go to="/merchants" className="lx-btn" style={{ border: "1px solid rgba(255,255,255,.3)", color: "#fff" }}>{L("יש לך מוצרים? לסוחרים", "Have products? For merchants")}</Go>
-      </div>
-    </div>
-  );
-}
-
-function ReelsEmptyBand({ graph }) {
-  const { L } = useL();
-  const stories = graph.products.filter((p) => p.media.image).slice(0, 4);
-  return (
-    <div className="grid items-center gap-6 overflow-hidden rounded-[24px] p-5 md:grid-cols-[1fr_1.2fr] md:p-8" style={{ background: "#17131f", color: "#fff" }}>
-      <div>
-        <p className="lx-display text-[26px] leading-tight md:text-[32px]">{L("עדיין אין כאן סרטונים שפורסמו.", "No reels have been published yet.")}</p>
-        <p className="mt-3 text-[14px] leading-6 opacity-80">
-          {L(
-            "יוצרים מעלים סרטונים מה־Studio, עם תיוג מוצרים. כשסרטון יעלה — הוא יופיע כאן, מסומן בכנות: סרטון אמיתי או אנימציה ממוחשבת.",
-            "Creators upload reels from the Studio, with product tags. When one is published it appears here, honestly labelled: real video or computer animation."
-          )}
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Go to="/reels" className="lx-btn bg-white lx-btn-sm" style={{ color: "#17131f" }}>{L("לסיפורי המוצר בתמונות", "Browse product stories")}</Go>
-          <Go to="/studio/video" className="lx-btn lx-btn-sm" style={{ border: "1px solid rgba(255,255,255,.3)", color: "#fff" }}>{L("יוצרים? העלו סרטון", "Creators: upload a reel")}</Go>
-        </div>
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {stories.map((p) => (
-          <Go key={p.id} to="/reels" className="relative block overflow-hidden rounded-xl" aria-label={p.displayTitle}>
-            <Media src={p.media.image} alt="" ratio="9 / 16" width={240} />
-          </Go>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 /* ----------------------------------------------------------------- discover */

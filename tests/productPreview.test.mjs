@@ -83,7 +83,7 @@ test("Hebrew counts read naturally (never '1 צפיות')", () => {
   assert.equal(enCount(2, "clicks"), "2 clicks");
   assert.equal(heAnd("צפייה אחת", "0 קליקים"), "צפייה אחת ו־0 קליקים");
   assert.equal(heAnd("3 צפיות", "קליק אחד"), "3 צפיות וקליק אחד");
-  const pages = ["src/components/discover/pages.jsx", "src/components/discover/hero.jsx", "src/components/discover/kit.jsx", "src/lib/publicDiscovery.js"]
+  const pages = ["src/components/discover/pages.jsx", "src/components/discover/hero.jsx", "src/components/discover/luxe.jsx", "src/components/discover/kit.jsx", "src/lib/publicDiscovery.js"]
     .map((f) => readFileSync(join(ROOT, f), "utf8")).join("\n");
   assert.doesNotMatch(pages, /\$\{(?!TREND_MIN_EVENTS)[^}]+\} (צפיות|קליקים|יוצרים|קטגוריות)/, "counted nouns go through heCount (the fixed threshold of 3 is plural)");
 });

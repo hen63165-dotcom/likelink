@@ -25,7 +25,7 @@ test("owner console: private route, noindex, server-confirmed owner only", async
   assert.doesNotMatch(checkout, /PayPalPlansCard/);
   assert.match(checkout, /href="\/owner"/);
   // The public site never links to the owner console.
-  for (const f of ["src/components/discover/PublicShell.jsx", "src/components/discover/pages.jsx", "src/components/discover/kit.jsx"]) {
+  for (const f of ["src/components/discover/PublicShell.jsx", "src/components/discover/pages.jsx", "src/components/discover/luxe.jsx", "src/components/discover/kit.jsx"]) {
     assert.doesNotMatch(read(f), /\/owner\b/, f);
   }
   // sub=get resolves the platform owner on the server-verified e-mail.
