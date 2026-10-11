@@ -7,16 +7,16 @@
 // without one stays on /products and off this page. Videos are footage of the
 // real product only, named by whose they are (homeShowcase.js). No counters.
 // Everything comes from the public graph (src/lib/publicDiscovery.js).
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Play, Ruler } from "lucide-react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, Play, Ruler, Search } from "lucide-react";
 import { REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
 import { productPath } from "../../lib/acquisition.js";
 import { curatedProducts, footageByProduct, spotlight } from "../../lib/homeShowcase.js";
-import { cleanImage, lookLabel } from "../../lib/looks.js";
+import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
-import { Go, Img, Rail, SaveButton, useL, useReducedMotion } from "./kit";
+import { Go, Img, NavCtx, Rail, SaveButton, useL, useReducedMotion } from "./kit";
 
 function styleLabel(style, lang) {
   const l = REEL_STYLE_LABELS[style];
@@ -61,10 +61,33 @@ function useQuietVideo(src) {
   return { ref, allowed, playing, onPlaying: () => setPlaying(true) };
 }
 
+/** LTK's search-first header line: a product or creator, straight to /search. */
+function HeroSearch({ jewelry }) {
+  const { L } = useL();
+  const navigate = useContext(NavCtx);
+  const [q, setQ] = useState("");
+  return (
+    <form
+      role="search"
+      className="lx-luxe-search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        navigate(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`);
+      }}
+    >
+      <label className="lx-sr" htmlFor="lx-luxe-q">{L("חיפוש מוצרים ויוצרים", "Search products and creators")}</label>
+      <Search size={17} aria-hidden="true" />
+      <input id="lx-luxe-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={jewelry ? L("צמיד, עגילים, טבעת…", "Bracelet, earrings, ring…") : L("מה מחפשים?", "What are you looking for?")} enterKeyHint="search" />
+      <button type="submit">{L("חיפוש", "Search")}</button>
+    </form>
+  );
+}
+
 function Hero({ items, jewelry }) {
   const { L } = useL();
   const scrollTo = useScrollTo();
-  const tiles = items.slice(0, 4);
+  // The frames that ship with the site lead (they cannot fail to load); a store photo comes last.
+  const tiles = [...items].sort((a, b) => (lookOf(a.id) ? 0 : 1) - (lookOf(b.id) ? 0 : 1)).slice(0, 4);
   return (
     <section className="lx-luxe-hero" aria-labelledby="h-luxe">
       <div className="lx-wrap lx-luxe-hero-grid">
@@ -78,8 +101,10 @@ function Hero({ items, jewelry }) {
           </p>
           <div className="lx-luxe-ctas">
             <a href="#collection" className="lx-luxe-btn lx-luxe-btn-white" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
-            <a href="#how" className="lx-luxe-btn lx-luxe-btn-ghost" onClick={scrollTo("how")}>{L("איך זה עובד", "How it works")}</a>
+            <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-ghost">{L("ליוצרים", "Creators")}</Go>
           </div>
+          <HeroSearch jewelry={jewelry} />
+          <a href="#how" className="lx-luxe-how" onClick={scrollTo("how")}>{L("איך זה עובד?", "How does it work?")}</a>
           <p className="lx-luxe-fine">{L("#פרסומת · קישורי שותפים · התמונות מתוך סרטוני המוכרים ותמונות החנות", "Ad · affiliate links · images from the sellers' videos and store photos")}</p>
         </div>
         {tiles.length ? (

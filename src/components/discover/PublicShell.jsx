@@ -228,7 +228,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
           </nav>
           <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <HeaderSearch navigate={navigate} />
-            <div className="hidden sm:block xl:hidden"><Go to="/search" className="lx-icon-btn" aria-label={L("חיפוש", "Search")}><Search size={18} /></Go></div>
+            <div className="xl:hidden"><Go to="/search" className="lx-icon-btn" aria-label={L("חיפוש", "Search")}><Search size={18} /></Go></div>
             <div className="hidden sm:block"><ThemeToggle theme={theme} onToggle={toggle} /></div>
             <div className="hidden md:block"><LangToggle /></div>
             <div className="hidden sm:block"><StudioLink /></div>

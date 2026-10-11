@@ -338,11 +338,11 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
 
         <div className="rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
           <p className="text-xs font-semibold mb-1 flex items-center gap-1.5">
-            <Sparkles size={14} style={{ color: "var(--accent)" }} /> אוטו-פיילוט · שבוע שלם של קמפיינים מוכן ✨
+            <Sparkles size={14} style={{ color: "var(--accent)" }} /> תוכנית שיתוף לשבוע
           </p>
           <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
-            האתר בנה לך תוכנית פרסום לשבוע — ערוץ אחר, זווית אחרת, בשעות השיא של הקהל.
-            לוחצת <b>הרצה</b> בכל יום וזהו 💜
+            ערוץ אחר וזווית אחרת בכל יום, בשעה כללית מומלצת (לא לפי נתוני הקהל שלך).
+            <b> פתיחה</b> פותחת את הרשת עם הטקסט מוכן; הפרסום עצמו נעשה אצלך, ורק את/ה יודע/ת אם עלה.
           </p>
           <div className="flex flex-col gap-1.5">
             {plan.map((item) => {
@@ -353,13 +353,13 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
                   key={item.id}
                   className="flex items-center gap-2 rounded-xl p-2"
                   style={{
-                    background: done ? "var(--success-subtle)" : "var(--bg)",
+                    background: "var(--bg)",
                     border: `1px solid ${isToday && !done ? "var(--accent)" : "var(--border)"}`,
                   }}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-semibold truncate">
-                      {done ? "✅" : isToday ? "📍" : "•"} {item.dayLabel} · {item.channelLabel}
+                      {done ? "↗" : isToday ? "📍" : "•"} {item.dayLabel} · {item.channelLabel}{done ? " · נפתח" : ""}
                     </p>
                     <p className="text-[10.5px] truncate" style={{ color: "var(--text-muted)" }}>
                       {item.timeLabel} · {item.caption}
@@ -371,7 +371,7 @@ export default function CampaignBuilder({ marketer, products, link, lang, onClos
                       className="tap shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold"
                       style={{ background: "var(--accent)", color: "#fff" }}
                     >
-                      הרצה ▶
+                      פתיחה ↗
                     </button>
                   )}
                 </div>

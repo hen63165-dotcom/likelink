@@ -31,6 +31,7 @@ import {
   evidenceOf,
   searchGraph,
   enCount,
+  hasStorePrices,
   heCount,
   TREND_MIN_EVENTS,
   TREND_WINDOW_DAYS,
@@ -44,7 +45,7 @@ import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { imageHandoff, SearchBox } from "./hero";
 import { LuxeHome } from "./luxe";
-import { lookOf } from "../../lib/looks.js";
+import { lookLabel, lookOf } from "../../lib/looks.js";
 import {
   categoryName,
   CollectionCard,
@@ -305,15 +306,17 @@ export function DiscoverPage({ graph, category }) {
         </Section>
       ) : null}
 
-      <Section>
-        <SectionHead kicker={<><Tag size={14} /> {L("לפי צורך", "By need")}</>} title={L("לפי תקציב", "By budget")} />
-        <div className="flex flex-wrap gap-2">
-          {PRICE_BANDS.map((b) => {
-            const n = graph.products.filter((p) => b.test(Number(p.price))).length;
-            return n ? <Go key={b.id} to={`/products?price=${b.id}`} className="lx-chip">{lang === "he" ? b.he : b.en} <span className="opacity-60">{n}</span></Go> : null;
-          })}
-        </div>
-      </Section>
+      {hasStorePrices(graph.products) ? (
+        <Section>
+          <SectionHead kicker={<><Tag size={14} /> {L("לפי צורך", "By need")}</>} title={L("לפי תקציב", "By budget")} />
+          <div className="flex flex-wrap gap-2">
+            {PRICE_BANDS.map((b) => {
+              const n = graph.products.filter((p) => b.test(Number(p.price))).length;
+              return n ? <Go key={b.id} to={`/products?price=${b.id}`} className="lx-chip">{lang === "he" ? b.he : b.en} <span className="opacity-60">{n}</span></Go> : null;
+            })}
+          </div>
+        </Section>
+      ) : null}
 
       {graph.categories.map((c) => (
         <Section key={c.id}>
@@ -336,34 +339,48 @@ export function DiscoverPage({ graph, category }) {
 
 export function ProductsPage({ graph, category }) {
   const { L, lang } = useL();
+  const { loading } = useMarketplace();
   const [price, setPrice] = useQueryParam("price");
   const [sort, setSort] = useQueryParam("sort");
-  const band = PRICE_BANDS.find((b) => b.id === price);
+  const priced = hasStorePrices(graph.products);
+  const band = priced ? PRICE_BANDS.find((b) => b.id === price) : null;
   let list = graph.products.filter((p) => (!category || p.category === category) && (!band || band.test(Number(p.price))));
-  if (sort === "price-asc") list = [...list].sort((a, b) => (Number(a.price) || Infinity) - (Number(b.price) || Infinity));
-  if (sort === "price-desc") list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+  if (priced && sort === "price-asc") list = [...list].sort((a, b) => (Number(a.price) || Infinity) - (Number(b.price) || Infinity));
+  if (priced && sort === "price-desc") list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 
   return (
     <>
       <PageHero kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(heCount(list.length, "products"), enCount(list.length, "products"))}>
         <CategoryChips graph={graph} active={category} base="/products" />
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" className="lx-chip" aria-pressed={!price} onClick={() => setPrice("")}>{L("כל המחירים", "Any price")}</button>
-          {PRICE_BANDS.map((b) => (
-            <button key={b.id} type="button" className="lx-chip" aria-pressed={price === b.id} onClick={() => setPrice(price === b.id ? "" : b.id)}>{lang === "he" ? b.he : b.en}</button>
-          ))}
-          <label className="lx-chip ms-auto cursor-pointer">
-            <span className="lx-sr">{L("מיון", "Sort")}</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} className="cursor-pointer bg-transparent text-[13px] outline-none" aria-label={L("מיון", "Sort")}>
-              <option value="">{L("החדשים ביותר", "Newest")}</option>
-              <option value="price-asc">{L("מחיר: מהנמוך", "Price: low to high")}</option>
-              <option value="price-desc">{L("מחיר: מהגבוה", "Price: high to low")}</option>
-            </select>
-          </label>
-        </div>
+        {priced ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" className="lx-chip" aria-pressed={!price} onClick={() => setPrice("")}>{L("כל המחירים", "Any price")}</button>
+            {PRICE_BANDS.map((b) => (
+              <button key={b.id} type="button" className="lx-chip" aria-pressed={price === b.id} onClick={() => setPrice(price === b.id ? "" : b.id)}>{lang === "he" ? b.he : b.en}</button>
+            ))}
+            <label className="lx-chip ms-auto cursor-pointer">
+              <span className="lx-sr">{L("מיון", "Sort")}</span>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className="cursor-pointer bg-transparent text-[13px] outline-none" aria-label={L("מיון", "Sort")}>
+                <option value="">{L("החדשים ביותר", "Newest")}</option>
+                <option value="price-asc">{L("מחיר: מהנמוך", "Price: low to high")}</option>
+                <option value="price-desc">{L("מחיר: מהגבוה", "Price: high to low")}</option>
+              </select>
+            </label>
+          </div>
+        ) : (
+          <p className="mt-3 text-[13px] opacity-70">{L("המחירים מתעדכנים מהחנות: המחיר העדכני מופיע בעמוד המוצר בחנות.", "Prices come from the store: the current price is on the store's product page.")}</p>
+        )}
       </PageHero>
       <section className="lx-wrap mt-8">
-        {list.length ? <Grid products={list} graph={graph} /> : <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => setPrice("")}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>}
+        {list.length ? (
+          <Grid products={list} graph={graph} />
+        ) : band ? (
+          <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => setPrice("")}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>
+        ) : (
+          <EmptyState icon={Package} title={loading ? L("המוצרים נטענים…", "Loading the products…") : category ? L("אין עדיין מוצרים בקטגוריה הזאת", "No products in this category yet") : L("אין עדיין מוצרים באתר", "No products on the site yet")}>
+            {category && !loading ? <Go to="/products" className="lx-btn lx-btn-primary lx-btn-sm">{L("לכל המוצרים", "All products")}</Go> : null}
+          </EmptyState>
+        )}
       </section>
     </>
   );
@@ -560,6 +577,9 @@ export function ProductPage({ graph, id, navigate }) {
   const reels = graph.reels.filter((r) => r.productIds.includes(product.id));
   const tags = (Array.isArray(product.tags) ? product.tags : []).filter((t) => typeof t === "string").slice(0, 6);
   const heroVideo = product.media.video && (product.media.state === "REAL_VIDEO" || !product.media.image) ? product.media.video : null;
+  // The same clean image the home page and the cards show (a frame of the
+  // seller's video that ships with the site), named as the seller's.
+  const look = heroVideo ? null : lookOf(product.id);
 
   return (
     <>
@@ -574,10 +594,10 @@ export function ProductPage({ graph, id, navigate }) {
               reels stay one scroll below, in "בסרטונים". */}
           <div className="md:sticky md:top-24 md:self-start">
             <div className="lx-card" style={heroVideo ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
-              <Media src={product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)}>
+              <Media src={look?.src || product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)}>
                 {heroVideo ? null : (
                   <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
-                    <MediaBadge state={product.media.state} showImage />
+                    {look ? <span className="lx-badge lx-badge-glass">{lookLabel(look.source, lang)}</span> : <MediaBadge state={product.media.state} showImage />}
                     {product.deal ? <span className="lx-badge lx-badge-rose">−{product.deal.discountPct}%</span> : null}
                   </div>
                 )}
@@ -774,20 +794,23 @@ export function ReelsPage({ graph }) {
               </div>
               {/* Caption + product tag */}
               <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                {kind === "reel" ? (
-                  <div className="mb-2 flex flex-wrap gap-1">
-                    <MediaBadge state={reel.state} style={reel.style} showImage />
-                    <StyleBadge style={reel.style} />
-                  </div>
-                ) : null}
-                {/* The creator picked the product; the person in a seller's video is not the creator. */}
-                {creator ? (
-                  <Go to={creatorPath(creator.slug)} className="text-[14px]">
-                    <span className="opacity-80">{L("בחירה של", "Picked by")} </span><span className="font-bold">{creator.name}</span>
-                  </Go>
-                ) : null}
-                {/* A LikeLink render already carries its title on-frame. */}
-                {reel?.title && !reel.style ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
+                {/* pe-14 keeps the labels clear of the side buttons. */}
+                <div className="pe-14">
+                  {kind === "reel" ? (
+                    <div className="mb-2 flex flex-wrap gap-1">
+                      <MediaBadge state={reel.state} style={reel.style} showImage />
+                      <StyleBadge style={reel.style} />
+                    </div>
+                  ) : null}
+                  {/* The creator picked the product; the person in a seller's video is not the creator. */}
+                  {creator ? (
+                    <Go to={creatorPath(creator.slug)} className="text-[14px]">
+                      <span className="opacity-80">{L("בחירה של", "Picked by")} </span><span className="font-bold">{creator.name}</span>
+                    </Go>
+                  ) : null}
+                  {/* A LikeLink render already carries its title on-frame. */}
+                  {reel?.title && !reel.style ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
+                </div>
                 {product ? (
                   <div className="mt-3 flex items-center gap-3 rounded-2xl p-2.5" style={{ background: "rgba(12,11,18,.6)", color: "#fff", border: "1px solid rgba(255,255,255,.14)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
                     <Go to={productPath(product.id)} className="flex min-w-0 flex-1 items-center gap-3">
@@ -796,7 +819,7 @@ export function ReelsPage({ graph }) {
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold">{product.displayTitle}</span>
-                        <span className="text-[13px] font-bold">{formatPrice(product.price, lang)}</span>
+                        {formatPrice(product.price, lang) ? <span className="text-[13px] font-bold">{formatPrice(product.price, lang)}</span> : <span className="text-[12px] opacity-75">{L("המחיר המעודכן בחנות", "Current price at the store")}</span>}
                       </span>
                     </Go>
                     <ShopButton product={product} className="lx-btn-sm" attribution={kind === "reel" ? { src: "likelink_reels", camp: reel.id } : null}>{L("לחנות", "Shop")}</ShopButton>
@@ -908,7 +931,9 @@ export function DealsPage({ graph }) {
         {graph.deals.length ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">{graph.deals.map((p) => <DealCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}</div>
         ) : (
-          <EmptyState icon={Tag} title={L("אין כרגע ירידות מחיר מאומתות", "No verified price drops right now")} body={L("ברגע שמחיר של מוצר בקטלוג יירד ממחיר קודם רשום — הוא יופיע כאן. בינתיים, לפי תקציב:", "When a catalog price drops from a recorded previous price, it shows here. Meanwhile, by budget:")} />
+          <EmptyState icon={Tag} title={L("אין כרגע ירידות מחיר מאומתות", "No verified price drops right now")} body={hasStorePrices(graph.products) ? L("ברגע שמחיר של מוצר בקטלוג יירד ממחיר קודם רשום — הוא יופיע כאן. בינתיים, לפי תקציב:", "When a catalog price drops from a recorded previous price, it shows here. Meanwhile, by budget:") : L("ברגע שמחיר של מוצר בקטלוג יירד ממחיר קודם רשום — הוא יופיע כאן.", "When a catalog price drops from a recorded previous price, it shows here.")}>
+            <Go to="/products" className="lx-btn lx-btn-primary lx-btn-sm">{L("לכל המוצרים", "All products")}</Go>
+          </EmptyState>
         )}
       </section>
       {PRICE_BANDS.slice(0, 3).map((b) => {
@@ -1220,7 +1245,11 @@ export function SearchPage({ graph }) {
         <p className="lx-mute mt-2 text-[15px]">{L("מוצרים, יוצרים, אוספים וקטגוריות — במקום אחד.", "Products, creators, collections and categories — in one place.")}</p>
         <div className="mt-5 max-w-3xl">
           <SearchBox value={draft} onChange={setDraft} onSubmit={(v) => setQParam(v.trim())} autoFocus big onImage={searchByImage} />
-          <p className="lx-mute mt-2 text-[12.5px]">{L("כתבו, דברו 🎙️, צלמו או הדביקו קישור — אפשר גם „סט יוגה עד 150 שקל”.", "Type, speak, snap or paste a link — e.g. “yoga set under 150”.")}</p>
+          <p className="lx-mute mt-2 text-[12.5px]">
+            {hasStorePrices(graph.products)
+              ? L("כתבו, דברו 🎙️, צלמו או הדביקו קישור — אפשר גם „סט יוגה עד 150 שקל”.", "Type, speak, snap or paste a link — e.g. “yoga set under 150”.")
+              : L("כתבו, דברו 🎙️, צלמו או הדביקו קישור — למשל „צמיד מואסניט”.", "Type, speak, snap or paste a link — e.g. “moissanite bracelet”.")}
+          </p>
         </div>
       </div>
       {visual.state !== "idle" ? (
