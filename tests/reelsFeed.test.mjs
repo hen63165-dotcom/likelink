@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { feedEntry, groupAssets, pickReels, sellerReels, SELLER_LABELS } from "../scripts/reels-feed.mjs";
+import { feedEntry, groupAssets, pickReels, sellerReels, SELLER_LABELS, SELLER_SKIP } from "../scripts/reels-feed.mjs";
 import { CREATIVE_CLASS } from "../src/lib/media/videoCapability.js";
 import { feedToVideos, reelsFeedUrl, REELS_FEED_HOME } from "../src/lib/reelsFeed.js";
 import { buildPublicGraph, REEL_STYLE_LABELS } from "../src/lib/publicDiscovery.js";
@@ -71,14 +71,17 @@ test("feed entries become public, synthetic, product-tagged reels labelled as AI
 });
 
 test("the sellers' own videos: one per listed product, labelled as the seller's video, never UGC", () => {
-  const listed = new Set(["p-live-02", "p-live-05"]);
+  const listed = new Set(["p-live-02", "p-live-03", "p-live-05"]);
   const picked = sellerReels([
-    asset("p-live-02.mp4"), asset("p-live-02-preview.jpg"), asset("p-live-02-b.mp4"), asset("p-live-02-c.mp4"),
+    asset("p-live-03.mp4"), asset("p-live-03-preview.jpg"), asset("p-live-03-b.mp4"), asset("p-live-03-c.mp4"),
     asset("p-live-05.mp4"), asset("p-gone.mp4"), asset("p-live-05.txt"), asset("../p-live-05.mp4"),
+    asset("p-live-02.mp4"),
   ], listed);
-  assert.deepEqual(picked.map((r) => r.productId).sort(), ["p-live-02", "p-live-05"]);
-  const a = picked.find((r) => r.productId === "p-live-02").entry;
-  assert.equal(a.video, "seller-p-live-02.mp4");
+  // The video must match the product: p-live-02's clip features a necklace, the listing is a bracelet.
+  assert.ok(SELLER_SKIP["p-live-02"]);
+  assert.deepEqual(picked.map((r) => r.productId).sort(), ["p-live-03", "p-live-05"]);
+  const a = picked.find((r) => r.productId === "p-live-03").entry;
+  assert.equal(a.video, "seller-p-live-03.mp4");
   assert.equal(a.poster, "", "the cover is one frame cut at deploy time, never the contact sheet");
   assert.equal(a.look, "seller");
   assert.deepEqual(a.labels, [...SELLER_LABELS]);
@@ -88,7 +91,7 @@ test("the sellers' own videos: one per listed product, labelled as the seller's 
   assert.equal(v.style, "seller_video");
   assert.notEqual(v.humanFilmed, true, "a seller video is not UGC");
   const graph = buildPublicGraph({ products: snap["marketplace:products"], marketers: snap["marketplace:marketers"], collections: [], clicks: [], videos: [v] });
-  const reel = graph.reels.find((r) => r.id === "v-seller-p-live-02");
+  const reel = graph.reels.find((r) => r.id === "v-seller-p-live-03");
   assert.ok(reel, "the seller video reaches the reels page");
   assert.equal(reel.state, MEDIA_TRUTH.REAL_VIDEO);
   assert.equal(reel.creativeClass, CREATIVE_CLASS.REAL_PRODUCT_VIDEO);

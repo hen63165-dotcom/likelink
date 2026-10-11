@@ -1,7 +1,7 @@
 // Cuts the storefront's clean product images (src/lib/looks.js) from the
 // sellers' videos in the `reels` release: one frame per product at the time
-// and crop in LOOKS, 900×1125 JPEG → public/looks/<productId>.jpg, plus the
-// home page's opening image. Read-only on the release; nothing is posted.
+// and crop in LOOKS, 900×1125 JPEG → public/looks/<productId>.jpg.
+// Read-only on the release; nothing is posted.
 //   node scripts/media/look-frames.mjs            (needs ffmpeg)
 // Commit the changed files in public/looks/ afterwards.
 import { spawnSync } from "node:child_process";
@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { HERO_LOOK, LOOKS, lookFile } from "../../src/lib/looks.js";
+import { LOOKS, lookFile } from "../../src/lib/looks.js";
 
 const RELEASE = "https://github.com/hen63165-dotcom/likelink/releases/download/reels";
 
@@ -20,7 +20,7 @@ export function frameArgs({ at, crop }, input, output) {
 
 /** Every frame to cut: [productId, spec, output file name]. */
 export function plan() {
-  return [...Object.entries(LOOKS).map(([id, spec]) => [id, spec, lookFile(id)]), [HERO_LOOK.productId, HERO_LOOK, HERO_LOOK.file]];
+  return Object.entries(LOOKS).map(([id, spec]) => [id, spec, lookFile(id)]);
 }
 
 export async function cutLooks({ out = "public/looks", fetchImpl = fetch } = {}) {

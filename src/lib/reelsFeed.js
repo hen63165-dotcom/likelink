@@ -6,6 +6,15 @@
 import { BASE } from "./basePath.js";
 
 export const REELS_FEED_HOME = "https://hen63165-dotcom.github.io/likelink/media/reels/index.json";
+/**
+ * A seller video is shown only when the listed item is its subject: the video
+ * must match the product it is shown with. p-live-02 is a tennis bracelet, but
+ * the seller's clip is a model wearing a necklace with the bracelet as a small
+ * detail on her wrist (owner, 2026-10-11). scripts/reels-feed.mjs leaves these
+ * out of the feed; feedToVideos drops them too, so an older feed can't show them.
+ */
+export const SELLER_SKIP = Object.freeze({ "p-live-02": "the clip features a necklace; the listing is a bracelet" });
+
 const FILE = /^[a-z0-9][a-z0-9-]{0,80}\.mp4$/;
 const POSTER = /^[a-z0-9][a-z0-9-]{0,80}-(cover|preview)\.jpg$/;
 const ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -40,6 +49,7 @@ export function feedToVideos(doc, feedUrl = REELS_FEED_HOME) {
     // What made it decides how it is labelled: the engine (AI animation), the
     // seller (its own video from the product page) or a person who filmed it (real UGC).
     const look = String(e.look || "");
+    if (look === "seller" && SELLER_SKIP[String(e.productId)]) continue;
     const kind = look === "seller"
       ? { synthetic: false, source: "aliexpress_seller", videoProvider: "aliexpress_seller", style: "seller_video" }
       : look === "real"

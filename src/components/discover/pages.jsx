@@ -44,6 +44,7 @@ import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { imageHandoff, SearchBox } from "./hero";
 import { LuxeHome } from "./luxe";
+import { lookOf } from "../../lib/looks.js";
 import {
   categoryName,
   CollectionCard,
@@ -779,8 +780,11 @@ export function ReelsPage({ graph }) {
                     <StyleBadge style={reel.style} />
                   </div>
                 ) : null}
+                {/* The creator picked the product; the person in a seller's video is not the creator. */}
                 {creator ? (
-                  <Go to={creatorPath(creator.slug)} className="text-[15px] font-bold">{creator.name}</Go>
+                  <Go to={creatorPath(creator.slug)} className="text-[14px]">
+                    <span className="opacity-80">{L("בחירה של", "Picked by")} </span><span className="font-bold">{creator.name}</span>
+                  </Go>
                 ) : null}
                 {/* A LikeLink render already carries its title on-frame. */}
                 {reel?.title && !reel.style ? <p className="mt-1 text-[14px] opacity-90">{reel.title}</p> : null}
@@ -788,7 +792,7 @@ export function ReelsPage({ graph }) {
                   <div className="mt-3 flex items-center gap-3 rounded-2xl p-2.5" style={{ background: "rgba(12,11,18,.6)", color: "#fff", border: "1px solid rgba(255,255,255,.14)", WebkitBackdropFilter: "blur(14px)", backdropFilter: "blur(14px)" }}>
                     <Go to={productPath(product.id)} className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-xl" style={{ background: "var(--lx-sunk)" }}>
-                        <Img src={sized(product.media.image, 120)} />
+                        <Img src={lookOf(product.id)?.src || sized(product.media.image, 120)} />
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold">{product.displayTitle}</span>
