@@ -1,0 +1,37 @@
+# ============================================================
+# Likelink — Netlify redirects / SPA fallback
+# ------------------------------------------------------------
+# Static files (robots.txt, sitemap.xml, manifest.json, icons/*, /.well-known/*)
+# take precedence over the SPA fallback on Netlify, so they are always served
+# literally. The rules below are defensive fallbacks only.
+# ============================================================
+
+# Site-verification / security metadata must never be rewritten to the SPA shell.
+/.well-known/*   /.well-known/:splat   200
+
+# The API (Supabase Edge Function "api", which runs the api/*.mjs handlers).
+# Proxied so the site stays first-party: same origin, same /r tracking links.
+/api/*           https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/:splat   200
+# /r is a static, server-free forwarder (public/r.html + r.js): it reads the
+# catalog copy the site ships and forwards only to a catalog product link, so a
+# shared link reaches the store even while the cloud is unavailable.
+/r               /r.html            200
+/google-feed.xml https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/google-feed.xml  200!
+/discover.xml    https://sbzzgfthgaurgcuxiuql.supabase.co/functions/v1/api/discover.xml     200!
+
+# The sitemap is written at build time from the catalog copy
+# (scripts/prerender-products.mjs). Netlify only: on Vercel /sitemap.xml is the
+# dynamic feed (vercel.json).
+/sitemap.xml     /sitemap-static.xml    200
+
+# Classic SPA fallback: every other route returns the app shell (index.html).
+# Product and section pages with their own preview (scripts/prerender-products.mjs)
+/p/p-live-01  /p/p-live-01.html  200
+/p/p-live-02  /p/p-live-02.html  200
+/p/p-live-03  /p/p-live-03.html  200
+/p/p-live-04  /p/p-live-04.html  200
+/p/p-live-05  /p/p-live-05.html  200
+/size  /size.html  200
+/guide  /guide.html  200
+
+/*               /index.html            200

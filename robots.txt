@@ -1,0 +1,70 @@
+# ============================================================
+# LikeLink — robots.txt
+# ------------------------------------------------------------
+# Public marketplace pages (products, creators, pricing, legal) stay
+# crawlable for search engines and AI answer engines. Private app
+# surfaces, the API and the affiliate redirect (/r?…, which would
+# otherwise count crawler visits as clicks) are closed to EVERY
+# crawler: a named group replaces the * group for that crawler, so
+# each group below repeats the same rules.
+# Automated collection beyond these rules is not permitted — see
+# https://likelink2.vercel.app/legal/acceptable-use
+# ============================================================
+
+User-agent: *
+Disallow: /admin
+Disallow: /owner
+Disallow: /api/
+Disallow: /studio
+Disallow: /sell
+Disallow: /r?
+Allow: /
+
+# --- Search engines ---
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-News
+User-agent: Googlebot-Video
+User-agent: Google-Extended
+User-agent: GoogleOther
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: DuckDuckBot
+User-agent: Yandex
+User-agent: Baiduspider
+User-agent: Sogou web spider
+User-agent: NAVER
+Disallow: /admin
+Disallow: /owner
+Disallow: /api/
+Disallow: /studio
+Disallow: /sell
+Disallow: /r?
+Allow: /
+
+# --- AI assistant / answer-engine crawlers ---
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-Web
+User-agent: anthropic-ai
+User-agent: PerplexityBot
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: Amazonbot
+User-agent: cohere-ai
+User-agent: meta-externalagent
+User-agent: FacebookBot
+User-agent: omgili
+User-agent: omgilibot
+Disallow: /admin
+Disallow: /owner
+Disallow: /api/
+Disallow: /studio
+Disallow: /sell
+Disallow: /r?
+Allow: /
+
+Sitemap: https://likelink2.vercel.app/sitemap.xml
