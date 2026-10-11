@@ -11,6 +11,9 @@ on:
   workflow_run:
     workflows: ["Luna reels", "Catalog sync", "Product video reels"]
     types: [completed]
+  # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
+  schedule:
+    - cron: "40 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -88,6 +91,11 @@ jobs:
         # Products, reel covers and the size meter as an RSS feed the owner's
         # Pinterest account picks up by itself (scripts/pins-feed.mjs).
         run: node scripts/pins-feed.mjs dist || echo "::warning::pins feed skipped"
+
+      - name: The daily drop (today's post for every network → /drop/)
+        # Today's product, its best video and Google Trends Israel → a page the
+        # owner posts from in a minute (scripts/marketing/daily-drop.mjs).
+        run: node scripts/marketing/daily-drop.mjs dist || echo "::warning::daily drop skipped"
 
       - name: Publish dist to gh-pages
         env:
