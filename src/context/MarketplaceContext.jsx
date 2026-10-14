@@ -142,7 +142,7 @@ const toNum = (v, fb = 0) => {
 };
 
 export function MarketplaceProvider({ children }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [loading, setLoading] = useState(true);
   const [marketers, setMarketers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -676,14 +676,17 @@ export function MarketplaceProvider({ children }) {
         await persistSession(null);
       },
       onAddProduct: async (draft) => {
-        if (!currentMarketer) return;
+        if (!currentMarketer) return null;
         const title = String(draft.title || "").trim().slice(0, 120);
         const description = String(draft.description || "").trim().slice(0, 600);
+        // The creator's address, exactly as pasted — kept beside the tracked
+        // link so the studio can always show what was originally given to us.
+        const sourceUrl = String(draft.sourceUrl || draft.affiliateUrl || "").trim().slice(0, 2000);
         const affiliateUrl = injectAliExpressTracking(String(draft.affiliateUrl || "").trim().slice(0, 2000), currentMarketer?.trackingId);
         const image = String(draft.image || "").trim().slice(0, 4000);
-        if (!title) return showToast(t("form.errTitle"));
-        if (!isSafeHttpUrl(affiliateUrl)) return showToast(t("form.errLink"));
-        if (!isSafeImageUrl(image)) return showToast(t("form.errImage"));
+        if (!title) { showToast(t("form.errTitle")); return null; }
+        if (!isSafeHttpUrl(affiliateUrl)) { showToast(t("form.errLink")); return null; }
+        if (!isSafeImageUrl(image)) { showToast(t("form.errImage")); return null; }
         const p = {
           id: uid(),
           marketerId: currentMarketer.id,
@@ -691,10 +694,29 @@ export function MarketplaceProvider({ children }) {
           description,
           image,
           affiliateUrl,
+          sourceUrl,
           category: CATEGORY_KEYS.includes(draft.category) ? draft.category : "Other",
           price: clampNumber(draft.price),
           commission: clampNumber(draft.commission),
-          status: "approved",
+          // ── Universal Affiliate Link Manager metadata (all optional) ────
+          // The network is a LABEL the creator picked — never a capability
+          // claim. Channels are traffic sources, kept separate from network.
+          network: typeof draft.network === "string" ? draft.network.trim().toLowerCase().slice(0, 40) : "",
+          accountId: typeof draft.accountId === "string" ? draft.accountId.trim().slice(0, 60) : "",
+          accountLabel: typeof draft.accountLabel === "string" ? draft.accountLabel.trim().slice(0, 80) : "",
+          channels: Array.isArray(draft.channels) ? draft.channels.filter((c) => typeof c === "string").slice(0, 10) : [],
+          campaign: typeof draft.campaign === "string" ? draft.campaign.trim().slice(0, 120) : "",
+          utm: draft.utm && typeof draft.utm === "object"
+            ? {
+                source: String(draft.utm.source || "").trim().slice(0, 100),
+                medium: String(draft.utm.medium || "").trim().slice(0, 100),
+                campaign: String(draft.utm.campaign || "").trim().slice(0, 100),
+              }
+            : null,
+          // Honest status computed by the pure classifier — not a server claim.
+          linkStatus: typeof draft.linkStatus === "string" ? draft.linkStatus.trim().slice(0, 40) : "",
+          // Only an explicit draft stays private; everything else publishes.
+          status: draft.status === "draft" ? "draft" : "approved",
           clicks: 0,
           createdAt: Date.now(),
         };
@@ -713,17 +735,39 @@ export function MarketplaceProvider({ children }) {
             .catch(() => {});
         }
 
-        showToast(t("sell.published"));
+        // A draft is saved, not announced — the confirmation must tell the truth.
+        showToast(p.status === "draft" ? (lang === "he" ? "נשמר כטיוטה" : "Saved as a draft") : t("sell.published"));
 
         // 🚀 One upload → everywhere: instant launch announcement to every
         // channel this creator connected in AutoPilot (fire-and-forget; the
         // server is idempotent — one announcement per product, ever).
-        fetch("/api/autopilot", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ mode: "announce", productId: p.id }),
-          keepalive: true,
-        }).catch(() => {});
+        // Drafts are never announced: they are not public yet.
+        if (p.status === "approved") {
+          fetch("/api/autopilot", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ mode: "announce", productId: p.id }),
+            keepalive: true,
+          }).catch(() => {});
+        }
+        return p;
+      },
+      onUpdateProduct: async (id, patch) => {
+        const clean = { ...patch };
+        if (typeof clean.title === "string") clean.title = clean.title.trim().slice(0, 120);
+        if (typeof clean.description === "string") clean.description = clean.description.trim().slice(0, 600);
+        if (typeof clean.image === "string") clean.image = clean.image.trim().slice(0, 4000);
+        if (typeof clean.affiliateUrl === "string" && !isSafeHttpUrl(clean.affiliateUrl)) delete clean.affiliateUrl;
+        if (typeof clean.sourceUrl === "string" && !isSafeHttpUrl(clean.sourceUrl)) delete clean.sourceUrl;
+        if ("network" in clean) clean.network = typeof clean.network === "string" ? clean.network.trim().toLowerCase().slice(0, 40) : "";
+        if ("accountId" in clean) clean.accountId = typeof clean.accountId === "string" ? clean.accountId.trim().slice(0, 60) : "";
+        if ("accountLabel" in clean) clean.accountLabel = typeof clean.accountLabel === "string" ? clean.accountLabel.trim().slice(0, 80) : "";
+        if ("channels" in clean) clean.channels = Array.isArray(clean.channels) ? clean.channels.filter((c) => typeof c === "string").slice(0, 10) : [];
+        if ("campaign" in clean) clean.campaign = typeof clean.campaign === "string" ? clean.campaign.trim().slice(0, 120) : "";
+        if ("linkStatus" in clean) clean.linkStatus = typeof clean.linkStatus === "string" ? clean.linkStatus.trim().slice(0, 40) : "";
+        const next = products.map((p) => (p.id === id ? { ...p, ...clean } : p));
+        await persistProducts(next);
+        return next.find((p) => p.id === id) || null;
       },
       onDeleteProduct: async (id) => {
         await persistProducts(products.filter((p) => p.id !== id));
@@ -767,12 +811,13 @@ export function MarketplaceProvider({ children }) {
         }
         return signedSale;
       },
-      onAddCollection: async (title) => {
-        if (!currentMarketer) return;
+      onAddCollection: async (title, { productIds = [] } = {}) => {
+        if (!currentMarketer) return null;
         const clean = String(title || "").trim().slice(0, 60);
-        if (!clean) return;
-        const col = { id: uid(), marketerId: currentMarketer.id, title: clean, productIds: [], createdAt: Date.now() };
+        if (!clean) return null;
+        const col = { id: uid(), marketerId: currentMarketer.id, title: clean, productIds: Array.isArray(productIds) ? productIds : [], createdAt: Date.now() };
         await persistCollections([...collections, col]);
+        return col;
       },
       onUpdateCollection: async (id, productIds) => {
         await persistCollections(collections.map((c) => (c.id === id ? { ...c, productIds } : c)));
@@ -782,7 +827,12 @@ export function MarketplaceProvider({ children }) {
       },
       onSetStatus: async (id, status) => {
         await persistProducts(products.map((p) => (p.id === id ? { ...p, status } : p)));
-        showToast(status === "approved" ? t("admin.approved2") : status === "flagged" ? t("admin.flagged2") : t("admin.removed2"));
+        showToast(
+          status === "approved" ? t("admin.approved2")
+            : status === "draft" ? (lang === "he" ? "המוצר הוחזר לטיוטה" : "Moved back to draft")
+            : status === "flagged" ? t("admin.flagged2")
+            : t("admin.removed2")
+        );
         // 🚀 Approval = go-live: instant launch announcement to the creator's
         // channels (fire-and-forget; server-side idempotency prevents doubles).
         if (status === "approved") {
@@ -868,7 +918,7 @@ export function MarketplaceProvider({ children }) {
       favorites, collections, following, introSeen, toast, currentMarketer,
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
-      toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t,
+      toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t, lang,
       openStudioForVerifiedUser, loadStudioData,
     ]
   );

@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Package, Sparkles, Clapperboard, UserCog, FileText,
   Megaphone, TrendingUp, Send, BarChart3, ShieldCheck, Bot, Lightbulb,
   Settings, LogOut, Moon, Sun, Languages, ChevronLeft, Store, Copy,
-  Activity, Menu, Brain, AlertCircle, CheckCircle, MessageCircle, Users,
+  Activity, Menu, Brain, AlertCircle, CheckCircle, MessageCircle, Users, Link2,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -61,6 +61,10 @@ import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
 import StudioWelcome from "./StudioWelcome.jsx";
+import StudioActionHub from "./StudioActionHub.jsx";
+import StudioOnboarding from "./StudioOnboarding.jsx";
+import StorefrontDesign from "./StorefrontDesign.jsx";
+import AddProductLink from "./AddProductLink.jsx";
 import { fetchPlatformStatus, PLATFORM_STATE, PLATFORM_STATE_LABEL, PLATFORM_STATE_COLOR } from "../../lib/cloud/lunaStatus.js";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
 import GrowthShowcaseDemo from "./GrowthShowcaseDemo";
@@ -78,6 +82,8 @@ const SellView = lazy(() => import("../sell/SellView"));
 
 const VIEW_IDS = {
   OVERVIEW: "overview",
+  ADD_PRODUCT: "add-product",
+  STOREFRONT: "storefront",
   LUNA: "luna",
   PRODUCTS: "products",
   PRODUCT_INTELLIGENCE: "product-intelligence",
@@ -177,8 +183,26 @@ function ActivityStrip() {
 // A signed-out visitor gets the Studio explainer, not an empty dashboard.
 function OverviewPanel({ onNavigate }) {
   const { currentMarketer } = useMarketplace();
+  // The guided "פתיחת סטודיו" flow shows until it is finished or explicitly
+  // postponed — both states live on the real studio record.
+  const [onboarding, setOnboarding] = useState(null);
   if (!currentMarketer) return <StudioWelcome onSignup={() => onNavigate(VIEW_IDS.PRODUCTS)} />;
-  return <StudioHome onNavigate={onNavigate} />;
+  const setup = currentMarketer.studioOnboarding || {};
+  const showOnboarding = onboarding === null ? !(setup.doneAt || setup.skippedAt) : onboarding;
+  return (
+    <div className="space-y-6">
+      <StudioActionHub
+        onNavigate={onNavigate}
+        needsOnboarding={showOnboarding}
+        onStartOnboarding={() => setOnboarding(true)}
+      />
+      {showOnboarding ? (
+        <StudioOnboarding onDone={() => setOnboarding(false)} />
+      ) : (
+        <StudioHome onNavigate={onNavigate} />
+      )}
+    </div>
+  );
 }
 
 /** Truthful auth gate — routes to the real login/registration flow (SellView). */
@@ -1197,15 +1221,18 @@ const NAV_SECTIONS = [
   {
     id: "core",
     items: [
-      { view: VIEW_IDS.OVERVIEW, icon: LayoutDashboard, he: "סקירה כללית", en: "Overview" },
-      { view: VIEW_IDS.LUNA, icon: Sparkles, he: "לונה · מרכז בקרה", en: "Luna · Command" },
-      { view: VIEW_IDS.PRODUCTS, icon: Package, he: "מוצרים וסטודיו", en: "Products & Studio" },
-      { view: VIEW_IDS.PRODUCT_INTELLIGENCE, icon: Brain, he: "תבונת מוצר", en: "Product Intelligence" },
+      { view: VIEW_IDS.OVERVIEW, icon: LayoutDashboard, he: "בית הסטודיו", en: "Studio home" },
+      { view: VIEW_IDS.ADD_PRODUCT, icon: Link2, he: "ניהול קישורי אפילייט", en: "Affiliate Link Manager" },
+      { view: VIEW_IDS.STOREFRONT, icon: Store, he: "עיצוב החנות שלי", en: "Design my store" },
+      { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים וקליקים", en: "Performance & clicks" },
     ],
   },
   {
     id: "create",
     items: [
+      { view: VIEW_IDS.LUNA, icon: Sparkles, he: "לונה · מרכז בקרה", en: "Luna · Command" },
+      { view: VIEW_IDS.PRODUCTS, icon: Package, he: "מוצרים וסטודיו", en: "Products & Studio" },
+      { view: VIEW_IDS.PRODUCT_INTELLIGENCE, icon: Brain, he: "תבונת מוצר", en: "Product Intelligence" },
       { view: VIEW_IDS.UGC, icon: Activity, he: "UGC · קהילה", en: "UGC" },
       { view: VIEW_IDS.VIDEO, icon: Clapperboard, he: "וידאו AI", en: "AI Video" },
       { view: VIEW_IDS.CREATOR_LAB, icon: UserCog, he: "מעבדת יוצרים", en: "Creator Lab" },
@@ -1220,7 +1247,6 @@ const NAV_SECTIONS = [
       { view: VIEW_IDS.CAMPAIGNS, icon: Send, he: "קמפיינים", en: "Campaigns" },
       { view: VIEW_IDS.TRENDS, icon: TrendingUp, he: "טרנדים", en: "Trends" },
       { view: VIEW_IDS.PUBLISHING, icon: Send, he: "פרסום", en: "Publishing" },
-      { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים", en: "Performance" },
       { view: VIEW_IDS.ADS, icon: Megaphone, he: "מודעות LikeLink2", en: "LikeLink2 Ads" },
     ],
   },
@@ -1248,6 +1274,14 @@ const VIEW_SUBTITLES = {
   [VIEW_IDS.OVERVIEW]: {
     he: "תמונת מצב מהנתונים האמיתיים שלך — מוצרים, מכירות ולחיצות.",
     en: "A snapshot of your real data — products, sales and clicks.",
+  },
+  [VIEW_IDS.ADD_PRODUCT]: {
+    he: "מדביקים קישור מרשת אפילייט כלשהי, בודקים אותו, מארגנים בחשבון וברשת, רואים תצוגה מקדימה — ושומרים כטיוטה או מפרסמים.",
+    en: "Paste a link from any affiliate network, check it, organize it by account and network, preview it — then save as draft or publish.",
+  },
+  [VIEW_IDS.STOREFRONT]: {
+    he: "העיצוב של העמוד הציבורי: שם, תמונה, תיאור וקישורים — בדיוק מה שהמבקרים רואים.",
+    en: "The public page's look: name, photo, bio and links — exactly what visitors see.",
   },
   [VIEW_IDS.LUNA]: {
     he: "בקשה בשפה חופשית — לונה מנתבת למנועים האמיתיים ומחזירה סטטוס אמיתי.",
@@ -1476,6 +1510,8 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
   function renderView() {
     switch (view) {
       case VIEW_IDS.OVERVIEW: return <OverviewPanel onNavigate={navigate} />;
+      case VIEW_IDS.ADD_PRODUCT: return <AddProductLink onNavigate={navigate} />;
+      case VIEW_IDS.STOREFRONT: return <StorefrontDesign onNavigate={navigate} />;
       case VIEW_IDS.LUNA: return <LunaPanel onNavigate={navigate} platform={platform} />;
       case VIEW_IDS.PRODUCTS: return (
         <Suspense fallback={<LoadingScreen />}>
