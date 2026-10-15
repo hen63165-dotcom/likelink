@@ -103,3 +103,31 @@ test("the home page names whose video and image it is, keeps the disclosure and 
   assert.match(pages, /<LuxeHome graph=\{graph\}/);
   assert.match(pages, /trackSiteEvent\("landing_view"/);
 });
+
+test("the phone mockups show whose video it is on the footage and the product only under it", () => {
+  const luxe = read("src/components/discover/luxe.jsx");
+  const phoneVideo = luxe.slice(luxe.indexOf("function PhoneVideo"), luxe.indexOf("/* ------------------------------------------------------------------- hero"));
+  const onFootage = phoneVideo.slice(phoneVideo.indexOf('<span className="lx-phone-video">'), phoneVideo.indexOf('<span className="lx-phone-product">'));
+  assert.ok(onFootage.length > 0);
+  assert.match(onFootage, /styleLabel\(reel\.style, lang\)/, "whose video it is");
+  assert.doesNotMatch(onFootage, /displayTitle|creator|\.name\b/, "no product or creator name printed over the footage");
+  assert.match(phoneVideo.slice(phoneVideo.indexOf('<span className="lx-phone-product">')), /product\.displayTitle/, "the product sits under the video");
+  // The screens are drawn from the same real records: curated images only, no counters.
+  assert.match(luxe, /function CreatorScreen[\s\S]*cleanImage\(p\)\?\.src/);
+  assert.match(luxe, /function FindScreen[\s\S]*cleanImage\(p\)\.src/);
+});
+
+test("the header is LTK's: search, sign-up and log-in into the Studio's form, and a menu that says buying needs no account", () => {
+  const shell = read("src/components/discover/PublicShell.jsx");
+  assert.match(shell, /export const STUDIO_SIGNUP = "\/studio\?auth=signup"/);
+  assert.match(shell, /export const STUDIO_LOGIN = "\/studio\?auth=login"/);
+  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} className="lx-top-btn lx-top-btn-dark"/);
+  assert.match(shell, /<HeaderSearch navigate=\{navigate\} \/>/);
+  assert.match(shell, /כדי לקנות לא צריך להירשם/, "sign-up is for the creators' Studio, never a condition for buying");
+  assert.match(shell, /\{ to: "\/deals", type: "deals", he: "דילים", en: "Deals", sale: true \}/);
+  assert.match(shell, /<Go to="\/join" onClick=\{onClose\} className="lx-dd-cta">/);
+  const entrance = read("src/components/studio/StudioEntrance.jsx");
+  assert.match(entrance, /get\("auth"\) === "login" \? "login" : "signup"/, "log-in opens the form on the sign-in tab");
+  assert.match(entrance, /initialMode=\{authMode\}/);
+  assert.match(read("src/components/sell/AuthGate.jsx"), /useState\(initialMode === "login" \? "login" : "signup"\)/);
+});

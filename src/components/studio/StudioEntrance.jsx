@@ -5,7 +5,7 @@
 // now (checked in the browser, nothing saved), the sign-up form, and short
 // answers. No menu of twenty tools before there is an account. While the
 // cloud refuses (sign-in paused) it says so and offers the contact mail.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link2, Store, Share2, Sparkles, CheckCircle2, AlertTriangle, ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
@@ -114,6 +114,11 @@ export default function StudioEntrance() {
   const paused = !loading && (Boolean(snapshotTakenAt()) || cloudStatus().state !== "ok");
   const attr = landingAttribution();
   const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // The site's "כניסה" button (/studio?auth=login) opens the form on the sign-in tab, in view.
+  const [authMode] = useState(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "login" ? "login" : "signup"));
+  useEffect(() => {
+    if (authMode === "login") document.getElementById("signup")?.scrollIntoView({ block: "start" });
+  }, [authMode]);
 
   return (
     <div dir={he ? "rtl" : "ltr"} className="mx-auto max-w-3xl space-y-5">
@@ -163,7 +168,7 @@ export default function StudioEntrance() {
       <TryALink he={he} />
 
       <section id="signup" className="ll-card rounded-3xl p-5 sm:p-7" aria-label={he ? "פתיחת חשבון" : "Open an account"}>
-        <AuthGate marketers={marketers} onLogin={onLogin} onSignup={onSignup} />
+        <AuthGate marketers={marketers} onLogin={onLogin} onSignup={onSignup} initialMode={authMode} />
         {paused ? (
           <p className="mt-4 text-center text-xs" style={{ color: "var(--text-secondary)" }}>
             <a className="inline-flex items-center gap-1 underline" href={joinMailto({ source: attr.src, campaign: attr.camp })}>

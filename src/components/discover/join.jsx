@@ -43,18 +43,18 @@ export function JoinPage({ graph }) {
   const creator = graph.creators.find((c) => c.slug && c.productIds?.length);
 
   const cta = paused ? (
-    <a href={mail} className="lx-btn lx-menu-btn-white" data-tip={L("נפתח מייל מוכן אלינו; עונות לכל אחת", "Opens a ready e-mail to us; we answer each one")}>
+    <a href={mail} className="lx-btn lx-btn-ink" data-tip={L("נפתח מייל מוכן אלינו; עונות לכל אחת", "Opens a ready e-mail to us; we answer each one")}>
       <Mail size={16} aria-hidden="true" /> {L("רוצה דף? כתבי לנו", "Want a page? Write to us")}
     </a>
   ) : (
-    <Go to="/studio" className="lx-btn lx-menu-btn-white">{L("פתיחת דף חינם", "Open a free page")}</Go>
+    <Go to="/studio" className="lx-btn lx-btn-ink">{L("פתיחת דף חינם", "Open a free page")}</Go>
   );
 
   return (
     <>
       <section className="lx-profile">
         <div className="lx-wrap py-10 md:py-16">
-          <p className="lx-kicker mb-3" style={{ color: "rgba(255,255,255,.7)" }}><Sparkles size={14} aria-hidden="true" /> {L("ליוצרות וליוצרים", "For creators")}</p>
+          <p className="lx-kicker mb-3"><Sparkles size={14} aria-hidden="true" /> {L("ליוצרות וליוצרים", "For creators")}</p>
           <h1 className="lx-profile-name">{L("הקישור בביו שלך, כחנות קטנה בעברית", "Your link in bio, as a small shop")}</h1>
           <p className="lx-profile-bio" style={{ fontSize: 16 }}>
             {L("ב־LikeLink2 כל מה שאת ממליצה עליו נכנס לדף אחד: פוסטים עם סרטון, וכל מוצר עם קישור ישיר לחנות. בעברית, ומתחילים בחינם.", "On LikeLink2 everything you recommend lives on one page: video posts, each product with a direct store link. In Hebrew, and free to start.")}

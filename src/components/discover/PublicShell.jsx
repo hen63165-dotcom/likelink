@@ -1,16 +1,21 @@
-// Public site chrome, on LTK's black-and-white idea: a black header bar (desktop
-// nav + inline search), a full-screen black menu, a quiet dock on mobile and a
-// black footer. Light and carbon-dark themes follow the device until the
-// visitor picks one. The Studio is a separate, dark surface — the header only
-// links to it.
-import React, { useEffect, useRef, useState } from "react";
-import { Compass, Heart, Home, Menu, Moon, Play, Search, Sparkles, Sun, X, Languages } from "lucide-react";
+// Public site chrome, on LTK's idea: a white header (the logo, a rounded
+// search, "הרשמה" and "כניסה", a menu button), a white dropdown menu with
+// every page in plain words, a quiet dock on mobile and a light footer. Light
+// and carbon-dark themes follow the device until the visitor picks one. The
+// Studio is a separate, dark surface — the header only links to it.
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { BookOpen, Compass, Heart, Home, LogIn, Menu, Moon, Play, Ruler, Search, Sun, UserPlus, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
 import { PREFERRED_SOURCE, preferredSourceLive } from "../../lib/growth/preferredSource.js";
 
 const THEME_KEY = "ll_theme";
-const PAPER = { light: "#faf9f7", dark: "#070709" };
+const PAPER = { light: "#ffffff", dark: "#070709" };
+
+// "הרשמה" and "כניסה" open the Studio's own form on the right tab
+// (StudioEntrance reads ?auth=). Buying never needs an account.
+export const STUDIO_SIGNUP = "/studio?auth=signup";
+export const STUDIO_LOGIN = "/studio?auth=login";
 
 function storedTheme() {
   try {
@@ -64,24 +69,6 @@ function useTheme() {
   return { theme, toggle };
 }
 
-function ThemeToggle({ theme, onToggle, withLabel = false }) {
-  const { L } = useL();
-  const dark = theme === "dark";
-  const label = dark ? L("מצב בהיר", "Light mode") : L("מצב כהה", "Dark mode");
-  if (withLabel) {
-    return (
-      <button type="button" onClick={onToggle} className="lx-chip" aria-label={label}>
-        {dark ? <Sun size={15} /> : <Moon size={15} />} {label}
-      </button>
-    );
-  }
-  return (
-    <button type="button" onClick={onToggle} className="lx-icon-btn" aria-label={label} title={label}>
-      {dark ? <Sun size={17} /> : <Moon size={17} />}
-    </button>
-  );
-}
-
 export const PUBLIC_NAV = [
   { to: "/", type: "landing", he: "בית", en: "Home" },
   { to: "/discover", type: "discover", he: "גילוי", en: "Discover" },
@@ -116,18 +103,6 @@ export function Logo() {
   );
 }
 
-// The Studio is LikeLink's AI side: the aura says "alive", the dot says "open now".
-function StudioLink({ compact = false }) {
-  const { L } = useL();
-  return (
-    <Go to="/studio" className="lx-studio">
-      <Sparkles size={15} aria-hidden="true" />
-      {compact ? L("פתיחת חנות", "Open a shop") : L("פתיחת חנות ליוצרות", "Open a creator shop")}
-      <span className="lx-dot" aria-hidden="true" />
-    </Go>
-  );
-}
-
 function LangToggle() {
   const { lang, setLang } = useL();
   return (
@@ -148,64 +123,90 @@ function HeaderSearch({ navigate }) {
   return (
     <form
       role="search"
-      className="hidden xl:flex items-center gap-2 rounded-full border px-3 transition-[width,border-color] duration-300 focus-within:w-[280px]"
-      style={{ borderColor: "var(--lx-line)", background: "var(--lx-surface)", height: 40, width: 220 }}
+      className="lx-top-search"
       onSubmit={(e) => {
         e.preventDefault();
         navigate(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`);
       }}
     >
-      <Search size={16} className="lx-mute shrink-0" />
+      <Search size={17} aria-hidden="true" />
       <label className="lx-sr" htmlFor="lx-header-q">{L("חיפוש", "Search")}</label>
-      <input id="lx-header-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("מה מחפשים?", "What are you looking for?")} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+      <input id="lx-header-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("חיפוש מוצרים ויוצרות", "Search products and creators")} enterKeyHint="search" />
     </form>
   );
 }
 
-// The full menu, like LTK's: a black screen, big links, the language, and
-// two clear buttons (the Studio, and the merchants' page).
-function Drawer({ open, onClose, routeType, theme, onTheme }) {
+// The menu, like LTK's: a white panel under the header with every page in
+// plain words, the deals in colour, sign-in and sign-up, and one clear
+// button for creators. Esc, the ✕ or a tap outside closes it.
+const MENU_PAGES = [
+  { to: "/discover", type: "discover", he: "גילוי", en: "Discover" },
+  { to: "/products", type: "products", he: "מוצרים", en: "Shop" },
+  { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
+  { to: "/creators", type: "creators", he: "יוצרות", en: "Creators" },
+  { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
+  { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
+  { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
+];
+const MENU_TOOLS = [
+  { to: "/size", type: "size", icon: Ruler, he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
+  { to: "/guide", type: "guide", icon: BookOpen, he: "המדריך החינמי", en: "The free guide" },
+  { to: "/saved", type: "saved", icon: Heart, he: "שמורים", en: "Saved" },
+];
+
+function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
   const { L, he, lang, setLang } = useL();
   const panel = useRef(null);
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    panel.current?.querySelector(".lx-menu-link")?.focus();
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      onClose();
+      opener.current?.focus();
     };
-  }, [open, onClose]);
+    window.addEventListener("keydown", onKey);
+    panel.current?.querySelector("a")?.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, opener]);
   if (!open) return null;
+  const label = (n) => (he ? n.he : n.en);
   return (
-    <div ref={panel} className="lx-menu" role="dialog" aria-modal="true" aria-label={L("תפריט", "Menu")}>
-      <div className="lx-menu-top">
-        <Logo />
-        <button type="button" className="lx-menu-close" onClick={onClose} aria-label={L("סגירה", "Close")}><X size={26} strokeWidth={1.75} /></button>
-      </div>
-      <nav className="lx-menu-nav" aria-label={L("ניווט ראשי", "Main navigation")}>
-        {[...PUBLIC_NAV, { to: "/search", type: "search", he: "חיפוש", en: "Search" }, { to: "/saved", type: "saved", he: "שמורים", en: "Saved" }, { to: "/size", type: "size", he: "מודד מידות", en: "Size meter" }].map((n) => (
-          <Go key={n.to} to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className="lx-menu-link">
-            {he ? n.he : n.en}
-          </Go>
-        ))}
-      </nav>
-      <div className="lx-menu-foot">
-        <div className="lx-menu-row">
-          <button type="button" className="lx-menu-lang" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
-            <Languages size={18} aria-hidden="true" /> {lang === "he" ? "עברית · English" : "English · עברית"}
+    <>
+      {/* A tap outside closes the menu and lands nowhere else. */}
+      <div className="lx-dd-scrim" onClick={onClose} aria-hidden="true" />
+      <div ref={panel} id="lx-menu" className="lx-dd" role="dialog" aria-label={L("תפריט", "Menu")}>
+        <nav aria-label={L("ניווט ראשי", "Main navigation")}>
+          <ul className="lx-dd-list">
+            {MENU_PAGES.map((n) => (
+              <li key={n.to}>
+                <Go to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className={`lx-dd-link${n.sale ? " is-sale" : ""}`}>{label(n)}</Go>
+              </li>
+            ))}
+          </ul>
+          <ul className="lx-dd-list lx-dd-sub">
+            {MENU_TOOLS.map(({ icon: Icon, ...n }) => (
+              <li key={n.to}>
+                <Go to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className="lx-dd-link lx-dd-small"><Icon size={17} aria-hidden="true" /> {label(n)}</Go>
+              </li>
+            ))}
+          </ul>
+          <ul className="lx-dd-list lx-dd-sub">
+            <li><Go to={STUDIO_LOGIN} onClick={onClose} className="lx-dd-link lx-dd-small"><LogIn size={17} aria-hidden="true" /> {L("כניסה", "Log in")}</Go></li>
+            <li><Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-link lx-dd-small"><UserPlus size={17} aria-hidden="true" /> {L("הרשמה", "Sign up")}</Go></li>
+          </ul>
+        </nav>
+        <Go to="/join" onClick={onClose} className="lx-dd-cta">{L("הצטרפות כיוצרת", "Apply to be a creator")}</Go>
+        <p className="lx-dd-note">{L("ההרשמה והכניסה הן לסטודיו של היוצרות. כדי לקנות לא צריך להירשם.", "Sign-up and log-in are for the creators' Studio. You can shop without an account.")}</p>
+        <div className="lx-dd-foot">
+          <button type="button" className="lx-dd-pill" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
+            <Languages size={16} aria-hidden="true" /> {lang === "he" ? "English" : "עברית"}
           </button>
-          <button type="button" className="lx-menu-lang" onClick={onTheme} aria-label={theme === "dark" ? L("מצב בהיר", "Light mode") : L("מצב כהה", "Dark mode")}>
-            {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          <button type="button" className="lx-dd-pill" onClick={onTheme}>
+            {theme === "dark" ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />} {theme === "dark" ? L("מצב בהיר", "Light mode") : L("מצב כהה", "Dark mode")}
           </button>
         </div>
-        <Go to="/studio" onClick={onClose} className="lx-menu-btn lx-menu-btn-white">{L("פתיחת חנות ליוצרות (חינם)", "Open a creator shop (free)")}</Go>
-        <Go to="/merchants" onClick={onClose} className="lx-menu-btn lx-menu-btn-line">{L("יש לך מוצרים? לסוחרים", "Have products? For merchants")}</Go>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -213,30 +214,28 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
   const { L, he } = useL();
   const [menu, setMenu] = useState(false);
   const { theme, toggle } = useTheme();
+  const opener = useRef(null);
+  const closeMenu = useCallback(() => setMenu(false), []);
   useEffect(() => setMenu(false), [routeType]);
+  const authTip = L("הסטודיו של היוצרות. כדי לקנות לא צריך להירשם.", "The creators' Studio. You can shop without an account.");
 
   return (
     <div className="lx" dir={he ? "rtl" : "ltr"} data-theme={theme}>
-      <div className="lx-aurora" aria-hidden="true"><span /><span /><span /><span /></div>
       <a href="#lx-main" className="lx-sr lx-skip">{L("דילוג לתוכן", "Skip to content")}</a>
-      <header className="lx-header lx-header-black">
-        <div className="lx-header-bar lx-glass-strong flex h-[58px] items-center gap-3 px-2.5 md:h-[62px] md:gap-4 md:px-4">
+      <header className="lx-top">
+        <div className="lx-top-bar">
           <Logo />
-          <nav className="hidden flex-1 items-center justify-center gap-5 lg:flex" aria-label={L("ניווט ראשי", "Main navigation")}>
-            {PUBLIC_NAV.map((n) => (
-              <Go key={n.to} to={n.to} className="lx-nav-link" aria-current={routeType === n.type ? "page" : undefined}>{he ? n.he : n.en}</Go>
-            ))}
-          </nav>
-          <div className="ms-auto flex items-center gap-2 lg:ms-0">
-            <HeaderSearch navigate={navigate} />
-            <div className="xl:hidden"><Go to="/search" className="lx-icon-btn" aria-label={L("חיפוש", "Search")}><Search size={18} /></Go></div>
-            <div className="hidden sm:block"><ThemeToggle theme={theme} onToggle={toggle} /></div>
-            <div className="hidden md:block"><LangToggle /></div>
-            <div className="hidden sm:block"><StudioLink /></div>
-            <div className="sm:hidden"><StudioLink compact /></div>
-            <div className="lg:hidden"><button type="button" className="lx-icon-btn" onClick={() => setMenu(true)} aria-label={L("תפריט", "Menu")} aria-expanded={menu}><Menu size={18} /></button></div>
+          <HeaderSearch navigate={navigate} />
+          <div className="lx-top-actions">
+            <Go to="/search" className="lx-top-icon lx-top-phone" aria-label={L("חיפוש", "Search")}><Search size={20} /></Go>
+            <Go to={STUDIO_SIGNUP} className="lx-top-btn lx-top-btn-line lx-top-wide" data-tip={authTip}>{L("הרשמה", "Sign up")}</Go>
+            <Go to={STUDIO_LOGIN} className="lx-top-btn lx-top-btn-dark" data-tip={authTip}>{L("כניסה", "Log in")}</Go>
+            <button ref={opener} type="button" className="lx-top-icon" data-notip onClick={() => setMenu((m) => !m)} aria-label={menu ? L("סגירת התפריט", "Close menu") : L("תפריט", "Menu")} aria-expanded={menu} aria-controls="lx-menu">
+              {menu ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
+        <MenuPanel open={menu} onClose={closeMenu} routeType={routeType} theme={theme} onTheme={toggle} opener={opener} />
       </header>
 
       <main id="lx-main" className={immersive ? "" : "pb-28 lg:pb-0"}>{children}</main>
@@ -260,7 +259,6 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
         </nav>
       </div>}
 
-      <Drawer open={menu} onClose={() => setMenu(false)} routeType={routeType} theme={theme} onTheme={toggle} />
     </div>
   );
 }
