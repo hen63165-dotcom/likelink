@@ -11,7 +11,7 @@ import { money, groupByDay, isSafeHttpUrl, isSafeImageUrl, nextPayoutDate, forma
 import { launchProduct } from "../../lib/cloud/launch.js";
 import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { PLATFORM_FEE_PERCENT_DEFAULT, MIN_PAYOUT_THRESHOLD, BOOST_PRICE, PAYOUT_METHODS, PAYOUT_LABELS, PAYOUT_DEFAULT } from "../../constants/keys.js";
-import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
+import { uploadProductImage, safePreviewSrc } from "../../lib/uploadImage.js";
 import { getSellerPayoutSummary } from "../../lib/payments.js";
 import { resetPassword, authConfigured, getSessionToken } from "../../lib/auth.js";
 import { CLOUD_PAUSED_HE, isCloudUnavailable, snapshotTakenAt } from "../../lib/catalogSnapshot.js";
@@ -1075,7 +1075,7 @@ function ProductForm({ onClose, onSubmit }) {
           <span className="text-xs font-medium text-secondary">{t("form.imageSection")}</span>
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 surface">
-              {d.image ? <img src={mediaPreviewSrc(d.image)} alt="" className="w-full h-full object-cover" /> : (
+              {safePreviewSrc(d.image) ? <img src={safePreviewSrc(d.image)} alt="" className="w-full h-full object-cover" /> : (
                 <div className="w-full h-full flex items-center justify-center"><ImageOff size={16} style={{ color: "var(--accent)", opacity: 0.5 }} /></div>
               )}
             </div>

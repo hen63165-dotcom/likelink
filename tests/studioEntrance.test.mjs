@@ -144,6 +144,11 @@ test("previews only render safe addresses", () => {
   assert.equal(safeImageSrc("javascript:alert(1)", "/f.png"), "/f.png");
   assert.equal(safeHref(" https://instagram.com/me "), "https://instagram.com/me");
   assert.equal(safeHref("HTTP://Shop.example/x"), "http://Shop.example/x");
+  // Quotes, angle brackets and spaces are percent-encoded: nothing typed can close the attribute.
+  assert.equal(safeHref('https://x.test/a"><b'), "https://x.test/a%22%3E%3Cb");
+  assert.equal(safeImageSrc("https://x.test/my photo.jpg"), "https://x.test/my%20photo.jpg");
+  // An already-encoded address is left as it is.
+  assert.equal(safeHref("https://x.test/p?q=%D7%A9&a=1"), "https://x.test/p?q=%D7%A9&a=1");
   assert.equal(safeHref("javascript:alert(1)"), "");
   assert.equal(safeHref("instagram.com/me"), "");
 
