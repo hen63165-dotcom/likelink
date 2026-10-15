@@ -13,13 +13,13 @@
 import React, { useMemo, useState } from "react";
 import {
   UserRound, Megaphone, Store, Check, ChevronLeft, ChevronRight, Copy,
-  ExternalLink, Sparkles, Link2,
+  ExternalLink, Sparkles, Link2, Image as ImageIcon,
 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
-import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
-import { isSafeHttpUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
+import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
+import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
 import AddProductLink from "./AddProductLink.jsx";
 
@@ -86,19 +86,20 @@ export default function StudioOnboarding({ onDone }) {
     }
     if (step === 2) {
       if (!form.name.trim()) { setErr(he ? "שם החנות חובה." : "A store name is required."); return false; }
-      if (form.image && !isSafeHttpUrl(form.image)) { setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid."); return false; }
+      if (form.image && !isSafeImageUrl(form.image)) { setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid."); return false; }
       for (const k of SOCIAL_KEYS) {
         const v = String(form.socials[k] || "").trim();
-        if (v && !isSafeHttpUrl(v)) {
+        if (v && !safeHref(v)) {
           setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
           return false;
         }
       }
     }
-    if (step === 3 && published.length === 0 && !firstSaved) {
+    // A saved draft is not a public product: step 4 shares the store, so it needs one that is published.
+    if (step === 3 && published.length === 0 && firstSaved?.status !== "approved") {
       setErr(he
-        ? "צריך מוצר ראשון מתפרסם כדי להמשיך. אפשר לשמור כטיוטה קודם ולפרסם בסיום."
-        : "Add and publish your first product to continue. You can save a draft first and publish it.");
+        ? "צריך מוצר ראשון מפורסם כדי להמשיך. טיוטה נשמרת, אבל לא מופיעה בחנות."
+        : "Publish your first product to continue. A draft is saved but does not appear in the store.");
       return false;
     }
     setErr("");
@@ -129,7 +130,8 @@ export default function StudioOnboarding({ onDone }) {
       await finish();
       return;
     }
-    await persistStep(step + 1);
+    // Step 1's choice is kept now, so a creator who leaves and comes back finds it.
+    await persistStep(step + 1, step === 1 ? { accountType: form.accountType } : {});
   }
 
   async function finish() {
@@ -265,10 +267,10 @@ export default function StudioOnboarding({ onDone }) {
               <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{he ? "תמונת החנות" : "Store photo"}</span>
               <div className="flex items-center gap-3">
                 <img
-                  src={mediaPreviewSrc(form.image) || DEFAULT_PRODUCT_IMAGE}
+                  src={safePreviewSrc(form.image, DEFAULT_PRODUCT_IMAGE)}
                   alt=""
-                  className="h-16 w-16 shrink-0 rounded-full object-cover"
-                  style={{ background: "var(--bg-subtle)" }}
+                  className="ll-thumb shrink-0 object-cover"
+                  style={{ "--thumb": "4rem", "--thumb-r": "999px",  background: "var(--bg-subtle)" }}
                   onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
                 />
                 <label className="ll-tap flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
@@ -322,9 +324,9 @@ export default function StudioOnboarding({ onDone }) {
           </h3>
           <div className="mt-3 flex items-start gap-4 rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
             <img
-              src={mediaPreviewSrc(form.image) || DEFAULT_PRODUCT_IMAGE}
+              src={safePreviewSrc(form.image, DEFAULT_PRODUCT_IMAGE)}
               alt=""
-              className="h-16 w-16 shrink-0 rounded-full object-cover"
+              className="ll-thumb shrink-0 object-cover" style={{ "--thumb": "4rem", "--thumb-r": "999px" }}
               onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
             />
             <div className="min-w-0">

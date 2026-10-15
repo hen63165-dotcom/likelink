@@ -114,7 +114,8 @@ test("cloud down: visitors get a calm Hebrew message, real answers still show as
     assert.ok(!isCloudUnavailable(e), e);
   }
   assert.doesNotMatch(CLOUD_PAUSED_HE, /supabase|402|quota|error/i, "no technical words for visitors");
-  const sell = readFileSync(new URL("../src/components/sell/SellView.jsx", import.meta.url), "utf8");
+  // The sign-up / sign-in form (AuthGate.jsx, used by the Studio entrance and the seller view).
+  const sell = readFileSync(new URL("../src/components/sell/AuthGate.jsx", import.meta.url), "utf8");
   assert.match(sell, /isCloudUnavailable\(result\.error\)\) setErr\(CLOUD_PAUSED_HE\)/, "sign-up/login failures map to the calm message");
   const i18n = readFileSync(new URL("../src/lib/i18n.js", import.meta.url), "utf8");
   assert.doesNotMatch(i18n, /via Supabase|דרך Supabase|local demo mode|במצב דמו מקומי/, "no developer wording on the sign-up screen");

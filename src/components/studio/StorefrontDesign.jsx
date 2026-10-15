@@ -9,8 +9,8 @@ import { Copy, ExternalLink, Check, CircleAlert, LayoutTemplate, Store } from "l
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
-import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
-import { isSafeHttpUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
+import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
+import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
 
 const SOCIAL_KEYS = ["instagram", "tiktok", "youtube", "facebook", "x"];
@@ -41,10 +41,10 @@ export default function StorefrontDesign({ onNavigate }) {
   async function save() {
     setErr("");
     if (!form.name.trim()) return setErr(he ? "שם החנות חובה." : "A store name is required.");
-    if (form.image && !isSafeHttpUrl(form.image)) return setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid.");
+    if (form.image && !isSafeImageUrl(form.image)) return setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid.");
     for (const k of SOCIAL_KEYS) {
       const v = String(form.socials[k] || "").trim();
-      if (v && !isSafeHttpUrl(v)) return setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
+      if (v && !safeHref(v)) return setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
     }
     setSaving(true);
     try {
@@ -122,10 +122,10 @@ export default function StorefrontDesign({ onNavigate }) {
             <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{he ? "תמונת החנות" : "Store photo"}</span>
             <div className="flex items-center gap-3">
               <img
-                src={mediaPreviewSrc(form.image) || DEFAULT_PRODUCT_IMAGE}
+                src={safePreviewSrc(form.image, DEFAULT_PRODUCT_IMAGE)}
                 alt=""
-                className="h-16 w-16 shrink-0 rounded-full object-cover"
-                style={{ background: "var(--bg-subtle)" }}
+                className="ll-thumb shrink-0 object-cover"
+                style={{ "--thumb": "4rem", "--thumb-r": "999px",  background: "var(--bg-subtle)" }}
                 onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
               />
               <label className="ll-tap flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
@@ -174,9 +174,9 @@ export default function StorefrontDesign({ onNavigate }) {
         </h3>
         <div className="mt-3 flex items-start gap-4 rounded-2xl p-4" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
           <img
-            src={mediaPreviewSrc(form.image) || DEFAULT_PRODUCT_IMAGE}
+            src={safePreviewSrc(form.image, DEFAULT_PRODUCT_IMAGE)}
             alt=""
-            className="h-16 w-16 shrink-0 rounded-full object-cover"
+            className="ll-thumb shrink-0 object-cover" style={{ "--thumb": "4rem", "--thumb-r": "999px" }}
             onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
           />
           <div className="min-w-0">

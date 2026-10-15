@@ -61,6 +61,7 @@ import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
 import StudioWelcome from "./StudioWelcome.jsx";
+import StudioEntrance from "./StudioEntrance.jsx";
 import StudioActionHub from "./StudioActionHub.jsx";
 import StudioOnboarding from "./StudioOnboarding.jsx";
 import StorefrontDesign from "./StorefrontDesign.jsx";
@@ -189,18 +190,17 @@ function OverviewPanel({ onNavigate }) {
   if (!currentMarketer) return <StudioWelcome onSignup={() => onNavigate(VIEW_IDS.PRODUCTS)} />;
   const setup = currentMarketer.studioOnboarding || {};
   const showOnboarding = onboarding === null ? !(setup.doneAt || setup.skippedAt) : onboarding;
+  // A new creator sees one thing: the step-by-step setup. The action cards
+  // and the dashboard come once it is finished or postponed.
+  if (showOnboarding) return <StudioOnboarding onDone={() => setOnboarding(false)} />;
   return (
     <div className="space-y-6">
       <StudioActionHub
         onNavigate={onNavigate}
-        needsOnboarding={showOnboarding}
+        needsOnboarding={false}
         onStartOnboarding={() => setOnboarding(true)}
       />
-      {showOnboarding ? (
-        <StudioOnboarding onDone={() => setOnboarding(false)} />
-      ) : (
-        <StudioHome onNavigate={onNavigate} />
-      )}
+      <StudioHome onNavigate={onNavigate} />
     </div>
   );
 }
@@ -1222,9 +1222,10 @@ const NAV_SECTIONS = [
     id: "core",
     items: [
       { view: VIEW_IDS.OVERVIEW, icon: LayoutDashboard, he: "בית הסטודיו", en: "Studio home" },
-      { view: VIEW_IDS.ADD_PRODUCT, icon: Link2, he: "ניהול קישורי אפילייט", en: "Affiliate Link Manager" },
+      { view: VIEW_IDS.ADD_PRODUCT, icon: Link2, he: "קישורים ומוצרים", en: "Links & products" },
       { view: VIEW_IDS.STOREFRONT, icon: Store, he: "עיצוב החנות שלי", en: "Design my store" },
       { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים וקליקים", en: "Performance & clicks" },
+      { view: VIEW_IDS.SETTINGS, icon: Settings, he: "הגדרות", en: "Settings" },
     ],
   },
   {
@@ -1256,10 +1257,13 @@ const NAV_SECTIONS = [
       { view: VIEW_IDS.TRUST, icon: ShieldCheck, he: "אמון", en: "Trust" },
       { view: VIEW_IDS.AUTOPILOT, icon: Bot, he: "טייס אוטומטי", en: "AutoPilot" },
       { view: VIEW_IDS.RECOMMENDATIONS, icon: Lightbulb, he: "המלצות", en: "Recommendations" },
-      { view: VIEW_IDS.SETTINGS, icon: Settings, he: "הגדרות", en: "Settings" },
     ],
   },
 ];
+
+// Everyday work lives in "core"; everything else waits behind one toggle so a
+// creator meets five clear items, not twenty.
+const ADVANCED_SECTIONS = ["create", "grow", "operate"];
 
 const SECTION_LABELS = {
   core: { he: "ראשי", en: "Core" },
@@ -1370,6 +1374,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     Object.values(VIEW_IDS).includes(initialView) ? initialView : VIEW_IDS.OVERVIEW
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [platform, setPlatform] = useState(null);
   const [lastPlatformCheck, setLastPlatformCheck] = useState(0);
 
@@ -1411,6 +1416,9 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     setDrawerOpen(false);
     externalNavigate?.(v);
   }
+
+  const inAdvanced = NAV_SECTIONS.some((sec) => ADVANCED_SECTIONS.includes(sec.id) && sec.items.some((i) => i.view === view));
+  const showAdvanced = advancedOpen || inAdvanced;
 
   const tier = marketer?.tier || marketer?.plan || null;
   const tierLabel = tier && TIERS[tier] ? TIERS[tier][lang === "he" ? "he" : "en"] : null;
@@ -1455,9 +1463,21 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
         )}
       </div>
 
-      {/* Navigation */}
+      {marketer?.slug ? (
+        <a
+          href={withBase(`/u/${encodeURIComponent(marketer.slug)}`)}
+          target="_blank"
+          rel="noopener"
+          className="ll-tap mx-3 mt-2 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold"
+          style={{ background: "var(--bg-subtle)", color: "var(--text)", border: "1px solid var(--border)" }}
+        >
+          <Store size={14} /> {lang === "he" ? "צפייה בחנות שלי" : "View my shop"}
+        </a>
+      ) : null}
+
+      {/* Navigation: the everyday items, then the advanced tools behind one toggle */}
       <nav className="mt-2 flex-1 overflow-y-auto px-2 pb-4">
-        {NAV_SECTIONS.map((section) => (
+        {NAV_SECTIONS.filter((section) => !ADVANCED_SECTIONS.includes(section.id) || showAdvanced).map((section) => (
           <div key={section.id}>
             <SectionLabel>{SECTION_LABELS[section.id][lang === "he" ? "he" : "en"]}</SectionLabel>
             {section.items.map((item) => (
@@ -1468,6 +1488,18 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
                 onClick={() => navigate(item.view)}
               />
             ))}
+            {section.id === "core" ? (
+              <button
+                type="button"
+                onClick={() => setAdvancedOpen((o) => !o)}
+                aria-expanded={showAdvanced}
+                className="ll-tap mt-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-bold"
+                style={{ color: "var(--text-faint)", background: "transparent" }}
+              >
+                <span>{lang === "he" ? "כלים מתקדמים" : "Advanced tools"}</span>
+                <ChevronLeft size={14} style={{ transform: showAdvanced ? "rotate(-90deg)" : "none", transition: "transform .2s" }} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         ))}
       </nav>
@@ -1538,6 +1570,39 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     }
   }
 
+  // Before sign-in the Studio is one clear page (StudioEntrance): what it is,
+  // three steps, try pasting a link, sign up. The tool menu comes with an account.
+  if (!loading && !marketer) {
+    return (
+      <div dir={lang === "he" ? "rtl" : "ltr"} className="ll-studio min-h-screen">
+        <header className="ll-header sticky top-0 z-40 safe-top">
+          <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+            <a href={withBase("/")} className="text-sm font-extrabold" style={{ color: "var(--text)" }}>
+              LikeLink2 <span className="ll-grad-text">Studio</span>
+            </a>
+            <div className="mr-auto flex items-center gap-2">
+              <button
+                onClick={() => setLang(lang === "he" ? "en" : "he")}
+                className="ll-tap flex h-9 w-9 items-center justify-center rounded-lg"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}
+                aria-label={lang === "he" ? "Switch to English" : "עבור לעברית"}
+              >
+                <Languages size={16} />
+              </button>
+              <a href={withBase("/")} className="ll-tap rounded-lg px-3 py-2 text-xs font-bold" style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)" }}>
+                {lang === "he" ? "לאתר" : "To the site"}
+              </a>
+            </div>
+          </div>
+        </header>
+        <main className="px-4 py-6 sm:px-6">
+          <StudioEntrance />
+        </main>
+        <Toast message={toast?.msg} />
+      </div>
+    );
+  }
+
   return (
     <div dir={lang === "he" ? "rtl" : "ltr"} className="ll-studio min-h-screen">
       {/* Top bar */}
@@ -1567,9 +1632,15 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
             </h1>
           </div>
           <div className="mr-auto flex items-center gap-2">
-            <span className="hidden text-[10px] sm:inline" style={{ color: "var(--text-faint)" }}>
-              {lang === "he" ? "עברית · RTL" : "Hebrew-first"}
-            </span>
+            {/* The one action a creator comes for, on every screen */}
+            <button
+              type="button"
+              onClick={() => navigate(VIEW_IDS.ADD_PRODUCT)}
+              className="ll-tap flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-bold text-white"
+              style={{ background: "var(--gradient-brand)" }}
+            >
+              <Link2 size={14} aria-hidden="true" /> {lang === "he" ? "הוספת קישור" : "Add a link"}
+            </button>
             {/* Luna command-center state — reported by the cloud, never fixed */}
             {(() => {
               const pState = platform?.state || PLATFORM_STATE.OFFLINE;
@@ -1580,11 +1651,11 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
                 <button
                   type="button"
                   onClick={() => navigate(VIEW_IDS.LUNA)}
-                  className="ll-stat-card hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl"
-                  style={{ border: `1px solid ${pColor}` }}
+                  className="ll-stat-card hidden lg:flex items-center gap-2 whitespace-nowrap px-3 py-1 rounded-xl"
+                  style={{ border: `1px solid ${pColor}`, flexDirection: "row", padding: "4px 12px", gap: 8 }}
                   title={lang === "he"
-                    ? `לונה · ${pLabel}${platform?.scheduler ? "" : " · עדיין אין תשובה מהענן"}`
-                    : `Luna · ${pLabel}${platform?.scheduler ? "" : " · no cloud answer yet"}`}
+                    ? `לונה · ${pLabel}${jobs ? ` · ${jobs.total} משימות${jobs.failed > 0 ? `, ${jobs.failed} נכשלו` : ""}` : ""}${platform?.scheduler ? "" : " · עדיין אין תשובה מהענן"}${lastPlatformCheck ? ` · נבדק ${new Date(lastPlatformCheck).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`
+                    : `Luna · ${pLabel}${jobs ? ` · ${jobs.total} jobs${jobs.failed > 0 ? `, ${jobs.failed} failed` : ""}` : ""}${platform?.scheduler ? "" : " · no cloud answer yet"}`}
                   aria-label={lang === "he" ? `מצב לונה: ${pLabel}` : `Luna status: ${pLabel}`}
                 >
                   <span className="ll-stat-icon" style={{ width: 28, height: 28, marginBottom: 0, color: pColor }}><Activity size={13} /></span>
@@ -1599,20 +1670,11 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
                     {pLabel}
                   </span>
                   {jobs ? (
-                    <>
-                      <span className="ll-stat-value text-[10px]" style={{ fontSize: "0.75rem", marginBottom: 0 }}>
-                        {jobs.total}
-                      </span>
-                      <span className="ll-stat-label" style={{ fontSize: "9px", marginBottom: 0 }}>
-                        {jobs.failed > 0
-                          ? (lang === "he" ? `משימות · ${jobs.failed} נכשלו` : `jobs · ${jobs.failed} failed`)
-                          : (lang === "he" ? "משימות" : "jobs")}
-                      </span>
-                    </>
+                    <span className="flex items-baseline gap-1">
+                      <span className="ll-stat-value" style={{ fontSize: "0.75rem", marginBottom: 0 }}>{jobs.total}</span>
+                      <span className="ll-stat-label" style={{ fontSize: "9px", marginBottom: 0 }}>{lang === "he" ? "משימות" : "jobs"}</span>
+                    </span>
                   ) : null}
-                  <span className="text-[10px]" style={{ color: "var(--text-faint)" }}>
-                    {lastPlatformCheck ? new Date(lastPlatformCheck).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : (lang === "he" ? "בודק…" : "checking…")}
-                  </span>
                 </button>
               );
             })()}

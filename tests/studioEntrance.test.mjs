@@ -1,0 +1,150 @@
+// Studio clarity + Cline's link manager (PR #107), fixed before shipping.
+//
+// Pins:
+//  - signed-out /studio is one clear entrance page (StudioEntrance), not the
+//    dashboard chrome, and it sends the visitor to the real sign-up (AuthGate);
+//  - the Studio menu shows five core items; the advanced tools are collapsed
+//    behind one toggle, and "הוספת קישור" is the one header action;
+//  - a pasted affiliate link is stored exactly as pasted, and an edit really
+//    saves a changed link;
+//  - product writes use the latest list (no stale overwrite of a just-added
+//    product);
+//  - the creator's affiliate accounts are private (never on the public row);
+//  - image/link previews only render safe addresses;
+//  - no stray Arabic letters in the Studio's Hebrew copy (punctuation such as
+//    the Arabic comma a topic splitter accepts is fine).
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+import { validateAffiliateUrl } from "../src/lib/affiliateLink.js";
+import { publicMarketer, privateFieldsOf, splitMarketers, PRIVATE_MARKETER_FIELDS } from "../src/lib/cloud/marketerPrivacy.js";
+import { isSafePreviewSrc, safeHref } from "../src/lib/safeMedia.js";
+import { safePreviewSrc } from "../src/lib/uploadImage.js";
+
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+test("signed-out /studio renders the entrance page with the real sign-up", () => {
+  const shell = read("src/components/studio/StudioShell.jsx");
+  assert.match(shell, /import StudioEntrance from "\.\/StudioEntrance\.jsx"/);
+  assert.match(shell, /if \(!loading && !marketer\) \{?[\s\S]{0,2000}<StudioEntrance \/>/);
+
+  const entrance = read("src/components/studio/StudioEntrance.jsx");
+  assert.match(entrance, /import AuthGate from "\.\.\/sell\/AuthGate\.jsx"/);
+  assert.match(entrance, /id="signup"/);
+  // A paused cloud is said plainly, never a silent broken form.
+  assert.match(entrance, /CLOUD_PAUSED_HE/);
+  // Trying a link saves nothing: no product write from the entrance page.
+  assert.doesNotMatch(entrance, /onAddProduct|setJSON|\/api\/store/);
+  // No counters or invented numbers on the entrance.
+  assert.doesNotMatch(entrance, /(\d[\d,]*\s*(יוצרות|משתמשים|creators|users))|כוכבים|ביקורות/);
+});
+
+test("SellView still uses the same sign-up form (moved to AuthGate.jsx)", () => {
+  const sell = read("src/components/sell/SellView.jsx");
+  assert.match(sell, /import AuthGate from "\.\/AuthGate\.jsx"/);
+  const gate = read("src/components/sell/AuthGate.jsx");
+  assert.match(gate, /export default function AuthGate\(/);
+});
+
+test("Studio menu: five core items, advanced tools collapsed, one add-link action", () => {
+  const shell = read("src/components/studio/StudioShell.jsx");
+  assert.match(shell, /const ADVANCED_SECTIONS = \["create", "grow", "operate"\]/);
+  assert.match(shell, /!ADVANCED_SECTIONS\.includes\(section\.id\) \|\| showAdvanced/);
+  // Opening an advanced view directly still shows its section.
+  assert.match(shell, /showAdvanced = advancedOpen \|\| inAdvanced/);
+  assert.match(shell, /"כלים מתקדמים"/);
+  assert.match(shell, /"הוספת קישור"/);
+  assert.match(shell, /"קישורים ומוצרים"/);
+});
+
+test("onboarding imports every icon it renders", () => {
+  const src = read("src/components/studio/StudioOnboarding.jsx");
+  assert.match(src, /Image as ImageIcon/);
+});
+
+test("Studio copy has no stray Arabic letters", () => {
+  const dir = new URL("../src/components/studio/", import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith(".jsx"));
+  const files2 = ["src/components/sell/AuthGate.jsx", "src/components/sell/SellView.jsx"];
+  for (const f of files) {
+    const text = readFileSync(join(dir.pathname, f), "utf8");
+    assert.doesNotMatch(text, /[ء-ي]/, `${f} contains Arabic letters`);
+  }
+  for (const f of files2) assert.doesNotMatch(read(f), /[ء-ي]/, `${f} contains Arabic letters`);
+});
+
+test("a pasted affiliate link is stored exactly as pasted (trimmed only)", () => {
+  for (const raw of [
+    "https://Shop.com",
+    "https://s.click.aliexpress.com/e/_DmXyZ12",
+    "https://www.amazon.com/dp/B0TEST?tag=me-20&linkCode=ll1",
+    "https://example.co.il/p?q=%D7%A9",
+  ]) {
+    const v = validateAffiliateUrl(`  ${raw}  `);
+    assert.equal(v.ok, true, raw);
+    assert.equal(v.url, raw, `${raw} must not be rewritten`);
+  }
+  assert.equal(validateAffiliateUrl("javascript:alert(1)").ok, false);
+  assert.equal(validateAffiliateUrl("/relative").ok, false);
+});
+
+test("editing a product really saves the changed affiliate link", () => {
+  const src = read("src/components/studio/AddProductLink.jsx");
+  const edit = src.slice(src.indexOf("onUpdateProduct("), src.indexOf("onUpdateProduct(") + 600);
+  assert.match(edit, /affiliateUrl: v\.url/);
+});
+
+test("product writes use the latest list (no stale overwrite)", () => {
+  const ctx = read("src/context/MarketplaceContext.jsx");
+  assert.match(ctx, /typeof next === "function" \? next\(productsRef\.current\) : next/);
+  // Every caller hands an updater, never a list computed from a stale render.
+  assert.doesNotMatch(ctx, /persistProducts\(\s*(products|\[\.\.\.products)/);
+  assert.doesNotMatch(ctx, /persistProducts\(products\./);
+});
+
+test("affiliate accounts are private creator fields", () => {
+  assert.ok(PRIVATE_MARKETER_FIELDS.includes("affiliateAccounts"));
+  const m = {
+    id: "m1",
+    name: "Studio",
+    affiliateAccounts: [{ network: "aliexpress", trackingId: "abc" }],
+  };
+  assert.equal("affiliateAccounts" in publicMarketer(m), false);
+  assert.deepEqual(privateFieldsOf(m).affiliateAccounts, m.affiliateAccounts);
+  const { publicList, privateById } = splitMarketers([m]);
+  assert.equal(JSON.stringify(publicList).includes("trackingId"), false);
+  assert.deepEqual(privateById.m1.affiliateAccounts, m.affiliateAccounts);
+});
+
+test("previews only render safe addresses", () => {
+  for (const ok of [
+    "https://cdn.example.com/a.jpg",
+    "http://x.test/b.png",
+    "blob:https://likelink2.vercel.app/1234",
+    "data:image/png;base64,iVBORw0KGgo=",
+    "data:image/jpeg;base64,/9j/4AAQ",
+  ]) assert.equal(isSafePreviewSrc(ok), true, ok);
+  for (const bad of [
+    "javascript:alert(1)",
+    "data:text/html;base64,PHNjcmlwdD4=",
+    "data:image/svg+xml;base64,PHN2Zz4=",
+    "vbscript:x",
+    "",
+    "//evil.test/x.png",
+  ]) assert.equal(isSafePreviewSrc(bad), false, bad);
+
+  assert.equal(safePreviewSrc("javascript:alert(1)", "/fallback.png"), "/fallback.png");
+  assert.equal(safePreviewSrc("https://cdn.example.com/a.jpg", "/f.png"), "https://cdn.example.com/a.jpg");
+
+  assert.equal(safeHref(" https://instagram.com/me "), "https://instagram.com/me");
+  assert.equal(safeHref("javascript:alert(1)"), "");
+  assert.equal(safeHref("instagram.com/me"), "");
+
+  for (const f of ["AddProductLink.jsx", "StudioOnboarding.jsx", "StorefrontDesign.jsx"]) {
+    const src = read(`src/components/studio/${f}`);
+    // No raw field rendered straight into an <img src> in these forms.
+    assert.doesNotMatch(src, /src=\{(form|fields|preview|p)\.image\}/, f);
+  }
+});

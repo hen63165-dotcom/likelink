@@ -12,7 +12,7 @@ const ACTIONS = [
   {
     view: "add-product",
     icon: Link2,
-    he: { title: "ניהול קישורי אפילייט", body: "מדביקים קישור מכל רשת, בודקים אותו, בוחרים חשבון וערוצים, ומפרסמים או שומרים כטיוטה." },
+    he: { title: "קישורים ומוצרים", body: "מדביקים קישור שותפים מכל תוכנית, ממלאים שם ותמונה, ומפרסמים בחנות או שומרים כטיוטה." },
     en: { title: "Affiliate Link Manager", body: "Paste a link from any network, check it, pick an account and channels, then publish or keep as a draft." },
   },
   {

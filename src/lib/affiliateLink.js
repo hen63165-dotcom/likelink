@@ -136,7 +136,9 @@ export function validateAffiliateUrl(raw) {
   if (!host || !host.includes(".")) {
     return { ok: false, url: v, host: "", network: null, error: "host" };
   }
-  return { ok: true, url: u.toString(), host, network: networkOf(host), error: null };
+  // The address exactly as pasted (trimmed only): re-serialising it would
+  // lower-case the host, add a slash or re-encode signed affiliate parameters.
+  return { ok: true, url: v, host, network: networkOf(host), error: null };
 }
 
 /**

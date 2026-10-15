@@ -361,9 +361,16 @@ export function MarketplaceProvider({ children }) {
     await setJSON(K.marketers, next, true);
   }, []);
 
+  // Product writes start from the latest list, not the one a render captured:
+  // a bulk action, a CSV import or a save right after another save each call
+  // these actions in sequence, and a stale copy would erase the earlier writes.
+  const productsRef = useRef(products);
+  productsRef.current = products;
   const persistProducts = useCallback(async (next) => {
-    setProducts(next);
-    await setJSON(K.products, next, true);
+    const value = typeof next === "function" ? next(productsRef.current) : next;
+    productsRef.current = value;
+    setProducts(value);
+    await setJSON(K.products, value, true);
   }, []);
 
   const persistClicks = useCallback(async (next) => {
@@ -459,7 +466,7 @@ export function MarketplaceProvider({ children }) {
         ...attr,
       };
       const nextClicks = [...clicks, c];
-      const nextProducts = products.map((p) =>
+      const nextProducts = (list) => list.map((p) =>
         p.id === product.id ? { ...p, clicks: (p.clicks || 0) + 1 } : p
       );
       // Tracking is best-effort and must NEVER block the buyer: callers await
@@ -720,7 +727,7 @@ export function MarketplaceProvider({ children }) {
           clicks: 0,
           createdAt: Date.now(),
         };
-        await persistProducts([...products, p]); pushActivity('product.add', 'הוספת מוצר חדש', { productId: p.id });
+        await persistProducts((list) => [...list, p]); pushActivity('product.add', 'הוספת מוצר חדש', { productId: p.id });
 
         // Convenience (best-effort, never blocks save): if no manual image was
         // provided, try to auto-pull an Open Graph preview image from the link.
@@ -729,7 +736,7 @@ export function MarketplaceProvider({ children }) {
           fetchOgImage(affiliateUrl)
             .then((og) => {
               if (og) {
-                persistProducts([...products.filter((x) => x.id !== p.id), { ...p, image: og }]);
+                persistProducts((list) => list.map((x) => (x.id === p.id && !x.image ? { ...x, image: og } : x)));
               }
             })
             .catch(() => {});
@@ -757,7 +764,10 @@ export function MarketplaceProvider({ children }) {
         if (typeof clean.title === "string") clean.title = clean.title.trim().slice(0, 120);
         if (typeof clean.description === "string") clean.description = clean.description.trim().slice(0, 600);
         if (typeof clean.image === "string") clean.image = clean.image.trim().slice(0, 4000);
-        if (typeof clean.affiliateUrl === "string" && !isSafeHttpUrl(clean.affiliateUrl)) delete clean.affiliateUrl;
+        if (typeof clean.affiliateUrl === "string") {
+          clean.affiliateUrl = injectAliExpressTracking(clean.affiliateUrl.trim().slice(0, 2000), currentMarketer?.trackingId);
+          if (!isSafeHttpUrl(clean.affiliateUrl)) delete clean.affiliateUrl;
+        }
         if (typeof clean.sourceUrl === "string" && !isSafeHttpUrl(clean.sourceUrl)) delete clean.sourceUrl;
         if ("network" in clean) clean.network = typeof clean.network === "string" ? clean.network.trim().toLowerCase().slice(0, 40) : "";
         if ("accountId" in clean) clean.accountId = typeof clean.accountId === "string" ? clean.accountId.trim().slice(0, 60) : "";
@@ -765,12 +775,12 @@ export function MarketplaceProvider({ children }) {
         if ("channels" in clean) clean.channels = Array.isArray(clean.channels) ? clean.channels.filter((c) => typeof c === "string").slice(0, 10) : [];
         if ("campaign" in clean) clean.campaign = typeof clean.campaign === "string" ? clean.campaign.trim().slice(0, 120) : "";
         if ("linkStatus" in clean) clean.linkStatus = typeof clean.linkStatus === "string" ? clean.linkStatus.trim().slice(0, 40) : "";
-        const next = products.map((p) => (p.id === id ? { ...p, ...clean } : p));
-        await persistProducts(next);
-        return next.find((p) => p.id === id) || null;
+        let saved = null;
+        await persistProducts((list) => list.map((p) => (p.id === id ? (saved = { ...p, ...clean }) : p)));
+        return saved;
       },
       onDeleteProduct: async (id) => {
-        await persistProducts(products.filter((p) => p.id !== id));
+        await persistProducts((list) => list.filter((p) => p.id !== id));
         showToast(t("sell.removed"));
       },
       onLogSale: async (product, saleAmount, commissionAmount) => {
@@ -826,7 +836,7 @@ export function MarketplaceProvider({ children }) {
         await persistCollections(collections.filter((c) => c.id !== id));
       },
       onSetStatus: async (id, status) => {
-        await persistProducts(products.map((p) => (p.id === id ? { ...p, status } : p)));
+        await persistProducts((list) => list.map((p) => (p.id === id ? { ...p, status } : p)));
         showToast(
           status === "approved" ? t("admin.approved2")
             : status === "draft" ? (lang === "he" ? "המוצר הוחזר לטיוטה" : "Moved back to draft")
@@ -845,7 +855,7 @@ export function MarketplaceProvider({ children }) {
         }
       },
       onRemove: async (id) => {
-        await persistProducts(products.filter((p) => p.id !== id));
+        await persistProducts((list) => list.filter((p) => p.id !== id));
         showToast(t("admin.removed2"));
       },
       onSetFee: async (val) => {
@@ -909,7 +919,7 @@ export function MarketplaceProvider({ children }) {
         };
         const boostedUntil = now + BOOST_DURATION_HOURS * 60 * 60 * 1000;
         await persistCharges([...charges, charge]);
-        await persistProducts(products.map((p) => (p.id === productId ? { ...p, boostedUntil } : p)));
+        await persistProducts((list) => list.map((p) => (p.id === productId ? { ...p, boostedUntil } : p)));
         showToast(t("sell.boostActive"));
       },
     }),

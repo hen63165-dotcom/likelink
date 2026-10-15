@@ -26,7 +26,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
 import { fetchProductInfo } from "../../lib/productInfo.js";
-import { uploadProductImage, mediaPreviewSrc } from "../../lib/uploadImage.js";
+import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
 import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { money, isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
@@ -115,6 +115,8 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
   } = useMarketplace();
 
   const [route, setRoute] = useState(LINK_ROUTE.AFFILIATE);
+  const [routesOpen, setRoutesOpen] = useState(false);
+  const showRoutes = routesOpen || route !== LINK_ROUTE.AFFILIATE;
   const [urlRaw, setUrlRaw] = useState("");
   const [checked, setChecked] = useState(null);   // validation result
   const [previewing, setPreviewing] = useState(false);
@@ -235,6 +237,8 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
           category: CATEGORY_KEYS.includes(fields.category) ? fields.category : "Other",
           price: Number(fields.price) || 0,
           commission: Number(fields.commission) || 0,
+          // Where buyers go follows the edited link, not only what the editor shows.
+          affiliateUrl: v.url,
           sourceUrl: v.url,
           utm: meta.utm,
           ...meta,
@@ -457,7 +461,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
           {he ? "השלב הראשון בסטודיו" : "The studio's first step"}
         </p>
         <h2 className="mt-1 text-xl sm:text-2xl font-extrabold leading-snug" style={{ color: "var(--text)" }}>
-          {he ? "ניהול קישורי אפילייט — מדביקים קישור וממשיכים" : "Affiliate Link Manager — paste the link and continue"}
+          {he ? "הוספת קישור: מדביקים קישור שותפים וממשיכים" : "Add a link: paste an affiliate link and continue"}
         </h2>
         <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
           {he
@@ -547,9 +551,18 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
 
       {/* ── 2. The three routes ────────────────────────────────────────── */}
       <section className="ll-card rounded-3xl p-5 sm:p-6">
-        <h3 className="text-sm font-extrabold" style={{ color: "var(--text)" }}>
-          {he ? "איך המשך הדרך?" : "How do you want to continue?"}
-        </h3>
+        {/* Most creators already have an affiliate link: the other routes wait behind one question. */}
+        <button
+          type="button"
+          onClick={() => setRoutesOpen((o) => !o)}
+          aria-expanded={showRoutes}
+          className="ll-tap flex w-full items-center justify-between gap-2 text-start text-sm font-extrabold"
+          style={{ color: "var(--text)" }}
+        >
+          <span>{he ? "אין לך עדיין קישור שותפים, או שרוצה לייבא מוצרים?" : "No affiliate link yet, or want to import products?"}</span>
+          <span aria-hidden="true" className="text-xs" style={{ color: "var(--text-faint)" }}>{showRoutes ? "▲" : "▼"}</span>
+        </button>
+        {showRoutes ? (
         <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
           {ROUTES.map((r) => {
             const Icon = r.icon;
@@ -577,6 +590,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
             );
           })}
         </div>
+        ) : null}
 
         {/* Route 2 — only a product link: the integration decides what we can promise */}
         {route === LINK_ROUTE.PRODUCT && (
@@ -630,7 +644,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                 {integration.state === "configured" ? (
                   <p>
                     {he
-                      ? "הייבוא האוטומטי פעיל בחשבון הבעלות של הפלטפורמה ופועל מדי יום: מוצרים עם תמונה, מחיר וקישור אמיתיים בלבד. אין ייבוא ידני מהסטודיו שלך — כל מוצר שאת רוצה מضافים מההדבקה למעלה."
+                      ? "הייבוא האוטומטי פעיל בחשבון הבעלות של הפלטפורמה ופועל מדי יום: מוצרים עם תמונה, מחיר וקישור אמיתיים בלבד. אין ייבוא ידני מהסטודיו שלך — כל מוצר שאת רוצה מוסיפים מההדבקה למעלה."
                       : "Automatic import is active in the platform owner's account and runs daily: only products with a real image, price and link are imported. There is no manual import in your studio — add any product by pasting it above."}
                   </p>
                 ) : integration.state === "not_configured" ? (
@@ -677,7 +691,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                 {csvResult && (
                   <span className="text-[11px] font-semibold" style={{ color: csvResult.imported ? "var(--success)" : "var(--text-muted)" }}>
                     {he
-                      ? `${csvResult.imported} יובאו · ${csvResult.failed} נכשלו · ${csvResult.invalid} שורות לא תקינות${csvResult.truncated ? " · הקובץ נקטע بعد 50 שורות" : ""}`
+                      ? `${csvResult.imported} יובאו · ${csvResult.failed} נכשלו · ${csvResult.invalid} שורות לא תקינות${csvResult.truncated ? " · הקובץ נקטע אחרי 50 שורות" : ""}`
                       : `${csvResult.imported} imported · ${csvResult.failed} failed · ${csvResult.invalid} invalid rows${csvResult.truncated ? " · file truncated after 50 rows" : ""}`}
                   </span>
                 )}
@@ -710,9 +724,9 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
         {preview && (
           <div className="mt-3 flex gap-3 rounded-2xl p-3" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
             <img
-              src={mediaPreviewSrc(preview.image) || DEFAULT_PRODUCT_IMAGE}
+              src={safePreviewSrc(preview.image, DEFAULT_PRODUCT_IMAGE)}
               alt=""
-              className="h-20 w-20 shrink-0 rounded-xl object-cover"
+              className="ll-thumb shrink-0 object-cover" style={{ "--thumb": "5rem", "--thumb-r": "12px" }}
               onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
             />
             <div className="min-w-0 text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -726,7 +740,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                 {he ? "חנות: " : "Store: "}{checked?.host}
               </p>
               <a
-                href={checked?.url}
+                href={safeHref(checked?.url)}
                 target="_blank"
                 rel="nofollow sponsored noopener noreferrer"
                 className="mt-1 inline-flex items-center gap-1 font-semibold"
@@ -746,10 +760,10 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
             <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{he ? "תמונה" : "Image"}</span>
             <div className="flex items-center gap-3">
               <img
-                src={mediaPreviewSrc(fields.image) || DEFAULT_PRODUCT_IMAGE}
+                src={safePreviewSrc(fields.image, DEFAULT_PRODUCT_IMAGE)}
                 alt=""
-                className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                style={{ background: "var(--bg-subtle)" }}
+                className="ll-thumb shrink-0 object-cover"
+                style={{ "--thumb": "4rem", "--thumb-r": "12px",  background: "var(--bg-subtle)" }}
                 onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
               />
               <label className="ll-tap flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold" style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
@@ -774,118 +788,127 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
             </select>
           </label>
 
+          {/* Everything beyond name, photo and category is optional: it waits
+              behind one toggle so the everyday path is paste → details → publish. */}
+          <details className="rounded-2xl px-3.5 py-3" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+            <summary className="cursor-pointer text-sm font-bold" style={{ color: "var(--text)" }}>
+              {he ? "אפשרויות נוספות (לא חובה): תוכנית שותפים, חשבון, ערוצים, UTM, מחיר ועמלה" : "More options (optional): programme, account, channels, UTM, price and commission"}
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
           {/* ── Network + account + channels (the universal manager core) ── */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                {he ? "רשת אפילייט / מקור" : "Affiliate network / source"}
-              </span>
-              <select
-                value={networkPick}
-                onChange={(e) => { setNetworkPick(e.target.value); setAccountPick(""); }}
-                className="input-field w-full px-3.5 py-2.5 text-sm"
-              >
-                <option value="">{he ? "בחירה אוטומטית מהקישור" : "Auto-detect from the link"}</option>
-                {AFFILIATE_NETWORKS.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                {he ? "חשבון (אופציונלי)" : "Account (optional)"}
-              </span>
-              <select
-                value={accountPick}
-                onChange={(e) => setAccountPick(e.target.value)}
-                className="input-field w-full px-3.5 py-2.5 text-sm"
-              >
-                <option value="">{he ? "ללא חשבון" : "No account"}</option>
-                {accountsForNetwork.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {NETWORKS_BY_ID[a.network]?.label ? `${NETWORKS_BY_ID[a.network].label} · ` : ""}{a.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAccounts((s) => !s)}
-            className="ll-tap self-start text-[11px] font-semibold underline"
-            style={{ color: "var(--accent)" }}
-          >
-            {showAccounts
-              ? (he ? "סתירת ניהול החשבונות" : "Hide account manager")
-              : (he ? `ניהול חשבונות אפילייט (${accounts.length})` : `Manage affiliate accounts (${accounts.length})`)}
-          </button>
-          {showAccounts && (
-            <div className="mt-1">
-              <AffiliateAccounts
-                marketer={marketer}
-                onUpdateMarketer={onUpdateMarketer}
-                showToast={showToast}
-              />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                  {he ? "רשת אפילייט / מקור" : "Affiliate network / source"}
+                </span>
+                <select
+                  value={networkPick}
+                  onChange={(e) => { setNetworkPick(e.target.value); setAccountPick(""); }}
+                  className="input-field w-full px-3.5 py-2.5 text-sm"
+                >
+                  <option value="">{he ? "בחירה אוטומטית מהקישור" : "Auto-detect from the link"}</option>
+                  {AFFILIATE_NETWORKS.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                  {he ? "חשבון (אופציונלי)" : "Account (optional)"}
+                </span>
+                <select
+                  value={accountPick}
+                  onChange={(e) => setAccountPick(e.target.value)}
+                  className="input-field w-full px-3.5 py-2.5 text-sm"
+                >
+                  <option value="">{he ? "ללא חשבון" : "No account"}</option>
+                  {accountsForNetwork.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {NETWORKS_BY_ID[a.network]?.label ? `${NETWORKS_BY_ID[a.network].label} · ` : ""}{a.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              {he ? "ערוצי פרסום (מאיפה תגיע התנועה?)" : "Promotional channels (where does traffic come from?)"}
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {PROMO_CHANNELS.map((c) => {
-                const on = channels.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setChannels((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))}
-                    className="ll-tap rounded-full px-3 py-1.5 text-[11px] font-bold transition"
-                    style={{
-                      background: on ? "var(--accent)" : "var(--bg-subtle)",
-                      color: on ? "#fff" : "var(--text-secondary)",
-                      border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
-                    }}
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
+            <button
+              type="button"
+              onClick={() => setShowAccounts((s) => !s)}
+              className="ll-tap self-start text-[11px] font-semibold underline"
+              style={{ color: "var(--accent)" }}
+            >
+              {showAccounts
+                ? (he ? "סתירת ניהול החשבונות" : "Hide account manager")
+                : (he ? `ניהול חשבונות אפילייט (${accounts.length})` : `Manage affiliate accounts (${accounts.length})`)}
+            </button>
+            {showAccounts && (
+              <div className="mt-1">
+                <AffiliateAccounts
+                  marketer={marketer}
+                  onUpdateMarketer={onUpdateMarketer}
+                  showToast={showToast}
+                />
+              </div>
+            )}
+  
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+                {he ? "ערוצי פרסום (מאיפה תגיע התנועה?)" : "Promotional channels (where does traffic come from?)"}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {PROMO_CHANNELS.map((c) => {
+                  const on = channels.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setChannels((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))}
+                      className="ll-tap rounded-full px-3 py-1.5 text-[11px] font-bold transition"
+                      style={{
+                        background: on ? "var(--accent)" : "var(--bg-subtle)",
+                        color: on ? "#fff" : "var(--text-secondary)",
+                        border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>
+                {he
+                  ? "ערוץ פרסום הוא מקור תנועה (אינסטגרם, טיקטוק…) — לא רשת אפילייט. אפשר לבחור כמה."
+                  : "A channel is a traffic source (Instagram, TikTok…) — not an affiliate network. Pick as many as you like."}
+              </p>
+            </div>
+  
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <LabeledInput
+                label={he ? "שם קמפיין (אופציונלי)" : "Campaign name (optional)"}
+                value={fields.campaign}
+                onChange={set("campaign")}
+                placeholder={he ? "למשל: סתיו 2026" : "e.g. Fall 2026"}
+              />
+              <div />
+              <LabeledInput label="UTM source" value={fields.utmSource} onChange={set("utmSource")} placeholder="instagram" />
+              <LabeledInput label="UTM medium" value={fields.utmMedium} onChange={set("utmMedium")} placeholder="story" />
+              <LabeledInput label="UTM campaign" value={fields.utmCampaign} onChange={set("utmCampaign")} placeholder="black_friday" />
             </div>
             <p className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>
               {he
-                ? "ערוץ פרסום הוא מקור תנועה (אינסטגרם, טיקטוק…) — לא רשת אפילייט. אפשר לבחור כמה."
-                : "A channel is a traffic source (Instagram, TikTok…) — not an affiliate network. Pick as many as you like."}
+                ? "ה־UTM נשמרים כשדות נפרדים. הקישור השמור תמיד נשאר בדיוק כפי שהדבקת — אנחנו לא משנים אותו."
+                : "UTM values are stored as separate fields. The saved link always stays exactly as you pasted it — we never alter it."}
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <LabeledInput
-              label={he ? "שם קמפיין (אופציונלי)" : "Campaign name (optional)"}
-              value={fields.campaign}
-              onChange={set("campaign")}
-              placeholder={he ? "למשל: סתיו 2026" : "e.g. Fall 2026"}
-            />
-            <div />
-            <LabeledInput label="UTM source" value={fields.utmSource} onChange={set("utmSource")} placeholder="instagram" />
-            <LabeledInput label="UTM medium" value={fields.utmMedium} onChange={set("utmMedium")} placeholder="story" />
-            <LabeledInput label="UTM campaign" value={fields.utmCampaign} onChange={set("utmCampaign")} placeholder="black_friday" />
-          </div>
-          <p className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>
-            {he
-              ? "ה־UTM נשמרים כשדות נפרדים. הקישור השמור תמיד נשאר בדיוק כפי שהדבקת — אנחנו לא משנים אותו."
-              : "UTM values are stored as separate fields. The saved link always stays exactly as you pasted it — we never alter it."}
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <LabeledInput label={he ? "מחיר (اختيارי)" : "Price (optional)"} value={fields.price} onChange={set("price")} placeholder="24.99" type="number" />
-            <LabeledInput label={he ? "עמלה שלך (اختيارי)" : "Your commission (optional)"} value={fields.commission} onChange={set("commission")} placeholder="3.50" type="number" />
-          </div>
-          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-            {he
-              ? "אנחנו לא ממציאים מחיר או עמלה: אם אין בעמוד — השדה נשאר ריק וממלאים ידנית."
-              : "We never invent a price or commission: if the page has none, the field stays empty and you fill it in."}
-          </p>
+  
+            <div className="grid grid-cols-2 gap-3">
+              <LabeledInput label={he ? "מחיר (לא חובה)" : "Price (optional)"} value={fields.price} onChange={set("price")} placeholder="24.99" type="number" />
+              <LabeledInput label={he ? "עמלה שלך (לא חובה)" : "Your commission (optional)"} value={fields.commission} onChange={set("commission")} placeholder="3.50" type="number" />
+            </div>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              {he
+                ? "אנחנו לא ממציאים מחיר או עמלה: אם אין בעמוד — השדה נשאר ריק וממלאים ידנית."
+                : "We never invent a price or commission: if the page has none, the field stays empty and you fill it in."}
+            </p>
+            </div>
+          </details>
         </div>
 
         {/* Affiliate disclosure — always visible, exactly the legal wording */}
@@ -941,7 +964,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
               <p className="mt-1 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>
                 {saved.status === "approved"
                   ? (he
-                      ? "הוא גלוי עכשיו בעמוד החנות ובקישור האישי שלך. כל קליק عليه יירשם כאירוע אמיתי בביצועים."
+                      ? "הוא גלוי עכשיו בעמוד החנות ובקישור האישי שלך. כל קליק עליו יירשם כאירוע אמיתי בביצועים."
                       : "It is now visible on your store page and personal link. Every click on it is recorded as a real event in Performance.")
                   : (he
                       ? "הטיוטה נשמרה אצלך בלבד. כשתהיי מוכנה — לחצי «פרסום בחנות» כדי להציג אותה לציבור."
@@ -1120,9 +1143,9 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                       className="shrink-0"
                     />
                     <img
-                      src={mediaPreviewSrc(p.image) || DEFAULT_PRODUCT_IMAGE}
+                      src={safePreviewSrc(p.image, DEFAULT_PRODUCT_IMAGE)}
                       alt=""
-                      className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                      className="ll-thumb shrink-0 object-cover" style={{ "--thumb": "3rem", "--thumb-r": "8px" }}
                       onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
                     />
                     <div className="min-w-0 flex-1">
@@ -1152,11 +1175,10 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Button variant="secondary" onClick={() => startEdit(p)}>
+                      <RowAction onClick={() => startEdit(p)}>
                         <Pencil size={13} /> {he ? "עריכה" : "Edit"}
-                      </Button>
-                      <Button
-                        variant="secondary"
+                      </RowAction>
+                      <RowAction
                         onClick={async () => {
                           try {
                             await onSetStatus(p.id, approved ? "draft" : "approved");
@@ -1166,31 +1188,30 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                         }}
                       >
                         {approved ? (he ? "החזרה לטיוטה" : "Back to draft") : (he ? "פרסום" : "Publish")}
-                      </Button>
-                      <Button
-                        variant="secondary"
+                      </RowAction>
+                      <RowAction
                         onClick={() => copy(p.sourceUrl || p.affiliateUrl, he ? "הכתובת המקורית הועתקה" : "Original URL copied")}
-                        title={he ? "העתקת הכתובת המקורית" : "Copy original URL"}
+                        label={he ? "העתקת הקישור המקורי" : "Copy the original link"}
                       >
                         <Copy size={13} />
-                      </Button>
-                      <Button
-                        variant="secondary"
+                      </RowAction>
+                      <RowAction
                         onClick={() => copy(`${window.location.origin}${withBase(`/p/${p.id}`)}`, he ? "הקישור הועתק" : "Link copied")}
+                        label={he ? "העתקת הקישור לעמוד המוצר בחנות" : "Copy the product page link"}
                       >
                         <ExternalLink size={13} />
-                      </Button>
-                      <Button
-                        variant="secondary"
+                      </RowAction>
+                      <RowAction
                         onClick={() => {
                           if (typeof window === "undefined") return;
                           if (window.confirm(he ? `למחוק את «${p.title}»? לא ניתן לשחזר.` : `Delete “${p.title}”? This cannot be undone.`)) {
                             onDeleteProduct(p.id).catch(() => setErr(he ? "המחיקה נכשלה." : "Deleting failed."));
                           }
                         }}
+                        label={he ? "מחיקת המוצר" : "Delete the product"}
                       >
                         <Trash2 size={13} />
-                      </Button>
+                      </RowAction>
                     </div>
                   </li>
                 );
@@ -1203,4 +1224,18 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
   );
 }
 
-
+/** A small action in a product row: one line on a phone, never a full-width button. */
+function RowAction({ onClick, label, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="ll-tap inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold"
+      style={{ background: "var(--bg-subtle)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+    >
+      {children}
+    </button>
+  );
+}

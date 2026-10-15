@@ -2,6 +2,7 @@ import { supabase, supabaseConfigured } from "./supabaseClient.js";
 import { fetchOwnPrivate } from "./cloud/identity.js";
 import { MEDIA_BUCKET, newMediaPath, extensionOf, mediaUrl } from "./cloud/mediaStore.js";
 import { PRODUCTION_ORIGIN } from "../constants/domain.js";
+import { isSafePreviewSrc, safeHref } from "./safeMedia.js";
 
 // Local previews of files this browser just uploaded: the stored object is
 // private until an approved product references it, so the form shows the
@@ -12,6 +13,14 @@ const previews = new Map();
 export function mediaPreviewSrc(url) {
   return (url && previews.get(url)) || url;
 }
+
+/** A preview src that is safe to put in <img src>, else the fallback (rules: safeMedia.js). */
+export function safePreviewSrc(url, fallback = "") {
+  const src = String(mediaPreviewSrc(url) || "");
+  return isSafePreviewSrc(src) ? src : fallback;
+}
+
+export { safeHref };
 
 /** The signed-in creator's studio id (explicit, else the verified session's own studio). */
 export async function ownStudioId(explicit) {

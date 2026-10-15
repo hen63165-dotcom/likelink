@@ -19,6 +19,9 @@ export const PAYOUTS_KEY = "marketplace:payouts";
 export const PAYOUT_RECIPIENTS_KEY = "marketplace:payouts:recipients";
 
 export const PRIVATE_MARKETER_FIELDS = Object.freeze([
+  // affiliateAccounts: the creator's own account names and tracking ids per
+  // network (Studio → חשבונות שותפים) — hers alone, never on the public row.
+  "affiliateAccounts",
   "email", "payPalEmail", "paypalEmail", "bankDetails", "paymentNote",
   "iban", "bankAccount", "payoutDetails", "payoutEmail", "phone",
 ]);
