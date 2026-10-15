@@ -23,7 +23,7 @@ import { INDEXNOW_KEY, indexNowPayload, notify, sitemapUrls } from "../scripts/i
 import { buildPins, PIN_AD, pinsRss } from "../scripts/pins-feed.mjs";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 
-const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const snap = JSON.parse(read("public/snapshot/kv.json"));
 
 test("ring sizes follow the standard tables (EU = inner circumference, US from the diameter)", () => {

@@ -1,5 +1,5 @@
 import { landingAttribution } from "../lib/attribution.js";
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { storage } from "../lib/storage.js";
 import { studioDataWanted, withTimeout } from "../lib/cloudBreaker.js";
 import { stripBase } from "../lib/basePath.js";
@@ -17,6 +17,7 @@ import { useI18n } from "../lib/LangContext";
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments.js";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 import { resolveCurrentMarketer, linkMarketer, fetchOwnPrivate } from "../lib/cloud/identity.js";
+import { withoutClearRequest } from "../lib/cloud/marketerPrivacy.js";
 import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard.js";
 
 const MarketplaceContext = createContext(null);
@@ -142,7 +143,7 @@ const toNum = (v, fb = 0) => {
 };
 
 export function MarketplaceProvider({ children }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [loading, setLoading] = useState(true);
   const [marketers, setMarketers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -356,14 +357,41 @@ export function MarketplaceProvider({ children }) {
     showToast._t = setTimeout(() => setToast(null), 2600);
   }, []);
 
+  // Like products below: an update starts from the latest list (two quick
+  // updates in one handler never undo each other) and the cloud writes go out
+  // in order. A removal request (CLEAR_PRIVATE) goes to the server once; the
+  // copy kept here never carries it, so a later write cannot repeat it.
+  // The refs follow each committed list (an abandoned render never commits,
+  // so it cannot put an older list back) and every persist call.
+  const marketersRef = useRef(marketers);
+  useLayoutEffect(() => { marketersRef.current = marketers; }, [marketers]);
+  const marketersWrite = useRef(Promise.resolve());
   const persistMarketers = useCallback(async (next) => {
-    setMarketers(next);
-    await setJSON(K.marketers, next, true);
+    const value = typeof next === "function" ? next(marketersRef.current) : next;
+    const local = value.map(withoutClearRequest);
+    marketersRef.current = local;
+    setMarketers(local);
+    const write = marketersWrite.current.catch(() => {}).then(() => setJSON(K.marketers, value, true));
+    marketersWrite.current = write;
+    await write;
   }, []);
 
+  // Product writes start from the latest list, not the one a render captured:
+  // a bulk action, a CSV import or a save right after another save each call
+  // these actions in sequence, and a stale copy would erase the earlier writes.
+  // The writes themselves go out one after another, in the same order: each
+  // carries the whole list, so an older list landing last would undo a newer
+  // one. A failed write does not stop the ones after it.
+  const productsRef = useRef(products);
+  useLayoutEffect(() => { productsRef.current = products; }, [products]);
+  const productsWrite = useRef(Promise.resolve());
   const persistProducts = useCallback(async (next) => {
-    setProducts(next);
-    await setJSON(K.products, next, true);
+    const value = typeof next === "function" ? next(productsRef.current) : next;
+    productsRef.current = value;
+    setProducts(value);
+    const write = productsWrite.current.catch(() => {}).then(() => setJSON(K.products, value, true));
+    productsWrite.current = write;
+    await write;
   }, []);
 
   const persistClicks = useCallback(async (next) => {
@@ -459,7 +487,7 @@ export function MarketplaceProvider({ children }) {
         ...attr,
       };
       const nextClicks = [...clicks, c];
-      const nextProducts = products.map((p) =>
+      const nextProducts = (list) => list.map((p) =>
         p.id === product.id ? { ...p, clicks: (p.clicks || 0) + 1 } : p
       );
       // Tracking is best-effort and must NEVER block the buyer: callers await
@@ -535,7 +563,7 @@ export function MarketplaceProvider({ children }) {
         createdAt: Date.now(),
       };
       try {
-        await persistMarketers([...marketers, marketer]);
+        await persistMarketers((list) => [...list, marketer]);
       } catch (e) {
         return { ok: false, error: toHebrewError(e?.message, "יצירת הסטודיו נכשלה — נסי שוב בעוד רגע") };
       }
@@ -639,7 +667,7 @@ export function MarketplaceProvider({ children }) {
           // prepared now when possible and opens on the first verified login.
           if (!existing) {
             const pending = { id: uid(), name: cleanName, email: cleanEmail, trackingId: "", slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)), createdAt: Date.now() };
-            try { await persistMarketers([...marketers, pending]); } catch { /* created on first verified login instead */ }
+            try { await persistMarketers((list) => [...list, pending]); } catch { /* created on first verified login instead */ }
           }
           return { ok: true, needsConfirmation: true };
         }
@@ -661,7 +689,7 @@ export function MarketplaceProvider({ children }) {
           await trackReferralConversion(referrerSlug, m.slug);
           clearPendingReferral();
         }
-        await persistMarketers([...marketers, m]);
+        await persistMarketers((list) => [...list, m]);
         await persistSession(m.id);
         // Cloud identity: establish the trusted auth → marketer link server-side.
         // Failure is non-critical — login will use email fallback + auto-link.
@@ -676,14 +704,17 @@ export function MarketplaceProvider({ children }) {
         await persistSession(null);
       },
       onAddProduct: async (draft) => {
-        if (!currentMarketer) return;
+        if (!currentMarketer) return null;
         const title = String(draft.title || "").trim().slice(0, 120);
         const description = String(draft.description || "").trim().slice(0, 600);
+        // The creator's address, exactly as pasted — kept beside the tracked
+        // link so the studio can always show what was originally given to us.
+        const sourceUrl = String(draft.sourceUrl || draft.affiliateUrl || "").trim().slice(0, 2000);
         const affiliateUrl = injectAliExpressTracking(String(draft.affiliateUrl || "").trim().slice(0, 2000), currentMarketer?.trackingId);
         const image = String(draft.image || "").trim().slice(0, 4000);
-        if (!title) return showToast(t("form.errTitle"));
-        if (!isSafeHttpUrl(affiliateUrl)) return showToast(t("form.errLink"));
-        if (!isSafeImageUrl(image)) return showToast(t("form.errImage"));
+        if (!title) { showToast(t("form.errTitle")); return null; }
+        if (!isSafeHttpUrl(affiliateUrl)) { showToast(t("form.errLink")); return null; }
+        if (!isSafeImageUrl(image)) { showToast(t("form.errImage")); return null; }
         const p = {
           id: uid(),
           marketerId: currentMarketer.id,
@@ -691,14 +722,33 @@ export function MarketplaceProvider({ children }) {
           description,
           image,
           affiliateUrl,
+          sourceUrl,
           category: CATEGORY_KEYS.includes(draft.category) ? draft.category : "Other",
           price: clampNumber(draft.price),
           commission: clampNumber(draft.commission),
-          status: "approved",
+          // ── Universal Affiliate Link Manager metadata (all optional) ────
+          // The network is a LABEL the creator picked — never a capability
+          // claim. Channels are traffic sources, kept separate from network.
+          network: typeof draft.network === "string" ? draft.network.trim().toLowerCase().slice(0, 40) : "",
+          accountId: typeof draft.accountId === "string" ? draft.accountId.trim().slice(0, 60) : "",
+          accountLabel: typeof draft.accountLabel === "string" ? draft.accountLabel.trim().slice(0, 80) : "",
+          channels: Array.isArray(draft.channels) ? draft.channels.filter((c) => typeof c === "string").slice(0, 10) : [],
+          campaign: typeof draft.campaign === "string" ? draft.campaign.trim().slice(0, 120) : "",
+          utm: draft.utm && typeof draft.utm === "object"
+            ? {
+                source: String(draft.utm.source || "").trim().slice(0, 100),
+                medium: String(draft.utm.medium || "").trim().slice(0, 100),
+                campaign: String(draft.utm.campaign || "").trim().slice(0, 100),
+              }
+            : null,
+          // Honest status computed by the pure classifier — not a server claim.
+          linkStatus: typeof draft.linkStatus === "string" ? draft.linkStatus.trim().slice(0, 40) : "",
+          // Only an explicit draft stays private; everything else publishes.
+          status: draft.status === "draft" ? "draft" : "approved",
           clicks: 0,
           createdAt: Date.now(),
         };
-        await persistProducts([...products, p]); pushActivity('product.add', 'הוספת מוצר חדש', { productId: p.id });
+        await persistProducts((list) => [...list, p]); pushActivity('product.add', 'הוספת מוצר חדש', { productId: p.id });
 
         // Convenience (best-effort, never blocks save): if no manual image was
         // provided, try to auto-pull an Open Graph preview image from the link.
@@ -707,26 +757,51 @@ export function MarketplaceProvider({ children }) {
           fetchOgImage(affiliateUrl)
             .then((og) => {
               if (og) {
-                persistProducts([...products.filter((x) => x.id !== p.id), { ...p, image: og }]);
+                persistProducts((list) => list.map((x) => (x.id === p.id && !x.image ? { ...x, image: og } : x)));
               }
             })
             .catch(() => {});
         }
 
-        showToast(t("sell.published"));
+        // A draft is saved, not announced — the confirmation must tell the truth.
+        showToast(p.status === "draft" ? (lang === "he" ? "נשמר כטיוטה" : "Saved as a draft") : t("sell.published"));
 
         // 🚀 One upload → everywhere: instant launch announcement to every
         // channel this creator connected in AutoPilot (fire-and-forget; the
         // server is idempotent — one announcement per product, ever).
-        fetch("/api/autopilot", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ mode: "announce", productId: p.id }),
-          keepalive: true,
-        }).catch(() => {});
+        // Drafts are never announced: they are not public yet.
+        if (p.status === "approved") {
+          fetch("/api/autopilot", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ mode: "announce", productId: p.id }),
+            keepalive: true,
+          }).catch(() => {});
+        }
+        return p;
+      },
+      onUpdateProduct: async (id, patch) => {
+        const clean = { ...patch };
+        if (typeof clean.title === "string") clean.title = clean.title.trim().slice(0, 120);
+        if (typeof clean.description === "string") clean.description = clean.description.trim().slice(0, 600);
+        if (typeof clean.image === "string") clean.image = clean.image.trim().slice(0, 4000);
+        if (typeof clean.affiliateUrl === "string") {
+          clean.affiliateUrl = injectAliExpressTracking(clean.affiliateUrl.trim().slice(0, 2000), currentMarketer?.trackingId);
+          if (!isSafeHttpUrl(clean.affiliateUrl)) delete clean.affiliateUrl;
+        }
+        if (typeof clean.sourceUrl === "string" && !isSafeHttpUrl(clean.sourceUrl)) delete clean.sourceUrl;
+        if ("network" in clean) clean.network = typeof clean.network === "string" ? clean.network.trim().toLowerCase().slice(0, 40) : "";
+        if ("accountId" in clean) clean.accountId = typeof clean.accountId === "string" ? clean.accountId.trim().slice(0, 60) : "";
+        if ("accountLabel" in clean) clean.accountLabel = typeof clean.accountLabel === "string" ? clean.accountLabel.trim().slice(0, 80) : "";
+        if ("channels" in clean) clean.channels = Array.isArray(clean.channels) ? clean.channels.filter((c) => typeof c === "string").slice(0, 10) : [];
+        if ("campaign" in clean) clean.campaign = typeof clean.campaign === "string" ? clean.campaign.trim().slice(0, 120) : "";
+        if ("linkStatus" in clean) clean.linkStatus = typeof clean.linkStatus === "string" ? clean.linkStatus.trim().slice(0, 40) : "";
+        let saved = null;
+        await persistProducts((list) => list.map((p) => (p.id === id ? (saved = { ...p, ...clean }) : p)));
+        return saved;
       },
       onDeleteProduct: async (id) => {
-        await persistProducts(products.filter((p) => p.id !== id));
+        await persistProducts((list) => list.filter((p) => p.id !== id));
         showToast(t("sell.removed"));
       },
       onLogSale: async (product, saleAmount, commissionAmount) => {
@@ -767,12 +842,13 @@ export function MarketplaceProvider({ children }) {
         }
         return signedSale;
       },
-      onAddCollection: async (title) => {
-        if (!currentMarketer) return;
+      onAddCollection: async (title, { productIds = [] } = {}) => {
+        if (!currentMarketer) return null;
         const clean = String(title || "").trim().slice(0, 60);
-        if (!clean) return;
-        const col = { id: uid(), marketerId: currentMarketer.id, title: clean, productIds: [], createdAt: Date.now() };
+        if (!clean) return null;
+        const col = { id: uid(), marketerId: currentMarketer.id, title: clean, productIds: Array.isArray(productIds) ? productIds : [], createdAt: Date.now() };
         await persistCollections([...collections, col]);
+        return col;
       },
       onUpdateCollection: async (id, productIds) => {
         await persistCollections(collections.map((c) => (c.id === id ? { ...c, productIds } : c)));
@@ -781,8 +857,13 @@ export function MarketplaceProvider({ children }) {
         await persistCollections(collections.filter((c) => c.id !== id));
       },
       onSetStatus: async (id, status) => {
-        await persistProducts(products.map((p) => (p.id === id ? { ...p, status } : p)));
-        showToast(status === "approved" ? t("admin.approved2") : status === "flagged" ? t("admin.flagged2") : t("admin.removed2"));
+        await persistProducts((list) => list.map((p) => (p.id === id ? { ...p, status } : p)));
+        showToast(
+          status === "approved" ? t("admin.approved2")
+            : status === "draft" ? (lang === "he" ? "המוצר הוחזר לטיוטה" : "Moved back to draft")
+            : status === "flagged" ? t("admin.flagged2")
+            : t("admin.removed2")
+        );
         // 🚀 Approval = go-live: instant launch announcement to the creator's
         // channels (fire-and-forget; server-side idempotency prevents doubles).
         if (status === "approved") {
@@ -795,7 +876,7 @@ export function MarketplaceProvider({ children }) {
         }
       },
       onRemove: async (id) => {
-        await persistProducts(products.filter((p) => p.id !== id));
+        await persistProducts((list) => list.filter((p) => p.id !== id));
         showToast(t("admin.removed2"));
       },
       onSetFee: async (val) => {
@@ -807,7 +888,7 @@ export function MarketplaceProvider({ children }) {
         return rows.length;
       },
       onUpdateMarketer: async (id, patch) => {
-        await persistMarketers(marketers.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+        await persistMarketers((list) => list.map((m) => (m.id === id ? { ...m, ...patch } : m)));
       },
       onCreatePayout: async (marketerId) => {
         const summary = getSellerPayoutSummary(sales, payouts, marketerId);
@@ -859,7 +940,7 @@ export function MarketplaceProvider({ children }) {
         };
         const boostedUntil = now + BOOST_DURATION_HOURS * 60 * 60 * 1000;
         await persistCharges([...charges, charge]);
-        await persistProducts(products.map((p) => (p.id === productId ? { ...p, boostedUntil } : p)));
+        await persistProducts((list) => list.map((p) => (p.id === productId ? { ...p, boostedUntil } : p)));
         showToast(t("sell.boostActive"));
       },
     }),
@@ -868,7 +949,7 @@ export function MarketplaceProvider({ children }) {
       favorites, collections, following, introSeen, toast, currentMarketer,
       showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
-      toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t,
+      toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t, lang,
       openStudioForVerifiedUser, loadStudioData,
     ]
   );

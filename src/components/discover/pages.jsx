@@ -436,7 +436,7 @@ export function CreatorsPage({ graph, category, navigate }) {
               <p className="lx-display text-[26px] leading-tight">{L("יש לך קהל? הפכו אותו לחנות.", "Have an audience? Turn it into a shop.")}</p>
               <p className="mt-2 text-[14px] leading-6 opacity-85">{L("גלו, צרו, פרסמו ומדדו לפי כללי התוכנית האמיתיים. כל מוצר וקליק מקבלים ייחוס ברור.", "Discover, create, publish and measure under the real program rules. Every product and click keeps attribution.")}</p>
             </div>
-            <button type="button" onClick={openStudio} data-testid="creator-cta" className="lx-btn mt-6 self-start bg-white" style={{ color: "#17131f" }}>{L("פתחו Studio", "Open the Studio")}</button>
+            <button type="button" onClick={openStudio} data-testid="creator-cta" className="lx-btn mt-6 self-start bg-white" style={{ color: "#17131f" }}>{L("פתיחת חנות חינם", "Open a free shop")}</button>
           </div>
         </div>
         {!list.length ? <p className="lx-mute mt-6 text-sm">{L("אין עדיין יוצרים בקטגוריה הזו.", "No creators in this category yet.")}</p> : null}
@@ -492,6 +492,22 @@ export function CreatorPage({ graph, slug, navigate }) {
               </div>
             </div>
             {creator.bio ? <p className="lx-profile-bio">{creator.bio}</p> : null}
+            {Array.isArray(creator.socials) && creator.socials.length ? (
+              <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={L("רשתות חברתיות", "Social links")}>
+                {creator.socials.map((s) => (
+                  <li key={s.key}>
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="me nofollow noopener noreferrer"
+                      className="lx-chip"
+                    >
+                      {s.key}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-1.5">
               {creator.verified ? <TrustBadge kind="verified" /> : null}
               <TrustBadge kind="attributed" />

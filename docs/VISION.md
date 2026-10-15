@@ -96,6 +96,7 @@ that the system filters the noise.
 | Comparing many links for the *same* product side by side | Not built |
 | Image / voice search, "similar products" | Not built |
 | Studio: products, tracking link per product, click stats | Live |
+| Studio entrance + paste any affiliate program's link → details → publish (5 core menu items, advanced tools folded) | Built 2026-10-15 (sign-up/saving wait for the cloud) |
 | Creative Lab: text-hook, synthetic UGC, AI 3D story, AI virtual creator (own model) | Live |
 | Luna: passports, scores, goals, campaign drafts, marketing engine | Live |
 | Conversions measured end-to-end for affiliate links | Not available (store-side data) |

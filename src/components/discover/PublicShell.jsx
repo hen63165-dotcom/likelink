@@ -122,7 +122,7 @@ function StudioLink({ compact = false }) {
   return (
     <Go to="/studio" className="lx-studio">
       <Sparkles size={15} aria-hidden="true" />
-      {compact ? "Studio" : L("פתחו את ה־Studio", "Open the Studio")}
+      {compact ? L("פתיחת חנות", "Open a shop") : L("פתיחת חנות ליוצרות", "Open a creator shop")}
       <span className="lx-dot" aria-hidden="true" />
     </Go>
   );
@@ -202,7 +202,7 @@ function Drawer({ open, onClose, routeType, theme, onTheme }) {
             {theme === "dark" ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
           </button>
         </div>
-        <Go to="/studio" onClick={onClose} className="lx-menu-btn lx-menu-btn-white">{L("פתיחת Studio", "Open the Studio")}</Go>
+        <Go to="/studio" onClick={onClose} className="lx-menu-btn lx-menu-btn-white">{L("פתיחת חנות ליוצרות (חינם)", "Open a creator shop (free)")}</Go>
         <Go to="/merchants" onClick={onClose} className="lx-menu-btn lx-menu-btn-line">{L("יש לך מוצרים? לסוחרים", "Have products? For merchants")}</Go>
       </div>
     </div>
@@ -274,7 +274,7 @@ function Footer() {
       title: L("ליוצרים ולסוחרים", "Creators & merchants"),
       links: [
         { to: "/join", he: "דף יוצרת בחינם", en: "A free creator page" },
-        { to: "/studio", he: "פתיחת Studio", en: "Open the Studio" },
+        { to: "/studio", he: "פתיחת חנות / כניסה לסטודיו", en: "Open a shop / Studio sign-in" },
         { to: "/creators", he: "קהילת היוצרים", en: "Creator community" },
         { to: "/merchants", he: "יש לך מוצרים?", en: "Have products?" },
         { to: "/guide", he: "המדריך החינמי של לונה", en: "Luna's free guide" },

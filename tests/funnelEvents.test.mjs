@@ -33,6 +33,7 @@ test("the client skips automated browsers and Studio links are instrumented", ()
   assert.match(f, /navigator\.webdriver === true/);
   const kit = readFileSync("src/components/discover/kit.jsx", "utf8");
   assert.match(kit, /trackFunnel\("studio_cta"/);
-  const sell = readFileSync("src/components/sell/SellView.jsx", "utf8");
+  // The sign-up form lives in AuthGate.jsx (Studio entrance + seller view).
+  const sell = readFileSync("src/components/sell/AuthGate.jsx", "utf8");
   assert.match(sell, /trackFunnel\(result\?\.needsConfirmation \? "signup_confirm_sent"/);
 });
