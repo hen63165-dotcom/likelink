@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Compass, Heart, Home, Menu, Moon, Play, Search, Sparkles, Sun, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
+import { PREFERRED_SOURCE, preferredSourceLive } from "../../lib/growth/preferredSource.js";
 
 const THEME_KEY = "ll_theme";
 const PAPER = { light: "#faf9f7", dark: "#070709" };
@@ -324,6 +325,13 @@ function Footer() {
           <a key={href} href={withBase(href)} className="lx-mute hover:underline">{he ? heLabel : enLabel}</a>
         ))}
       </nav>
+      {preferredSourceLive() ? (
+        <p className="lx-wrap mt-6 text-[12.5px]">
+          <a href={PREFERRED_SOURCE.url} target="_blank" rel="noopener" className="lx-mute hover:underline" data-tip={L("בגוגל אפשר לבחור אתרים מועדפים: התוכן שלהם יופיע לך יותר בחיפוש.", "In Google you can choose preferred sites: you will see more of them in Search.")}>
+            {L("להוסיף את LikeLink2 כמקור מועדף בגוגל", "Add LikeLink2 as a preferred source on Google")}
+          </a>
+        </p>
+      ) : null}
       <div className="lx-wrap mt-6 flex flex-wrap items-center justify-between gap-3 text-[12px]">
         <span className="lx-mute">© {year} LikeLink · כל הזכויות שמורות</span>
         <LangToggle />

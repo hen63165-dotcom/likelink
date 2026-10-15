@@ -104,11 +104,34 @@ test("/join is a real public page: free plan from plans.js, a mail to the legal 
   const mail = joinMailto({ source: "instagram", campaign: "creators_20261011_shop_page" });
   assert.ok(mail.startsWith(`mailto:${LEGAL_OWNER_PLACEHOLDERS.email}?`), "the same public address as the legal pack");
   assert.match(decodeURIComponent(mail), /הגעתי מ: instagram \(creators_20261011_shop_page\)/);
-  assert.doesNotMatch(decodeURIComponent(joinMailto({ source: "<script>" })), /<script>/);
+  assert.doesNotMatch(decodeURIComponent(joinMailto({ source: "<img src=x onerror=1>" })), /[<>]/, "no markup survives in the mail body");
 
   const ui = read("src/components/discover/join.jsx");
   for (const text of [JOIN_SEO.title, JOIN_SEO.description, ...ui.match(/"[^"\n]*[א-ת][^"\n]*"/g)]) {
     assert.ok(recruitSafe(text.replace(/^"|"$/g, "")), `/join: ${text}`);
   }
   assert.doesNotMatch(ui + JOIN_SEO.description, /LTK/, "no other company's brand in our marketing copy");
+});
+
+test("Google preferred sources: the official deeplink to our own domain, shown only once Google lists the site", async () => {
+  const { PREFERRED_SOURCE, preferredSourceLive } = await import("../src/lib/growth/preferredSource.js");
+  assert.equal(PREFERRED_SOURCE.url, "https://www.google.com/preferences/source?q=likelink2.vercel.app");
+  assert.equal(preferredSourceLive({ listedSince: null }), false, "no link to an empty search");
+  assert.equal(preferredSourceLive({ listedSince: "2026-10-20" }), true);
+  const { readFileSync } = await import("node:fs");
+  const shell = readFileSync(new URL("../src/components/discover/PublicShell.jsx", import.meta.url), "utf8");
+  assert.match(shell, /\{preferredSourceLive\(\) \? \(/);
+  assert.doesNotMatch(shell, /news\.google\.com\/swg/, "no third-party script on our pages");
+});
+
+test("every indexable page lets Google show a large image (Discover)", async () => {
+  const { INDEX_ROBOTS, isIndexable } = await import("../src/constants/seo.js");
+  const { buildProductSeo } = await import("../src/lib/discovery/surfaces.js");
+  assert.match(INDEX_ROBOTS, /max-image-preview:large/);
+  assert.ok(isIndexable(INDEX_ROBOTS) && isIndexable("index,follow") && !isIndexable("noindex,follow"));
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["src/lib/seo.js", "src/components/discover/PublicSite.jsx", "scripts/prerender-products.mjs", "src/lib/discovery/surfaces.js", "api/og.mjs"]) {
+    assert.doesNotMatch(readFileSync(new URL(`../${f}`, import.meta.url), "utf8"), /"index,follow"/, `${f}: uses INDEX_ROBOTS`);
+  }
+  assert.equal(typeof buildProductSeo, "function");
 });

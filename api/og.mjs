@@ -16,6 +16,7 @@ import { originFromRequest } from "./_utils/origin.mjs";
 import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
 import { canonicalProduct, buildProductSeo, renderProductBody } from "../src/lib/discovery/surfaces.js";
 import { isPromotable } from "../src/lib/discovery/catalogIntegrity.js";
+import { INDEX_ROBOTS } from "../src/constants/seo.js";
 import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
 import { guardPublicRequest, sendGuardRefusal, classifyAgent } from "./_utils/botGuard.mjs";
 
@@ -467,7 +468,7 @@ export default async function handler(req, res) {
         ? product.image
         : `${origin}/icons/icon-512.webp`;
     const pageUrl = `${origin}/p/${encodeURIComponent(productId)}`;
-    const robots = attributable ? "index,follow" : "noindex,nofollow";
+    const robots = attributable ? INDEX_ROBOTS : "noindex,nofollow";
     const jsonLd = attributable && seo.jsonLd ? jsonLdSafe(seo.jsonLd) : "";
 
     const html = `<!doctype html>

@@ -23,6 +23,7 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { SIZE_PAGE } from "../src/lib/sizeTool.js";
 import { GUIDE } from "../src/lib/guide.js";
 import { JOIN_PATH, JOIN_SEO } from "../src/lib/growth/join.js";
+import { INDEX_ROBOTS } from "../src/constants/seo.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -59,7 +60,7 @@ export function productHead(shell, seo, alt = "") {
 export function pageHead(shell, { title, description, canonical, jsonLd = null }) {
   let html = shell.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`);
   html = setMeta(html, "name", "description", description);
-  html = setMeta(html, "name", "robots", "index,follow");
+  html = setMeta(html, "name", "robots", INDEX_ROBOTS);
   html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${esc(canonical)}" />`);
   html = setMeta(html, "property", "og:type", "website");
   html = setMeta(html, "property", "og:url", canonical);

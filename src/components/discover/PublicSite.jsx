@@ -28,6 +28,7 @@ import { categoryName, findCollection, findCreator } from "../../lib/publicDisco
 import { getCreatorSEO, getDefaultSEO, getProductSEO, updatePageSEO } from "../../lib/seo.js";
 import { publicUrl } from "../../lib/acquisition.js";
 import { SIZE_PAGE } from "../../lib/sizeTool.js";
+import { INDEX_ROBOTS } from "../../constants/seo.js";
 
 export const PUBLIC_ROUTE_TYPES = Object.freeze([
   "landing",
@@ -47,7 +48,7 @@ export const PUBLIC_ROUTE_TYPES = Object.freeze([
 function pageSEO(route, graph, lang) {
   const he = lang === "he";
   const base = getDefaultSEO("home");
-  const page = (path, title, description, extra = {}) => ({ ...base, title: `${title} | LikeLink2`, description, url: publicUrl(path), robots: "index,follow", ...extra });
+  const page = (path, title, description, extra = {}) => ({ ...base, title: `${title} | LikeLink2`, description, url: publicUrl(path), robots: INDEX_ROBOTS, ...extra });
   switch (route.type) {
     case "landing":
       return base;

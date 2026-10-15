@@ -1,0 +1,54 @@
+# The store's own photo gallery of listed products, for a person to choose a
+# professional image by eye (scripts/catalog/gallery.mjs). Read-only on the
+# store (its product page directly, never the affiliate link; a CAPTCHA stops
+# the run). The images go to the ops/gallery branch, overwritten each run.
+name: Catalog gallery (for choosing photos)
+
+on:
+  workflow_dispatch:
+    inputs:
+      products:
+        description: "Product ids, comma separated (empty = every listed product)"
+        default: "p-live-03,p-live-02"
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/catalog/gallery.mjs", ".github/workflows/catalog-gallery.yml"]
+
+concurrency:
+  group: catalog-gallery
+  cancel-in-progress: false
+
+permissions:
+  # write: the images go to the ops/gallery branch
+  contents: write
+
+jobs:
+  gallery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (drives the runner's Google Chrome)
+        run: npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+      - name: Read the galleries
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          PRODUCTS: ${{ github.event.inputs.products || 'p-live-03,p-live-02' }}
+          OUT: ${{ runner.temp }}/gallery
+        run: node scripts/catalog/gallery.mjs
+      - name: Publish to the ops/gallery branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd "$RUNNER_TEMP/gallery"
+          printf 'Store gallery images read by the Catalog gallery workflow, run %s (%s), for choosing a photo by eye. Overwritten on every run.\n' "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
+          git init -q -b ops/gallery
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Catalog gallery run $GITHUB_RUN_ID"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/ops/gallery
