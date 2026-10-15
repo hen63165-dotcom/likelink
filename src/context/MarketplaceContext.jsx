@@ -1,5 +1,5 @@
 import { landingAttribution } from "../lib/attribution.js";
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { storage } from "../lib/storage.js";
 import { studioDataWanted, withTimeout } from "../lib/cloudBreaker.js";
 import { stripBase } from "../lib/basePath.js";
@@ -361,8 +361,10 @@ export function MarketplaceProvider({ children }) {
   // updates in one handler never undo each other) and the cloud writes go out
   // in order. A removal request (CLEAR_PRIVATE) goes to the server once; the
   // copy kept here never carries it, so a later write cannot repeat it.
+  // The refs follow each committed list (an abandoned render never commits,
+  // so it cannot put an older list back) and every persist call.
   const marketersRef = useRef(marketers);
-  marketersRef.current = marketers;
+  useLayoutEffect(() => { marketersRef.current = marketers; }, [marketers]);
   const marketersWrite = useRef(Promise.resolve());
   const persistMarketers = useCallback(async (next) => {
     const value = typeof next === "function" ? next(marketersRef.current) : next;
@@ -381,7 +383,7 @@ export function MarketplaceProvider({ children }) {
   // carries the whole list, so an older list landing last would undo a newer
   // one. A failed write does not stop the ones after it.
   const productsRef = useRef(products);
-  productsRef.current = products;
+  useLayoutEffect(() => { productsRef.current = products; }, [products]);
   const productsWrite = useRef(Promise.resolve());
   const persistProducts = useCallback(async (next) => {
     const value = typeof next === "function" ? next(productsRef.current) : next;
