@@ -20,9 +20,8 @@ import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
 import { buildProductSeo, canonicalProduct } from "../src/lib/discovery/surfaces.js";
 import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
-import { SIZE_PAGE } from "../src/lib/sizeTool.js";
-import { GUIDE } from "../src/lib/guide.js";
-import { JOIN_PATH, JOIN_SEO } from "../src/lib/growth/join.js";
+import { SECTION_SEO, sectionSeo } from "../src/lib/publicSeo.js";
+import { getCreatorSEO } from "../src/lib/seo.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,53 +51,42 @@ export function productHead(shell, seo, alt = "") {
   html = setMeta(html, "name", "twitter:title", seo.og.title);
   html = setMeta(html, "name", "twitter:description", seo.og.description);
   html = setMeta(html, "name", "twitter:image", seo.og.image);
-  if (seo.jsonLd) html = html.replace("</head>", `    <script type="application/ld+json">${jsonLdSafe(seo.jsonLd)}</script>\n  </head>`);
+  if (seo.jsonLd) html = html.replace("</head>", `    ${pageJsonLd(seo.jsonLd)}\n  </head>`);
   return html;
 }
 
+// The page's own JSON-LD carries the id the app's updatePageSEO replaces
+// (src/lib/seo.js setJsonLd), so after load there is one, not two.
+const pageJsonLd = (data) => `<script type="application/ld+json" id="likelink-jsonld">${jsonLdSafe(data)}</script>`;
+
 /** The app shell's <head> for a public section page (title, description, canonical, card). */
-export function pageHead(shell, { title, description, canonical, jsonLd = null }) {
+export function pageHead(shell, { title, description, canonical, jsonLd = null, image = "", type = "website" }) {
   let html = shell.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`);
   html = setMeta(html, "name", "description", description);
   html = setMeta(html, "name", "robots", INDEX_ROBOTS);
   html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${esc(canonical)}" />`);
-  html = setMeta(html, "property", "og:type", "website");
+  html = setMeta(html, "property", "og:type", type);
   html = setMeta(html, "property", "og:url", canonical);
   html = setMeta(html, "property", "og:title", title);
   html = setMeta(html, "property", "og:description", description);
+  if (image) html = setMeta(html, "property", "og:image", image);
   html = setMeta(html, "name", "twitter:title", title);
   html = setMeta(html, "name", "twitter:description", description);
-  if (jsonLd) html = html.replace("</head>", `    <script type="application/ld+json">${jsonLdSafe(jsonLd)}</script>\n  </head>`);
+  if (image) html = setMeta(html, "name", "twitter:image", image);
+  if (jsonLd) html = html.replace("</head>", `    ${pageJsonLd(jsonLd)}\n  </head>`);
   return html;
 }
 
-/** Section pages a search can land on, each with its own head (the same text the app sets). */
+/** Section pages a search can land on, each with its own head (publicSeo.js — the same head the app sets). */
 export function sectionPages(origin = PRODUCTION_ORIGIN) {
-  const sizeUrl = `${origin}/size`;
-  return [
-    {
-      path: "/size",
-      title: `${SIZE_PAGE.seoTitle} | LikeLink2`,
-      description: SIZE_PAGE.seoDescription,
-      canonical: sizeUrl,
-      jsonLd: [
-        { "@context": "https://schema.org", "@type": "WebApplication", name: "המודד של לונה", url: sizeUrl, applicationCategory: "UtilitiesApplication", operatingSystem: "Any", inLanguage: "he", description: SIZE_PAGE.seoDescription, offers: { "@type": "Offer", price: "0", priceCurrency: "ILS" } },
-        { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: SIZE_PAGE.faq.map((f) => ({ "@type": "Question", name: f.q.he, acceptedAnswer: { "@type": "Answer", text: f.a.he } })) },
-      ],
-    },
-    {
-      path: JOIN_PATH,
-      title: `${JOIN_SEO.title} | LikeLink2`,
-      description: JOIN_SEO.description,
-      canonical: `${origin}${JOIN_PATH}`,
-    },
-    {
-      path: "/guide",
-      title: `המדריך החינמי: ${GUIDE.title.he} | LikeLink2`,
-      description: "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.",
-      canonical: `${origin}/guide`,
-    },
-  ];
+  return Object.keys(SECTION_SEO).map((type) => sectionSeo(type, { origin }));
+}
+
+/** A creator's storefront head (the same getCreatorSEO the app uses). */
+export function creatorPage(creator, products, origin = PRODUCTION_ORIGIN) {
+  const seo = getCreatorSEO(creator, products);
+  const canonical = `${origin}/u/${encodeURIComponent(creator.slug)}`;
+  return { path: `/u/${creator.slug}`, title: seo.title, description: seo.description, canonical, image: /^https?:\/\//i.test(seo.image || "") ? seo.image : "", type: "profile", jsonLd: seo.jsonLd };
 }
 
 export function sitemapXml(origin, paths, today) {
@@ -115,8 +103,11 @@ export function listedFromSnapshot(doc) {
   const raw = new Map(products.map((p) => [p.id, p]));
   const owners = new Map(marketers.map((m) => [m.id, m]));
   return {
-    products: graph.products.filter((p) => SAFE_ID.test(String(p.id))).map((p) => ({ product: raw.get(p.id), owner: owners.get(p.marketerId) })).filter((x) => x.product && x.owner),
+    // The public product (the raw record, its description without unverified
+    // store claims) — the same object the app hands to buildProductSeo.
+    products: graph.products.filter((p) => SAFE_ID.test(String(p.id)) && raw.has(p.id)).map((p) => ({ product: p, owner: owners.get(p.marketerId) })).filter((x) => x.product && x.owner),
     creators: graph.creators.filter((c) => SAFE_ID.test(String(c.slug))),
+    graph,
   };
 }
 
@@ -124,7 +115,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
   const shellPath = join(dist, "index.html");
   if (!existsSync(shellPath) || !existsSync(snapshot)) return { pages: 0, skipped: true };
   const shell = readFileSync(shellPath, "utf8");
-  const { products, creators } = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8")));
+  const { products, creators, graph } = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8")));
   const rules = [];
   for (const { product, owner } of products) {
     const seo = buildProductSeo(canonicalProduct(product, owner, origin));
@@ -137,12 +128,20 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(join(dist, file), pageHead(shell, page));
     rules.push(`${page.path}  /${file}  200`);
   }
+  // Creator storefronts (/u/<slug>): the link a creator puts in a bio, and a
+  // page Google should index as itself, not as a copy of the home page.
+  for (const creator of creators) {
+    const page = creatorPage(creator, creator.productIds.map((id) => graph.byId.get(id)).filter(Boolean), origin);
+    mkdirSync(join(dist, "u"), { recursive: true });
+    writeFileSync(join(dist, "u", `${creator.slug}.html`), pageHead(shell, page));
+    rules.push(`/u/${creator.slug}  /u/${creator.slug}.html  200`);
+  }
   // The per-product and section rules go before the SPA fallback.
   const redirectsPath = join(dist, "_redirects");
   if (existsSync(redirectsPath) && rules.length) {
     const text = readFileSync(redirectsPath, "utf8");
     const at = text.search(/^\/\*\s+\/index\.html\s+200\s*$/m);
-    const block = `# Product and section pages with their own preview (scripts/prerender-products.mjs)\n${rules.join("\n")}\n\n`;
+    const block = `# Product, section and creator pages with their own head (scripts/prerender-products.mjs)\n${rules.join("\n")}\n\n`;
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);

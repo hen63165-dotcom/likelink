@@ -6,7 +6,6 @@ import { NavCtx, useGraph, useL } from "./kit";
 import { PublicShell } from "./PublicShell";
 import { StatusPage } from "./status";
 import { JoinPage } from "./join";
-import { JOIN_PATH, JOIN_SEO } from "../../lib/growth/join.js";
 import {
   CollectionsPage,
   CreatorPage,
@@ -25,9 +24,10 @@ import {
   TrendsPage,
 } from "./pages";
 import { categoryName, findCollection, findCreator } from "../../lib/publicDiscovery.js";
-import { getCreatorSEO, getDefaultSEO, getProductSEO, updatePageSEO } from "../../lib/seo.js";
+import { getCreatorSEO, getDefaultSEO, updatePageSEO, PUBLIC_ORIGIN } from "../../lib/seo.js";
+import { sectionSeo } from "../../lib/publicSeo.js";
+import { buildProductSeo, canonicalProduct } from "../../lib/discovery/surfaces.js";
 import { publicUrl } from "../../lib/acquisition.js";
-import { SIZE_PAGE } from "../../lib/sizeTool.js";
 import { INDEX_ROBOTS } from "../../constants/seo.js";
 
 export const PUBLIC_ROUTE_TYPES = Object.freeze([
@@ -49,13 +49,23 @@ function pageSEO(route, graph, lang) {
   const he = lang === "he";
   const base = getDefaultSEO("home");
   const page = (path, title, description, extra = {}) => ({ ...base, title: `${title} | LikeLink2`, description, url: publicUrl(path), robots: INDEX_ROBOTS, ...extra });
+  // A whole section: the same head the build writes into its static HTML (publicSeo.js).
+  const section = (type) => {
+    const s = sectionSeo(type, { lang: he ? "he" : "en" });
+    return { ...base, title: s.title, description: s.description, url: s.canonical, robots: INDEX_ROBOTS, jsonLd: s.jsonLd };
+  };
   switch (route.type) {
     case "landing":
       return base;
     case "product": {
       const p = graph.byId.get(route.id);
       const owner = p ? graph.creatorById.get(p.marketerId) : null;
-      return getProductSEO(p ? { ...p, title: p.displayTitle } : null, owner) || { ...base, title: "מוצר לא נמצא | LikeLink2", robots: "noindex,follow" };
+      if (!p || !owner) return { ...base, title: "מוצר לא נמצא | LikeLink2", robots: "noindex,follow" };
+      // The one builder the static page, /p/:id on the server and the engine's
+      // audit use: no price without a store source, no stock claim, the
+      // recommending creator is never the brand.
+      const seo = buildProductSeo(canonicalProduct(p, owner, PUBLIC_ORIGIN));
+      return { title: seo.title, description: seo.description, image: seo.og.image, url: seo.canonical, type: "product", robots: seo.robots, jsonLd: seo.jsonLd };
     }
     case "creator": {
       const c = findCreator(graph, route.slug);
@@ -64,31 +74,33 @@ function pageSEO(route, graph, lang) {
     case "discover":
       return route.category
         ? page(`/discover/${encodeURIComponent(route.category)}`, `${categoryName(route.category, lang)} — גילוי`, `מוצרים מאושרים בקטגוריית ${categoryName(route.category, "he")}, שנבחרו על ידי יוצרים.`)
-        : page("/discover", he ? "גילוי" : "Discover", "פיד ויזואלי של מוצרים, יוצרים, אוספים וטרנדים בלייקלינק.");
+        : section("discover");
     case "products":
-      return page(route.category ? `/products/${encodeURIComponent(route.category)}` : "/products", he ? "מוצרים" : "Products", "כל המוצרים המאושרים בלייקלינק, לפי קטגוריה ותקציב.");
+      return route.category
+        ? page(`/products/${encodeURIComponent(route.category)}`, `${categoryName(route.category, lang)} — ${he ? "מוצרים" : "Products"}`, `מוצרים בקטגוריית ${categoryName(route.category, "he")} שיוצרים בחרו בלייקלינק, עם קישור ישיר לחנות.`)
+        : section("products");
     case "creators":
-      return page("/creators", he ? "יוצרים" : "Creators", "יוצרים, החנויות והבחירות שלהם בלייקלינק.");
+      return section("creators");
     case "reels":
-      return page("/reels", he ? "סרטונים" : "Reels", "סרטונים וסיפורי מוצר מהיוצרים בלייקלינק, מסומנים בכנות.");
+      return section("reels");
     case "trends":
-      return page("/trends", he ? "טרנדים" : "Trends", "טרנדים שמבוססים על צפיות וקליקים שנרשמו בפועל.");
+      return section("trends");
     case "collections": {
       const col = route.id ? findCollection(graph, route.id) : null;
       return col
         ? page(`/collections/${encodeURIComponent(col.id)}`, col.title[he ? "he" : "en"], col.description.he)
-        : page("/collections", he ? "אוספים" : "Collections", "לוחות עריכה ואוספים של יוצרים בלייקלינק.");
+        : section("collections");
     }
     case "deals":
-      return page("/deals", he ? "דילים" : "Deals", "ירידות מחיר אמיתיות בלבד, ובחירות לפי תקציב.");
+      return section("deals");
     case "guide":
-      return page("/guide", he ? "המדריך החינמי: 8 בדיקות לפני שקונים באליאקספרס" : "Free guide: 8 checks before buying on AliExpress", "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה.");
+      return section("guide");
     case "size":
-      return page("/size", he ? SIZE_PAGE.seoTitle : "Ring and bracelet size meter, free, on your screen", SIZE_PAGE.seoDescription);
+      return section("size");
     case "status":
       return { ...page("/status", he ? "מצב האתר ומה כל תווית אומרת" : "Site status and what each label means", "מה נבדק בקטלוג, מתי, ומה עוד חסר: קישורים, מחירים, התאמת תמונות וסרטונים למוצרים."), robots: "noindex,follow" };
     case "join":
-      return page(JOIN_PATH, he ? JOIN_SEO.title : "A creator page on LikeLink2: your link in bio, as a small shop", JOIN_SEO.description);
+      return section("join");
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":

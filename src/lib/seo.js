@@ -116,10 +116,10 @@ export function getCreatorSEO(creator, products = []) {
   const slug = creator?.slug || creator?.id;
   const url = `${PUBLIC_ORIGIN}/u/${encodeURIComponent(slug || "")}`;
 
-  const title = `${name} — חנות אונליין | לייקלינק`;
+  const title = `${name} — חנות אונליין | LikeLink2`;
   const description =
     productCount > 0
-      ? `החנות של ${name} בלייקלינק: ${productNames}. מוצרים שנבחרו על ידי ${name}, עם מחיר, חנות וגילוי נאות.`
+      ? `החנות של ${name} בלייקלינק: ${productNames}. מוצרים שנבחרו על ידי ${name}, עם קישור ישיר לחנות וגילוי נאות.`
       : `החנות של ${name} בלייקלינק — מוצרים, אוספים ותוכן שנבחרו על ידי ${name}.`;
 
   return {
@@ -144,52 +144,13 @@ export function getCreatorSEO(creator, products = []) {
   };
 }
 
-// Generate SEO data for a product page (requires attributable owner)
-export function getProductSEO(product, owner = null) {
-  if (!product || !owner?.id) return null;
-
-  const title = `${product.title} — ₪${product.price} | לייקלינק`;
-  const description =
-    product.description ||
-    `${product.title} ב-₪${product.price} — מוצר שנבחר על ידי יוצר/ת בלייקלינק. המחיר והמלאי נקבעים אצל החנות.`;
-  const url = `${PUBLIC_ORIGIN}/p/${encodeURIComponent(product.id)}`;
-  const creatorUrl = `${PUBLIC_ORIGIN}/u/${encodeURIComponent(owner.slug || owner.id)}`;
-
-  return {
-    title,
-    description,
-    image: product.image || `${PUBLIC_ORIGIN}/icons/icon-512.webp`,
-    url,
-    type: "product",
-    robots: INDEX_ROBOTS,
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: product.title,
-      description,
-      image: product.image || undefined,
-      url,
-      sku: product.id,
-      offers: {
-        "@type": "Offer",
-        priceCurrency: product.currency || "ILS",
-        price: String(product.price ?? ""),
-        availability: "https://schema.org/InStock",
-        url,
-      },
-      brand: { "@type": "Brand", name: owner.name || "Likelink" },
-      isRelatedTo: { "@type": "Person", name: owner.name, url: creatorUrl },
-    },
-  };
-}
-
 // Generate default SEO for the main pages
 export function getDefaultSEO(page = "home") {
   const pages = {
     home: {
       title: "לייקלינק — גילוי מוצרים דרך יוצרים, תוכן וטרנדים",
       description:
-        "גלו מוצרים דרך אנשים: יוצרים, אוספים, סרטונים וטרנדים — עם מחיר אמיתי, חנות ברורה וגילוי נאות. ויוצרים בונים כאן עסק אמיתי מה־Studio.",
+        "גלו מוצרים דרך אנשים: יוצרים, אוספים, סרטונים וטרנדים — עם קישור ישיר לחנות המקורית וגילוי נאות. ויוצרות פותחות כאן חנות מהמלצות, בחינם.",
       type: "website",
       url: `${PUBLIC_ORIGIN}/`,
       robots: INDEX_ROBOTS,
