@@ -1081,7 +1081,7 @@ html body .lx img {
 .lx-luxe-hero { background: var(--lx-sky); color: var(--lx-ink); overflow: hidden; }
 .lx-luxe-hero-grid { display: grid; gap: 34px; padding-top: 36px; }
 .lx-luxe-copy { position: relative; z-index: 1; }
-.lx-luxe-title { font-family: var(--lx-serif); font-weight: 700; font-size: clamp(36px, 9vw, 66px); line-height: 1.06; letter-spacing: -0.01em; }
+.lx-luxe-title { font-family: var(--lx-serif); font-weight: 700; font-size: clamp(36px, 9vw, 58px); line-height: 1.08; letter-spacing: -0.01em; }
 .lx-luxe-hero .lx-luxe-lead { color: var(--lx-ink-2); }
 .lx-luxe-fine { margin-top: 16px; font-size: 12px; color: var(--lx-mute); }
 .lx-luxe-search {

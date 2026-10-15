@@ -112,6 +112,11 @@ test("the phone mockups show whose video it is on the footage and the product on
   assert.match(onFootage, /styleLabel\(reel\.style, lang\)/, "whose video it is");
   assert.doesNotMatch(onFootage, /displayTitle|creator|\.name\b/, "no product or creator name printed over the footage");
   assert.match(phoneVideo.slice(phoneVideo.indexOf('<span className="lx-phone-product">')), /product\.displayTitle/, "the product sits under the video");
+  // The site carries every category creators publish: the hero never names one.
+  const hero = luxe.slice(luxe.indexOf("function Hero("), luxe.indexOf("/* --------------------------------------------------- how it works"));
+  assert.match(hero, /ההמלצות של היוצרים שאתם אוהבים, במקום אחד\./);
+  assert.doesNotMatch(hero, /תכשיט|jewelry/i, "the headline speaks to every category");
+  assert.doesNotMatch(read("index.html"), /<h1>[^<]*תכשיט/, "the first paint too");
   // The screens are drawn from the same real records: curated images only, no counters.
   assert.match(luxe, /function CreatorScreen[\s\S]*cleanImage\(p\)\?\.src/);
   assert.match(luxe, /function FindScreen[\s\S]*cleanImage\(p\)\.src/);

@@ -131,7 +131,7 @@ function HeaderSearch({ navigate }) {
     >
       <Search size={17} aria-hidden="true" />
       <label className="lx-sr" htmlFor="lx-header-q">{L("חיפוש", "Search")}</label>
-      <input id="lx-header-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("חיפוש מוצרים ויוצרות", "Search products and creators")} enterKeyHint="search" />
+      <input id="lx-header-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("חיפוש מוצרים ויוצרים", "Search products and creators")} enterKeyHint="search" />
     </form>
   );
 }
@@ -143,7 +143,7 @@ const MENU_PAGES = [
   { to: "/discover", type: "discover", he: "גילוי", en: "Discover" },
   { to: "/products", type: "products", he: "מוצרים", en: "Shop" },
   { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
-  { to: "/creators", type: "creators", he: "יוצרות", en: "Creators" },
+  { to: "/creators", type: "creators", he: "יוצרים", en: "Creators" },
   { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
   { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
   { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
@@ -195,8 +195,8 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
             <li><Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-link lx-dd-small"><UserPlus size={17} aria-hidden="true" /> {L("הרשמה", "Sign up")}</Go></li>
           </ul>
         </nav>
-        <Go to="/join" onClick={onClose} className="lx-dd-cta">{L("הצטרפות כיוצרת", "Apply to be a creator")}</Go>
-        <p className="lx-dd-note">{L("ההרשמה והכניסה הן לסטודיו של היוצרות. כדי לקנות לא צריך להירשם.", "Sign-up and log-in are for the creators' Studio. You can shop without an account.")}</p>
+        <Go to="/join" onClick={onClose} className="lx-dd-cta">{L("הצטרפות כיוצר/ת", "Apply to be a creator")}</Go>
+        <p className="lx-dd-note">{L("ההרשמה והכניסה הן לסטודיו של היוצרים. כדי לקנות לא צריך להירשם.", "Sign-up and log-in are for the creators' Studio. You can shop without an account.")}</p>
         <div className="lx-dd-foot">
           <button type="button" className="lx-dd-pill" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
             <Languages size={16} aria-hidden="true" /> {lang === "he" ? "English" : "עברית"}
@@ -217,7 +217,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
   const opener = useRef(null);
   const closeMenu = useCallback(() => setMenu(false), []);
   useEffect(() => setMenu(false), [routeType]);
-  const authTip = L("הסטודיו של היוצרות. כדי לקנות לא צריך להירשם.", "The creators' Studio. You can shop without an account.");
+  const authTip = L("הסטודיו של היוצרים. כדי לקנות לא צריך להירשם.", "The creators' Studio. You can shop without an account.");
 
   return (
     <div className="lx" dir={he ? "rtl" : "ltr"} data-theme={theme}>

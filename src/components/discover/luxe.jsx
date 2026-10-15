@@ -67,7 +67,7 @@ function useQuietVideo(src) {
 }
 
 /** LTK's search-first line: a product or creator, straight to /search. */
-function HeroSearch({ jewelry }) {
+function HeroSearch() {
   const { L } = useL();
   const navigate = useContext(NavCtx);
   const [q, setQ] = useState("");
@@ -80,9 +80,9 @@ function HeroSearch({ jewelry }) {
         navigate(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`);
       }}
     >
-      <label className="lx-sr" htmlFor="lx-luxe-q">{L("חיפוש מוצרים ויוצרות", "Search products and creators")}</label>
+      <label className="lx-sr" htmlFor="lx-luxe-q">{L("חיפוש מוצרים ויוצרים", "Search products and creators")}</label>
       <Search size={17} aria-hidden="true" />
-      <input id="lx-luxe-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={jewelry ? L("צמיד, עגילים, טבעת…", "Bracelet, earrings, ring…") : L("מה מחפשים?", "What are you looking for?")} enterKeyHint="search" />
+      <input id="lx-luxe-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("מה מחפשים היום?", "What are you looking for today?")} enterKeyHint="search" />
       <button type="submit">{L("חיפוש", "Search")}</button>
     </form>
   );
@@ -130,7 +130,7 @@ function PhoneVideo({ product, reel, play = true }) {
 
 /* ------------------------------------------------------------------- hero */
 
-function Hero({ items, jewelry, featured, reel }) {
+function Hero({ items, featured, reel }) {
   const { L } = useL();
   const scrollTo = useScrollTo();
   // The frames that ship with the site lead (they cannot fail to load); a store photo comes last.
@@ -156,18 +156,16 @@ function Hero({ items, jewelry, featured, reel }) {
       <div className="lx-wrap lx-luxe-hero-grid">
         <div className="lx-luxe-copy">
           <h1 id="h-luxe" className="lx-luxe-title">
-            {jewelry ? L("התכשיטים שהיוצרות בוחרות, במקום אחד.", "The jewelry creators pick, in one place.") : L("המוצרים שהיוצרות בוחרות, במקום אחד.", "The products creators pick, in one place.")}
+            {L("ההמלצות של היוצרים שאתם אוהבים, במקום אחד.", "The picks of the creators you love, in one place.")}
           </h1>
           <p className="lx-luxe-lead">
-            {jewelry
-              ? L("צופים בסרטון של התכשיט, רואים מי בחרה אותו, בודקים מידה מהמסך וקונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.", "Watch the piece on video, see who picked it, check your size on the screen and buy straight from the original store. No account, no extra cost.")
-              : L("צופים בסרטון של המוצר, רואים מי בחרה אותו וקונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.", "Watch the product on video, see who picked it and buy straight from the original store. No account, no extra cost.")}
+            {L("יוצרים ויוצרות מראים בסרטון את המוצרים שהם בוחרים, ואתם קונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.", "Creators show the products they pick on video, and you buy straight from the original store. No account, no extra cost.")}
           </p>
           <div className="lx-luxe-ctas">
             <a href="#collection" className="lx-luxe-btn lx-luxe-btn-dark" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
-            <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-line">{L("ליוצרות", "Creators")}</Go>
+            <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-line">{L("ליוצרים", "Creators")}</Go>
           </div>
-          <HeroSearch jewelry={jewelry} />
+          <HeroSearch />
           <p className="lx-luxe-fine">{L("#פרסומת · קישורי שותפים · התמונות מתוך סרטוני המוכרים ותמונות החנות", "Ad · affiliate links · images from the sellers' videos and store photos")}</p>
         </div>
         <div className="lx-hv">
@@ -210,12 +208,12 @@ function CreatorScreen({ creator, products }) {
 }
 
 /** The search page: a query, and the products with their names. */
-function FindScreen({ products, jewelry }) {
+function FindScreen({ products }) {
   const { L } = useL();
   const shown = products.slice(0, 4);
   return (
     <>
-      <span className="lx-ps-search"><Search size={13} /> {jewelry ? L("צמיד כסף", "Silver bracelet") : L("מה מחפשים?", "What are you looking for?")}</span>
+      <span className="lx-ps-search"><Search size={13} /> {L("מה מחפשים היום?", "What are you looking for?")}</span>
       <span className="lx-ps-grid lx-ps-grid-named">
         {shown.map((p) => (
           <span key={p.id} className="lx-ps-item">
@@ -228,7 +226,7 @@ function FindScreen({ products, jewelry }) {
   );
 }
 
-function HowItWorks({ graph, items, footage, featured, jewelry }) {
+function HowItWorks({ graph, items, footage, featured }) {
   const { L } = useL();
   const creator = useMemo(() => {
     const curated = new Set(items.map((p) => p.id));
@@ -241,16 +239,16 @@ function HowItWorks({ graph, items, footage, featured, jewelry }) {
     creator
       ? {
           to: creatorPath(creator.slug),
-          title: L("מכירים את היוצרות", "Meet the creators"),
-          line: L("לכל יוצרת יש חנות משלה: הסרטונים, המוצרים והאוספים שהיא בחרה, בעמוד אחד.", "Every creator has her own shop: the videos, products and collections she picked, on one page."),
+          title: L("מכירים את היוצרים", "Meet the creators"),
+          line: L("לכל יוצר ויוצרת יש חנות משלהם: הסרטונים, המוצרים והאוספים שבחרו, בעמוד אחד.", "Every creator has their own shop: the videos, products and collections they picked, on one page."),
           screen: <CreatorScreen creator={creator} products={hers} />,
         }
       : null,
     {
       to: "/products",
       title: L("מוצאים מוצרים", "Find products"),
-      line: L("מחפשים מוצר או יוצרת. בכל מוצר כתוב מי בחרה אותו ובאיזו חנות הוא נמכר.", "Search for a product or a creator. Every product says who picked it and which store sells it."),
-      screen: <FindScreen products={items} jewelry={jewelry} />,
+      line: L("מחפשים מוצר, יוצר או קטגוריה. בכל מוצר כתוב מי בחר אותו ובאיזו חנות הוא נמכר.", "Search for a product, a creator or a category. Every product says who picked it and which store sells it."),
+      screen: <FindScreen products={items} />,
     },
     other && footage.get(other.id)
       ? {
@@ -264,7 +262,7 @@ function HowItWorks({ graph, items, footage, featured, jewelry }) {
   return (
     <section id="how" className="lx-wrap lx-luxe-section" aria-labelledby="h-how">
       <p className="lx-luxe-kicker">{L("איך זה עובד", "How it works")}</p>
-      <h2 id="h-how" className="lx-luxe-h2">{L("רואים מי בחרה, צופים בסרטון, קונים בחנות.", "See who picked it, watch it, buy it at the store.")}</h2>
+      <h2 id="h-how" className="lx-luxe-h2">{L("רואים מי בחר, צופים בסרטון, קונים בחנות.", "See who picked it, watch it, buy it at the store.")}</h2>
       <ol className="lx-why">
         {steps.map((s, i) => (
           <li key={s.title} className="lx-why-item">
@@ -349,7 +347,7 @@ function Creators() {
         <h2 id="h-creators" className="lx-luxe-band-title">{L("הבחירות שלך, בחנות משלך.", "Your picks, in a shop of your own.")}</h2>
         <p className="lx-luxe-lead">{L("עמוד אישי עם המוצרים והסרטונים שלך, קישור אחד לשתף, וכלים ליצירת תוכן עם סימון כן של מה שנוצר במחשב.", "Your own page with your products and videos, one link to share, and content tools that honestly label what a computer made.")}</p>
         <div className="lx-luxe-ctas">
-          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-dark">{L("הצטרפות כיוצרת", "Apply to be a creator")}</Go>
+          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-dark">{L("הצטרפות כיוצר/ת", "Apply to be a creator")}</Go>
           <Go to="/merchants" className="lx-luxe-btn lx-luxe-btn-line">{L("לסוחרים", "For merchants")}</Go>
         </div>
       </div>
@@ -385,12 +383,11 @@ export function LuxeHome({ graph, extra = null }) {
   const footage = useMemo(() => footageByProduct(graph.reels), [graph.reels]);
   const items = useMemo(() => curatedProducts(graph.products), [graph.products]);
   const featured = useMemo(() => spotlight(graph.products, footage), [graph.products, footage]);
-  const jewelry = graph.products.length > 0 && graph.products.every((p) => p.category === "Accessories");
   const featuredReel = featured ? footage.get(featured.id) : null;
   return (
     <div className="lx-luxe">
-      <Hero items={items} jewelry={jewelry} featured={featured} reel={featuredReel} />
-      <HowItWorks graph={graph} items={items} footage={footage} featured={featured} jewelry={jewelry} />
+      <Hero items={items} featured={featured} reel={featuredReel} />
+      <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Collection items={items} footage={footage} />
       <Posts graph={graph} footage={footage} />
       {extra}
