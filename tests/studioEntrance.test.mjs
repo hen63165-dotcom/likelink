@@ -198,7 +198,11 @@ test("removing the last affiliate account really removes it (owner-only clear re
   // The Studio sends the request only when the list becomes empty, and the context never keeps it.
   const ui = read("src/components/studio/AffiliateAccounts.jsx");
   assert.match(ui, /\[CLEAR_PRIVATE\]: \["affiliateAccounts"\]/);
-  assert.match(read("src/context/MarketplaceContext.jsx"), /setMarketers\(next\.map\(withoutClearRequest\)\)/);
+  const ctx = read("src/context/MarketplaceContext.jsx");
+  assert.match(ctx, /const local = value\.map\(withoutClearRequest\);\s*marketersRef\.current = local;\s*setMarketers\(local\);/);
+  // Creator updates also start from the latest list and reach the cloud in order.
+  assert.match(ctx, /marketersWrite\.current\.catch\(\(\) => \{\}\)\.then\(\(\) => setJSON\(K\.marketers, value, true\)\)/);
+  assert.doesNotMatch(ctx, /persistMarketers\(\s*(\[\.\.\.marketers|marketers\.)/);
 });
 
 test("the storefront editor accepts only social links the public page shows", () => {

@@ -357,11 +357,21 @@ export function MarketplaceProvider({ children }) {
     showToast._t = setTimeout(() => setToast(null), 2600);
   }, []);
 
-  // A removal request (CLEAR_PRIVATE) goes to the server once; the copy kept
-  // here never carries it, so a later write cannot repeat it.
+  // Like products below: an update starts from the latest list (two quick
+  // updates in one handler never undo each other) and the cloud writes go out
+  // in order. A removal request (CLEAR_PRIVATE) goes to the server once; the
+  // copy kept here never carries it, so a later write cannot repeat it.
+  const marketersRef = useRef(marketers);
+  marketersRef.current = marketers;
+  const marketersWrite = useRef(Promise.resolve());
   const persistMarketers = useCallback(async (next) => {
-    setMarketers(next.map(withoutClearRequest));
-    await setJSON(K.marketers, next, true);
+    const value = typeof next === "function" ? next(marketersRef.current) : next;
+    const local = value.map(withoutClearRequest);
+    marketersRef.current = local;
+    setMarketers(local);
+    const write = marketersWrite.current.catch(() => {}).then(() => setJSON(K.marketers, value, true));
+    marketersWrite.current = write;
+    await write;
   }, []);
 
   // Product writes start from the latest list, not the one a render captured:
@@ -551,7 +561,7 @@ export function MarketplaceProvider({ children }) {
         createdAt: Date.now(),
       };
       try {
-        await persistMarketers([...marketers, marketer]);
+        await persistMarketers((list) => [...list, marketer]);
       } catch (e) {
         return { ok: false, error: toHebrewError(e?.message, "יצירת הסטודיו נכשלה — נסי שוב בעוד רגע") };
       }
@@ -655,7 +665,7 @@ export function MarketplaceProvider({ children }) {
           // prepared now when possible and opens on the first verified login.
           if (!existing) {
             const pending = { id: uid(), name: cleanName, email: cleanEmail, trackingId: "", slug: uniqueSlug(slugify(cleanName), marketers.map((x) => x.slug).filter(Boolean)), createdAt: Date.now() };
-            try { await persistMarketers([...marketers, pending]); } catch { /* created on first verified login instead */ }
+            try { await persistMarketers((list) => [...list, pending]); } catch { /* created on first verified login instead */ }
           }
           return { ok: true, needsConfirmation: true };
         }
@@ -677,7 +687,7 @@ export function MarketplaceProvider({ children }) {
           await trackReferralConversion(referrerSlug, m.slug);
           clearPendingReferral();
         }
-        await persistMarketers([...marketers, m]);
+        await persistMarketers((list) => [...list, m]);
         await persistSession(m.id);
         // Cloud identity: establish the trusted auth → marketer link server-side.
         // Failure is non-critical — login will use email fallback + auto-link.
@@ -876,7 +886,7 @@ export function MarketplaceProvider({ children }) {
         return rows.length;
       },
       onUpdateMarketer: async (id, patch) => {
-        await persistMarketers(marketers.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+        await persistMarketers((list) => list.map((m) => (m.id === id ? { ...m, ...patch } : m)));
       },
       onCreatePayout: async (marketerId) => {
         const summary = getSellerPayoutSummary(sales, payouts, marketerId);
