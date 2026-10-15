@@ -18,7 +18,8 @@ import {
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
-import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
+import { uploadProductImage, safePreviewSrc } from "../../lib/uploadImage.js";
+import { SOCIAL_KEYS, isPublicSocialUrl } from "../../lib/publicDiscovery.js";
 import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
 import AddProductLink from "./AddProductLink.jsx";
@@ -28,8 +29,6 @@ const ACCOUNT_TYPES = [
   { id: "affiliate", icon: Megaphone, he: { title: "משווק /ת אפילייט", body: "מפרסמת קישורים של רשתות שותפים ורוצה לראות ביצועים לפי מוצר." }, en: { title: "Affiliate marketer", body: "Publishes affiliate-network links and wants performance per product." } },
   { id: "seller", icon: Store, he: { title: "מוכר /ת", body: "יש לי מוצרים משלי ורוצה חנות בעמוד אחד עם קישורים ומדדים." }, en: { title: "Seller", body: "I have my own products and want one store page with links and metrics." } },
 ];
-
-const SOCIAL_KEYS = ["instagram", "tiktok", "youtube", "facebook", "x"];
 
 export default function StudioOnboarding({ onDone }) {
   const { lang } = useI18n();
@@ -89,7 +88,8 @@ export default function StudioOnboarding({ onDone }) {
       if (form.image && !isSafeImageUrl(form.image)) { setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid."); return false; }
       for (const k of SOCIAL_KEYS) {
         const v = String(form.socials[k] || "").trim();
-        if (v && !safeHref(v)) {
+        // The same rule as the public creator page, so a saved link is a shown link.
+        if (v && !isPublicSocialUrl(v)) {
           setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
           return false;
         }

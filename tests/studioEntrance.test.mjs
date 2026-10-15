@@ -207,6 +207,8 @@ test("the storefront editor accepts only social links the public page shows", ()
   const src = read("src/components/studio/StorefrontDesign.jsx");
   assert.match(src, /isPublicSocialUrl\(v\) \? safeHref\(v\)/);
   assert.match(src, /if \(v && !shownSocial\(v\)\)/);
+  // The onboarding wizard uses the same rule.
+  assert.match(read("src/components/studio/StudioOnboarding.jsx"), /if \(v && !isPublicSocialUrl\(v\)\)/);
 });
 
 test("after a save the add-link form is a new product, never the edited one", () => {
