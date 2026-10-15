@@ -8,6 +8,7 @@ import { BookOpen, Compass, Heart, Home, LogIn, Menu, Moon, Play, Ruler, Search,
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
 import { PREFERRED_SOURCE, preferredSourceLive } from "../../lib/growth/preferredSource.js";
+import { socialProfiles } from "../../lib/growth/socialAccounts.js";
 
 const THEME_KEY = "ll_theme";
 const PAPER = { light: "#ffffff", dark: "#070709" };
@@ -323,6 +324,15 @@ function Footer() {
           <a key={href} href={withBase(href)} className="lx-mute hover:underline">{he ? heLabel : enLabel}</a>
         ))}
       </nav>
+      {/* Our own accounts, only once they exist (src/lib/growth/socialAccounts.js). */}
+      {socialProfiles().length ? (
+        <p className="lx-wrap mt-6 flex flex-wrap gap-x-4 gap-y-2 text-[13px]">
+          <span className="font-bold">{L("עקבו אחרינו", "Follow us")}</span>
+          {socialProfiles().map((a) => (
+            <a key={a.network} href={a.url} target="_blank" rel="me noopener" className="lx-mute hover:underline">{he ? a.label.he : a.label.en} @{a.handle}</a>
+          ))}
+        </p>
+      ) : null}
       {preferredSourceLive() ? (
         <p className="lx-wrap mt-6 text-[12.5px]">
           <a href={PREFERRED_SOURCE.url} target="_blank" rel="noopener" className="lx-mute hover:underline" data-tip={L("בגוגל אפשר לבחור אתרים מועדפים: התוכן שלהם יופיע לך יותר בחיפוש.", "In Google you can choose preferred sites: you will see more of them in Search.")}>

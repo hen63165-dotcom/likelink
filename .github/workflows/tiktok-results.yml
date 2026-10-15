@@ -1,0 +1,86 @@
+name: TikTok results
+
+# The owner logs a TikTok post's numbers (from TikTok's own analytics, 48 hours
+# after posting). They are kept on the ops/tiktok branch and the TikTok engine
+# (src/lib/growth/tiktok.js) learns from them: deploy-frontend.yml runs right
+# after this and rebuilds https://hen63165-dotcom.github.io/likelink/tiktok/.
+
+on:
+  workflow_dispatch:
+    inputs:
+      post_id:
+        description: "מזהה הפוסט מעמוד הטיקטוק (למשל tt-20261016-1-reveal)"
+        required: true
+      views:
+        description: "צפיות"
+        required: true
+      likes:
+        description: "לייקים"
+        required: false
+        default: "0"
+      comments:
+        description: "תגובות"
+        required: false
+        default: "0"
+      shares:
+        description: "שיתופים"
+        required: false
+        default: "0"
+      saves:
+        description: "שמירות"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tiktok-results
+  cancel-in-progress: false
+
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Add the numbers
+        env:
+          POST_ID: ${{ inputs.post_id }}
+          VIEWS: ${{ inputs.views }}
+          LIKES: ${{ inputs.likes }}
+          COMMENTS: ${{ inputs.comments }}
+          SHARES: ${{ inputs.shares }}
+          SAVES: ${{ inputs.saves }}
+        run: |
+          echo "[]" > "$RUNNER_TEMP/in.json"
+          # An explicit ref: checkout's own FETCH_HEAD points at main and must never be used here.
+          if git fetch --depth=1 origin ops/tiktok:refs/remotes/origin/ops/tiktok 2>/dev/null; then
+            git show refs/remotes/origin/ops/tiktok:marketing/tiktok-results.json > "$RUNNER_TEMP/in.json" 2>/dev/null || echo "[]" > "$RUNNER_TEMP/in.json"
+          fi
+          node scripts/marketing/tiktok-results.mjs "$RUNNER_TEMP/in.json" "$RUNNER_TEMP/out.json"
+
+      - name: Save to ops/tiktok
+        env:
+          POST_ID: ${{ inputs.post_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse --verify -q refs/remotes/origin/ops/tiktok >/dev/null; then
+            git checkout -q -B ops/tiktok refs/remotes/origin/ops/tiktok
+          else
+            git checkout -q --orphan ops/tiktok
+            git rm -rf -q .
+          fi
+          mkdir -p marketing
+          cp "$RUNNER_TEMP/out.json" marketing/tiktok-results.json
+          git add marketing/tiktok-results.json
+          git commit -q -m "TikTok results: $POST_ID"
+          git push -q origin HEAD:ops/tiktok

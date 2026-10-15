@@ -89,7 +89,7 @@ ol,ul{margin:6px 0;padding-inline-start:20px}small{color:var(--mute)}a{color:var
 <p class="note">${esc(REASON[d.reason]?.(d) || "")} המוצר: <a href="${esc(d.product.link)}">${esc(d.product.title)}</a></p>
 <section class="card">${video}</section>
 ${block("איך מעלים בדקה", [`<ol><li>מורידים את הסרטון (הכפתור למעלה).</li><li>פותחים טיקטוק או אינסטגרם, מעלים, ומוסיפים סאונד טרנדי בעוצמה נמוכה.</li><li>מעתיקים את הטקסט של הרשת ומדביקים.</li><li>כדאי לנסות לפרסם בערב, בין 20:00 ל־21:30, ולענות לתגובות בשעה הראשונה.</li></ol>`])}
-${block("טיקטוק", [copyField("טקסט על המסך (באפליקציה)", p.tiktok.onScreen.join("\n"), 2), copyField("כיתוב", p.tiktok.caption, 7), copyField("קישור לביו", p.tiktok.bioLink, 1)])}
+${block("טיקטוק", [`<p class="note"><a class="btn" href="../tiktok/">עמוד הטיקטוק המלא: 2 טיקטוקים מוכנים להיום, שקפים, תסריט ומה למדנו</a></p>`, copyField("טקסט על המסך (באפליקציה)", p.tiktok.onScreen.join("\n"), 2), copyField("כיתוב", p.tiktok.caption, 7), copyField("קישור לביו", p.tiktok.bioLink, 1)])}
 ${block("אינסטגרם רילס", [copyField("טקסט על המסך", p.instagram.onScreen.join("\n"), 1), copyField("כיתוב", p.instagram.caption, 10), `<p class="note">מי שכותבת "רוצה" מקבלת את הקישור בפרטי, כשבוט התגובות מחובר.</p>`])}
 ${block("יוטיוב שורטס", [copyField("כותרת", p.shorts.title, 1), copyField("תיאור", p.shorts.description, 4)])}
 ${block("וואטסאפ וטלגרם", [copyField("וואטסאפ (סטטוס או קבוצה)", p.whatsapp.text, 4), `<div class="row"><a class="btn" href="${esc(wa)}">שליחה בוואטסאפ</a><a class="btn" href="${esc(tg)}">שיתוף בטלגרם</a></div>`, copyField("טלגרם", p.telegram.text, 7)])}

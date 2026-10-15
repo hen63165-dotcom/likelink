@@ -13,6 +13,7 @@ runs on GitHub (Actions + Pages) and never needs the Supabase cloud.
 | When | What | Where it lands |
 |---|---|---|
 | 06:40 Israel (deploy-frontend.yml schedule) | **Daily drop**: today's product + its best video + Google Trends Israel → the post for TikTok, Reels, Shorts, WhatsApp, Telegram, Facebook, a story poll | https://hen63165-dotcom.github.io/likelink/drop/ (+ `today.json`) |
+| Same time | **TikTok kit** (skill `tiktok-growth`): today's 2 TikToks + a bonus, rendered photo-mode slides, steps in the app, and what the owner's logged results taught | https://hen63165-dotcom.github.io/likelink/tiktok/ |
 | Same page, same time | **Creator recruitment post** (`src/lib/growth/recruit.js`): one angle a day (`CREATOR_ANGLES`) → Instagram/TikTok/WhatsApp/Facebook text, each with its own `/join?utm_source=…&utm_campaign=creators_<date>_<angle>` link | the "פוסט גיוס יוצרות להיום" block of the drop + `creators` in `today.json` |
 | Every deploy | Pinterest feed (products, reel covers, size meter) | `/likelink/pins.xml` (the owner's Pinterest auto-publish reads it) |
 | After a code push | IndexNow → Bing & co. | `scripts/indexnow.mjs` |
@@ -55,7 +56,7 @@ New formulas go into `dropHooks` (src/lib/growth/dailyDrop.js) with a test in `t
 
 ## Connecting the networks (owner steps — never create accounts for her)
 
-- **TikTok**: she opens the account (phone/email). Auto-posting needs a TikTok developer app with the Content Posting API. Until TikTok audits it, posts can only go to her inbox as drafts or as private posts, so say that plainly. Build the adapter only when `TIKTOK_CLIENT_KEY`/secret exist as repository secrets.
+- **TikTok**: see the `tiktok-growth` skill. She opens the account (phone/email); the TikTok page gives her the bio, link and profile photo. Auto-posting needs a TikTok developer app with the Content Posting API. Until TikTok audits it, posts can only go to her inbox as drafts or as private posts, so say that plainly. Build the adapter only when `TIKTOK_CLIENT_KEY`/secret exist as repository secrets.
 - **Instagram**: `IG_USER_ID` + `IG_ACCESS_TOKEN` secrets turn on the comment bot and `op=instagram`.
 - **Pinterest**: business account → auto-publish from RSS → `https://hen63165-dotcom.github.io/likelink/pins.xml`.
 - **Google**: Search Console → HTML tag. She sends the code (it is not secret) and it goes into `index.html`.
