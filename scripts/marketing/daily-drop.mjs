@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "../prerender-products.mjs";
 import { buildDrop, pickProduct } from "../../src/lib/growth/dailyDrop.js";
+import { buildCreatorPost } from "../../src/lib/growth/recruit.js";
 import { parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { currentMoment } from "../../src/lib/moments.js";
 
@@ -39,8 +40,23 @@ function copyField(label, text, rows = 4) {
   return `<label class="f"><span>${esc(label)}</span><textarea readonly rows="${rows}">${esc(text)}</textarea><button type="button" class="copy">העתקה</button></label>`;
 }
 
+/** Today's creator-recruitment post (recruit.js), from the owner's own account. */
+function creatorBlock(c) {
+  const p = c.posts;
+  return block("פוסט גיוס יוצרות להיום", [
+    `<p class="note">מהחשבון שלך, בלי מוצר: מזמין יוצרות לפתוח דף ב־LikeLink2. כל רשת עם קישור משלה ל־/join, כדי לראות מאיפה מגיעות ההרשמות.</p>`,
+    copyField("טקסט על המסך (אינסטגרם / טיקטוק)", p.instagram.onScreen.join("\n"), 1),
+    copyField("כיתוב לאינסטגרם", p.instagram.caption, 9),
+    copyField("קישור לביו באינסטגרם", p.instagram.bioLink, 1),
+    copyField("כיתוב לטיקטוק", p.tiktok.caption, 6),
+    copyField("קישור לביו בטיקטוק", p.tiktok.bioLink, 1),
+    copyField("וואטסאפ", p.whatsapp.text, 5),
+    copyField("פייסבוק", p.facebook.text, 7),
+  ]);
+}
+
 /** The page: plain HTML, no app bundle, works on a phone. */
-export function dropPage(d, { trends = [] } = {}) {
+export function dropPage(d, { trends = [], creators = null } = {}) {
   const p = d.posts;
   const wa = `https://wa.me/?text=${encodeURIComponent(p.whatsapp.text)}`;
   const tg = `https://t.me/share/url?url=${encodeURIComponent(d.product.link)}&text=${encodeURIComponent(p.telegram.text)}`;
@@ -80,6 +96,7 @@ ${block("וואטסאפ וטלגרם", [copyField("וואטסאפ (סטטוס א
 ${block("פייסבוק", [copyField("פוסט", p.facebook.text, 7)])}
 ${block("סטורי", [copyField("סקר בסטורי", p.story.poll, 1), copyField("קישור לסטיקר", p.story.link, 1)])}
 ${block("פתיחות נוספות לנסות", [`<ul>${d.hooks.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>`])}
+${creators?.safe ? creatorBlock(creators) : ""}
 ${hot ? block("מה חם היום בחיפושים בישראל", [`<ul>${hot}</ul><p class="note">מקור: Google Trends. נכנס לפוסט רק כשמתאים באמת למוצר.</p>`]) : ""}
 <p class="note">כל הטקסטים נבדקים: בלי מחירים שמתיישנים, בלי „רק היום” ו„נשארו אחרונים”, בלי ביקורות או מכירות מומצאות, ועם #פרסומת בהתחלה.</p>
 </main>
@@ -99,10 +116,11 @@ export async function writeDailyDrop({ dist = "dist", now = Date.now(), fetchImp
   const pick = pickProduct({ products, reels, trends, moment, now });
   if (!pick) return { written: false, reason: "no product with a video" };
   const drop = buildDrop({ ...pick, moment, now });
+  const creators = buildCreatorPost({ now });
   const out = join(dist, "drop");
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, "index.html"), dropPage(drop, { trends }));
-  writeFileSync(join(out, "today.json"), `${JSON.stringify({ ...drop, trendsRead: trends.length }, null, 1)}\n`);
+  writeFileSync(join(out, "index.html"), dropPage(drop, { trends, creators }));
+  writeFileSync(join(out, "today.json"), `${JSON.stringify({ ...drop, creators, trendsRead: trends.length }, null, 1)}\n`);
   return { written: true, product: drop.product.id, reason: drop.reason, trends: trends.length };
 }
 

@@ -22,6 +22,8 @@ import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { SIZE_PAGE } from "../src/lib/sizeTool.js";
 import { GUIDE } from "../src/lib/guide.js";
+import { JOIN_PATH, JOIN_SEO } from "../src/lib/growth/join.js";
+import { INDEX_ROBOTS } from "../src/constants/seo.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -58,7 +60,7 @@ export function productHead(shell, seo, alt = "") {
 export function pageHead(shell, { title, description, canonical, jsonLd = null }) {
   let html = shell.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`);
   html = setMeta(html, "name", "description", description);
-  html = setMeta(html, "name", "robots", "index,follow");
+  html = setMeta(html, "name", "robots", INDEX_ROBOTS);
   html = html.replace(/<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${esc(canonical)}" />`);
   html = setMeta(html, "property", "og:type", "website");
   html = setMeta(html, "property", "og:url", canonical);
@@ -83,6 +85,12 @@ export function sectionPages(origin = PRODUCTION_ORIGIN) {
         { "@context": "https://schema.org", "@type": "WebApplication", name: "המודד של לונה", url: sizeUrl, applicationCategory: "UtilitiesApplication", operatingSystem: "Any", inLanguage: "he", description: SIZE_PAGE.seoDescription, offers: { "@type": "Offer", price: "0", priceCurrency: "ILS" } },
         { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: SIZE_PAGE.faq.map((f) => ({ "@type": "Question", name: f.q.he, acceptedAnswer: { "@type": "Answer", text: f.a.he } })) },
       ],
+    },
+    {
+      path: JOIN_PATH,
+      title: `${JOIN_SEO.title} | LikeLink2`,
+      description: JOIN_SEO.description,
+      canonical: `${origin}${JOIN_PATH}`,
     },
     {
       path: "/guide",
@@ -138,7 +146,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);
-  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/pricing", "/legal",
+  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/join", "/pricing", "/legal",
     ...creators.map((c) => `/u/${c.slug}`), ...products.map(({ product }) => `/p/${product.id}`)];
   writeFileSync(join(dist, "sitemap-static.xml"), sitemapXml(origin, paths, today));
   return { pages: products.length, urls: paths.length };

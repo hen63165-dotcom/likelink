@@ -21,7 +21,10 @@ export const LOOK_SOURCE_LABEL = Object.freeze({
  * necklace; its bracelet is too small in the frame for a clean crop.)
  */
 export const LOOKS = Object.freeze({
-  "p-live-03": Object.freeze({ at: 3.5, crop: "1080:1350:0:285", source: "seller_video" }),
+  // The opening flat lay (the bracelets laid out on a plain background), sharpened
+  // lightly: the owner found the earlier frame (gloves, crumpled cloth) not
+  // professional (2026-10-15). The store gallery could not be read (CAPTCHA).
+  "p-live-03": Object.freeze({ at: 0.2, crop: "1000:1250:50:300", sharpen: true, source: "seller_video" }),
   "p-live-04": Object.freeze({ at: 2.5, crop: "1080:1350:0:285", source: "seller_video" }),
   "p-live-05": Object.freeze({ at: 2.5, crop: "1080:1350:0:330", source: "seller_video" }),
 });

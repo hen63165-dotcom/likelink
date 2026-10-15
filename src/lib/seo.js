@@ -7,6 +7,7 @@
  */
 
 import { PRODUCTION_ORIGIN } from "../constants/domain.js";
+import { INDEX_ROBOTS } from "../constants/seo.js";
 
 /**
  * Canonical public origin for every emitted public URL.
@@ -25,7 +26,7 @@ export function updatePageSEO(options) {
     url,
     type = "website",
     locale = "he_IL",
-    robots = "index,follow",
+    robots = INDEX_ROBOTS,
     jsonLd = null,
   } = options || {};
 
@@ -127,7 +128,7 @@ export function getCreatorSEO(creator, products = []) {
     image: creator?.avatar || products[0]?.image || `${PUBLIC_ORIGIN}/icons/icon-512.webp`,
     url,
     type: "profile",
-    robots: "index,follow",
+    robots: INDEX_ROBOTS,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "ProfilePage",
@@ -160,7 +161,7 @@ export function getProductSEO(product, owner = null) {
     image: product.image || `${PUBLIC_ORIGIN}/icons/icon-512.webp`,
     url,
     type: "product",
-    robots: "index,follow",
+    robots: INDEX_ROBOTS,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "Product",
@@ -191,14 +192,14 @@ export function getDefaultSEO(page = "home") {
         "גלו מוצרים דרך אנשים: יוצרים, אוספים, סרטונים וטרנדים — עם מחיר אמיתי, חנות ברורה וגילוי נאות. ויוצרים בונים כאן עסק אמיתי מה־Studio.",
       type: "website",
       url: `${PUBLIC_ORIGIN}/`,
-      robots: "index,follow",
+      robots: INDEX_ROBOTS,
     },
     feed: {
       title: "פיד מוצרים | לייקלינק",
       description: "גלו את המוצרים הכי חמים באינטרנט — מופעל על ידי יוצרים ישראליים.",
       type: "website",
       url: `${PUBLIC_ORIGIN}/feed`,
-      robots: "index,follow",
+      robots: INDEX_ROBOTS,
     },
     studio: {
       title: "סטודיו מכירה | לייקלינק",

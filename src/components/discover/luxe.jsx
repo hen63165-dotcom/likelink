@@ -242,7 +242,7 @@ function Creators() {
         <h2 id="h-creators" className="lx-luxe-band-title">{L("הטעם שלך יכול להיות עסק.", "Your taste can be a business.")}</h2>
         <p className="lx-luxe-lead">{L("עמוד אישי עם המוצרים והסרטונים שלך, קישור אחד לשתף, וכלים ליצירת תוכן עם סימון כן של מה שנוצר במחשב.", "Your own page with your products and videos, one link to share, and content tools that honestly label what a computer made.")}</p>
         <div className="lx-luxe-ctas">
-          <Go to="/studio" className="lx-luxe-btn lx-luxe-btn-white">{L("ל־Studio", "Open the Studio")}</Go>
+          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-white">{L("דף יוצרת בחינם", "A free creator page")}</Go>
           <Go to="/merchants" className="lx-luxe-btn lx-luxe-btn-ghost">{L("לסוחרים", "For merchants")}</Go>
         </div>
       </div>

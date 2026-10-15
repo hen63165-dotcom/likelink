@@ -8,6 +8,7 @@ import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js"
 import { updatePageSEO, getDefaultSEO } from "../../lib/seo.js";
 import ShareBar from "./ShareBar";
 import { withBase } from "../../lib/basePath.js";
+import { INDEX_ROBOTS } from "../../constants/seo.js";
 
 const FLOW = [
   { icon: Store, t: "מוצר", d: "מוצר אמיתי עם קישור ובעלות" },
@@ -27,7 +28,7 @@ export default function MerchantAcquisition({ category = null, navigate }) {
 
   useEffect(() => {
     trackSiteEvent("merchant_landing_view", { page: path });
-    updatePageSEO({ ...getDefaultSEO("home"), title: category ? `סוחרי ${category} | לייקלינק` : "יש לך מוצרים? הצטרפו כסוחרים | לייקלינק", description: "הפכו מוצרים אמיתיים לתגלית, תוכן והזדמנויות מדידה בלייקלינק — בלי להבטיח תוצאות.", url: publicUrl(path), robots: "index,follow", jsonLd: { "@context": "https://schema.org", "@type": "WebPage", name: "LikeLink for merchants", url: publicUrl(path) } });
+    updatePageSEO({ ...getDefaultSEO("home"), title: category ? `סוחרי ${category} | לייקלינק` : "יש לך מוצרים? הצטרפו כסוחרים | לייקלינק", description: "הפכו מוצרים אמיתיים לתגלית, תוכן והזדמנויות מדידה בלייקלינק — בלי להבטיח תוצאות.", url: publicUrl(path), robots: INDEX_ROBOTS, jsonLd: { "@context": "https://schema.org", "@type": "WebPage", name: "LikeLink for merchants", url: publicUrl(path) } });
     return () => updatePageSEO(getDefaultSEO("home"));
   }, [path, category]);
   function openStudio() { trackAcquisition("merchant_cta_click", "פתחת Studio כסוחר", { page: path }); trackSiteEvent("studio_opened", { page: path }); navigate("/studio"); }

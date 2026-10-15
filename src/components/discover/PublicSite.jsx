@@ -5,6 +5,8 @@ import React, { useEffect } from "react";
 import { NavCtx, useGraph, useL } from "./kit";
 import { PublicShell } from "./PublicShell";
 import { StatusPage } from "./status";
+import { JoinPage } from "./join";
+import { JOIN_PATH, JOIN_SEO } from "../../lib/growth/join.js";
 import {
   CollectionsPage,
   CreatorPage,
@@ -26,6 +28,7 @@ import { categoryName, findCollection, findCreator } from "../../lib/publicDisco
 import { getCreatorSEO, getDefaultSEO, getProductSEO, updatePageSEO } from "../../lib/seo.js";
 import { publicUrl } from "../../lib/acquisition.js";
 import { SIZE_PAGE } from "../../lib/sizeTool.js";
+import { INDEX_ROBOTS } from "../../constants/seo.js";
 
 export const PUBLIC_ROUTE_TYPES = Object.freeze([
   "landing",
@@ -45,7 +48,7 @@ export const PUBLIC_ROUTE_TYPES = Object.freeze([
 function pageSEO(route, graph, lang) {
   const he = lang === "he";
   const base = getDefaultSEO("home");
-  const page = (path, title, description, extra = {}) => ({ ...base, title: `${title} | LikeLink2`, description, url: publicUrl(path), robots: "index,follow", ...extra });
+  const page = (path, title, description, extra = {}) => ({ ...base, title: `${title} | LikeLink2`, description, url: publicUrl(path), robots: INDEX_ROBOTS, ...extra });
   switch (route.type) {
     case "landing":
       return base;
@@ -84,6 +87,8 @@ function pageSEO(route, graph, lang) {
       return page("/size", he ? SIZE_PAGE.seoTitle : "Ring and bracelet size meter, free, on your screen", SIZE_PAGE.seoDescription);
     case "status":
       return { ...page("/status", he ? "מצב האתר ומה כל תווית אומרת" : "Site status and what each label means", "מה נבדק בקטלוג, מתי, ומה עוד חסר: קישורים, מחירים, התאמת תמונות וסרטונים למוצרים."), robots: "noindex,follow" };
+    case "join":
+      return page(JOIN_PATH, he ? JOIN_SEO.title : "A creator page on LikeLink2: your link in bio, as a small shop", JOIN_SEO.description);
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -155,6 +160,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "status":
       page = <StatusPage graph={graph} />;
+      break;
+    case "join":
+      page = <JoinPage graph={graph} />;
       break;
     case "search":
       page = <SearchPage key={route.nav || "search"} graph={graph} />;

@@ -10,6 +10,7 @@ import {
 } from "../googleFeed.js";
 import { isPublicCatalogProduct } from "../cloud/catalog.js";
 import { productMediaTruth, MEDIA_TRUTH } from "./mediaTruth.js";
+import { INDEX_ROBOTS, isIndexable } from "../../constants/seo.js";
 
 const VIDEO_LABEL_HE = { [MEDIA_TRUTH.SYNTHETIC_ANIMATION]: "אנימציה ממוחשבת של המוצר — לא צילום", [MEDIA_TRUTH.REAL_VIDEO]: "סרטון של המוצר" };
 
@@ -150,7 +151,7 @@ export function buildProductSeo(c) {
     title,
     description,
     canonical: url,
-    robots: c.status === "approved" && c.creator ? "index,follow" : "noindex,nofollow",
+    robots: c.status === "approved" && c.creator ? INDEX_ROBOTS : "noindex,nofollow",
     og: { title, description, image: c.image || `${c.origin}/icons/icon-512.webp`, url, type: "product", ...(c.video ? { video: { url: c.video.url, type: c.video.type, width: 720, height: 1280 } } : {}) },
     jsonLd,
     provenance: { productId: c.id, fingerprint: c.fingerprint },
@@ -231,7 +232,7 @@ export function auditSeo(c, seo, { duplicateTitle = false, inSitemap = false } =
     { id: "title", he: "כותרת עמוד", ok: seo.title.length >= 15 && seo.title.length <= 70, evidence: `${seo.title.length} תווים` },
     { id: "description", he: "תיאור העמוד בתוצאות החיפוש", ok: seo.description.length >= 50 && seo.description.length <= 160, evidence: `${seo.description.length} תווים` },
     { id: "canonical", he: "כתובת קנונית", ok: seo.canonical.startsWith(`${c.origin}/p/`), evidence: seo.canonical },
-    { id: "indexable", he: "פתוח לאינדוקס", ok: seo.robots === "index,follow", evidence: seo.robots },
+    { id: "indexable", he: "פתוח לאינדוקס", ok: isIndexable(seo.robots), evidence: seo.robots },
     { id: "structured_data", he: "נתונים מובנים (Product)", ok: Boolean(seo.jsonLd && seo.jsonLd.name && seo.jsonLd.image && seo.jsonLd.offers), evidence: seo.jsonLd ? Object.keys(seo.jsonLd).filter((k) => !k.startsWith("@")).join(", ") : "אין" },
     { id: "open_graph", he: "תצוגה בשיתוף (Open Graph)", ok: Boolean(c.image && seo.og.title && seo.og.description), evidence: c.image ? "תמונת מוצר אמיתית" : "אין תמונת מוצר — תמונת ברירת מחדל" },
     { id: "unique_title", he: "כותרת ייחודית", ok: !duplicateTitle, evidence: duplicateTitle ? "כותרת זהה למוצר אחר" : "ייחודית בקטלוג" },

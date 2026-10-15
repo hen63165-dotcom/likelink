@@ -11,15 +11,16 @@
 import { LEGAL_DOCS, LEGAL_VERSION, LEGAL_LAST_UPDATED, legalPath } from "./catalog.js";
 import { COOLING_OFF_DAYS, CANCEL_FEE_CAP_ILS, CANCEL_EFFECT_BUSINESS_DAYS } from "../billing/cancellation.js";
 import { PLANS } from "../plans.js";
+import { CONTACT_EMAIL } from "../../constants/contact.js";
 
 const OWNER = {
   name: "בעלת האתר LikeLink",
   id: "שפרטי הזיהוי שלה יימסרו לפי דרישה כדין בפנייה בדוא\"ל",
   address: "הכתובת שתימסר לפי דרישה כדין בפנייה בדוא\"ל",
-  email: "hen63165@gmail.com",
+  email: CONTACT_EMAIL,
   phone: "(פניות בדוא\"ל בלבד)",
   court: "מחוז מרכז",
-  a11y: "רכזת הנגישות של LikeLink · דוא\"ל: hen63165@gmail.com",
+  a11y: `רכזת הנגישות של LikeLink · דוא"ל: ${CONTACT_EMAIL}`,
 };
 const L = (slug, text) => `<a href="${legalPath(slug)}">${text}</a>`;
 const S = PLANS.STARTER;
