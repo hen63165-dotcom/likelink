@@ -66,6 +66,7 @@ test("every clean image ships with the site, is a real JPEG and is named as the 
   assert.doesNotMatch(lookLabel("seller_video"), /אמיתי|UGC/);
   const args = frameArgs({ at: 2.5, crop: "1080:1350:0:285" }, "in.mp4", "out.jpg");
   assert.ok(args.includes("crop=1080:1350:0:285,scale=900:1125:flags=lanczos"));
+  assert.ok(frameArgs({ at: 0.2, crop: "1000:1250:50:300", sharpen: true }, "in.mp4", "out.jpg").includes("crop=1000:1250:50:300,scale=900:1125:flags=lanczos,unsharp=5:5:0.6"));
 });
 
 test("the reels feed is read from the site's own address first, then GitHub Pages", async () => {

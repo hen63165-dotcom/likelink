@@ -13,9 +13,10 @@ import { LOOKS, lookFile } from "../../src/lib/looks.js";
 
 const RELEASE = "https://github.com/hen63165-dotcom/likelink/releases/download/reels";
 
-/** ffmpeg arguments for one frame: seek, crop, scale to 900×1125. */
-export function frameArgs({ at, crop }, input, output) {
-  return ["-v", "error", "-y", "-ss", String(at), "-i", input, "-frames:v", "1", "-vf", `crop=${crop},scale=900:1125:flags=lanczos`, "-q:v", "3", output];
+/** ffmpeg arguments for one frame: seek, crop, scale to 900×1125 (a light unsharp when the spec asks). */
+export function frameArgs({ at, crop, sharpen = false }, input, output) {
+  const vf = `crop=${crop},scale=900:1125:flags=lanczos${sharpen ? ",unsharp=5:5:0.6" : ""}`;
+  return ["-v", "error", "-y", "-ss", String(at), "-i", input, "-frames:v", "1", "-vf", vf, "-q:v", "3", output];
 }
 
 /** Every frame to cut: [productId, spec, output file name]. */
