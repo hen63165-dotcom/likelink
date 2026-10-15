@@ -10,6 +10,9 @@
 // Server kv helpers MERGE on read (so ownership checks keep seeing the email)
 // and SPLIT on write. A private value is only ever replaced by a non-empty
 // value: a client that never loaded its private fields cannot erase them.
+// To really remove one (e.g. the creator's last affiliate account), the
+// record names it in CLEAR_PRIVATE. Only the record's owner can send that: the
+// write policy keeps every other creator's stored record as it was.
 //
 // Isomorphic and dependency-free (browser + serverless).
 
@@ -25,6 +28,22 @@ export const PRIVATE_MARKETER_FIELDS = Object.freeze([
   "email", "payPalEmail", "paypalEmail", "bankDetails", "paymentNote",
   "iban", "bankAccount", "payoutDetails", "payoutEmail", "phone",
 ]);
+
+/** A record field listing private fields its owner asked to remove. Never stored. */
+export const CLEAR_PRIVATE = "_clearPrivate";
+
+/** The private fields a record asks to remove (only real private field names). */
+export function clearedFieldsOf(m) {
+  if (!isObj(m) || !Array.isArray(m[CLEAR_PRIVATE])) return [];
+  return m[CLEAR_PRIVATE].filter((f) => PRIVATE_MARKETER_FIELDS.includes(f));
+}
+
+/** The record without its removal request (what a client keeps after the write). */
+export function withoutClearRequest(m) {
+  if (!isObj(m) || !(CLEAR_PRIVATE in m)) return m;
+  const { [CLEAR_PRIVATE]: _drop, ...rest } = m;
+  return rest;
+}
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const toArr = (v) => (Array.isArray(v) ? v : []);
@@ -52,6 +71,7 @@ export function publicMarketer(m) {
   if (!isObj(m)) return m;
   const out = { ...m };
   for (const f of PRIVATE_MARKETER_FIELDS) delete out[f];
+  delete out[CLEAR_PRIVATE];
   return out;
 }
 
@@ -60,6 +80,8 @@ export function privateFieldsOf(m) {
   const out = {};
   if (!isObj(m)) return out;
   for (const f of PRIVATE_MARKETER_FIELDS) if (hasValue(m[f])) out[f] = m[f];
+  const cleared = clearedFieldsOf(m).filter((f) => !hasValue(m[f]));
+  if (cleared.length) out[CLEAR_PRIVATE] = cleared;
   return out;
 }
 
@@ -89,8 +111,9 @@ export function mergeMarketers(publicList, privateById) {
 
 /**
  * Merge new private fields into the stored map for the ids that still exist.
- * An empty incoming value never erases a stored one; ids no longer in the
- * public list are dropped (their creator was removed).
+ * An empty incoming value never erases a stored one — only a field the record
+ * names in CLEAR_PRIVATE is removed. Ids no longer in the public list are
+ * dropped (their creator was removed).
  */
 export function mergePrivateMaps(stored, incoming, keepIds) {
   const s = isObj(parseValue(stored)) ? parseValue(stored) : {};
@@ -98,7 +121,10 @@ export function mergePrivateMaps(stored, incoming, keepIds) {
   const out = {};
   for (const id of keepIds) {
     const base = isObj(s[id]) ? { ...s[id] } : {};
-    for (const [f, v] of Object.entries(isObj(inc[id]) ? inc[id] : {})) if (hasValue(v)) base[f] = v;
+    const next = isObj(inc[id]) ? inc[id] : {};
+    for (const f of clearedFieldsOf(next)) if (!hasValue(next[f])) delete base[f];
+    for (const [f, v] of Object.entries(next)) if (f !== CLEAR_PRIVATE && hasValue(v)) base[f] = v;
+    delete base[CLEAR_PRIVATE];
     if (Object.keys(base).length) out[id] = base;
   }
   return out;

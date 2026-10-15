@@ -12,8 +12,10 @@ import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
 import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
 import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
+import { SOCIAL_KEYS, isPublicSocialUrl } from "../../lib/publicDiscovery.js";
 
-const SOCIAL_KEYS = ["instagram", "tiktok", "youtube", "facebook", "x"];
+// A link the public creator page will really show (the same rule as pickSocialLinks).
+const shownSocial = (v) => (isPublicSocialUrl(v) ? safeHref(v) : "");
 
 export default function StorefrontDesign({ onNavigate }) {
   const { lang } = useI18n();
@@ -44,7 +46,7 @@ export default function StorefrontDesign({ onNavigate }) {
     if (form.image && !isSafeImageUrl(form.image)) return setErr(he ? "כתובת התמונה לא תקינה." : "The image address is not valid.");
     for (const k of SOCIAL_KEYS) {
       const v = String(form.socials[k] || "").trim();
-      if (v && !safeHref(v)) return setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
+      if (v && !shownSocial(v)) return setErr(he ? `הכתובת של ${k} לא תקינה — אפשר להשאיר ריק.` : `The ${k} address is not valid — or leave it empty.`);
     }
     setSaving(true);
     try {
@@ -185,10 +187,10 @@ export default function StorefrontDesign({ onNavigate }) {
               {mine.length} {he ? "מוצרים" : "products"} · {published.length} {he ? "פורסמו" : "published"}
             </p>
             {form.bio && <p className="mt-1.5 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>{form.bio}</p>}
-            {SOCIAL_KEYS.filter((k) => safeHref(form.socials[k])).length > 0 && (
+            {SOCIAL_KEYS.filter((k) => shownSocial(form.socials[k])).length > 0 && (
               <p className="mt-1.5 flex flex-wrap gap-2 text-[11px]" style={{ color: "var(--accent)" }}>
-                {SOCIAL_KEYS.filter((k) => safeHref(form.socials[k])).map((k) => (
-                  <a key={k} href={safeHref(form.socials[k])} target="_blank" rel="nofollow noopener noreferrer" className="underline">{k}</a>
+                {SOCIAL_KEYS.filter((k) => shownSocial(form.socials[k])).map((k) => (
+                  <a key={k} href={shownSocial(form.socials[k])} target="_blank" rel="nofollow noopener noreferrer" className="underline">{k}</a>
                 ))}
               </p>
             )}

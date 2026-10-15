@@ -19,7 +19,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { validateAffiliateUrl } from "../src/lib/affiliateLink.js";
-import { publicMarketer, privateFieldsOf, splitMarketers, PRIVATE_MARKETER_FIELDS } from "../src/lib/cloud/marketerPrivacy.js";
+import {
+  publicMarketer, privateFieldsOf, splitMarketers, mergePrivateMaps, createPrivateKv,
+  PRIVATE_MARKETER_FIELDS, CLEAR_PRIVATE, MARKETERS_KEY, PRIVATE_MARKETERS_KEY,
+} from "../src/lib/cloud/marketerPrivacy.js";
+import { isPublicSocialUrl, pickSocialLinks } from "../src/lib/publicDiscovery.js";
 import { isSafePreviewSrc, safeImageSrc, safeHref } from "../src/lib/safeMedia.js";
 import { safePreviewSrc } from "../src/lib/uploadImage.js";
 
@@ -159,4 +163,55 @@ test("previews only render safe addresses", () => {
     // …and no typed address straight into a link either.
     assert.doesNotMatch(src, /href=\{form\.socials\[k\]\}/, f);
   }
+});
+
+test("removing the last affiliate account really removes it (owner-only clear request)", async () => {
+  const acct = [{ id: "a1", network: "aliexpress", label: "main", trackingId: "t1" }];
+  // An empty list alone keeps the stored value (a client that never loaded it cannot erase it)…
+  assert.deepEqual(mergePrivateMaps({ m1: { affiliateAccounts: acct } }, { m1: {} }, ["m1"]).m1.affiliateAccounts, acct);
+  // …a clear request removes it, and is never stored.
+  const cleared = privateFieldsOf({ id: "m1", affiliateAccounts: [], [CLEAR_PRIVATE]: ["affiliateAccounts", "notAField"] });
+  assert.deepEqual(cleared, { [CLEAR_PRIVATE]: ["affiliateAccounts"] });
+  const merged = mergePrivateMaps({ m1: { affiliateAccounts: acct, payPalEmail: "p@x.test" } }, { m1: cleared }, ["m1"]);
+  assert.deepEqual(merged, { m1: { payPalEmail: "p@x.test" } });
+  // A clear request next to a new value keeps the new value.
+  const both = privateFieldsOf({ id: "m1", affiliateAccounts: acct, [CLEAR_PRIVATE]: ["affiliateAccounts"] });
+  assert.deepEqual(mergePrivateMaps({}, { m1: both }, ["m1"]).m1, { affiliateAccounts: acct });
+  // The request never reaches the public row.
+  assert.equal(CLEAR_PRIVATE in publicMarketer({ id: "m1", [CLEAR_PRIVATE]: ["affiliateAccounts"] }), false);
+
+  // End to end through the server's kv wrapper.
+  const db = {
+    [MARKETERS_KEY]: JSON.stringify([{ id: "m1", name: "Studio" }]),
+    [PRIVATE_MARKETERS_KEY]: JSON.stringify({ m1: { email: "o@x.test", affiliateAccounts: acct } }),
+  };
+  const kv = createPrivateKv({
+    get: async (k, fb) => (k in db ? JSON.parse(db[k]) : fb),
+    set: async (k, v) => { db[k] = JSON.stringify(v); },
+  });
+  await kv.set(MARKETERS_KEY, [{ id: "m1", name: "Studio", email: "o@x.test", affiliateAccounts: [], [CLEAR_PRIVATE]: ["affiliateAccounts"] }]);
+  assert.deepEqual(JSON.parse(db[PRIVATE_MARKETERS_KEY]), { m1: { email: "o@x.test" } });
+  assert.equal(db[MARKETERS_KEY].includes(CLEAR_PRIVATE), false);
+
+  // The Studio sends the request only when the list becomes empty, and the context never keeps it.
+  const ui = read("src/components/studio/AffiliateAccounts.jsx");
+  assert.match(ui, /\[CLEAR_PRIVATE\]: \["affiliateAccounts"\]/);
+  assert.match(read("src/context/MarketplaceContext.jsx"), /setMarketers\(next\.map\(withoutClearRequest\)\)/);
+});
+
+test("the storefront editor accepts only social links the public page shows", () => {
+  assert.equal(isPublicSocialUrl("https://instagram.com/me"), true);
+  assert.equal(isPublicSocialUrl("https://instagram"), false);
+  assert.equal(isPublicSocialUrl("javascript:alert(1)"), false);
+  assert.deepEqual(pickSocialLinks({ instagram: "https://instagram" }), []);
+  const src = read("src/components/studio/StorefrontDesign.jsx");
+  assert.match(src, /isPublicSocialUrl\(v\) \? safeHref\(v\)/);
+  assert.match(src, /if \(v && !shownSocial\(v\)\)/);
+});
+
+test("after a save the add-link form is a new product, never the edited one", () => {
+  const src = read("src/components/studio/AddProductLink.jsx");
+  assert.match(src, /if \(!compact\) resetToNew\(\);\s*setSaved\(/);
+  // An edit that found no product is a failed save, not a success.
+  assert.match(src, /result = updated \? \{ id: editingId, status \} : null;/);
 });

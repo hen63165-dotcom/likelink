@@ -14,6 +14,7 @@ import { KeyRound, Plus, Trash2, CircleAlert, Check } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { Button, LabeledInput } from "../ui/index.jsx";
 import { AFFILIATE_NETWORKS, NETWORKS_BY_ID } from "../../lib/affiliateLink.js";
+import { CLEAR_PRIVATE } from "../../lib/cloud/marketerPrivacy.js";
 
 const uid = () => `acc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -76,9 +77,12 @@ export default function AffiliateAccounts({ marketer, onUpdateMarketer, showToas
     setErr("");
     setSaving(true);
     try {
-      await onUpdateMarketer(marketer.id, {
-        affiliateAccounts: accounts.filter((a) => a.id !== id),
-      });
+      const rest = accounts.filter((a) => a.id !== id);
+      // An empty list alone never erases a stored private value, so removing
+      // the last account says so explicitly (marketerPrivacy.js CLEAR_PRIVATE).
+      await onUpdateMarketer(marketer.id, rest.length
+        ? { affiliateAccounts: rest }
+        : { affiliateAccounts: [], [CLEAR_PRIVATE]: ["affiliateAccounts"] });
       showToast?.(he ? "החשבון הוסר" : "Account removed");
     } catch {
       setErr(he ? "ההסרה נכשלה — נסי שוב." : "Removing failed — try again.");

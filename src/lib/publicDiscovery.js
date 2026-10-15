@@ -88,12 +88,17 @@ export function heAnd(a, b) {
  */
 export const SOCIAL_KEYS = Object.freeze(["instagram", "tiktok", "youtube", "facebook", "x"]);
 
+/** A social link the public creator page shows: http(s) with a real host (a dot in it). */
+export function isPublicSocialUrl(raw) {
+  return /^https?:\/\/[^\/\s]+\..+/i.test(String(raw || "").trim());
+}
+
 export function pickSocialLinks(raw) {
   const src = raw && typeof raw === "object" ? raw : {};
   const out = [];
   for (const key of SOCIAL_KEYS) {
     const url = String(src[key] || "").trim();
-    if (/^https?:\/\/[^\/\s]+\..+/i.test(url)) out.push({ key, url });
+    if (isPublicSocialUrl(url)) out.push({ key, url });
   }
   return out;
 }

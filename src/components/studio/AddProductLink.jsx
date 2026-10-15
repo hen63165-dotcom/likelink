@@ -230,7 +230,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
       };
       let result = null;
       if (editingId) {
-        await onUpdateProduct(editingId, {
+        const updated = await onUpdateProduct(editingId, {
           title: fields.title.trim().slice(0, 120),
           description: fields.description.trim().slice(0, 600),
           image: fields.image.trim().slice(0, 4000),
@@ -244,8 +244,8 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
           ...meta,
         });
         const current = (products || []).find((p) => p.id === editingId);
-        if (current && current.status !== status) await onSetStatus(editingId, status);
-        result = { id: editingId, status };
+        if (updated && current && current.status !== status) await onSetStatus(editingId, status);
+        result = updated ? { id: editingId, status } : null;
       } else {
         result = await onAddProduct({ ...fields, ...meta, affiliateUrl: v.url, sourceUrl: v.url, status });
       }
@@ -253,9 +253,12 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
         setErr(he ? "השמירה לא הושלמה. נסי שוב." : "The save did not complete. Try again.");
         return;
       }
-      setSaved({ id: result.id, status: result.status || status });
       onSaved?.(result);
-      if (!compact) setFields(EMPTY_FIELDS);
+      // The form is ready for the next product: no edit stays open, so the next
+      // publish can never overwrite the product just saved. Only the saved
+      // notice stays.
+      if (!compact) resetToNew();
+      setSaved({ id: result.id, status: result.status || status });
     } catch (e) {
       console.error("[AddProductLink] save failed", e);
       setErr(he ? "השמירה נכשלה — בדוקי את החיבור ונסי שוב." : "Saving failed — check your connection and try again.");

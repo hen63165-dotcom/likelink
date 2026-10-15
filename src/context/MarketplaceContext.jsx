@@ -17,6 +17,7 @@ import { useI18n } from "../lib/LangContext";
 import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments.js";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 import { resolveCurrentMarketer, linkMarketer, fetchOwnPrivate } from "../lib/cloud/identity.js";
+import { withoutClearRequest } from "../lib/cloud/marketerPrivacy.js";
 import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard.js";
 
 const MarketplaceContext = createContext(null);
@@ -356,8 +357,10 @@ export function MarketplaceProvider({ children }) {
     showToast._t = setTimeout(() => setToast(null), 2600);
   }, []);
 
+  // A removal request (CLEAR_PRIVATE) goes to the server once; the copy kept
+  // here never carries it, so a later write cannot repeat it.
   const persistMarketers = useCallback(async (next) => {
-    setMarketers(next);
+    setMarketers(next.map(withoutClearRequest));
     await setJSON(K.marketers, next, true);
   }, []);
 
