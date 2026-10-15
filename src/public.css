@@ -1009,14 +1009,13 @@ html body .lx img {
 @media (min-width: 768px) { .lx-top-actions { gap: 10px; margin-inline-start: 0; } }
 .lx-top-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 999px; color: var(--lx-ink); transition: background-color 0.2s; }
 @media (hover: hover) { .lx-top-icon:hover { background: var(--lx-sunk); } }
-@media (min-width: 768px) { .lx-top-phone { display: none; } }
 .lx-top-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding-inline: 18px; border-radius: 999px; font-size: 14px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; transition: opacity 0.2s; }
 @media (hover: hover) { .lx-top-btn:hover { opacity: 0.85; } }
 .lx-top-btn-dark { background: var(--lx-ink); color: var(--lx-paper); }
 .lx-top-btn-line { border: 1.5px solid var(--lx-ink); color: var(--lx-ink); }
 .lx-top-wide { display: none; }
 @media (min-width: 560px) { .lx-top-wide { display: inline-flex; } }
-@media (max-width: 380px) { .lx-top-btn { padding-inline: 14px; } }
+@media (max-width: 380px) { .lx-top-btn { padding-inline: 13px; font-size: 13px; } }
 
 /* ---------- Menu: a white panel under the header (LTK's dropdown) ---------- */
 .lx-dd-scrim { position: fixed; inset: 0; z-index: 1; background: rgba(11, 11, 12, 0.28); animation: lx-dd-fade 0.2s var(--lx-ease); }

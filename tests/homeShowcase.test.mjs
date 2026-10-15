@@ -126,11 +126,13 @@ test("the header is LTK's: search, sign-up and log-in into the Studio's form, an
   const shell = read("src/components/discover/PublicShell.jsx");
   assert.match(shell, /export const STUDIO_SIGNUP = "\/studio\?auth=signup"/);
   assert.match(shell, /export const STUDIO_LOGIN = "\/studio\?auth=login"/);
-  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} className="lx-top-btn lx-top-btn-dark"/);
+  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} className="lx-top-btn lx-top-btn-dark" data-tip=\{authTip\}>\{L\("פתיחת סטודיו"/, "opening a Studio is the header's one black button");
+  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} className="lx-top-btn lx-top-btn-line lx-top-wide"/);
   assert.match(shell, /<HeaderSearch navigate=\{navigate\} \/>/);
   assert.match(shell, /כדי לקנות לא צריך להירשם/, "sign-up is for the creators' Studio, never a condition for buying");
   assert.match(shell, /\{ to: "\/deals", type: "deals", he: "דילים", en: "Deals", sale: true \}/);
-  assert.match(shell, /<Go to="\/join" onClick=\{onClose\} className="lx-dd-cta">/);
+  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} onClick=\{onClose\} className="lx-dd-cta">\{L\("פתיחת סטודיו בחינם"/);
+  assert.match(read("src/components/discover/luxe.jsx"), /<Go to=\{STUDIO_SIGNUP\} className="lx-luxe-btn lx-luxe-btn-dark">/, "the creators panel opens a Studio");
   const entrance = read("src/components/studio/StudioEntrance.jsx");
   assert.match(entrance, /get\("auth"\) === "login" \? "login" : "signup"/, "log-in opens the form on the sign-in tab");
   assert.match(entrance, /initialMode=\{authMode\}/);

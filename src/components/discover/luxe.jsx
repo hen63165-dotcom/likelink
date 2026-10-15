@@ -19,6 +19,7 @@ import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
 import { CreatorAvatar, Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
+import { STUDIO_SIGNUP } from "./PublicShell";
 
 // An image that fails to load leaves its light-blue cell, never a broken-image icon.
 const hideBroken = (e) => e.currentTarget.classList.add("is-broken");
@@ -162,7 +163,12 @@ function Hero({ items, featured, reel }) {
             {L("יוצרים ויוצרות מראים בסרטון את המוצרים שהם בוחרים, ואתם קונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.", "Creators show the products they pick on video, and you buy straight from the original store. No account, no extra cost.")}
           </p>
           <div className="lx-luxe-ctas">
-            <a href="#collection" className="lx-luxe-btn lx-luxe-btn-dark" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
+            {/* No curated product → no #collection on the page: the button opens /products instead. */}
+            {items.length ? (
+              <a href="#collection" className="lx-luxe-btn lx-luxe-btn-dark" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
+            ) : (
+              <Go to="/products" className="lx-luxe-btn lx-luxe-btn-dark">{L("למוצרים", "Shop products")}</Go>
+            )}
             <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-line">{L("ליוצרים", "Creators")}</Go>
           </div>
           <HeroSearch />
@@ -347,8 +353,8 @@ function Creators() {
         <h2 id="h-creators" className="lx-luxe-band-title">{L("הבחירות שלך, בחנות משלך.", "Your picks, in a shop of your own.")}</h2>
         <p className="lx-luxe-lead">{L("עמוד אישי עם המוצרים והסרטונים שלך, קישור אחד לשתף, וכלים ליצירת תוכן עם סימון כן של מה שנוצר במחשב.", "Your own page with your products and videos, one link to share, and content tools that honestly label what a computer made.")}</p>
         <div className="lx-luxe-ctas">
-          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-dark">{L("הצטרפות כיוצר/ת", "Apply to be a creator")}</Go>
-          <Go to="/merchants" className="lx-luxe-btn lx-luxe-btn-line">{L("לסוחרים", "For merchants")}</Go>
+          <Go to={STUDIO_SIGNUP} className="lx-luxe-btn lx-luxe-btn-dark">{L("פתיחת סטודיו בחינם", "Open a free Studio")}</Go>
+          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-line">{L("מה מקבלים בסטודיו?", "What does the Studio give you?")}</Go>
         </div>
       </div>
     </section>

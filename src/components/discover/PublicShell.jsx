@@ -149,6 +149,7 @@ const MENU_PAGES = [
   { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
 ];
 const MENU_TOOLS = [
+  { to: "/search", type: "search", icon: Search, he: "חיפוש", en: "Search" },
   { to: "/size", type: "size", icon: Ruler, he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
   { to: "/guide", type: "guide", icon: BookOpen, he: "המדריך החינמי", en: "The free guide" },
   { to: "/saved", type: "saved", icon: Heart, he: "שמורים", en: "Saved" },
@@ -191,12 +192,12 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
             ))}
           </ul>
           <ul className="lx-dd-list lx-dd-sub">
-            <li><Go to={STUDIO_LOGIN} onClick={onClose} className="lx-dd-link lx-dd-small"><LogIn size={17} aria-hidden="true" /> {L("כניסה", "Log in")}</Go></li>
-            <li><Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-link lx-dd-small"><UserPlus size={17} aria-hidden="true" /> {L("הרשמה", "Sign up")}</Go></li>
+            <li><Go to={STUDIO_LOGIN} onClick={onClose} className="lx-dd-link lx-dd-small"><LogIn size={17} aria-hidden="true" /> {L("כניסה לסטודיו", "Log in to the Studio")}</Go></li>
+            <li><Go to="/join" onClick={onClose} className="lx-dd-link lx-dd-small"><UserPlus size={17} aria-hidden="true" /> {L("מה מקבלים בסטודיו?", "What does the Studio give you?")}</Go></li>
           </ul>
         </nav>
-        <Go to="/join" onClick={onClose} className="lx-dd-cta">{L("הצטרפות כיוצר/ת", "Apply to be a creator")}</Go>
-        <p className="lx-dd-note">{L("ההרשמה והכניסה הן לסטודיו של היוצרים. כדי לקנות לא צריך להירשם.", "Sign-up and log-in are for the creators' Studio. You can shop without an account.")}</p>
+        <Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-cta">{L("פתיחת סטודיו בחינם", "Open a free Studio")}</Go>
+        <p className="lx-dd-note">{L("הסטודיו הוא למי שממליץ על מוצרים. כדי לקנות לא צריך להירשם.", "The Studio is for people who recommend products. You can shop without an account.")}</p>
         <div className="lx-dd-foot">
           <button type="button" className="lx-dd-pill" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
             <Languages size={16} aria-hidden="true" /> {lang === "he" ? "English" : "עברית"}
@@ -217,7 +218,7 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
   const opener = useRef(null);
   const closeMenu = useCallback(() => setMenu(false), []);
   useEffect(() => setMenu(false), [routeType]);
-  const authTip = L("הסטודיו של היוצרים. כדי לקנות לא צריך להירשם.", "The creators' Studio. You can shop without an account.");
+  const authTip = L("הסטודיו של מי שממליץ על מוצרים, בחינם. כדי לקנות לא צריך להירשם.", "The Studio for people who recommend products, free. You can shop without an account.");
 
   return (
     <div className="lx" dir={he ? "rtl" : "ltr"} data-theme={theme}>
@@ -227,9 +228,8 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
           <Logo />
           <HeaderSearch navigate={navigate} />
           <div className="lx-top-actions">
-            <Go to="/search" className="lx-top-icon lx-top-phone" aria-label={L("חיפוש", "Search")}><Search size={20} /></Go>
-            <Go to={STUDIO_SIGNUP} className="lx-top-btn lx-top-btn-line lx-top-wide" data-tip={authTip}>{L("הרשמה", "Sign up")}</Go>
-            <Go to={STUDIO_LOGIN} className="lx-top-btn lx-top-btn-dark" data-tip={authTip}>{L("כניסה", "Log in")}</Go>
+            <Go to={STUDIO_LOGIN} className="lx-top-btn lx-top-btn-line lx-top-wide" data-tip={authTip}>{L("כניסה", "Log in")}</Go>
+            <Go to={STUDIO_SIGNUP} className="lx-top-btn lx-top-btn-dark" data-tip={authTip}>{L("פתיחת סטודיו", "Open a Studio")}</Go>
             <button ref={opener} type="button" className="lx-top-icon" data-notip onClick={() => setMenu((m) => !m)} aria-label={menu ? L("סגירת התפריט", "Close menu") : L("תפריט", "Menu")} aria-expanded={menu} aria-controls="lx-menu">
               {menu ? <X size={22} /> : <Menu size={22} />}
             </button>
