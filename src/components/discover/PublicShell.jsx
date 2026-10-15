@@ -4,7 +4,7 @@
 // and carbon-dark themes follow the device until the visitor picks one. The
 // Studio is a separate, dark surface — the header only links to it.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Compass, Heart, Home, LogIn, Menu, Moon, Play, Ruler, Search, Sun, UserPlus, X, Languages } from "lucide-react";
+import { CirclePlus, CircleUserRound, Compass, Heart, Home, Menu, Moon, Play, Search, Sun, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
 import { PREFERRED_SOURCE, preferredSourceLive } from "../../lib/growth/preferredSource.js";
@@ -140,20 +140,28 @@ function HeaderSearch({ navigate }) {
 // The menu, like LTK's: a white panel under the header with every page in
 // plain words, the deals in colour, sign-in and sign-up, and one clear
 // button for creators. Esc, the ✕ or a tap outside closes it.
-const MENU_PAGES = [
-  { to: "/discover", type: "discover", he: "גילוי", en: "Discover" },
-  { to: "/products", type: "products", he: "מוצרים", en: "Shop" },
-  { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
-  { to: "/creators", type: "creators", he: "יוצרים", en: "Creators" },
-  { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
-  { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
+// The menu, like LTK's on a phone: a white sheet right under the header, big
+// plain rows, the sections with their pages indented under them, the deals in
+// red, then the Studio with round icons. Esc, the ✕ or a tap outside closes it.
+const MENU = [
+  {
+    to: "/discover", type: "discover", he: "גילוי", en: "Discover",
+    subs: [
+      { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
+      { to: "/creators", type: "creators", he: "יוצרים", en: "Creators" },
+      { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
+      { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
+    ],
+  },
+  {
+    to: "/products", type: "products", he: "מוצרים", en: "Shop",
+    subs: [
+      { to: "/size", type: "size", he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
+      { to: "/guide", type: "guide", he: "המדריך: 8 בדיקות לפני שקונים", en: "Guide: 8 checks before you buy" },
+      { to: "/saved", type: "saved", he: "שמורים", en: "Saved" },
+    ],
+  },
   { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
-];
-const MENU_TOOLS = [
-  { to: "/search", type: "search", icon: Search, he: "חיפוש", en: "Search" },
-  { to: "/size", type: "size", icon: Ruler, he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
-  { to: "/guide", type: "guide", icon: BookOpen, he: "המדריך החינמי", en: "The free guide" },
-  { to: "/saved", type: "saved", icon: Heart, he: "שמורים", en: "Saved" },
 ];
 
 function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
@@ -168,10 +176,19 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
     };
     window.addEventListener("keydown", onKey);
     panel.current?.querySelector("a")?.focus();
-    return () => window.removeEventListener("keydown", onKey);
+    // On a phone the sheet is the screen: the page under it stays put.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose, opener]);
   if (!open) return null;
   const label = (n) => (he ? n.he : n.en);
+  const row = (n, cls = "") => (
+    <Go to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className={`lx-dd-link${cls}${n.sale ? " is-sale" : ""}`}>{label(n)}</Go>
+  );
   return (
     <>
       {/* A tap outside closes the menu and lands nowhere else. */}
@@ -179,31 +196,29 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
       <div ref={panel} id="lx-menu" className="lx-dd" role="dialog" aria-label={L("תפריט", "Menu")}>
         <nav aria-label={L("ניווט ראשי", "Main navigation")}>
           <ul className="lx-dd-list">
-            {MENU_PAGES.map((n) => (
+            {MENU.map((n) => (
               <li key={n.to}>
-                <Go to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className={`lx-dd-link${n.sale ? " is-sale" : ""}`}>{label(n)}</Go>
+                {row(n)}
+                {n.subs ? (
+                  <ul className="lx-dd-list">
+                    {n.subs.map((c) => <li key={c.to}>{row(c, " lx-dd-child")}</li>)}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ul>
-          <ul className="lx-dd-list lx-dd-sub">
-            {MENU_TOOLS.map(({ icon: Icon, ...n }) => (
-              <li key={n.to}>
-                <Go to={n.to} onClick={onClose} aria-current={routeType === n.type ? "page" : undefined} className="lx-dd-link lx-dd-small"><Icon size={17} aria-hidden="true" /> {label(n)}</Go>
-              </li>
-            ))}
-          </ul>
-          <ul className="lx-dd-list lx-dd-sub">
-            <li><Go to={STUDIO_LOGIN} onClick={onClose} className="lx-dd-link lx-dd-small"><LogIn size={17} aria-hidden="true" /> {L("כניסה לסטודיו", "Log in to the Studio")}</Go></li>
-            <li><Go to="/join" onClick={onClose} className="lx-dd-link lx-dd-small"><UserPlus size={17} aria-hidden="true" /> {L("מה מקבלים בסטודיו?", "What does the Studio give you?")}</Go></li>
+          <ul className="lx-dd-list lx-dd-account">
+            <li><Go to={STUDIO_LOGIN} onClick={onClose} className="lx-dd-link"><CircleUserRound size={26} strokeWidth={1.5} aria-hidden="true" /> {L("כניסה לסטודיו", "Log in")}</Go></li>
+            <li><Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-link"><CirclePlus size={26} strokeWidth={1.5} aria-hidden="true" /> {L("פתיחת סטודיו בחינם", "Open a free Studio")}</Go></li>
+            <li><Go to="/join" onClick={onClose} className="lx-dd-link">{L("הצטרפות כיוצר/ת", "Apply to be a creator")}</Go></li>
           </ul>
         </nav>
-        <Go to={STUDIO_SIGNUP} onClick={onClose} className="lx-dd-cta">{L("פתיחת סטודיו בחינם", "Open a free Studio")}</Go>
-        <p className="lx-dd-note">{L("הסטודיו הוא למי שממליץ על מוצרים. כדי לקנות לא צריך להירשם.", "The Studio is for people who recommend products. You can shop without an account.")}</p>
+        <p className="lx-dd-note">{L("כדי לקנות לא צריך להירשם. הסטודיו הוא למי שממליץ על מוצרים.", "You can shop without an account. The Studio is for people who recommend products.")}</p>
         <div className="lx-dd-foot">
-          <button type="button" className="lx-dd-pill" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
+          <button type="button" className="lx-dd-text" onClick={() => setLang(lang === "he" ? "en" : "he")} aria-label={lang === "he" ? "Switch to English" : "מעבר לעברית"}>
             <Languages size={16} aria-hidden="true" /> {lang === "he" ? "English" : "עברית"}
           </button>
-          <button type="button" className="lx-dd-pill" onClick={onTheme}>
+          <button type="button" className="lx-dd-text" onClick={onTheme}>
             {theme === "dark" ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />} {theme === "dark" ? L("מצב בהיר", "Light mode") : L("מצב כהה", "Dark mode")}
           </button>
         </div>
@@ -229,10 +244,11 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
           <Logo />
           <HeaderSearch navigate={navigate} />
           <div className="lx-top-actions">
+            <Go to="/search" className="lx-top-round" aria-label={L("חיפוש", "Search")}><Search size={21} strokeWidth={1.75} /></Go>
             <Go to={STUDIO_LOGIN} className="lx-top-btn lx-top-btn-line lx-top-wide" data-tip={authTip}>{L("כניסה", "Log in")}</Go>
             <Go to={STUDIO_SIGNUP} className="lx-top-btn lx-top-btn-dark" data-tip={authTip}>{L("פתיחת סטודיו", "Open a Studio")}</Go>
             <button ref={opener} type="button" className="lx-top-icon" data-notip onClick={() => setMenu((m) => !m)} aria-label={menu ? L("סגירת התפריט", "Close menu") : L("תפריט", "Menu")} aria-expanded={menu} aria-controls="lx-menu">
-              {menu ? <X size={22} /> : <Menu size={22} />}
+              {menu ? <X size={26} strokeWidth={1.5} /> : <Menu size={26} strokeWidth={1.5} />}
             </button>
           </div>
         </div>

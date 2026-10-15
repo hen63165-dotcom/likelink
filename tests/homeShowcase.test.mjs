@@ -131,7 +131,9 @@ test("the header is LTK's: search, sign-up and log-in into the Studio's form, an
   assert.match(shell, /<HeaderSearch navigate=\{navigate\} \/>/);
   assert.match(shell, /כדי לקנות לא צריך להירשם/, "sign-up is for the creators' Studio, never a condition for buying");
   assert.match(shell, /\{ to: "\/deals", type: "deals", he: "דילים", en: "Deals", sale: true \}/);
-  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} onClick=\{onClose\} className="lx-dd-cta">\{L\("פתיחת סטודיו בחינם"/);
+  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} onClick=\{onClose\} className="lx-dd-link"><CirclePlus[^>]*\/> \{L\("פתיחת סטודיו בחינם"/, "the menu opens a Studio, LTK-style with a round icon");
+  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} onClick=\{onClose\} className="lx-dd-link"><CircleUserRound/);
+  assert.match(shell, /subs: \[/, "pages sit indented under their section, like LTK's menu");
   assert.match(read("src/components/discover/luxe.jsx"), /<Go to=\{STUDIO_SIGNUP\} className="lx-luxe-btn lx-luxe-btn-dark">/, "the creators panel opens a Studio");
   const entrance = read("src/components/studio/StudioEntrance.jsx");
   assert.match(entrance, /get\("auth"\) === "login" \? "login" : "signup"/, "log-in opens the form on the sign-in tab");

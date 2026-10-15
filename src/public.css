@@ -1007,49 +1007,73 @@ html body .lx img {
 }
 .lx-top-actions { display: flex; align-items: center; gap: 6px; margin-inline-start: auto; }
 @media (min-width: 768px) { .lx-top-actions { gap: 10px; margin-inline-start: 0; } }
-.lx-top-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 999px; color: var(--lx-ink); transition: background-color 0.2s; }
+.lx-top-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px; color: var(--lx-ink); transition: background-color 0.2s; }
 @media (hover: hover) { .lx-top-icon:hover { background: var(--lx-sunk); } }
-.lx-top-btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding-inline: 18px; border-radius: 999px; font-size: 14px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; transition: opacity 0.2s; }
+/* LTK's round grey search button on phones (the wide search takes over from 768px). */
+.lx-top-round { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px; background: var(--lx-sunk); color: var(--lx-ink); }
+@media (max-width: 379px), (min-width: 768px) { .lx-top-round { display: none; } }
+.lx-top-btn { display: inline-flex; align-items: center; justify-content: center; height: 44px; padding-inline: 16px; border-radius: 8px; font-size: 14.5px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; transition: opacity 0.2s; }
 @media (hover: hover) { .lx-top-btn:hover { opacity: 0.85; } }
 .lx-top-btn-dark { background: var(--lx-ink); color: var(--lx-paper); }
 .lx-top-btn-line { border: 1.5px solid var(--lx-ink); color: var(--lx-ink); }
 .lx-top-wide { display: none; }
 @media (min-width: 560px) { .lx-top-wide { display: inline-flex; } }
-@media (max-width: 380px) { .lx-top-btn { padding-inline: 13px; font-size: 13px; } }
+@media (max-width: 420px) {
+  .lx-top .lx-logo-mark { width: 32px; height: 32px; border-radius: 10px; }
+  .lx-top .lx-logo-mark + span { font-size: 18px !important; }
+  .lx-top-btn { padding-inline: 13px; font-size: 13.5px; }
+}
 
-/* ---------- Menu: a white panel under the header (LTK's dropdown) ---------- */
-.lx-dd-scrim { position: fixed; inset: 0; z-index: 1; background: rgba(11, 11, 12, 0.28); animation: lx-dd-fade 0.2s var(--lx-ease); }
-@media (min-width: 768px) { .lx-dd-scrim { background: transparent; } }
+/* ---------- Menu: LTK's sheet — white, right under the header, big plain rows ---------- */
+.lx-dd-scrim { position: fixed; inset: 0; z-index: 1; background: transparent; }
 .lx-dd {
-  position: absolute;
+  position: fixed;
   z-index: 3;
-  top: calc(100% + 8px);
-  inset-inline: 8px;
-  max-height: calc(100dvh - 88px);
+  top: 64px;
+  inset-inline: 0;
+  bottom: 0;
   overflow-y: auto;
-  padding: 10px 0 16px;
-  border: 1px solid var(--lx-line);
-  border-radius: 18px;
+  overscroll-behavior: contain;
+  padding: 10px 0 calc(28px + env(safe-area-inset-bottom));
   background: var(--lx-surface);
   color: var(--lx-ink);
-  box-shadow: 0 24px 60px -20px rgba(16, 12, 40, 0.35);
-  animation: lx-dd-in 0.2s var(--lx-ease);
+  animation: lx-dd-fade 0.16s var(--lx-ease);
 }
-@media (min-width: 768px) { .lx-dd { inset-inline: auto max(28px, calc((100vw - 1320px) / 2 + 28px)); width: 340px; } }
+@media (min-width: 768px) {
+  .lx-dd {
+    position: absolute;
+    top: calc(100% + 8px);
+    bottom: auto;
+    inset-inline: auto max(28px, calc((100vw - 1320px) / 2 + 28px));
+    width: 360px;
+    max-height: calc(100dvh - 96px);
+    padding: 12px 0 18px;
+    border: 1px solid var(--lx-line);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px -24px rgba(16, 12, 40, 0.35);
+    animation: lx-dd-in 0.18s var(--lx-ease);
+  }
+}
+@media (min-width: 768px) {
+  .lx-dd .lx-dd-link { min-height: 46px; padding-inline: 26px; font-size: 16.5px; }
+  .lx-dd .lx-dd-child { min-height: 42px; padding-inline-start: 48px; font-size: 15.5px; }
+  .lx-dd .lx-dd-note, .lx-dd .lx-dd-foot { margin-inline: 26px; }
+}
 @keyframes lx-dd-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @keyframes lx-dd-fade { from { opacity: 0; } to { opacity: 1; } }
-.lx-dd-list { margin: 0; padding: 4px 0; list-style: none; }
-.lx-dd-sub { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--lx-line); }
-.lx-dd-link { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 10px 22px; font-size: 17px; font-weight: 600; color: var(--lx-ink); }
+.lx-dd-list { margin: 0; padding: 0; list-style: none; }
+.lx-dd-link { display: flex; align-items: center; gap: 14px; min-height: 58px; padding-inline: 30px; font-size: 19px; font-weight: 500; line-height: 1.3; color: var(--lx-ink); }
+.lx-dd-child { min-height: 54px; padding-inline-start: 56px; font-size: 18px; font-weight: 400; }
 .lx .lx-dd-link:focus-visible { outline-offset: -3px; border-radius: 0; }
 @media (hover: hover) { .lx-dd-link:hover { background: var(--lx-sky); } }
-.lx-dd-link[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.lx-dd-link[aria-current="page"] { font-weight: 700; }
 .lx-dd-link.is-sale { color: var(--lx-sale); }
-.lx-dd-small { min-height: 42px; font-size: 15px; font-weight: 500; }
-.lx-dd-cta { display: flex; align-items: center; justify-content: center; height: 50px; margin: 12px 18px 0; border-radius: 999px; background: var(--lx-ink); color: var(--lx-paper); font-size: 15.5px; font-weight: 700; }
-.lx-dd-note { margin: 10px 22px 0; font-size: 12.5px; line-height: 1.55; color: var(--lx-mute); }
-.lx-dd-foot { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 18px 0; }
-.lx-dd-pill { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding-inline: 14px; border: 1px solid var(--lx-line-strong); border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--lx-ink); }
+.lx-dd-account { margin-top: 12px; }
+.lx-dd-account svg { flex-shrink: 0; }
+.lx-dd-note { margin: 14px 30px 0; font-size: 13px; line-height: 1.55; color: var(--lx-mute); }
+.lx-dd-foot { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 30px 0; }
+.lx-dd-text { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; font-size: 14px; font-weight: 500; color: var(--lx-mute); }
+@media (hover: hover) { .lx-dd-text:hover { color: var(--lx-ink); } }
 
 /* ---------- Footer: light blue, black type ---------- */
 .lx .lx-footer { background: var(--lx-sky); color: var(--lx-ink); border-top: 0; }
@@ -1247,7 +1271,7 @@ html body .lx img {
 .lx-luxe-tool .lx-luxe-more { align-self: flex-start; margin-top: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .lx-dd, .lx-dd-scrim { animation: none; }
+  .lx-dd { animation: none; }
   .lx-hv-tile img, .lx-luxe-shot img, .lx-phone-video video, .lx-why-phone { transition: none; }
   .lx-hv-tile:hover img, .lx-luxe-piece:hover .lx-luxe-shot img, .lx-why-item:hover .lx-why-phone { transform: none; }
 }
