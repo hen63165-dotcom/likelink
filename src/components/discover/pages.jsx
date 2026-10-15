@@ -492,6 +492,22 @@ export function CreatorPage({ graph, slug, navigate }) {
               </div>
             </div>
             {creator.bio ? <p className="lx-profile-bio">{creator.bio}</p> : null}
+            {Array.isArray(creator.socials) && creator.socials.length ? (
+              <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={L("רשתות חברתיות", "Social links")}>
+                {creator.socials.map((s) => (
+                  <li key={s.key}>
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="me nofollow noopener noreferrer"
+                      className="lx-chip"
+                    >
+                      {s.key}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-1.5">
               {creator.verified ? <TrustBadge kind="verified" /> : null}
               <TrustBadge kind="attributed" />

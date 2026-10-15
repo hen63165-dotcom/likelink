@@ -82,6 +82,22 @@ export function heAnd(a, b) {
   return `${a} ו${/^\d/.test(String(b)) ? "־" : ""}${b}`;
 }
 
+/**
+ * Whitelisted creator social links: safe http(s) addresses only, always as
+ * an array of { key, url }. Anything else is dropped silently.
+ */
+export const SOCIAL_KEYS = Object.freeze(["instagram", "tiktok", "youtube", "facebook", "x"]);
+
+export function pickSocialLinks(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  const out = [];
+  for (const key of SOCIAL_KEYS) {
+    const url = String(src[key] || "").trim();
+    if (/^https?:\/\/[^\/\s]+\..+/i.test(url)) out.push({ key, url });
+  }
+  return out;
+}
+
 export const CATEGORY_META = Object.freeze({
   Fashion: { he: "אופנה", en: "Fashion", board: { he: "עריכת הסטייל", en: "The Style Edit" } },
   Beauty: { he: "יופי וטיפוח", en: "Beauty", board: { he: "בחירות טיפוח", en: "Beauty Picks" } },
@@ -231,6 +247,8 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
         avatar: /^https?:\/\//i.test(textOf(m.avatar || m.photo || m.image)) ? m.avatar || m.photo || m.image : "",
         color: /^#[0-9a-f]{3,8}$/i.test(textOf(m.color)) ? m.color : "",
         verified: m.verified === true,
+        // Only whitelisted social keys, only safe http(s) URLs — never private fields.
+        socials: pickSocialLinks(m.socialLinks),
         tags: Array.isArray(m.tags) ? m.tags.filter((t) => typeof t === "string") : [],
         productIds: own.map((p) => p.id),
         categories: [...new Set(own.map((p) => p.category).filter(Boolean))],
