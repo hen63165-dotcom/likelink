@@ -103,6 +103,8 @@ test("editing a product really saves the changed affiliate link", () => {
 test("product writes use the latest list (no stale overwrite)", () => {
   const ctx = read("src/context/MarketplaceContext.jsx");
   assert.match(ctx, /typeof next === "function" \? next\(productsRef\.current\) : next/);
+  // …and the cloud writes go out in that same order (an older list never lands last).
+  assert.match(ctx, /productsWrite\.current\.catch\(\(\) => \{\}\)\.then\(\(\) => setJSON\(K\.products, value, true\)\)/);
   // Every caller hands an updater, never a list computed from a stale render.
   assert.doesNotMatch(ctx, /persistProducts\(\s*(products|\[\.\.\.products)/);
   assert.doesNotMatch(ctx, /persistProducts\(products\./);

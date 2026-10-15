@@ -367,13 +367,19 @@ export function MarketplaceProvider({ children }) {
   // Product writes start from the latest list, not the one a render captured:
   // a bulk action, a CSV import or a save right after another save each call
   // these actions in sequence, and a stale copy would erase the earlier writes.
+  // The writes themselves go out one after another, in the same order: each
+  // carries the whole list, so an older list landing last would undo a newer
+  // one. A failed write does not stop the ones after it.
   const productsRef = useRef(products);
   productsRef.current = products;
+  const productsWrite = useRef(Promise.resolve());
   const persistProducts = useCallback(async (next) => {
     const value = typeof next === "function" ? next(productsRef.current) : next;
     productsRef.current = value;
     setProducts(value);
-    await setJSON(K.products, value, true);
+    const write = productsWrite.current.catch(() => {}).then(() => setJSON(K.products, value, true));
+    productsWrite.current = write;
+    await write;
   }, []);
 
   const persistClicks = useCallback(async (next) => {
