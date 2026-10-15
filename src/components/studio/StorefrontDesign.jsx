@@ -185,10 +185,10 @@ export default function StorefrontDesign({ onNavigate }) {
               {mine.length} {he ? "מוצרים" : "products"} · {published.length} {he ? "פורסמו" : "published"}
             </p>
             {form.bio && <p className="mt-1.5 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>{form.bio}</p>}
-            {SOCIAL_KEYS.filter((k) => form.socials[k]).length > 0 && (
+            {SOCIAL_KEYS.filter((k) => safeHref(form.socials[k])).length > 0 && (
               <p className="mt-1.5 flex flex-wrap gap-2 text-[11px]" style={{ color: "var(--accent)" }}>
-                {SOCIAL_KEYS.filter((k) => form.socials[k]).map((k) => (
-                  <a key={k} href={form.socials[k]} target="_blank" rel="nofollow noopener noreferrer" className="underline">{k}</a>
+                {SOCIAL_KEYS.filter((k) => safeHref(form.socials[k])).map((k) => (
+                  <a key={k} href={safeHref(form.socials[k])} target="_blank" rel="nofollow noopener noreferrer" className="underline">{k}</a>
                 ))}
               </p>
             )}

@@ -2,7 +2,7 @@ import { supabase, supabaseConfigured } from "./supabaseClient.js";
 import { fetchOwnPrivate } from "./cloud/identity.js";
 import { MEDIA_BUCKET, newMediaPath, extensionOf, mediaUrl } from "./cloud/mediaStore.js";
 import { PRODUCTION_ORIGIN } from "../constants/domain.js";
-import { isSafePreviewSrc, safeHref } from "./safeMedia.js";
+import { safeImageSrc, safeHref } from "./safeMedia.js";
 
 // Local previews of files this browser just uploaded: the stored object is
 // private until an approved product references it, so the form shows the
@@ -16,8 +16,7 @@ export function mediaPreviewSrc(url) {
 
 /** A preview src that is safe to put in <img src>, else the fallback (rules: safeMedia.js). */
 export function safePreviewSrc(url, fallback = "") {
-  const src = String(mediaPreviewSrc(url) || "");
-  return isSafePreviewSrc(src) ? src : fallback;
+  return safeImageSrc(mediaPreviewSrc(url), fallback);
 }
 
 export { safeHref };

@@ -20,7 +20,7 @@ import { join } from "node:path";
 
 import { validateAffiliateUrl } from "../src/lib/affiliateLink.js";
 import { publicMarketer, privateFieldsOf, splitMarketers, PRIVATE_MARKETER_FIELDS } from "../src/lib/cloud/marketerPrivacy.js";
-import { isSafePreviewSrc, safeHref } from "../src/lib/safeMedia.js";
+import { isSafePreviewSrc, safeImageSrc, safeHref } from "../src/lib/safeMedia.js";
 import { safePreviewSrc } from "../src/lib/uploadImage.js";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -138,7 +138,12 @@ test("previews only render safe addresses", () => {
   assert.equal(safePreviewSrc("javascript:alert(1)", "/fallback.png"), "/fallback.png");
   assert.equal(safePreviewSrc("https://cdn.example.com/a.jpg", "/f.png"), "https://cdn.example.com/a.jpg");
 
+  // The scheme always comes from safeMedia.js; the rest of the address is kept.
+  assert.equal(safeImageSrc("HTTPS://cdn.example.com/A.jpg?x=1"), "https://cdn.example.com/A.jpg?x=1");
+  assert.equal(safeImageSrc("data:image/JPEG;base64,/9j/4AAQ"), "data:image/jpeg;base64,/9j/4AAQ");
+  assert.equal(safeImageSrc("javascript:alert(1)", "/f.png"), "/f.png");
   assert.equal(safeHref(" https://instagram.com/me "), "https://instagram.com/me");
+  assert.equal(safeHref("HTTP://Shop.example/x"), "http://Shop.example/x");
   assert.equal(safeHref("javascript:alert(1)"), "");
   assert.equal(safeHref("instagram.com/me"), "");
 
@@ -146,5 +151,7 @@ test("previews only render safe addresses", () => {
     const src = read(`src/components/studio/${f}`);
     // No raw field rendered straight into an <img src> in these forms.
     assert.doesNotMatch(src, /src=\{(form|fields|preview|p)\.image\}/, f);
+    // …and no typed address straight into a link either.
+    assert.doesNotMatch(src, /href=\{form\.socials\[k\]\}/, f);
   }
 });
