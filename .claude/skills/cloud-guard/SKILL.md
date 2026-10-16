@@ -26,6 +26,21 @@ working while restricted.
   after each run, reels rendered every 3 hours.
 - 2026-10-16: still restricted; the owner chose to move to a fresh free
   project in its own organization (see the runbook).
+- 2026-10-16: moved to `vjitiuirqfysexsxdxqx` (org "LikeLink2"). What the
+  runbook met in practice:
+  - The MCP connector reaches one organization at a time: the owner reconnects
+    it (claude.ai → Connectors → Supabase, choosing the org) between the new
+    project (schema, function, Edge Function) and the old one (the push).
+  - `apply_migration` / `execute_sql` with a `drop` wait for the owner's
+    approval and time out after 60 s. On a fresh database the
+    `drop … if exists` lines are no-ops, so they were left out. Where a later
+    migration replaces a policy the baseline already made, `alter policy`
+    sets the same text.
+  - The import function was `public.likelink_cloud_move(token, kind, rows)`
+    (security definer, anon-callable, sha256 of a one-time token, 48 h). Its
+    `finish` call revoked it from every API role; a call after that got 401.
+    The old database pushed users → identities → kv in batches of about
+    300 KB, then `verify` returned the same kv md5 as the old side.
 
 ## Rules that keep the quota safe
 
