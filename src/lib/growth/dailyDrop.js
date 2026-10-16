@@ -15,6 +15,7 @@
 // otherwise the copy says nothing about trends.
 import { HOOK_FORBIDDEN, buildHookSet, matchTrends, worldOf } from "./likeloop.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
+import { israelDay } from "../moments.js";
 
 export const DROP_AD = "#פרסומת · קישור שותפים";
 // Beyond the hook engine's list: urgency and superlatives that no data backs.
@@ -23,7 +24,7 @@ const LOOK_RANK = { real: 4, seller: 3, talking: 2, still: 1 };
 
 const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
 const firstSentence = (s) => (clean(s).split(/(?<=[.!?])\s/)[0] || "").slice(0, 150);
-const dayIndex = (now) => Math.floor(now / 86_400_000);
+const dayIndex = (now) => israelDay(now).index;
 
 /** A hook is safe when neither rule list matches it. */
 export function safeCopy(text) {
@@ -108,7 +109,7 @@ export const VALUE_LINES = Object.freeze([
 
 /** The whole kit for one day: the posts for each network, ready to paste. */
 export function buildDrop({ product, reel, trend = null, moment = null, reason = "rotation", now = Date.now(), origin = PRODUCTION_ORIGIN }) {
-  const date = new Date(now).toISOString().slice(0, 10);
+  const { date } = israelDay(now);
   const campaign = `daily_drop_${date.replace(/-/g, "")}`;
   const hooks = dropHooks(product, { trend, reel });
   const hook = hooks[0];

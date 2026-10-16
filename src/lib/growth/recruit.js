@@ -13,6 +13,7 @@
 import { DROP_FORBIDDEN } from "./dailyDrop.js";
 import { HOOK_FORBIDDEN } from "./likeloop.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
+import { israelDay } from "../moments.js";
 
 // Promises a recruitment post must never make (on top of the drop rules).
 export const RECRUIT_FORBIDDEN = /(תרוויח|להרוויח|הכנסה|הכנסות|פסיבי|כסף קל|מיליון|אלפי|מאות|יוצרות כבר|מקומות|מוגבל|בלעדי|מובטח|הצלחה מובטחת|\d{2,}\s*(יוצר|משתמש|עוקב))/;
@@ -46,10 +47,6 @@ export const CREATOR_ANGLES = Object.freeze([
   },
 ]);
 
-function dayIndex(now) {
-  return Math.floor(now / 86_400_000);
-}
-
 function link(source, campaign, origin) {
   const u = new URL(`${origin}/join`);
   u.searchParams.set("utm_source", source);
@@ -66,8 +63,8 @@ export function recruitSafe(text) {
 
 /** Today's creator-recruitment post for every network. */
 export function buildCreatorPost({ now = Date.now(), origin = PRODUCTION_ORIGIN } = {}) {
-  const angle = CREATOR_ANGLES[dayIndex(now) % CREATOR_ANGLES.length];
-  const date = new Date(now).toISOString().slice(0, 10);
+  const { date, index } = israelDay(now);
+  const angle = CREATOR_ANGLES[index % CREATOR_ANGLES.length];
   const campaign = `creators_${date.replace(/-/g, "")}_${angle.id}`;
   const who = "(LikeLink2 הוא המיזם שלי)";
   const tags = "#יוצרות #משפיעניות #לינקבביו #LikeLink2";

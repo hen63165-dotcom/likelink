@@ -9,6 +9,8 @@ import { DROP_AD, DROP_FORBIDDEN, buildDrop, dropHooks, pickProduct, safeCopy } 
 import { dropPage } from "../scripts/marketing/daily-drop.mjs";
 import { listedFromSnapshot } from "../scripts/prerender-products.mjs";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
+import { israelDay } from "../src/lib/moments.js";
+import { buildCreatorPost } from "../src/lib/growth/recruit.js";
 
 const snap = JSON.parse(readFileSync(new URL("../public/snapshot/kv.json", import.meta.url), "utf8"));
 const products = listedFromSnapshot(snap).products.map((x) => x.product);
@@ -74,4 +76,24 @@ test("every product with a video gets its day; the page is unlisted and escapes 
   const wf = readFileSync(new URL("../.github/workflows/deploy-frontend.yml", import.meta.url), "utf8");
   assert.match(wf, /cron: "40 3 \* \* \*"/);
   assert.ok(wf.indexOf("scripts/reels-feed.mjs") < wf.indexOf("scripts/marketing/daily-drop.mjs"), "the drop reads the fresh reels feed");
+});
+
+test("the drop follows the Israeli calendar and is ready before the Israeli morning", () => {
+  // 22:30 UTC on 15 Oct is 01:30 on 16 Oct in Israel (summer time), 00:30 in winter (5 Nov → 6 Nov).
+  const nightSummer = Date.UTC(2026, 9, 15, 22, 30);
+  const nightWinter = Date.UTC(2026, 10, 5, 22, 30);
+  assert.equal(israelDay(nightSummer).date, "2026-10-16");
+  assert.equal(israelDay(nightWinter).date, "2026-11-06");
+  assert.equal(israelDay(Date.UTC(2026, 9, 16, 12)).date, "2026-10-16", "midday: same date as UTC");
+  // The whole Israeli day picks the same product, hook and recruitment angle.
+  const morning = Date.UTC(2026, 9, 16, 9);
+  assert.equal(israelDay(nightSummer).index, israelDay(morning).index);
+  const night = buildDrop({ ...pickProduct({ products, reels, now: nightSummer }), now: nightSummer });
+  const day = buildDrop({ ...pickProduct({ products, reels, now: morning }), now: morning });
+  assert.equal(night.date, "2026-10-16");
+  assert.equal(night.campaign, "daily_drop_20261016");
+  assert.equal(night.product.id, day.product.id);
+  assert.equal(buildCreatorPost({ now: nightSummer }).campaign, buildCreatorPost({ now: morning }).campaign);
+  const wf = readFileSync(new URL("../.github/workflows/deploy-frontend.yml", import.meta.url), "utf8");
+  assert.match(wf, /cron: "10 22 \* \* \*"/, "the night run builds the new Israeli day's drop after midnight in both summer and winter time");
 });

@@ -11,8 +11,13 @@ on:
   workflow_run:
     workflows: ["Luna reels", "Catalog sync", "Product video reels"]
     types: [completed]
-  # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
+  # The daily drop, by the Israeli calendar (israelDay in src/lib/moments.js).
+  # GitHub starts scheduled runs hours late (the 03:40 run has landed between
+  # 08:30 and 11:20 UTC), so the night run builds the new Israeli day's drop
+  # after midnight (00:10 winter / 01:10 summer time) and the morning run
+  # refreshes it with the day's trends.
   schedule:
+    - cron: "10 22 * * *"
     - cron: "40 3 * * *"
   workflow_dispatch:
 

@@ -28,6 +28,17 @@ function civilDate(now) {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
+/**
+ * The Israeli calendar day: `date` (YYYY-MM-DD) and a running day number for
+ * daily rotations. The owner posts by Israeli time, so a kit built after
+ * midnight in Israel is already that day's, whatever the UTC date says.
+ */
+export function israelDay(now = Date.now()) {
+  const { year, month, day } = civilDate(now);
+  const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return { date, index: Math.floor(Date.UTC(year, month - 1, day) / 86_400_000) };
+}
+
 const inHeb = (h, month, from, to) => Boolean(h) && h.month === month && h.day >= from && h.day <= to;
 const isAdarOfPurim = (h) => Boolean(h) && (h.month === "Adar" || h.month === "Adar II");
 
