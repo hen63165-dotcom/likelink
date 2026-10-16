@@ -144,7 +144,7 @@ export async function sync({ env: rawEnv = process.env, write = false, now = Dat
     }
     const cleanest = cleanestPhoto(facts.images, p.image);
     const next = applyFacts(p, facts, { cleanest, now });
-    report.push({ id: p.id, item: ids.get(p.id), status: "UPDATED", price: `₪${Number(p.price)} → ₪${next.price}`, original: next.originalPrice || null, photo: next.image !== p.image ? "cleaner gallery photo" : "kept", video: Boolean(facts.sellerVideo) });
+    report.push({ id: p.id, item: ids.get(p.id), status: "UPDATED", price: `${Number.isFinite(Number(p.price)) && p.price !== null && p.price !== "" ? `₪${Number(p.price)}` : "none"} → ₪${next.price}`, original: next.originalPrice || null, photo: next.image !== p.image ? "cleaner gallery photo" : "kept", video: Boolean(facts.sellerVideo) });
     return next;
   });
   if (write && report.some((r) => r.status === "UPDATED")) {
