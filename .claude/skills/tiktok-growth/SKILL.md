@@ -16,7 +16,8 @@ cloud.
 | When | What | Where |
 |---|---|---|
 | Every morning (06:40 Israel) and every deploy | `scripts/marketing/tiktok-kit.mjs`: today's plan (`tiktokDay` in `src/lib/growth/tiktok.js`) → 2 posts + a bonus, the photo-mode slides rendered as 1080×1920 PNGs (the runner's Chrome), the profile photo | https://hen63165-dotcom.github.io/likelink/tiktok/ + `today.json` |
-| When the owner logs a result | Actions → "TikTok results" (`tiktok-results.yml`) → `marketing/tiktok-results.json` on the `ops/tiktok` branch → deploy-frontend rebuilds the page | the "מה למדנו" table + tomorrow's formats |
+| Same run | `tiktokWeek`: the next 7 days' ready-made posts (from tomorrow, at 12:45 / 20:30 Israel time, slides rendered too), for scheduling in TikTok Studio (desktop, business account, up to 10 days ahead) in one sitting | the "השבוע מראש" section + `week.json` |
+| When the owner logs a result | Actions → "TikTok results" (`tiktok-results.yml`) → `marketing/tiktok-results.json` on the `ops/tiktok` branch (a refused push re-reads the branch and re-applies, 5 tries; an unreadable file stops the run) → deploy-frontend rebuilds the page | the "מה למדנו" table + tomorrow's formats |
 
 The daily drop (`/drop/`) links to it; the TikTok page links back.
 

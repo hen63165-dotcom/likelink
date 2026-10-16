@@ -14,11 +14,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   AUTO_FORMATS, MIN_POSTS, TIKTOK_BIO_MAX, accountKit, bioLink, checksFor, learnTikTok,
-  parseResult, postId, selectFormats, tiktokDay, tiktokHashtags, tiktokSafe,
+  parseResult, postId, selectFormats, tiktokDay, tiktokHashtags, tiktokSafe, tiktokWeek, WEEK_DAYS, SCHEDULE_AT, TIKTOK_FORMATS,
 } from "../src/lib/growth/tiktok.js";
 import { DROP_AD as DROP_AD_LINE } from "../src/lib/growth/dailyDrop.js";
 import { addResult } from "../scripts/marketing/tiktok-results.mjs";
-import { inlineLocal, slideHtml, tiktokPage } from "../scripts/marketing/tiktok-kit.mjs";
+import { inlineLocal, slideHtml, tiktokPage, weekSection } from "../scripts/marketing/tiktok-kit.mjs";
 import { SOCIAL_ACCOUNTS, socialProfiles } from "../src/lib/growth/socialAccounts.js";
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
@@ -165,4 +165,26 @@ test("the site links to our TikTok only once the account exists, in the footer a
   const sameAs = JSON.parse(html.match(/"sameAs":\s*(\[[^\]]*\])/)[1]);
   assert.deepEqual(sameAs, socialProfiles().map((a) => a.url), "index.html sameAs = the accounts that exist");
   assert.match(read("src/components/discover/PublicShell.jsx"), /\{socialProfiles\(\)\.length \? \(/);
+});
+
+test("the week ahead: ready-made posts from tomorrow, each with its own day in its id, at the suggested times, for TikTok Studio", () => {
+  const week = tiktokWeek({ products, reels, now: NOW, imageOf });
+  assert.equal(week.length, WEEK_DAYS);
+  assert.equal(week[0].date, "2026-10-17", "starts tomorrow; today's posts are on the page above");
+  const ids = new Set();
+  for (const d of week) {
+    for (const p of d.posts) {
+      assert.ok(!TIKTOK_FORMATS[p.format].owner, "a post the owner films is never scheduled ahead");
+      assert.ok(SCHEDULE_AT.includes(p.at));
+      assert.equal(p.id.slice(3, 11), d.date.replace(/-/g, ""), "the id carries the day it posts");
+      assert.ok(!ids.has(p.id)); ids.add(p.id);
+      assert.ok(p.caption.startsWith("#פרסומת · קישור שותפים\n"));
+    }
+  }
+  const html = weekSection(week, { slides: {} });
+  assert.match(html, /TikTok Studio/);
+  assert.match(html, /עד 10 ימים מראש/);
+  assert.match(html, /תוכן ממותג/, "the branded-content switch on every scheduled post");
+  assert.equal(weekSection([], { slides: {} }), "");
+  assert.match(tiktokPage(tiktokDay({ products, reels, now: NOW, imageOf }), { slides: {}, profile: "" }, week), /id="week"/);
 });
