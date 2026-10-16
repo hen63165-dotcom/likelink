@@ -30,6 +30,13 @@ test("pasted credentials are trimmed: a line break around the key is not an Inva
   assert.equal(sign, signParams(rest, "s"), "signed with the trimmed secret");
 });
 
+test("the sync report says none for a missing previous price, never ₪NaN or ₪0", async () => {
+  const { previousPrice } = await import("../scripts/catalog/sync-aliexpress.mjs");
+  for (const v of [undefined, null, "", "   ", "abc"]) assert.equal(previousPrice(v), "none", JSON.stringify(v));
+  assert.equal(previousPrice(39.9), "₪39.9");
+  assert.equal(previousPrice(" 12 "), "₪12");
+});
+
 test("without the owner's credentials nothing is called", async () => {
   assert.deepEqual(aeStatus({}).missing, ["ALIEXPRESS_APP_KEY", "ALIEXPRESS_APP_SECRET", "ALIEXPRESS_TRACKING_ID"]);
   let called = false;
