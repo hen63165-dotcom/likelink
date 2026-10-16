@@ -117,7 +117,9 @@ test("findTrends asks per category (ship to IL, ILS, own tracking id) and falls 
   const html = trendsPage(r.board, r);
   assert.match(html, /noindex/);
   assert.match(html, /Add trend products/);
-  assert.ok(!html.includes("s.click.aliexpress.com"), "the owner's page links the store page, never her own tracked link (a self-click)");
+  const hosts = [...html.matchAll(/href="([^"#][^"]*)"/g)].map((m) => new URL(m[1], "https://hen63165-dotcom.github.io/likelink/trend-board/").hostname);
+  assert.ok(hosts.includes("www.aliexpress.com"), "each item links its store page");
+  assert.ok(hosts.every((h) => h !== "s.click.aliexpress.com"), "never her own tracked link (a self-click)");
 });
 
 test("adding: only the typed items, re-read from the API, as the owner's products; existing items and shared links refused", async () => {

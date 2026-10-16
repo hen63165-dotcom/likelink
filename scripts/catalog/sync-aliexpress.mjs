@@ -107,9 +107,9 @@ function cleanestPhoto(images, current) {
   }
 }
 
-async function resolveFromLink(link) {
+async function resolveFromLink(link, fetchImpl = globalThis.fetch) {
   try {
-    const res = await fetch(link, { redirect: "manual", signal: AbortSignal.timeout(15000) });
+    const res = await fetchImpl(link, { redirect: "manual", signal: AbortSignal.timeout(15000) });
     const where = res.headers.get("location") || (await res.text()).slice(0, 4000);
     const m = String(where).match(/\/item\/(\d{10,20})\.html/);
     return m ? m[1] : "";
@@ -124,7 +124,7 @@ export function previousPrice(v) {
   return t !== "" && Number.isFinite(Number(t)) ? `₪${Number(t)}` : "none";
 }
 
-export async function sync({ env: rawEnv = process.env, write = false, now = Date.now() } = {}) {
+export async function sync({ env: rawEnv = process.env, write = false, now = Date.now(), fetchImpl = globalThis.fetch } = {}) {
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { outcome: "REQUIRES_CONNECTION", missing: st.missing };
@@ -132,12 +132,12 @@ export async function sync({ env: rawEnv = process.env, write = false, now = Dat
   const products = doc.keys["marketplace:products"];
   const ids = new Map();
   for (const p of products) {
-    const id = aliItemId(p) || (await resolveFromLink(p.affiliateUrl));
+    const id = aliItemId(p) || (await resolveFromLink(p.affiliateUrl, fetchImpl));
     if (id) ids.set(p.id, id);
   }
   const json = await aeCall("aliexpress.affiliate.productdetail.get", {
     product_ids: [...new Set(ids.values())].join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
-  }, { env, now });
+  }, { env, now, fetchImpl });
   const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
   if (result && Number(result.resp_code) !== 200) return { outcome: "PROVIDER_ERROR", code: result.resp_code, message: String(result.resp_msg || "").slice(0, 120) };
   const found = new Map((result?.result?.products?.product || []).map((x) => [String(x.product_id), x]));
