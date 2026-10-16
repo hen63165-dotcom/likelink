@@ -121,6 +121,14 @@ test("an own link: resolved with one request, kept exactly as pasted, never the 
     const p = JSON.parse(readFileSync(snap.file, "utf8")).keys["marketplace:products"].at(-1);
     assert.equal(p.affiliateUrl, own, "her own link, not the API's");
     assert.equal(p.importSource, "aliexpress-owner-link");
+    // The API's own promotion_link missing or http:// does not matter when she pasted her own link.
+    const own2 = "https://s.click.aliexpress.com/e/_oFOwn456";
+    const noApiLink = async (url, init = {}) => {
+      if (init.method !== "POST") return { headers: { get: () => "https://www.aliexpress.com/item/1005006666666666.html" }, text: async () => "" };
+      return { ok: true, status: 200, json: async () => apiReply("aliexpress.affiliate.productdetail.get", [item("1005006666666666", { promotion_link: "http://s.click.aliexpress.com/e/xxxxx" })]) };
+    };
+    const r2 = await addItems([{ link: own2 }], { env: ENV, now: NOW, fetchImpl: noApiLink, snapshot: snap.file, write: false });
+    assert.deepEqual(r2.report.map((x) => x.status), ["ADDED"]);
     const noEnvelope = async (url, init = {}) => ({ ok: true, status: 200, json: async () => ({}) });
     const e = await addItems(["1005005555555555"], { env: ENV, now: NOW, fetchImpl: noEnvelope, snapshot: snap.file, write: false });
     assert.equal(e.outcome, "PROVIDER_ERROR");

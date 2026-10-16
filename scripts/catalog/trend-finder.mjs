@@ -189,7 +189,8 @@ export async function addItems(items, { env: rawEnv = process.env, now = Date.no
   for (const { id, link } of entries) {
     const x = found.get(id);
     if (haveIds.has(id)) { report.push({ id, status: "ALREADY_ON_SITE" }); continue; }
-    const base = x ? toProduct(x, { marketerId: owner, now }) : null;
+    // With her own link the API's promotion_link is not needed (it may be missing or http://).
+    const base = x ? toProduct(link ? { ...x, promotion_link: link } : x, { marketerId: owner, now }) : null;
     const facts = x ? storeFacts(x, now) : null;
     if (!base || !facts) { report.push({ id, status: x ? "MISSING_REAL_FIELDS" : "NOT_RETURNED" }); continue; }
     const buyLink = link || base.affiliateUrl;
