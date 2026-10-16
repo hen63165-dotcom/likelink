@@ -222,8 +222,8 @@ test("adding: only the typed items, re-read from the API, as the owner's product
     assert.equal(p.marketerId, before.keys["marketplace:marketers"][0].id);
     assert.equal(p.status, "approved");
     assert.deepEqual([p.price, p.originalPrice, p.priceSource], [24.9, 49.8, "aliexpress_api"]);
-    assert.equal(p.videoProvider, "aliexpress_seller", "the seller's own video, never called ours");
-    assert.equal(p.videoSynthetic, false);
+    assert.equal(p.sellerVideo.source, "aliexpress_api", "the seller's own video is kept aside for the edited cut");
+    assert.equal(p.videoUrl, undefined, "raw seller footage is never the product's video");
     assert.equal(p.commission, undefined, "the commission rate stays private");
     assert.ok(!JSON.stringify(p).includes("9999"), "no sales numbers");
     const again = await addItems(["1005001111111111"], { env: ENV, now: NOW, fetchImpl: api.impl, snapshot: snap.file });

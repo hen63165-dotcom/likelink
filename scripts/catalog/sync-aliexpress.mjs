@@ -10,8 +10,8 @@
 //   images         the store's own gallery; the card photo becomes the gallery
 //                  photo with the least text on it (seller banners like "free
 //                  ring over 200$" are not our offer), when OCR is available
-//   videoUrl       the seller's own product video, when the store has one
-//                  (a real product video, labelled "צילום המוצר: המוכר")
+//   sellerVideo    the seller's own product video, when the store has one,
+//                  kept aside for the edited cut — never the product's videoUrl
 // Nothing is invented: a product the API does not return keeps its old data
 // and is reported. The store's own sales/rating numbers are not copied.
 //
@@ -70,14 +70,13 @@ export function applyFacts(p, facts, { cleanest = "", now = Date.now() } = {}) {
     next.image = cleanest;
     next.imageSource = { ...(p.imageSource || {}), via: "aliexpress_api_gallery", chosenBy: "least_text", provenance: "merchant_photo", previous: p.image, resolvedAt: facts.priceCheckedAt };
   }
-  if (facts.sellerVideo) {
-    next.videoUrl = facts.sellerVideo;
-    next.videoProvider = "aliexpress_seller";
-    next.videoStatus = "completed";
-    next.videoSynthetic = false;
-    next.videoStyle = "";
-    next.videoPoster = next.image;
-  }
+  // The seller's raw video is kept aside for the edited cut ("Product video
+  // reels": SHOT_EXCLUDE, SELLER_SKIP, the labels on every frame) and is never
+  // put on the product as its video: raw footage skips that review (the
+  // diamond tester on p-live-03), and the product's own video (a reel the
+  // creator saved in the Studio) is never replaced.
+  if (facts.sellerVideo) next.sellerVideo = { url: facts.sellerVideo, source: "aliexpress_api", checkedAt: facts.priceCheckedAt };
+  else delete next.sellerVideo;
   return next;
 }
 

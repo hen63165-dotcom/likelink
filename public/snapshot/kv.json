@@ -306,12 +306,12 @@
     "clicks": 0,
     "status": "approved",
     "category": "Accessories",
-    "videoUrl": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/1100098027111.mp4",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117832579-52wthh.mp4",
     "createdAt": 1789756213056,
     "updatedAt": 1792184756376,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
-    "videoStyle": "",
+    "videoStyle": null,
     "description": "צמיד טניס עדין מכסף 925 עם אבני מואסניט אמיתיות, מצופה פלטינה. אפשרות לבחור עובי אבן מ-2 עד 6.5 מ״מ.",
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -329,12 +329,12 @@
      "observedInRun": "36880720408",
      "chosenBy": "least_text"
     },
-    "videoPoster": "https://ae-pic-a1.aliexpress-media.com/kf/Seed4312c17694d8ea2bc39f4e32569a4x.jpg",
+    "videoPoster": null,
     "videoStatus": "completed",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c3TSpOjP",
     "videoAssetId": null,
-    "videoProvider": "aliexpress_seller",
-    "videoSynthetic": false,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 228.96,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
@@ -351,7 +351,12 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S9545f81560414e24a97181221f2eaea7k.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Seed4312c17694d8ea2bc39f4e32569a4x.jpg"
     ],
-    "originalPrice": 612.94
+    "originalPrice": 612.94,
+    "sellerVideo": {
+     "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/1100098027111.mp4",
+     "source": "aliexpress_api",
+     "checkedAt": "2026-10-16T21:05:56.376Z"
+    }
    },
    {
     "id": "p-live-04",
@@ -360,12 +365,12 @@
     "clicks": 0,
     "status": "approved",
     "category": "Accessories",
-    "videoUrl": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/4000313550757.mp4",
+    "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117837130-73u3do.mp4",
     "createdAt": 1789669813056,
     "updatedAt": 1792184756376,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
-    "videoStyle": "",
+    "videoStyle": null,
     "description": "שרשרת יד עדינה מכסף 925 מצופה 14K, עם תליוני מואסניט קטנים לאורך השרשרת. מתכווננת מ-14 עד 21 ס״מ.",
     "imageSource": {
      "via": "store_product_page_og_image",
@@ -382,12 +387,12 @@
      "storeTitle": "Smyoue 14K Plated Certified Moissanite Bracelets for Women G",
      "observedInRun": "36880720408"
     },
-    "videoPoster": "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg",
+    "videoPoster": null,
     "videoStatus": "completed",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4CoPLhr",
     "videoAssetId": null,
-    "videoProvider": "aliexpress_seller",
-    "videoSynthetic": false,
+    "videoProvider": "likelink_studio_reel",
+    "videoSynthetic": true,
     "videoUpdatedAt": 1791494178464,
     "catalogPrice": 85.36,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
@@ -404,7 +409,12 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S3129c9709d9042ebb86330098110477dL.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sf0f1258a76d44898a8b6f57eee920b47R.png"
     ],
-    "originalPrice": 260.78
+    "originalPrice": 260.78,
+    "sellerVideo": {
+     "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/4000313550757.mp4",
+     "source": "aliexpress_api",
+     "checkedAt": "2026-10-16T21:05:56.376Z"
+    }
    },
    {
     "id": "p-live-05",

@@ -44,7 +44,8 @@ jobs:
           node scripts/catalog/trend-finder.mjs --add | tee /tmp/add.json
           { echo "### Add trend products"; echo '```json'; cat /tmp/add.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the copy (the site's own rules)
-        run: node --test tests/catalogSnapshot.test.mjs tests/publicDiscovery.test.mjs tests/staticForwarder.test.mjs tests/storefrontIntegrity.test.mjs
+        # The whole suite, like Catalog sync: a new product changes what many pages show.
+        run: npm test
       - name: Commit the updated catalog copy
         run: |
           git diff --quiet -- public/snapshot/kv.json && { echo "nothing added"; exit 0; }

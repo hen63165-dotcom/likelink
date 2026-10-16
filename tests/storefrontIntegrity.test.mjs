@@ -49,8 +49,9 @@ test("a 'verified' badge appears only when the record says so", () => {
 test("price filters and price sorting appear only when a product has a store price", () => {
   const graph = graphOf();
   assert.ok(graph.products.length > 0);
-  // Today every listed product has only a hand-entered catalogPrice (it did not match the store).
-  assert.equal(hasStorePrices(graph.products), false);
+  // Since 2026-10-16 the listed products carry store prices read from the AliExpress API (with the date).
+  assert.equal(hasStorePrices(graph.products), true);
+  for (const p of graph.products.filter((x) => Number(x.price) > 0)) assert.equal(p.priceSource, "aliexpress_api", `${p.id}: a shown price has its store source`);
   assert.equal(hasStorePrices([{ id: "a", catalogPrice: 47.17 }]), false, "a catalog price is not a store price");
   assert.equal(hasStorePrices([{ id: "a" }, { id: "b", price: 47.17, priceSource: "aliexpress_api" }]), true);
   assert.equal(hasStorePrices(null), false);

@@ -46,7 +46,9 @@ jobs:
           { echo "### Catalog sync"; echo '```json'; cat /tmp/sync.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the copy (the site's own rules)
         if: env.WRITE != ''
-        run: node --test tests/catalogSnapshot.test.mjs tests/publicDiscovery.test.mjs tests/staticForwarder.test.mjs
+        # The whole suite: on 2026-10-16 the first live sync passed these three files
+        # and still broke five others on main (the store prices changed what the site shows).
+        run: npm test
       - name: Commit the updated catalog copy
         if: env.WRITE != ''
         run: |
