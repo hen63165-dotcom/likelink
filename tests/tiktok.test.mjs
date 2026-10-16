@@ -7,7 +7,11 @@
 // own branch; the site links to the account only once it exists.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AUTO_FORMATS, MIN_POSTS, TIKTOK_BIO_MAX, accountKit, bioLink, checksFor, learnTikTok,
   parseResult, postId, selectFormats, tiktokDay, tiktokHashtags, tiktokSafe,
@@ -95,19 +99,42 @@ test("the results form takes a known post id and whole numbers only", () => {
   assert.equal(parseResult({ id: "tt-20261016-1-reveal", views: "1,200", likes: "80" }).ok, true);
   assert.equal(parseResult({ id: "tt-20261016-1-reveal", views: "1,200" }).entry.views, 1200);
   for (const bad of [{ id: "x", views: 1 }, { id: "tt-20261016-1-reveal", views: "-3" }, { id: "tt-20261016-1-reveal", views: "12; rm -rf /" }, { id: "tt-20261016-1-reveal", views: "1e9" }]) {
-    assert.equal(parseResult(bad).ok, false, JSON.stringify(bad));
+    assert.equal(parseResult(bad, { now: NOW }).ok, false, JSON.stringify(bad));
   }
-  const once = addResult([], { id: "tt-20261016-1-reveal", views: "10" }).list;
-  const twice = addResult(once, { id: "tt-20261016-1-reveal", views: "50" }).list;
+  // A mistyped date never becomes a result: not a calendar day, in the future, or older than the plans.
+  for (const id of ["tt-20261332-1-reveal", "tt-20260230-1-reveal", "tt-20261020-1-reveal", "tt-20250101-1-reveal"]) {
+    assert.equal(parseResult({ id, views: "10" }, { now: NOW }).ok, false, id);
+  }
+  assert.equal(parseResult({ id: "tt-20261017-1-reveal", views: "10" }, { now: NOW }).ok, true, "Israel's date may be a day ahead of UTC");
+  const once = addResult([], { id: "tt-20261016-1-reveal", views: "10" }, { now: NOW }).list;
+  const twice = addResult(once, { id: "tt-20261016-1-reveal", views: "50" }, { now: NOW }).list;
   assert.equal(twice.length, 1);
   assert.equal(twice[0].views, 50);
+});
+
+test("an unreadable results file stops the save instead of starting the list over", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tt-results-"));
+  const run = (inFile) => spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/marketing/tiktok-results.mjs", import.meta.url)), inFile, join(dir, "out.json")], {
+    env: { ...process.env, POST_ID: postId(Date.now(), 1, "reveal"), VIEWS: "10" }, encoding: "utf8",
+  });
+  writeFileSync(join(dir, "bad.json"), "{ not json");
+  const bad = run(join(dir, "bad.json"));
+  assert.equal(bad.status, 1);
+  assert.equal(existsSync(join(dir, "out.json")), false, "nothing written over the stored results");
+  writeFileSync(join(dir, "obj.json"), "{}");
+  assert.equal(run(join(dir, "obj.json")).status, 1, "a file that is not a list stops too");
+  const fresh = run(join(dir, "missing.json"));
+  assert.equal(fresh.status, 0, fresh.stdout + fresh.stderr);
+  assert.equal(JSON.parse(readFileSync(join(dir, "out.json"), "utf8")).length, 1, "no file yet = the first result");
 });
 
 test("the results workflow passes the form through the environment and writes only to ops/tiktok", () => {
   const wf = read(".github/workflows/tiktok-results.yml");
   for (const run of wf.split(/\n\s+run: \|/).slice(1)) assert.doesNotMatch(run.split(/\n\s{6}- name:/)[0], /\$\{\{\s*inputs\./, "no form field inside a shell line");
-  assert.match(wf, /git push -q origin HEAD:ops\/tiktok/);
-  assert.doesNotMatch(wf, /git (checkout|show)[^\n]*FETCH_HEAD/, "checkout's FETCH_HEAD is main's: never branch from it");
+  const pushes = wf.match(/git [^\n]*\bpush -q[^\n]*/g) || [];
+  assert.ok(pushes.length >= 1 && pushes.every((p) => /push -q origin HEAD:ops\/tiktok(;|$)/.test(p)), "every push goes to ops/tiktok only");
+  assert.match(wf, /for attempt in 1 2 3 4 5; do[\s\S]*git fetch -q --depth=1 origin \+ops\/tiktok:refs\/remotes\/origin\/ops\/tiktok[\s\S]*tiktok-results\.mjs[\s\S]*push -q origin HEAD:ops\/tiktok/, "a refused push reads the branch again and re-applies the result");
+  assert.doesNotMatch(wf, /git (checkout|show|worktree)[^\n]*FETCH_HEAD/, "checkout's FETCH_HEAD is main's: never branch from it");
   const deploy = read(".github/workflows/deploy-frontend.yml");
   assert.match(deploy, /"TikTok results"\]/, "a logged result rebuilds the page");
   assert.match(deploy, /node scripts\/marketing\/tiktok-kit\.mjs dist/);

@@ -21,11 +21,21 @@ export function addResult(list = [], input = {}, { now = Date.now() } = {}) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [inFile, outFile] = process.argv.slice(2);
+  // No file yet = no results yet. A file that exists but can't be read or
+  // isn't a JSON list stops the run: starting from [] would erase every
+  // logged result on the next save.
   let list = [];
-  try {
-    list = inFile && existsSync(inFile) ? JSON.parse(readFileSync(inFile, "utf8")) : [];
-  } catch {
-    list = [];
+  if (inFile && existsSync(inFile)) {
+    try {
+      list = JSON.parse(readFileSync(inFile, "utf8"));
+    } catch (e) {
+      console.log(`::error::the results file can't be read (${e.message}); nothing was saved`);
+      process.exit(1);
+    }
+    if (!Array.isArray(list)) {
+      console.log("::error::the results file is not a list; nothing was saved");
+      process.exit(1);
+    }
   }
   const env = process.env;
   const r = addResult(list, { id: env.POST_ID, views: env.VIEWS, likes: env.LIKES, comments: env.COMMENTS, shares: env.SHARES, saves: env.SAVES });

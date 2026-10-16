@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Add the numbers
+      - name: Add the numbers and save to ops/tiktok
         env:
           POST_ID: ${{ inputs.post_id }}
           VIEWS: ${{ inputs.views }}
@@ -60,27 +60,34 @@ jobs:
           SHARES: ${{ inputs.shares }}
           SAVES: ${{ inputs.saves }}
         run: |
-          echo "[]" > "$RUNNER_TEMP/in.json"
-          # An explicit ref: checkout's own FETCH_HEAD points at main and must never be used here.
-          if git fetch --depth=1 origin ops/tiktok:refs/remotes/origin/ops/tiktok 2>/dev/null; then
-            git show refs/remotes/origin/ops/tiktok:marketing/tiktok-results.json > "$RUNNER_TEMP/in.json" 2>/dev/null || echo "[]" > "$RUNNER_TEMP/in.json"
-          fi
-          node scripts/marketing/tiktok-results.mjs "$RUNNER_TEMP/in.json" "$RUNNER_TEMP/out.json"
-
-      - name: Save to ops/tiktok
-        env:
-          POST_ID: ${{ inputs.post_id }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git rev-parse --verify -q refs/remotes/origin/ops/tiktok >/dev/null; then
-            git checkout -q -B ops/tiktok refs/remotes/origin/ops/tiktok
-          else
-            git checkout -q --orphan ops/tiktok
-            git rm -rf -q .
-          fi
-          mkdir -p marketing
-          cp "$RUNNER_TEMP/out.json" marketing/tiktok-results.json
-          git add marketing/tiktok-results.json
-          git commit -q -m "TikTok results: $POST_ID"
-          git push -q origin HEAD:ops/tiktok
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OPS="$RUNNER_TEMP/ops"
+          # The concurrency group queues runs but may drop a waiting one, and a
+          # run can still race another: read the branch, add this result, push;
+          # when the push is refused (the branch moved), read it again and
+          # re-apply. The results file is never rebuilt from an empty list.
+          for attempt in 1 2 3 4 5; do
+            git worktree remove --force "$OPS" 2>/dev/null || true
+            git branch -q -D ops/tiktok >/dev/null 2>&1 || true
+            # An explicit ref: checkout's own FETCH_HEAD points at main and must never be used here.
+            if git fetch -q --depth=1 origin +ops/tiktok:refs/remotes/origin/ops/tiktok 2>/dev/null; then
+              git worktree add -q -b ops/tiktok "$OPS" refs/remotes/origin/ops/tiktok
+            else
+              git worktree add -q --detach "$OPS"
+              git -C "$OPS" switch -q --orphan ops/tiktok
+            fi
+            node scripts/marketing/tiktok-results.mjs "$OPS/marketing/tiktok-results.json" "$RUNNER_TEMP/out.json"
+            mkdir -p "$OPS/marketing"
+            cp "$RUNNER_TEMP/out.json" "$OPS/marketing/tiktok-results.json"
+            git -C "$OPS" add marketing/tiktok-results.json
+            git -C "$OPS" commit -q -m "TikTok results: $POST_ID"
+            if git -C "$OPS" push -q origin HEAD:ops/tiktok; then
+              echo "saved on attempt $attempt"
+              exit 0
+            fi
+            echo "the branch moved while saving; reading it again ($attempt/5)"
+            sleep $((attempt * 3))
+          done
+          echo "::error::the result could not be saved after 5 tries; run the form again"
+          exit 1

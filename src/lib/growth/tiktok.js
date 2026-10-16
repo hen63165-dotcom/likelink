@@ -389,10 +389,21 @@ export function tiktokDay({ products = [], reels = [], trends = [], results = []
   };
 }
 
+// A post id's day must be a real calendar day, not after today (UTC, with a
+// day's slack for Israel time) and not older than the page could have planned
+// it: catches a mistyped date without keeping a log of every plan.
+export const RESULT_MAX_AGE_DAYS = 120;
+function plausibleDay(id, now) {
+  const d = POST_ID.exec(id)?.[1] || "";
+  const t = Date.parse(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T00:00:00Z`);
+  if (!Number.isFinite(t) || ymd(t) !== d) return false;
+  return t <= now + 86_400_000 && now - t <= RESULT_MAX_AGE_DAYS * 86_400_000;
+}
+
 /** One results entry from the Actions form; numbers only, a known post id. */
 export function parseResult(input = {}, { now = Date.now() } = {}) {
   const id = String(input.id || "").trim();
-  if (!formatOfPost(id)) return { ok: false, error: "post_id" };
+  if (!formatOfPost(id) || !plausibleDay(id, now)) return { ok: false, error: "post_id" };
   const nums = {};
   for (const k of ["views", "likes", "comments", "shares", "saves"]) {
     const raw = String(input[k] ?? "0").replace(/[,\s]/g, "");

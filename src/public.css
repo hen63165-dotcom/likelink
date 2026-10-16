@@ -1011,7 +1011,7 @@ html body .lx img {
 @media (hover: hover) { .lx-top-icon:hover { background: var(--lx-sunk); } }
 /* LTK's round grey search button on phones (the wide search takes over from 768px). */
 .lx-top-round { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px; background: var(--lx-sunk); color: var(--lx-ink); }
-@media (max-width: 379px), (min-width: 768px) { .lx-top-round { display: none; } }
+@media (min-width: 768px) { .lx-top-round { display: none; } }
 .lx-top-btn { display: inline-flex; align-items: center; justify-content: center; height: 44px; padding-inline: 16px; border-radius: 8px; font-size: 14.5px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; transition: opacity 0.2s; }
 @media (hover: hover) { .lx-top-btn:hover { opacity: 0.85; } }
 .lx-top-btn-dark { background: var(--lx-ink); color: var(--lx-paper); }
@@ -1023,6 +1023,16 @@ html body .lx img {
   .lx-top .lx-logo-mark + span { font-size: 18px !important; }
   .lx-top-btn { padding-inline: 13px; font-size: 13.5px; }
 }
+@media (max-width: 379px) {
+  .lx-top-bar { gap: 6px; padding-inline: 8px; }
+  .lx-top-actions { gap: 3px; }
+  .lx-top-round { width: 38px; height: 38px; }
+  .lx-top-icon { width: 40px; }
+  .lx-top .lx-top-btn { padding-inline: 10px; font-size: 13px; }
+  .lx-top .lx-logo-mark + span { font-size: 16px !important; }
+}
+/* Below 340px the dock's search is the search: the header keeps logo, sign-up and menu. */
+@media (max-width: 339px) { .lx-top-round { display: none; } }
 
 /* ---------- Menu: LTK's sheet — white, right under the header, big plain rows ---------- */
 .lx-dd-scrim { position: fixed; inset: 0; z-index: 1; background: transparent; }

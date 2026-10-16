@@ -122,7 +122,7 @@ test("the phone mockups show whose video it is on the footage and the product on
   assert.match(luxe, /function FindScreen[\s\S]*cleanImage\(p\)\.src/);
 });
 
-test("the header is LTK's: search, sign-up and log-in into the Studio's form, and a menu that says buying needs no account", () => {
+test("the header offers search, Studio sign-up and log-in into the Studio's form, and a menu that says buying needs no account", () => {
   const shell = read("src/components/discover/PublicShell.jsx");
   assert.match(shell, /export const STUDIO_SIGNUP = "\/studio\?auth=signup"/);
   assert.match(shell, /export const STUDIO_LOGIN = "\/studio\?auth=login"/);
