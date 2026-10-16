@@ -99,6 +99,32 @@ export function buildBoard({ results = {}, trends = [], listed = [], now = Date.
   };
 }
 
+const AE_HOST = (h) => h === "aliexpress.com" || h.endsWith(".aliexpress.com") || h === "aliexpress.us" || h.endsWith(".aliexpress.us");
+
+/**
+ * What the owner pasted into the "Add trend products" form, at most 10:
+ *   an item number                                   → { id }
+ *   a store product page (…aliexpress.com/item/<n>.html) → { id }
+ *   her own tracked link (https://s.click.aliexpress.com/e/…) → { link }
+ * Anything else is refused (never guessed).
+ */
+export function parseItems(input = "") {
+  const out = new Map();
+  for (const raw of String(input).split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)) {
+    if (/^\d{6,20}$/.test(raw)) { out.set(`id:${raw}`, { id: raw }); continue; }
+    let u = null;
+    try { u = new URL(raw); } catch { /* not a link */ }
+    const page = u && u.protocol === "https:" && AE_HOST(u.hostname) ? u.pathname.match(/^\/item\/(\d{6,20})\.html$/) : null;
+    if (page) { out.set(`id:${page[1]}`, { id: page[1] }); continue; }
+    if (u && u.protocol === "https:" && u.hostname === "s.click.aliexpress.com" && /^\/e\/[\w-]+\/?$/.test(u.pathname)) {
+      out.set(`link:${u.href}`, { link: u.href });
+      continue;
+    }
+    throw new Error(`not an AliExpress item number or link: ${raw.slice(0, 60)}`);
+  }
+  return [...out.values()].slice(0, 10);
+}
+
 /** Item ids the owner typed into the "Add trend products" form: numbers only, at most 10. */
 export function parseIds(input = "") {
   const ids = String(input).split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);

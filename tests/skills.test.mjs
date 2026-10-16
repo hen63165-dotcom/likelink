@@ -72,7 +72,7 @@ test("product integrity on the real catalog: every listed product passes; a rati
   const real = await runSkill("product-integrity", { products, marketers }, grants);
   assert.equal(real.status, STATUS.OK);
   assert.deepEqual(real.output.publishable, products.map((p) => p.id));
-  const bad = await runSkill("product-integrity", { products: [{ ...products[0], rating: 4.8, reviewCount: 1400 }, { ...products[1], price: 99 }, { ...products[2], affiliateUrl: "http://example.com/x" }], marketers }, grants);
+  const bad = await runSkill("product-integrity", { products: [{ ...products[0], rating: 4.8, reviewCount: 1400 }, { ...products[1], price: 99, priceSource: undefined, priceCheckedAt: undefined }, { ...products[2], affiliateUrl: "http://example.com/x" }], marketers }, grants);
   const codes = (id) => bad.output.products.find((r) => r.id === id).issues.map((i) => i.code);
   assert.ok(codes(products[0].id).includes("unverified_claim"));
   assert.ok(codes(products[1].id).includes("unverified_price"));
@@ -84,10 +84,14 @@ test("links are checked without opening them; prices are shown only from an appr
   const links = await runSkill("link-health", { products }, grants);
   assert.equal(links.status, STATUS.OK);
   assert.ok(links.output.links.every((l) => l.state === "FORMAT_OK" && l.live === "NOT_OPENED" && l.host === "s.click.aliexpress.com"));
+  // The real catalog: every price was read from the AliExpress API (fresh or, between syncs, stale — never NONE).
   const prices = await runSkill("price-freshness", { products }, grants);
-  assert.equal(prices.status, STATUS.WARN);
-  assert.equal(prices.blockedBy, "aliexpress_api_connection");
-  assert.ok(prices.output.prices.every((p) => p.state === "NONE"), "catalogPrice is never a price");
+  assert.ok(prices.output.prices.every((p) => p.state === "FRESH" || p.state === "STALE"), "every listed price has an approved source");
+  // Without an API price only the hand-entered catalogPrice is left, and that is never a price.
+  const unpriced = await runSkill("price-freshness", { products: products.map(({ price, priceSource, priceCheckedAt, ...p }) => p) }, grants);
+  assert.equal(unpriced.status, STATUS.WARN);
+  assert.equal(unpriced.blockedBy, "aliexpress_api_connection");
+  assert.ok(unpriced.output.prices.every((p) => p.state === "NONE"), "catalogPrice is never a price");
   const now = Date.parse("2026-10-11T12:00:00Z");
   assert.equal(priceState({ price: 47, priceSource: "aliexpress_api", priceCheckedAt: "2026-10-11T00:00:00Z" }, now).state, "FRESH");
   assert.equal(priceState({ price: 47, priceSource: "aliexpress_api", priceCheckedAt: "2026-10-01T00:00:00Z" }, now).state, "STALE");

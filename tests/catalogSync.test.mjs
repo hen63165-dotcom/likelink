@@ -41,7 +41,11 @@ test("store facts: ILS only, a list price only when higher, the store's gallery 
   assert.equal(storeFacts(api({ target_original_price: "200" }), NOW).originalPrice, undefined, "no invented discount");
 });
 
-test("applying facts keeps the old photo unless a cleaner gallery photo was found, and marks the seller video as real", () => {
+// 2026-10-16: the seller video used to replace the product's video. The first
+// live sync then put raw seller footage on p-live-03/04 (over the creator's
+// own Studio reels), skipping the edited cut's review (SHOT_EXCLUDE: the
+// diamond tester on p-live-03). It is now kept aside for that cut.
+test("applying facts keeps the old photo unless a cleaner gallery photo was found; the seller video is kept aside, never the product's video", () => {
   const p = products[2];
   const f = storeFacts(api(), NOW);
   const kept = applyFacts(p, f, { now: NOW });
@@ -51,7 +55,11 @@ test("applying facts keeps the old photo unless a cleaner gallery photo was foun
   assert.equal(cleaner.image, "https://ae-pic-a1.aliexpress-media.com/kf/clean.jpg");
   assert.equal(cleaner.imageSource.previous, p.image);
   assert.equal(applyFacts(p, f, { cleanest: "https://evil.example/x.jpg", now: NOW }).image, p.image, "only a photo from the store's own gallery");
-  const truth = classifyMediaRecord({ videoUrl: cleaner.videoUrl, videoStatus: cleaner.videoStatus, videoProvider: cleaner.videoProvider, synthetic: cleaner.videoSynthetic });
+  for (const k of ["videoUrl", "videoProvider", "videoStatus", "videoSynthetic", "videoStyle", "videoPoster"]) assert.deepEqual(cleaner[k], p[k], `${k}: the product's own video is never replaced`);
+  assert.deepEqual(cleaner.sellerVideo, { url: f.sellerVideo, source: "aliexpress_api", checkedAt: f.priceCheckedAt });
+  assert.equal(applyFacts(cleaner, storeFacts(api({ product_video_url: "" }), NOW), { now: NOW }).sellerVideo, undefined, "no seller video at the store → none kept");
+  // The seller video, once edited and published as its own record, is the seller's real footage.
+  const truth = classifyMediaRecord({ videoUrl: cleaner.sellerVideo.url, videoStatus: "completed", videoProvider: "aliexpress_seller", synthetic: false });
   assert.equal(truth.state, MEDIA_TRUTH.REAL_VIDEO);
 });
 

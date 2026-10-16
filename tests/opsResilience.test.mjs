@@ -99,8 +99,14 @@ test("doctor: the real catalog copy has its own store link per product and no un
   assert.equal(by("catalog copy fresh").kind, KIND.OK);
   assert.equal(by("every product has its own store link").kind, KIND.OK);
   assert.equal(res.some((x) => x.kind === KIND.APP_DEFECT), false);
-  assert.equal(by("store prices").kind, KIND.MISSING_CREDENTIAL, "no API price yet: the owner's credential, not a defect");
-  assert.match(by("store prices").action, /ALIEXPRESS_APP_KEY/);
+  // Since 2026-10-16 every listed product has a store price read from the AliExpress API.
+  assert.equal(by("store prices").kind, KIND.OK);
+  const products = doc.keys["marketplace:products"];
+  assert.equal(by("store prices").detail, `${products.length}/${products.length} from the AliExpress API`);
+  // A copy without any API price is the owner's missing credential, not a defect.
+  const unpriced = checkSnapshot({ ...doc, keys: { ...doc.keys, "marketplace:products": products.map(({ price, priceSource, priceCheckedAt, originalPrice, ...p }) => p) } }, Date.parse(doc.takenAt) + 2 * 86_400_000);
+  assert.equal(unpriced.find((x) => x.name === "store prices").kind, KIND.MISSING_CREDENTIAL);
+  assert.match(unpriced.find((x) => x.name === "store prices").action, /ALIEXPRESS_APP_KEY/);
   const bad = checkSnapshot({ takenAt: new Date(0).toISOString(), keys: { "marketplace:products": [
     { id: "a", affiliateUrl: "https://s.click.aliexpress.com/e/_x", price: 99 },
     { id: "b", affiliateUrl: "https://s.click.aliexpress.com/e/_x" },

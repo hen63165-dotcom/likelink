@@ -18,9 +18,9 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { aeCall, aeEnv, aeStatus, toProduct } from "../../api/_utils/aliexpressAffiliate.mjs";
-import { aliItemId, applyFacts, storeFacts } from "./sync-aliexpress.mjs";
+import { aliItemId, applyFacts, resolveFromLink, storeFacts } from "./sync-aliexpress.mjs";
 import { readTrends } from "../marketing/daily-drop.mjs";
-import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseIds } from "../../src/lib/growth/trendBoard.js";
+import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseItems } from "../../src/lib/growth/trendBoard.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
@@ -135,6 +135,7 @@ ${outcome === "FAILED" || outcome === "EMPTY" ? `<p class="card">הפעם לא �
 <section class="card"><h2>איך מעלים מוצר לאתר</h2><ol>
 <li>מעתיקים את מספרי המוצרים שבחרת (כפתור "העתקה").</li>
 <li>ב-GitHub: Actions ← <b>Add trend products</b> ← Run workflow ← מדביקים את המספרים, מופרדים בפסיק (עד 10) ← Run.</li>
+<li>אפשר להדביק שם גם קישור שותפים שלך (s.click.aliexpress.com) או קישור לעמוד מוצר ב-AliExpress, ולא רק מספרים. קישור שלך נשמר באתר בדיוק כמו שהדבקת.</li>
 <li>המוצרים נקראים שוב מ-AliExpress (מחיר, תמונות, סרטון המוכר והקישור שלך) ועולים לאתר תוך כמה דקות.</li>
 </ol></section>
 ${cats.map((c) => `<h2 id="${esc(c.key)}">${esc(c.he)}${c.searchedToday.length ? `<span class="hot">מחפשים היום בגוגל: ${esc(c.searchedToday[0].term)}</span>` : ""}</h2>
@@ -147,39 +148,60 @@ ${cats.length || outcome !== "OK" ? "" : `<p class="card">היום AliExpress ל
 `;
 }
 
-/** Add exactly these items to the catalog copy, re-read from the API. */
-export async function addItems(ids, { env: rawEnv = process.env, now = Date.now(), write = true, fetchImpl = globalThis.fetch, snapshot = SNAPSHOT } = {}) {
+/**
+ * Add exactly these items to the catalog copy, re-read from the API.
+ * `items`: item numbers, or { id } / { link } from parseItems. A link is the
+ * owner's own tracked link: it is resolved to its store item with one request
+ * (not followed further) and kept as the product's buy link, exactly as pasted.
+ */
+export async function addItems(items, { env: rawEnv = process.env, now = Date.now(), write = true, fetchImpl = globalThis.fetch, snapshot = SNAPSHOT } = {}) {
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { outcome: "REQUIRES_CONNECTION", missing: st.missing };
-  if (!ids.length) return { outcome: "FAILED", error: "no item ids" };
+  if (!items.length) return { outcome: "FAILED", error: "no item numbers or links" };
   const doc = JSON.parse(readFileSync(snapshot, "utf8"));
   const list = doc.keys["marketplace:products"] || [];
   const owner = (doc.keys["marketplace:marketers"] || [])[0]?.id;
   if (!owner) return { outcome: "FAILED", error: "no creator in the catalog copy" };
-  const json = await aeCall("aliexpress.affiliate.productdetail.get", {
-    product_ids: ids.join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
-  }, { env, now, fetchImpl });
-  const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
-  if (result && Number(result.resp_code) !== 200) return { outcome: "PROVIDER_ERROR", code: result.resp_code, message: String(result.resp_msg || "").slice(0, 120) };
-  const found = new Map((result?.result?.products?.product || []).map((x) => [String(x.product_id), x]));
+  const report = [];
+  const entries = [];
+  for (const it of items.map((x) => (typeof x === "string" ? { id: x } : x))) {
+    const raw = it.id || (it.link ? await resolveFromLink(it.link, fetchImpl) : "");
+    if (!raw) { report.push({ input: it.link || it.id, status: "LINK_NOT_RESOLVED" }); continue; }
+    // aliexpress.us ids are the global id + 2^51 (aliItemId).
+    entries.push({ id: aliItemId({ aliexpressId: raw }) || raw, link: it.link || "" });
+  }
+  const ids = [...new Set(entries.map((e) => e.id))];
+  let found = new Map();
+  if (ids.length) {
+    const json = await aeCall("aliexpress.affiliate.productdetail.get", {
+      product_ids: ids.join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
+    }, { env, now, fetchImpl });
+    const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+    // No envelope at all is a provider failure; a 200 with an empty list is a real "not returned".
+    if (!result) return { outcome: "PROVIDER_ERROR", message: "aliexpress_no_result:aliexpress.affiliate.productdetail.get" };
+    if (Number(result.resp_code) !== 200) return { outcome: "PROVIDER_ERROR", code: result.resp_code, message: String(result.resp_msg || "").slice(0, 120) };
+    found = new Map((result.result?.products?.product || []).map((x) => [String(x.product_id), x]));
+  }
   const haveIds = new Set(list.map(AE_ITEM_ID));
   const haveLinks = new Set(list.map((p) => p.affiliateUrl));
-  const report = [];
   const added = [];
-  for (const id of ids) {
+  for (const { id, link } of entries) {
     const x = found.get(id);
     if (haveIds.has(id)) { report.push({ id, status: "ALREADY_ON_SITE" }); continue; }
-    const base = x ? toProduct(x, { marketerId: owner, now }) : null;
+    // With her own link the API's promotion_link is not needed (it may be missing or http://).
+    const base = x ? toProduct(link ? { ...x, promotion_link: link } : x, { marketerId: owner, now }) : null;
     const facts = x ? storeFacts(x, now) : null;
     if (!base || !facts) { report.push({ id, status: x ? "MISSING_REAL_FIELDS" : "NOT_RETURNED" }); continue; }
-    if (haveLinks.has(base.affiliateUrl)) { report.push({ id, status: "LINK_ALREADY_USED" }); continue; }
+    const buyLink = link || base.affiliateUrl;
+    if (haveLinks.has(buyLink)) { report.push({ id, status: "LINK_ALREADY_USED" }); continue; }
     // The commission rate is the owner's business, not a storefront fact.
     const { commission, ...fields } = applyFacts(base, facts, { now });
-    const p = { ...fields, aliexpressId: id, importSource: "aliexpress-trend-board" };
+    const p = { ...fields, affiliateUrl: buyLink, aliexpressId: id, importSource: link ? "aliexpress-owner-link" : "aliexpress-trend-board" };
     added.push(p);
-    haveLinks.add(p.affiliateUrl);
-    report.push({ id, status: "ADDED", product: p.id, price: `₪${p.price}`, video: Boolean(p.videoUrl) });
+    haveIds.add(id);
+    haveLinks.add(buyLink);
+    report.push({ id, status: "ADDED", product: p.id, price: `₪${p.price}`, video: Boolean(p.videoUrl), link: link ? "owner" : "api" });
   }
   if (write && added.length) {
     doc.keys["marketplace:products"] = [...list, ...added];
@@ -193,7 +215,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (args[0] === "--add") {
     let r;
     try {
-      r = await addItems(parseIds(process.env.TREND_IDS ?? args[1] ?? ""));
+      r = await addItems(parseItems(process.env.TREND_IDS ?? args[1] ?? ""));
     } catch (e) {
       r = { outcome: "FAILED", error: String(e?.message || e).slice(0, 200) };
     }
