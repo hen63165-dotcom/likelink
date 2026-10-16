@@ -1031,8 +1031,9 @@ html body .lx img {
   .lx-top .lx-top-btn { padding-inline: 10px; font-size: 13px; }
   .lx-top .lx-logo-mark + span { font-size: 16px !important; }
 }
-/* Below 340px the dock's search is the search: the header keeps logo, sign-up and menu. */
-@media (max-width: 339px) { .lx-top-round { display: none; } }
+/* Below 340px the wordmark gives way (the mark and the link's name stay): search, sign-up and menu
+   keep their room on every page, product pages included, where there is no dock. */
+@media (max-width: 339px) { .lx-top .lx-logo-mark + span { display: none; } }
 
 /* ---------- Menu: LTK's sheet — white, right under the header, big plain rows ---------- */
 .lx-dd-scrim { position: fixed; inset: 0; z-index: 1; background: transparent; }

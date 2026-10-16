@@ -129,6 +129,12 @@ test("the header offers search, Studio sign-up and log-in into the Studio's form
   assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} className="lx-top-btn lx-top-btn-dark" data-tip=\{authTip\}>\{L\("פתיחת סטודיו"/, "opening a Studio is the header's one black button");
   assert.match(shell, /<Go to=\{STUDIO_LOGIN\} className="lx-top-btn lx-top-btn-line lx-top-wide"/);
   assert.match(shell, /<HeaderSearch navigate=\{navigate\} \/>/);
+  assert.match(shell, /<Go to="\/search" className="lx-top-round"/);
+  // Product pages have no dock, so the phone's round search button is never hidden on a narrow screen.
+  const css = read("src/public.css");
+  for (const [, rule] of css.matchAll(/@media \(max-width: \d+px\)[^{]*\{([^@]*?)\n?\}/g)) {
+    assert.doesNotMatch(rule, /\.lx-top-round\s*\{[^}]*display:\s*none/, "search stays on phones of every width");
+  }
   assert.match(shell, /כדי לקנות לא צריך להירשם/, "sign-up is for the creators' Studio, never a condition for buying");
   assert.match(shell, /\{ to: "\/deals", type: "deals", he: "דילים", en: "Deals", sale: true \}/);
   assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} onClick=\{onClose\} className="lx-dd-link"><CirclePlus[^>]*\/> \{L\("פתיחת סטודיו בחינם"/, "the menu opens a Studio, LTK-style with a round icon");
