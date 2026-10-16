@@ -148,7 +148,10 @@ test("the account kit and the page: the owner opens the account; the bio fits, d
   const day = tiktokDay({ products, reels, now: NOW, imageOf });
   const html = tiktokPage(day);
   assert.match(html, /<meta name="robots" content="noindex,nofollow">/);
-  assert.match(html, /נרשמים עם הטלפון או המייל שלך/, "the owner opens her own account");
+  // The owner opened @likelink herself (2026-10-16): the page names it and links to it instead of the opening steps.
+  assert.match(html, /<summary>החשבון: <span dir="ltr">@likelink<\/span><\/summary>/);
+  assert.match(html, /href="https:\/\/www\.tiktok\.com\/@likelink"/);
+  assert.doesNotMatch(html, /נרשמים עם הטלפון או המייל שלך/, "no sign-up steps for an account that exists");
   assert.doesNotMatch(html, /התפרסם|פורסם בהצלחה|PUBLISHED/, "nothing claims a post went out");
   const slide = slideHtml({ text: "כותרת", image: "data:image/png;base64,AA" }, { index: 0, total: 5, base: "file:///x/" });
   assert.match(slide, /#פרסומת · קישור שותפים/);
@@ -157,7 +160,8 @@ test("the account kit and the page: the owner opens the account; the bio fits, d
 });
 
 test("the site links to our TikTok only once the account exists, in the footer and Google's sameAs alike", () => {
-  assert.deepEqual(socialProfiles(), [], "no handle yet → no link to a page that isn't there");
+  assert.deepEqual(socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "" } }), [], "no handle → no link to a page that isn't there");
+  assert.deepEqual(socialProfiles().map((a) => a.url), ["https://www.tiktok.com/@likelink"], "the account the owner opened (2026-10-16)");
   const withHandle = socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "likelink2" } });
   assert.deepEqual(withHandle.map((a) => a.url), ["https://www.tiktok.com/@likelink2"]);
   assert.deepEqual(socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "bad handle/../" } }), []);
