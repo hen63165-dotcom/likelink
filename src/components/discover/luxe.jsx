@@ -10,10 +10,10 @@
 // screens are LikeLink2's own pages drawn with the same real records. No
 // counters. Everything comes from the public graph (src/lib/publicDiscovery.js).
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Play, Ruler, Search } from "lucide-react";
+import { BookOpen, Compass, Heart, Home, Play, Ruler, Search, Send, ShoppingBag } from "lucide-react";
 import { REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
-import { curatedProducts, footageByProduct, spotlight } from "../../lib/homeShowcase.js";
+import { curatedProducts, footageByProduct, shopCircles, spotlight } from "../../lib/homeShowcase.js";
 import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
@@ -103,21 +103,35 @@ function Phone({ to, label, className = "", children }) {
   );
 }
 
-/** A product video inside the phone: whose video it is on top, the product under the footage (never over it). */
-function PhoneVideo({ product, reel, play = true }) {
+/**
+ * A product video inside the phone: whose video it is on the footage's label,
+ * the product under the footage (never over it). `app` draws the hero's phone
+ * like the app it stands for: a search bar, save/share/shop buttons beside the
+ * video (no counts), the affiliate-link line over the product and the tab bar.
+ */
+function PhoneVideo({ product, reel, play = true, app = false }) {
   const { L, lang } = useL();
   const video = useQuietVideo(play ? reel.url : "");
   const still = reel.poster || cleanImage(product)?.src || "";
   const thumb = cleanImage(product)?.src || still;
   return (
     <>
+      {app ? <span className="lx-pa-search"><Search size={11} strokeWidth={2.2} /> {L("חיפוש מוצרים ויוצרים", "Search products and creators")}</span> : null}
       <span className="lx-phone-video">
         {still ? <img src={still} alt="" onError={hideBroken} /> : null}
         {video.allowed ? (
           <video ref={video.ref} src={reel.url} muted playsInline loop preload="metadata" onPlaying={video.onPlaying} className={video.playing ? "is-on" : ""} />
         ) : null}
         <span className="lx-phone-label">{styleLabel(reel.style, lang)}</span>
+        {app ? (
+          <span className="lx-pa-acts">
+            <span><Heart size={15} strokeWidth={2} /></span>
+            <span><Send size={15} strokeWidth={2} /></span>
+            <span><ShoppingBag size={15} strokeWidth={2} /></span>
+          </span>
+        ) : null}
       </span>
+      {app ? <span className="lx-pa-links">{L("קישור שותפים", "Affiliate link")}</span> : null}
       <span className="lx-phone-product">
         <span className="lx-phone-thumb">{thumb ? <img src={thumb} alt="" onError={hideBroken} /> : null}</span>
         <span className="min-w-0">
@@ -125,6 +139,11 @@ function PhoneVideo({ product, reel, play = true }) {
           <span className="lx-phone-meta">{L("לפרטים ולחנות", "Details and store")}</span>
         </span>
       </span>
+      {app ? (
+        <span className="lx-pa-tabs">
+          <Home size={14} strokeWidth={2.2} /><Compass size={14} strokeWidth={2} /><Search size={14} strokeWidth={2} /><Play size={14} strokeWidth={2} /><Heart size={14} strokeWidth={2} />
+        </span>
+      ) : null}
     </>
   );
 }
@@ -180,7 +199,7 @@ function Hero({ items, featured, reel }) {
           </div>
           {featured && reel ? (
             <Phone to={productPath(featured.id)} label={featured.displayTitle} className="lx-hv-phone">
-              <PhoneVideo product={featured} reel={reel} />
+              <PhoneVideo product={featured} reel={reel} app />
             </Phone>
           ) : null}
         </div>
@@ -316,6 +335,28 @@ function Piece({ product, hasVideo }) {
   );
 }
 
+/** LTK's round category pictures: each one is a real product of that kind and opens the search for it. No counts. */
+function Circles({ products }) {
+  const { L, lang } = useL();
+  const circles = useMemo(() => shopCircles(products), [products]);
+  if (!circles.length) return null;
+  return (
+    <section className="lx-wrap lx-luxe-section" aria-labelledby="h-circles">
+      <Head id="h-circles" kicker={L("קטגוריות", "Categories")} title={L("מה מחפשים היום?", "What are you looking for today?")} to="/products" linkLabel={L("לכל המוצרים", "All products")} />
+      <ul className="lx-circles">
+        {circles.map((c) => (
+          <li key={c.q}>
+            <Go to={c.to} className="lx-circle">
+              <span className="lx-circle-img" aria-hidden="true"><Img src={c.image} alt="" /></span>
+              <span className="lx-circle-name">{lang === "he" ? c.he : c.en}</span>
+            </Go>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Collection({ items, footage }) {
   const { L } = useL();
   if (!items.length) return null;
@@ -336,8 +377,8 @@ function Posts({ graph, footage }) {
   if (!reels.length) return null;
   return (
     <section className="lx-wrap lx-luxe-section" aria-labelledby="h-posts">
-      <Head id="h-posts" kicker={L("פוסטים", "Posts")} title={L("צופים, ובאותו מקום קונים.", "Watch it, shop it, right there.")} to="/reels" linkLabel={L("לכל הסרטונים", "All videos")} />
-      <div className="lx-posts">
+      <Head id="h-posts" kicker={L("הפוסטים האחרונים", "The latest posts")} title={L("צופים, ובאותו מקום קונים.", "Watch it, shop it, right there.")} to="/reels" linkLabel={L("לכל הסרטונים", "All videos")} />
+      <div className="lx-posts lx-posts-rail">
         {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} shoppable ratio="4 / 5" attribution={{ src: "likelink_home", camp: r.id }} />)}
       </div>
     </section>
@@ -394,6 +435,7 @@ export function LuxeHome({ graph, extra = null }) {
     <div className="lx-luxe">
       <Hero items={items} featured={featured} reel={featuredReel} />
       <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
+      <Circles products={graph.products} />
       <Collection items={items} footage={footage} />
       <Posts graph={graph} footage={footage} />
       {extra}
