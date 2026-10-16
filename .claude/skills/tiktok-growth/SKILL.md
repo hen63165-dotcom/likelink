@@ -16,7 +16,7 @@ cloud.
 | When | What | Where |
 |---|---|---|
 | Every morning (06:40 Israel) and every deploy | `scripts/marketing/tiktok-kit.mjs`: today's plan (`tiktokDay` in `src/lib/growth/tiktok.js`) → 2 posts + a bonus, the photo-mode slides rendered as 1080×1920 PNGs (the runner's Chrome), the profile photo | https://hen63165-dotcom.github.io/likelink/tiktok/ + `today.json` |
-| Same run | `tiktokWeek`: the next 7 days' ready-made posts (from tomorrow, at 12:45 / 20:30 Israel time, slides rendered too), for scheduling in TikTok Studio (desktop, business account, up to 10 days ahead) in one sitting | the "השבוע מראש" section + `week.json` |
+| Same run | `tiktokWeek`: the next 7 days' ready-made posts (from tomorrow, at 12:45 / 20:30 Israel time, slides rendered too), for scheduling in TikTok Studio (desktop, up to 10 days ahead) in one sitting when the account is offered the "schedule" option; otherwise she posts from the phone at the listed times | the "השבוע מראש" section + `week.json` |
 | When the owner logs a result | Actions → "TikTok results" (`tiktok-results.yml`) → `marketing/tiktok-results.json` on the `ops/tiktok` branch (a refused push re-reads the branch and re-applies, 5 tries; an unreadable file stops the run) → deploy-frontend rebuilds the page | the "מה למדנו" table + tomorrow's formats |
 
 The daily drop (`/drop/`) links to it; the TikTok page links back.
@@ -72,7 +72,8 @@ it. The page's "פתיחת החשבון" block gives her: username ideas, the na
 bio (`accountKit`, ≤80 chars, with the disclosure), the bio link
 (`bioLink()` = `/reels?utm_source=tiktok&utm_medium=bio`: the site's video
 feed, every video with its product and store link), and a rendered profile
-photo. She switches to a free business account for analytics.
+photo. A free business account adds analytics, when TikTok lets her switch
+without company documents (see below).
 
 When she sends the handle: put it in `src/lib/growth/socialAccounts.js`
 (`SOCIAL_ACCOUNTS.tiktok.handle`) **and** add the same URL to the
