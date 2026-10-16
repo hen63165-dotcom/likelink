@@ -22,7 +22,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { aeCall, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
+import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
@@ -118,7 +118,8 @@ async function resolveFromLink(link) {
   }
 }
 
-export async function sync({ env = process.env, write = false, now = Date.now() } = {}) {
+export async function sync({ env: rawEnv = process.env, write = false, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { outcome: "REQUIRES_CONNECTION", missing: st.missing };
   const doc = JSON.parse(readFileSync(SNAPSHOT, "utf8"));

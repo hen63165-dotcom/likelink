@@ -17,8 +17,20 @@ export const AE_GATEWAY = "https://api-sg.aliexpress.com/sync";
 export const AE_ENV = Object.freeze(["ALIEXPRESS_APP_KEY", "ALIEXPRESS_APP_SECRET", "ALIEXPRESS_TRACKING_ID"]);
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+/**
+ * The credentials as AliExpress expects them. A value pasted into a secret
+ * form often carries a line break or spaces around it; AliExpress then answers
+ * "InvalidAppKey" (seen 2026-10-16), so every reader trims them here.
+ */
+export function aeEnv(env = {}) {
+  const out = { ...env };
+  for (const k of AE_ENV) if (env[k] !== undefined && env[k] !== null) out[k] = String(env[k]).trim();
+  return out;
+}
+
 export function aeStatus(env = {}) {
-  const missing = AE_ENV.filter((k) => !env[k]);
+  const e = aeEnv(env);
+  const missing = AE_ENV.filter((k) => !e[k]);
   return { configured: missing.length === 0, missing };
 }
 
@@ -29,7 +41,8 @@ export function signParams(params, secret) {
   return crypto.createHmac("sha256", String(secret)).update(base, "utf8").digest("hex").toUpperCase();
 }
 
-export async function aeCall(method, biz, { env = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+export async function aeCall(method, biz, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
   const params = { app_key: env.ALIEXPRESS_APP_KEY, method, sign_method: "sha256", timestamp: String(now), format: "json", v: "2.0", ...biz };
   params.sign = signParams(params, env.ALIEXPRESS_APP_SECRET);
   const res = await fetchImpl(AE_GATEWAY, {
@@ -78,7 +91,8 @@ export function toProduct(x, { marketerId, now = Date.now() } = {}) {
  * studio. It is idempotent (by AliExpress product id and by link), capped per
  * run, and verified by read-back.
  */
-export async function importHotProducts({ kvGet, kvSet, env = {}, fetchImpl, now = Date.now(), limit = 6, keywords = "" }) {
+export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), limit = 6, keywords = "" }) {
+  const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
   const marketerId = env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
@@ -113,7 +127,8 @@ export async function importHotProducts({ kvGet, kvSet, env = {}, fetchImpl, now
  * and whose real store page is known (imageSource.itemUrl), ask the owner's
  * account for its own tracked link. The previous link is kept.
  */
-export async function repairSharedLinks({ kvGet, kvSet, env = {}, fetchImpl, now = Date.now(), sharedAffiliateLinks, limit = 10 }) {
+export async function repairSharedLinks({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), sharedAffiliateLinks, limit = 10 }) {
+  const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
   const products = arr(await kvGet("marketplace:products", null));
