@@ -22,7 +22,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { aeCall, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
+import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
@@ -107,9 +107,9 @@ function cleanestPhoto(images, current) {
   }
 }
 
-async function resolveFromLink(link) {
+async function resolveFromLink(link, fetchImpl = globalThis.fetch) {
   try {
-    const res = await fetch(link, { redirect: "manual", signal: AbortSignal.timeout(15000) });
+    const res = await fetchImpl(link, { redirect: "manual", signal: AbortSignal.timeout(15000) });
     const where = res.headers.get("location") || (await res.text()).slice(0, 4000);
     const m = String(where).match(/\/item\/(\d{10,20})\.html/);
     return m ? m[1] : "";
@@ -118,19 +118,26 @@ async function resolveFromLink(link) {
   }
 }
 
-export async function sync({ env = process.env, write = false, now = Date.now() } = {}) {
+/** The price the copy had before, for the report: "none" when there was none (empty, blank or not a number). */
+export function previousPrice(v) {
+  const t = String(v ?? "").trim();
+  return t !== "" && Number.isFinite(Number(t)) ? `₪${Number(t)}` : "none";
+}
+
+export async function sync({ env: rawEnv = process.env, write = false, now = Date.now(), fetchImpl = globalThis.fetch } = {}) {
+  const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { outcome: "REQUIRES_CONNECTION", missing: st.missing };
   const doc = JSON.parse(readFileSync(SNAPSHOT, "utf8"));
   const products = doc.keys["marketplace:products"];
   const ids = new Map();
   for (const p of products) {
-    const id = aliItemId(p) || (await resolveFromLink(p.affiliateUrl));
+    const id = aliItemId(p) || (await resolveFromLink(p.affiliateUrl, fetchImpl));
     if (id) ids.set(p.id, id);
   }
   const json = await aeCall("aliexpress.affiliate.productdetail.get", {
     product_ids: [...new Set(ids.values())].join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
-  }, { env, now });
+  }, { env, now, fetchImpl });
   const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
   if (result && Number(result.resp_code) !== 200) return { outcome: "PROVIDER_ERROR", code: result.resp_code, message: String(result.resp_msg || "").slice(0, 120) };
   const found = new Map((result?.result?.products?.product || []).map((x) => [String(x.product_id), x]));
@@ -143,7 +150,7 @@ export async function sync({ env = process.env, write = false, now = Date.now() 
     }
     const cleanest = cleanestPhoto(facts.images, p.image);
     const next = applyFacts(p, facts, { cleanest, now });
-    report.push({ id: p.id, item: ids.get(p.id), status: "UPDATED", price: `₪${Number(p.price)} → ₪${next.price}`, original: next.originalPrice || null, photo: next.image !== p.image ? "cleaner gallery photo" : "kept", video: Boolean(facts.sellerVideo) });
+    report.push({ id: p.id, item: ids.get(p.id), status: "UPDATED", price: `${previousPrice(p.price)} → ₪${next.price}`, original: next.originalPrice || null, photo: next.image !== p.image ? "cleaner gallery photo" : "kept", video: Boolean(facts.sellerVideo) });
     return next;
   });
   if (write && report.some((r) => r.status === "UPDATED")) {

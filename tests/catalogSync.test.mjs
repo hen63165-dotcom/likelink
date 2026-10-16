@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { aliItemId, applyFacts, storeFacts, sync } from "../scripts/catalog/sync-aliexpress.mjs";
+import { signParams } from "../api/_utils/aliexpressAffiliate.mjs";
 import { classifyMediaRecord, MEDIA_TRUTH } from "../src/lib/discovery/mediaTruth.js";
 
 const products = JSON.parse(readFileSync(new URL("../public/snapshot/kv.json", import.meta.url), "utf8")).keys["marketplace:products"];
@@ -58,4 +59,21 @@ test("without the AliExpress keys nothing is asked and nothing changes", async (
   const r = await sync({ env: {}, write: true, now: NOW });
   assert.equal(r.outcome, "REQUIRES_CONNECTION");
   assert.deepEqual(r.missing, ["ALIEXPRESS_APP_KEY", "ALIEXPRESS_APP_SECRET", "ALIEXPRESS_TRACKING_ID"]);
+});
+
+test("the sync itself trims pasted keys: the request carries the clean key and tracking id, signed with the clean secret", async () => {
+  const sent = [];
+  const fetchImpl = async (url, init = {}) => {
+    if (init.method !== "POST") return { headers: { get: () => null }, text: async () => "" };
+    sent.push(Object.fromEntries(new URLSearchParams(String(init.body))));
+    return { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: [] } } } } }) };
+  };
+  const env = { ALIEXPRESS_APP_KEY: "\n552322 ", ALIEXPRESS_APP_SECRET: "\r\nsecret\n", ALIEXPRESS_TRACKING_ID: " likelink\n" };
+  const r = await sync({ env, write: false, now: NOW, fetchImpl });
+  assert.equal(r.outcome, "OK");
+  assert.equal(sent.length, 1);
+  const { sign, ...rest } = sent[0];
+  assert.deepEqual([rest.app_key, rest.tracking_id], ["552322", "likelink"]);
+  assert.equal(sign, signParams(rest, "secret"));
+  assert.ok(r.report.every((x) => x.status === "NOT_RETURNED"), "nothing returned → nothing changed");
 });

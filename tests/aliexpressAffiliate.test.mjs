@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { signParams, toProduct, importHotProducts, repairSharedLinks, aeStatus, dailyAffiliateImport } from "../api/_utils/aliexpressAffiliate.mjs";
+import { signParams, toProduct, importHotProducts, repairSharedLinks, aeEnv, aeStatus, dailyAffiliateImport } from "../api/_utils/aliexpressAffiliate.mjs";
 import { sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 
 const ENV = { ALIEXPRESS_APP_KEY: "k", ALIEXPRESS_APP_SECRET: "s", ALIEXPRESS_TRACKING_ID: "t" };
@@ -16,6 +16,25 @@ const fetchWith = (payload) => async (url, init) => { fetchWith.last = { url, bo
 test("signature = HMAC-SHA256 over the sorted key+value pairs, upper hex, sign excluded", () => {
   const sig = signParams({ b: "2", a: "1", sign: "x", empty: "" }, "secret");
   assert.equal(sig, crypto.createHmac("sha256", "secret").update("a1b2").digest("hex").toUpperCase());
+});
+
+test("pasted credentials are trimmed: a line break around the key is not an InvalidAppKey (2026-10-16)", async () => {
+  const padded = { ALIEXPRESS_APP_KEY: "\nk  ", ALIEXPRESS_APP_SECRET: "\r\ns\n", ALIEXPRESS_TRACKING_ID: " t\n" };
+  assert.deepEqual(aeEnv(padded), ENV);
+  assert.equal(aeStatus({ ALIEXPRESS_APP_KEY: " \n", ALIEXPRESS_APP_SECRET: "s", ALIEXPRESS_TRACKING_ID: "t" }).configured, false, "whitespace only is missing");
+  const payload = { aliexpress_affiliate_hotproduct_query_response: { resp_result: { resp_code: 200, result: { products: { product: [] } } } } };
+  await importHotProducts({ ...kvOf({ "marketplace:products": [{ id: "x" }] }), env: padded, fetchImpl: fetchWith(payload), now: NOW });
+  const sent = Object.fromEntries(new URLSearchParams(fetchWith.last.body));
+  assert.equal(sent.app_key, "k"); assert.equal(sent.tracking_id, "t");
+  const { sign, ...rest } = sent;
+  assert.equal(sign, signParams(rest, "s"), "signed with the trimmed secret");
+});
+
+test("the sync report says none for a missing previous price, never ₪NaN or ₪0", async () => {
+  const { previousPrice } = await import("../scripts/catalog/sync-aliexpress.mjs");
+  for (const v of [undefined, null, "", "   ", "abc"]) assert.equal(previousPrice(v), "none", JSON.stringify(v));
+  assert.equal(previousPrice(39.9), "₪39.9");
+  assert.equal(previousPrice(" 12 "), "₪12");
 });
 
 test("without the owner's credentials nothing is called", async () => {

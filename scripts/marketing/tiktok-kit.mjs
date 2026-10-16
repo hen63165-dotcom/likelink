@@ -185,7 +185,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 <header><div><p class="kicker">טיקטוק של LikeLink2 · ${esc(day.date)}</p><h1>${day.posts.length ? `${day.posts.length} טיקטוקים מוכנים להיום` : "אין היום פוסט מוכן"}</h1>
 <p class="note">כל יום בבוקר: פורמט טרנדי, מוצר אמיתי מהאתר, טקסט שנבדק, והצעדים באפליקציה. כדאי לפרסם ב־${esc(day.schedule.join(" או ב־"))}. ${esc(day.scheduleNote)}</p>
 ${day.trend ? `<p class="note">חם היום בחיפושים בישראל ומתאים למוצר: „${esc(day.trend.term)}” (Google Trends).</p>` : ""}
-<p class="note"><a href="../drop/">לדרופ היומי לכל הרשתות</a></p></div></header>
+<p class="note"><a href="../drop/">לדרופ היומי לכל הרשתות</a> · <a href="../trend-board/">טרנדים מ-AliExpress לפי קטגוריות</a></p></div></header>
 <main>
 ${tt ? `<details class="card"${day.learning.posts ? "" : " open"}><summary>החשבון: <span dir="ltr">@${esc(tt.handle)}</span></summary>
 <p class="note"><a href="${esc(tt.url)}" target="_blank" rel="noopener">לפרופיל בטיקטוק</a>. הוא כבר מקושר מתחתית האתר.</p>
