@@ -9,7 +9,7 @@ on:
     branches: [main]
   # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync", "Product video reels", "TikTok results"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Add trend products", "TikTok results"]
     types: [completed]
   # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
   schedule:
@@ -109,6 +109,18 @@ jobs:
           npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null 2>&1 || echo "::warning::no playwright: slides listed as text"
           TIKTOK_RESULTS="$RUNNER_TEMP/tiktok-results.json" PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright \
             node scripts/marketing/tiktok-kit.mjs dist || echo "::warning::tiktok kit skipped"
+
+      - name: The trend board (AliExpress hot products by category → /trend-board/)
+        # src/lib/growth/trendBoard.js + scripts/catalog/trend-finder.mjs: AliExpress's
+        # own hot-products list per category (ship to Israel, ILS, the owner's
+        # tracked link), Google Trends Israel matches first. Nothing reaches the
+        # site from here: the owner picks items for "Add trend products".
+        timeout-minutes: 6
+        env:
+          ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+          ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+          ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+        run: node scripts/catalog/trend-finder.mjs dist || echo "::warning::trend board skipped"
 
       - name: Publish dist to gh-pages
         env:

@@ -72,7 +72,8 @@ const categoryOf = (name) => (CATEGORY.find(([re]) => re.test(String(name || "")
 /** API product → LikeLink product (the owner's studio). Returns null if any real field is missing. */
 export function toProduct(x, { marketerId, now = Date.now() } = {}) {
   const link = String(x?.promotion_link || "");
-  const image = String(x?.product_main_image_url || "");
+  // The API sometimes answers a protocol-relative photo address ("//ae01.alicdn.com/…").
+  const image = String(x?.product_main_image_url || "").trim().replace(/^\/\//, "https://");
   const price = Number(x?.target_sale_price || x?.sale_price);
   const id = String(x?.product_id || "");
   if (!/^https:\/\/s\.click\.aliexpress\.com\//.test(link) || !/^https?:\/\//.test(image) || !(price > 0) || !id) return null;
