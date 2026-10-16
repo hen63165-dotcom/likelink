@@ -122,6 +122,18 @@ test("findTrends asks per category (ship to IL, ILS, own tracking id) and falls 
   assert.ok(hosts.every((h) => h !== "s.click.aliexpress.com"), "never her own tracked link (a self-click)");
 });
 
+test("a run that outlasts its time budget reports the categories it skipped and is not OK; the page says the read failed", async () => {
+  const api = fakeApi({ "aliexpress.affiliate.hotproduct.query": [item("1005001111111111")] });
+  const r = await findTrends({ env: ENV, now: NOW, trends: [], fetchImpl: api.impl, budgetMs: 0 });
+  assert.equal(r.outcome, "FAILED");
+  assert.equal(api.calls.length, 0);
+  assert.equal(r.errors.length, TREND_CATEGORIES.length);
+  assert.ok(r.errors.every((e) => e.error === "time_budget"));
+  const html = trendsPage(r.board, r);
+  assert.match(html, /לא הצלחנו לקרוא את AliExpress/);
+  assert.doesNotMatch(html, /לא החזירה מוצרים מתאימים/, "a failed read is never shown as an empty day");
+});
+
 test("adding: only the typed items, re-read from the API, as the owner's products; existing items and shared links refused", async () => {
   const snap = tempSnapshot();
   try {

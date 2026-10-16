@@ -44,7 +44,12 @@ async function hotFor(category, env, now, fetchImpl) {
   return list;
 }
 
-export async function findTrends({ env: rawEnv = process.env, now = Date.now(), trends = null, fetchImpl = globalThis.fetch, snapshot = SNAPSHOT } = {}) {
+/**
+ * The board. `budgetMs` bounds the whole run (14 categories × up to 2 calls ×
+ * 15 s would otherwise outlast the deploy step): categories left when it runs
+ * out are reported, never guessed.
+ */
+export async function findTrends({ env: rawEnv = process.env, now = Date.now(), trends = null, fetchImpl = globalThis.fetch, snapshot = SNAPSHOT, budgetMs = 150_000 } = {}) {
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   const doc = JSON.parse(readFileSync(snapshot, "utf8"));
@@ -52,7 +57,12 @@ export async function findTrends({ env: rawEnv = process.env, now = Date.now(), 
   if (!st.configured) return { outcome: "REQUIRES_CONNECTION", missing: st.missing, board: buildBoard({ now, listed }) };
   const results = {};
   const errors = [];
+  const started = Date.now();
   for (const c of TREND_CATEGORIES) {
+    if (Date.now() - started >= budgetMs) {
+      errors.push({ category: c.key, error: "time_budget" });
+      continue;
+    }
     try {
       results[c.key] = await hotFor(c, env, now, fetchImpl);
     } catch (e) {
@@ -97,6 +107,7 @@ ul.g{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repea
 <p class="note"><a href="../drop/">לדרופ היומי</a> · <a href="../tiktok/">לעמוד הטיקטוק</a></p></div></header>
 <main>
 ${outcome === "REQUIRES_CONNECTION" ? `<p class="card">החיבור ל-AliExpress עוד לא מוגדר (חסר: ${esc(missing.join(", "))}).</p>` : ""}
+${outcome === "FAILED" ? `<p class="card">הפעם לא הצלחנו לקרוא את AliExpress. הלוח יתעדכן בפריסה הבאה.</p>` : ""}
 <section class="card"><h2>איך מעלים מוצר לאתר</h2><ol>
 <li>מעתיקים את מספרי המוצרים שבחרת (כפתור "העתקה").</li>
 <li>ב-GitHub: Actions ← <b>Add trend products</b> ← Run workflow ← מדביקים את המספרים, מופרדים בפסיק (עד 10) ← Run.</li>
@@ -104,7 +115,7 @@ ${outcome === "REQUIRES_CONNECTION" ? `<p class="card">החיבור ל-AliExpres
 </ol></section>
 ${cats.map((c) => `<h2 id="${esc(c.key)}">${esc(c.he)}${c.searchedToday.length ? `<span class="hot">מחפשים היום בגוגל: ${esc(c.searchedToday[0].term)}</span>` : ""}</h2>
 <ul class="g">${c.items.map(card).join("")}</ul>`).join("\n")}
-${cats.length ? "" : `<p class="card">היום AliExpress לא החזירה מוצרים מתאימים.</p>`}
+${cats.length || outcome !== "OK" ? "" : `<p class="card">היום AliExpress לא החזירה מוצרים מתאימים.</p>`}
 <p class="note">${esc(board.note)}</p>
 </main>
 <script>document.addEventListener("click",(e)=>{const b=e.target.closest("[data-copy]");if(!b)return;navigator.clipboard?.writeText(b.dataset.copy);b.textContent="הועתק";});</script>
@@ -172,5 +183,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     writeFileSync(join(out, "index.html"), trendsPage(r.board, r));
     const n = r.board.categories.reduce((s, c) => s + c.items.length, 0);
     console.log(`trends: ${r.outcome}, ${n} items in ${r.board.categories.filter((c) => c.items.length).length} categories${r.errors?.length ? `, errors: ${JSON.stringify(r.errors).slice(0, 300)}` : ""}`);
+    // Not OK → the deploy step keeps the last published board (deploy-frontend.yml).
+    if (r.outcome !== "OK") process.exitCode = 1;
   }
 }
