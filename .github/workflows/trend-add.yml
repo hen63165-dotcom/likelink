@@ -1,4 +1,5 @@
-# The owner's picks from the trend board (/likelink/trend-board/) → the site.
+# The owner's picks from the trend board (/likelink/trend-board/), or her own
+# AliExpress links, → the site, without the cloud.
 # Re-reads exactly those AliExpress items from the official affiliate API
 # (productdetail.get: ILS, ship to Israel, the owner's tracked link, the store's
 # gallery and the seller's own video), adds them to the catalog copy the site
@@ -11,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       ids:
-        description: "AliExpress item numbers from the trend board (up to 10, separated by commas)"
+        description: "Up to 10, separated by commas: item numbers from the trend board, AliExpress product page links, or your own s.click links"
         required: true
 permissions:
   contents: write

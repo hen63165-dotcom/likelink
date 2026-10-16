@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseIds, toTrendItem, trendHits } from "../src/lib/growth/trendBoard.js";
+import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseIds, parseItems, toTrendItem, trendHits } from "../src/lib/growth/trendBoard.js";
 import { BOARD_DIR, addItems, findTrends, productsOf, trendsPage } from "../scripts/catalog/trend-finder.mjs";
 import { parsePath } from "../src/utils/routing.js";
 
@@ -90,6 +90,46 @@ test("item ids from the form: digits only, at most 10, duplicates once", () => {
   assert.equal(parseIds(Array.from({ length: 14 }, (_, i) => String(1005000000000000 + i)).join(",")).length, 10);
   assert.throws(() => parseIds("1005001111111111, $(rm -rf /)"), /not an AliExpress item id/);
   assert.deepEqual(parseIds(""), []);
+});
+
+test("the add form takes item numbers, store product pages and the owner's own s.click links — nothing else", () => {
+  assert.deepEqual(parseItems("1005001111111111 https://www.aliexpress.com/item/1005002222222222.html?spm=x, https://he.aliexpress.com/item/1005002222222222.html https://s.click.aliexpress.com/e/_oFAbc12"), [
+    { id: "1005001111111111" }, { id: "1005002222222222" }, { link: "https://s.click.aliexpress.com/e/_oFAbc12" },
+  ]);
+  assert.deepEqual(parseItems("https://www.aliexpress.us/item/3256804734954745.html"), [{ id: "3256804734954745" }]);
+  for (const bad of ["https://evil.example/item/1005001111111111.html", "https://aliexpress.com.evil.example/item/1005001111111111.html", "http://s.click.aliexpress.com/e/_x", "https://s.click.aliexpress.com.evil.example/e/_x", "javascript:alert(1)", "$(rm -rf /)"]) {
+    assert.throws(() => parseItems(bad), /not an AliExpress item number or link/, bad);
+  }
+  assert.equal(parseItems(Array.from({ length: 12 }, (_, i) => String(1005000000000000 + i)).join(" ")).length, 10);
+});
+
+test("an own link: resolved with one request, kept exactly as pasted, never the API's link; a missing answer envelope is a provider error", async () => {
+  const snap = tempSnapshot();
+  try {
+    const own = "https://s.click.aliexpress.com/e/_oFOwn123";
+    const calls = [];
+    const fetchImpl = async (url, init = {}) => {
+      if (init.method !== "POST") {
+        calls.push({ url, redirect: init.redirect });
+        return { headers: { get: (h) => (h === "location" ? "https://www.aliexpress.com/item/1005004444444444.html?aff=x" : null) }, text: async () => "" };
+      }
+      return { ok: true, status: 200, json: async () => apiReply("aliexpress.affiliate.productdetail.get", [item("1005004444444444")]) };
+    };
+    const r = await addItems([{ link: own }], { env: ENV, now: NOW, fetchImpl, snapshot: snap.file });
+    assert.deepEqual(calls, [{ url: own, redirect: "manual" }], "one request, redirects not followed");
+    assert.deepEqual(r.report.map((x) => [x.status, x.link]), [["ADDED", "owner"]]);
+    const p = JSON.parse(readFileSync(snap.file, "utf8")).keys["marketplace:products"].at(-1);
+    assert.equal(p.affiliateUrl, own, "her own link, not the API's");
+    assert.equal(p.importSource, "aliexpress-owner-link");
+    const noEnvelope = async (url, init = {}) => ({ ok: true, status: 200, json: async () => ({}) });
+    const e = await addItems(["1005005555555555"], { env: ENV, now: NOW, fetchImpl: noEnvelope, snapshot: snap.file, write: false });
+    assert.equal(e.outcome, "PROVIDER_ERROR");
+    const unresolved = async (url, init = {}) => ({ headers: { get: () => null }, text: async () => "<html>captcha</html>" });
+    const u = await addItems([{ link: "https://s.click.aliexpress.com/e/_oFNope" }], { env: ENV, now: NOW, fetchImpl: unresolved, snapshot: snap.file, write: false });
+    assert.deepEqual(u.report.map((x) => x.status), ["LINK_NOT_RESOLVED"]);
+  } finally {
+    snap.done();
+  }
 });
 
 test("without the owner's credentials nothing is called and nothing is added", async () => {

@@ -107,7 +107,8 @@ function cleanestPhoto(images, current) {
   }
 }
 
-async function resolveFromLink(link, fetchImpl = globalThis.fetch) {
+/** The store item a tracked link opens: one request, redirects not followed (only the first answer is read). */
+export async function resolveFromLink(link, fetchImpl = globalThis.fetch) {
   try {
     const res = await fetchImpl(link, { redirect: "manual", signal: AbortSignal.timeout(15000) });
     const where = res.headers.get("location") || (await res.text()).slice(0, 4000);
