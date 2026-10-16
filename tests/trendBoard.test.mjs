@@ -118,7 +118,7 @@ test("findTrends asks per category (ship to IL, ILS, own tracking id) and falls 
   assert.match(html, /noindex/);
   assert.match(html, /Add trend products/);
   const hosts = [...html.matchAll(/href="([^"#][^"]*)"/g)].map((m) => new URL(m[1], "https://hen63165-dotcom.github.io/likelink/trend-board/").hostname);
-  assert.ok(hosts.includes("www.aliexpress.com"), "each item links its store page");
+  assert.ok(hosts.some((h) => h === "www.aliexpress.com"), "each item links its store page");
   assert.ok(hosts.every((h) => h !== "s.click.aliexpress.com"), "never her own tracked link (a self-click)");
 });
 
