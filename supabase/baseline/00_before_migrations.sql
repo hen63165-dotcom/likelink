@@ -105,6 +105,8 @@ begin
 end $$;
 
 -- ---------- policies production had before the migrations ----------
+-- (profiles insert already refuses is_admin here; 20261016000000_profiles_no_self_admin
+-- adds the trigger that guards it whatever the grants say.)
 drop policy if exists kv_system_write_admin on public.kv;
 create policy kv_system_write_admin on public.kv for all
   using (public.is_likelink_admin()) with check (public.is_likelink_admin());
@@ -115,7 +117,7 @@ create policy kv_no_delete_by_anon on public.kv for delete
 drop policy if exists profiles_select_all on public.profiles;
 create policy profiles_select_all on public.profiles for select using (true);
 drop policy if exists profiles_insert_own on public.profiles;
-create policy profiles_insert_own on public.profiles for insert with check (auth.uid() = id);
+create policy profiles_insert_own on public.profiles for insert with check ((auth.uid() = id) and (not is_admin));
 drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles for update using (auth.uid() = id) with check ((auth.uid() = id) and (not is_admin));
 drop policy if exists profiles_delete_own on public.profiles;
