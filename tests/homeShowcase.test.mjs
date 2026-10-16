@@ -103,3 +103,46 @@ test("the home page names whose video and image it is, keeps the disclosure and 
   assert.match(pages, /<LuxeHome graph=\{graph\}/);
   assert.match(pages, /trackSiteEvent\("landing_view"/);
 });
+
+test("the phone mockups show whose video it is on the footage and the product only under it", () => {
+  const luxe = read("src/components/discover/luxe.jsx");
+  const phoneVideo = luxe.slice(luxe.indexOf("function PhoneVideo"), luxe.indexOf("/* ------------------------------------------------------------------- hero"));
+  const onFootage = phoneVideo.slice(phoneVideo.indexOf('<span className="lx-phone-video">'), phoneVideo.indexOf('<span className="lx-phone-product">'));
+  assert.ok(onFootage.length > 0);
+  assert.match(onFootage, /styleLabel\(reel\.style, lang\)/, "whose video it is");
+  assert.doesNotMatch(onFootage, /displayTitle|creator|\.name\b/, "no product or creator name printed over the footage");
+  assert.match(phoneVideo.slice(phoneVideo.indexOf('<span className="lx-phone-product">')), /product\.displayTitle/, "the product sits under the video");
+  // The site carries every category creators publish: the hero never names one.
+  const hero = luxe.slice(luxe.indexOf("function Hero("), luxe.indexOf("/* --------------------------------------------------- how it works"));
+  assert.match(hero, /ההמלצות של היוצרים שאתם אוהבים, במקום אחד\./);
+  assert.doesNotMatch(hero, /תכשיט|jewelry/i, "the headline speaks to every category");
+  assert.doesNotMatch(read("index.html"), /<h1>[^<]*תכשיט/, "the first paint too");
+  // The screens are drawn from the same real records: curated images only, no counters.
+  assert.match(luxe, /function CreatorScreen[\s\S]*cleanImage\(p\)\?\.src/);
+  assert.match(luxe, /function FindScreen[\s\S]*cleanImage\(p\)\.src/);
+});
+
+test("the header offers search, Studio sign-up and log-in into the Studio's form, and a menu that says buying needs no account", () => {
+  const shell = read("src/components/discover/PublicShell.jsx");
+  assert.match(shell, /export const STUDIO_SIGNUP = "\/studio\?auth=signup"/);
+  assert.match(shell, /export const STUDIO_LOGIN = "\/studio\?auth=login"/);
+  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} className="lx-top-btn lx-top-btn-dark" data-tip=\{authTip\}>\{L\("פתיחת סטודיו"/, "opening a Studio is the header's one black button");
+  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} className="lx-top-btn lx-top-btn-line lx-top-wide"/);
+  assert.match(shell, /<HeaderSearch navigate=\{navigate\} \/>/);
+  assert.match(shell, /<Go to="\/search" className="lx-top-round"/);
+  // Product pages have no dock, so the phone's round search button is never hidden on a narrow screen.
+  const css = read("src/public.css");
+  for (const [, rule] of css.matchAll(/@media \(max-width: \d+px\)[^{]*\{([^@]*?)\n?\}/g)) {
+    assert.doesNotMatch(rule, /\.lx-top-round\s*\{[^}]*display:\s*none/, "search stays on phones of every width");
+  }
+  assert.match(shell, /כדי לקנות לא צריך להירשם/, "sign-up is for the creators' Studio, never a condition for buying");
+  assert.match(shell, /\{ to: "\/deals", type: "deals", he: "דילים", en: "Deals", sale: true \}/);
+  assert.match(shell, /<Go to=\{STUDIO_SIGNUP\} onClick=\{onClose\} className="lx-dd-link"><CirclePlus[^>]*\/> \{L\("פתיחת סטודיו בחינם"/, "the menu opens a Studio, LTK-style with a round icon");
+  assert.match(shell, /<Go to=\{STUDIO_LOGIN\} onClick=\{onClose\} className="lx-dd-link"><CircleUserRound/);
+  assert.match(shell, /subs: \[/, "pages sit indented under their section, like LTK's menu");
+  assert.match(read("src/components/discover/luxe.jsx"), /<Go to=\{STUDIO_SIGNUP\} className="lx-luxe-btn lx-luxe-btn-dark">/, "the creators panel opens a Studio");
+  const entrance = read("src/components/studio/StudioEntrance.jsx");
+  assert.match(entrance, /get\("auth"\) === "login" \? "login" : "signup"/, "log-in opens the form on the sign-in tab");
+  assert.match(entrance, /initialMode=\{authMode\}/);
+  assert.match(read("src/components/sell/AuthGate.jsx"), /useState\(initialMode === "login" \? "login" : "signup"\)/);
+});

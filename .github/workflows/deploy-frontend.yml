@@ -9,7 +9,7 @@ on:
     branches: [main]
   # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync", "Product video reels"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels", "TikTok results"]
     types: [completed]
   # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
   schedule:
@@ -96,6 +96,19 @@ jobs:
         # Today's product, its best video and Google Trends Israel → a page the
         # owner posts from in a minute (scripts/marketing/daily-drop.mjs).
         run: node scripts/marketing/daily-drop.mjs dist || echo "::warning::daily drop skipped"
+
+      - name: The TikTok kit (today's TikToks, rendered slides, what the results taught → /tiktok/)
+        # src/lib/growth/tiktok.js + scripts/marketing/tiktok-kit.mjs. The owner's
+        # logged results live on ops/tiktok (tiktok-results.yml). The slides are
+        # rendered with the runner's own Chrome; without it they are listed as text.
+        run: |
+          echo "[]" > "$RUNNER_TEMP/tiktok-results.json"
+          if git fetch --depth=1 origin ops/tiktok:refs/remotes/origin/ops/tiktok 2>/dev/null; then
+            git show refs/remotes/origin/ops/tiktok:marketing/tiktok-results.json > "$RUNNER_TEMP/tiktok-results.json" 2>/dev/null || echo "[]" > "$RUNNER_TEMP/tiktok-results.json"
+          fi
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null 2>&1 || echo "::warning::no playwright: slides listed as text"
+          TIKTOK_RESULTS="$RUNNER_TEMP/tiktok-results.json" PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright \
+            node scripts/marketing/tiktok-kit.mjs dist || echo "::warning::tiktok kit skipped"
 
       - name: Publish dist to gh-pages
         env:

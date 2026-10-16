@@ -12,9 +12,9 @@ import { LEGAL_VERSION, legalPath } from "../../lib/legal/catalog.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { withBase } from "../../lib/basePath.js";
 
-export default function AuthGate({ marketers, onLogin, onSignup }) {
+export default function AuthGate({ marketers, onLogin, onSignup, initialMode = "signup" }) {
   const { t } = useI18n();
-  const [mode, setMode] = useState("signup");
+  const [mode, setMode] = useState(initialMode === "login" ? "login" : "signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

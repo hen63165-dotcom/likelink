@@ -1,22 +1,28 @@
-// The home page, built on LTK's editorial idea (black and white, a serif
-// headline over a collage of real images, creator videos with the products
-// right under them), for LikeLink2 and in Hebrew first.
+// The home page, built on LTK's idea (a white page, a light-blue hero with a
+// big serif headline over a collage of real images and a phone playing a
+// product video, then "how it works" told by three phone screens), for
+// LikeLink2 and in Hebrew first.
 //
 // Every image shows the product it names: a clean frame from the seller's
 // own video, or a store photo checked by eye (src/lib/looks.js). A product
 // without one stays on /products and off this page. Videos are footage of the
-// real product only, named by whose they are (homeShowcase.js). No counters.
-// Everything comes from the public graph (src/lib/publicDiscovery.js).
+// real product only, named by whose they are (homeShowcase.js). The phone
+// screens are LikeLink2's own pages drawn with the same real records. No
+// counters. Everything comes from the public graph (src/lib/publicDiscovery.js).
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Play, Ruler, Search } from "lucide-react";
 import { REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
-import { productPath } from "../../lib/acquisition.js";
+import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { curatedProducts, footageByProduct, spotlight } from "../../lib/homeShowcase.js";
 import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
-import { Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
+import { CreatorAvatar, Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
+import { STUDIO_SIGNUP } from "./PublicShell";
+
+// An image that fails to load leaves its light-blue cell, never a broken-image icon.
+const hideBroken = (e) => e.currentTarget.classList.add("is-broken");
 
 function styleLabel(style, lang) {
   const l = REEL_STYLE_LABELS[style];
@@ -61,8 +67,8 @@ function useQuietVideo(src) {
   return { ref, allowed, playing, onPlaying: () => setPlaying(true) };
 }
 
-/** LTK's search-first header line: a product or creator, straight to /search. */
-function HeroSearch({ jewelry }) {
+/** LTK's search-first line: a product or creator, straight to /search. */
+function HeroSearch() {
   const { L } = useL();
   const navigate = useContext(NavCtx);
   const [q, setQ] = useState("");
@@ -77,73 +83,208 @@ function HeroSearch({ jewelry }) {
     >
       <label className="lx-sr" htmlFor="lx-luxe-q">{L("חיפוש מוצרים ויוצרים", "Search products and creators")}</label>
       <Search size={17} aria-hidden="true" />
-      <input id="lx-luxe-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={jewelry ? L("צמיד, עגילים, טבעת…", "Bracelet, earrings, ring…") : L("מה מחפשים?", "What are you looking for?")} enterKeyHint="search" />
+      <input id="lx-luxe-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("מה מחפשים היום?", "What are you looking for today?")} enterKeyHint="search" />
       <button type="submit">{L("חיפוש", "Search")}</button>
     </form>
   );
 }
 
-function Hero({ items, jewelry }) {
+/* ------------------------------------------------------------------ phone */
+
+/** A phone drawn around one of LikeLink2's own screens. The whole phone is one link. */
+function Phone({ to, label, className = "", children }) {
+  return (
+    <Go to={to} className={`lx-phone ${className}`} aria-label={label}>
+      <span className="lx-phone-screen" aria-hidden="true">
+        <span className="lx-phone-bar">LikeLink2</span>
+        {children}
+      </span>
+    </Go>
+  );
+}
+
+/** A product video inside the phone: whose video it is on top, the product under the footage (never over it). */
+function PhoneVideo({ product, reel, play = true }) {
+  const { L, lang } = useL();
+  const video = useQuietVideo(play ? reel.url : "");
+  const still = reel.poster || cleanImage(product)?.src || "";
+  const thumb = cleanImage(product)?.src || still;
+  return (
+    <>
+      <span className="lx-phone-video">
+        {still ? <img src={still} alt="" onError={hideBroken} /> : null}
+        {video.allowed ? (
+          <video ref={video.ref} src={reel.url} muted playsInline loop preload="metadata" onPlaying={video.onPlaying} className={video.playing ? "is-on" : ""} />
+        ) : null}
+        <span className="lx-phone-label">{styleLabel(reel.style, lang)}</span>
+      </span>
+      <span className="lx-phone-product">
+        <span className="lx-phone-thumb">{thumb ? <img src={thumb} alt="" onError={hideBroken} /> : null}</span>
+        <span className="min-w-0">
+          <span className="lx-phone-name">{product.displayTitle}</span>
+          <span className="lx-phone-meta">{L("לפרטים ולחנות", "Details and store")}</span>
+        </span>
+      </span>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------- hero */
+
+function Hero({ items, featured, reel }) {
   const { L } = useL();
   const scrollTo = useScrollTo();
   // The frames that ship with the site lead (they cannot fail to load); a store photo comes last.
   const tiles = [...items].sort((a, b) => (lookOf(a.id) ? 0 : 1) - (lookOf(b.id) ? 0 : 1)).slice(0, 4);
+  const tile = (i, key) => {
+    const p = tiles[i];
+    if (!p) return <span key={key} className="lx-hv-tile lx-hv-sky" aria-hidden="true" />;
+    return (
+      <Go key={key} to={productPath(p.id)} className="lx-hv-tile" aria-label={p.displayTitle}>
+        <img src={cleanImage(p).src} alt="" loading={i < 2 ? "eager" : "lazy"} onError={hideBroken} />
+      </Go>
+    );
+  };
+  const sky = (key, tone = "") => <span key={key} className={`lx-hv-tile lx-hv-sky ${tone}`} aria-hidden="true" />;
+  // Three columns like LTK's collage: real images on the sides, light-blue tiles, the phone in front.
+  const columns = [
+    [tile(0, "a0"), sky("a1", "is-deep"), tile(2, "a2")],
+    [sky("b0"), sky("b1", "is-deep"), sky("b2")],
+    [sky("c0", "is-deep"), tile(1, "c1"), tile(3, "c2")],
+  ];
   return (
     <section className="lx-luxe-hero" aria-labelledby="h-luxe">
       <div className="lx-wrap lx-luxe-hero-grid">
         <div className="lx-luxe-copy">
-          <p className="lx-luxe-eyebrow">{jewelry ? L("תכשיטים · LikeLink2", "Jewelry · LikeLink2") : "LikeLink2"}</p>
-          <h1 id="h-luxe" className="lx-luxe-title">{L("רואים. בודקים. קונים.", "See it. Check it. Buy it.")}</h1>
+          <h1 id="h-luxe" className="lx-luxe-title">
+            {L("ההמלצות של היוצרים שאתם אוהבים, במקום אחד.", "The picks of the creators you love, in one place.")}
+          </h1>
           <p className="lx-luxe-lead">
-            {jewelry
-              ? L("LikeLink2 הוא המקום לגלות תכשיטים דרך סרטוני מוצר: רואים אותם בתנועה, בודקים מידה מהמסך וקונים ישר בחנות המקורית.", "LikeLink2 is where you discover jewelry through product videos: see it move, check your size on the screen and buy straight from the original store.")
-              : L("LikeLink2 הוא המקום לגלות מוצרים דרך סרטוני מוצר: רואים אותם בתנועה וקונים ישר בחנות המקורית.", "LikeLink2 is where you discover products through product videos: see them move and buy straight from the original store.")}
+            {L("יוצרים ויוצרות מראים בסרטון את המוצרים שהם בוחרים, ואתם קונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.", "Creators show the products they pick on video, and you buy straight from the original store. No account, no extra cost.")}
           </p>
           <div className="lx-luxe-ctas">
-            <a href="#collection" className="lx-luxe-btn lx-luxe-btn-white" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
-            <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-ghost">{L("ליוצרים", "Creators")}</Go>
+            {/* No curated product → no #collection on the page: the button opens /products instead. */}
+            {items.length ? (
+              <a href="#collection" className="lx-luxe-btn lx-luxe-btn-dark" onClick={scrollTo("collection")}>{L("לקולקציה", "Shop the edit")}</a>
+            ) : (
+              <Go to="/products" className="lx-luxe-btn lx-luxe-btn-dark">{L("למוצרים", "Shop products")}</Go>
+            )}
+            <Go to="/creators" className="lx-luxe-btn lx-luxe-btn-line">{L("ליוצרים", "Creators")}</Go>
           </div>
-          <HeroSearch jewelry={jewelry} />
-          <a href="#how" className="lx-luxe-how" onClick={scrollTo("how")}>{L("איך זה עובד?", "How does it work?")}</a>
+          <HeroSearch />
           <p className="lx-luxe-fine">{L("#פרסומת · קישורי שותפים · התמונות מתוך סרטוני המוכרים ותמונות החנות", "Ad · affiliate links · images from the sellers' videos and store photos")}</p>
         </div>
-        {tiles.length ? (
-          <div className={`lx-luxe-collage lx-luxe-collage-${tiles.length}`}>
-            {tiles.map((p, i) => (
-              <Go key={p.id} to={productPath(p.id)} className={`lx-luxe-tile lx-luxe-tile-${i}`} aria-label={p.displayTitle}>
-                <img src={cleanImage(p).src} alt="" loading={i < 2 ? "eager" : "lazy"} onError={(e) => e.currentTarget.classList.add("is-broken")} />
-              </Go>
-            ))}
+        <div className="lx-hv">
+          <div className="lx-hv-cols">
+            {columns.map((col, i) => <div key={i} className={`lx-hv-col lx-hv-col-${i}`}>{col}</div>)}
           </div>
-        ) : null}
+          {featured && reel ? (
+            <Phone to={productPath(featured.id)} label={featured.displayTitle} className="lx-hv-phone">
+              <PhoneVideo product={featured} reel={reel} />
+            </Phone>
+          ) : null}
+        </div>
       </div>
     </section>
   );
 }
 
-function HowItWorks() {
+/* --------------------------------------------------- how it works (phones) */
+
+/** A creator's shop, as /u/:slug shows it: her name, the tabs, the pieces she picked. */
+function CreatorScreen({ creator, products }) {
   const { L } = useL();
+  const pics = products.map((p) => cleanImage(p)?.src).filter(Boolean).slice(0, 4);
+  while (pics.length < 4) pics.push("");
+  return (
+    <>
+      <span className="lx-ps-head">
+        <CreatorAvatar creator={creator} size={40} />
+        <span className="min-w-0">
+          <span className="lx-ps-kicker">{L("החנות של", "The shop of")}</span>
+          <span className="lx-ps-title">{creator.name}</span>
+        </span>
+      </span>
+      <span className="lx-ps-tabs"><b>{L("סרטונים", "Videos")}</b><span>{L("מוצרים", "Products")}</span><span>{L("אוספים", "Collections")}</span></span>
+      <span className="lx-ps-grid">
+        {pics.map((src, i) => <span key={i} className="lx-ps-cell">{src ? <img src={src} alt="" loading="lazy" onError={hideBroken} /> : null}</span>)}
+      </span>
+    </>
+  );
+}
+
+/** The search page: a query, and the products with their names. */
+function FindScreen({ products }) {
+  const { L } = useL();
+  const shown = products.slice(0, 4);
+  return (
+    <>
+      <span className="lx-ps-search"><Search size={13} /> {L("מה מחפשים היום?", "What are you looking for?")}</span>
+      <span className="lx-ps-grid lx-ps-grid-named">
+        {shown.map((p) => (
+          <span key={p.id} className="lx-ps-item">
+            <span className="lx-ps-cell"><img src={cleanImage(p).src} alt="" loading="lazy" onError={hideBroken} /></span>
+            <span className="lx-ps-name">{p.displayTitle}</span>
+          </span>
+        ))}
+      </span>
+    </>
+  );
+}
+
+function HowItWorks({ graph, items, footage, featured }) {
+  const { L } = useL();
+  const creator = useMemo(() => {
+    const curated = new Set(items.map((p) => p.id));
+    return graph.creators.find((c) => c.productIds.some((id) => curated.has(id))) || null;
+  }, [graph.creators, items]);
+  const hers = creator ? items.filter((p) => creator.productIds.includes(p.id)) : [];
+  // The third phone plays another video than the hero's when there is one.
+  const other = items.find((p) => footage.has(p.id) && p.id !== featured?.id) || featured;
   const steps = [
-    { title: L("רואים את התכשיט בסרטון", "See it on video"), line: L("לא רק תמונה אחת: סרטון של המוצר מראה איך הוא זז, נוצץ ויושב.", "Not just one photo: a product video shows how it moves, shines and sits.") },
-    { title: L("בודקים מידה ופרטים", "Check the size and details"), line: L("מודד המידות עובד מהמסך, והמדריך החינמי עוזר לבדוק חומר והגנת קונה.", "The size meter works on your screen, and the free guide helps you check the material and buyer protection.") },
-    { title: L("קונים ישר בחנות", "Buy at the store"), line: L("הקישור מוביל לעמוד המוצר בחנות המקורית. קישור שותפים, בלי תוספת למחיר.", "The link opens the product page in the original store. An affiliate link, at no extra cost.") },
-  ];
+    creator
+      ? {
+          to: creatorPath(creator.slug),
+          title: L("מכירים את היוצרים", "Meet the creators"),
+          line: L("לכל יוצר ויוצרת יש חנות משלהם: הסרטונים, המוצרים והאוספים שבחרו, בעמוד אחד.", "Every creator has their own shop: the videos, products and collections they picked, on one page."),
+          screen: <CreatorScreen creator={creator} products={hers} />,
+        }
+      : null,
+    {
+      to: "/products",
+      title: L("מוצאים מוצרים", "Find products"),
+      line: L("מחפשים מוצר, יוצר או קטגוריה. בכל מוצר כתוב מי בחר אותו ובאיזו חנות הוא נמכר.", "Search for a product, a creator or a category. Every product says who picked it and which store sells it."),
+      screen: <FindScreen products={items} />,
+    },
+    other && footage.get(other.id)
+      ? {
+          to: `/reels?r=${encodeURIComponent(footage.get(other.id).id)}`,
+          title: L("צופים וקונים", "Watch and shop"),
+          line: L("סרטון של המוצר, עם סימון של מי הסרטון, והקישור לחנות המקורית ממש מתחתיו. קישור שותפים, בלי תוספת למחיר.", "A video of the product, labelled with whose it is, and the original store's link right under it. An affiliate link, at no extra cost."),
+          screen: <PhoneVideo product={other} reel={footage.get(other.id)} />,
+        }
+      : null,
+  ].filter(Boolean);
   return (
     <section id="how" className="lx-wrap lx-luxe-section" aria-labelledby="h-how">
       <p className="lx-luxe-kicker">{L("איך זה עובד", "How it works")}</p>
-      <h2 id="h-how" className="lx-luxe-h2">{L("שלושה צעדים, בלי הפתעות.", "Three steps, no surprises.")}</h2>
-      <ol className="lx-luxe-steps">
+      <h2 id="h-how" className="lx-luxe-h2">{L("רואים מי בחר, צופים בסרטון, קונים בחנות.", "See who picked it, watch it, buy it at the store.")}</h2>
+      <ol className="lx-why">
         {steps.map((s, i) => (
-          <li key={s.title}>
-            <span className="lx-luxe-num" aria-hidden="true">{i + 1}</span>
-            <span className="lx-luxe-step-title">{s.title}</span>
-            <span className="lx-luxe-step-line">{s.line}</span>
+          <li key={s.title} className="lx-why-item">
+            <div className="lx-why-stage">
+              <Phone to={s.to} label={s.title} className="lx-why-phone">{s.screen}</Phone>
+            </div>
+            <p className="lx-why-title"><span className="lx-why-num" aria-hidden="true">{i + 1}</span> {s.title}</p>
+            <p className="lx-why-line">{s.line}</p>
           </li>
         ))}
       </ol>
     </section>
   );
 }
+
+/* --------------------------------------------------------------- sections */
 
 function Head({ id, kicker, title, to, linkLabel }) {
   const { Forward } = useL();
@@ -188,40 +329,10 @@ function Collection({ items, footage }) {
   );
 }
 
-/** LTK-style video post: the footage, whose it is, and the piece right beside it. */
-function Spotlight({ product, reel }) {
-  const { L, lang } = useL();
-  const picture = cleanImage(product);
-  const video = useQuietVideo(reel.url);
-  const to = productPath(product.id);
-  return (
-    <section className="lx-wrap lx-luxe-section" aria-labelledby="h-spot">
-      <div className="lx-luxe-spot">
-        <Go to={to} className="lx-luxe-spot-media" aria-label={product.displayTitle}>
-          {reel.poster || picture.src ? <img src={reel.poster || picture.src} alt="" /> : null}
-          {video.allowed ? (
-            <video ref={video.ref} src={reel.url} muted playsInline loop preload="metadata" onPlaying={video.onPlaying} className={video.playing ? "is-on" : ""} aria-label={product.displayTitle} />
-          ) : null}
-        </Go>
-        <div className="lx-luxe-spot-copy">
-          <p className="lx-luxe-kicker">{L("בסרטון", "In the video")}</p>
-          <h2 id="h-spot" className="lx-luxe-h2">{product.displayTitle}</h2>
-          <p className="lx-luxe-sub">{styleLabel(reel.style, lang)}</p>
-          <p className="lx-luxe-sub">{metaLine(product, null, L, lang)}</p>
-          <div className="lx-luxe-ctas">
-            <Go to={to} className="lx-luxe-btn lx-luxe-btn-dark">{L("לפרטים", "Details")}</Go>
-            <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-luxe-btn lx-luxe-btn-line"><Play size={15} aria-hidden="true" /> {L("לכל הסרטונים", "All videos")}</Go>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /** LTK's feed: shoppable posts, each video with its product right under it (ReelCard). */
-function Posts({ graph, footage, skip }) {
+function Posts({ graph, footage }) {
   const { L } = useL();
-  const reels = [...footage.values()].filter((r) => r.id !== skip);
+  const reels = [...footage.values()];
   if (!reels.length) return null;
   return (
     <section className="lx-wrap lx-luxe-section" aria-labelledby="h-posts">
@@ -236,14 +347,14 @@ function Posts({ graph, footage, skip }) {
 function Creators() {
   const { L } = useL();
   return (
-    <section className="lx-luxe-band" aria-labelledby="h-creators">
-      <div className="lx-wrap lx-luxe-band-in">
-        <p className="lx-luxe-eyebrow">LikeLink2 Studio</p>
-        <h2 id="h-creators" className="lx-luxe-band-title">{L("הטעם שלך יכול להיות עסק.", "Your taste can be a business.")}</h2>
+    <section className="lx-wrap lx-luxe-section" aria-labelledby="h-creators">
+      <div className="lx-luxe-band">
+        <p className="lx-luxe-kicker">LikeLink2 Studio</p>
+        <h2 id="h-creators" className="lx-luxe-band-title">{L("הבחירות שלך, בחנות משלך.", "Your picks, in a shop of your own.")}</h2>
         <p className="lx-luxe-lead">{L("עמוד אישי עם המוצרים והסרטונים שלך, קישור אחד לשתף, וכלים ליצירת תוכן עם סימון כן של מה שנוצר במחשב.", "Your own page with your products and videos, one link to share, and content tools that honestly label what a computer made.")}</p>
         <div className="lx-luxe-ctas">
-          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-white">{L("דף יוצרת בחינם", "A free creator page")}</Go>
-          <Go to="/merchants" className="lx-luxe-btn lx-luxe-btn-ghost">{L("לסוחרים", "For merchants")}</Go>
+          <Go to={STUDIO_SIGNUP} className="lx-luxe-btn lx-luxe-btn-dark">{L("פתיחת סטודיו בחינם", "Open a free Studio")}</Go>
+          <Go to="/join" className="lx-luxe-btn lx-luxe-btn-line">{L("מה מקבלים בסטודיו?", "What does the Studio give you?")}</Go>
         </div>
       </div>
     </section>
@@ -278,15 +389,13 @@ export function LuxeHome({ graph, extra = null }) {
   const footage = useMemo(() => footageByProduct(graph.reels), [graph.reels]);
   const items = useMemo(() => curatedProducts(graph.products), [graph.products]);
   const featured = useMemo(() => spotlight(graph.products, footage), [graph.products, footage]);
-  const jewelry = graph.products.length > 0 && graph.products.every((p) => p.category === "Accessories");
   const featuredReel = featured ? footage.get(featured.id) : null;
   return (
     <div className="lx-luxe">
-      <Hero items={items} jewelry={jewelry} />
-      <HowItWorks />
+      <Hero items={items} featured={featured} reel={featuredReel} />
+      <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Collection items={items} footage={footage} />
-      {featured && featuredReel ? <Spotlight product={featured} reel={featuredReel} /> : null}
-      <Posts graph={graph} footage={footage} skip={featuredReel?.id} />
+      <Posts graph={graph} footage={footage} />
       {extra}
       <Creators />
       <Tools />

@@ -389,7 +389,7 @@ export function HoverTips() {
   useEffect(() => {
     const find = (node) => {
       const el = node instanceof Element ? node.closest("[data-tip], button[aria-label], a[aria-label]") : null;
-      if (!el || !el.closest(".lx") || el.hasAttribute("title")) return null;
+      if (!el || !el.closest(".lx") || el.hasAttribute("title") || el.hasAttribute("data-notip")) return null;
       const explicit = el.getAttribute("data-tip");
       if (explicit) return { el, text: explicit };
       if ((el.innerText || "").trim()) return null;
