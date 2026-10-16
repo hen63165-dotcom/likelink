@@ -15,7 +15,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "../prerender-products.mjs";
 import { readTrends } from "./daily-drop.mjs";
-import { CHOICE_TEXT, MIN_POSTS, TIKTOK_FORMATS, tiktokDay, tiktokWeek } from "../../src/lib/growth/tiktok.js";
+import { CHOICE_TEXT, MIN_POSTS, TIKTOK_FORMATS, israelNoon, tiktokDay, tiktokWeek } from "../../src/lib/growth/tiktok.js";
 import { cleanImage } from "../../src/lib/looks.js";
 
 const RESULTS_FORM = "https://github.com/hen63165-dotcom/likelink/actions/workflows/tiktok-results.yml";
@@ -138,9 +138,14 @@ export function weekSection(week = [], images = { slides: {} }) {
       : rendered.length
         ? rendered.map((f, i) => `<a href="slides/${esc(f)}" download>שקף ${i + 1}</a>`).join(" · ")
         : "";
+    // Slides that weren't rendered (no browser on the runner): their text and the product's picture, to make them in the app.
+    const unrendered = !p.video && !rendered.length && p.slides.length
+      ? `<ol>${p.slides.map((s) => `<li><b>${esc(s.text)}</b>${s.sub ? `<br><small>${esc(s.sub)}</small>` : ""}</li>`).join("")}</ol>
+         ${p.slides[0]?.image ? `<a href="${esc(p.slides[0].image)}" download>התמונה של המוצר</a>` : ""}`
+      : "";
     return `<li class="wk"><p class="kicker">${esc(p.at)} · ${esc(p.formatName)}${p.aiLabel ? " · לסמן תוכן AI" : ""}</p>
 <b>${esc(p.hook)}</b><br><span class="note">${esc(p.product.title)}${files ? ` · ${files}` : ""}</span>
-${copyField("כיתוב", p.caption, 4)}${copyField("מזהה הפוסט", p.id, 1)}</li>`;
+${unrendered}${copyField("כיתוב", p.caption, 4)}${copyField("מזהה הפוסט", p.id, 1)}</li>`;
   };
   return `<section class="card" id="week"><h2>השבוע מראש: לתזמן פעם אחת ב-TikTok Studio</h2>
 <p class="note">ב-TikTok Studio במחשב (tiktok.com/tiktokstudio) אפשר לתזמן פוסט עד 10 ימים מראש, בחשבון עסקי. יושבים פעם בשבוע, מעלים כל פוסט עם הכיתוב שלו, בוחרים "תזמון" ואת היום והשעה שכתובים כאן, ומפעילים בכל פוסט "גילוי תוכן הפוסט" ← "תוכן ממותג". צליל טרנדי מוסיפים רק באפליקציה, אז פוסט שרוצים איתו צליל מפרסמים מהטלפון ביום עצמו.</p>
@@ -204,13 +209,13 @@ ${day.learning.leader ? `<p class="note">מוביל כרגע: <b>${esc(TIKTOK_FO
 `;
 }
 
+// No results file yet = nothing logged. A file that exists but is broken stops
+// the kit: a page that "learned" from an empty list would steer the owner wrong.
 export function readResults(file = process.env.TIKTOK_RESULTS) {
-  try {
-    const list = JSON.parse(readFileSync(file, "utf8"));
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
+  if (!file || !existsSync(file)) return [];
+  const list = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(list)) throw new Error("the TikTok results file is not a list");
+  return list;
 }
 
 export async function writeTikTokKit({ dist = "dist", now = Date.now(), fetchImpl = fetch, results = readResults(), playwrightModule = process.env.PLAYWRIGHT_MODULE } = {}) {
@@ -221,7 +226,8 @@ export async function writeTikTokKit({ dist = "dist", now = Date.now(), fetchImp
   const reels = existsSync(reelsIndex) ? JSON.parse(readFileSync(reelsIndex, "utf8")).reels || [] : [];
   const trends = await readTrends(fetchImpl);
   const imageOf = (p) => cleanImage(p, "..")?.src || "";
-  const day = tiktokDay({ products, reels, trends, results, now, imageOf });
+  // Today and the week are the owner's days in Israel, whenever the deploy runs.
+  const day = tiktokDay({ products, reels, trends, results, now: israelNoon(now), imageOf });
   const week = tiktokWeek({ products, reels, results, now, imageOf });
   const out = join(dist, "tiktok");
   mkdirSync(join(out, "slides"), { recursive: true });

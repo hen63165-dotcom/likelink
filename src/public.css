@@ -1262,7 +1262,8 @@ html body .lx img {
 .lx-circle-name { font-size: 14px; font-weight: 700; color: var(--lx-ink); }
 @media (hover: hover) { .lx-circle:hover .lx-circle-img { transform: scale(1.04); } }
 @media (min-width: 768px) {
-  .lx-circles { justify-content: center; gap: 32px; overflow: visible; }
+  /* Wider screens wrap the circles onto more rows instead of running past the edge. */
+  .lx-circles { flex-wrap: wrap; justify-content: center; gap: 24px 32px; overflow: visible; }
   .lx-circle { width: 124px; }
   .lx-circle-img { width: 124px; height: 124px; }
   .lx-circle-name { font-size: 15px; }

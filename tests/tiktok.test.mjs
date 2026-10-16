@@ -14,11 +14,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   AUTO_FORMATS, MIN_POSTS, TIKTOK_BIO_MAX, accountKit, bioLink, checksFor, learnTikTok,
-  parseResult, postId, selectFormats, tiktokDay, tiktokHashtags, tiktokSafe, tiktokWeek, WEEK_DAYS, SCHEDULE_AT, TIKTOK_FORMATS,
+  parseResult, postId, selectFormats, tiktokDay, tiktokHashtags, tiktokSafe, tiktokWeek, WEEK_DAYS, SCHEDULE_AT, TIKTOK_FORMATS, israelNoon,
 } from "../src/lib/growth/tiktok.js";
 import { DROP_AD as DROP_AD_LINE } from "../src/lib/growth/dailyDrop.js";
 import { addResult } from "../scripts/marketing/tiktok-results.mjs";
-import { inlineLocal, slideHtml, tiktokPage, weekSection } from "../scripts/marketing/tiktok-kit.mjs";
+import { inlineLocal, readResults, slideHtml, tiktokPage, weekSection } from "../scripts/marketing/tiktok-kit.mjs";
 import { SOCIAL_ACCOUNTS, socialProfiles } from "../src/lib/growth/socialAccounts.js";
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
@@ -187,4 +187,40 @@ test("the week ahead: ready-made posts from tomorrow, each with its own day in i
   assert.match(html, /תוכן ממותג/, "the branded-content switch on every scheduled post");
   assert.equal(weekSection([], { slides: {} }), "");
   assert.match(tiktokPage(tiktokDay({ products, reels, now: NOW, imageOf }), { slides: {}, profile: "" }, week), /id="week"/);
+});
+
+test("the week follows the owner's calendar in Israel: right after Israeli midnight, and across the end of daylight saving", () => {
+  assert.equal(new Date(israelNoon(Date.parse("2026-07-01T21:30:00Z"))).toISOString(), "2026-07-02T12:00:00.000Z", "00:30 in Israel is already July 2");
+  assert.equal(new Date(israelNoon(Date.parse("2026-07-01T20:30:00Z"))).toISOString(), "2026-07-01T12:00:00.000Z");
+  assert.equal(new Date(israelNoon(Date.parse("2026-12-01T22:30:00Z"))).toISOString(), "2026-12-02T12:00:00.000Z", "winter: UTC+2");
+  const nearMidnight = tiktokWeek({ products, reels, now: Date.parse("2026-07-01T21:30:00Z"), imageOf });
+  assert.equal(nearMidnight[0].date, "2026-07-03", "tomorrow in Israel, not tomorrow in UTC");
+  const acrossDst = tiktokWeek({ products, reels, now: Date.parse("2026-10-22T22:30:00Z"), imageOf }); // Israel: Fri 23 Oct 01:30; clocks go back on 25 Oct
+  assert.deepEqual(acrossDst.map((d) => d.date), ["2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+  for (const d of acrossDst) for (const p of d.posts) assert.equal(p.id.slice(3, 11), d.date.replace(/-/g, ""));
+});
+
+test("a week post whose slides could not be rendered still carries its slides' text and the product picture", () => {
+  const week = tiktokWeek({ products, reels, now: NOW, imageOf });
+  const checklist = week.flatMap((d) => d.posts).find((p) => p.format === "checklist");
+  assert.ok(checklist, "the week has a carousel");
+  const html = weekSection([{ date: "2026-10-17", posts: [checklist] }], { slides: {} });
+  for (const s of checklist.slides) assert.ok(html.includes(s.text.replace(/&/g, "&amp;").replace(/</g, "&lt;")), s.text);
+  assert.match(html, /התמונה של המוצר/);
+  const rendered = weekSection([{ date: "2026-10-17", posts: [checklist] }], { slides: { [checklist.id]: ["a.png", "b.png"] } });
+  assert.match(rendered, /slides\/a\.png/);
+  assert.doesNotMatch(rendered, /התמונה של המוצר/, "rendered slides are the download");
+});
+
+test("the results file: none yet is an empty list, a broken one stops the kit, and submissions queue instead of replacing each other", () => {
+  assert.deepEqual(readResults(undefined), []);
+  assert.deepEqual(readResults("/no/such/file.json"), []);
+  const dir = mkdtempSync(join(tmpdir(), "tt-kit-"));
+  writeFileSync(join(dir, "bad.json"), "{ nope");
+  assert.throws(() => readResults(join(dir, "bad.json")));
+  writeFileSync(join(dir, "obj.json"), "{}");
+  assert.throws(() => readResults(join(dir, "obj.json")), /not a list/);
+  writeFileSync(join(dir, "ok.json"), JSON.stringify([{ id: "tt-20261016-1-reveal", views: 3 }]));
+  assert.equal(readResults(join(dir, "ok.json")).length, 1);
+  assert.match(read(".github/workflows/tiktok-results.yml"), /concurrency:\n\s+group: tiktok-results\n\s+queue: max\n\s+cancel-in-progress: false/);
 });

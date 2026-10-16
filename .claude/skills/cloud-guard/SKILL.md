@@ -52,7 +52,9 @@ select net.http_get('https://<ref>.supabase.co/rest/v1/kv?select=key&limit=1',
 -- then: select status_code, left(content::text, 200) from net._http_response where id = <id>;
 ```
 
-402 + `exceed_*_quota` = restricted (quota). 401 "No API key" = up. Report it
+200 with the anon key = up. 402 + `exceed_*_quota` = restricted (quota).
+401 = the key or the request is wrong (not a quota problem; the API is not
+proven usable until a keyed read answers 200). Report a 402
 as PROVIDER_LIMIT, never as a code bug, and never claim sign-up or saving
 works while it says 402 (`likelink-ops` skill).
 
