@@ -29,7 +29,16 @@ const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
 // The global AliExpress id of a catalog product (aliexpress.us ids normalised), so an item is never added twice.
 const AE_ITEM_ID = (p) => aliItemId(p) || String(p?.id || "").replace(/^ae-/, "");
 
-const products = (res, method) => res?.[`${method.replace(/\./g, "_")}_response`]?.resp_result?.result?.products?.product || [];
+const HOT = "aliexpress.affiliate.hotproduct.query";
+const SEARCH = "aliexpress.affiliate.product.query";
+
+/** The products of one API answer; a provider error inside an HTTP 200 (resp_code ≠ 200) is an error, never an empty list. */
+export function productsOf(res, method) {
+  const r = res?.[`${method.replace(/\./g, "_")}_response`]?.resp_result;
+  if (!r) throw new Error(`aliexpress_no_result:${method}`);
+  if (Number(r.resp_code) !== 200) throw new Error(`aliexpress_resp_${r.resp_code}:${String(r.resp_msg || "").slice(0, 80)}`);
+  return r.result?.products?.product || [];
+}
 
 /** AliExpress's hot products for one category; the plain search sorted by recent sales when the hot list is thin. */
 async function hotFor(category, env, now, fetchImpl) {
@@ -37,10 +46,22 @@ async function hotFor(category, env, now, fetchImpl) {
     keywords: category.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
     ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC",
   };
-  let list = products(await aeCall("aliexpress.affiliate.hotproduct.query", biz, { env, now, fetchImpl }), "aliexpress.affiliate.hotproduct.query");
-  if (list.length < PER_CATEGORY / 2) {
-    list = list.concat(products(await aeCall("aliexpress.affiliate.product.query", biz, { env, now, fetchImpl }), "aliexpress.affiliate.product.query"));
+  let list = [];
+  let error = null;
+  try {
+    list = productsOf(await aeCall(HOT, biz, { env, now, fetchImpl }), HOT);
+  } catch (e) {
+    error = e;
   }
+  if (list.length < PER_CATEGORY / 2) {
+    try {
+      list = list.concat(productsOf(await aeCall(SEARCH, biz, { env, now, fetchImpl }), SEARCH));
+    } catch (e) {
+      error = error || e;
+    }
+  }
+  // Nothing read and a call failed: the category failed, it is not an empty day.
+  if (!list.length && error) throw error;
   return list;
 }
 
@@ -70,7 +91,10 @@ export async function findTrends({ env: rawEnv = process.env, now = Date.now(), 
     }
   }
   const board = buildBoard({ results, trends: trends ?? (await readTrends()), listed, now });
-  return { outcome: errors.length === TREND_CATEGORIES.length ? "FAILED" : "OK", errors, board };
+  const items = board.categories.reduce((n, c) => n + c.items.length, 0);
+  // Not one usable item in 14 categories is a provider problem, not a quiet day: keep yesterday's board.
+  const outcome = errors.length === TREND_CATEGORIES.length ? "FAILED" : items === 0 ? "EMPTY" : "OK";
+  return { outcome, errors, board };
 }
 
 function card(item) {
@@ -107,7 +131,7 @@ ul.g{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repea
 <p class="note"><a href="../drop/">לדרופ היומי</a> · <a href="../tiktok/">לעמוד הטיקטוק</a></p></div></header>
 <main>
 ${outcome === "REQUIRES_CONNECTION" ? `<p class="card">החיבור ל-AliExpress עוד לא מוגדר (חסר: ${esc(missing.join(", "))}).</p>` : ""}
-${outcome === "FAILED" ? `<p class="card">הפעם לא הצלחנו לקרוא את AliExpress. הלוח יתעדכן בפריסה הבאה.</p>` : ""}
+${outcome === "FAILED" || outcome === "EMPTY" ? `<p class="card">הפעם לא הצלחנו לקרוא מוצרים מ-AliExpress. הלוח יתעדכן בפריסה הבאה.</p>` : ""}
 <section class="card"><h2>איך מעלים מוצר לאתר</h2><ol>
 <li>מעתיקים את מספרי המוצרים שבחרת (כפתור "העתקה").</li>
 <li>ב-GitHub: Actions ← <b>Add trend products</b> ← Run workflow ← מדביקים את המספרים, מופרדים בפסיק (עד 10) ← Run.</li>

@@ -12,7 +12,7 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseIds, toTrendItem, trendHits } from "../src/lib/growth/trendBoard.js";
-import { BOARD_DIR, addItems, findTrends, trendsPage } from "../scripts/catalog/trend-finder.mjs";
+import { BOARD_DIR, addItems, findTrends, productsOf, trendsPage } from "../scripts/catalog/trend-finder.mjs";
 import { parsePath } from "../src/utils/routing.js";
 
 const NOW = Date.parse("2026-10-16T05:00:00Z");
@@ -122,6 +122,30 @@ test("findTrends asks per category (ship to IL, ILS, own tracking id) and falls 
   assert.ok(hosts.every((h) => h !== "s.click.aliexpress.com"), "never her own tracked link (a self-click)");
 });
 
+test("a provider error inside an HTTP 200 is a failed read, never an empty day; an all-empty run keeps yesterday's board", async () => {
+  const errorReply = (method) => ({ [`${method.replace(/\./g, "_")}_response`]: { resp_result: { resp_code: 402, resp_msg: "rate limit" } } });
+  assert.throws(() => productsOf(errorReply("aliexpress.affiliate.hotproduct.query"), "aliexpress.affiliate.hotproduct.query"), /aliexpress_resp_402/);
+  assert.throws(() => productsOf({}, "aliexpress.affiliate.hotproduct.query"), /aliexpress_no_result/);
+  const failing = async (url, init) => {
+    const method = new URLSearchParams(String(init.body)).get("method");
+    return { ok: true, status: 200, json: async () => errorReply(method) };
+  };
+  const failed = await findTrends({ env: ENV, now: NOW, trends: [], fetchImpl: failing });
+  assert.equal(failed.outcome, "FAILED");
+  assert.ok(failed.errors.every((e) => /aliexpress_resp_402/.test(e.error)));
+  // The hot list errors but the plain search answers: the category is read.
+  const hotDown = async (url, init) => {
+    const method = new URLSearchParams(String(init.body)).get("method");
+    if (method === "aliexpress.affiliate.hotproduct.query") return { ok: true, status: 200, json: async () => errorReply(method) };
+    return { ok: true, status: 200, json: async () => apiReply(method, [item("1005009999999999")]) };
+  };
+  const recovered = await findTrends({ env: ENV, now: NOW, trends: [], fetchImpl: hotDown });
+  assert.equal(recovered.outcome, "OK");
+  const empty = await findTrends({ env: ENV, now: NOW, trends: [], fetchImpl: fakeApi({}).impl });
+  assert.equal(empty.outcome, "EMPTY", "200 with no usable item anywhere");
+  assert.match(trendsPage(empty.board, empty), /לא הצלחנו לקרוא מוצרים/);
+});
+
 test("a run that outlasts its time budget reports the categories it skipped and is not OK; the page says the read failed", async () => {
   const api = fakeApi({ "aliexpress.affiliate.hotproduct.query": [item("1005001111111111")] });
   const r = await findTrends({ env: ENV, now: NOW, trends: [], fetchImpl: api.impl, budgetMs: 0 });
@@ -130,7 +154,7 @@ test("a run that outlasts its time budget reports the categories it skipped and 
   assert.equal(r.errors.length, TREND_CATEGORIES.length);
   assert.ok(r.errors.every((e) => e.error === "time_budget"));
   const html = trendsPage(r.board, r);
-  assert.match(html, /לא הצלחנו לקרוא את AliExpress/);
+  assert.match(html, /לא הצלחנו לקרוא מוצרים מ-AliExpress/);
   assert.doesNotMatch(html, /לא החזירה מוצרים מתאימים/, "a failed read is never shown as an empty day");
 });
 
