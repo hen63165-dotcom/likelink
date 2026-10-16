@@ -3,8 +3,10 @@
 // then its handle goes here. Until then nothing links to a page that isn't
 // there. The same list feeds the footer and the Organization JSON-LD
 // `sameAs` in index.html (tests/tiktok.test.mjs keeps the two equal).
+// TikTok: @likelink, opened by the owner on 2026-10-16 (a personal account:
+// TikTok's business switch asked for company documents she doesn't have yet).
 export const SOCIAL_ACCOUNTS = Object.freeze({
-  tiktok: Object.freeze({ handle: "", label: { he: "טיקטוק", en: "TikTok" }, url: (h) => `https://www.tiktok.com/@${h}` }),
+  tiktok: Object.freeze({ handle: "likelink", label: { he: "טיקטוק", en: "TikTok" }, url: (h) => `https://www.tiktok.com/@${h}` }),
 });
 
 const HANDLE = /^[A-Za-z0-9._]{2,24}$/;

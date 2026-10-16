@@ -79,6 +79,15 @@ When she sends the handle: put it in `src/lib/growth/socialAccounts.js`
 Organization `sameAs` in `index.html` (a test keeps them equal). The footer
 then shows "עקבו אחרינו". Nothing links to an account that doesn't exist.
 
+**Done 2026-10-16: `@likelink`** (https://www.tiktok.com/@likelink), with the
+bio. It stays a personal account: the business switch (app and Business
+Suite) asked for a business licence number and company documents, which she
+doesn't have yet. Never suggest filling those with anything but real
+documents; a personal account can post, see analytics (Creator tools) and use
+TikTok Studio. Once the account exists the page shows "החשבון: @likelink"
+(name, bio, photo, and the bio link for when TikTok offers the website field)
+instead of the opening steps.
+
 ## Posting by API later (not built — say so plainly)
 
 TikTok's Content Posting API needs a TikTok developer app, her OAuth consent

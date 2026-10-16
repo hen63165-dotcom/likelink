@@ -17,6 +17,7 @@ import { listedFromSnapshot } from "../prerender-products.mjs";
 import { readTrends } from "./daily-drop.mjs";
 import { CHOICE_TEXT, MIN_POSTS, TIKTOK_FORMATS, israelNoon, tiktokDay, tiktokWeek } from "../../src/lib/growth/tiktok.js";
 import { cleanImage } from "../../src/lib/looks.js";
+import { socialProfiles } from "../../src/lib/growth/socialAccounts.js";
 
 const RESULTS_FORM = "https://github.com/hen63165-dotcom/likelink/actions/workflows/tiktok-results.yml";
 const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -148,7 +149,7 @@ export function weekSection(week = [], images = { slides: {} }) {
 ${unrendered}${copyField("כיתוב", p.caption, 4)}${copyField("מזהה הפוסט", p.id, 1)}</li>`;
   };
   return `<section class="card" id="week"><h2>השבוע מראש: לתזמן פעם אחת ב-TikTok Studio</h2>
-<p class="note">ב-TikTok Studio במחשב (tiktok.com/tiktokstudio) אפשר לתזמן פוסט עד 10 ימים מראש, בחשבון עסקי. יושבים פעם בשבוע, מעלים כל פוסט עם הכיתוב שלו, בוחרים "תזמון" ואת היום והשעה שכתובים כאן, ומפעילים בכל פוסט "גילוי תוכן הפוסט" ← "תוכן ממותג". צליל טרנדי מוסיפים רק באפליקציה, אז פוסט שרוצים איתו צליל מפרסמים מהטלפון ביום עצמו.</p>
+<p class="note">ב-TikTok Studio במחשב (tiktok.com/tiktokstudio) אפשר לתזמן פוסט עד 10 ימים מראש, כשהאפשרות "תזמון" מופיעה בחשבון (אם היא לא מופיעה, מפרסמים מהטלפון בשעה שכתובה כאן). יושבים פעם בשבוע, מעלים כל פוסט עם הכיתוב שלו, בוחרים "תזמון" ואת היום והשעה שכתובים כאן, ומפעילים בכל פוסט "גילוי תוכן הפוסט" ← "תוכן ממותג". צליל טרנדי מוסיפים רק באפליקציה, אז פוסט שרוצים איתו צליל מפרסמים מהטלפון ביום עצמו.</p>
 ${week.map((d) => `<details><summary>${esc(WEEKDAY_HE[new Date(`${d.date}T12:00:00Z`).getUTCDay()])} · ${esc(d.date)} · ${d.posts.length} פוסטים</summary><ul class="wkl">${d.posts.map(item).join("")}</ul></details>`).join("\n")}
 <p class="note">כל יום כאן הוא תוכנית לפי הסבב. הטרנד של היום וההחלטות לפי התוצאות שלך מתעדכנים בעמוד כל בוקר, אז מי שמתזמנת שבוע שלם מוותרת על ההתאמה היומית. אפשר גם לשלב: לתזמן את השבוע, ולהחליף פוסט כשהעמוד מציע טרנד מתאים.</p>
 </section>`;
@@ -157,6 +158,8 @@ ${week.map((d) => `<details><summary>${esc(WEEKDAY_HE[new Date(`${d.date}T12:00:
 /** The page: plain HTML, no app bundle, light like the site. */
 export function tiktokPage(day, images = { slides: {}, profile: "" }, week = []) {
   const a = day.account;
+  const tt = socialProfiles().find((p) => p.network === "tiktok");
+  const photo = `<a href="${esc(images.profile || a.photo)}" download>הורדה</a>`;
   const rows = day.learning.formats.map((r) => `<tr><td>${esc(TIKTOK_FORMATS[r.format].he)}</td><td>${r.posts}</td><td>${r.posts ? r.medianViews : "–"}</td><td>${r.posts ? `${r.engagementRate}%` : "–"}</td><td>${r.status === "MEASURED" ? "נמדד" : `עוד ${Math.max(0, MIN_POSTS - r.posts)} פוסטים`}</td></tr>`).join("");
   return `<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -184,14 +187,20 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 ${day.trend ? `<p class="note">חם היום בחיפושים בישראל ומתאים למוצר: „${esc(day.trend.term)}” (Google Trends).</p>` : ""}
 <p class="note"><a href="../drop/">לדרופ היומי לכל הרשתות</a></p></div></header>
 <main>
-<details class="card"${day.learning.posts ? "" : " open"}><summary>פתיחת החשבון (פעם אחת)</summary>
+${tt ? `<details class="card"${day.learning.posts ? "" : " open"}><summary>החשבון: <span dir="ltr">@${esc(tt.handle)}</span></summary>
+<p class="note"><a href="${esc(tt.url)}" target="_blank" rel="noopener">לפרופיל בטיקטוק</a>. הוא כבר מקושר מתחתית האתר.</p>
+<ol>
+<li>פרופיל ← עריכת פרופיל: השם, הביו והתמונה שכאן למטה.</li>
+<li>תמונת פרופיל: ${photo}</li>
+<li>קישור לאתר בביו: טיקטוק פותחת אותו רק לחלק מהחשבונות (למשל חשבון עסקי, או אחרי מספר עוקבים). כשהשדה "אתר" מופיע בעריכת הפרופיל, מדביקים בו את הקישור שכאן.</li>
+</ol>` : `<details class="card"${day.learning.posts ? "" : " open"}><summary>פתיחת החשבון (פעם אחת)</summary>
 <ol>
 <li>מורידים את טיקטוק ונרשמים עם הטלפון או המייל שלך. החשבון שלך, בשמך.</li>
 <li>הגדרות ← חשבון ← מעבר לחשבון עסקי (בחינם). בחשבון עסקי יש ניתוח נתונים, ואפשר להוסיף קישור לאתר בביו כשטיקטוק פותחת את זה לחשבון.</li>
 <li>בוחרים שם משתמש (אחד מאלה, מה שפנוי): ${a.usernames.map((u) => `<b dir="ltr">@${esc(u)}</b>`).join(" · ")}</li>
-<li>תמונת פרופיל: ${images.profile ? `<a href="${esc(images.profile)}" download>הורדה</a>` : `<a href="${esc(a.photo)}" download>הורדה</a>`}</li>
+<li>תמונת פרופיל: ${photo}</li>
 <li>שולחים לי את שם המשתמש, ואחבר אותו לאתר (קישור בתחתית האתר ובנתונים לגוגל).</li>
-</ol>
+</ol>`}
 ${copyField("שם", a.name, 1)}${copyField(`ביו (עד 80 תווים)`, a.bio, 2)}${copyField("קישור לביו", a.link, 1)}
 <p class="note">הקישור בביו פותח את דף הסרטונים באתר: כל סרטון עם המוצר והקישור לחנות, כמו בטיקטוק.</p>
 </details>
