@@ -15,7 +15,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "../prerender-products.mjs";
 import { readTrends } from "./daily-drop.mjs";
-import { CHOICE_TEXT, MIN_POSTS, TIKTOK_FORMATS, tiktokDay } from "../../src/lib/growth/tiktok.js";
+import { CHOICE_TEXT, MIN_POSTS, TIKTOK_FORMATS, israelNoon, tiktokDay, tiktokWeek } from "../../src/lib/growth/tiktok.js";
 import { cleanImage } from "../../src/lib/looks.js";
 
 const RESULTS_FORM = "https://github.com/hen63165-dotcom/likelink/actions/workflows/tiktok-results.yml";
@@ -126,8 +126,36 @@ ${copyField("מזהה הפוסט (לרישום התוצאות)", post.id, 1)}
 </section>`;
 }
 
+const WEEKDAY_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+/** The coming week for TikTok Studio's scheduler: one row per post, everything to upload in one sitting. */
+export function weekSection(week = [], images = { slides: {} }) {
+  if (!week.length) return "";
+  const item = (p) => {
+    const rendered = images.slides[p.id] || [];
+    const files = p.video
+      ? `<a href="../media/reels/${esc(p.video.file)}" download>הסרטון</a>`
+      : rendered.length
+        ? rendered.map((f, i) => `<a href="slides/${esc(f)}" download>שקף ${i + 1}</a>`).join(" · ")
+        : "";
+    // Slides that weren't rendered (no browser on the runner): their text and the product's picture, to make them in the app.
+    const unrendered = !p.video && !rendered.length && p.slides.length
+      ? `<ol>${p.slides.map((s) => `<li><b>${esc(s.text)}</b>${s.sub ? `<br><small>${esc(s.sub)}</small>` : ""}</li>`).join("")}</ol>
+         ${p.slides[0]?.image ? `<a href="${esc(p.slides[0].image)}" download>התמונה של המוצר</a>` : ""}`
+      : "";
+    return `<li class="wk"><p class="kicker">${esc(p.at)} · ${esc(p.formatName)}${p.aiLabel ? " · לסמן תוכן AI" : ""}</p>
+<b>${esc(p.hook)}</b><br><span class="note">${esc(p.product.title)}${files ? ` · ${files}` : ""}</span>
+${unrendered}${copyField("כיתוב", p.caption, 4)}${copyField("מזהה הפוסט", p.id, 1)}</li>`;
+  };
+  return `<section class="card" id="week"><h2>השבוע מראש: לתזמן פעם אחת ב-TikTok Studio</h2>
+<p class="note">ב-TikTok Studio במחשב (tiktok.com/tiktokstudio) אפשר לתזמן פוסט עד 10 ימים מראש, בחשבון עסקי. יושבים פעם בשבוע, מעלים כל פוסט עם הכיתוב שלו, בוחרים "תזמון" ואת היום והשעה שכתובים כאן, ומפעילים בכל פוסט "גילוי תוכן הפוסט" ← "תוכן ממותג". צליל טרנדי מוסיפים רק באפליקציה, אז פוסט שרוצים איתו צליל מפרסמים מהטלפון ביום עצמו.</p>
+${week.map((d) => `<details><summary>${esc(WEEKDAY_HE[new Date(`${d.date}T12:00:00Z`).getUTCDay()])} · ${esc(d.date)} · ${d.posts.length} פוסטים</summary><ul class="wkl">${d.posts.map(item).join("")}</ul></details>`).join("\n")}
+<p class="note">כל יום כאן הוא תוכנית לפי הסבב. הטרנד של היום וההחלטות לפי התוצאות שלך מתעדכנים בעמוד כל בוקר, אז מי שמתזמנת שבוע שלם מוותרת על ההתאמה היומית. אפשר גם לשלב: לתזמן את השבוע, ולהחליף פוסט כשהעמוד מציע טרנד מתאים.</p>
+</section>`;
+}
+
 /** The page: plain HTML, no app bundle, light like the site. */
-export function tiktokPage(day, images = { slides: {}, profile: "" }) {
+export function tiktokPage(day, images = { slides: {}, profile: "" }, week = []) {
   const a = day.account;
   const rows = day.learning.formats.map((r) => `<tr><td>${esc(TIKTOK_FORMATS[r.format].he)}</td><td>${r.posts}</td><td>${r.posts ? r.medianViews : "–"}</td><td>${r.posts ? `${r.engagementRate}%` : "–"}</td><td>${r.status === "MEASURED" ? "נמדד" : `עוד ${Math.max(0, MIN_POSTS - r.posts)} פוסטים`}</td></tr>`).join("");
   return `<!doctype html>
@@ -148,6 +176,7 @@ video{width:100%;max-height:72vh;border-radius:14px;background:#000}
 textarea{width:100%;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14.5px;resize:vertical}
 .copy{margin-top:6px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
 details{margin:10px 0}summary{cursor:pointer;font-weight:700}ol,ul{padding-inline-start:20px}a{color:inherit}
+.wkl{list-style:none;padding:0;margin:8px 0}.wk{border-top:1px solid var(--line);padding:10px 0}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid var(--line);padding:8px 4px;text-align:start}
 </style></head><body>
 <header><div><p class="kicker">טיקטוק של LikeLink2 · ${esc(day.date)}</p><h1>${day.posts.length ? `${day.posts.length} טיקטוקים מוכנים להיום` : "אין היום פוסט מוכן"}</h1>
@@ -167,6 +196,7 @@ ${copyField("שם", a.name, 1)}${copyField(`ביו (עד 80 תווים)`, a.bio,
 <p class="note">הקישור בביו פותח את דף הסרטונים באתר: כל סרטון עם המוצר והקישור לחנות, כמו בטיקטוק.</p>
 </details>
 ${day.posts.map((p) => postCard(p, images)).join("\n")}
+${weekSection(week, images)}
 <section class="card"><h2>מה למדנו מהתוצאות שלך</h2>
 <p class="note">${day.learning.posts ? `${day.learning.posts} פוסטים נרשמו.` : "עוד לא נרשמו תוצאות."} כל פורמט צריך ${MIN_POSTS} פוסטים לפחות לפני שמשווים. ${esc(day.learning.note)}.</p>
 <table><thead><tr><th>פורמט</th><th>פוסטים</th><th>צפיות (חציון)</th><th>מעורבות</th><th>מצב</th></tr></thead><tbody>${rows}</tbody></table>
@@ -179,13 +209,13 @@ ${day.learning.leader ? `<p class="note">מוביל כרגע: <b>${esc(TIKTOK_FO
 `;
 }
 
+// No results file yet = nothing logged. A file that exists but is broken stops
+// the kit: a page that "learned" from an empty list would steer the owner wrong.
 export function readResults(file = process.env.TIKTOK_RESULTS) {
-  try {
-    const list = JSON.parse(readFileSync(file, "utf8"));
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
+  if (!file || !existsSync(file)) return [];
+  const list = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(list)) throw new Error("the TikTok results file is not a list");
+  return list;
 }
 
 export async function writeTikTokKit({ dist = "dist", now = Date.now(), fetchImpl = fetch, results = readResults(), playwrightModule = process.env.PLAYWRIGHT_MODULE } = {}) {
@@ -195,17 +225,21 @@ export async function writeTikTokKit({ dist = "dist", now = Date.now(), fetchImp
   const products = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8"))).products.map((x) => x.product);
   const reels = existsSync(reelsIndex) ? JSON.parse(readFileSync(reelsIndex, "utf8")).reels || [] : [];
   const trends = await readTrends(fetchImpl);
-  const day = tiktokDay({ products, reels, trends, results, now, imageOf: (p) => cleanImage(p, "..")?.src || "" });
+  const imageOf = (p) => cleanImage(p, "..")?.src || "";
+  // Today and the week are the owner's days in Israel, whenever the deploy runs.
+  const day = tiktokDay({ products, reels, trends, results, now: israelNoon(now), imageOf });
+  const week = tiktokWeek({ products, reels, results, now, imageOf });
   const out = join(dist, "tiktok");
   mkdirSync(join(out, "slides"), { recursive: true });
-  const images = await renderImages(day, out, { playwrightModule });
-  writeFileSync(join(out, "index.html"), tiktokPage(day, images));
-  const json = { ...day, posts: day.posts.map(({ lines, ...p }) => ({ ...p, renderedSlides: images.slides[p.id] || [] })) };
-  writeFileSync(join(out, "today.json"), `${JSON.stringify(json, null, 1)}\n`);
-  return { written: true, posts: day.posts.map((p) => p.id), slides: Object.values(images.slides).flat().length, results: day.learning.posts };
+  const images = await renderImages({ posts: [...day.posts, ...week.flatMap((d) => d.posts)] }, out, { playwrightModule });
+  writeFileSync(join(out, "index.html"), tiktokPage(day, images, week));
+  const strip = ({ lines, ...p }) => ({ ...p, renderedSlides: images.slides[p.id] || [] });
+  writeFileSync(join(out, "today.json"), `${JSON.stringify({ ...day, posts: day.posts.map(strip) }, null, 1)}\n`);
+  writeFileSync(join(out, "week.json"), `${JSON.stringify(week.map((d) => ({ ...d, posts: d.posts.map(strip) })), null, 1)}\n`);
+  return { written: true, posts: day.posts.map((p) => p.id), week: week.reduce((n, d) => n + d.posts.length, 0), slides: Object.values(images.slides).flat().length, results: day.learning.posts };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const r = await writeTikTokKit({ dist: process.argv[2] || "dist" });
-  console.log(r.written ? `tiktok-kit: ${r.posts.join(", ")} (${r.slides} slide(s), ${r.results} logged result(s))` : `tiktok-kit: skipped (${r.reason})`);
+  console.log(r.written ? `tiktok-kit: ${r.posts.join(", ")} + ${r.week} for the week (${r.slides} slide(s), ${r.results} logged result(s))` : `tiktok-kit: skipped (${r.reason})`);
 }

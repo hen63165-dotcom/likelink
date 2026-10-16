@@ -389,6 +389,37 @@ export function tiktokDay({ products = [], reels = [], trends = [], results = []
   };
 }
 
+/**
+ * The coming week, ready to schedule in TikTok Studio (it schedules up to 10
+ * days ahead): the ready-made posts of each day from tomorrow, at the
+ * suggested times. Today's trend is today's only; later days use the
+ * rotation, and the owner's own-film bonus stays a daily card. Each post keeps
+ * its day in its id, so results logged later land on the right post.
+ */
+export const WEEK_DAYS = 7;
+export const SCHEDULE_AT = ["12:45", "20:30"]; // Israel time, inside the suggested windows
+
+/**
+ * The owner's calendar day (Asia/Jerusalem) as noon UTC of that date. Noon
+ * UTC falls on the same date in Israel all year (UTC+2/+3), so a post id made
+ * from it carries the Israeli date, and adding whole days to it never crosses
+ * a daylight-saving edge.
+ */
+export function israelNoon(now = Date.now()) {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date(now)).split("-").map(Number);
+  return Date.UTC(y, m - 1, d, 12);
+}
+
+export function tiktokWeek(args = {}, { days = WEEK_DAYS } = {}) {
+  const today = israelNoon(args.now ?? Date.now());
+  return Array.from({ length: days }, (_, i) => {
+    const day = tiktokDay({ ...args, trends: [], now: today + (i + 1) * 86_400_000 });
+    const posts = day.posts.filter((p) => !TIKTOK_FORMATS[p.format].owner).map((p) => ({ ...p, at: SCHEDULE_AT[(p.slot - 1) % SCHEDULE_AT.length] }));
+    return { date: day.date, posts };
+  }).filter((d) => d.posts.length);
+}
+
 // A post id's day must be a real calendar day, not after today (UTC, with a
 // day's slack for Israel time) and not older than the page could have planned
 // it: catches a mistyped date without keeping a log of every plan.

@@ -14,9 +14,9 @@ on:
         description: "Max reels this run (1-6)"
         default: "4"
   schedule:
-    # Once a day. Each run uploads and reads back its reels from Storage; every
-    # 3 hours (with the browser check after it) used up the free plan's
-    # monthly Storage egress, so the cadence is daily.
+    # Once a day for the audit, Instagram and LikeLoop steps. Rendering runs
+    # only on demand (see the render step): Storage egress is the free plan's
+    # tightest quota.
     - cron: "23 6 * * *"
 
 concurrency:
@@ -59,6 +59,12 @@ jobs:
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q "diffusers>=0.30" transformers accelerate peft safetensors
       - name: Render, verify and publish reels
+        # On demand only: every render is stored in Supabase Storage and every
+        # visitor's play of it is Storage egress, the free plan's tightest
+        # quota (restricted the project 2026-10-08). The site's videos come
+        # from GitHub Pages (scripts/reels-feed.mjs); the daily run below keeps
+        # the audit, Instagram and LikeLoop steps (.claude/skills/cloud-guard).
+        if: github.event_name == 'workflow_dispatch'
         env:
           OWN_MODEL_PYTHON: python
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright

@@ -34,8 +34,11 @@ on:
 permissions:
   contents: write
 
+# One save at a time; up to 100 submissions wait in order instead of a newer
+# one replacing a waiting one (queue: max, GitHub Actions since 2026-05).
 concurrency:
   group: tiktok-results
+  queue: max
   cancel-in-progress: false
 
 jobs:
@@ -63,8 +66,8 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           OPS="$RUNNER_TEMP/ops"
-          # The concurrency group queues runs but may drop a waiting one, and a
-          # run can still race another: read the branch, add this result, push;
+          # Runs are queued in order, and a run can still race another writer:
+          # read the branch, add this result, push;
           # when the push is refused (the branch moved), read it again and
           # re-apply. The results file is never rebuilt from an empty list.
           for attempt in 1 2 3 4 5; do

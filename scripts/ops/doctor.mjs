@@ -22,6 +22,7 @@ import { appendFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { LOOKS, lookFile } from "../../src/lib/looks.js";
 import { SELLER_SKIP } from "../../src/lib/reelsFeed.js";
+import { resolveCloud } from "../../src/constants/cloud.js";
 
 export const KIND = Object.freeze({ OK: "OK", APP_DEFECT: "APP_DEFECT", PROVIDER_LIMIT: "PROVIDER_LIMIT", MISSING_CREDENTIAL: "MISSING_CREDENTIAL", EXTERNAL_ACTION: "EXTERNAL_ACTION", NOT_TESTED: "NOT_TESTED" });
 export const ROUTES = Object.freeze(["/", "/products", "/reels", "/search?q=test", "/studio", "/size", "/guide", "/deals"]);
@@ -178,7 +179,8 @@ export function render(results) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = new Set(process.argv.slice(2));
   const origin = process.env.ORIGIN || "https://likelink2.vercel.app";
-  const results = await runDoctor({ origin, supabaseUrl: process.env.VITE_SUPABASE_URL || "", anonKey: process.env.VITE_SUPABASE_ANON_KEY || "" });
+  const cloud = resolveCloud(process.env.VITE_SUPABASE_URL || "", process.env.VITE_SUPABASE_ANON_KEY || "");
+  const results = await runDoctor({ origin, supabaseUrl: cloud.url, anonKey: cloud.anonKey });
   const text = render(results);
   console.log(args.has("--json") ? JSON.stringify({ origin, results }, null, 1) : `LikeLink2 ops doctor — ${origin}\n\n${text}`);
   if (args.has("--summary") && process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Ops doctor — ${origin}\n\n\`\`\`\n${text}\n\`\`\`\n`);

@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { curatedProducts, footageByProduct, spotlight } from "../src/lib/homeShowcase.js";
+import { curatedProducts, footageByProduct, MIN_CIRCLES, SHOP_CIRCLES, shopCircles, spotlight } from "../src/lib/homeShowcase.js";
 import { CLEAN_STORE_PHOTOS, cleanImage, LOOKS, lookLabel, lookOf } from "../src/lib/looks.js";
 import { feedToVideos, SELLER_SKIP } from "../src/lib/reelsFeed.js";
 import { frameArgs, plan } from "../scripts/media/look-frames.mjs";
@@ -145,4 +145,44 @@ test("the header offers search, Studio sign-up and log-in into the Studio's form
   assert.match(entrance, /get\("auth"\) === "login" \? "login" : "signup"/, "log-in opens the form on the sign-in tab");
   assert.match(entrance, /initialMode=\{authMode\}/);
   assert.match(read("src/components/sell/AuthGate.jsx"), /useState\(initialMode === "login" \? "login" : "signup"\)/);
+});
+
+test("round category pictures: one real product per kind, by its own name only, no counts, never fewer than two", () => {
+  const named = (id, displayTitle, category = "Accessories") => ({ ...product(id), displayTitle, category });
+  const circles = shopCircles([
+    named("p-live-01", "טבעת כסף 925 קלאסית"),
+    named("p-live-03", "צמיד טניס מואסניט"),
+    named("p-live-05", "Smyoue earrings, pink moissanite"),
+    named("p-live-04", "שרשרת יד מצופה 14K"),
+    named("x-no-image", "שעון יד"), // no clean picture → no circle
+  ]);
+  assert.deepEqual(circles.map((c) => c.he), ["טבעות", "צמידים", "עגילים", "שרשראות"]);
+  assert.equal(circles.find((c) => c.he === "עגילים").productId, "p-live-05", "an earring is not a ring");
+  for (const c of circles) {
+    assert.equal(c.image, cleanImage({ id: c.productId, media: { image: "https://ae01.alicdn.com/kf/x.jpg" } }).src, "the circle shows that product's own clean picture");
+    assert.match(c.to, /^\/search\?q=/);
+    assert.equal(Object.keys(c).some((k) => /count|total|views|clicks/i.test(k)), false, "no counters");
+  }
+  assert.equal(new Set(circles.map((c) => c.productId)).size, circles.length, "one product per circle");
+  assert.deepEqual(shopCircles([named("p-live-01", "טבעת כסף")]), [], `fewer than ${MIN_CIRCLES} kinds → no section`);
+  assert.deepEqual(shopCircles([named("p-live-01", "מעמד", "Home"), named("p-live-03", "מתקן")]), [], "a passing word in a description never makes a circle");
+  assert.ok(SHOP_CIRCLES.some((c) => c.he === "גיימינג") && SHOP_CIRCLES.some((c) => c.he === "ילדים"), "every kind of shop, not only jewellery");
+  const luxe = read("src/components/discover/luxe.jsx");
+  assert.match(luxe, /<Circles products=\{graph\.products\} \/>/);
+  assert.match(luxe, /title=\{L\("מה מחפשים היום\?"/);
+});
+
+test("posts read like LTK's: a swipeable row on phones, the affiliate-link line right above the product; the hero phone is the app without counts", () => {
+  const kit = read("src/components/discover/kit.jsx");
+  assert.match(kit, /\{product && shoppable \? <p className="lx-post-links">\{L\("קישור שותפים", "Affiliate link"\)\}<\/p> : null\}/);
+  const luxe = read("src/components/discover/luxe.jsx");
+  assert.match(luxe, /className="lx-posts lx-posts-rail"/);
+  assert.match(luxe, /<PhoneVideo product=\{featured\} reel=\{reel\} app \/>/);
+  const phone = luxe.slice(luxe.indexOf("function PhoneVideo"), luxe.indexOf("/* ----", luxe.indexOf("function PhoneVideo")));
+  assert.match(phone, /lx-pa-search/);
+  assert.match(phone, /lx-pa-tabs/);
+  assert.doesNotMatch(phone, /\d+(\.\d+)?[KkM]\b|likes|לייקים|צפיות/, "no like or view counts on the phone");
+  assert.match(phone, /"קישור שותפים"/);
+  const css = read("src/public.css");
+  assert.match(css, /\.lx-posts\.lx-posts-rail \{ grid-template-columns: none; grid-auto-flow: column;/);
 });

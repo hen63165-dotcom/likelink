@@ -35,6 +35,48 @@ export function curatedProducts(products = [], limit = 8) {
   return products.filter((p) => cleanImage(p)).sort((a, b) => showcaseRank(a.id) - showcaseRank(b.id)).slice(0, limit);
 }
 
+/**
+ * "What are you looking for today?" — round pictures, one per kind of item,
+ * the way LTK opens its categories. A circle exists only when the catalog has
+ * that item with a clean picture (the picture is that product's own); it
+ * opens the site's search for the word. No counts. Every category of the site
+ * can appear (fashion, home, kids, gaming…), not only jewellery.
+ */
+export const SHOP_CIRCLES = Object.freeze([
+  { q: "טבעת", he: "טבעות", en: "Rings", words: ["טבעת", "טבעות", " ring"] },
+  { q: "צמיד", he: "צמידים", en: "Bracelets", words: ["צמיד", "bracelet"] },
+  { q: "עגילים", he: "עגילים", en: "Earrings", words: ["עגיל", "earring"] },
+  { q: "שרשרת", he: "שרשראות", en: "Necklaces", words: ["שרשרת", "שרשראות", "necklace"] },
+  { q: "שעון", he: "שעונים", en: "Watches", words: ["שעון", "שעונים", " watch"] },
+  { q: "תיק", he: "תיקים", en: "Bags", words: ["תיק ", "תיקים", " bag", "backpack"] },
+  { q: "נעליים", he: "נעליים", en: "Shoes", words: ["נעל", "סניקרס", "shoe", "sneaker"] },
+  { q: "שמלה", he: "שמלות", en: "Dresses", words: ["שמלה", "שמלות", " dress"] },
+  { q: "איפור", he: "איפור", en: "Makeup", words: ["איפור", "שפתון", "מסקרה", "makeup", "lipstick"] },
+  { q: "טיפוח", he: "טיפוח", en: "Skincare", words: ["טיפוח", "סרום", "קרם ", "skincare", "serum"] },
+  { q: "מטבח", he: "מטבח", en: "Kitchen", words: ["מטבח", "kitchen"] },
+  { q: "ילדים", he: "ילדים", en: "Kids", words: ["ילדים", "תינוק", "kids", "baby"] },
+  { q: "גיימינג", he: "גיימינג", en: "Gaming", words: ["גיימינג", "gaming", "gamer"] },
+  { q: "אוזניות", he: "אוזניות", en: "Headphones", words: ["אוזניות", "headphone", "earbud"] },
+]);
+export const MIN_CIRCLES = 2;
+
+// The item's own name and category only: a description's passing word
+// never makes a circle. English words start at a word ("earring" is not a ring).
+const nameOf = (p) => ` ${String(p?.displayTitle || p?.title || "")} ${String(p?.category || "")} `.toLowerCase();
+
+export function shopCircles(products = [], { limit = 8 } = {}) {
+  const used = new Set();
+  const out = [];
+  for (const c of SHOP_CIRCLES) {
+    if (out.length >= limit) break;
+    const hit = products.find((p) => !used.has(p.id) && cleanImage(p) && c.words.some((w) => nameOf(p).includes(w)));
+    if (!hit) continue;
+    used.add(hit.id);
+    out.push({ q: c.q, he: c.he, en: c.en, to: `/search?q=${encodeURIComponent(c.q)}`, image: cleanImage(hit).src, productId: hit.id });
+  }
+  return out.length >= MIN_CIRCLES ? out : [];
+}
+
 /** The video the home page features: footage of a curated product, showcase order first. */
 export function spotlight(products = [], footage = new Map()) {
   return curatedProducts(products).find((p) => footage.has(p.id)) || null;

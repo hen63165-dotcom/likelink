@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getEnv, isBrowser } from "./env.js";
+import { resolveCloud } from "../constants/cloud.js";
 
 // Runtime-agnostic env resolution (see src/lib/env.js).
 //   • Browser → Vite statically inlines `import.meta.env` inside env.js.
@@ -7,8 +8,9 @@ import { getEnv, isBrowser } from "./env.js";
 // This replaced the previous direct `import.meta.env.X` reads, which crashed
 // with "Cannot read properties of undefined" the moment a Node caller
 // (api/*.mjs, scripts, tests) imported any module in this chain.
-const url = getEnv("VITE_SUPABASE_URL");
-const key = getEnv("VITE_SUPABASE_ANON_KEY");
+// A build whose host settings still name a retired project follows the
+// current one (src/constants/cloud.js).
+const { url, anonKey: key } = resolveCloud(getEnv("VITE_SUPABASE_URL"), getEnv("VITE_SUPABASE_ANON_KEY"));
 
 // True once both env vars are present (see .env.example + README.md).
 export const supabaseConfigured = Boolean(url && key);

@@ -985,6 +985,8 @@ export function ReelCard({ reel, graph, showCreator = true, shoppable = false, r
           </Go>
         ) : null}
         {source ? <p className="lx-post-source">{source}</p> : null}
+        {/* LTK's "paid links" line, in our words: the disclosure sits right above the product. */}
+        {product && shoppable ? <p className="lx-post-links">{L("קישור שותפים", "Affiliate link")}</p> : null}
         {product && shoppable ? (
           <div className="lx-post-product">
             <Go to={productPath(product.id)} className="lx-post-thumb" aria-hidden="true" tabIndex={-1}>
