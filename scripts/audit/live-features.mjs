@@ -127,14 +127,22 @@ async function plays(locator) {
   }).catch((e) => ({ error: String(e).slice(0, 80) }));
 }
 
-// Prices and photos on every listed product page.
+// Prices and photos on every listed product page. The pages read the cloud
+// (the shipped copy is only the fallback), so the expected price is the cloud's.
+const { CLOUD } = await import("../../src/constants/cloud.js");
+let cloudProducts = null;
+try {
+  const r = await fetch(`${CLOUD.url}/rest/v1/kv?key=eq.marketplace:products&select=value`, { headers: { apikey: CLOUD.anonKey, authorization: `Bearer ${CLOUD.anonKey}` } });
+  if (r.ok) cloudProducts = JSON.parse((await r.json())?.[0]?.value || "null");
+} catch { /* the pages fall back to the shipped copy too */ }
 await section("products", async () => {
-  for (const p of listed) {
+  for (const shipped of listed) {
+    const p = (Array.isArray(cloudProducts) && cloudProducts.find((x) => x?.id === shipped.id)) || shipped;
     await open(`/p/${p.id}`);
     const text = await bodyText();
     const img = await page.evaluate(() => [...document.querySelectorAll("main img, img")].filter((i) => i.getBoundingClientRect().width > 120).map((i) => ({ ok: i.complete && i.naturalWidth > 0, src: i.currentSrc.slice(0, 90) }))[0] || null);
     const wantPrice = Number(p.price) > 0 && p.priceSource ? priceText(Number(p.price)) : null;
-    check(`product_${p.id}`, (wantPrice ? text.includes(wantPrice) : text.includes("המחיר המעודכן בחנות")) && img?.ok, { price: wantPrice || "store-only", priceSource: p.priceSource || null, checkedAt: p.priceCheckedAt || null, image: img });
+    check(`product_${p.id}`, (wantPrice ? text.includes(wantPrice) : text.includes("המחיר המעודכן בחנות")) && img?.ok, { price: wantPrice || "store-only", expectedFrom: p === shipped ? "shipped_copy" : "cloud", shown: [...new Set(text.match(/₪[\d.,]+/g) || [])].slice(0, 3), priceSource: p.priceSource || null, checkedAt: p.priceCheckedAt || null, image: img });
   }
   await page.screenshot({ path: path.join(OUT, "live-product.jpg"), quality: 70 });
 });
@@ -197,6 +205,8 @@ await section("studio", async () => {
   for (const p of ["/studio", "/studio/creative-engine"]) {
     const before = errors.length;
     await open(p);
+    // The Studio is a lazy chunk behind the session lookup: wait for the sign-up form itself.
+    await page.waitForSelector("input[type=email]", { timeout: 15000 }).catch(() => {});
     const form = await page.locator("input[type=email]").count();
     check(`studio_signed_out_${p === "/studio" ? "entrance" : "engine_link"}`, form > 0 && errors.length === before, { emailFields: form, path: p });
   }
