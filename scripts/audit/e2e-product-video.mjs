@@ -55,6 +55,8 @@ await ctx.route("**/*", (route) => {
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 200)));
+const consoleLines = [];
+page.on("console", (m) => { if (["warning", "error"].includes(m.type())) consoleLines.push(`${m.type()}: ${m.text()}`.slice(0, 220)); });
 
 async function playCheck(locator) {
   return locator.evaluate(async (v) => {
@@ -98,6 +100,7 @@ if (creator?.slug) {
     const shop = post.locator('a[rel~="sponsored"]').first();
     const href = (await shop.getAttribute("href").catch(() => "")) || "";
     const before = writes.length;
+    const consoleBefore = consoleLines.length;
     const popup = ctx.waitForEvent("page", { timeout: 8000 }).catch(() => null);
     // A DOM click, as a finger's tap would be delivered: the phone's bottom bar can cover the button for Playwright's pointer.
     await shop.evaluate((a) => { a.scrollIntoView({ block: "center" }); a.click(); });
@@ -105,7 +108,7 @@ if (creator?.slug) {
     await page.waitForTimeout(2500);
     const tracked = writes.slice(before).map((w) => w.body).join("\n");
     // The body may carry the click list as a JSON string, so match the values, not the quoting.
-    check("shop_click_tracked_with_video_id", tracked.includes(ID) && tracked.includes(REEL), { campaign: REEL, writesCaptured: writes.length - before, to: writes.slice(before).map((w) => w.url.replace(/\?.*$/, "")).slice(0, 4), stored: false });
+    check("shop_click_tracked_with_video_id", tracked.includes(ID) && tracked.includes(REEL), { campaign: REEL, writesCaptured: writes.length - before, to: writes.slice(before).map((w) => w.url.replace(/\?.*$/, "")).slice(0, 4), console: consoleLines.slice(consoleBefore).slice(0, 6), stored: false });
     check("shop_opens_affiliate_link_only", Boolean(href) && Boolean(opened) && storeHits.some((u) => u.startsWith(href.split("?")[0])), { href: href.slice(0, 120), opened: opened ? opened.url().slice(0, 120) : null, storeRequestsAborted: storeHits.length });
     if (opened) await opened.close().catch(() => null);
   }
