@@ -149,12 +149,19 @@ await section("reels", async () => {
     const vids = page.locator("video");
     const n = await vids.count();
     let lunaPlay = null;
+    let cardText = "";
     for (let i = 0; i < n && !lunaPlay; i++) {
       const src = await vids.nth(i).evaluate((v) => v.currentSrc || v.src || v.querySelector("source")?.src || "");
-      if (src.includes(String(luna[0].video).split("/").pop())) lunaPlay = await plays(vids.nth(i));
+      if (!src.includes(String(luna[0].video).split("/").pop())) continue;
+      lunaPlay = await plays(vids.nth(i));
+      // The AI label must be on THIS reel's own post (its badge or the lines under it), not anywhere on the page.
+      cardText = await vids.nth(i).evaluate((v) => {
+        let el = v;
+        for (let up = 0; up < 6 && el.parentElement; up++) { el = el.parentElement; if (/AI/.test(el.innerText || "")) return el.innerText; }
+        return el.innerText || "";
+      });
     }
-    const text = await bodyText();
-    check("luna_character_reel_plays", Boolean(lunaPlay && lunaPlay.t1 > lunaPlay.t0) && /AI/.test(text), { id: luna[0].id, look: luna[0].look, play: lunaPlay, aiLabel: /AI/.test(text) });
+    check("luna_character_reel_plays", Boolean(lunaPlay && lunaPlay.t1 > lunaPlay.t0) && /AI/.test(cardText), { id: luna[0].id, look: luna[0].look, play: lunaPlay, aiLabelOnThisPost: /AI/.test(cardText), label: cardText.replace(/\s+/g, " ").slice(0, 120) });
     await page.screenshot({ path: path.join(OUT, "live-luna.jpg"), quality: 70 });
   }
 });

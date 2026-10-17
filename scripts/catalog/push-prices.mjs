@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 const API = String(process.env.LIKELINK_API || "https://likelink2.vercel.app").replace(/\/+$/, "");
 const SECRET = process.env.AUTOPILOT_SECRET || "";
 const DRY = process.argv.includes("--dry-run");
+const BATCH = 200;
 const summary = (l) => { console.log(l); if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${l}\n`); };
 
 /** The update rows for the listed products that carry a store-API price (pure). */
@@ -39,18 +40,24 @@ async function main() {
   summary(`## Store prices → cloud (${products.length} products)`);
   if (DRY) { console.log(JSON.stringify({ products }, null, 1)); return; }
   if (!SECRET) { summary("REQUIRES_CONNECTION: the AUTOPILOT_SECRET secret is missing. Nothing was sent."); process.exitCode = 1; return; }
-  const res = await fetch(`${API}/api/store?mode=media-pipeline&op=catalog-prices`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${SECRET}`, Origin: API, "content-type": "application/json" },
-    body: JSON.stringify({ products }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  let json = null;
-  try { json = await res.json(); } catch { /* not json */ }
-  for (const a of json?.applied || []) summary(`- ${a.id}: ₪${a.from.price ?? "—"} (${a.from.priceCheckedAt || "no check"}) → ₪${a.to.price} (${a.to.priceCheckedAt})`);
-  for (const r of json?.refused || []) summary(`- ${r.id}: not applied (${r.error})`);
-  summary(`HTTP ${res.status} · proof ${json?.proof?.status || json?.error || "none"}`);
-  if (!res.ok || !json?.ok) process.exitCode = 1;
+  // The server reads at most 200 updates per request: send them in batches.
+  let failed = false;
+  for (let i = 0; i < products.length; i += BATCH) {
+    const res = await fetch(`${API}/api/store?mode=media-pipeline&op=catalog-prices`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SECRET}`, Origin: API, "content-type": "application/json" },
+      body: JSON.stringify({ products: products.slice(i, i + BATCH) }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    let json = null;
+    try { json = await res.json(); } catch { /* not json */ }
+    for (const a of json?.applied || []) summary(`- ${a.id}: ₪${a.from.price ?? "—"} (${a.from.priceCheckedAt || "no check"}) → ₪${a.to.price} (${a.to.priceCheckedAt})`);
+    for (const r of json?.refused || []) summary(`- ${r.id}: not applied (${r.error})`);
+    summary(`HTTP ${res.status} · proof ${json?.proof?.status || json?.error || "none"}`);
+    // "not_newer" is the normal answer for a check the cloud already has; any other refusal is a real problem.
+    if (!res.ok || !json?.ok || (json.refused || []).some((r) => r.error !== "not_newer")) failed = true;
+  }
+  if (failed) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();

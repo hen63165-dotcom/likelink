@@ -57,8 +57,10 @@ export function applyStorePrices(products = [], updates = [], { now = Date.now()
   const refused = [];
   for (const u of arr(updates).slice(0, MAX_UPDATES)) {
     const v = validatePriceUpdate(u, byId.get(String(u?.id || "")) || null, now);
-    if (v.ok) accepted.set(String(u.id), v.fields);
-    else refused.push({ id: String(u?.id || "").slice(0, 80), error: v.error });
+    if (!v.ok) { refused.push({ id: String(u?.id || "").slice(0, 80), error: v.error }); continue; }
+    // Two checks of one product in a batch: the newest wins, whatever the order.
+    const seen = accepted.get(String(u.id));
+    if (!seen || Date.parse(v.fields.priceCheckedAt) > Date.parse(seen.priceCheckedAt)) accepted.set(String(u.id), v.fields);
   }
   const applied = [];
   const next = arr(products).map((p) => {
@@ -75,12 +77,16 @@ function client({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const url = env.VITE_SUPABASE_URL || env.SUPABASE_URL || "";
   const key = env.SUPABASE_SERVICE_ROLE_KEY || "";
   const h = { apikey: key, Authorization: `Bearer ${key}` };
+  /** The value and its row version (updated_at, bumped by trg_kv_updated_at on every update). */
   async function kvRead(k) {
     let res;
-    try { res = await fetchImpl(`${url}/rest/v1/kv?key=eq.${encodeURIComponent(k)}&select=value`, { headers: h, signal: AbortSignal.timeout(10000) }); }
+    try { res = await fetchImpl(`${url}/rest/v1/kv?key=eq.${encodeURIComponent(k)}&select=value,updated_at`, { headers: h, signal: AbortSignal.timeout(10000) }); }
     catch { noteKvReadFailed(k); return { ok: false }; }
+    const copy = res.clone();
     const row = await readKvResponse(k, res);
-    return row.failed ? { ok: false } : { ok: true, value: row.found ? row.value : null };
+    if (row.failed) return { ok: false };
+    const version = row.found ? (await copy.json().catch(() => []))?.[0]?.updated_at || null : null;
+    return { ok: true, value: row.found ? row.value : null, version };
   }
   async function kvWrite(k, value) {
     assertKvWritable(k);
@@ -92,17 +98,39 @@ function client({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
     });
     if (!res.ok) throw new Error(`kv_write_failed_${res.status}`);
   }
-  return { kvRead, kvWrite };
+  /** Write only if the row is still the version that was read (compare-and-swap). → true | false (changed meanwhile) */
+  async function kvSwap(k, value, version) {
+    assertKvWritable(k);
+    const res = await fetchImpl(`${url}/rest/v1/kv?key=eq.${encodeURIComponent(k)}&updated_at=eq.${encodeURIComponent(version)}`, {
+      method: "PATCH",
+      headers: { ...h, "content-type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ value: JSON.stringify(value) }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`kv_write_failed_${res.status}`);
+    const rows = await res.json().catch(() => []);
+    return Array.isArray(rows) && rows.length === 1;
+  }
+  return { kvRead, kvWrite, kvSwap };
 }
 
-/** POST op=catalog-prices (machine auth): validate → write → read back → log. */
-export async function syncStorePrices(body = {}, { env, fetchImpl, now = Date.now() } = {}) {
+/**
+ * POST op=catalog-prices (machine auth): validate → compare-and-swap write (a
+ * concurrent change to the catalog — a creator's edit — makes the swap miss,
+ * and the update is re-applied on the fresh copy, never over it) → read back → log.
+ */
+export async function syncStorePrices(body = {}, { env, fetchImpl, now = Date.now(), attempts = 3 } = {}) {
   const c = client({ env, fetchImpl });
-  const p = await c.kvRead(PRODUCTS_KEY);
-  if (!p.ok) return { ok: false, status: 503, error: "kv_read_failed" };
-  const r = applyStorePrices(arr(p.value), arr(body.products), { now });
-  if (!r.applied.length) return { ok: true, status: 200, applied: [], refused: r.refused, proof: { status: "NOTHING_NEWER" } };
-  await c.kvWrite(PRODUCTS_KEY, r.products);
+  let r = null;
+  let swapped = false;
+  for (let i = 0; i < attempts && !swapped; i++) {
+    const p = await c.kvRead(PRODUCTS_KEY);
+    if (!p.ok || !p.version) return { ok: false, status: 503, error: "kv_read_failed" };
+    r = applyStorePrices(arr(p.value), arr(body.products), { now });
+    if (!r.applied.length) return { ok: true, status: 200, applied: [], refused: r.refused, proof: { status: "NOTHING_NEWER" } };
+    swapped = await c.kvSwap(PRODUCTS_KEY, r.products, p.version);
+  }
+  if (!swapped) return { ok: false, status: 409, error: "catalog_changed_during_write", applied: [], refused: r?.refused || [] };
   const back = await c.kvRead(PRODUCTS_KEY);
   const stored = new Map(arr(back.ok ? back.value : []).map((x) => [String(x?.id || ""), x]));
   const verified = back.ok && r.applied.every((a) => {
