@@ -40,11 +40,13 @@ const storeHits = [];
 await ctx.route("**/*", (route) => {
   const req = route.request();
   const url = req.url();
-  if (/aliexpress|s\.click\./i.test(new URL(url).hostname)) {
+  // The store's pages and affiliate redirects (never its image CDN, which the page shows).
+  if (/(^|\.)(s\.click\.aliexpress\.com|aliexpress\.(com|us|ru))$/i.test(new URL(url).hostname)) {
     storeHits.push(url);
     return route.abort();
   }
-  if (req.method() !== "GET" && /\/api\//.test(url)) {
+  // Every write the page tries is captured and aborted: the check stores nothing.
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
     writes.push({ url, body: req.postData() || "" });
     return route.abort();
   }
@@ -95,16 +97,16 @@ if (creator?.slug) {
   if (await post.count()) {
     const shop = post.locator('a[rel~="sponsored"]').first();
     const href = (await shop.getAttribute("href").catch(() => "")) || "";
-    await post.scrollIntoViewIfNeeded();
     const before = writes.length;
     const popup = ctx.waitForEvent("page", { timeout: 8000 }).catch(() => null);
-    await shop.click({ timeout: 8000 }).catch(() => null);
+    // A DOM click, as a finger's tap would be delivered: the phone's bottom bar can cover the button for Playwright's pointer.
+    await shop.evaluate((a) => { a.scrollIntoView({ block: "center" }); a.click(); });
     const opened = await popup;
     await page.waitForTimeout(2500);
     const tracked = writes.slice(before).map((w) => w.body).join("\n");
     // The body may carry the click list as a JSON string, so match the values, not the quoting.
-    check("shop_click_tracked_with_video_id", tracked.includes(ID) && tracked.includes(REEL), { campaign: REEL, writesCaptured: writes.length - before, stored: false });
-    check("shop_opens_affiliate_link_only", Boolean(href) && (!opened || storeHits.some((u) => u.startsWith(href.split("?")[0]))), { href: href.slice(0, 120), storeRequestsAborted: storeHits.length });
+    check("shop_click_tracked_with_video_id", tracked.includes(ID) && tracked.includes(REEL), { campaign: REEL, writesCaptured: writes.length - before, to: writes.slice(before).map((w) => w.url.replace(/\?.*$/, "")).slice(0, 4), stored: false });
+    check("shop_opens_affiliate_link_only", Boolean(href) && Boolean(opened) && storeHits.some((u) => u.startsWith(href.split("?")[0])), { href: href.slice(0, 120), opened: opened ? opened.url().slice(0, 120) : null, storeRequestsAborted: storeHits.length });
     if (opened) await opened.close().catch(() => null);
   }
 }
