@@ -57,3 +57,10 @@ jobs:
           git add public/snapshot/kv.json
           git commit -m "catalog: store prices (ILS), photos and videos from AliExpress $(date -u +%F)"
           git push origin HEAD:main
+      - name: Store prices into the cloud copy (the live pages read it)
+        # The live site reads marketplace:products from the cloud; the server takes
+        # only newer AliExpress-API checks of products it already has and reads them back.
+        if: env.WRITE != ''
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        run: node scripts/catalog/push-prices.mjs

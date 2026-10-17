@@ -76,6 +76,31 @@ Free here: ffmpeg, the runner's Chromium, GitHub Actions (public repo),
 releases, Pages, the store's own media. Not free, never used: OpenAI images,
 ElevenLabs, Replicate, Kling, ManyMotions. Never buy credits for the owner.
 
+## The orchestrator and the Studio screen
+
+`src/lib/creative/orchestrator.js` (pure) runs one product through
+ProductFacts → ContentStrategy → CreativeGeneration → QualityControl →
+ProductPublishing → PerformanceFeedback from what really exists: the catalog
+record, the plan, `jobs.json`, the site's reels feed and the recorded clicks.
+A stage is COMPLETED only with an output that passed every check; otherwise
+PENDING / BLOCKED (named blocker + fallback) / FAILED / SKIPPED /
+INSUFFICIENT_DATA (below 30 attributed events; `src=e2e_check` never counts).
+`METHODS` is the method registry (A–G + the paid benchmarks): AVAILABLE,
+DELEGATED (another free executor runs it), UNAVAILABLE (dependency named) or
+PAID_LOCKED. Studio → "כלים מתקדמים" → "מנוע הסרטונים" (`/studio/creative-engine`,
+`CreativeEnginePanel.jsx`) shows it per product; the ledger it reads is
+published with the site at `/likelink/media/creative/jobs.json`
+(deploy-frontend.yml). Tests: `tests/creativeOrchestrator.test.mjs`.
+
+## The paid lock (server side)
+
+`src/lib/creative/costGuard.js` `paidGate(feature, env)`: every paid entry
+point asks it first — `mode=ugc-model` (before auth and any provider call),
+the OpenAI text provider (`intelligenceProvider.mjs`: not `configured`, and
+`execute` throws BLOCKED_BY_COST_GUARD) and the "Viral reel" workflow (first
+step). Only the exact server/repository setting `PAID_GENERATION=enabled`
+opens it; no browser env, run input or other word does. Off by default.
+
 ## When a product has no video
 
 Read the run summary or `jobs.json`: `no_worn_photo_checked` → check the

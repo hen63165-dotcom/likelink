@@ -87,6 +87,17 @@ jobs:
           command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; } || echo "::warning::no ffmpeg: covers fall back to the product photos"
           node scripts/reels-feed.mjs dist || echo "::warning::reels feed skipped"
 
+      - name: The Creative Engine's job ledger (ops/creative → media/creative/jobs.json)
+        # The Studio's Creative Engine screen reads each product's pipeline from
+        # it (statuses, QC, byte proofs, errors — no secrets). A failure here never blocks the site.
+        run: |
+          mkdir -p dist/media/creative
+          if git fetch -q origin "+refs/heads/ops/creative:refs/remotes/origin/ops/creative" 2>/dev/null; then
+            git show origin/ops/creative:jobs.json > dist/media/creative/jobs.json && echo "ledger published" || echo "::warning::no ledger yet"
+          else
+            echo "::warning::no ops/creative branch yet"
+          fi
+
       - name: Pinterest feed (pins.xml, read by Pinterest's auto-publish)
         # Products, reel covers and the size meter as an RSS feed the owner's
         # Pinterest account picks up by itself (scripts/pins-feed.mjs).
