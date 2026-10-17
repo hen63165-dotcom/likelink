@@ -47,6 +47,12 @@ jobs:
           E2E_PRODUCT: ${{ github.event.inputs.e2e_product || 'p-live-04' }}
           E2E_PERSIST: ${{ github.event.inputs.e2e_persist || '0' }}
         run: node scripts/audit/e2e-product-video.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
+      - name: Live features (prices, photos, reels + Luna, guide, size, IndexNow, Pinterest, Daily Drop, Studio, no paid hosts)
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          AUDIT_BASE: ${{ github.event.inputs.base }}
+        run: node scripts/audit/live-features.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
       - name: Store photo contact sheet
         continue-on-error: true
         env:
