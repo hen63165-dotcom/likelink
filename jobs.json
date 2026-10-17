@@ -1,0 +1,367 @@
+{
+ "engine": "creative-1",
+ "updatedAt": 1792247085539,
+ "jobs": [
+  {
+   "id": "cj_90367d654dd0a51e",
+   "key": "90367d654dd0a51e",
+   "productId": "p-live-05",
+   "template": "lookbook",
+   "look": "lookbook",
+   "asset": "p-live-05-lookbook",
+   "status": "STORED",
+   "attempts": 1,
+   "createdAt": 1792226121112,
+   "updatedAt": 1792226662644,
+   "history": [
+    {
+     "at": 1792226121112,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226660950,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226662644,
+     "status": "STORED"
+    }
+   ],
+   "output": {
+    "file": "p-live-05-lookbook.mp4",
+    "bytes": 6110568,
+    "sha256": "743f2c1e6460239da5affb970504e5a6e17d212277230be532359dd510849c38",
+    "seconds": 13.15,
+    "segments": [
+     "photo",
+     "video",
+     "photo",
+     "video",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 13.17,
+    "bytes": 6110568,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "creative-preview",
+    "name": "p-live-05-lookbook.mp4",
+    "bytes": 6110568,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/creative-preview/p-live-05-lookbook.mp4"
+   }
+  },
+  {
+   "id": "cj_a4d7033dc133efa7",
+   "key": "a4d7033dc133efa7",
+   "productId": "p-live-04",
+   "template": "lookbook",
+   "look": "lookbook",
+   "asset": "p-live-04-lookbook",
+   "status": "STORED",
+   "attempts": 1,
+   "createdAt": 1792226121112,
+   "updatedAt": 1792226223949,
+   "history": [
+    {
+     "at": 1792226121112,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226220504,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226223949,
+     "status": "STORED"
+    }
+   ],
+   "output": {
+    "file": "p-live-04-lookbook.mp4",
+    "bytes": 5902580,
+    "sha256": "cba2888890ecadf5027dff6ccd823c67a9a3aee292cef9365f3a9a6e8b31784c",
+    "seconds": 13.15,
+    "segments": [
+     "photo",
+     "video",
+     "photo",
+     "video",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 13.17,
+    "bytes": 5902580,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "creative-preview",
+    "name": "p-live-04-lookbook.mp4",
+    "bytes": 5902580,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/creative-preview/p-live-04-lookbook.mp4"
+   }
+  },
+  {
+   "id": "cj_6d67e31b497bbe29",
+   "key": "6d67e31b497bbe29",
+   "productId": "p-live-02",
+   "template": "lookbook",
+   "look": "lookbook_photos",
+   "asset": "p-live-02-lookbook",
+   "status": "STORED",
+   "attempts": 1,
+   "createdAt": 1792226121112,
+   "updatedAt": 1792226223949,
+   "history": [
+    {
+     "at": 1792226121112,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226173999,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226223949,
+     "status": "STORED"
+    }
+   ],
+   "output": {
+    "file": "p-live-02-lookbook.mp4",
+    "bytes": 7578797,
+    "sha256": "d396279d38404b311d07e2b5d130778153abf53225b07e90b729970516364108",
+    "seconds": 11.2,
+    "segments": [
+     "photo",
+     "photo",
+     "photo",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 11.2,
+    "bytes": 7578797,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "creative-preview",
+    "name": "p-live-02-lookbook.mp4",
+    "bytes": 7578797,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/creative-preview/p-live-02-lookbook.mp4"
+   }
+  },
+  {
+   "id": "cj_4e7221c977955bc3",
+   "key": "4e7221c977955bc3",
+   "productId": "p-live-01",
+   "template": "lookbook",
+   "look": "lookbook_photos",
+   "asset": "p-live-01-lookbook",
+   "status": "STORED",
+   "attempts": 1,
+   "createdAt": 1792226121112,
+   "updatedAt": 1792226223949,
+   "history": [
+    {
+     "at": 1792226121112,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226151108,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226223949,
+     "status": "STORED"
+    }
+   ],
+   "output": {
+    "file": "p-live-01-lookbook.mp4",
+    "bytes": 3601129,
+    "sha256": "ea6c9899eee78fb1ccd48d092356f4e4ae9237ed9624927e5e8bf366f50c2e5c",
+    "seconds": 11.2,
+    "segments": [
+     "photo",
+     "photo",
+     "photo",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 11.2,
+    "bytes": 3601129,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "creative-preview",
+    "name": "p-live-01-lookbook.mp4",
+    "bytes": 3601129,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/creative-preview/p-live-01-lookbook.mp4"
+   }
+  }
+ ],
+ "clipsOnHand": [
+  "p-live-02",
+  "p-live-03",
+  "p-live-04",
+  "p-live-05"
+ ],
+ "clipsReadAt": 1792247085539
+}
