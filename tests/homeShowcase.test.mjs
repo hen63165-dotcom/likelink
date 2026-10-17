@@ -186,3 +186,34 @@ test("posts read like LTK's: a swipeable row on phones, the affiliate-link line 
   const css = read("src/public.css");
   assert.match(css, /\.lx-posts\.lx-posts-rail \{ grid-template-columns: none; grid-auto-flow: column;/);
 });
+
+// 2026-10-17, the owner on /u/alyostyle: "6 מוצרים, 40 סרטונים — לא מקצועי".
+// A storefront shows one post per product (LTK's unit is the post): the
+// product's best video, real footage before Luna, a video the site serves
+// before a cloud file (the Studio reels were not copied to the new cloud and
+// answered 404 as empty grey cards). A post whose video does not load hides.
+test("storefront: one post per product, its best video, footage first, site-served before cloud files", async () => {
+  const { storefrontPosts } = await import("../src/lib/homeShowcase.js");
+  const v = (id, pid, style, url, createdAt = 1) => ({ id, productIds: [pid], style, url, createdAt });
+  const feed = (n) => `https://hen63165-dotcom.github.io/likelink/media/reels/${n}.mp4`;
+  const cloud = (n) => `https://likelink2.vercel.app/api/og?mode=media&path=reels%2Fm1%2F${n}.mp4`;
+  const posts = storefrontPosts([
+    v("luna-01a", "p1", "luna_talking", feed("a")),
+    v("luna-01b", "p1", "luna_tip", feed("b"), 5),
+    v("look-01", "p1", "seller_lookbook", feed("c")),
+    v("studio-02", "p2", "ugc_style", cloud("d"), 9),
+    v("luna-02", "p2", "luna_tip", feed("e")),
+    v("luna-03", "p3", "luna_talking", feed("f")),
+    v("cut-04", "p4", "seller_video", feed("g")),
+    v("other", "p9", "seller_video", feed("h")),
+  ], ["p1", "p2", "p3", "p4"]);
+  assert.deepEqual(posts.map((p) => p.id), ["look-01", "cut-04", "luna-02", "luna-03"]);
+  const pages = read("src/components/discover/pages.jsx");
+  const page = pages.slice(pages.indexOf("export function CreatorPage"), pages.indexOf("export function ProductPage"));
+  assert.match(page, /storefrontPosts\(graph\.reels\.filter\(\(r\) => r\.creatorId === creator\.id\), creator\.productIds\)/);
+  const kit = read("src/components/discover/kit.jsx");
+  const card = kit.slice(kit.indexOf("export function ReelCard"), kit.indexOf("export function Spinner"));
+  assert.match(card, /if \(broken\) return null;/, "a post whose video does not load is not shown");
+  assert.match(card, /onVideoError=\{\(\) => setBroken\(true\)\}/);
+  assert.match(kit, /onError=\{onVideoError\}/);
+});
