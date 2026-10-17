@@ -5,6 +5,9 @@ on:
       base:
         description: "Another https build to photograph (a Netlify PR preview); empty = the live site"
         default: ""
+      e2e_product:
+        description: "The product whose Creative Engine video is checked end to end (playback, labels, tracking)"
+        default: "p-live-04"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/audit/**", ".github/workflows/visual-audit.yml"]
@@ -33,6 +36,13 @@ jobs:
           PAGES: home,product,reels,creator,products,search
           AUDIT_BASE: ${{ github.event.inputs.base }}
         run: node scripts/audit/visual-audit.mjs | tee "$RUNNER_TEMP/audit-log.txt"
+      - name: Product video end to end (playback, phone layout, affiliate tracking, not-found)
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          AUDIT_BASE: ${{ github.event.inputs.base }}
+          E2E_PRODUCT: ${{ github.event.inputs.e2e_product || 'p-live-04' }}
+        run: node scripts/audit/e2e-product-video.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
       - name: Store photo contact sheet
         continue-on-error: true
         env:
