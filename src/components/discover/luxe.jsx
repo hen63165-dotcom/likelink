@@ -14,7 +14,7 @@ import { BookOpen, Compass, Heart, Home, Play, Ruler, Search, Send, ShoppingBag 
 import { REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { curatedProducts, footageByProduct, shopCircles, spotlight } from "../../lib/homeShowcase.js";
-import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
+import { cleanImage, galleryPicks, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
@@ -164,8 +164,21 @@ function Hero({ items, featured, reel }) {
       </Go>
     );
   };
-  const sky = (key, tone = "") => <span key={key} className={`lx-hv-tile lx-hv-sky ${tone}`} aria-hidden="true" />;
-  // Three columns like LTK's collage: real images on the sides, light-blue tiles, the phone in front.
+  // The items worn by the sellers' models (checked by eye, src/lib/looks.js)
+  // fill the rest of the collage; a light-blue tile only when none is left.
+  const shown = new Set(tiles.map((p) => cleanImage(p)?.src));
+  const models = items.flatMap((p) => galleryPicks(p).filter((g) => g.kind !== "flat" && !shown.has(g.url)).map((g) => ({ p, url: g.url })));
+  let next = 0;
+  const sky = (key, tone = "") => {
+    const m = models[next++];
+    if (!m) return <span key={key} className={`lx-hv-tile lx-hv-sky ${tone}`} aria-hidden="true" />;
+    return (
+      <Go key={key} to={productPath(m.p.id)} className="lx-hv-tile" aria-label={m.p.displayTitle}>
+        <img src={m.url} alt="" loading="lazy" onError={hideBroken} />
+      </Go>
+    );
+  };
+  // Three columns like LTK's collage: real images all round, the phone in front.
   const columns = [
     [tile(0, "a0"), sky("a1", "is-deep"), tile(2, "a2")],
     [sky("b0"), sky("b1", "is-deep"), sky("b2")],

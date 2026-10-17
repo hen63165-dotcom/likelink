@@ -98,6 +98,7 @@ that the system filters the noise.
 | Studio: products, tracking link per product, click stats | Live |
 | Studio entrance + paste any affiliate program's link → details → publish (5 core menu items, advanced tools folded) | Built 2026-10-15 (sign-up/saving wait for the cloud) |
 | Creative Lab: text-hook, synthetic UGC, AI 3D story, AI virtual creator (own model) | Live |
+| Creative Engine: product → 9:16 video from its own media (seller's model photos + checked clip), zero paid credits, idempotent jobs, QC, live proof on the product page | Built 2026-10-17 (character registry: Luna; more presenters need their own original assets) |
 | Luna: passports, scores, goals, campaign drafts, marketing engine | Live |
 | TikTok engine: two ready posts a day (video, rendered photo-mode carousel, Luna tip, a script to film), learning from the owner's logged results | Built 2026-10-15 (the owner opens the account and posts; no API posting) |
 | Conversions measured end-to-end for affiliate links | Not available (store-side data) |

@@ -5,7 +5,9 @@
 // never become the home page's opening video or a product's image.
 import { cleanImage } from "./looks.js";
 
-export const FOOTAGE_RANK = Object.freeze({ real_ugc: 2, seller_video: 1 });
+// The seller's model photos with its clip (the Creative Engine's lookbook) read
+// best large, then photos only, then the seller's clip alone.
+export const FOOTAGE_RANK = Object.freeze({ real_ugc: 3, seller_lookbook: 2, seller_photo_reel: 1.5, seller_video: 1 });
 // The cuts that read best large go first in the collection.
 export const SHOWCASE = Object.freeze(["p-live-05", "p-live-04", "p-live-01", "p-live-03"]);
 

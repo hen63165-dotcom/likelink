@@ -36,7 +36,7 @@ import { useVideos } from "../../context/VideoContext";
 import { buildPublicGraph, categoryName, enCount, formatPrice, heCount, REEL_STYLE_LABELS, EVIDENCE_LABELS } from "../../lib/publicDiscovery.js";
 import { MEDIA_TRUTH, MEDIA_TRUTH_LABEL } from "../../lib/discovery/mediaTruth.js";
 import { AFFILIATE_DISCLOSURE_HE, saleModelOf } from "../../lib/discovery/surfaces.js";
-import { lookLabel, lookOf } from "../../lib/looks.js";
+import { cleanImage, lookLabel, lookOf } from "../../lib/looks.js";
 import { resolveDestinationUrl, buildAffiliateUrl } from "../../utils/helpers.js";
 import { SHARE_SHEET_ORDER, buildShareLink, creatorPath, productPath, publicUrl, utmFor, withAttribution } from "../../lib/acquisition.js";
 import { stripBase, withBase } from "../../lib/basePath.js";
@@ -262,6 +262,8 @@ export function MediaBadge({ state, showImage = false, style = "" }) {
   // A seller's video is named by its style badge ("סרטון של המוכר"), never
   // "real": nobody here knows how the seller made it.
   if (state === MEDIA_TRUTH.REAL_VIDEO && style === "seller_video") return null;
+  // The same for the seller's photos and clip in LikeLink2's edit (the Creative Engine's lookbook).
+  if (state === MEDIA_TRUTH.REAL_VIDEO && (style === "seller_lookbook" || style === "seller_photo_reel")) return null;
   const label = MEDIA_TRUTH_LABEL[state]?.[lang] || "";
   const Icon = state === MEDIA_TRUTH.REAL_VIDEO ? Play : state === MEDIA_TRUTH.STATIC_IMAGE ? null : Clapperboard;
   const tip = state === MEDIA_TRUTH.REAL_VIDEO
@@ -822,8 +824,9 @@ export function ProductCard({ product, creator, ratio = "4 / 5", eager = false, 
   const { L, lang } = useL();
   if (!product) return null;
   const to = productPath(product.id);
-  // A clean frame from the seller's own video replaces a store photo with banners or text (src/lib/looks.js).
-  const look = lookOf(product.id);
+  // The item worn by the seller's model, or a clean frame from the seller's own
+  // video, replaces a store photo with banners or text (src/lib/looks.js).
+  const look = cleanImage(product);
   return (
     <article className="lx-card flex h-full flex-col">
       <Go to={to} aria-label={product.displayTitle} className="block">

@@ -9,7 +9,7 @@ on:
     branches: [main]
   # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Add trend products", "TikTok results"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Creative engine", "Add trend products", "TikTok results"]
     types: [completed]
   # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
   schedule:

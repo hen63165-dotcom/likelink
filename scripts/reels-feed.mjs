@@ -21,7 +21,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "./prerender-products.mjs";
-import { SELLER_SKIP } from "../src/lib/reelsFeed.js";
+import { SELLER_MEDIA_LOOKS, SELLER_SKIP } from "../src/lib/reelsFeed.js";
 
 export { SELLER_SKIP };
 
@@ -116,6 +116,42 @@ export function sellerReels(assets = [], listed = new Set()) {
 }
 
 /**
+ * The Creative Engine's lookbooks (scripts/creative → the "reels" release:
+ * <productId>-lookbook.mp4 + its .json): the product's own media (the
+ * seller's model photos, and its clip when a person checked it) in LikeLink2's
+ * edit. Only with details that name the product, say it is not AI-made and
+ * carry the ad label; labelled as the seller's media, never as UGC.
+ * @param metas Map productId → the .json details
+ */
+export function lookbookReels(assets = [], listed = new Set(), metas = new Map()) {
+  const out = [];
+  for (const a of Array.isArray(assets) ? assets : []) {
+    const m = String(a?.name || "").match(/^([A-Za-z0-9_-]+?)-lookbook\.mp4$/);
+    const meta = m ? metas.get(m[1]) : null;
+    if (!m || !listed.has(m[1]) || !meta || meta.product?.id !== m[1]) continue;
+    if (!SELLER_MEDIA_LOOKS.includes(meta.look) || meta.synthetic !== false || !Array.isArray(meta.labels) || !meta.labels.some((l) => /#פרסומת/.test(String(l)))) continue;
+    const updatedAt = Date.parse(a.updated_at || a.created_at || "") || 0;
+    out.push({
+      productId: m[1],
+      mp4: a,
+      updatedAt,
+      entry: {
+        id: `lookbook-${m[1]}`,
+        productId: m[1],
+        video: `lookbook-${m[1]}.mp4`,
+        poster: "",
+        title: "",
+        seconds: Number(meta.seconds) || 0,
+        look: meta.look,
+        labels: meta.labels.map((l) => String(l).slice(0, 80)).slice(0, 4),
+        createdAt: updatedAt,
+      },
+    });
+  }
+  return out;
+}
+
+/**
  * One real frame of the video as its cover. The release previews are 3-frame
  * contact sheets, which a 9:16 card would crop badly. Without ffmpeg the cover
  * stays empty and the site shows the product's own photo.
@@ -202,10 +238,18 @@ export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOS
       console.warn(`reels-feed: skipped ${r.base} (${e.message})`);
     }
   }
-  // Our own footage first, then the sellers' own product videos, each labelled as whose it is.
+  // Our own footage first, then the Creative Engine's lookbooks, then the sellers'
+  // own product videos, each labelled as whose it is.
   try {
     const assets = (await api(`/repos/${repo}/releases/tags/reels`, token)).assets;
-    for (const r of [...ownReels(assets, listed, owners), ...sellerReels(assets, listed)]) {
+    const metas = new Map();
+    for (const a of assets.filter((x) => /^[A-Za-z0-9_-]+-lookbook\.json$/.test(String(x?.name || "")))) {
+      try {
+        const res = await fetch(a.browser_download_url, { redirect: "follow" });
+        if (res.ok) metas.set(a.name.replace(/-lookbook\.json$/, ""), await res.json());
+      } catch { /* a lookbook without readable details is skipped */ }
+    }
+    for (const r of [...ownReels(assets, listed, owners), ...lookbookReels(assets, listed, metas), ...sellerReels(assets, listed)]) {
       try {
         await download(r.mp4.url, join(out, r.entry.video), token);
         const cover = `${r.entry.id}-cover.jpg`;

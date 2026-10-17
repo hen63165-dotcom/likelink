@@ -42,6 +42,8 @@ export const REEL_STYLE_LABELS = Object.freeze({
   luna_talking: { he: "לונה מסבירה · דמות וקול AI מונפשים · המוצר בתמונה אמיתית", en: "Luna explains · animated AI character and voice · real product photo" },
   luna_tip: { he: "לונה מסבירה · דמות וקול AI · המוצר בתמונה אמיתית", en: "Luna explains · AI character and voice · real product photo" },
   seller_video: { he: "סרטון המוכר · בעריכת LikeLink2", en: "The seller's video · edited by LikeLink2" },
+  seller_lookbook: { he: "תמונות וסרטון המוכר · בעריכת LikeLink2", en: "The seller's photos and video · edited by LikeLink2" },
+  seller_photo_reel: { he: "תמונות המוכר · בעריכת LikeLink2", en: "The seller's photos · edited by LikeLink2" },
   real_ugc: { he: "צילום אמיתי · UGC", en: "Real footage · UGC" },
 });
 

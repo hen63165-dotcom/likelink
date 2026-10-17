@@ -15,11 +15,11 @@
 // otherwise the copy says nothing about trends.
 import { HOOK_FORBIDDEN, buildHookSet, matchTrends, worldOf } from "./likeloop.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
+import { FEED_LOOKS, feedLook } from "../reelsFeed.js";
 
 export const DROP_AD = "#פרסומת · קישור שותפים";
 // Beyond the hook engine's list: urgency and superlatives that no data backs.
 export const DROP_FORBIDDEN = /(רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|הכי זול|הכי טוב|הכי משתלם|חינם לגמרי|מבצע|הנחה|₪|\d+%)/;
-const LOOK_RANK = { real: 4, seller: 3, talking: 2, still: 1 };
 
 const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
 const firstSentence = (s) => (clean(s).split(/(?<=[.!?])\s/)[0] || "").slice(0, 150);
@@ -34,7 +34,7 @@ export function safeCopy(text) {
 export function bestReels(reels = []) {
   const best = new Map();
   for (const r of Array.isArray(reels) ? reels : []) {
-    const rank = LOOK_RANK[r?.look] || 0;
+    const rank = FEED_LOOKS[r?.look]?.rank || 0;
     const cur = best.get(r?.productId);
     if (r?.productId && (!cur || rank > cur.rank)) best.set(r.productId, { ...r, rank });
   }
@@ -116,7 +116,7 @@ export function buildDrop({ product, reel, trend = null, moment = null, reason =
   const fact = firstSentence(product.description) || clean(product.title);
   const value = VALUE_LINES[dayIndex(now) % VALUE_LINES.length];
   const page = `/p/${product.id}`;
-  const videoNote = reel?.look === "real" ? "צילום אמיתי של המוצר." : reel?.look === "seller" ? "צילום המוצר: המוכר." : "לונה היא דמות AI.";
+  const videoNote = reel ? feedLook(reel.look).note : "לונה היא דמות AI.";
   const posts = {
     tiktok: {
       onScreen: [hook, clean(product.title).slice(0, 40)],
