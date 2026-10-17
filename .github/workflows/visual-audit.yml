@@ -9,7 +9,7 @@ on:
         description: "The product whose Creative Engine video is checked end to end (playback, labels, tracking)"
         default: "p-live-04"
       e2e_persist:
-        description: "1 = send ONE real test click (utm_source=e2e_check) and read it back from the cloud; remove it afterwards"
+        description: "1 = send ONE real test click (utm_source=e2e_check) and read it back from the cloud. Anon cannot delete: remove it afterwards with the service role (the log's E2E_CLEANUP line names it)"
         default: "0"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]

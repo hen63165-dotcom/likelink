@@ -87,7 +87,8 @@ async function playCheck(locator) {
 await page.goto(`${BASE}/p/${ID}`, { waitUntil: "load", timeout: 45000 });
 await page.waitForTimeout(3500);
 const h1 = (await page.locator("h1").first().textContent().catch(() => "")) || "";
-check("cloud_reads_on_load", !consoleLines.some((l) => /serving the shipped catalog copy|snapshot/i.test(l)), { cloud: cloud.slice(0, 12), console: consoleLines.slice(0, 8) });
+// Passes only on a real, successful read of the catalog from the cloud — never on a quiet console alone.
+check("cloud_reads_on_load", cloud.some((l) => /^200 GET \/rest\/v1\/kv\?.*marketplace%3Aproducts/.test(l)) && !consoleLines.some((l) => /serving the shipped catalog copy|not configured|snapshot/i.test(l)), { cloud: cloud.slice(0, 12), console: consoleLines.slice(0, 8) });
 check("product_page_loads", h1.trim().length > 0 && String(product?.title || "").includes(h1.trim().slice(0, 12)), { url: `${BASE}/p/${ID}`, h1: h1.trim().slice(0, 80) });
 check("no_sideways_scroll_phone", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
 const video = page.locator(`video[src*="lookbook-${ID}.mp4"]`).first();
@@ -103,7 +104,7 @@ if (await video.count()) {
 await page.screenshot({ path: path.join(OUT, `e2e-${ID}-product.jpg`), type: "jpeg", quality: 55 });
 const mainShop = page.locator('a[rel~="sponsored"]').first();
 const mainHref = (await mainShop.getAttribute("href").catch(() => "")) || "";
-check("shop_button_is_own_affiliate_link", mainHref === product?.affiliateUrl || mainHref.startsWith(String(product?.affiliateUrl || "").split("?")[0]), { href: mainHref.slice(0, 120) });
+check("shop_button_is_own_affiliate_link", Boolean(mainHref) && mainHref === product?.affiliateUrl, { href: mainHref.slice(0, 120), expected: String(product?.affiliateUrl || "").slice(0, 120) });
 
 // 2) The creator's storefront: the same video as a shoppable post, its shop click tracked with the video's id.
 if (creator?.slug) {
@@ -124,7 +125,7 @@ if (creator?.slug) {
     const tracked = writes.slice(before).map((w) => w.body).join("\n");
     // The body may carry the click list as a JSON string, so match the values, not the quoting.
     check("shop_click_tracked_with_video_id", tracked.includes(ID) && tracked.includes(REEL), { campaign: REEL, writesCaptured: writes.length - before, to: writes.slice(before).map((w) => w.url.replace(/\?.*$/, "")).slice(0, 4), console: consoleLines.slice(consoleBefore).slice(0, 6), stored: false });
-    check("shop_opens_affiliate_link_only", Boolean(href) && Boolean(opened) && storeHits.some((u) => u.startsWith(href.split("?")[0])), { href: href.slice(0, 120), opened: opened ? opened.url().slice(0, 120) : null, storeRequestsAborted: storeHits.length });
+    check("shop_opens_affiliate_link_only", href === product?.affiliateUrl && Boolean(opened) && storeHits.some((u) => u === href || u.startsWith(`${href}?`) || u.startsWith(`${href}/`)), { href: href.slice(0, 120), opened: opened ? opened.url().slice(0, 120) : null, storeRequestsAborted: storeHits.length });
     if (opened) await opened.close().catch(() => null);
   }
 }
@@ -155,6 +156,10 @@ if (PERSIST && creator?.slug) {
     return { status: r.status, total: list.length, hit };
   }, { url: CLOUD.url, key: CLOUD.anonKey, run: RUN });
   check("persist_click_in_cloud_after_reload", Boolean(found.hit) && found.hit.productId === ID && found.hit.camp === REEL && found.hit.src === "e2e_check", { status: found.status, clicksInCloud: found.total, record: found.hit || null });
+  // A visitor (anon) may only append to the clicks list, never delete (RLS + the write
+  // policy), so the test click is removed with the service role afterwards. The exact
+  // record to remove is printed; nothing else is touched.
+  console.log(`E2E_CLEANUP remove from marketplace:clicks the record with src="e2e_check" and cnt="${RUN}" (service role)`);
 }
 
 // 3) Error handling: an unknown product shows the not-found page.
