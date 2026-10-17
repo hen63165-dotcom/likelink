@@ -57,7 +57,8 @@ check("indexnow_key_live", key.status === 200 && key.text.trim() === INDEXNOW_KE
 const pins = await get(`${PAGES}/pins.xml`);
 const items = [...pins.text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((m) => m[1]);
 const pinLinks = items.map((i) => (i.match(/<link>([^<]+)<\/link>/) || [])[1] || "");
-const adItems = items.filter((i) => /\/p\/|\/reels/.test(i));
+// Product and reel pins (by their link) carry the disclosure; the size-meter pin links to a free tool, no affiliate link.
+const adItems = items.filter((i) => /\/(p\/|reels)/.test((i.match(/<link>([^<]+)<\/link>/) || [])[1] || ""));
 check("pinterest_rss", pins.status === 200 && items.length > 0 && pinLinks.every((l) => /utm_source=pinterest/.test(l)) && adItems.every((i) => /#פרסומת/.test(i)), {
   status: pins.status, items: items.length, withUtm: pinLinks.filter((l) => /utm_source=pinterest/.test(l)).length, productOrReelPins: adItems.length, withDisclosure: adItems.filter((i) => /#פרסומת/.test(i)).length,
 });
