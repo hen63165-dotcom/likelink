@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#F7F3EA" />
+
+    <!--
+      ===== SEO / AI-Search configuration =====
+      CANONICAL DOMAIN: https://likelink2.vercel.app
+      This file cannot import ES modules at parse time, so the origin is
+      mirrored here from src/constants/domain.js (PRODUCTION_ORIGIN) — the
+      single source of truth. Mirrored in /public/robots.txt +
+      /public/sitemap.xml. tests/domainOrigin.test.mjs fails the build if
+      any of these diverge. Do NOT add "noindex"/"noai"/"noimageai".
+      =========================================
+    -->
+    <title>מה מידת הטבעת שלי? מודד מידת טבעת וצמיד חינמי מהמסך | LikeLink2</title>
+    <meta name="description" content="מודדים מידת טבעת מהמסך עם כרטיס וטבעת שיש לך, או עם פס נייר, ומקבלים מידה אירופאית (ישראלית) ואמריקאית לאליאקספרס. וגם: איזה אורך צמיד לבחור." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="google-site-verification" content="1UWIKAws0XC-QI2d1bht9HJ-463zWKbZZXrRr1LHGxA" />
+    <meta name="google-site-verification" content="n_kzE1gD95Kotqtc0ZhW6S6nZNV-oiYmCQ3GiSoXqHA" />
+    <link rel="canonical" href="https://likelink2.vercel.app/size" />
+
+    <!-- Favorites / web app -->
+    <link rel="manifest" href="/likelink/manifest.json" />
+    <link rel="icon" href="/likelink/icons/icon-192.webp" />
+    <!-- iOS Add-to-Home-Screen: Safari does NOT render WebP here — PNG required -->
+    <link rel="apple-touch-icon" href="/likelink/icons/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Likelink2" />
+    <meta property="og:locale" content="he_IL" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:url" content="https://likelink2.vercel.app/size" />
+    <meta property="og:title" content="מה מידת הטבעת שלי? מודד מידת טבעת וצמיד חינמי מהמסך | LikeLink2" />
+    <meta property="og:description" content="מודדים מידת טבעת מהמסך עם כרטיס וטבעת שיש לך, או עם פס נייר, ומקבלים מידה אירופאית (ישראלית) ואמריקאית לאליאקספרס. וגם: איזה אורך צמיד לבחור." />
+    <meta property="og:image" content="https://likelink2.vercel.app/icons/icon-512.webp" />
+    <meta property="og:image:alt" content="Likelink2 — premium creator marketplace" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="מה מידת הטבעת שלי? מודד מידת טבעת וצמיד חינמי מהמסך | LikeLink2" />
+    <meta name="twitter:description" content="מודדים מידת טבעת מהמסך עם כרטיס וטבעת שיש לך, או עם פס נייר, ומקבלים מידה אירופאית (ישראלית) ואמריקאית לאליאקספרס. וגם: איזה אורך צמיד לבחור." />
+    <meta name="twitter:image" content="https://likelink2.vercel.app/icons/icon-512.webp" />
+
+    <!-- Structured data: Organization + WebSite (with search action) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://likelink2.vercel.app/#organization",
+          "name": "Likelink",
+          "url": "https://likelink2.vercel.app/",
+          "logo": { "@type": "ImageObject", "url": "https://likelink2.vercel.app/icons/icon-512.webp" },
+          "description": "Shop curated product picks from independent creators, all in one place.",
+          "sameAs": ["https://www.tiktok.com/@likelink"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://likelink2.vercel.app/#website",
+          "url": "https://likelink2.vercel.app/",
+          "name": "Likelink",
+          "publisher": { "@id": "https://likelink2.vercel.app/#organization" },
+          "inLanguage": "en",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": { "@type": "EntryPoint", "urlTemplate": "https://likelink2.vercel.app/search?q={search_term_string}" },
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&family=Heebo:wght@400;500;600;700;800;900&family=Frank+Ruhl+Libre:wght@500;700;900&display=swap" rel="stylesheet">
+    <script>
+      // First-paint theme: apply the Studio's dark premium surface before React
+      // hydrates so the first visible frame is never the old cream shell.
+      // Visitor preference wins: only default to dark when nothing was saved.
+      try {
+        var __llTheme = null;
+        try { __llTheme = localStorage.getItem('likelink.theme'); } catch (e) { /* private mode — ignore */ }
+        if (__llTheme !== 'light' && __llTheme !== 'dark') { __llTheme = 'dark'; }
+        document.documentElement.setAttribute('data-theme', __llTheme);
+        if (__llTheme === 'dark') document.documentElement.classList.add('dark');
+      } catch (e) { /* never block first paint on theme */ }
+    </script>
+    <style>
+      /* First paint before the app loads: the same calm page in the visitor's theme. */
+      .ll-first{min-height:100vh;background:#eaf2fb;color:#0d0c14;font-family:Heebo,system-ui,sans-serif}
+      html[data-theme="dark"] .ll-first{background:#0f1924;color:#f3f2f8}
+      .ll-first header{display:flex;align-items:center;height:64px;padding:0 16px;background:#fff;color:#0b0b0c;border-bottom:1px solid rgba(16,12,40,.09)}
+      html[data-theme="dark"] .ll-first header{background:#0b0b0c;color:#fff}
+      .ll-first main{max-width:1240px;margin:0 auto;padding:36px 16px 64px}
+      .ll-first h1{max-width:15ch;margin:0;font-family:'Frank Ruhl Libre',Georgia,serif;font-size:44px;font-weight:700;line-height:1.05}
+      .ll-first p{max-width:560px;margin:14px 0 22px;line-height:1.7;opacity:.72}
+      .ll-first nav{display:flex;flex-wrap:wrap;gap:10px}
+      .ll-first a{color:inherit}
+    </style>
+    <script type="module" crossorigin src="/likelink/assets/index-DAXVIMd5.js"></script>
+    <link rel="stylesheet" crossorigin href="/likelink/assets/index-BV34Ky4S.css">
+      <script type="application/ld+json" id="likelink-jsonld">[{"@context":"https://schema.org","@type":"WebApplication","name":"המודד של לונה","url":"https://likelink2.vercel.app/size","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","inLanguage":"he","description":"מודדים מידת טבעת מהמסך עם כרטיס וטבעת שיש לך, או עם פס נייר, ומקבלים מידה אירופאית (ישראלית) ואמריקאית לאליאקספרס. וגם: איזה אורך צמיד לבחור.","offers":{"@type":"Offer","price":"0","priceCurrency":"ILS"}},{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"איך יודעים מידת טבעת בבית?","acceptedAnswer":{"@type":"Answer","text":"מודדים את הקוטר הפנימי של טבעת שיושבת טוב, או כורכים פס נייר סביב האצבע ומודדים את האורך שלו. המודד כאן עושה את החישוב ונותן מידה אירופאית ואמריקאית."}},{"@type":"Question","name":"מה ההבדל בין מידה אירופאית לאמריקאית?","acceptedAnswer":{"@type":"Answer","text":"המידה האירופאית, שנהוגה גם בישראל, היא ההיקף הפנימי במילימטרים (למשל 52). באליאקספרס רוב המוכרים כותבים מידה אמריקאית (למשל 6). תמיד בודקים גם את טבלת המידות בעמוד המוצר."}},{"@type":"Question","name":"יצא לי בין שתי מידות. מה בוחרים?","acceptedAnswer":{"@type":"Answer","text":"בוחרים את הגדולה. אצבעות מתנפחות קצת בחום ובסוף היום."}},{"@type":"Question","name":"כמה מדויקת מדידה מהמסך?","acceptedAnswer":{"@type":"Answer","text":"זו הערכה טובה כשמכיילים עם כרטיס אמיתי, אבל לא מדידה של צורף. אם המידה חשובה מאוד, כמו בטבעת אירוסין, כדאי למדוד גם אצל צורף."}}]}]</script>
+  </head>
+  <body>
+    <!-- Semantic fallback: present in the initial HTML so JS-less crawlers
+         and AI engines can still read accurate page content before React hydrates. -->
+    <div id="root" data-ll-public-root>
+      <div dir="rtl" lang="he" class="ll-first">
+        <header>
+          <strong style="font-size:21px">LikeLink2</strong>
+        </header>
+        <main>
+          <h1>ההמלצות של היוצרים שאתם אוהבים, במקום אחד.</h1>
+          <p>יוצרים ויוצרות מראים בסרטון את המוצרים שהם בוחרים, ואתם קונים ישר בחנות המקורית. בלי להירשם לאתר ובלי תוספת למחיר.</p>
+          <nav aria-label="ניווט ראשי">
+            <a href="/likelink/products">מוצרים</a> · <a href="/likelink/reels">סרטונים</a> · <a href="/likelink/size">מודד מידות</a> · <a href="/likelink/guide">המדריך</a> · <a href="/likelink/discover">גילוי</a> · <a href="/likelink/creators">יוצרים</a> · <a href="/likelink/collections">אוספים</a> · <a href="/likelink/search">חיפוש</a> · <a href="/likelink/studio">Studio</a>
+          </nav>
+          <noscript>
+            <p>הפעילו JavaScript כדי לראות את המוצרים והסרטונים בלייקלינק.</p>
+          </noscript>
+        </main>
+      </div>
+    </div>
+    <link rel="stylesheet" href="/likelink/luxury.css">
+  </body>
+</html>
