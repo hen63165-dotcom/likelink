@@ -28,6 +28,37 @@ export function footageByProduct(reels = []) {
   return best;
 }
 
+// A video the site serves itself (the reels feed on GitHub Pages) plays
+// anywhere; a file in the cloud's Storage plays only while it is there (the
+// Studio reels at reels/<studio>/… were not copied to the new cloud).
+const servedBySite = (r) => !/[?&]mode=media\b/.test(String(r?.url || ""));
+
+/**
+ * A creator's storefront posts: ONE per product, the product's best video —
+ * footage of the real product first (FOOTAGE_RANK), Luna's labelled reels
+ * after; a video the site serves before a cloud file, then the newest. Ordered
+ * footage first, then the creator's own product order. LTK's unit is the post,
+ * and a storefront of six products shows six posts, not every variant.
+ */
+export function storefrontPosts(reels = [], productIds = []) {
+  const order = new Map((Array.isArray(productIds) ? productIds : []).map((id, i) => [id, i]));
+  const score = (r) => [FOOTAGE_RANK[r.style] || 0, servedBySite(r) ? 1 : 0, Number(r.createdAt) || 0];
+  const better = (a, b) => {
+    const x = score(a);
+    const y = score(b);
+    for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] > y[i];
+    return false;
+  };
+  const best = new Map();
+  for (const r of Array.isArray(reels) ? reels : []) {
+    const id = r?.productIds?.[0];
+    if (!id || !order.has(id)) continue;
+    if (!best.has(id) || better(r, best.get(id))) best.set(id, r);
+  }
+  return [...best.values()].sort((a, b) =>
+    (FOOTAGE_RANK[b.style] || 0) - (FOOTAGE_RANK[a.style] || 0) || order.get(a.productIds[0]) - order.get(b.productIds[0]));
+}
+
 /**
  * The home page's collection: products with a clean image (the listed item is
  * the subject, no banners or text), in showcase order. Every product stays

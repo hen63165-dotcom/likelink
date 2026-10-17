@@ -49,7 +49,7 @@ import { LuxeHome } from "./luxe";
 import { STORE_GALLERY_PICKS, lookLabel, lookOf } from "../../lib/looks.js";
 import { rankProducts } from "../../lib/skills/catalogRules.js";
 import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
-import { FOOTAGE_RANK } from "../../lib/homeShowcase.js";
+import { storefrontPosts } from "../../lib/homeShowcase.js";
 import {
   categoryName,
   CollectionCard,
@@ -463,8 +463,9 @@ export function CreatorPage({ graph, slug, navigate }) {
   if (!creator) return <NotFound navigate={navigate} what="creator" />;
   const products = creator.productIds.map((id) => graph.byId.get(id));
   const shop = cat ? products.filter((p) => p.category === cat) : products;
-  // Footage of the real product first (a person's own clip, then the seller's video), then Luna's labelled reels.
-  const reels = graph.reels.filter((r) => r.creatorId === creator.id).sort((a, b) => (FOOTAGE_RANK[b.style] || 0) - (FOOTAGE_RANK[a.style] || 0));
+  // One post per product: its best video, footage of the real product first
+  // (a person's own clip, then the seller's), then Luna's labelled reels.
+  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id), creator.productIds);
   const boards = graph.collections.filter((c) => c.creatorIds.includes(creator.id) && c.kind !== "creator");
   // LTK's storefront: the creator's posts first (each video with its product
   // under it), then the products, then the collections. Only real counts of

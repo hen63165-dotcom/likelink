@@ -154,7 +154,7 @@ export function useReducedMotion() {
  * fallback. Never a broken image, never an empty black box, never a fake
  * play button on a photo. Videos play muted only while on screen.
  */
-export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children, controls = false, controlsAt = "bottom", onFirstPlay }) {
+export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children, controls = false, controlsAt = "bottom", onFirstPlay, onVideoError }) {
   const [failed, setFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -195,6 +195,7 @@ export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 6
             if (!firstPlay.current) { firstPlay.current = true; onFirstPlay?.(); }
           }}
           onPause={() => setPlaying(false)}
+          onError={onVideoError}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : null}
@@ -973,10 +974,13 @@ export function ReelCard({ reel, graph, showCreator = true, shoppable = false, r
   const product = reel.productIds.length ? graph.byId.get(reel.productIds[0]) : null;
   const source = REEL_STYLE_LABELS[reel.style]?.[lang] || "";
   const thumb = product ? lookOf(product.id)?.src || product.media?.image || "" : "";
+  // A video whose file does not load is not a post: no empty grey card.
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
   return (
     <article className="lx-post">
       <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-post-media" aria-label={product ? L(`לצפייה: ${product.displayTitle}`, `Watch: ${product.displayTitle}`) : L("לצפייה בסרטון", "Watch the video")}>
-        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400}>
+        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400} onVideoError={() => setBroken(true)}>
           <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /></div>
         </Media>
       </Go>
