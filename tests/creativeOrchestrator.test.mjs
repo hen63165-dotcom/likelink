@@ -61,6 +61,18 @@ test("publishing: STORED waits for the deploy; LIVE but gone from the feed is FA
   assert.ok(gone.validation.checks.some((c) => c.name === "still_in_site_feed" && !c.pass));
 });
 
+test("a job from before the product changed is PENDING (not FAILED); the runner's clip-on-hand fact is not a change", () => {
+  const ledger = ledgerAt("p-live-04", "LIVE");
+  const changed = orchestrate({ ...byId("p-live-04"), title: `${byId("p-live-04").title} חדש` }, { products, sellerVideos: CLIPS, ledger, feed: feedWith("p-live-04") });
+  assert.equal(changed.stages[2].status, "PENDING");
+  assert.equal(changed.stages[2].blocker.code, "plan_changed_awaiting_run");
+  assert.deepEqual(changed.stages.slice(3).map((s) => s.status), ["SKIPPED", "SKIPPED", "SKIPPED"]);
+  // The ledger job was planned with the clip on hand; a Studio that cannot see the runner's files still recognises it.
+  const noClipSeen = orchestrate(byId("p-live-04"), { products, sellerVideos: new Set(), ledger, feed: feedWith("p-live-04") });
+  assert.equal(noClipSeen.stages[2].status, "COMPLETED");
+  assert.ok(noClipSeen.stages[2].validation.checks.find((c) => c.name === "made_from_this_plan").pass);
+});
+
 test("a failed QC is FAILED, and nothing downstream is reported done", () => {
   const r = orchestrate(byId("p-live-04"), { products, sellerVideos: CLIPS, ledger: ledgerAt("p-live-04", "RENDERED", { qcPass: false }), feed: feedWith("p-live-04") });
   assert.equal(r.stages[3].status, "FAILED");
