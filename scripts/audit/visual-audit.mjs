@@ -6,7 +6,8 @@
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-const BASE = "https://likelink2.vercel.app";
+// AUDIT_BASE: another https build of the site (a Netlify PR preview) — the live address by default.
+const BASE = /^https:\/\/[a-z0-9.-]+\.(netlify\.app|vercel\.app|github\.io)(\/[a-z0-9-]+)?$/.test(process.env.AUDIT_BASE || "") ? process.env.AUDIT_BASE : "https://likelink2.vercel.app";
 const OUT = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "audit") : "audit-out";
 mkdirSync(OUT, { recursive: true });
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");

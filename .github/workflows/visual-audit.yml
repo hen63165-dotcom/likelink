@@ -1,6 +1,10 @@
 name: Visual audit (live site)
 on:
   workflow_dispatch:
+    inputs:
+      base:
+        description: "Another https build to photograph (a Netlify PR preview); empty = the live site"
+        default: ""
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/audit/**", ".github/workflows/visual-audit.yml"]
@@ -27,6 +31,7 @@ jobs:
           # A design review (owner, 2026-10-17) needs whole pages; the log stays small (EMIT=0).
           FULL: "1"
           PAGES: home,product,reels,creator,products,search
+          AUDIT_BASE: ${{ github.event.inputs.base }}
         run: node scripts/audit/visual-audit.mjs | tee "$RUNNER_TEMP/audit-log.txt"
       - name: Store photo contact sheet
         continue-on-error: true
@@ -40,7 +45,7 @@ jobs:
           set -e
           cd "$RUNNER_TEMP/audit"
           cp "$RUNNER_TEMP/audit-log.txt" log.txt
-          printf 'Screenshots of https://likelink2.vercel.app by the Visual audit workflow, run %s (%s). Overwritten on every run.\n' "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
+          printf 'Screenshots of %s by the Visual audit workflow, run %s (%s). Overwritten on every run.\n' "${{ github.event.inputs.base || 'https://likelink2.vercel.app' }}" "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
           git init -q -b ops/screenshots
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
