@@ -13,6 +13,7 @@ import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadIm
 import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
 import { SOCIAL_KEYS, isPublicSocialUrl } from "../../lib/publicDiscovery.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 
 // A link the public creator page will really show (the same rule as pickSocialLinks).
 const shownSocial = (v) => (isPublicSocialUrl(v) ? safeHref(v) : "");
@@ -65,7 +66,7 @@ export default function StorefrontDesign({ onNavigate }) {
       showToast?.(he ? "החנות עודכנה" : "Store updated");
     } catch (e) {
       console.error("[StorefrontDesign] save failed", e);
-      setErr(he ? "השמירה נכשלה — בדקי את החיבור ונסי שוב." : "Saving failed — check your connection and try again.");
+      setErr(he ? toHebrewError(e, "השמירה נכשלה — נסי שוב בעוד רגע.") : "Saving failed — try again in a moment.");
     } finally {
       setSaving(false);
     }

@@ -26,6 +26,7 @@ import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button, LabeledInput, LabeledTextarea } from "../ui/index.jsx";
 import { fetchProductInfo } from "../../lib/productInfo.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadImage.js";
 import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { money, isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
@@ -261,7 +262,8 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
       setSaved({ id: result.id, status: result.status || status });
     } catch (e) {
       console.error("[AddProductLink] save failed", e);
-      setErr(he ? "השמירה נכשלה — בדוקי את החיבור ונסי שוב." : "Saving failed — check your connection and try again.");
+      // The server's own reason (plan limit, sign-in, cloud paused…), never a guess about the connection.
+      setErr(he ? toHebrewError(e, "השמירה נכשלה — נסי שוב בעוד רגע.") : "Saving failed — try again in a moment.");
     } finally {
       setSaving(false);
     }
