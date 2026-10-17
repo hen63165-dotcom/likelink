@@ -10,7 +10,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,7 +24,15 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           EMIT: "0"
+          # A design review (owner, 2026-10-17) needs whole pages; the log stays small (EMIT=0).
+          FULL: "1"
+          PAGES: home,product,reels,creator,products,search
         run: node scripts/audit/visual-audit.mjs | tee "$RUNNER_TEMP/audit-log.txt"
+      - name: Store photo contact sheet
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+        run: node scripts/audit/gallery-sheet.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
       - name: Publish the screenshots to the ops/screenshots branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -11,8 +11,8 @@ const OUT = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "audit"
 mkdirSync(OUT, { recursive: true });
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
 const ALL = [["home", "/"], ["search", "/search?q=%D7%A6%D7%9E%D7%99%D7%93"], ["product", "/p/p-live-05"], ["reels", "/reels"], ["creator", "/u/alyostyle"], ["products", "/products"], ["discover", "/discover"], ["sell", "/sell"], ["studio", "/studio"], ["pricing", "/pricing"], ["status", "/status"]];
-// PAGES=home,product (names) picks pages; FULL=1 takes full-page phone shots. The
-// default (the first screen of the key pages) keeps the log small enough to read back.
+// PAGES=home,product (names) picks pages; FULL=1 takes full-page shots (phone and
+// desktop). The default (the first screen of the key pages) keeps the log small enough to read back.
 const pick = String(process.env.PAGES || "home,search,product,creator,reels,products,studio,status").split(",").map((s) => s.trim());
 const PAGES = ALL.filter(([name]) => pick.includes(name));
 const FULL = process.env.FULL === "1";
@@ -26,10 +26,22 @@ for (const [vp, w, h] of [["m", 390, 844], ["d", 1440, 900]]) {
   await ctx.route("**/api/store**", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
   const page = await ctx.newPage();
   for (const [name, p] of PAGES) {
-    await page.goto(BASE + p, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    // A page that plays video never goes network-idle: wait for load, then scroll
+    // through once so lazy images load before a full-page shot.
+    await page.goto(BASE + p, { waitUntil: "load", timeout: 45000 }).catch(() => null);
     await page.waitForTimeout(2500);
+    if (FULL) {
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.documentElement.scrollHeight; y += window.innerHeight) {
+          window.scrollTo(0, y);
+          await new Promise((r) => setTimeout(r, 350));
+        }
+        window.scrollTo(0, 0);
+      }).catch(() => null);
+      await page.waitForTimeout(1500);
+    }
     const f = path.join(OUT, `${vp}-${name}.jpg`);
-    await page.screenshot({ path: f, type: "jpeg", quality: 45, fullPage: FULL && vp === "m" }).catch(() => null);
+    await page.screenshot({ path: f, type: "jpeg", quality: FULL ? 60 : 45, fullPage: FULL }).catch(() => null);
     const info = await page.evaluate(() => ({ h1: (document.querySelector("h1")?.textContent || "").trim().slice(0, 60), height: document.documentElement.scrollHeight, overflowX: document.documentElement.scrollWidth > window.innerWidth, videos: document.querySelectorAll("video").length, posts: document.querySelectorAll(".lx-post").length, version: "" })).catch(() => ({}));
     console.log(`PAGE ${vp} ${name} ${JSON.stringify(info)}`);
     emit(`${vp}-${name}`, f);
