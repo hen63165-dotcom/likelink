@@ -50,6 +50,7 @@ import { runGrowthCycle, runDailyTrendScan, diagnoseProduct } from "../src/lib/c
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
 import { getOrCreatePassport, recordVisit, rateAllow } from "./_utils/passport.js";
+import { paidGate } from "../src/lib/creative/costGuard.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -1268,6 +1269,12 @@ export default async function handler(req, res) {
   // Requires a server-side OPENAI_API_KEY. The generated asset is stored in
   // Supabase Storage and recorded in KV. No real-person identity is used.
   if (new URL(req.url, "https://x").searchParams.get("mode") === "ugc-model") {
+    // The paid-generation lock (src/lib/creative/costGuard.js): before auth, rate limits or any provider call.
+    const paid = paidGate("ugc-model", process.env);
+    if (!paid.allowed) {
+      json(res, { ok: false, error: paid.error, feature: paid.feature, mode: paid.mode }, paid.status, req);
+      return;
+    }
     if (passport && !rateAllow("ugc-model", passport.hash, 6)) {
       json(res, { ok: false, error: "rate_limited" }, 429, req);
       return;

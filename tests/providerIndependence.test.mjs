@@ -57,10 +57,20 @@ test("handler blocked -> resume preserves original task, IDs, tenant and executi
 
 for (const [status, expected] of [[401, "NOT_AUTHORIZED"], [403, "NOT_AUTHORIZED"], [429, "RATE_LIMITED"], [503, "TEMPORARILY_UNAVAILABLE"]]) {
   test(`real AI adapter classifies HTTP ${status} without exposing provider body`, async () => {
-    const p = openAIProvider({ env: { OPENAI_API_KEY: "sentinel-secret" }, fetchFn: async () => ({ ok: false, status, text: async () => "sentinel-secret" }) });
+    const p = openAIProvider({ env: { OPENAI_API_KEY: "sentinel-secret", PAID_GENERATION: "enabled" }, fetchFn: async () => ({ ok: false, status, text: async () => "sentinel-secret" }) });
     await assert.rejects(p.execute({ task, context: {} }), e => classifyFailure(e) === expected && !e.message.includes("sentinel-secret"));
   });
 }
+test("the paid-generation lock: with a key but without PAID_GENERATION=enabled no request is made", async () => {
+  let fetched = 0;
+  for (const env of [{ OPENAI_API_KEY: "k" }, { OPENAI_API_KEY: "k", PAID_GENERATION: "true" }, { OPENAI_API_KEY: "k", PAID_GENERATION: "1" }]) {
+    const p = openAIProvider({ env, fetchFn: async () => { fetched += 1; return { ok: true, json: async () => ({}) }; } });
+    assert.equal(p.configured, false, JSON.stringify(env));
+    await assert.rejects(p.execute({ task, context: {} }), (e) => e.code === "BLOCKED_BY_COST_GUARD" && classifyFailure(e) === "NOT_CONFIGURED");
+  }
+  assert.equal(fetched, 0, "no paid call without the server's own switch");
+});
+
 test("AI missing credential executes no request and platform status degrades", async () => {
   const p = openAIProvider({ env: {}, fetchFn: () => { throw Error("MUST_NOT_FETCH"); } });
   await assert.rejects(p.execute({ task, context: {} }), /BLOCKED_BY_CREDENTIAL/);

@@ -25,7 +25,7 @@ export function classifyFailure(failure) {
   const status = Number(failure?.httpStatus) || 0;
   if (["TimeoutError", "AbortError"].includes(failure?.name)) return PROVIDER_STATUS.TEMPORARILY_UNAVAILABLE;
   const code = String(failure?.code || failure?.message || "").toUpperCase();
-  if (code === "BLOCKED_BY_CREDENTIAL" || code === "NOT_CONFIGURED" || code === "CONFIG_REQUIRED") return PROVIDER_STATUS.NOT_CONFIGURED;
+  if (code === "BLOCKED_BY_CREDENTIAL" || code === "BLOCKED_BY_COST_GUARD" || code === "NOT_CONFIGURED" || code === "CONFIG_REQUIRED") return PROVIDER_STATUS.NOT_CONFIGURED;
   if (status === 401 || status === 403 || code === "NOT_AUTHORIZED" || code.includes("AUTH_FAILED")) return PROVIDER_STATUS.NOT_AUTHORIZED;
   if (status === 429 || code === "RATE_LIMITED") return PROVIDER_STATUS.RATE_LIMITED;
   if (status === 408 || code === "TIMEOUT" || code === "ABORT" || code === "NETWORK" || status >= 500) return PROVIDER_STATUS.TEMPORARILY_UNAVAILABLE;
@@ -91,6 +91,7 @@ export function createProviderRegistry(providers = [], { now = Date.now } = {}) 
 // When PayPal is not configured, only actions that truly need payments are
 // blocked (PAYMENT_PROVIDER_REQUIRED) — the rest of the platform is unaffected.
 import { paypalConfigured } from "./paypal.js";
+import { paidGate } from "../../src/lib/creative/costGuard.js";
 
 export function paypalPaymentsProvider({ env = process.env } = {}) {
   return {
@@ -110,11 +111,14 @@ export function openAIProvider({ env = process.env, fetchFn = fetch } = {}) {
   return {
     id: "openai", model: "gpt-4o-mini", capabilities: ["text", "translation"],
     modalities: ["text", "translation"],
-    get configured() { return Boolean(env.OPENAI_API_KEY); },
+    // A paid provider: usable only with its key AND the server's paid-generation lock open.
+    get configured() { return Boolean(env.OPENAI_API_KEY) && paidGate("intelligence:openai", env).allowed; },
     // Conservative USD ceiling for <= 24KB serialized input and 400 output tokens.
     estimatedCost: 0.01,
     async execute({ task, context }) {
       if (!env.OPENAI_API_KEY) throw new Error("BLOCKED_BY_CREDENTIAL");
+      // A key alone never spends: the server's paid-generation lock must be open too.
+      if (!paidGate("intelligence:openai", env).allowed) throw Object.assign(new Error("BLOCKED_BY_COST_GUARD"), { code: "BLOCKED_BY_COST_GUARD" });
       if (Buffer.byteLength(JSON.stringify({ task, context }), "utf8") > 24000) throw new Error("INVALID_TASK");
       const response = await fetchFn("https://api.openai.com/v1/chat/completions", {
         method: "POST",

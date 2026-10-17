@@ -72,8 +72,25 @@ function seed() {
   put("marketplace:marketers:private", { m1: { email: "boss@likelink.test" } });
 }
 
+test("AI images: the paid-generation lock refuses first — even the owner, even with the key — and calls no provider", async () => {
+  seed();
+  delete process.env.PAID_GENERATION;
+  process.env.OPENAI_API_KEY = "sk-test-not-real";
+  for (const tok of ["tok-boss", "tok-creator"]) {
+    const res = await generate(tok, "p1");
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error, "paid_generation_disabled");
+    assert.equal(res.body.mode, "ZERO_PAID_CREDITS");
+  }
+  process.env.PAID_GENERATION = "yes";
+  assert.equal((await generate("tok-boss", "p1")).body.error, "paid_generation_disabled", "only the exact word opens it");
+  assert.ok(!calls.some((c) => c.openai), "no provider call");
+});
+
+// The tests below cover the owner-only path for when the owner opens the lock on the server.
 test("AI images: platform owner only (the owner's OpenAI budget), and only with the provider key", async () => {
   seed();
+  process.env.PAID_GENERATION = "enabled";
   process.env.OPENAI_API_KEY = "";
   let res = await generate("tok-creator");
   assert.equal(res.statusCode, 403);
@@ -86,6 +103,7 @@ test("AI images: platform owner only (the owner's OpenAI budget), and only with 
 
 test("AI images: a stock photo is refused — the real product photo is required", async () => {
   seed();
+  process.env.PAID_GENERATION = "enabled";
   process.env.OPENAI_API_KEY = "sk-test-not-real";
   const res = await generate("tok-boss", "p2");
   assert.equal(res.statusCode, 422);
@@ -95,6 +113,7 @@ test("AI images: a stock photo is refused — the real product photo is required
 
 test("AI images: the real photo is the reference (images/edits); an ORIGINAL 3D character; stored as a synthetic, AI-labelled asset", async () => {
   seed();
+  process.env.PAID_GENERATION = "enabled";
   process.env.OPENAI_API_KEY = "sk-test-not-real";
   const res = await generate("tok-boss", "p1");
   assert.equal(res.statusCode, 200, JSON.stringify(res.body));
