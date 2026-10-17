@@ -20,7 +20,7 @@ npm install
 צור קובץ `.env` בשורש הפרויקט:
 
 ```env
-VITE_SUPABASE_URL=https://sbzzgfthgaurgcuxiuql.supabase.co
+VITE_SUPABASE_URL=https://vjitiuirqfysexsxdxqx.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ADMIN_CODE=<הזן-כאן-קוד-אקראי-24-תווים-ומעלה>
 ```
