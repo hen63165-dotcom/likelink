@@ -227,3 +227,20 @@ test("after a save the add-link form is a new product, never the edited one", ()
   // An edit that found no product is a failed save, not a success.
   assert.match(src, /result = updated \? \{ id: editingId, status \} : null;/);
 });
+
+// 2026-10-17: the owner's "פרסום בחנות" was refused by the server (402
+// plan_limit_products) and the Studio said "בדקי את החיבור". A failed save
+// shows the server's own reason; "check your connection" only for a network error.
+test("a refused save shows the server's reason, not a guess about the connection", async () => {
+  const { toHebrewError } = await import("../src/lib/errorMessages.js");
+  const fallback = "השמירה נכשלה — נסי שוב בעוד רגע.";
+  assert.match(toHebrewError(new Error("plan_limit_products"), fallback), /מספר המוצרים המרבי במסלול/);
+  assert.match(toHebrewError(new Error("authentication_required"), fallback), /התחבר/);
+  assert.match(toHebrewError(new Error("Failed to fetch"), fallback), /בדקי את החיבור/);
+  assert.equal(toHebrewError(new Error("something_unknown"), fallback), fallback);
+  for (const f of ["src/components/studio/AddProductLink.jsx", "src/components/studio/StudioOnboarding.jsx", "src/components/studio/StorefrontDesign.jsx"]) {
+    const src = read(f);
+    assert.ok(!src.includes("השמירה נכשלה — בדקי את החיבור") && !src.includes("השמירה נכשלה — בדוקי את החיבור"), `${f}: no blanket "check your connection" on a failed save`);
+    assert.match(src, /toHebrewError\(e,/, `${f}: the save error goes through toHebrewError`);
+  }
+});

@@ -156,6 +156,76 @@ export async function repairSharedLinks({ kvGet, kvSet, env: rawEnv = {}, fetchI
   return { ok: verified.length === changed.size, status: 200, repaired: verified.length, ids: verified, needsOwnerLink: needsOwner };
 }
 
+// aliexpress.us item ids are the global id + 2^51 (e.g. 3256804734954745 ↔ 1005004921269497).
+const US_OFFSET = 2n ** 51n;
+const AE_ITEM = /\/item\/(\d{10,20})\.html/;
+// The addresses the Studio may resolve: the owner's tracked links and the store's own pages.
+const AE_LINK_HOST = /^((s\.click|a|www|m|[a-z]{2})\.)?aliexpress\.(com|us)$/i;
+
+/** The global AliExpress item id in a store address ("" when there is none). */
+export function aliexpressItemId(url) {
+  const m = String(url || "").match(AE_ITEM);
+  if (!m) return "";
+  const n = BigInt(m[1]);
+  return String(n >= US_OFFSET + 1000000000000000n ? n - US_OFFSET : n);
+}
+
+/**
+ * The store item an AliExpress address opens. A product page names it; a
+ * tracked link (s.click.aliexpress.com) is asked once, its redirect is NOT
+ * followed — only the first answer's Location (or body) is read.
+ */
+export async function aliexpressItemFromLink(link, fetchImpl = globalThis.fetch) {
+  let u;
+  try { u = new URL(String(link || "").trim()); } catch { return ""; }
+  if (u.protocol !== "https:" || !AE_LINK_HOST.test(u.hostname)) return "";
+  const direct = aliexpressItemId(u.href);
+  if (direct) return direct;
+  try {
+    const res = await fetchImpl(u.href, { redirect: "manual", signal: AbortSignal.timeout(10000) });
+    const where = res.headers.get("location") || (await res.text()).slice(0, 4000);
+    return aliexpressItemId(where);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Title, store photos and price of the product an AliExpress link opens, from
+ * the owner's affiliate account (productdetail.get, ILS, shipping to Israel) —
+ * the store's page itself answers servers with a slider check, which is never
+ * worked around. null when the account is not connected or the store does not
+ * return the item. Nothing is invented: every field is the store's own.
+ */
+export async function aliexpressProductInfo(link, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
+  if (!aeStatus(env).configured) return null;
+  const itemId = await aliexpressItemFromLink(link, fetchImpl);
+  if (!itemId) return null;
+  const json = await aeCall("aliexpress.affiliate.productdetail.get", {
+    product_ids: itemId, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
+  }, { env, fetchImpl, now });
+  const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+  if (!result || Number(result.resp_code) !== 200) return null;
+  const x = arr(result.result?.products?.product).find((p) => String(p?.product_id) === itemId);
+  if (!x) return null;
+  const https = (v) => String(v || "").trim().replace(/^\/\//, "https://").replace(/^http:\/\//, "https://");
+  const images = [x.product_main_image_url, ...arr(x.product_small_image_urls?.string)]
+    .map(https).filter((v, i, a) => /^https:\/\/\S+$/.test(v) && a.indexOf(v) === i).slice(0, 8);
+  const price = Number(x.target_sale_price);
+  const ils = price > 0 && String(x.target_sale_price_currency || "") === "ILS";
+  return {
+    title: String(x.product_title || "").trim().slice(0, 200) || null,
+    image: images[0] || null,
+    images,
+    price: ils ? Math.round(price * 100) / 100 : null,
+    currency: ils ? "ILS" : null,
+    source: "aliexpress_api",
+    itemId,
+    checkedAt: new Date(now).toISOString(),
+  };
+}
+
 /** Once a day at most (affiliate:aliexpress:last), and only with the owner's credentials. */
 export async function dailyAffiliateImport({ kvGet, kvSet, env = {}, fetchImpl, now = Date.now() }) {
   if (!aeStatus(env).configured) return { ok: true, outcome: "REQUIRES_CONNECTION" };

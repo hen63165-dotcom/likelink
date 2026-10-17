@@ -22,6 +22,7 @@ import { uploadProductImage, safePreviewSrc } from "../../lib/uploadImage.js";
 import { SOCIAL_KEYS, isPublicSocialUrl } from "../../lib/publicDiscovery.js";
 import { isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import AddProductLink from "./AddProductLink.jsx";
 
 const ACCOUNT_TYPES = [
@@ -71,7 +72,7 @@ export default function StudioOnboarding({ onDone }) {
       return true;
     } catch (e) {
       console.error("[StudioOnboarding] save failed", e);
-      setErr(he ? "השמירה נכשלה — בדקי את החיבור ונסי שוב." : "Saving failed — check your connection and try again.");
+      setErr(he ? toHebrewError(e, "השמירה נכשלה — נסי שוב בעוד רגע.") : "Saving failed — try again in a moment.");
       return false;
     } finally {
       setSaving(false);
@@ -147,7 +148,7 @@ export default function StudioOnboarding({ onDone }) {
       onDone?.();
     } catch (e) {
       console.error("[StudioOnboarding] finish failed", e);
-      setErr(he ? "השמירה נכשלה — נסי שוב." : "Saving failed — try again.");
+      setErr(he ? toHebrewError(e, "השמירה נכשלה — נסי שוב.") : "Saving failed — try again.");
     } finally {
       setSaving(false);
     }

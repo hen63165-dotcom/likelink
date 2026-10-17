@@ -77,3 +77,58 @@ test("the scheduled marketing-engine job runs the daily affiliate import (keys a
   const job = src.slice(src.indexOf('registerJob("marketing-engine"'));
   assert.match(job.slice(0, 1500), /dailyAffiliateImport\(/);
 });
+
+// The Studio's "בדיקת הקישור" (/api/fetch-product-info): the store's page answers
+// servers with a slider check, so an AliExpress link is read from the owner's
+// affiliate account instead (2026-10-17: a pasted s.click link filled nothing).
+test("Studio link check: an AliExpress link → the store's title, photos and ILS price from productdetail.get", async () => {
+  const { aliexpressProductInfo, aliexpressItemId, aliexpressItemFromLink } = await import("../api/_utils/aliexpressAffiliate.mjs");
+  assert.equal(aliexpressItemId("https://he.aliexpress.com/item/1005004921269497.html?spm=x"), "1005004921269497");
+  assert.equal(aliexpressItemId("https://www.aliexpress.us/item/3256804734954745.html"), "1005004921269497", "aliexpress.us ids are the global id + 2^51");
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({ url: String(url), redirect: init.redirect });
+    if (String(url).startsWith("https://s.click.aliexpress.com/")) {
+      return { ok: false, status: 302, headers: new Headers({ location: "https://www.aliexpress.com/item/1005004921269497.html?aff=x" }), text: async () => "" };
+    }
+    const sent = Object.fromEntries(new URLSearchParams(String(init.body)));
+    assert.equal(sent.method, "aliexpress.affiliate.productdetail.get");
+    assert.equal(sent.product_ids, "1005004921269497");
+    assert.equal(sent.target_currency, "ILS");
+    return { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: [
+      item("1005004921269497", { product_title: "טבעת מויסנייט", product_main_image_url: "//ae01.alicdn.com/kf/main.jpg", product_small_image_urls: { string: ["https://ae01.alicdn.com/kf/2.jpg", "//ae01.alicdn.com/kf/main.jpg"] }, target_sale_price: "130.39" }),
+    ] } } } } }) };
+  };
+  const info = await aliexpressProductInfo("https://s.click.aliexpress.com/e/_c3qcPQUv", { env: ENV, fetchImpl, now: NOW });
+  assert.equal(info.title, "טבעת מויסנייט");
+  assert.equal(info.image, "https://ae01.alicdn.com/kf/main.jpg", "protocol-relative photo addresses become https");
+  assert.deepEqual(info.images, ["https://ae01.alicdn.com/kf/main.jpg", "https://ae01.alicdn.com/kf/2.jpg"]);
+  assert.equal(info.price, 130.39);
+  assert.equal(info.currency, "ILS");
+  assert.equal(info.source, "aliexpress_api");
+  assert.equal(calls[0].redirect, "manual", "the tracked link is asked once; its redirect is not followed");
+  assert.equal(calls.length, 2);
+
+  // Not connected → nothing is called; another store → nothing is called; a host that only looks like AliExpress → nothing is called.
+  calls.length = 0;
+  assert.equal(await aliexpressProductInfo("https://s.click.aliexpress.com/e/_x", { env: {}, fetchImpl, now: NOW }), null);
+  assert.equal(await aliexpressProductInfo("https://www.amazon.com/dp/B000", { env: ENV, fetchImpl, now: NOW }), null);
+  assert.equal(await aliexpressItemFromLink("https://s.click.aliexpress.com.evil.example/e/_x", fetchImpl), "");
+  assert.equal(await aliexpressItemFromLink("http://s.click.aliexpress.com/e/_x", fetchImpl), "", "https only");
+  assert.equal(calls.length, 0);
+
+  // A price that is not in shekels is not shown as one.
+  const usd = async (url, init = {}) => (String(url).includes("/item/") || init.method !== "POST"
+    ? { ok: false, status: 302, headers: new Headers({}), text: async () => "" }
+    : { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: [item("1005004921269497", { target_sale_price_currency: "USD" })] } } } } }) });
+  const noIls = await aliexpressProductInfo("https://www.aliexpress.com/item/1005004921269497.html", { env: ENV, fetchImpl: usd, now: NOW });
+  assert.equal(noIls.price, null);
+  assert.equal(noIls.currency, null);
+});
+
+test("wiring: /api/fetch-product-info asks the affiliate account before the page ladder", async () => {
+  const { readFileSync } = await import("node:fs");
+  const og = readFileSync(new URL("../api/og.mjs", import.meta.url), "utf8");
+  const handler = og.slice(og.indexOf("async function fetchProductInfoHandler"));
+  assert.ok(handler.indexOf("aliexpressProductInfo(") > 0 && handler.indexOf("aliexpressProductInfo(") < handler.indexOf("for (const strategy of FPI_STRATEGIES)"));
+});
