@@ -180,6 +180,9 @@ export async function render() {
   rmSync(work, { recursive: true, force: true });
   // A dot file: the upload step's globs never send it to the release.
   writeFileSync(join(out, ".manifest.json"), `${JSON.stringify({ rendered }, null, 1)}\n`);
+  // The seller clips this run planned with: the Studio's orchestrator plans with
+  // exactly these, so its plan keys are the runner's (src/lib/creative/orchestrator.js).
+  ledger = { ...ledger, clipsOnHand: [...sellerVideos].sort(), clipsReadAt: now };
   writeFileSync(ledgerFile, `${JSON.stringify(ledger, null, 1)}\n`);
   return { rendered, ledger };
 }

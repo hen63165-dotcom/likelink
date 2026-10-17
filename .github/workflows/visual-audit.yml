@@ -52,7 +52,9 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           AUDIT_BASE: ${{ github.event.inputs.base }}
-        run: node scripts/audit/live-features.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
+        run: |
+          set -o pipefail
+          node scripts/audit/live-features.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
       - name: Store photo contact sheet
         continue-on-error: true
         env:

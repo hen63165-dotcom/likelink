@@ -150,25 +150,10 @@ function verified(id, output, checks) {
 const stage = (id, status, extra = {}) => ({ id, status, output: null, validation: null, blocker: null, ...extra });
 const skipped = (id, after) => stage(id, STATUS.SKIPPED, { blocker: { code: "upstream_not_completed", he: `ממתין לשלב "${STAGE_HE[after] || after}"` } });
 
-/** The job for this product in the ledger: one of the plan's own keys first, else the newest live one. */
+/** The job for this product in the ledger: the plan's own key first, else the newest live one. */
 export function jobFor(ledger, productId, key) {
-  const keys = [].concat(key);
   const jobs = (ledger?.jobs || []).filter((j) => j.productId === productId && j.status !== JOB.SUPERSEDED);
-  return jobs.find((j) => keys.includes(j.key)) || jobs[0] || null;
-}
-
-/**
- * The keys a job made from the current product could carry. Whether the seller
- * clip is on hand is the runner's fact (the product-video-sources release), not
- * the Studio's, so the plan with that one input flipped counts too; any other
- * change (title, photos, link, template) gives a key no job has yet.
- */
-function planKeys(product, plan, { products, sellerVideos }) {
-  const flipped = new Set(sellerVideos);
-  if (flipped.has(product.id)) flipped.delete(product.id);
-  else flipped.add(product.id);
-  const alt = planProduct(product, { products, sellerVideos: flipped, mode: MODES.ZERO_PAID_CREDITS });
-  return alt.ok && alt.key !== plan.key ? [plan.key, alt.key] : [plan.key];
+  return jobs.find((j) => j.key === key) || jobs[0] || null;
 }
 
 /**
@@ -203,7 +188,9 @@ export function orchestrate(product, { products = [], sellerVideos = new Set(), 
   let plan = null;
   if (stages[0].status !== STATUS.COMPLETED) stages.push(skipped("ContentStrategy", "ProductFacts"));
   else {
-    plan = planProduct(product, { products, sellerVideos, mode: MODES.ZERO_PAID_CREDITS });
+    // Which seller clips are on hand is the runner's fact: its last run records them in the ledger.
+    const clips = Array.isArray(ledger?.clipsOnHand) ? new Set(ledger.clipsOnHand) : sellerVideos;
+    plan = planProduct(product, { products, sellerVideos: clips, mode: MODES.ZERO_PAID_CREDITS });
     if (!plan.ok) {
       stages.push(stage("ContentStrategy", STATUS.BLOCKED, {
         blocker: { code: plan.reason, he: plan.reason === "no_worn_photo_checked" ? "אין תמונה נקייה של המוצר על דוגמנית — המוצר מקבל את הסרטון של לונה במקום" : "אין שיטה חינמית שמתאימה למוצר הזה" },
@@ -225,18 +212,17 @@ export function orchestrate(product, { products = [], sellerVideos = new Set(), 
   }
 
   // 3) CreativeGeneration — only a stored, measured file counts.
-  const keys = plan?.ok ? planKeys(product, plan, { products, sellerVideos }) : [];
-  const job = plan?.ok ? jobFor(ledger, id, keys) : null;
+  const job = plan?.ok ? jobFor(ledger, id, plan.key) : null;
   if (stages[1].status !== STATUS.COMPLETED) stages.push(skipped("CreativeGeneration", "ContentStrategy"));
   else if (!ledger) stages.push(stage("CreativeGeneration", STATUS.PENDING, { blocker: { code: "ledger_unreadable", he: "לא הצלחנו לקרוא את יומן המשימות של המנוע" } }));
   else if (!job || job.status === JOB.QUEUED) stages.push(stage("CreativeGeneration", STATUS.PENDING, { blocker: { code: "awaiting_engine_run", he: "ממתין להרצה הבאה של המנוע (כל יום 04:20 UTC)" } }));
   // An older job, made before the product changed: the current plan has not run yet.
-  else if (!keys.includes(job.key)) stages.push(stage("CreativeGeneration", STATUS.PENDING, { blocker: { code: "plan_changed_awaiting_run", he: "נתוני המוצר השתנו מאז הסרטון האחרון — ההרצה הבאה של המנוע (04:20 UTC) תכין גרסה מעודכנת" }, job: { id: job.id, status: job.status } }));
+  else if (job.key !== plan.key) stages.push(stage("CreativeGeneration", STATUS.PENDING, { blocker: { code: "plan_changed_awaiting_run", he: "המוצר או החומרים שלו השתנו מאז הסרטון האחרון — ההרצה הבאה של המנוע (04:20 UTC) תכין גרסה מעודכנת" }, job: { id: job.id, status: job.status } }));
   else if (job.status === JOB.FAILED || job.status === JOB.DEAD) stages.push(stage("CreativeGeneration", STATUS.FAILED, { blocker: { code: job.error?.class || "render_failed", he: job.status === JOB.DEAD ? `נכשל ${job.attempts} פעמים — צריך בדיקה: ${job.error?.message || ""}` : `נכשל, ינסה שוב אחרי ${new Date(job.nextAttemptAt || now).toISOString()}` }, job: { id: job.id, status: job.status, attempts: job.attempts } }));
-  else stages.push(verified("CreativeGeneration", { file: job.output?.file, bytes: job.output?.bytes, seconds: job.output?.seconds, sha256: job.output?.sha256, jobId: job.id, keyMatchesPlan: keys.includes(job.key) }, [
+  else stages.push(verified("CreativeGeneration", { file: job.output?.file, bytes: job.output?.bytes, seconds: job.output?.seconds, sha256: job.output?.sha256, jobId: job.id, keyMatchesPlan: job.key === plan.key }, [
     ["file_exists", Boolean(job.output?.file) && Number(job.output?.bytes) > 0],
     ["fingerprint_recorded", /^[0-9a-f]{64}$/.test(String(job.output?.sha256 || ""))],
-    ["made_from_this_plan", keys.includes(job.key)],
+    ["made_from_this_plan", job.key === plan.key],
   ]));
 
   // 4) QualityControl

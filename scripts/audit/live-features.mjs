@@ -112,6 +112,10 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(`${page.url().replace(BASE, "")}: ${String(e.message || e).slice(0, 160)}`));
 const open = async (p) => { await page.goto(`${BASE}${p}`, { waitUntil: "domcontentloaded", timeout: 45000 }); await page.waitForTimeout(2500); };
 const bodyText = () => page.evaluate(() => document.body.innerText);
+// One section that throws (a timeout, a renamed button) is a failed check; the rest still run.
+async function section(name, fn) {
+  try { await fn(); } catch (e) { check(`${name}_ran`, false, { error: String(e?.message || e).split("\n")[0].slice(0, 160) }); }
+}
 async function plays(locator) {
   return locator.evaluate(async (v) => {
     v.scrollIntoView({ block: "center" });
@@ -124,63 +128,73 @@ async function plays(locator) {
 }
 
 // Prices and photos on every listed product page.
-for (const p of listed) {
-  await open(`/p/${p.id}`);
-  const text = await bodyText();
-  const img = await page.evaluate(() => [...document.querySelectorAll("main img, img")].filter((i) => i.getBoundingClientRect().width > 120).map((i) => ({ ok: i.complete && i.naturalWidth > 0, src: i.currentSrc.slice(0, 90) }))[0] || null);
-  const wantPrice = Number(p.price) > 0 && p.priceSource ? priceText(Number(p.price)) : null;
-  check(`product_${p.id}`, (wantPrice ? text.includes(wantPrice) : text.includes("המחיר המעודכן בחנות")) && img?.ok, { price: wantPrice || "store-only", priceSource: p.priceSource || null, checkedAt: p.priceCheckedAt || null, image: img });
-}
-await page.screenshot({ path: path.join(OUT, "live-product.jpg"), quality: 70 });
+await section("products", async () => {
+  for (const p of listed) {
+    await open(`/p/${p.id}`);
+    const text = await bodyText();
+    const img = await page.evaluate(() => [...document.querySelectorAll("main img, img")].filter((i) => i.getBoundingClientRect().width > 120).map((i) => ({ ok: i.complete && i.naturalWidth > 0, src: i.currentSrc.slice(0, 90) }))[0] || null);
+    const wantPrice = Number(p.price) > 0 && p.priceSource ? priceText(Number(p.price)) : null;
+    check(`product_${p.id}`, (wantPrice ? text.includes(wantPrice) : text.includes("המחיר המעודכן בחנות")) && img?.ok, { price: wantPrice || "store-only", priceSource: p.priceSource || null, checkedAt: p.priceCheckedAt || null, image: img });
+  }
+  await page.screenshot({ path: path.join(OUT, "live-product.jpg"), quality: 70 });
+});
 
 // Reels: the first post plays; Luna's reel plays and is labelled AI.
-await open("/reels");
-const firstPlay = await plays(page.locator("video").first());
-check("reels_page_plays", firstPlay.t1 > firstPlay.t0, firstPlay);
-if (luna[0]) {
-  await open(`/reels?r=${encodeURIComponent(`v-${luna[0].id}`)}`);
-  const vids = page.locator("video");
-  const n = await vids.count();
-  let lunaPlay = null;
-  for (let i = 0; i < n && !lunaPlay; i++) {
-    const src = await vids.nth(i).evaluate((v) => v.currentSrc || v.src || v.querySelector("source")?.src || "");
-    if (src.includes(String(luna[0].video).split("/").pop())) lunaPlay = await plays(vids.nth(i));
+await section("reels", async () => {
+  await open("/reels");
+  const firstPlay = await plays(page.locator("video").first());
+  check("reels_page_plays", firstPlay.t1 > firstPlay.t0, firstPlay);
+  if (luna[0]) {
+    await open(`/reels?r=${encodeURIComponent(`v-${luna[0].id}`)}`);
+    const vids = page.locator("video");
+    const n = await vids.count();
+    let lunaPlay = null;
+    for (let i = 0; i < n && !lunaPlay; i++) {
+      const src = await vids.nth(i).evaluate((v) => v.currentSrc || v.src || v.querySelector("source")?.src || "");
+      if (src.includes(String(luna[0].video).split("/").pop())) lunaPlay = await plays(vids.nth(i));
+    }
+    const text = await bodyText();
+    check("luna_character_reel_plays", Boolean(lunaPlay && lunaPlay.t1 > lunaPlay.t0) && /AI/.test(text), { id: luna[0].id, look: luna[0].look, play: lunaPlay, aiLabel: /AI/.test(text) });
+    await page.screenshot({ path: path.join(OUT, "live-luna.jpg"), quality: 70 });
   }
-  const text = await bodyText();
-  check("luna_character_reel_plays", Boolean(lunaPlay && lunaPlay.t1 > lunaPlay.t0) && /AI/.test(text), { id: luna[0].id, look: luna[0].look, play: lunaPlay, aiLabel: /AI/.test(text) });
-  await page.screenshot({ path: path.join(OUT, "live-luna.jpg"), quality: 70 });
-}
+});
 
 // The free guide: all eight checks on the page.
-await open("/guide");
-const guideText = await bodyText();
-const missing = GUIDE.checks.filter((c) => !guideText.includes(c.title.he)).map((c) => c.id);
-check("guide_page", guideText.includes(GUIDE.title.he) && missing.length === 0, { checks: GUIDE.checks.length, missing });
+await section("guide", async () => {
+  await open("/guide");
+  const guideText = await bodyText();
+  const missing = GUIDE.checks.filter((c) => !guideText.includes(c.title.he)).map((c) => c.id);
+  check("guide_page", guideText.includes(GUIDE.title.he) && missing.length === 0, { checks: GUIDE.checks.length, missing });
+});
 
 // The size meter: a paper strip and a wrist, answers equal to sizeTool.js.
-await open("/size");
-await page.getByRole("button", { name: "פס נייר סביב האצבע" }).click();
-await page.locator("input[type=number]").first().fill("54");
-await page.waitForTimeout(500);
-const ring = ringFromCircumference(54);
-const stripText = await page.locator("[role=status]").first().innerText().catch(() => "");
-check("size_ring_from_strip", stripText.includes(String(ring.us)) && stripText.includes(String(ring.eu)), { want: { us: ring.us, eu: ring.eu }, shown: stripText.replace(/\s+/g, " ").slice(0, 120) });
-await page.getByRole("button", { name: "אורך צמיד" }).click();
-await page.locator("input[type=number]").first().fill("15.5");
-await page.waitForTimeout(500);
-const b = braceletFromWrist(15.5);
-const braceletText = await page.locator("[role=status]").first().innerText().catch(() => "");
-check("size_bracelet_from_wrist", braceletText.includes(`${b.min}–${b.max}`), { want: `${b.min}–${b.max}`, shown: braceletText.replace(/\s+/g, " ").slice(0, 80) });
-await page.screenshot({ path: path.join(OUT, "live-size.jpg"), quality: 70 });
+await section("size", async () => {
+  await open("/size");
+  await page.getByRole("button", { name: "פס נייר סביב האצבע" }).click({ timeout: 10000 });
+  await page.locator("input[type=number]").first().fill("54");
+  await page.waitForTimeout(500);
+  const ring = ringFromCircumference(54);
+  const stripText = await page.locator("[role=status]").first().innerText().catch(() => "");
+  check("size_ring_from_strip", stripText.includes(String(ring.us)) && stripText.includes(String(ring.eu)), { want: { us: ring.us, eu: ring.eu }, shown: stripText.replace(/\s+/g, " ").slice(0, 120) });
+  await page.getByRole("button", { name: "אורך צמיד" }).click({ timeout: 10000 });
+  await page.locator("input[type=number]").first().fill("15.5");
+  await page.waitForTimeout(500);
+  const b = braceletFromWrist(15.5);
+  const braceletText = await page.locator("[role=status]").first().innerText().catch(() => "");
+  check("size_bracelet_from_wrist", braceletText.includes(`${b.min}–${b.max}`), { want: `${b.min}–${b.max}`, shown: braceletText.replace(/\s+/g, " ").slice(0, 80) });
+  await page.screenshot({ path: path.join(OUT, "live-size.jpg"), quality: 70 });
+});
 
 // The Studio, signed out: the entrance with the real sign-up form; the engine's deep link does not crash.
-for (const p of ["/studio", "/studio/creative-engine"]) {
-  const before = errors.length;
-  await open(p);
-  const form = await page.locator("input[type=email]").count();
-  check(`studio_signed_out_${p === "/studio" ? "entrance" : "engine_link"}`, form > 0 && errors.length === before, { emailFields: form, path: p });
-}
-await page.screenshot({ path: path.join(OUT, "live-studio.jpg"), quality: 70 });
+await section("studio", async () => {
+  for (const p of ["/studio", "/studio/creative-engine"]) {
+    const before = errors.length;
+    await open(p);
+    const form = await page.locator("input[type=email]").count();
+    check(`studio_signed_out_${p === "/studio" ? "entrance" : "engine_link"}`, form > 0 && errors.length === before, { emailFields: form, path: p });
+  }
+  await page.screenshot({ path: path.join(OUT, "live-studio.jpg"), quality: 70 });
+});
 
 check("no_paid_provider_requests", paid.length === 0, { paid, thirdPartyHosts: [...hosts].filter((h) => !/likelink2\.vercel\.app|github\.io|supabase\.co|netlify\.app/.test(h)).sort() });
 check("no_page_errors", errors.length === 0, { errors: errors.slice(0, 5) });
@@ -189,3 +203,4 @@ await browser.close();
 
 const failed = results.filter((r) => !r.pass).map((r) => r.name);
 console.log(`LIVE_SUMMARY ${JSON.stringify({ base: BASE, passed: results.length - failed.length, of: results.length, failed })}`);
+process.exitCode = failed.length ? 1 : 0;

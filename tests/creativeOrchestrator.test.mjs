@@ -61,16 +61,22 @@ test("publishing: STORED waits for the deploy; LIVE but gone from the feed is FA
   assert.ok(gone.validation.checks.some((c) => c.name === "still_in_site_feed" && !c.pass));
 });
 
-test("a job from before the product changed is PENDING (not FAILED); the runner's clip-on-hand fact is not a change", () => {
-  const ledger = ledgerAt("p-live-04", "LIVE");
+test("a job from before the product or its media changed is PENDING (not FAILED); the runner's own clip list decides the plan", () => {
+  const ledger = { ...ledgerAt("p-live-04", "LIVE"), clipsOnHand: ["p-live-04", "p-live-05"] };
   const changed = orchestrate({ ...byId("p-live-04"), title: `${byId("p-live-04").title} חדש` }, { products, sellerVideos: CLIPS, ledger, feed: feedWith("p-live-04") });
   assert.equal(changed.stages[2].status, "PENDING");
   assert.equal(changed.stages[2].blocker.code, "plan_changed_awaiting_run");
   assert.deepEqual(changed.stages.slice(3).map((s) => s.status), ["SKIPPED", "SKIPPED", "SKIPPED"]);
-  // The ledger job was planned with the clip on hand; a Studio that cannot see the runner's files still recognises it.
-  const noClipSeen = orchestrate(byId("p-live-04"), { products, sellerVideos: new Set(), ledger, feed: feedWith("p-live-04") });
-  assert.equal(noClipSeen.stages[2].status, "COMPLETED");
-  assert.ok(noClipSeen.stages[2].validation.checks.find((c) => c.name === "made_from_this_plan").pass);
+  // The Studio cannot see the runner's files; the ledger's clip list is the evidence it plans with.
+  const studioBlind = orchestrate(byId("p-live-04"), { products, sellerVideos: new Set(), ledger, feed: feedWith("p-live-04") });
+  assert.equal(studioBlind.stages[2].status, "COMPLETED");
+  // A photo-only video, then the runner gains the seller clip: the new plan has not run, so it is PENDING, never COMPLETED.
+  const photoOnly = planProduct(byId("p-live-04"), { products, sellerVideos: new Set() });
+  let old = reconcile(emptyLedger(), [photoOnly], { now: 1 }).ledger;
+  old = updateJob(old, `cj_${photoOnly.key}`, (j) => markRendered(j, { file: "p-live-04-lookbook.mp4", bytes: 9, seconds: 12, sha256: "b".repeat(64) }, { pass: true, checks: [{ name: "motion", pass: true }] }, 2));
+  const gained = orchestrate(byId("p-live-04"), { products, sellerVideos: new Set(), ledger: { ...old, clipsOnHand: ["p-live-04"] }, feed: feedWith("p-live-04") });
+  assert.equal(gained.stages[2].status, "PENDING");
+  assert.equal(gained.stages[2].blocker.code, "plan_changed_awaiting_run");
 });
 
 test("a failed QC is FAILED, and nothing downstream is reported done", () => {
