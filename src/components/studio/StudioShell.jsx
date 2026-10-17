@@ -57,6 +57,7 @@ import AvatarStudio from "../ambassador/AvatarStudio";
 import AutoVideoStudio from "../video/AutoVideoStudio";
 import { studioReelState, requestCinematicReel, reelErrorHe } from "../../lib/reelClient.js";
 import CreativeLab from "./CreativeLab.jsx";
+import CreativeEnginePanel from "./CreativeEnginePanel.jsx";
 import MarketingHub from "../MarketingHub";
 import LunaStatusCard from "./LunaStatusCard";
 import StudioHome from "./StudioHome";
@@ -103,6 +104,7 @@ const VIEW_IDS = {
   RECOMMENDATIONS: "recommendations",
   SETTINGS: "settings",
   ADS: "ads",
+  CREATIVE_ENGINE: "creative-engine",
 };
 
 const TIERS = {
@@ -1235,6 +1237,7 @@ const NAV_SECTIONS = [
       { view: VIEW_IDS.PRODUCTS, icon: Package, he: "מוצרים וסטודיו", en: "Products & Studio" },
       { view: VIEW_IDS.PRODUCT_INTELLIGENCE, icon: Brain, he: "תבונת מוצר", en: "Product Intelligence" },
       { view: VIEW_IDS.UGC, icon: Activity, he: "UGC · קהילה", en: "UGC" },
+      { view: VIEW_IDS.CREATIVE_ENGINE, icon: Clapperboard, he: "מנוע הסרטונים", en: "Creative Engine" },
       { view: VIEW_IDS.VIDEO, icon: Clapperboard, he: "וידאו AI", en: "AI Video" },
       { view: VIEW_IDS.CREATOR_LAB, icon: UserCog, he: "מעבדת יוצרים", en: "Creator Lab" },
       { view: VIEW_IDS.CONTENT, icon: FileText, he: "תוכן", en: "Content" },
@@ -1554,6 +1557,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
       case VIEW_IDS.SELF_MARKETING: return <><CreatorGrowthWorkspace onNavigate={navigate} /><IntelligencePanel highlight="self" /></>;
       case VIEW_IDS.INBOX: return <CreatorInbox onNavigate={navigate} />;
       case VIEW_IDS.UGC: return <UgcPanel onNavigate={navigate} />;
+      case VIEW_IDS.CREATIVE_ENGINE: return <CreativeEnginePanel />;
       case VIEW_IDS.VIDEO: return <VideoPanel onNavigate={navigate} />;
       case VIEW_IDS.CREATOR_LAB: return <CreatorLabPanel onNavigate={navigate} />;
       case VIEW_IDS.CONTENT: return <ContentPanel onNavigate={navigate} />;

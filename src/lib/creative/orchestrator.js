@@ -34,6 +34,14 @@ export const STATUS = Object.freeze({
   INSUFFICIENT_DATA: "INSUFFICIENT_DATA",
 });
 export const AVAILABILITY = Object.freeze({ AVAILABLE: "AVAILABLE", DELEGATED: "DELEGATED", UNAVAILABLE: "UNAVAILABLE", PAID_LOCKED: "PAID_LOCKED" });
+export const STAGE_HE = Object.freeze({
+  ProductFacts: "נתוני המוצר",
+  ContentStrategy: "אסטרטגיה ותסריט",
+  CreativeGeneration: "יצירת הסרטון",
+  QualityControl: "בדיקות איכות",
+  ProductPublishing: "פרסום בעמוד המוצר",
+  PerformanceFeedback: "ביצועים",
+});
 
 /* ───────────────────────────────────────────── execution methods */
 
@@ -140,7 +148,7 @@ function verified(id, output, checks) {
   return { id, status: pass ? STATUS.COMPLETED : STATUS.FAILED, output: pass ? output : output ?? null, validation: { pass, checks: list }, blocker: pass ? null : { code: "validation_failed", he: `בדיקה נכשלה: ${list.filter((c) => !c.pass).map((c) => c.name).join(", ")}` } };
 }
 const stage = (id, status, extra = {}) => ({ id, status, output: null, validation: null, blocker: null, ...extra });
-const skipped = (id, after) => stage(id, STATUS.SKIPPED, { blocker: { code: "upstream_not_completed", he: `ממתין לשלב ${after}` } });
+const skipped = (id, after) => stage(id, STATUS.SKIPPED, { blocker: { code: "upstream_not_completed", he: `ממתין לשלב "${STAGE_HE[after] || after}"` } });
 
 /** The job for this product in the ledger: the plan's own key first, else the newest live one. */
 export function jobFor(ledger, productId, key) {

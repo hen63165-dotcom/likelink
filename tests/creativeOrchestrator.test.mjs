@@ -99,6 +99,38 @@ test("scene routing never picks an unavailable method and names every rejection"
   assert.equal(routeScenes(methodAvailability(byId("p-live-01"))).find((s) => s.scene === "closeup").chosen, "photo_motion", "no checked clip → the photos");
 });
 
+test("Studio evidence: a failed or malformed read is reported, never turned into data", async () => {
+  const { loadCreativeEvidence, CREATIVE_LEDGER_URL, feedVideoUrl } = await import("../src/lib/creative/studioClient.js");
+  const okJson = (body) => async () => ({ ok: true, status: 200, json: async () => body });
+  const both = await loadCreativeEvidence(async (url) => (url === CREATIVE_LEDGER_URL ? okJson({ jobs: [] }) : okJson({ reels: [] }))());
+  assert.deepEqual([both.errors, Array.isArray(both.ledger.jobs), Array.isArray(both.feed.reels)], [{}, true, true]);
+  const down = await loadCreativeEvidence(async (url) => (url === CREATIVE_LEDGER_URL ? { ok: false, status: 404 } : okJson({ nope: 1 })()));
+  assert.deepEqual(down.errors, { ledger: "http_404", feed: "bad_shape" });
+  assert.equal(down.ledger, null);
+  assert.equal(down.feed, null);
+  const thrown = await loadCreativeEvidence(async () => { throw new Error("offline"); });
+  assert.deepEqual(thrown.errors, { ledger: "offline", feed: "offline" });
+  assert.equal(feedVideoUrl("lookbook-p-live-04.mp4"), "https://hen63165-dotcom.github.io/likelink/media/reels/lookbook-p-live-04.mp4");
+});
+
+test("Studio screen: wired into the shell, runs the real orchestrator, every button does a real thing", () => {
+  const shell = read("src/components/studio/StudioShell.jsx");
+  assert.match(shell, /CREATIVE_ENGINE: "creative-engine"/);
+  assert.match(shell, /case VIEW_IDS\.CREATIVE_ENGINE: return <CreativeEnginePanel \/>/);
+  assert.match(shell, /view: VIEW_IDS\.CREATIVE_ENGINE, icon: Clapperboard, he: "מנוע הסרטונים"/);
+  const panel = read("src/components/studio/CreativeEnginePanel.jsx");
+  assert.match(panel, /orchestrate\(product, \{ products, sellerVideos: new Set\(Object\.keys\(SELLER_REVIEWED\)\), ledger: evidence\.ledger, feed: evidence\.feed, events: clicks/);
+  assert.match(panel, /p\.marketerId === currentMarketer\?\.id && p\.status === "approved"/, "only the signed-in creator's own approved products");
+  const buttons = [...panel.matchAll(/<Button[^>]*onClick=\{(\w+)\}/g)].map((m) => m[1]).sort();
+  assert.deepEqual(buttons, ["copyCaption", "refresh"]);
+  assert.match(panel, /navigator\.clipboard\.writeText\(caption\)/);
+  assert.doesNotMatch(panel, /status:\s*["']COMPLETED["']|"PUBLISHED"/, "the screen never sets a status itself");
+  const wf = read(".github/workflows/deploy-frontend.yml");
+  assert.match(wf, /git show origin\/ops\/creative:jobs\.json > dist\/media\/creative\/jobs\.json/, "the ledger the screen reads is published with the site");
+  const skipped = orchestrate(byId("p-live-03"), { products, sellerVideos: CLIPS }).stages[2];
+  assert.equal(skipped.blocker.he, 'ממתין לשלב "אסטרטגיה ותסריט"', "blockers name the stage in Hebrew");
+});
+
 test("the paid lock: only the server's exact PAID_GENERATION=enabled opens it; every paid entry point asks it first", () => {
   for (const v of [undefined, "", "true", "1", "yes", "ENABLED "]) {
     assert.equal(paidGenerationEnabled({ PAID_GENERATION: v }), v === "ENABLED ", String(v));
