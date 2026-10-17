@@ -27,6 +27,29 @@ export const SELLER_REVIEWED = Object.freeze({
   "p-live-05": "2026-10-11", // moissanite stud earrings, close-up
 });
 
+/**
+ * What made a feed entry, by its `look` (scripts/reels-feed.mjs writes it):
+ * the style the site labels it with, whether it is AI-made, and the short
+ * note posts carry. One table, so no reader guesses: an unknown look is Luna's
+ * (AI), the strictest label. `rank` orders a product's videos for posts:
+ * a person's footage, the seller's media in LikeLink2's edit, then Luna.
+ */
+export const FEED_LOOKS = Object.freeze({
+  real: Object.freeze({ style: "real_ugc", kind: "own_footage", ai: false, rank: 5, note: "צילום אמיתי של המוצר." }),
+  // The Creative Engine's lookbook (scripts/creative): the seller's model photos and its video.
+  lookbook: Object.freeze({ style: "seller_lookbook", kind: "seller_media_edit", ai: false, rank: 4, note: "תמונות וסרטון המוצר: המוכר." }),
+  lookbook_photos: Object.freeze({ style: "seller_photo_reel", kind: "seller_media_edit", ai: false, rank: 3.5, note: "תמונות המוצר: המוכר." }),
+  seller: Object.freeze({ style: "seller_video", kind: "seller_video", ai: false, rank: 3, note: "צילום המוצר: המוכר." }),
+  talking: Object.freeze({ style: "luna_talking", kind: "luna_animation", ai: true, rank: 2, note: "לונה היא דמות AI." }),
+  still: Object.freeze({ style: "luna_tip", kind: "luna_animation", ai: true, rank: 1, note: "לונה היא דמות AI." }),
+});
+export const SELLER_MEDIA_LOOKS = Object.freeze(["lookbook", "lookbook_photos"]);
+
+/** The table row of a feed entry's look (an unknown look is labelled as Luna's AI). */
+export function feedLook(look) {
+  return FEED_LOOKS[String(look || "")] || FEED_LOOKS.still;
+}
+
 const FILE = /^[a-z0-9][a-z0-9-]{0,80}\.mp4$/;
 const POSTER = /^[a-z0-9][a-z0-9-]{0,80}-(cover|preview)\.jpg$/;
 const ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -64,6 +87,9 @@ export function feedToVideos(doc, feedUrl = REELS_FEED_HOME) {
     if (look === "seller" && SELLER_SKIP[String(e.productId)]) continue;
     const kind = look === "seller"
       ? { synthetic: false, source: "aliexpress_seller", videoProvider: "aliexpress_seller", style: "seller_video" }
+      : SELLER_MEDIA_LOOKS.includes(look)
+        // The media is the seller's; LikeLink2 only edited it (not a likelink_* render, which is animation).
+        ? { synthetic: false, source: "aliexpress_seller", videoProvider: "aliexpress_seller", editedBy: "creative_engine", style: FEED_LOOKS[look].style }
       : look === "real"
         ? { synthetic: false, humanFilmed: true, source: "owner_footage", videoProvider: "owner_footage", style: "real_ugc", ...(ID.test(String(e.marketerId || "")) ? { marketerId: String(e.marketerId) } : {}) }
         : { synthetic: true, source: "likelink_luna_reels", videoProvider: "likelink_luna_reels", style: look === "talking" ? "luna_talking" : "luna_tip" };

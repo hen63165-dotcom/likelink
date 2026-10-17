@@ -22,7 +22,7 @@
 import { HOOK_FORBIDDEN, buildHookSet, matchTrends, worldOf } from "./likeloop.js";
 import { DROP_AD, DROP_FORBIDDEN } from "./dailyDrop.js";
 import { GUIDE } from "../guide.js";
-import { SELLER_SKIP } from "../reelsFeed.js";
+import { SELLER_SKIP, feedLook } from "../reelsFeed.js";
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
 
 /** Before any format is called better than another: posts measured per format. */
@@ -44,9 +44,8 @@ const dayIndex = (now) => Math.floor(now / 86_400_000);
 const ymd = (now) => new Date(now).toISOString().slice(0, 10).replace(/-/g, "");
 const tagWord = (s) => `#${clean(s).replace(/[^\p{L}\p{N}]+/gu, "")}`;
 
-// Look ranks: a person's own footage, then the seller's, then Luna.
-const LOOK_RANK = { real: 4, seller: 3, talking: 2, still: 1 };
-const isLuna = (r) => r?.look === "talking" || r?.look === "still";
+// Look ranks (reelsFeed.js FEED_LOOKS): a person's own footage, then the seller's media, then Luna.
+const isLuna = (r) => feedLook(r?.look).ai;
 
 /**
  * The formats. `needs` says what a post of that format is made from;
@@ -94,7 +93,7 @@ export function mediaByProduct(reels = [], products = [], { imageOf = () => "" }
     if (r.look === "seller" && SELLER_SKIP[String(r.productId)]) continue; // the clip shows another item
     if (isLuna(r)) {
       if (!row.luna || (r.createdAt || 0) > (row.luna.createdAt || 0)) row.luna = r;
-    } else if (!row.video || (LOOK_RANK[r.look] || 0) > (LOOK_RANK[row.video.look] || 0)) {
+    } else if (!row.video || feedLook(r.look).rank > feedLook(row.video.look).rank) {
       row.video = r;
     }
   }
@@ -243,13 +242,6 @@ export function accountKit(origin = PRODUCTION_ORIGIN) {
   };
 }
 
-const MEDIA_NOTE = {
-  real: "צילום אמיתי של המוצר.",
-  seller: "צילום המוצר: המוכר.",
-  talking: "לונה היא דמות AI.",
-  still: "לונה היא דמות AI.",
-};
-
 function hookFor(product, format, { trend, seed, media }) {
   const w = worldOf(product.category);
   const set = buildHookSet(product, { trend: trend ? { term: trend.term, source: trend.source, observedAt: trend.observedAt } : null });
@@ -277,7 +269,7 @@ export function buildTikTokPost({ format, row, slot, now = Date.now(), trend = n
   const title = clean(product.displayTitle || product.title);
   const tags = tiktokHashtags(product, trend);
   const ai = Boolean(media && isLuna(media));
-  const note = media ? MEDIA_NOTE[media.look] || "" : "התמונות: מתוך סרטון המוכר או החנות.";
+  const note = media ? feedLook(media.look).note : "התמונות: מתוך סרטון המוכר או החנות.";
   const checks = format === "checklist" ? checksFor(product, 3) : [];
   const slides = format === "checklist"
     ? [

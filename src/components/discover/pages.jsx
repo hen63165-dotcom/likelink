@@ -46,7 +46,7 @@ import { trackLanding } from "../../lib/funnel.js";
 import { enginePicksFrom } from "../../lib/growth/enginePicks.js";
 import { imageHandoff, SearchBox } from "./hero";
 import { LuxeHome } from "./luxe";
-import { lookLabel, lookOf } from "../../lib/looks.js";
+import { STORE_GALLERY_PICKS, lookLabel, lookOf } from "../../lib/looks.js";
 import { rankProducts } from "../../lib/skills/catalogRules.js";
 import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
 import { FOOTAGE_RANK } from "../../lib/homeShowcase.js";
@@ -354,7 +354,7 @@ export function ProductsPage({ graph, category }) {
   // The default order is the discovery-ranking skill's (src/lib/skills/catalogRules.js): own store link,
   // a video a person checked, a clean image, a checked price. Never popularity.
   const order = useMemo(() => {
-    const checked = new Set(graph.reels.filter((r) => (r.style === "seller_video" && SELLER_REVIEWED[r.productIds[0]]) || r.style === "real_ugc").map((r) => r.productIds[0]));
+    const checked = new Set(graph.reels.filter((r) => (r.style === "seller_video" && SELLER_REVIEWED[r.productIds[0]]) || r.style === "real_ugc" || ((r.style === "seller_lookbook" || r.style === "seller_photo_reel") && STORE_GALLERY_PICKS[r.productIds[0]])).map((r) => r.productIds[0]));
     return new Map(rankProducts(graph.products, { verifiedVideoIds: checked }).map((r, i) => [r.id, i]));
   }, [graph.products, graph.reels]);
   const videoOnly = only === "video";

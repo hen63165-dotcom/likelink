@@ -3,8 +3,8 @@
 // which media is tied to which product and on what evidence, and an
 // explainable product order from data quality only (never popularity).
 import { catalogIssues, sharedAffiliateLinks } from "../discovery/catalogIntegrity.js";
-import { SELLER_REVIEWED, SELLER_SKIP } from "../reelsFeed.js";
-import { LOOKS } from "../looks.js";
+import { SELLER_MEDIA_LOOKS, SELLER_REVIEWED, SELLER_SKIP, feedLook } from "../reelsFeed.js";
+import { LOOKS, STORE_GALLERY_PICKS } from "../looks.js";
 
 export const STORE_LINK = /^https:\/\/(s\.click\.aliexpress\.com|([a-z0-9-]+\.)*aliexpress\.(com|us|ru))\/\S+$/i;
 // Fields that would claim social proof. LikeLink has no verified source for any of them.
@@ -35,11 +35,13 @@ export function matchMedia({ products = [], reels = null, looks = LOOKS } = {}) 
   const items = [];
   for (const e of arr(reels)) {
     const id = String(e?.productId || "");
-    const base = { media: String(e?.id || e?.video || ""), productId: id, kind: e?.look === "seller" ? "seller_video" : e?.look === "real" ? "own_footage" : "luna_animation" };
+    const base = { media: String(e?.id || e?.video || ""), productId: id, kind: feedLook(e?.look).kind };
     if (!ids.has(id)) items.push({ ...base, verdict: "REJECTED", he: "המוצר לא ברשימת המוצרים באתר" });
     else if (e?.look === "seller" && SELLER_SKIP[id]) items.push({ ...base, verdict: "REJECTED", he: "בסרטון רואים פריט אחר מהמוצר", reason: SELLER_SKIP[id] });
     else if (e?.look === "seller") items.push(SELLER_REVIEWED[id] ? { ...base, verdict: "MATCHED", he: `נבדק בעין ב־${SELLER_REVIEWED[id]}: המוצר הוא נושא הסרטון` } : { ...base, verdict: "UNCERTAIN", he: "סרטון של המוכר שעוד לא נבדק בעין" });
     else if (e?.look === "real") items.push({ ...base, verdict: "MATCHED", he: "צילום שהועלה עם המוצר שנבחר" });
+    // The Creative Engine uses only photos checked by eye (STORE_GALLERY_PICKS) and a seller clip a person checked.
+    else if (SELLER_MEDIA_LOOKS.includes(e?.look)) items.push(STORE_GALLERY_PICKS[id] && (e.look === "lookbook_photos" || (SELLER_REVIEWED[id] && !SELLER_SKIP[id])) ? { ...base, verdict: "MATCHED", he: "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש" } : { ...base, verdict: "UNCERTAIN", he: "מדיה של המוכר שעוד לא נבדקה בעין" });
     else items.push({ ...base, verdict: "LABELLED_SYNTHETIC", he: "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI" });
   }
   for (const [id, spec] of Object.entries(looks || {})) {

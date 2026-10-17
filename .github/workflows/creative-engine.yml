@@ -1,0 +1,122 @@
+# The Creative Engine (src/lib/creative/engine.js, scripts/creative/): every
+# listed product → a 9:16 lookbook video made only of its own media (the
+# seller's model photos from the store gallery, and the seller's clip when a
+# person checked it), with no paid service and no credits (ZERO_PAID_CREDITS).
+# Jobs are idempotent (same inputs → the stored video is reused), retried with
+# backoff, dead-lettered after 3 attempts; the ledger is the ops/creative
+# branch. On main the videos go to the "reels" release, which the site's
+# reels feed (deploy-frontend.yml → scripts/reels-feed.mjs) puts on the
+# product pages; a branch run goes to the "creative-preview" release only.
+# Nothing is posted to any social network from here.
+name: Creative engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      products:
+        description: "Product ids (space separated); empty = every listed product"
+        default: ""
+      force:
+        description: "Render again even when the same inputs are already stored (1 = yes)"
+        default: "0"
+  schedule:
+    # Daily at 04:20 UTC, after the catalog sync (05:10 the day before) and before the morning deploy.
+    - cron: "20 4 * * *"
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/creative/**", "src/lib/creative/**", ".github/workflows/creative-engine.yml"]
+
+concurrency:
+  group: creative-engine
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+      FONTSOURCE_DIR: /tmp/pw/node_modules/@fontsource
+      # main → the site's "reels" release; any other branch → a preview release the site never reads.
+      STAGE: ${{ github.ref == 'refs/heads/main' && 'live' || 'preview' }}
+      RELEASE: ${{ github.ref == 'refs/heads/main' && 'reels' || 'creative-preview' }}
+      LEDGER_BRANCH: ${{ github.ref == 'refs/heads/main' && 'ops/creative' || 'ops/creative-preview' }}
+      CREATIVE_MODE: ZERO_PAID_CREDITS
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (the runner's Chrome), ffmpeg and the Hebrew fonts
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 @fontsource/frank-ruhl-libre@5.3.0 @fontsource/heebo@5.3.0 >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
+      - name: Restore the job ledger
+        run: |
+          mkdir -p creative-ledger
+          if git fetch -q origin "+refs/heads/${LEDGER_BRANCH}:refs/remotes/origin/${LEDGER_BRANCH}" 2>/dev/null; then
+            git show "origin/${LEDGER_BRANCH}:jobs.json" > creative-ledger/jobs.json 2>/dev/null || rm -f creative-ledger/jobs.json
+          fi
+          [ -s creative-ledger/jobs.json ] && echo "ledger restored" || echo "a new ledger"
+      - name: Restore the seller clips (no store visit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p creative-sources
+          gh release download product-video-sources -p 'p-*.mp4' -D creative-sources --clobber 2>/dev/null || echo "no seller clips on hand"
+          ls creative-sources
+      - uses: actions/cache@v4
+        with:
+          path: creative-cache
+          key: creative-photos-${{ hashFiles('src/lib/looks.js') }}
+          restore-keys: creative-photos-
+      - name: Plan, render and check
+        env:
+          LEDGER: creative-ledger/jobs.json
+          OUT: creative-out
+          SOURCES: creative-sources
+          CACHE: creative-cache
+          PRODUCTS: ${{ github.event.inputs.products }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: node scripts/creative/run.mjs render
+      - name: Store the videos in the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(creative-out/*.mp4 creative-out/*.json creative-out/*.txt creative-out/*-preview.jpg)
+          [ ${#files[@]} -gt 0 ] || { echo "nothing new to store"; exit 0; }
+          if ! gh release view "$RELEASE" >/dev/null 2>&1; then
+            if [ "$RELEASE" = "reels" ]; then
+              gh release create reels --prerelease --title "Reels ready to post" --notes "Product reels made from the product's own media. Each .mp4 has a matching .txt caption."
+            else
+              gh release create "$RELEASE" --prerelease --title "Creative engine previews" --notes "Videos rendered by the Creative Engine on a branch, for review. The site never reads this release."
+            fi
+          fi
+          gh release upload "$RELEASE" "${files[@]}" --clobber
+      - name: Confirm what the release holds
+        env:
+          LEDGER: creative-ledger/jobs.json
+          OUT: creative-out
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/creative/run.mjs commit
+      - name: Save the ledger and the review sheets
+        run: |
+          set -e
+          dir="$RUNNER_TEMP/ledger"
+          rm -rf "$dir" && mkdir -p "$dir/previews"
+          cp creative-ledger/jobs.json "$dir/jobs.json"
+          cp creative-out/*-preview.jpg "$dir/previews/" 2>/dev/null || true
+          # Earlier review sheets stay (this run's sheets win).
+          git archive "origin/${LEDGER_BRANCH}" previews 2>/dev/null | tar -x -k -C "$dir" 2>/dev/null || true
+          printf 'The Creative Engine job ledger (%s). Written by .github/workflows/creative-engine.yml, run %s.\n' "$LEDGER_BRANCH" "$GITHUB_RUN_ID" > "$dir/README.md"
+          cd "$dir"
+          git init -q -b "$LEDGER_BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Creative engine run $GITHUB_RUN_ID"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${LEDGER_BRANCH}"

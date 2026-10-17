@@ -21,6 +21,7 @@ import { listedFromSnapshot } from "./prerender-products.mjs";
 import { isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { SIZE_PAGE, SIZE_PATH } from "../src/lib/sizeTool.js";
+import { SELLER_MEDIA_LOOKS } from "../src/lib/reelsFeed.js";
 
 export const PINS_FEED_HOME = "https://hen63165-dotcom.github.io/likelink";
 export const PIN_AD = "#פרסומת · קישור שותפים";
@@ -64,9 +65,9 @@ export function buildPins({ products = [], reels = [], feedBase = PINS_FEED_HOME
   for (const r of Array.isArray(reels) ? reels : []) {
     const product = byId.get(String(r?.productId || ""));
     if (!product || !/^[a-z0-9][a-z0-9-]{0,80}-cover\.jpg$/.test(String(r.poster || ""))) continue;
-    const seller = r.look === "seller";
     const real = r.look === "real";
-    const what = seller ? "סרטון המוכר" : real ? "צילום אמיתי של המוצר" : "לונה (דמות AI) מסבירה";
+    const seller = r.look === "seller" || SELLER_MEDIA_LOOKS.includes(r.look);
+    const what = r.look === "seller" ? "סרטון המוכר" : SELLER_MEDIA_LOOKS.includes(r.look) ? "תמונות המוכר בעריכת LikeLink2" : real ? "צילום אמיתי של המוצר" : "לונה (דמות AI) מסבירה";
     pins.push({
       guid: `reel-${r.id}`,
       title: clip(seller || real ? product.title : r.title || product.title, 100),
