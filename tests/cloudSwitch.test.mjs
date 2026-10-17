@@ -25,6 +25,19 @@ test("a retired project gives way to the current one; nothing else is replaced",
   assert.deepEqual(resolveCloud(OLD, "old-key", { url: "", anonKey: "" }), { url: OLD, anonKey: "old-key", source: "env" }, "no current project yet: env decides");
 });
 
+// 2026-10-17: the Netlify build behind likelink2.vercel.app had no VITE_SUPABASE_*
+// variables. The site read everything from the shipped copy and refused every
+// write — a buyer's shop click was "click tracking not saved snapshot_read_only".
+test("a production browser build with no project set uses the current project; dev and tests stay unconfigured", () => {
+  assert.deepEqual(resolveCloud("", "", NEXT, { production: true }), { ...NEXT, source: "production_default" });
+  assert.deepEqual(resolveCloud("https://abcdefghijklmnopqrst.supabase.co", "", NEXT, { production: true }), { ...NEXT, source: "production_default" }, "a URL without its key is no pair: the current pair, together");
+  assert.deepEqual(resolveCloud("", "", NEXT, { production: false }), { url: "", anonKey: "", source: "none" });
+  assert.deepEqual(resolveCloud("", "", NEXT), { url: "", anonKey: "", source: "none" }, "the default is not production");
+  assert.deepEqual(resolveCloud("https://fixture.supabase.co", "fixture", NEXT, { production: true }), { url: "https://fixture.supabase.co", anonKey: "fixture", source: "env" }, "a set pair is kept");
+  assert.deepEqual(resolveCloud(OLD, "old-key", NEXT, { production: true }), { ...NEXT, source: "retired_env_replaced" });
+  assert.deepEqual(resolveCloud("", "", { url: "", anonKey: "" }, { production: true }), { url: "", anonKey: "", source: "none" }, "no current project: nothing to fall back to");
+});
+
 test("the current project, once set, is a real public pair and never the retired one", () => {
   if (!CLOUD.url) return;
   assert.match(CLOUD.url, /^https:\/\/[a-z0-9]{20}\.supabase\.co$/);
@@ -49,7 +62,7 @@ test("scheduled runs never render into Storage (the quota that restricted the pr
 });
 
 test("the browser client and the ops doctor both resolve through it", () => {
-  assert.match(read("src/lib/supabaseClient.js"), /resolveCloud\(getEnv\("VITE_SUPABASE_URL"\), getEnv\("VITE_SUPABASE_ANON_KEY"\)\)/);
+  assert.match(read("src/lib/supabaseClient.js"), /resolveCloud\(getEnv\("VITE_SUPABASE_URL"\), getEnv\("VITE_SUPABASE_ANON_KEY"\), CLOUD, \{ production: isBrowser\(\) && getEnv\("MODE"\) === "production" \}\)/, "a production browser build with no env follows CLOUD; dev and tests do not");
   assert.match(read("scripts/ops/doctor.mjs"), /resolveCloud\(process\.env\.VITE_SUPABASE_URL/);
   assert.doesNotMatch(read("src/constants/cloud.js"), /service_role|SERVICE_ROLE_KEY\s*[:=]/, "no server secret in a browser module");
 });

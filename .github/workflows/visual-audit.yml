@@ -8,6 +8,9 @@ on:
       e2e_product:
         description: "The product whose Creative Engine video is checked end to end (playback, labels, tracking)"
         default: "p-live-04"
+      e2e_persist:
+        description: "1 = send ONE real test click (utm_source=e2e_check) and read it back from the cloud; remove it afterwards"
+        default: "0"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/audit/**", ".github/workflows/visual-audit.yml"]
@@ -42,6 +45,7 @@ jobs:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           AUDIT_BASE: ${{ github.event.inputs.base }}
           E2E_PRODUCT: ${{ github.event.inputs.e2e_product || 'p-live-04' }}
+          E2E_PERSIST: ${{ github.event.inputs.e2e_persist || '0' }}
         run: node scripts/audit/e2e-product-video.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
       - name: Store photo contact sheet
         continue-on-error: true

@@ -40,11 +40,18 @@ export function isRetiredCloud(url) {
 
 /**
  * The cloud to use, from what the build/runtime env says. A retired project
- * gives way to CLOUD (its URL and its own anon key together); anything else —
- * nothing set (local dev, tests), a test fixture, the Edge Function's own
- * project — is kept as it is.
+ * gives way to CLOUD (its URL and its own anon key together). A production
+ * build in a browser with no project set at all uses CLOUD too: on
+ * 2026-10-17 the Netlify build behind likelink2.vercel.app had no
+ * VITE_SUPABASE_* variables, so every read came from the shipped copy and
+ * every write — a buyer's click included — was refused (snapshot_read_only).
+ * Anything else — nothing set in local dev or tests (`production` false), a
+ * test fixture, the Edge Function's own project — is kept as it is.
  */
-export function resolveCloud(url = "", anonKey = "", cloud = CLOUD) {
+export function resolveCloud(url = "", anonKey = "", cloud = CLOUD, { production = false } = {}) {
   if (cloud.url && cloud.anonKey && isRetiredCloud(url)) return { url: cloud.url, anonKey: cloud.anonKey, source: "retired_env_replaced" };
+  if (cloud.url && cloud.anonKey && production && !(String(url || "").trim() && String(anonKey || "").trim())) {
+    return { url: cloud.url, anonKey: cloud.anonKey, source: "production_default" };
+  }
   return { url: String(url || ""), anonKey: String(anonKey || ""), source: url ? "env" : "none" };
 }

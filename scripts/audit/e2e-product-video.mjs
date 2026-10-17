@@ -24,6 +24,11 @@ const kv = JSON.parse(readFileSync(new URL("../../public/snapshot/kv.json", impo
 const product = (kv.keys["marketplace:products"] || []).find((p) => p.id === ID);
 const creator = (kv.keys["marketplace:marketers"] || []).find((m) => m.id === product?.marketerId);
 const REEL = `v-lookbook-${ID}`;
+// E2E_PERSIST=1: one REAL click is let through to the cloud, marked as a test
+// (utm_source=e2e_check, utm_content=<run id>) so it can be found and removed;
+// every other write of the visit (view, counter, notification) is aborted.
+const PERSIST = process.env.E2E_PERSIST === "1";
+const RUN = `e2e${String(process.env.GITHUB_RUN_ID || Date.now()).slice(-10)}`;
 const results = [];
 const check = (name, pass, detail = {}) => {
   results.push({ name, pass: Boolean(pass), ...detail });
@@ -47,7 +52,12 @@ await ctx.route("**/*", (route) => {
   }
   // Every write the page tries is captured and aborted: the check stores nothing.
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
-    writes.push({ url, body: req.postData() || "" });
+    const body = req.postData() || "";
+    writes.push({ url, body });
+    if (PERSIST && /\/api\/store/.test(url) && body.includes("marketplace:clicks") && body.includes(RUN)) {
+      writes.at(-1).sent = true;
+      return route.continue();
+    }
     return route.abort();
   }
   return route.continue();
@@ -117,6 +127,34 @@ if (creator?.slug) {
     check("shop_opens_affiliate_link_only", Boolean(href) && Boolean(opened) && storeHits.some((u) => u.startsWith(href.split("?")[0])), { href: href.slice(0, 120), opened: opened ? opened.url().slice(0, 120) : null, storeRequestsAborted: storeHits.length });
     if (opened) await opened.close().catch(() => null);
   }
+}
+
+// 2b) Persistence (opt-in): the marked click reaches the cloud and is still there after a reload.
+if (PERSIST && creator?.slug) {
+  const q = `utm_source=e2e_check&utm_medium=test&utm_campaign=${REEL}&utm_content=${RUN}`;
+  await page.goto(`${BASE}/u/${creator.slug}?${q}`, { waitUntil: "load", timeout: 45000 });
+  await page.waitForTimeout(4000);
+  const post = page.locator("article.lx-post", { has: page.locator(`video[src*="lookbook-${ID}.mp4"]`) }).first();
+  const before = writes.length;
+  const popup = ctx.waitForEvent("page", { timeout: 8000 }).catch(() => null);
+  await post.locator('a[rel~="sponsored"]').first().evaluate((a) => { a.scrollIntoView({ block: "center" }); a.click(); });
+  const opened = await popup;
+  if (opened) await opened.close().catch(() => null);
+  await page.waitForTimeout(4000);
+  const sent = writes.slice(before).filter((w) => w.sent);
+  check("persist_click_sent_to_store_api", sent.length === 1, { run: RUN, sent: sent.map((w) => w.url.replace(/\?.*$/, "")) });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(3000);
+  // Read the clicks row back from the cloud with the public anon key (the same read every visitor makes).
+  const { CLOUD } = await import("../../src/constants/cloud.js");
+  const found = await page.evaluate(async ({ url, key, run }) => {
+    const r = await fetch(`${url}/rest/v1/kv?key=eq.marketplace:clicks&select=value`, { headers: { apikey: key, authorization: `Bearer ${key}` } });
+    const rows = await r.json();
+    const list = JSON.parse(rows?.[0]?.value || "[]");
+    const hit = list.find((c) => c && c.cnt === run);
+    return { status: r.status, total: list.length, hit };
+  }, { url: CLOUD.url, key: CLOUD.anonKey, run: RUN });
+  check("persist_click_in_cloud_after_reload", Boolean(found.hit) && found.hit.productId === ID && found.hit.camp === REEL && found.hit.src === "e2e_check", { status: found.status, clicksInCloud: found.total, record: found.hit || null });
 }
 
 // 3) Error handling: an unknown product shows the not-found page.
