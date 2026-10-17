@@ -56,6 +56,10 @@ const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e.message || e).slice(0, 200)));
 const consoleLines = [];
+// Every answer from the cloud database (status per path), to see why a read fails.
+const cloud = [];
+page.on("response", (r) => { const u = r.url(); if (/supabase\.co\//.test(u)) cloud.push(`${r.status()} ${r.request().method()} ${u.replace(/^https:\/\/[^/]+/, "").replace(/apikey=[^&]+/, "apikey=…").slice(0, 110)}`); });
+page.on("requestfailed", (r) => { const u = r.url(); if (/supabase\.co\//.test(u)) cloud.push(`FAILED ${r.failure()?.errorText} ${u.replace(/^https:\/\/[^/]+/, "").slice(0, 110)}`); });
 page.on("console", (m) => { if (["warning", "error"].includes(m.type())) consoleLines.push(`${m.type()}: ${m.text()}`.slice(0, 220)); });
 
 async function playCheck(locator) {
@@ -73,6 +77,7 @@ async function playCheck(locator) {
 await page.goto(`${BASE}/p/${ID}`, { waitUntil: "load", timeout: 45000 });
 await page.waitForTimeout(3500);
 const h1 = (await page.locator("h1").first().textContent().catch(() => "")) || "";
+check("cloud_reads_on_load", !consoleLines.some((l) => /serving the shipped catalog copy|snapshot/i.test(l)), { cloud: cloud.slice(0, 12), console: consoleLines.slice(0, 8) });
 check("product_page_loads", h1.trim().length > 0 && String(product?.title || "").includes(h1.trim().slice(0, 12)), { url: `${BASE}/p/${ID}`, h1: h1.trim().slice(0, 80) });
 check("no_sideways_scroll_phone", await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
 const video = page.locator(`video[src*="lookbook-${ID}.mp4"]`).first();
