@@ -162,3 +162,20 @@ test("the bucket migration is additive and never touches the kv lockdown", () =>
   assert.equal(policies.length, 5);
   assert.match(body, /revoke all on function likelink_private\.kv_json\(text\) from public, anon, authenticated/, "clients cannot read kv through the helper");
 });
+
+// 2026-10-17: the owner's store photo (Studio → "עיצוב החנות שלי", uploaded to
+// products/<studio>/<file>) answered 404 to visitors: media_is_public opened
+// only files an approved product references. The follow-up opens a file the
+// studio's PUBLIC row names as its photo, in that studio's own folder only.
+test("store photo migration: additive, one function, only the studio's own folder and public row", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/20261018000000_store_avatar_public.sql", import.meta.url), "utf8");
+  const body = sql.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+  assert.doesNotMatch(body, /\bdrop\s|\balter\s+policy|create\s+policy|on\s+public\.kv\b|grant\s+[^;]*\bto\s+public\b/i);
+  assert.match(body, /create or replace function likelink_private\.media_is_public\(obj text\)/);
+  assert.match(body, /array_length\(parts, 1\), 0\) <> 3 or parts\[1\] not in \('products', 'reels', 'ugc'\)/, "the same three-part paths as before");
+  assert.match(body, /if parts\[1\] <> 'products' then return false; end if;/, "a store photo opens only under products/");
+  assert.match(body, /kv_json\('marketplace:marketers'\)/, "the PUBLIC row, never marketplace:marketers:private");
+  assert.doesNotMatch(body, /marketers:private/);
+  assert.match(body, /m ->> 'id' = parts\[2\]/, "only the studio's own folder");
+  assert.match(body, /revoke all on function likelink_private\.media_is_public\(text\) from public;/);
+});
