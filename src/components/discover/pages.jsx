@@ -49,7 +49,7 @@ import { LuxeHome } from "./luxe";
 import { STORE_GALLERY_PICKS, lookLabel, lookOf } from "../../lib/looks.js";
 import { rankProducts } from "../../lib/skills/catalogRules.js";
 import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
-import { storefrontPosts } from "../../lib/homeShowcase.js";
+import { storefrontPosts, reelsFeedOrder } from "../../lib/homeShowcase.js";
 import {
   categoryName,
   CollectionCard,
@@ -740,11 +740,15 @@ export function ReelsPage({ graph }) {
   const { L, lang } = useL();
   const { recordProductView } = useMarketplace();
   const [target] = useQueryParam("r");
-  const hasReels = graph.reels.length > 0;
+  // Videos whose file did not load leave the feed (no empty grey frames).
+  const [failed, setFailed] = useState(() => new Set());
+  const dropReel = (id) => setFailed((s) => (s.has(id) ? s : new Set(s).add(id)));
+  const playable = reelsFeedOrder(graph.reels, graph.products.map((p) => p.id)).filter((r) => !failed.has(r.id));
+  const hasReels = playable.length > 0;
   // Without published reels, the same immersive pager shows product stories
   // built from real product photos — clearly labelled as photos, never as video.
   const items = hasReels
-    ? graph.reels.map((r) => ({ key: r.id, kind: "reel", reel: r, product: r.productIds.length ? graph.byId.get(r.productIds[0]) : null, creator: graph.creatorById.get(r.creatorId) }))
+    ? playable.map((r) => ({ key: r.id, kind: "reel", reel: r, product: r.productIds.length ? graph.byId.get(r.productIds[0]) : null, creator: graph.creatorById.get(r.creatorId) }))
     : graph.products.filter((p) => p.media.image).map((p) => ({ key: p.id, kind: "story", product: p, creator: graph.creatorById.get(p.marketerId) }));
   const scroller = useRef(null);
 
@@ -788,6 +792,7 @@ export function ReelsPage({ graph }) {
                 controls={kind === "reel"}
                 controlsAt="side"
                 onFirstPlay={() => { if (product && recordProductView) recordProductView(product); }}
+                onVideoError={kind === "reel" ? () => dropReel(reel.id) : undefined}
               />
               <div className="lx-reel-shade" />
               {kind === "story" ? (

@@ -219,3 +219,27 @@ test("storefront: one post per product, its best video, footage first, site-serv
   assert.match(card, /onVideoError=\{\(\) => \{ setBroken\(true\); onBroken\?\.\(reel\.id\); \}\}/);
   assert.match(kit, /onError=\{onVideoError\}/);
 });
+
+// /reels opened on an empty grey frame: a Studio reel whose file stayed in the
+// old cloud. The feed now leads with every product's best post, then the other
+// videos (footage first, site-served before cloud files), and a video that does
+// not load leaves the feed.
+test("reels feed: best post per product first, cloud files last, a failed video leaves", async () => {
+  const { reelsFeedOrder } = await import("../src/lib/homeShowcase.js");
+  const v = (id, pid, style, url, createdAt = 1) => ({ id, productIds: pid ? [pid] : [], style, url, createdAt });
+  const feed = (n) => `https://hen63165-dotcom.github.io/likelink/media/reels/${n}.mp4`;
+  const cloud = (n) => `https://likelink2.vercel.app/api/og?mode=media&path=reels%2Fm1%2F${n}.mp4`;
+  const order = reelsFeedOrder([
+    v("studio-01", "p1", "street_story", cloud("a"), 99),
+    v("luna-01", "p1", "luna_talking", feed("b")),
+    v("look-01", "p1", "seller_lookbook", feed("c")),
+    v("luna-02", "p2", "luna_tip", feed("d")),
+    v("studio-x", "", "", cloud("e"), 50),
+    v("cut-01", "p1", "seller_video", feed("f")),
+  ], ["p1", "p2"]).map((r) => r.id);
+  assert.deepEqual(order, ["look-01", "luna-02", "cut-01", "luna-01", "studio-01", "studio-x"]);
+  const pages = read("src/components/discover/pages.jsx");
+  const page = pages.slice(pages.indexOf("export function ReelsPage"));
+  assert.match(page, /reelsFeedOrder\(graph\.reels, graph\.products\.map\(\(p\) => p\.id\)\)\.filter\(\(r\) => !failed\.has\(r\.id\)\)/);
+  assert.match(page, /onVideoError=\{kind === "reel" \? \(\) => dropReel\(reel\.id\) : undefined\}/);
+});
