@@ -1,0 +1,56 @@
+LIVE_VERSION { "commit": "a26385f6469ff669e597b8b590014f4be565af17", "branch": "claude/likelink2-design-execution-f0ga6q", "host": "netlify", "builtAt": "2026-10-18T07:26:34.752Z" } 
+PAGE m home {"h1":"ההמלצות של היוצרים שאתם אוהבים, במקום אחד.","height":7478,"overflowX":false,"videos":7,"posts":5,"version":""}
+PAGE m search {"h1":"מה מחפשים?","height":2209,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE m product {"h1":"עגילי Smyoue מואסניט ורודים 0.2-3 קראט","height":4644,"overflowX":false,"videos":3,"posts":3,"version":""}
+PAGE m reels {"h1":"LikeLink Reels","height":844,"overflowX":false,"videos":12,"posts":0,"version":""}
+PAGE m creator {"h1":"ALYOSTYLE","height":3044,"overflowX":false,"videos":5,"posts":5,"version":""}
+PAGE m products {"h1":"כל המוצרים","height":2826,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE d home {"h1":"ההמלצות של היוצרים שאתם אוהבים, במקום אחד.","height":6452,"overflowX":false,"videos":7,"posts":5,"version":""}
+PAGE d search {"h1":"מה מחפשים?","height":1618,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE d product {"h1":"עגילי Smyoue מואסניט ורודים 0.2-3 קראט","height":3766,"overflowX":false,"videos":3,"posts":3,"version":""}
+PAGE d reels {"h1":"LikeLink Reels","height":900,"overflowX":false,"videos":12,"posts":0,"version":""}
+PAGE d creator {"h1":"ALYOSTYLE","height":2172,"overflowX":false,"videos":5,"posts":5,"version":""}
+PAGE d products {"h1":"כל המוצרים","height":2013,"overflowX":false,"videos":0,"posts":0,"version":""}
+E2E {"name":"cloud_reads_on_load","pass":true,"cloud":["200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aclicks","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asettings","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aproducts","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asales","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Acollections","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Amarketers"],"console":["warning: [Likelink] Products needing a manual tracking-ID fix: [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Obje","error: Failed to load resource: net::ERR_FAILED","warning: [Likelink] view tracking not saved Failed to fetch"]}
+E2E {"name":"product_page_loads","pass":true,"url":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/p/p-live-04","h1":"שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט"}
+E2E {"name":"no_sideways_scroll_phone","pass":true}
+E2E {"name":"video_on_product_page","pass":true}
+E2E {"name":"video_plays","pass":true,"src":"https://hen63165-dotcom.github.io/likelink/media/reels/lookbook-p-live-04.mp4","t0":0,"t1":2.897128,"readyState":4,"w":1080,"h":1920,"duration":13.166667,"error":null}
+E2E {"name":"video_is_vertical_1080x1920","pass":true,"w":1080,"h":1920}
+E2E {"name":"video_labelled_as_seller_media","pass":true,"label":"תמונות וסרטון המוכר · בעריכת LikeLink2"}
+E2E {"name":"shop_button_is_own_affiliate_link","pass":true,"href":"https://s.click.aliexpress.com/e/_c4CoPLhr","expected":"https://s.click.aliexpress.com/e/_c4CoPLhr"}
+E2E {"name":"video_post_on_creator_page","pass":true,"url":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/u/alyostyle"}
+E2E {"name":"shop_click_tracked_with_video_id","pass":true,"campaign":"v-lookbook-p-live-04","writesCaptured":1,"to":["https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/api/store"],"console":["error: Failed to load resource: net::ERR_FAILED","warning: [Likelink] click tracking not saved Failed to fetch"],"stored":false}
+E2E {"name":"shop_opens_affiliate_link_only","pass":true,"href":"https://s.click.aliexpress.com/e/_c4CoPLhr","opened":"chrome-error://chromewebdata/","storeRequestsAborted":1}
+E2E {"name":"unknown_product_not_found_page","pass":true,"sample":"דילוג לתוכן LikeLink2 פתיחת סטודיו המוצר לא נמצא ייתכן שהקישור שגוי, שהמוצר הוסר"}
+E2E {"name":"no_page_errors","pass":true,"errors":[]}
+E2E_RESULT PASS 13/13
+LIVE {"name":"revision_served","pass":true,"commit":"a26385f","builtAt":"2026-10-18T07:26:34.752Z"}
+LIVE {"name":"catalog_copy","pass":true,"listed":5}
+LIVE {"name":"indexnow_key_live","pass":true,"status":200}
+LIVE {"name":"pinterest_rss","pass":true,"status":200,"items":18,"withUtm":18,"productOrReelPins":17,"withDisclosure":17}
+LIVE {"name":"pinterest_image_reachable","pass":true,"status":206,"type":"image/webp","host":"ae-pic-a1.aliexpress-media.com"}
+LIVE {"name":"daily_drop_today","pass":true,"date":"2026-10-18","product":"p-live-05"}
+LIVE {"name":"daily_drop_disclosure_and_utm","pass":true,"posts":4,"link":"https://likelink2.vercel.app/p/p-live-05?utm_source=drop&utm_medium=social&utm_campaign=daily_drop_20261018"}
+LIVE {"name":"daily_drop_page","pass":true,"status":200}
+LIVE {"name":"reels_feed","pass":true,"reels":12,"looks":["talking","lookbook_photos","lookbook","seller"],"luna":5,"lookbooks":2}
+LIVE {"name":"luna_reel_bytes","pass":true,"id":"luna-gift-earrings-a","status":206,"type":"video/mp4"}
+LIVE {"name":"lookbook_bytes","pass":true,"id":"lookbook-p-live-04","status":206,"type":"video/mp4"}
+LIVE {"name":"creative_ledger_published","pass":true,"jobs":4,"live":["p-live-05","p-live-04","p-live-02","p-live-01"],"stored":[]}
+LIVE {"name":"product_p-live-01","pass":true,"price":"₪14.19","expectedFrom":"cloud","shown":["₪14.19","₪28.42","₪130.39"],"priceSource":"aliexpress_api","checkedAt":"2026-10-18T09:31:42.755Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png"}}
+LIVE {"name":"product_p-live-02","pass":true,"price":"₪385.04","expectedFrom":"cloud","shown":["₪385.04","₪700.60","₪14.19"],"priceSource":"aliexpress_api","checkedAt":"2026-10-18T09:31:42.755Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/Sb611d344737246f2a78105b012bb1b43Y.jpg"}}
+LIVE {"name":"product_p-live-03","pass":true,"price":"₪259.57","expectedFrom":"cloud","shown":["₪259.57","₪612.94","₪14.19"],"priceSource":"aliexpress_api","checkedAt":"2026-10-18T09:31:42.755Z","image":{"ok":true,"src":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/looks/p-live-03.jpg"}}
+LIVE {"name":"product_p-live-04","pass":true,"price":"₪130.39","expectedFrom":"cloud","shown":["₪130.39","₪260.78","₪14.19"],"priceSource":"aliexpress_api","checkedAt":"2026-10-18T09:31:42.755Z","image":{"ok":true,"src":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/looks/p-live-04.jpg"}}
+LIVE {"name":"product_p-live-05","pass":true,"price":"₪53.37","expectedFrom":"cloud","shown":["₪53.37","₪125.98","₪130.39"],"priceSource":"aliexpress_api","checkedAt":"2026-10-18T09:31:42.755Z","image":{"ok":true,"src":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/looks/p-live-05.jpg"}}
+LIVE {"name":"reels_page_plays","pass":true,"t0":2.072712,"t1":4.572847,"w":1080,"h":1920,"src":"dotcom.github.io/likelink/media/reels/lookbook-p-live-04.mp4"}
+LIVE {"name":"luna_character_reel_plays","pass":true,"id":"luna-gift-earrings-a","look":"talking","play":{"t0":2.133605,"t1":4.633751,"w":1080,"h":1920,"src":"65-dotcom.github.io/likelink/media/reels/gift-earrings-a.mp4"},"aiLabelOnThisPost":true,"label":"A אנימציה ממוחשבת (לא צילום) לונה מסבירה · דמות וקול AI מונפשים · המוצר בתמונה אמיתית בחירה של ALYOSTYLE עגילי Smyoue מו"}
+LIVE {"name":"guide_page","pass":true,"checks":8,"missing":[]}
+LIVE {"name":"size_ring_from_strip","pass":true,"want":{"us":7,"eu":54},"shown":"מידה אמריקאית (רוב המוכרים באליאקספרס) 7 מידה אירופאית / ישראלית 54 קוטר פנימי 17.2 מ״מ · היקף 54.0 מ״מ. בין שתי מידות? "}
+LIVE {"name":"size_bracelet_from_wrist","pass":true,"want":"17–17.5","shown":"אורך צמיד מומלץ 17–17.5 ס״מ. עצה כללית: מוסיפים 1.5–2 ס״מ לפרק היד, לפי כמה רפוי"}
+LIVE {"name":"studio_signed_out_entrance","pass":true,"emailFields":1,"path":"/studio"}
+LIVE {"name":"studio_signed_out_engine_link","pass":true,"emailFields":1,"path":"/studio/creative-engine"}
+LIVE {"name":"no_paid_provider_requests","pass":true,"paid":[],"thirdPartyHosts":["ae-pic-a1.aliexpress-media.com","fonts.googleapis.com","fonts.gstatic.com"]}
+LIVE {"name":"no_page_errors","pass":true,"errors":[]}
+LIVE_WRITES_ABORTED 4
+LIVE_SUMMARY {"base":"https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app","passed":26,"of":26,"failed":[]}
+gallery sheet: 5 products

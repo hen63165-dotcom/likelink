@@ -1,0 +1,106 @@
+{
+ "base": "https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app",
+ "product": "p-live-04",
+ "campaign": "v-lookbook-p-live-04",
+ "pass": true,
+ "results": [
+  {
+   "name": "cloud_reads_on_load",
+   "pass": true,
+   "cloud": [
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aclicks",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asettings",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aproducts",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asales",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Acollections",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Amarketers"
+   ],
+   "console": [
+    "warning: [Likelink] Products needing a manual tracking-ID fix: [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Obje",
+    "error: Failed to load resource: net::ERR_FAILED",
+    "warning: [Likelink] view tracking not saved Failed to fetch"
+   ]
+  },
+  {
+   "name": "product_page_loads",
+   "pass": true,
+   "url": "https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/p/p-live-04",
+   "h1": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט"
+  },
+  {
+   "name": "no_sideways_scroll_phone",
+   "pass": true
+  },
+  {
+   "name": "video_on_product_page",
+   "pass": true
+  },
+  {
+   "name": "video_plays",
+   "pass": true,
+   "src": "https://hen63165-dotcom.github.io/likelink/media/reels/lookbook-p-live-04.mp4",
+   "t0": 0,
+   "t1": 2.897128,
+   "readyState": 4,
+   "w": 1080,
+   "h": 1920,
+   "duration": 13.166667,
+   "error": null
+  },
+  {
+   "name": "video_is_vertical_1080x1920",
+   "pass": true,
+   "w": 1080,
+   "h": 1920
+  },
+  {
+   "name": "video_labelled_as_seller_media",
+   "pass": true,
+   "label": "תמונות וסרטון המוכר · בעריכת LikeLink2"
+  },
+  {
+   "name": "shop_button_is_own_affiliate_link",
+   "pass": true,
+   "href": "https://s.click.aliexpress.com/e/_c4CoPLhr",
+   "expected": "https://s.click.aliexpress.com/e/_c4CoPLhr"
+  },
+  {
+   "name": "video_post_on_creator_page",
+   "pass": true,
+   "url": "https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/u/alyostyle"
+  },
+  {
+   "name": "shop_click_tracked_with_video_id",
+   "pass": true,
+   "campaign": "v-lookbook-p-live-04",
+   "writesCaptured": 1,
+   "to": [
+    "https://6ad474883eeb98a1ea6a49b5--mylikelink.netlify.app/api/store"
+   ],
+   "console": [
+    "error: Failed to load resource: net::ERR_FAILED",
+    "warning: [Likelink] click tracking not saved Failed to fetch"
+   ],
+   "stored": false
+  },
+  {
+   "name": "shop_opens_affiliate_link_only",
+   "pass": true,
+   "href": "https://s.click.aliexpress.com/e/_c4CoPLhr",
+   "opened": "chrome-error://chromewebdata/",
+   "storeRequestsAborted": 1
+  },
+  {
+   "name": "unknown_product_not_found_page",
+   "pass": true,
+   "sample": "דילוג לתוכן LikeLink2 פתיחת סטודיו המוצר לא נמצא ייתכן שהקישור שגוי, שהמוצר הוסר"
+  },
+  {
+   "name": "no_page_errors",
+   "pass": true,
+   "errors": []
+  }
+ ],
+ "at": "2026-10-18T09:56:24.926Z"
+}
