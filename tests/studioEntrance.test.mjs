@@ -3,7 +3,7 @@
 // Pins:
 //  - signed-out /studio is one clear entrance page (StudioEntrance), not the
 //    dashboard chrome, and it sends the visitor to the real sign-up (AuthGate);
-//  - the Studio menu shows five core items; the advanced tools are collapsed
+//  - the Studio menu shows six core items (incl. פרסום לרשתות); the advanced tools are collapsed
 //    behind one toggle, and "הוספת קישור" is the one header action;
 //  - a pasted affiliate link is stored exactly as pasted, and an edit really
 //    saves a changed link;
@@ -52,7 +52,7 @@ test("SellView still uses the same sign-up form (moved to AuthGate.jsx)", () => 
   assert.match(gate, /export default function AuthGate\(/);
 });
 
-test("Studio menu: five core items, advanced tools collapsed, one add-link action", () => {
+test("Studio menu: six core items, advanced tools collapsed, one add-link action", () => {
   const shell = read("src/components/studio/StudioShell.jsx");
   assert.match(shell, /const ADVANCED_SECTIONS = \["create", "grow", "operate"\]/);
   assert.match(shell, /!ADVANCED_SECTIONS\.includes\(section\.id\) \|\| showAdvanced/);

@@ -139,6 +139,17 @@ export default function StorefrontDesign({ onNavigate }) {
             <input value={form.image} onChange={(e) => set("image")(e.target.value)} dir="ltr" placeholder={he ? "או הדביקו כתובת תמונה" : "Or paste an image URL"} className="input-field w-full px-3.5 py-2.5 text-xs" />
           </div>
           <LabeledTextarea label={he ? "תיאור (bio)" : "Bio"} value={form.bio} onChange={set("bio")} placeholder={he ? "משפט אחד עלייך ועל מה את ממליצה" : "One line about you and what you recommend"} />
+          <div className="rounded-xl px-3.5 py-3 text-[11.5px] leading-5" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+            <p className="font-bold" style={{ color: "var(--text)" }}>{he ? "קישורים לפרופילים שלך" : "Links to your profiles"}</p>
+            <p className="mt-0.5">
+              {he
+                ? "הקישורים מופיעים בעמוד החנות, כדי שקונים יוכלו לעקוב אחרייך. הם לא מפרסמים פוסט ברשת."
+                : "These links appear on your store page so buyers can follow you. They do not post anything to the network."}
+            </p>
+            <button type="button" className="mt-1.5 font-bold underline" style={{ color: "var(--accent)" }} onClick={() => onNavigate?.("share")}>
+              {he ? "לפרסום פוסט ברשתות: פרסום לרשתות" : "To post on the networks: Share to networks"}
+            </button>
+          </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {SOCIAL_KEYS.map((k) => (
               <LabeledInput
@@ -185,7 +196,7 @@ export default function StorefrontDesign({ onNavigate }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-extrabold" style={{ color: "var(--text)" }}>{form.name || marketer.name}</p>
             <p className="mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-              {mine.length} {he ? "מוצרים" : "products"} · {published.length} {he ? "פורסמו" : "published"}
+              {mine.length} {he ? "מוצרים" : "products"} · {published.length} {he ? "מוצגים בחנות" : "shown in the store"}
             </p>
             {form.bio && <p className="mt-1.5 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>{form.bio}</p>}
             {SOCIAL_KEYS.filter((k) => shownSocial(form.socials[k])).length > 0 && (
@@ -201,7 +212,7 @@ export default function StorefrontDesign({ onNavigate }) {
         {published.length === 0 && (
           <p className="mt-3 rounded-xl px-3.5 py-3 text-xs leading-5" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
             {he
-              ? "אין עדיין מוצר פורסם — עד אז החנות לא מוצגת לציבור. הוסיפי קישור אפילייט אחד ופרסמי."
+              ? "אין עדיין מוצר שמוצג בחנות — עד אז החנות לא מוצגת לציבור. הוסיפי קישור אפילייט אחד ופרסמי אותו בחנות."
               : "No published product yet — until then the store is not shown publicly. Add one affiliate link and publish it."}
           </p>
         )}

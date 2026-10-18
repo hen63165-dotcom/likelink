@@ -1086,7 +1086,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                 aria-label={he ? "סינון לפי סטטוס" : "Filter by status"}
               >
                 <option value="">{he ? "כל הסטטוסים" : "All statuses"}</option>
-                <option value="approved">{he ? "פורסם" : "Published"}</option>
+                <option value="approved">{he ? "מוצג בחנות" : "In the store"}</option>
                 <option value="draft">{he ? "טיוטה" : "Draft"}</option>
               </select>
             </div>
@@ -1164,7 +1164,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                             border: `1px solid ${approved ? "transparent" : "var(--border)"}`,
                           }}
                         >
-                          {approved ? (he ? "פורסם" : "Published") : (he ? "טיוטה" : "Draft")}
+                          {approved ? (he ? "מוצג בחנות" : "In the store") : (he ? "טיוטה" : "Draft")}
                         </span>
                         {p.linkStatus && <StatusPill status={p.linkStatus} lang={lang} />}
                         {p.network && (

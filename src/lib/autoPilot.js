@@ -153,6 +153,21 @@ export function defaultTemplate() {
 
 // Premium gating — חבילת "הכל כלול": מנוי פרימיום, או סטודיו פעיל (5+ מוצרים
 // מאושרים). אדמין יכול להעניק plan === "premium" ידנית.
+/**
+ * What "פרסום עכשיו" tells the creator: only what a channel answered. No
+ * channel connected is said as such (it used to read "no approved products"),
+ * and a post counts as sent only when its channel accepted it.
+ */
+export function runOutcome(d = {}) {
+  const results = Array.isArray(d?.results) ? d.results : [];
+  if (d?.error === "no products") return "אין מוצרים מאושרים לפרסום";
+  if (!results.length) return "לא נשלח כלום: אין ערוץ מחובר. מלאי את פרטי החיבור של ערוץ אחד לפחות ושמרי.";
+  const sent = results.filter((r) => r.ok).map((r) => r.channel);
+  const failed = results.filter((r) => !r.ok).map((r) => `${r.channel}: ${String(r.detail || "נכשל").slice(0, 60)}`);
+  if (!sent.length) return `לא נשלח. ${failed.join(" · ")}`;
+  return `נשלח ל־${sent.join(", ")}${failed.length ? ` · לא נשלח ל־${failed.join(" · ")}` : ""}. בדקי בערוץ שהפוסט עלה.`;
+}
+
 export function checkAutoPilotAccess(marketer, myProducts = []) {
   if (marketer?.plan === "premium") return { allowed: true, reason: "plan" };
   const approved = myProducts.filter((p) => p.status === "approved").length;

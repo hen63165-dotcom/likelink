@@ -1,0 +1,236 @@
+/**
+ * ShareCenter — "פרסום לרשתות": every product in the creator's store, ready
+ * to post on each network in one tap (src/lib/growth/shareCenter.js).
+ *
+ * Each button opens the network's own share window with the post and a
+ * tracked link; the creator presses "post" there. LikeLink2 cannot post into
+ * a personal profile, so nothing here says "published": a post is the
+ * creator's own mark ("סימנת שפרסמת", kept on this device) until a network
+ * returns an id. The clicks that come back show in "ביצועים וקליקים".
+ */
+import React, { useEffect, useMemo, useState } from "react";
+import { Megaphone, Copy, Check, ExternalLink, Film, Store, CircleAlert } from "lucide-react";
+import { useI18n } from "../../lib/LangContext";
+import { useMarketplace } from "../../context/MarketplaceContext";
+import { Button } from "../ui/index.jsx";
+import { loadReelsFeed } from "../../lib/reelsFeed.js";
+import { lookOf } from "../../lib/looks.js";
+import { safePreviewSrc } from "../../lib/uploadImage.js";
+import { DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
+import { feedEntries, bestFeedReels, productShareKit, storeShareKit, todaysPick } from "../../lib/growth/shareCenter.js";
+
+const BRAND = {
+  whatsapp: "#25d366", facebook: "#1877f2", instagram: "#d62976", tiktok: "#111", telegram: "#229ed9",
+  threads: "#111", pinterest: "#e60023", x: "#111", email: "#555",
+};
+
+// The creator's own mark that she posted (a per-device convenience, never "published").
+const markKey = (mid, pid, net) => `ll-share:${mid}:${pid}:${net}`;
+function readMark(key) {
+  try { return window.localStorage.getItem(key) || ""; } catch { return ""; }
+}
+function writeMark(key, value) {
+  try { if (value) window.localStorage.setItem(key, value); else window.localStorage.removeItem(key); } catch { /* private mode: the mark just isn't kept */ }
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+}
+
+/** One network's button: opens the share window, or copies first where the network can't take the text. */
+function NetworkButton({ action, copied, onCopied, showToast }) {
+  const style = { background: BRAND[action.id] || "var(--accent)", color: "#fff" };
+  const cls = "ll-tap inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11.5px] font-bold";
+  if (action.prefilled || copied) {
+    return (
+      <a href={action.href} target="_blank" rel="noopener noreferrer" className={cls} style={style}>
+        {action.prefilled ? action.he : `פתיחת ${action.he}`} <ExternalLink size={11} />
+      </a>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={cls}
+      style={style}
+      onClick={async () => {
+        const ok = await copyText(action.text);
+        onCopied();
+        showToast?.(ok ? `הטקסט הועתק. עכשיו "פתיחת ${action.he}" והדביקי` : `ההעתקה נחסמה. פתחי את ${action.he} והקלידי את הקישור`);
+      }}
+    >
+      <Copy size={11} /> {action.he}
+    </button>
+  );
+}
+
+function ProductCard({ product, kit, marketerId, showToast, highlight = false }) {
+  const [copied, setCopied] = useState({});
+  const [marks, setMarks] = useState(() => Object.fromEntries(kit.actions.map((a) => [a.id, readMark(markKey(marketerId, product.id, a.id))])));
+  const thumb = lookOf(product.id)?.src || product.image || "";
+  const toggleMark = (net) => {
+    const value = marks[net] ? "" : new Date().toISOString().slice(0, 10);
+    writeMark(markKey(marketerId, product.id, net), value);
+    setMarks((m) => ({ ...m, [net]: value }));
+  };
+  const marked = kit.actions.filter((a) => marks[a.id]);
+  return (
+    <article className="ll-card rounded-3xl p-4 sm:p-5" style={highlight ? { border: "1px solid var(--accent)" } : undefined}>
+      <div className="flex items-start gap-3">
+        <img
+          src={safePreviewSrc(thumb, DEFAULT_PRODUCT_IMAGE)}
+          alt=""
+          className="ll-thumb shrink-0 object-cover"
+          style={{ "--thumb": "4.5rem", "--thumb-r": "16px" }}
+          onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+        />
+        <div className="min-w-0 flex-1">
+          {highlight ? <p className="text-[11px] font-bold" style={{ color: "var(--accent)" }}>המוצר של היום</p> : null}
+          <h3 className="line-clamp-2 text-sm font-extrabold" style={{ color: "var(--text)" }}>{kit.title}</h3>
+          <p className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>פתיח: "{kit.hook}"</p>
+          {kit.video ? (
+            <p className="mt-1 flex items-center gap-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+              <Film size={12} /> יש סרטון · {kit.video.note}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {kit.actions.map((a) => (
+          <NetworkButton key={a.id} action={a} copied={Boolean(copied[a.id])} onCopied={() => setCopied((c) => ({ ...c, [a.id]: true }))} showToast={showToast} />
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
+        {kit.video ? (
+          <a href={kit.video.url} target="_blank" rel="noopener noreferrer" className="underline">
+            פתיחת הסרטון לשמירה (לאינסטגרם ולטיקטוק)
+          </a>
+        ) : null}
+        <button type="button" className="underline" onClick={async () => showToast?.((await copyText(kit.actions[0].link)) ? "הקישור הועתק" : kit.actions[0].link)}>
+          העתקת הקישור
+        </button>
+      </div>
+
+      <details className="mt-3">
+        <summary className="cursor-pointer text-[11.5px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+          {marked.length ? `סימנת שפרסמת ב־${marked.map((a) => a.he).join(", ")}` : "פרסמת? סמני כאן כדי לזכור"}
+        </summary>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {kit.actions.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              aria-pressed={Boolean(marks[a.id])}
+              onClick={() => toggleMark(a.id)}
+              className="ll-tap inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px]"
+              style={{ background: marks[a.id] ? "var(--accent-subtle)" : "var(--bg-subtle)", color: marks[a.id] ? "var(--accent)" : "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              {marks[a.id] ? <Check size={11} /> : null} {a.he}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[10.5px]" style={{ color: "var(--text-muted)" }}>
+          הסימון נשמר רק במכשיר הזה, כדי שתזכרי איפה כבר פרסמת. הוא לא בדיקה מול הרשת.
+        </p>
+      </details>
+    </article>
+  );
+}
+
+export default function ShareCenter({ onNavigate }) {
+  const { lang } = useI18n();
+  const he = lang === "he";
+  const { currentMarketer: marketer, products, showToast } = useMarketplace();
+  const [entries, setEntries] = useState([]);
+
+  useEffect(() => {
+    let alive = true;
+    loadReelsFeed().then((videos) => { if (alive) setEntries(feedEntries(videos)); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const mine = useMemo(() => (products || []).filter((p) => p.marketerId === marketer?.id && p.status === "approved"), [products, marketer]);
+  const best = useMemo(() => bestFeedReels(entries), [entries]);
+  const pick = useMemo(() => todaysPick({ products: mine, entries }), [mine, entries]);
+  const ordered = useMemo(() => (pick ? [pick.product, ...mine.filter((p) => p.id !== pick.product.id)] : mine), [mine, pick]);
+  const store = useMemo(() => storeShareKit({ marketer }), [marketer]);
+  const [storeCopied, setStoreCopied] = useState({});
+
+  if (!marketer) {
+    return (
+      <div className="ll-card rounded-3xl p-6 text-center">
+        <h2 className="text-lg font-extrabold" style={{ color: "var(--text)" }}>{he ? "פרסום לרשתות דורש סטודיו" : "Sharing needs a studio"}</h2>
+        <Button className="mt-4" onClick={() => onNavigate?.("products")}>{he ? "להרשמה / התחברות" : "Sign up / Sign in"}</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div dir="rtl" className="max-w-3xl space-y-5">
+      <section className="ll-card rounded-3xl p-5 sm:p-6">
+        <p className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--accent)" }}>
+          <Megaphone size={14} /> פרסום לרשתות
+        </p>
+        <h2 className="mt-1 text-lg font-extrabold" style={{ color: "var(--text)" }}>כל מוצר מוכן לפרסום, בלחיצה</h2>
+        <ol className="mt-3 space-y-1.5 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>
+          <li>1. לוחצים על הרשת. נפתח חלון הפרסום שלה עם הפוסט והקישור שלך.</li>
+          <li>2. בפייסבוק, אינסטגרם וטיקטוק הטקסט מועתק קודם, ואז מדביקים בפוסט.</li>
+          <li>3. לוחצים "פרסם" ברשת עצמה. כל קליק שיגיע נספר ב"ביצועים וקליקים", לפי הרשת.</li>
+        </ol>
+        <p className="mt-3 flex items-start gap-1.5 rounded-xl px-3 py-2.5 text-[11.5px] leading-5" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+          <CircleAlert size={14} className="mt-0.5 shrink-0" />
+          פייסבוק, אינסטגרם וטיקטוק לא מאפשרים לאף אתר לפרסם בשמך בפרופיל אישי. לכן LikeLink2 לא כותב "פורסם" בשבילך: הפוסט עולה רק כשאת לוחצת "פרסם" ברשת. בכל פוסט כבר כתוב #פרסומת · קישור שותפים, כדי שיהיה ברור לקונים שזה קישור שותפים.
+        </p>
+      </section>
+
+      {store ? (
+        <section className="ll-card rounded-3xl p-5 sm:p-6">
+          <h3 className="flex items-center gap-1.5 text-sm font-extrabold" style={{ color: "var(--text)" }}>
+            <Store size={15} /> שתפי את כל החנות
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {store.actions.map((a) => (
+              <NetworkButton key={a.id} action={a} copied={Boolean(storeCopied[a.id])} onCopied={() => setStoreCopied((c) => ({ ...c, [a.id]: true }))} showToast={showToast} />
+            ))}
+          </div>
+          <p className="mt-3 text-[11.5px] leading-5" style={{ color: "var(--text-secondary)" }}>
+            הקישור לביו (שמים פעם אחת בפרופיל, וכל ביקור נספר לפי הרשת):
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {[["instagram", "אינסטגרם"], ["tiktok", "טיקטוק"], ["facebook", "פייסבוק"]].map(([net, label]) => (
+              <button
+                key={net}
+                type="button"
+                className="ll-tap inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11.5px] font-semibold"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text)" }}
+                onClick={async () => showToast?.((await copyText(store.bio[net])) ? `קישור הביו ל${label} הועתק` : store.bio[net])}
+              >
+                <Copy size={11} /> קישור ביו ל{label}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {ordered.length === 0 ? (
+        <section className="ll-card rounded-3xl p-5 text-sm" style={{ color: "var(--text-secondary)" }}>
+          אין עדיין מוצר שמוצג בחנות. הוסיפי קישור אפילייט ופרסמי אותו בחנות, והוא יופיע כאן מוכן לרשתות.
+          <div className="mt-3"><Button onClick={() => onNavigate?.("add-product")}>הוספת קישור</Button></div>
+        </section>
+      ) : (
+        ordered.map((p) => {
+          const kit = productShareKit({ product: p, reel: best.get(p.id) || null, image: p.image });
+          return kit ? <ProductCard key={p.id} product={p} kit={kit} marketerId={marketer.id} showToast={showToast} highlight={pick?.product?.id === p.id} /> : null;
+        })
+      )}
+
+      <section className="ll-card rounded-3xl p-5 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>
+        רוצה לראות מאיפה הגיעו קליקים?{" "}
+        <button type="button" className="font-bold underline" style={{ color: "var(--accent)" }} onClick={() => onNavigate?.("performance")}>ביצועים וקליקים</button>
+        . עמוד עסקי בפייסבוק או חשבון עסקי באינסטגרם אפשר לחבר לפרסום אוטומטי ב"כלים מתקדמים" ← "טייס אוטומטי".
+      </section>
+    </div>
+  );
+}
