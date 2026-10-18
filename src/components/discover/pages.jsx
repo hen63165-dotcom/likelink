@@ -49,7 +49,7 @@ import { LuxeHome } from "./luxe";
 import { STORE_GALLERY_PICKS, lookLabel, lookOf } from "../../lib/looks.js";
 import { rankProducts } from "../../lib/skills/catalogRules.js";
 import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
-import { FOOTAGE_RANK } from "../../lib/homeShowcase.js";
+import { storefrontPosts, reelsFeedOrder } from "../../lib/homeShowcase.js";
 import {
   categoryName,
   CollectionCard,
@@ -450,6 +450,9 @@ export function CreatorPage({ graph, slug, navigate }) {
   const creator = findCreator(graph, slug);
   const [cat, setCat] = useState("");
   const [tab, setTab] = useQueryParam("tab");
+  // Posts whose video did not load: off the page and out of the counts.
+  const [failed, setFailed] = useState(() => new Set());
+  const dropReel = (id) => setFailed((s) => (s.has(id) ? s : new Set(s).add(id)));
 
   useEffect(() => {
     try {
@@ -463,8 +466,10 @@ export function CreatorPage({ graph, slug, navigate }) {
   if (!creator) return <NotFound navigate={navigate} what="creator" />;
   const products = creator.productIds.map((id) => graph.byId.get(id));
   const shop = cat ? products.filter((p) => p.category === cat) : products;
-  // Footage of the real product first (a person's own clip, then the seller's video), then Luna's labelled reels.
-  const reels = graph.reels.filter((r) => r.creatorId === creator.id).sort((a, b) => (FOOTAGE_RANK[b.style] || 0) - (FOOTAGE_RANK[a.style] || 0));
+  // One post per product: its best video, footage of the real product first
+  // (a person's own clip, then the seller's), then Luna's labelled reels.
+  // A failed video leaves before the choice, so the product's next video takes its place.
+  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id && !failed.has(r.id)), creator.productIds);
   const boards = graph.collections.filter((c) => c.creatorIds.includes(creator.id) && c.kind !== "creator");
   // LTK's storefront: the creator's posts first (each video with its product
   // under it), then the products, then the collections. Only real counts of
@@ -536,7 +541,7 @@ export function CreatorPage({ graph, slug, navigate }) {
           <>
             <p className="lx-mute mb-5 text-[13px]">{L(`המוצרים ש־${creator.name} בחר/ה, בסרטונים. מתחת לכל סרטון כתוב של מי הוא, ומה המוצר.`, `The products ${creator.name} picked, on video. Under each one: whose video it is, and the product.`)}</p>
             <div className="lx-posts">
-              {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} shoppable ratio="4 / 5" attribution={{ src: "likelink_creator", camp: r.id }} />)}
+              {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} shoppable ratio="4 / 5" attribution={{ src: "likelink_creator", camp: r.id }} onBroken={dropReel} />)}
             </div>
           </>
         ) : null}
@@ -736,13 +741,28 @@ export function ReelsPage({ graph }) {
   const { L, lang } = useL();
   const { recordProductView } = useMarketplace();
   const [target] = useQueryParam("r");
-  const hasReels = graph.reels.length > 0;
+  // Videos whose file did not load leave the feed (no empty grey frames).
+  const [failed, setFailed] = useState(() => new Set());
+  const dropReel = (id) => setFailed((s) => (s.has(id) ? s : new Set(s).add(id)));
+  const playable = reelsFeedOrder(graph.reels.filter((r) => !failed.has(r.id)), graph.products.map((p) => p.id));
+  const hasReels = playable.length > 0;
   // Without published reels, the same immersive pager shows product stories
   // built from real product photos — clearly labelled as photos, never as video.
   const items = hasReels
-    ? graph.reels.map((r) => ({ key: r.id, kind: "reel", reel: r, product: r.productIds.length ? graph.byId.get(r.productIds[0]) : null, creator: graph.creatorById.get(r.creatorId) }))
+    ? playable.map((r) => ({ key: r.id, kind: "reel", reel: r, product: r.productIds.length ? graph.byId.get(r.productIds[0]) : null, creator: graph.creatorById.get(r.creatorId) }))
     : graph.products.filter((p) => p.media.image).map((p) => ({ key: p.id, kind: "story", product: p, creator: graph.creatorById.get(p.marketerId) }));
   const scroller = useRef(null);
+  const touched = useRef(false);
+  const firstKey = items[0]?.key;
+
+  // The reels feed arrives after the first paint and leads with real footage.
+  // Scroll snapping keeps the video that was first in view (a cloud file that
+  // then fails), so the feed opened mid-way, on Luna. Until the visitor
+  // scrolls, the page returns to the top whenever the lead changes.
+  useEffect(() => {
+    if (target || touched.current) return;
+    scroller.current?.scrollTo?.({ top: 0 });
+  }, [firstKey, target]);
 
   useEffect(() => {
     if (!target) return;
@@ -769,7 +789,7 @@ export function ReelsPage({ graph }) {
           </span>
         )}
       </div>
-      <div ref={scroller} className="lx-reels" aria-label={L("סרטונים", "Reels")}>
+      <div ref={scroller} className="lx-reels" aria-label={L("סרטונים", "Reels")} onWheel={() => { touched.current = true; }} onTouchStart={() => { touched.current = true; }} onKeyDown={() => { touched.current = true; }}>
         {items.map(({ key, kind, reel, product, creator }) => (
           <article key={key} data-key={key} className="lx-reel">
             <div className="lx-reel-frame">
@@ -784,6 +804,7 @@ export function ReelsPage({ graph }) {
                 controls={kind === "reel"}
                 controlsAt="side"
                 onFirstPlay={() => { if (product && recordProductView) recordProductView(product); }}
+                onVideoError={kind === "reel" ? () => dropReel(reel.id) : undefined}
               />
               <div className="lx-reel-shade" />
               {kind === "story" ? (
