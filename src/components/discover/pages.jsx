@@ -752,6 +752,17 @@ export function ReelsPage({ graph }) {
     ? playable.map((r) => ({ key: r.id, kind: "reel", reel: r, product: r.productIds.length ? graph.byId.get(r.productIds[0]) : null, creator: graph.creatorById.get(r.creatorId) }))
     : graph.products.filter((p) => p.media.image).map((p) => ({ key: p.id, kind: "story", product: p, creator: graph.creatorById.get(p.marketerId) }));
   const scroller = useRef(null);
+  const touched = useRef(false);
+  const firstKey = items[0]?.key;
+
+  // The reels feed arrives after the first paint and leads with real footage.
+  // Scroll snapping keeps the video that was first in view (a cloud file that
+  // then fails), so the feed opened mid-way, on Luna. Until the visitor
+  // scrolls, the page returns to the top whenever the lead changes.
+  useEffect(() => {
+    if (target || touched.current) return;
+    scroller.current?.scrollTo?.({ top: 0 });
+  }, [firstKey, target]);
 
   useEffect(() => {
     if (!target) return;
@@ -778,7 +789,7 @@ export function ReelsPage({ graph }) {
           </span>
         )}
       </div>
-      <div ref={scroller} className="lx-reels" aria-label={L("סרטונים", "Reels")}>
+      <div ref={scroller} className="lx-reels" aria-label={L("סרטונים", "Reels")} onWheel={() => { touched.current = true; }} onTouchStart={() => { touched.current = true; }} onKeyDown={() => { touched.current = true; }}>
         {items.map(({ key, kind, reel, product, creator }) => (
           <article key={key} data-key={key} className="lx-reel">
             <div className="lx-reel-frame">

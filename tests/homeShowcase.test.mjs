@@ -242,4 +242,7 @@ test("reels feed: best post per product first, cloud files last, a failed video 
   const page = pages.slice(pages.indexOf("export function ReelsPage"));
   assert.match(page, /reelsFeedOrder\(graph\.reels\.filter\(\(r\) => !failed\.has\(r\.id\)\), graph\.products\.map\(\(p\) => p\.id\)\)/);
   assert.match(page, /onVideoError=\{kind === "reel" \? \(\) => dropReel\(reel\.id\) : undefined\}/);
+  // Scroll snapping kept the first-painted (failing) video in view when the feed
+  // arrived, so /reels opened on Luna: until the visitor scrolls, the top stays the top.
+  assert.match(page, /if \(target \|\| touched\.current\) return;\s*scroller\.current\?\.scrollTo\?\.\(\{ top: 0 \}\);\s*\}, \[firstKey, target\]\);/);
 });
