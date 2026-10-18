@@ -210,8 +210,8 @@ test("storefront: one post per product, its best video, footage first, site-serv
   assert.deepEqual(posts.map((p) => p.id), ["look-01", "cut-04", "luna-02", "luna-03"]);
   const pages = read("src/components/discover/pages.jsx");
   const page = pages.slice(pages.indexOf("export function CreatorPage"), pages.indexOf("export function ProductPage"));
-  assert.match(page, /storefrontPosts\(graph\.reels\.filter\(\(r\) => r\.creatorId === creator\.id\), creator\.productIds\)\.filter\(\(r\) => !failed\.has\(r\.id\)\)/,
-    "a post whose video did not load leaves the counts and the tabs (no empty Videos tab)");
+  assert.match(page, /storefrontPosts\(graph\.reels\.filter\(\(r\) => r\.creatorId === creator\.id && !failed\.has\(r\.id\)\), creator\.productIds\)/,
+    "a post whose video did not load leaves before the choice: the product's next video takes its place, the counts and tabs follow");
   assert.match(page, /onBroken=\{dropReel\}/);
   const kit = read("src/components/discover/kit.jsx");
   const card = kit.slice(kit.indexOf("export function ReelCard"), kit.indexOf("export function Spinner"));
@@ -240,6 +240,6 @@ test("reels feed: best post per product first, cloud files last, a failed video 
   assert.deepEqual(order, ["look-01", "luna-02", "cut-01", "luna-01", "studio-01", "studio-x"]);
   const pages = read("src/components/discover/pages.jsx");
   const page = pages.slice(pages.indexOf("export function ReelsPage"));
-  assert.match(page, /reelsFeedOrder\(graph\.reels, graph\.products\.map\(\(p\) => p\.id\)\)\.filter\(\(r\) => !failed\.has\(r\.id\)\)/);
+  assert.match(page, /reelsFeedOrder\(graph\.reels\.filter\(\(r\) => !failed\.has\(r\.id\)\), graph\.products\.map\(\(p\) => p\.id\)\)/);
   assert.match(page, /onVideoError=\{kind === "reel" \? \(\) => dropReel\(reel\.id\) : undefined\}/);
 });

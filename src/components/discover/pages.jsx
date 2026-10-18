@@ -468,7 +468,8 @@ export function CreatorPage({ graph, slug, navigate }) {
   const shop = cat ? products.filter((p) => p.category === cat) : products;
   // One post per product: its best video, footage of the real product first
   // (a person's own clip, then the seller's), then Luna's labelled reels.
-  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id), creator.productIds).filter((r) => !failed.has(r.id));
+  // A failed video leaves before the choice, so the product's next video takes its place.
+  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id && !failed.has(r.id)), creator.productIds);
   const boards = graph.collections.filter((c) => c.creatorIds.includes(creator.id) && c.kind !== "creator");
   // LTK's storefront: the creator's posts first (each video with its product
   // under it), then the products, then the collections. Only real counts of
@@ -743,7 +744,7 @@ export function ReelsPage({ graph }) {
   // Videos whose file did not load leave the feed (no empty grey frames).
   const [failed, setFailed] = useState(() => new Set());
   const dropReel = (id) => setFailed((s) => (s.has(id) ? s : new Set(s).add(id)));
-  const playable = reelsFeedOrder(graph.reels, graph.products.map((p) => p.id)).filter((r) => !failed.has(r.id));
+  const playable = reelsFeedOrder(graph.reels.filter((r) => !failed.has(r.id)), graph.products.map((p) => p.id));
   const hasReels = playable.length > 0;
   // Without published reels, the same immersive pager shows product stories
   // built from real product photos — clearly labelled as photos, never as video.
