@@ -968,7 +968,7 @@ export function TrendCard({ trend, graph }) {
  *   showCreator  false on the creator's own page
  *   shoppable    the product row with "לפרטים" / "לחנות"; off where the page is already that product's
  */
-export function ReelCard({ reel, graph, showCreator = true, shoppable = false, ratio = "9 / 16", attribution = null }) {
+export function ReelCard({ reel, graph, showCreator = true, shoppable = false, ratio = "9 / 16", attribution = null, onBroken }) {
   const { L, lang } = useL();
   const creator = graph.creatorById.get(reel.creatorId);
   const product = reel.productIds.length ? graph.byId.get(reel.productIds[0]) : null;
@@ -980,7 +980,7 @@ export function ReelCard({ reel, graph, showCreator = true, shoppable = false, r
   return (
     <article className="lx-post">
       <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-post-media" aria-label={product ? L(`לצפייה: ${product.displayTitle}`, `Watch: ${product.displayTitle}`) : L("לצפייה בסרטון", "Watch the video")}>
-        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400} onVideoError={() => setBroken(true)}>
+        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400} onVideoError={() => { setBroken(true); onBroken?.(reel.id); }}>
           <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /></div>
         </Media>
       </Go>

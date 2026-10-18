@@ -210,10 +210,12 @@ test("storefront: one post per product, its best video, footage first, site-serv
   assert.deepEqual(posts.map((p) => p.id), ["look-01", "cut-04", "luna-02", "luna-03"]);
   const pages = read("src/components/discover/pages.jsx");
   const page = pages.slice(pages.indexOf("export function CreatorPage"), pages.indexOf("export function ProductPage"));
-  assert.match(page, /storefrontPosts\(graph\.reels\.filter\(\(r\) => r\.creatorId === creator\.id\), creator\.productIds\)/);
+  assert.match(page, /storefrontPosts\(graph\.reels\.filter\(\(r\) => r\.creatorId === creator\.id\), creator\.productIds\)\.filter\(\(r\) => !failed\.has\(r\.id\)\)/,
+    "a post whose video did not load leaves the counts and the tabs (no empty Videos tab)");
+  assert.match(page, /onBroken=\{dropReel\}/);
   const kit = read("src/components/discover/kit.jsx");
   const card = kit.slice(kit.indexOf("export function ReelCard"), kit.indexOf("export function Spinner"));
   assert.match(card, /if \(broken\) return null;/, "a post whose video does not load is not shown");
-  assert.match(card, /onVideoError=\{\(\) => setBroken\(true\)\}/);
+  assert.match(card, /onVideoError=\{\(\) => \{ setBroken\(true\); onBroken\?\.\(reel\.id\); \}\}/);
   assert.match(kit, /onError=\{onVideoError\}/);
 });

@@ -450,6 +450,9 @@ export function CreatorPage({ graph, slug, navigate }) {
   const creator = findCreator(graph, slug);
   const [cat, setCat] = useState("");
   const [tab, setTab] = useQueryParam("tab");
+  // Posts whose video did not load: off the page and out of the counts.
+  const [failed, setFailed] = useState(() => new Set());
+  const dropReel = (id) => setFailed((s) => (s.has(id) ? s : new Set(s).add(id)));
 
   useEffect(() => {
     try {
@@ -465,7 +468,7 @@ export function CreatorPage({ graph, slug, navigate }) {
   const shop = cat ? products.filter((p) => p.category === cat) : products;
   // One post per product: its best video, footage of the real product first
   // (a person's own clip, then the seller's), then Luna's labelled reels.
-  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id), creator.productIds);
+  const reels = storefrontPosts(graph.reels.filter((r) => r.creatorId === creator.id), creator.productIds).filter((r) => !failed.has(r.id));
   const boards = graph.collections.filter((c) => c.creatorIds.includes(creator.id) && c.kind !== "creator");
   // LTK's storefront: the creator's posts first (each video with its product
   // under it), then the products, then the collections. Only real counts of
@@ -537,7 +540,7 @@ export function CreatorPage({ graph, slug, navigate }) {
           <>
             <p className="lx-mute mb-5 text-[13px]">{L(`המוצרים ש־${creator.name} בחר/ה, בסרטונים. מתחת לכל סרטון כתוב של מי הוא, ומה המוצר.`, `The products ${creator.name} picked, on video. Under each one: whose video it is, and the product.`)}</p>
             <div className="lx-posts">
-              {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} shoppable ratio="4 / 5" attribution={{ src: "likelink_creator", camp: r.id }} />)}
+              {reels.map((r) => <ReelCard key={r.id} reel={r} graph={graph} showCreator={false} shoppable ratio="4 / 5" attribution={{ src: "likelink_creator", camp: r.id }} onBroken={dropReel} />)}
             </div>
           </>
         ) : null}
