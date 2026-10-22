@@ -110,7 +110,7 @@ export function summarizePlan(plan = [], executedIds = new Set()) {
 
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
-async function call(mode, marketerId, config) {
+async function call(mode, marketerId, config, { keepResults = false } = {}) {
   // Attach the verified session token — the server authorizes save/run to the
   // studio owner only (anti-IDOR). No token in demo mode (local dev).
   const headers = { "content-type": "application/json" };
@@ -128,13 +128,15 @@ async function call(mode, marketerId, config) {
     signal: AbortSignal.timeout(15000),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.ok === false) throw new Error(data.error || `http_${res.status}`);
+  // A run answers 200 with each channel's result even when every channel
+  // failed; runOutcome shows those answers, so they are data, not an error.
+  if (!res.ok || (data.ok === false && !(keepResults && (Array.isArray(data.results) || data.error === "no products")))) throw new Error(data.error || `http_${res.status}`);
   return data;
 }
 
 export const getAutoPilotConfig = (marketerId) => call("get", marketerId);
 export const saveAutoPilotConfig = (marketerId, config) => call("save", marketerId, config);
-export const runAutoPilotNow = (marketerId) => call("run", marketerId);
+export const runAutoPilotNow = (marketerId) => call("run", marketerId, undefined, { keepResults: true });
 
 export const AUTOPILOT_INTERVALS = [
   { minutes: 30, label: "כל חצי שעה" },
@@ -153,6 +155,21 @@ export function defaultTemplate() {
 
 // Premium gating — חבילת "הכל כלול": מנוי פרימיום, או סטודיו פעיל (5+ מוצרים
 // מאושרים). אדמין יכול להעניק plan === "premium" ידנית.
+/**
+ * What "פרסום עכשיו" tells the creator: only what a channel answered. No
+ * channel connected is said as such (it used to read "no approved products"),
+ * and a post counts as sent only when its channel accepted it.
+ */
+export function runOutcome(d = {}) {
+  const results = Array.isArray(d?.results) ? d.results : [];
+  if (d?.error === "no products") return "אין מוצרים מאושרים לפרסום";
+  if (!results.length) return "לא נשלח כלום: אין ערוץ מחובר. מלאי את פרטי החיבור של ערוץ אחד לפחות ושמרי.";
+  const sent = results.filter((r) => r.ok).map((r) => r.channel);
+  const failed = results.filter((r) => !r.ok).map((r) => `${r.channel}: ${String(r.detail || "נכשל").slice(0, 60)}`);
+  if (!sent.length) return `לא נשלח. ${failed.join(" · ")}`;
+  return `נשלח ל־${sent.join(", ")}${failed.length ? ` · לא נשלח ל־${failed.join(" · ")}` : ""}. בדקי בערוץ שהפוסט עלה.`;
+}
+
 export function checkAutoPilotAccess(marketer, myProducts = []) {
   if (marketer?.plan === "premium") return { allowed: true, reason: "plan" };
   const approved = myProducts.filter((p) => p.status === "approved").length;

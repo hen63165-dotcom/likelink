@@ -3,24 +3,22 @@
 /opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
   deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 18 files:   0%|          | 0/18 [00:00<?, ?it/s]Fetching 18 files:  11%|█         | 2/18 [00:00<00:01,  8.89it/s]Fetching 18 files:  44%|████▍     | 8/18 [00:00<00:00, 22.31it/s]Fetching 18 files:  78%|███████▊  | 14/18 [00:00<00:00, 21.96it/s]Fetching 18 files:  94%|█████████▍| 17/18 [00:18<00:01,  1.68s/it]Fetching 18 files: 100%|██████████| 18/18 [00:26<00:00,  2.44s/it]Fetching 18 files: 100%|██████████| 18/18 [00:26<00:00,  1.49s/it]
-Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]Loading pipeline components...:  29%|██▊       | 2/7 [00:00<00:00, 12.83it/s]
+Fetching 18 files:   0%|          | 0/18 [00:00<?, ?it/s]Fetching 18 files:  11%|█         | 2/18 [00:00<00:01,  9.20it/s]Fetching 18 files:  50%|█████     | 9/18 [00:00<00:00, 26.76it/s]Fetching 18 files:  78%|███████▊  | 14/18 [00:00<00:00, 24.54it/s]Fetching 18 files:  94%|█████████▍| 17/18 [00:18<00:01,  1.68s/it]Fetching 18 files: 100%|██████████| 18/18 [00:34<00:00,  3.43s/it]Fetching 18 files: 100%|██████████| 18/18 [00:34<00:00,  1.92s/it]
+Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
+Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 3662.80it/s]
+Loading pipeline components...:  29%|██▊       | 2/7 [00:00<00:00,  6.40it/s]
 Loading weights:   0%|          | 0/517 [00:00<?, ?it/s][A
-Loading weights:  69%|██████▉   | 358/517 [00:00<00:00, 3558.56it/s][ALoading weights: 100%|██████████| 517/517 [00:00<00:00, 3584.18it/s]
-
-Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 3635.78it/s]
-Loading pipeline components...:  57%|█████▋    | 4/7 [00:00<00:00,  6.20it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00, 10.66it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00,  9.77it/s]
+Loading weights:  65%|██████▍   | 335/517 [00:00<00:00, 3322.07it/s][ALoading weights: 100%|██████████| 517/517 [00:00<00:00, 3427.49it/s]
+Loading pipeline components...:  43%|████▎     | 3/7 [00:00<00:00,  4.84it/s]Loading pipeline components...:  86%|████████▌ | 6/7 [00:00<00:00,  8.56it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00,  8.45it/s]
 The config attributes {'skip_prk_steps': True} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
 No LoRA keys associated to CLIPTextModel found with the prefix='text_encoder'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModel related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
 No LoRA keys associated to CLIPTextModelWithProjection found with the prefix='text_encoder_2'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModelWithProjection related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
-{"loaded_ms": 42387, "model": "segmind/SSD-1B", "engine": "ssd1b"}
-[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (92 > 77). Running this sequence through the model will result in indexing errors
-[transformers] Token indices sequence length is longer than the specified maximum sequence length for this model (92 > 77). Running this sequence through the model will result in indexing errors
-{"id": "x-parcel-0", "ms": 368670, "bytes": 851556}
-{"id": "x-parcel-1", "ms": 365505, "bytes": 1079169}
-{"id": "x-ring-0", "ms": 367352, "bytes": 1188833}
-{"id": "x-links-0", "ms": 367469, "bytes": 974363}
-{"id": "x-phone-0", "ms": 366016, "bytes": 745957}
-{"id": "x-pricetag-0", "ms": 366297, "bytes": 1019682}
-{"id": "x-luna-0", "ms": 364535, "bytes": 960131}
-{"id": "x-luna-1", "ms": 363847, "bytes": 793261}
+{"loaded_ms": 58859, "model": "segmind/SSD-1B", "engine": "ssd1b"}
+{"id": "p-ivory-0", "ms": 362864, "bytes": 943327}
+{"id": "p-ivory-1", "ms": 362156, "bytes": 921768}
+{"id": "p-noir-0", "ms": 364273, "bytes": 937577}
+{"id": "p-noir-1", "ms": 360153, "bytes": 937933}
+{"id": "p-camel-0", "ms": 360001, "bytes": 1406737}
+{"id": "p-camel-1", "ms": 360047, "bytes": 1457215}
+{"id": "p-sky-0", "ms": 359761, "bytes": 1284129}
+{"id": "p-sky-1", "ms": 359822, "bytes": 1230787}

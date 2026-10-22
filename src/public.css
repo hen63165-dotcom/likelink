@@ -1287,6 +1287,10 @@ html body .lx img {
 .lx-profile-in { display: flex; flex-direction: column; gap: 18px; padding-block: 34px 30px; }
 @media (min-width: 768px) { .lx-profile-in { flex-direction: row; align-items: flex-end; justify-content: space-between; padding-block: 56px 44px; } }
 .lx-profile-who { display: flex; align-items: center; gap: 16px; min-width: 0; }
+/* Creator avatar: the photo, or a serif monogram in ink on paper (CreatorAvatar in kit.jsx). */
+.lx .lx-avatar { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; overflow: hidden; border-radius: 999px; background: var(--lx-ink); color: var(--lx-paper); font-family: var(--lx-serif, "Frank Ruhl Libre", Georgia, serif); font-weight: 700; line-height: 1; letter-spacing: 0.02em; }
+.lx .lx-avatar-ring { box-shadow: 0 0 0 3px var(--lx-paper), 0 0 0 4px var(--lx-line-strong), 0 12px 26px -14px rgba(13, 12, 20, 0.5); }
+.lx .lx-avatar img { position: absolute; inset: 0; width: 100% !important; height: 100% !important; aspect-ratio: 1 / 1 !important; object-fit: cover; border-radius: 999px; }
 .lx-profile-name { font-family: var(--lx-serif); font-weight: 700; font-size: clamp(30px, 7vw, 52px); line-height: 1.05; overflow-wrap: anywhere; }
 .lx-profile-bio { margin-top: 8px; max-width: 52ch; font-size: 14.5px; line-height: 1.6; color: var(--lx-ink-2); }
 .lx-profile-facts { margin-top: 8px; font-size: 13px; color: var(--lx-mute); }

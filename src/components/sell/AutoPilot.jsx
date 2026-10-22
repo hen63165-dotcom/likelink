@@ -19,6 +19,7 @@ import {
   TEMPLATE_VARS,
   defaultTemplate,
   checkAutoPilotAccess,
+  runOutcome,
 } from "../../lib/autoPilot.js";
 
 const CHANNELS = [
@@ -33,7 +34,7 @@ const CHANNELS = [
     type: "facebook",
     name: "Facebook Page",
     icon: Facebook,
-    hint: "פרסום אוטומטי לעמוד הפייסבוק — נדרש Page Access Token ומזהה עמוד",
+    hint: "פרסום אוטומטי לעמוד עסקי בפייסבוק — נדרש Page Access Token ומזהה עמוד. לפרופיל אישי פייסבוק לא מאפשרת לאף אתר לפרסם; משם מפרסמים ב\"פרסום לרשתות\"",
     fields: [
       { key: "pageId", label: "Page ID" },
       { key: "pageToken", label: "Page Access Token" },
@@ -265,7 +266,7 @@ export default function AutoPilot({ marketer, products, showToast }) {
       const d = await runAutoPilotNow(marketer.id);
       setLastRun(d);
       setLogs(d.config?.logs || []);
-      showToast(d.ok ? "פוסט יצא לדרך! בדקי את הערוץ 🎉" : "אין מוצרים מאושרים לפרסום");
+      showToast(runOutcome(d));
     } catch (e) {
       showToast(`ההרצה נכשלה: ${e.message}`);
     } finally {

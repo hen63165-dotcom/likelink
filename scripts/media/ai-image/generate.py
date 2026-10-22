@@ -10,7 +10,7 @@ It draws ORIGINAL characters and scenes only. The product is never generated:
 the reel always shows the product's real photo.
 
   python generate.py --jobs jobs.json --out DIR
-  jobs.json: [{"id": "...", "prompt": "...", "seed": 123}, ...]
+  jobs.json: [{"id": "...", "prompt": "...", "seed": 123, "negative": "optional extra"}, ...]
 Writes DIR/<id>.png and prints one JSON line per image (id, ms, bytes).
 """
 import argparse, json, os, time
@@ -80,6 +80,10 @@ def main():
         t = time.time()
         g = torch.Generator("cpu").manual_seed(int(job.get("seed", 1)))
         style, negative = KINDS.get(job.get("kind", "character"), KINDS["character"])
+        # A job may push out more (a presenter wears no jewellery, so nothing
+        # on her can be taken for the product the reel shows).
+        if job.get("negative"):
+            negative = f"{negative}, {job['negative']}"
         img = pipe(prompt=f"{style}, {job['prompt']}", negative_prompt=negative, num_inference_steps=a.steps,
                    guidance_scale=1.5, width=width, height=height, generator=g).images[0]
         path = os.path.join(a.out, f"{job['id']}.png")

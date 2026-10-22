@@ -107,11 +107,12 @@ export const VALUE_LINES = Object.freeze([
 ]);
 
 /** The whole kit for one day: the posts for each network, ready to paste. */
-export function buildDrop({ product, reel, trend = null, moment = null, reason = "rotation", now = Date.now(), origin = PRODUCTION_ORIGIN }) {
+export function buildDrop({ product, reel, trend = null, moment = null, reason = "rotation", now = Date.now(), origin = PRODUCTION_ORIGIN, campaign: campaignName = "", hook: hookChoice = "" }) {
   const date = new Date(now).toISOString().slice(0, 10);
-  const campaign = `daily_drop_${date.replace(/-/g, "")}`;
+  const campaign = campaignName || `daily_drop_${date.replace(/-/g, "")}`;
   const hooks = dropHooks(product, { trend, reel });
-  const hook = hooks[0];
+  // A caller may pick another of the checked hooks; anything else is ignored.
+  const hook = hooks.includes(hookChoice) ? hookChoice : hooks[0];
   const tags = dropHashtags(product, trend);
   const fact = firstSentence(product.description) || clean(product.title);
   const value = VALUE_LINES[dayIndex(now) % VALUE_LINES.length];

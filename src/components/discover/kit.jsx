@@ -776,16 +776,18 @@ export function FollowButton({ creatorId, small = false }) {
 
 /* ------------------------------------------------------------------ cards */
 
+// The creator's own photo; until there is one (or while it does not load), a
+// monogram in the site's ink and serif, like a fashion house's mark. Never a
+// coloured gradient: the owner found it amateur (2026-10-18).
 export function CreatorAvatar({ creator, size = 40, ring = false }) {
-  const bg = creator?.color || "#d22f5d";
   return (
     <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.42, background: `linear-gradient(135deg, ${bg}, #ff9f5a)`, boxShadow: ring ? "0 0 0 3px #fff, 0 6px 16px -6px rgba(23,19,31,.4)" : undefined }}
+      className={`lx-avatar${ring ? " lx-avatar-ring" : ""}`}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.46) }}
       aria-hidden="true"
     >
-      {(creator?.name || "?").charAt(0).toUpperCase()}
-      {creator?.avatar ? <Img src={creator.avatar} className="absolute inset-0" /> : null}
+      {(creator?.name || "?").trim().charAt(0).toUpperCase()}
+      {creator?.avatar ? <Img src={creator.avatar} /> : null}
     </span>
   );
 }

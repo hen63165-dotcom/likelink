@@ -66,6 +66,7 @@ import StudioEntrance from "./StudioEntrance.jsx";
 import StudioActionHub from "./StudioActionHub.jsx";
 import StudioOnboarding from "./StudioOnboarding.jsx";
 import StorefrontDesign from "./StorefrontDesign.jsx";
+import ShareCenter from "./ShareCenter.jsx";
 import AddProductLink from "./AddProductLink.jsx";
 import { fetchPlatformStatus, PLATFORM_STATE, PLATFORM_STATE_LABEL, PLATFORM_STATE_COLOR } from "../../lib/cloud/lunaStatus.js";
 import GrowthPipelineStrip from "./GrowthPipelineStrip";
@@ -105,6 +106,7 @@ const VIEW_IDS = {
   SETTINGS: "settings",
   ADS: "ads",
   CREATIVE_ENGINE: "creative-engine",
+  SHARE: "share",
 };
 
 const TIERS = {
@@ -1225,6 +1227,7 @@ const NAV_SECTIONS = [
     items: [
       { view: VIEW_IDS.OVERVIEW, icon: LayoutDashboard, he: "בית הסטודיו", en: "Studio home" },
       { view: VIEW_IDS.ADD_PRODUCT, icon: Link2, he: "קישורים ומוצרים", en: "Links & products" },
+      { view: VIEW_IDS.SHARE, icon: Megaphone, he: "פרסום לרשתות", en: "Share to networks" },
       { view: VIEW_IDS.STOREFRONT, icon: Store, he: "עיצוב החנות שלי", en: "Design my store" },
       { view: VIEW_IDS.PERFORMANCE, icon: BarChart3, he: "ביצועים וקליקים", en: "Performance & clicks" },
       { view: VIEW_IDS.SETTINGS, icon: Settings, he: "הגדרות", en: "Settings" },
@@ -1285,6 +1288,10 @@ const VIEW_SUBTITLES = {
   [VIEW_IDS.ADD_PRODUCT]: {
     he: "מדביקים קישור מרשת אפילייט כלשהי, בודקים אותו, מארגנים בחשבון וברשת, רואים תצוגה מקדימה — ושומרים כטיוטה או מפרסמים.",
     en: "Paste a link from any affiliate network, check it, organize it by account and network, preview it — then save as draft or publish.",
+  },
+  [VIEW_IDS.SHARE]: {
+    he: "כל מוצר מוכן לכל רשת: לוחצים, הרשת נפתחת עם הפוסט והקישור, ומפרסמים שם.",
+    en: "Every product ready for every network: tap, the network opens with the post and link, and you post there.",
   },
   [VIEW_IDS.STOREFRONT]: {
     he: "העיצוב של העמוד הציבורי: שם, תמונה, תיאור וקישורים — בדיוק מה שהמבקרים רואים.",
@@ -1547,6 +1554,7 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
       case VIEW_IDS.OVERVIEW: return <OverviewPanel onNavigate={navigate} />;
       case VIEW_IDS.ADD_PRODUCT: return <AddProductLink onNavigate={navigate} />;
       case VIEW_IDS.STOREFRONT: return <StorefrontDesign onNavigate={navigate} />;
+      case VIEW_IDS.SHARE: return <ShareCenter onNavigate={navigate} />;
       case VIEW_IDS.LUNA: return <LunaPanel onNavigate={navigate} platform={platform} />;
       case VIEW_IDS.PRODUCTS: return (
         <Suspense fallback={<LoadingScreen />}>
