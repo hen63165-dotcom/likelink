@@ -149,7 +149,11 @@ export const storage = {
 
     return dedupe(inflight, key, async () => {
       try {
-        const { data, error } = await withTimeout(supabase.from("kv").select("value").eq("key", key).maybeSingle(), READ_TIMEOUT_MS, "kv_read");
+        // No client retries: postgrest-js retries a network failure 3 times
+        // (1 s + 2 s + 4 s), which kept a visitor on "טוען…" for ~8 s before
+        // the shipped copy answered. The breaker is the retry policy here.
+        const query = supabase.from("kv").select("value").eq("key", key).maybeSingle();
+        const { data, error } = await withTimeout(typeof query.retry === "function" ? query.retry(false) : query, READ_TIMEOUT_MS, "kv_read");
         if (error) throw error;
         return data ? { key, value: data.value, shared: true } : null;
       } catch (e) {

@@ -53,7 +53,10 @@ test("storage: no request while the cloud is known down, writes fail honestly, r
   const s = read("src/lib/storage.js");
   assert.match(s, /if \(breaker\.isOpen\(\)\) return snapshotFallback\(key\);/);
   assert.match(s, /return dedupe\(inflight, key,/);
-  assert.match(s, /withTimeout\(supabase\.from\("kv"\)[^;]*READ_TIMEOUT_MS/);
+  assert.match(s, /const query = supabase\.from\("kv"\)[^;]*;\s*const \{ data, error \} = await withTimeout\([^;]*READ_TIMEOUT_MS/);
+  // postgrest-js retries a network failure 1 s + 2 s + 4 s; a visitor would
+  // wait ~8 s on "טוען…" before the shipped copy answers. The breaker decides.
+  assert.match(s, /query\.retry\(false\)/);
   assert.match(s, /if \(breaker\.status\(\)\.state === "restricted"\) throw new Error\("cloud_restricted"\);/, "never a false success");
   assert.equal(toHebrewError(new Error("cloud_restricted")), CLOUD_PAUSED_HE, "the visitor reads why, in Hebrew");
   assert.equal(toHebrewError(new Error("store_http_402")), CLOUD_PAUSED_HE, "a save the cloud refused says so, never 'something went wrong'");
