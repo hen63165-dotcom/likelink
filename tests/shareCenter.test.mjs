@@ -85,6 +85,15 @@ test("a store's own title with a price or 'sale' never reaches a post", () => {
   assert.equal(subject, kit.hook);
 });
 
+test("a very long store title never cuts the disclosure off the Pinterest text", () => {
+  const p = { id: "pl", title: "טבעת כסף ".repeat(80), category: "Accessories" };
+  const kit = productShareKit({ product: p, image: "https://ae-pic-a1.aliexpress-media.com/kf/x.jpg", now });
+  const pin = kit.actions.find((a) => a.id === "pinterest");
+  assert.ok(pin.text.length <= 480);
+  assert.ok(pin.text.startsWith(DROP_AD));
+  assert.ok(new URL(pin.href).searchParams.get("description").startsWith(DROP_AD));
+});
+
 test("the plain copy link is its own source, never a network's", () => {
   const p = { id: "p1", title: "טבעת כסף", category: "Accessories" };
   const kit = productShareKit({ product: p, now });

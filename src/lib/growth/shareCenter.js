@@ -99,7 +99,8 @@ export function productShareKit({ product, reel = null, image = "", now = Date.n
     tiktok: posts.tiktok.caption,
     telegram: short,
     threads: `${short}\n${link("threads")}`,
-    pinterest: `${hook} · ${title} · ${DROP_AD}`.slice(0, 480),
+    // The disclosure first, so the 480-character cut only ever shortens the title.
+    pinterest: `${DROP_AD} · ${hook} · ${title}`.slice(0, 480),
     x: `${DROP_AD}\n${hook}`,
     email: `${short}\n\n${link("email")}`,
   };
