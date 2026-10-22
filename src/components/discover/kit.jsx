@@ -360,8 +360,8 @@ export function LunaInsight({ title, lines = [], children, compact = false }) {
 export function TrustBadge({ kind }) {
   const { L } = useL();
   if (kind === "verified") return <span className="lx-badge lx-badge-mint" data-tip={L("הפרופיל אומת על ידי LikeLink", "LikeLink verified this profile")}><BadgeCheck size={12} /> {L("יוצר/ת מאומת/ת", "Verified creator")}</span>;
-  if (kind === "attributed") return <span className="lx-badge lx-badge-mint" data-tip={L("נבדק שהמוצר שייך לחנות של מי שהוסיף אותו", "Checked: the product belongs to the shop that added it")}><ShieldCheck size={12} /> {L("ייחוס יוצר/ת נבדק", "Creator attribution checked")}</span>;
-  if (kind === "approved") return <span className="lx-badge lx-badge-line" data-tip={L("יש לו קישור משלו שמוביל למוצר עצמו, ותמונה אמיתית מהחנות", "It has its own link that opens this product, and a real store photo")}><Check size={12} /> {L("מוצר מאושר בקטלוג", "Approved catalog product")}</span>;
+  if (kind === "attributed") return <span className="lx-badge lx-badge-mint" data-tip={L("נבדק שהמוצר שייך לחנות של מי שהוסיף אותו", "Checked: the product belongs to the shop that added it")}><ShieldCheck size={12} /> {L("שייך לחנות של היוצר/ת", "In this creator's shop")}</span>;
+  if (kind === "approved") return <span className="lx-badge lx-badge-line" data-tip={L("יש לו קישור משלו שמוביל למוצר עצמו, ותמונה אמיתית מהחנות", "It has its own link that opens this product, and a real store photo")}><Check size={12} /> {L("קישור ישיר למוצר", "Direct product link")}</span>;
   if (kind === "affiliate") return <span className="lx-badge lx-badge-amber" data-tip={L("קונים דרך הקישור? היוצר/ת עשוי/ה לקבל עמלה מהחנות. המחיר שלך לא משתנה.", "Buy through the link and the creator may earn a commission. Your price stays the same.")}>{L("קישור שותפים", "Affiliate link")}</span>;
   return null;
 }
@@ -927,7 +927,7 @@ export function CollectionCard({ collection, wide = false }) {
         <Media src={covers[2]} alt="" ratio={wide ? "3 / 4" : "1 / 1"} width={300} label={collection.title[lang]} />
       </div>
       <div className="p-4">
-        <p className="lx-kicker">{collection.kind === "curated" ? L("אוסף של יוצר/ת", "Creator collection") : collection.kind === "creator" ? L("בחירות יוצר/ת", "Creator picks") : L("לוח עריכה", "Editorial board")}</p>
+        <p className="lx-kicker">{collection.kind === "curated" ? L("אוסף של יוצר/ת", "Creator collection") : collection.kind === "creator" ? L("בחירות יוצר/ת", "Creator picks") : L("אוסף LikeLink2", "LikeLink2 collection")}</p>
         <h3 className="lx-display mt-1 text-[22px]">{collection.title[lang]}</h3>
         <p className="lx-mute mt-1 text-[13px] leading-5">{collection.description[lang]}</p>
       </div>

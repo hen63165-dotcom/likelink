@@ -916,7 +916,7 @@ export function CollectionsPage({ graph, id, navigate }) {
     const others = graph.collections.filter((c) => c.id !== col.id).slice(0, 8);
     return (
       <>
-        <PageHero kicker={col.kind === "curated" ? L("אוסף של יוצר/ת", "Creator collection") : L("לוח עריכה", "Editorial board")} title={col.title[lang]} sub={col.description[lang]}>
+        <PageHero kicker={col.kind === "curated" ? L("אוסף של יוצר/ת", "Creator collection") : col.kind === "creator" ? L("בחירות יוצר/ת", "Creator picks") : L("אוסף LikeLink2", "LikeLink2 collection")} title={col.title[lang]} sub={col.description[lang]}>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             {creators.map((c) => (
               <Go key={c.id} to={creatorPath(c.slug)} className="lx-chip"><CreatorAvatar creator={c} size={22} /> {c.name}</Go>

@@ -303,7 +303,7 @@ function Footer() {
         <div>
           <Logo />
           <p className="lx-display mt-4 max-w-sm text-[22px] leading-snug">
-            {L("המקום שבו תוכן, אנשים, מוצרים וטרנדים נפגשים.", "Where content, people, products and trends meet.")}
+            {L("ההמלצות של היוצרים, עם קישור ישיר לחנות.", "Creators' picks, with a direct store link.")}
           </p>
           <p className="lx-mute mt-3 max-w-sm text-[13px] leading-6">
             {L(
