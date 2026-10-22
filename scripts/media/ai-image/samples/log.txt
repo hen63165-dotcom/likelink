@@ -3,22 +3,21 @@
 /opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
   deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 18 files:   0%|          | 0/18 [00:00<?, ?it/s]Fetching 18 files:  11%|█         | 2/18 [00:00<00:01,  9.20it/s]Fetching 18 files:  50%|█████     | 9/18 [00:00<00:00, 26.76it/s]Fetching 18 files:  78%|███████▊  | 14/18 [00:00<00:00, 24.54it/s]Fetching 18 files:  94%|█████████▍| 17/18 [00:18<00:01,  1.68s/it]Fetching 18 files: 100%|██████████| 18/18 [00:34<00:00,  3.43s/it]Fetching 18 files: 100%|██████████| 18/18 [00:34<00:00,  1.92s/it]
+Fetching 18 files:   0%|          | 0/18 [00:00<?, ?it/s]Fetching 18 files:  72%|███████▏  | 13/18 [00:00<00:00, 116.21it/s]Fetching 18 files:  89%|████████▉ | 16/18 [00:19<00:00, 116.21it/s]Fetching 18 files:  94%|█████████▍| 17/18 [00:32<00:02,  2.50s/it] Fetching 18 files: 100%|██████████| 18/18 [00:51<00:00,  4.09s/it]Fetching 18 files: 100%|██████████| 18/18 [00:51<00:00,  2.86s/it]
 Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 3662.80it/s]
-Loading pipeline components...:  29%|██▊       | 2/7 [00:00<00:00,  6.40it/s]
-Loading weights:   0%|          | 0/517 [00:00<?, ?it/s][A
-Loading weights:  65%|██████▍   | 335/517 [00:00<00:00, 3322.07it/s][ALoading weights: 100%|██████████| 517/517 [00:00<00:00, 3427.49it/s]
-Loading pipeline components...:  43%|████▎     | 3/7 [00:00<00:00,  4.84it/s]Loading pipeline components...:  86%|████████▌ | 6/7 [00:00<00:00,  8.56it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00,  8.45it/s]
+Loading weights:   0%|          | 0/517 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 517/517 [00:00<00:00, 7050.30it/s]
+Loading pipeline components...:  43%|████▎     | 3/7 [00:00<00:00,  7.68it/s]
+Loading weights:   0%|          | 0/196 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 196/196 [00:00<00:00, 6849.04it/s]
+Loading pipeline components...:  86%|████████▌ | 6/7 [00:00<00:00, 11.67it/s]Loading pipeline components...: 100%|██████████| 7/7 [00:00<00:00, 11.91it/s]
 The config attributes {'skip_prk_steps': True} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
 No LoRA keys associated to CLIPTextModel found with the prefix='text_encoder'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModel related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
 No LoRA keys associated to CLIPTextModelWithProjection found with the prefix='text_encoder_2'. This is safe to ignore if LoRA state dict didn't originally have any CLIPTextModelWithProjection related params. You can also try specifying `prefix=None` to resolve the warning. Otherwise, open an issue if you think it's unexpected: https://github.com/huggingface/diffusers/issues/new
-{"loaded_ms": 58859, "model": "segmind/SSD-1B", "engine": "ssd1b"}
-{"id": "p-ivory-0", "ms": 362864, "bytes": 943327}
-{"id": "p-ivory-1", "ms": 362156, "bytes": 921768}
-{"id": "p-noir-0", "ms": 364273, "bytes": 937577}
-{"id": "p-noir-1", "ms": 360153, "bytes": 937933}
-{"id": "p-camel-0", "ms": 360001, "bytes": 1406737}
-{"id": "p-camel-1", "ms": 360047, "bytes": 1457215}
-{"id": "p-sky-0", "ms": 359761, "bytes": 1284129}
-{"id": "p-sky-1", "ms": 359822, "bytes": 1230787}
+{"loaded_ms": 63927, "model": "segmind/SSD-1B", "engine": "ssd1b"}
+{"id": "p-ivory-0", "ms": 333665, "bytes": 943546}
+{"id": "p-ivory-1", "ms": 329517, "bytes": 921808}
+{"id": "p-noir-0", "ms": 333177, "bytes": 937478}
+{"id": "p-noir-1", "ms": 332787, "bytes": 937995}
+{"id": "p-camel-0", "ms": 331493, "bytes": 1406812}
+{"id": "p-camel-1", "ms": 332803, "bytes": 1457361}
+{"id": "p-sky-0", "ms": 337698, "bytes": 1284120}
+{"id": "p-sky-1", "ms": 332141, "bytes": 1230662}
