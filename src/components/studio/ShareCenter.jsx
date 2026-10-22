@@ -108,7 +108,7 @@ function ProductCard({ product, kit, marketerId, showToast, highlight = false })
             פתיחת הסרטון לשמירה (לאינסטגרם ולטיקטוק)
           </a>
         ) : null}
-        <button type="button" className="underline" onClick={async () => showToast?.((await copyText(kit.actions[0].link)) ? "הקישור הועתק" : kit.actions[0].link)}>
+        <button type="button" className="underline" onClick={async () => showToast?.((await copyText(kit.link)) ? "הקישור הועתק" : kit.link)}>
           העתקת הקישור
         </button>
       </div>

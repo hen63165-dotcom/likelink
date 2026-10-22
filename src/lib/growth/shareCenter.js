@@ -116,7 +116,7 @@ export function productShareKit({ product, reel = null, image = "", now = Date.n
     threads: `https://www.threads.net/intent/post?text=${enc(texts.threads)}`,
     pinterest: httpsUrl(image) ? `https://www.pinterest.com/pin/create/button/?url=${enc(link("pinterest"))}&media=${enc(image)}&description=${enc(texts.pinterest)}` : "",
     x: `https://twitter.com/intent/tweet?text=${enc(texts.x)}&url=${enc(link("x"))}`,
-    email: `mailto:?subject=${enc(title)}&body=${enc(texts.email)}`,
+    email: `mailto:?subject=${enc(safeCopy(title) ? title : hook)}&body=${enc(texts.email)}`,
   };
   const actions = SHARE_NETWORKS.filter((n) => open[n.id]).map((n) => ({ ...n, text: texts[n.id], link: link(n.id), href: open[n.id] }));
   return {
@@ -126,6 +126,9 @@ export function productShareKit({ product, reel = null, image = "", now = Date.n
     campaign,
     video: reel ? { url: reel.video, poster: reel.poster || "", look: reel.look, note: FEED_LOOKS[reel.look]?.note || "" } : null,
     actions,
+    // The plain "copy link" is its own source, so a pasted copy is never
+    // counted as WhatsApp (or any network) traffic.
+    link: link("copy"),
   };
 }
 

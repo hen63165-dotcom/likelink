@@ -110,7 +110,7 @@ export function summarizePlan(plan = [], executedIds = new Set()) {
 
 import { supabase, supabaseConfigured } from "./supabaseClient.js";
 
-async function call(mode, marketerId, config) {
+async function call(mode, marketerId, config, { keepResults = false } = {}) {
   // Attach the verified session token — the server authorizes save/run to the
   // studio owner only (anti-IDOR). No token in demo mode (local dev).
   const headers = { "content-type": "application/json" };
@@ -128,13 +128,15 @@ async function call(mode, marketerId, config) {
     signal: AbortSignal.timeout(15000),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.ok === false) throw new Error(data.error || `http_${res.status}`);
+  // A run answers 200 with each channel's result even when every channel
+  // failed; runOutcome shows those answers, so they are data, not an error.
+  if (!res.ok || (data.ok === false && !(keepResults && (Array.isArray(data.results) || data.error === "no products")))) throw new Error(data.error || `http_${res.status}`);
   return data;
 }
 
 export const getAutoPilotConfig = (marketerId) => call("get", marketerId);
 export const saveAutoPilotConfig = (marketerId, config) => call("save", marketerId, config);
-export const runAutoPilotNow = (marketerId) => call("run", marketerId);
+export const runAutoPilotNow = (marketerId) => call("run", marketerId, undefined, { keepResults: true });
 
 export const AUTOPILOT_INTERVALS = [
   { minutes: 30, label: "כל חצי שעה" },

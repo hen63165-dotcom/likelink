@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { feedEntries, bestFeedReels, productShareKit, storeShareKit, kitIsClean, officialHost, SHARE_NETWORKS, todaysPick } from "../src/lib/growth/shareCenter.js";
 import { DROP_AD } from "../src/lib/growth/dailyDrop.js";
-import { runOutcome } from "../src/lib/autoPilot.js";
+import { runOutcome, runAutoPilotNow, getAutoPilotConfig } from "../src/lib/autoPilot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
@@ -79,6 +79,18 @@ test("a store's own title with a price or 'sale' never reaches a post", () => {
   const kit = productShareKit({ product: p, image: "https://ae-pic-a1.aliexpress-media.com/kf/x.jpg", now });
   assert.ok(kitIsClean(kit));
   for (const a of kit.actions) assert.doesNotMatch(a.text, /₪|50%|מבצע|רק היום|הכי טוב/);
+  // The e-mail subject is the title only when the title passes the same rules.
+  const subject = new URL(kit.actions.find((a) => a.id === "email").href).searchParams.get("subject");
+  assert.doesNotMatch(subject, /₪|50%|SALE|הכי טוב/);
+  assert.equal(subject, kit.hook);
+});
+
+test("the plain copy link is its own source, never a network's", () => {
+  const p = { id: "p1", title: "טבעת כסף", category: "Accessories" };
+  const kit = productShareKit({ product: p, now });
+  assert.equal(new URL(kit.link).searchParams.get("utm_source"), "copy");
+  assert.equal(new URL(kit.link).pathname, "/p/p1");
+  assert.match(readFileSync(new URL("../src/components/studio/ShareCenter.jsx", import.meta.url), "utf8"), /copyText\(kit\.link\)/);
 });
 
 test("the store kit: one tagged link per network, bio links that never change", () => {
@@ -109,6 +121,25 @@ test("AutoPilot 'פרסום עכשיו' says what the channels answered", () => 
   const ui = read("src/components/sell/AutoPilot.jsx");
   assert.match(ui, /showToast\(runOutcome\(d\)\)/);
   assert.doesNotMatch(ui, /פוסט יצא לדרך/);
+});
+
+test("a run whose every channel failed reaches runOutcome as data (HTTP 200), other calls still throw", async () => {
+  const realFetch = globalThis.fetch;
+  const answer = { ok: false, results: [{ channel: "facebook", ok: false, detail: "token expired" }] };
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => answer });
+  try {
+    const d = await runAutoPilotNow("m1");
+    assert.match(runOutcome(d), /^לא נשלח\. facebook: token expired/);
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: false, error: "no products" }) });
+    assert.match(runOutcome(await runAutoPilotNow("m1")), /אין מוצרים/);
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: false, error: "not_allowed" }) });
+    await assert.rejects(() => getAutoPilotConfig("m1"), /not_allowed/);
+    await assert.rejects(() => runAutoPilotNow("m1"), /not_allowed/);
+    globalThis.fetch = async () => ({ ok: false, status: 403, json: async () => answer });
+    await assert.rejects(() => runAutoPilotNow("m1"));
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test("Studio: 'פרסום לרשתות' is a core item; the store screen never says a post was published", () => {
