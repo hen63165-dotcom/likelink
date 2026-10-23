@@ -47,11 +47,20 @@ export const MASTER_LIMITS = Object.freeze({
 const SEND = /שלחי (?:את זה )?ל|תייגי/;
 const KEYWORD = /כתבי\s*\*?["„”]?(?:רוצה|מדריך)/;
 // The posting step that switches on Instagram's own AI label (instagramGrid.js STORY_STEPS):
-// it names the label and turns it on, and does not tell her to leave it off.
+// it names the label and turns it on, and does not tell her to leave it off or turn it off.
 const AI_LABEL = /תווית AI/;
 const TURN_ON = /(?:מפעילים|מפעילה|הפעילי|להפעיל|הפעלה)/;
 const DONT = /(?:^|\s)(?:אל|לא|בלי|אין)\s+(?:\S+\s+)?(?:ת?פעיל|מפעילים|מפעילה|להפעיל|תווית)/;
-export const enablesAiLabel = (step) => AI_LABEL.test(String(step)) && TURN_ON.test(String(step)) && !DONT.test(String(step));
+const TURN_OFF = /(?:כבי|מכבים|מכבה|לכבות|כיבוי|בטלי|מבטלים|לבטל|ביטול|הסירי|מסירים|להסיר)/;
+export const enablesAiLabel = (step) => {
+  const s = String(step);
+  return AI_LABEL.test(s) && TURN_ON.test(s) && !DONT.test(s) && !TURN_OFF.test(s);
+};
+/** The label's state when she has followed every step: the last step that mentions it decides. */
+export const aiLabelOnAtEnd = (steps = []) => {
+  const last = (Array.isArray(steps) ? steps : []).map(String).filter((s) => AI_LABEL.test(s)).at(-1);
+  return last !== undefined && enablesAiLabel(last);
+};
 // Our own edits only: an engine render, footage a person filmed for us, or our cut of the seller's own media.
 export const ORIGINAL_SOURCES = Object.freeze(["own_render", "own_footage", "seller_edit"]);
 const words = (s) => String(s || "").replace(/\*/g, "").trim().split(/\s+/).filter(Boolean);
@@ -104,7 +113,7 @@ export function masterCheck(plan = {}) {
   check("disclosure", productKnown && (!plan.product || caption.startsWith(DROP_AD)));
   // Three places: on the picture, in the caption, and Instagram's own label (switched on in the app while posting).
   const labelled = (plan.onScreenLabels || []).some((l) => /AI/.test(String(l))) && /בינה מלאכותית|AI/.test(caption)
-    && (plan.publishSteps || []).some(enablesAiLabel);
+    && aiLabelOnAtEnd(plan.publishSteps);
   check("ai_label", typeof plan.aiCharacter === "boolean" && (!plan.aiCharacter || labelled));
   check("true_only", safeCopy(caption) && safeCopy(String(plan.hook || "")));
   check("original", ORIGINAL_SOURCES.includes(plan.source));
