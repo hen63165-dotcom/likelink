@@ -9,9 +9,14 @@ on the GitHub Actions CPU runner. Public weights download anonymously.
 It draws ORIGINAL characters and scenes only. The product is never generated:
 the reel always shows the product's real photo.
 
-  python generate.py --jobs jobs.json --out DIR
+  python generate.py --jobs jobs.json --out DIR [--ref face.jpg]
   jobs.json: [{"id": "...", "prompt": "...", "seed": 123, "negative": "optional extra"}, ...]
 Writes DIR/<id>.png and prints one JSON line per image (id, ms, bytes).
+
+--ref keeps one character's face across scenes (SD 1.5 only): the open
+IP-Adapter "plus face" weights (h94/IP-Adapter, Apache-2.0) read the face in
+the reference picture, so Luna stays Luna from scene to scene. If the adapter
+cannot load, the run goes on without it and says so.
 """
 import argparse, json, os, time
 
@@ -57,6 +62,22 @@ def load_pipeline(engine):
     return pipe, model
 
 
+IP_ADAPTER = ("h94/IP-Adapter", "models", "ip-adapter-plus-face_sd15.safetensors")
+
+
+def load_reference(pipe, path, scale):
+    """The face to keep (IP-Adapter), or None when it cannot be used."""
+    from PIL import Image
+    try:
+        repo, sub, weights = IP_ADAPTER
+        pipe.load_ip_adapter(repo, subfolder=sub, weight_name=weights)
+        pipe.set_ip_adapter_scale(scale)
+        return Image.open(path).convert("RGB")
+    except Exception as exc:  # noqa: BLE001 (a missing adapter must not stop the run)
+        print(json.dumps({"reference": "unavailable", "error": str(exc)[:200]}), flush=True)
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", required=True)
@@ -65,6 +86,8 @@ def main():
     ap.add_argument("--width", type=int, default=512)
     ap.add_argument("--height", type=int, default=912)
     ap.add_argument("--engine", default=os.environ.get("LIKELINK_IMAGE_ENGINE", "sd15"), choices=["sd15", *SDXL_ENGINES])
+    ap.add_argument("--ref", default=None, help="a face picture to keep across images (SD 1.5)")
+    ap.add_argument("--ref-scale", type=float, default=0.6)
     a = ap.parse_args()
     import torch
 
@@ -73,7 +96,8 @@ def main():
     pipe, model = load_pipeline(a.engine)
     # SDXL-family models are trained at ~1 megapixel; SD 1.5 at 512.
     width, height = (768, 1344) if a.engine in SDXL_ENGINES and a.width == 512 else (a.width, a.height)
-    print(json.dumps({"loaded_ms": int((time.time() - t0) * 1000), "model": model, "engine": a.engine}), flush=True)
+    ref = load_reference(pipe, a.ref, a.ref_scale) if a.ref and a.engine not in SDXL_ENGINES else None
+    print(json.dumps({"loaded_ms": int((time.time() - t0) * 1000), "model": model, "engine": a.engine, "reference": bool(ref)}), flush=True)
 
     os.makedirs(a.out, exist_ok=True)
     for job in json.load(open(a.jobs)):
@@ -84,8 +108,11 @@ def main():
         # on her can be taken for the product the reel shows).
         if job.get("negative"):
             negative = f"{negative}, {job['negative']}"
+        if ref is not None:  # once loaded, the adapter needs the picture; a job can turn its weight off
+            pipe.set_ip_adapter_scale(a.ref_scale if job.get("ref", True) else 0.0)
         img = pipe(prompt=f"{style}, {job['prompt']}", negative_prompt=negative, num_inference_steps=a.steps,
-                   guidance_scale=1.5, width=width, height=height, generator=g).images[0]
+                   guidance_scale=1.5, width=width, height=height, generator=g,
+                   **({"ip_adapter_image": ref} if ref is not None else {})).images[0]
         path = os.path.join(a.out, f"{job['id']}.png")
         img.save(path)
         print(json.dumps({"id": job["id"], "ms": int((time.time() - t) * 1000), "bytes": os.path.getsize(path)}), flush=True)

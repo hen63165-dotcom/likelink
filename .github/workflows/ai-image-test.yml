@@ -1,11 +1,12 @@
 # Feasibility test for LikeLink's own image model (no account, no key):
-# open weights on the CPU runner. Runs on pushes that touch the model runner and
-# commits the sample images back to the same branch for review.
+# open weights on the CPU runner. Runs when the sample jobs change and commits
+# the sample images back to the same branch for review. (Luna's story scenes
+# have their own workflow, luna-scenes.yml.)
 name: Own image model — test
 on:
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/media/ai-image/generate.py", "scripts/media/ai-image/sample-jobs.json", ".github/workflows/ai-image-test.yml"]
+    paths: ["scripts/media/ai-image/sample-jobs.json"]
 permissions:
   contents: write
 jobs:
