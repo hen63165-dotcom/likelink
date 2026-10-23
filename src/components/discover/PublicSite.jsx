@@ -188,7 +188,7 @@ export default function PublicSite({ route, navigate }) {
 
   return (
     <NavCtx.Provider value={navigate}>
-      <PublicShell routeType={route.type} navigate={navigate} immersive={route.type === "reels"}>
+      <PublicShell routeType={route.type} navigate={navigate} immersive={route.type === "reels"} graph={graph}>
         {page}
       </PublicShell>
     </NavCtx.Provider>

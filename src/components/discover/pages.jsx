@@ -50,6 +50,7 @@ import { STORE_GALLERY_PICKS, lookLabel, lookOf } from "../../lib/looks.js";
 import { rankProducts } from "../../lib/skills/catalogRules.js";
 import { SELLER_REVIEWED } from "../../lib/reelsFeed.js";
 import { storefrontPosts, reelsFeedOrder } from "../../lib/homeShowcase.js";
+import { productKind, shopKinds } from "../../lib/siteMap.js";
 import {
   categoryName,
   CollectionCard,
@@ -347,7 +348,12 @@ export function ProductsPage({ graph, category }) {
   const [price, setPrice] = useQueryParam("price");
   const [sort, setSort] = useQueryParam("sort");
   const [only, setOnly] = useQueryParam("only");
+  const [kind, setKind] = useQueryParam("kind");
   const priced = hasStorePrices(graph.products);
+  // The kinds of item this view really has (rings, bracelets…); a chip row only when there are two or more.
+  const inCategory = graph.products.filter((p) => !category || p.category === category);
+  const kinds = shopKinds(inCategory);
+  const kindNow = kinds.find((k) => k.id === kind) || null;
   const band = priced ? PRICE_BANDS.find((b) => b.id === price) : null;
   // Products with a playable, labelled video (graph.reels holds only playable media).
   const withVideo = useMemo(() => new Set(graph.reels.flatMap((r) => r.productIds)), [graph.reels]);
@@ -358,19 +364,34 @@ export function ProductsPage({ graph, category }) {
     return new Map(rankProducts(graph.products, { verifiedVideoIds: checked }).map((r, i) => [r.id, i]));
   }, [graph.products, graph.reels]);
   const videoOnly = only === "video";
-  let list = graph.products.filter((p) => (!category || p.category === category) && (!band || band.test(Number(p.price))) && (!videoOnly || withVideo.has(p.id)));
+  let list = inCategory.filter((p) => (!kindNow || productKind(p) === kindNow.id) && (!band || band.test(Number(p.price))) && (!videoOnly || withVideo.has(p.id)));
+  const videoCount = inCategory.filter((p) => (!kindNow || productKind(p) === kindNow.id) && withVideo.has(p.id)).length;
   list = [...list].sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
   if (priced && sort === "price-asc") list = [...list].sort((a, b) => (Number(a.price) || Infinity) - (Number(b.price) || Infinity));
   if (priced && sort === "price-desc") list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 
   return (
     <>
-      <PageHero kicker={<><Package size={14} /> {L("מוצרים", "Products")}</>} title={category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(heCount(list.length, "products"), enCount(list.length, "products"))}>
-        <CategoryChips graph={graph} active={category} base="/products" />
+      <PageHero kicker={<><Package size={14} /> {L("חנות", "Shop")}</>} title={kindNow ? (lang === "he" ? kindNow.he : kindNow.en) : category ? categoryName(category, lang) : L("כל המוצרים", "All products")} sub={L(heCount(list.length, "products"), enCount(list.length, "products"))}>
+        {graph.categories.length > 1 ? <CategoryChips graph={graph} active={category} base="/products" /> : null}
+        {kinds.length >= 2 ? (
+          <div className="-mx-4 mt-6 overflow-x-auto px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: "none" }}>
+            <div className="flex w-max gap-2" role="group" aria-label={L("סוג מוצר", "Kind of item")}>
+              <button type="button" className="lx-chip" aria-pressed={!kindNow} onClick={() => setKind("")}>{L("הכל", "All")}</button>
+              {kinds.map((k) => (
+                <button key={k.id} type="button" className="lx-chip" aria-pressed={kindNow?.id === k.id} onClick={() => setKind(kindNow?.id === k.id ? "" : k.id)}>
+                  {lang === "he" ? k.he : k.en} <span className="opacity-60">{k.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" className="lx-chip" aria-pressed={videoOnly} onClick={() => setOnly(videoOnly ? "" : "video")}>
-            <Play size={13} aria-hidden="true" /> {L("עם סרטון", "With video")} <span className="opacity-60">{graph.products.filter((p) => (!category || p.category === category) && withVideo.has(p.id)).length}</span>
-          </button>
+          {videoCount > 0 || videoOnly ? (
+            <button type="button" className="lx-chip" aria-pressed={videoOnly} onClick={() => setOnly(videoOnly ? "" : "video")}>
+              <Play size={13} aria-hidden="true" /> {L("עם סרטון", "With video")} <span className="opacity-60">{videoCount}</span>
+            </button>
+          ) : null}
           <span className="lx-mute text-[12.5px]">
             {L("הסדר: קודם מוצרים עם קישור משלהם לחנות, סרטון שנבדק ותמונה נקייה. לא לפי פופולריות.", "Order: products with their own store link, a checked video and a clean image first. Never by popularity.")}{" "}
             <Go to="/status" className="underline underline-offset-2">{L("מה נבדק", "What was checked")}</Go>
@@ -398,8 +419,8 @@ export function ProductsPage({ graph, category }) {
       <section className="lx-wrap mt-8">
         {list.length ? (
           <Grid products={list} graph={graph} />
-        ) : band || videoOnly ? (
-          <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => { setPrice(""); setOnly(""); }}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>
+        ) : band || videoOnly || kindNow ? (
+          <EmptyState icon={Search} title={L("אין מוצרים שמתאימים לסינון", "No products match these filters")}><button type="button" className="lx-btn lx-btn-primary lx-btn-sm" onClick={() => { setPrice(""); setOnly(""); setKind(""); }}>{L("ניקוי סינון", "Clear filters")}</button></EmptyState>
         ) : (
           <EmptyState icon={Package} title={loading ? L("המוצרים נטענים…", "Loading the products…") : category ? L("אין עדיין מוצרים בקטגוריה הזאת", "No products in this category yet") : L("אין עדיין מוצרים באתר", "No products on the site yet")}>
             {category && !loading ? <Go to="/products" className="lx-btn lx-btn-primary lx-btn-sm">{L("לכל המוצרים", "All products")}</Go> : null}

@@ -91,7 +91,7 @@ export function curatedProducts(products = [], limit = 8) {
  */
 export const SHOP_CIRCLES = Object.freeze([
   { q: "טבעת", he: "טבעות", en: "Rings", words: ["טבעת", "טבעות", " ring"] },
-  { q: "צמיד", he: "צמידים", en: "Bracelets", words: ["צמיד", "bracelet"] },
+  { q: "צמיד", he: "צמידים", en: "Bracelets", words: ["צמיד", "שרשרת יד", "bracelet", "hand chain"] },
   { q: "עגילים", he: "עגילים", en: "Earrings", words: ["עגיל", "earring"] },
   { q: "שרשרת", he: "שרשראות", en: "Necklaces", words: ["שרשרת", "שרשראות", "necklace"] },
   { q: "שעון", he: "שעונים", en: "Watches", words: ["שעון", "שעונים", " watch"] },
@@ -110,6 +110,12 @@ export const MIN_CIRCLES = 2;
 // The item's own name and category only: a description's passing word
 // never makes a circle. English words start at a word ("earring" is not a ring).
 const nameOf = (p) => ` ${String(p?.displayTitle || p?.title || "")} ${String(p?.category || "")} `.toLowerCase();
+
+/** The kind of item a product is (its own name/category only), or null. */
+export function circleOf(product) {
+  const name = nameOf(product);
+  return SHOP_CIRCLES.find((c) => c.words.some((w) => name.includes(w))) || null;
+}
 
 export function shopCircles(products = [], { limit = 8 } = {}) {
   const used = new Set();
