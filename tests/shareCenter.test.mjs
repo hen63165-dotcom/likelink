@@ -132,6 +132,15 @@ test("AutoPilot 'פרסום עכשיו' says what the channels answered", () => 
   assert.doesNotMatch(ui, /פוסט יצא לדרך/);
 });
 
+test("AutoPilot offers Telegram, the channel its server already posts to", () => {
+  const ui = read("src/components/sell/AutoPilot.jsx");
+  const list = ui.slice(ui.indexOf("const CHANNELS = ["), ui.indexOf("];", ui.indexOf("const CHANNELS = [")));
+  assert.match(list, /type: "telegram"/);
+  assert.match(list, /key: "botToken"/);
+  assert.match(list, /key: "chatId"/);
+  assert.match(read("api/autopilot.mjs"), /case "telegram": return sendTelegram\(/);
+});
+
 test("a run whose every channel failed reaches runOutcome as data (HTTP 200), other calls still throw", async () => {
   const realFetch = globalThis.fetch;
   const answer = { ok: false, results: [{ channel: "facebook", ok: false, detail: "token expired" }] };
