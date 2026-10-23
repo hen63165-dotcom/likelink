@@ -1,12 +1,12 @@
-{"loaded_ms": 8018, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": false}
-{"id": "headshot", "ms": 176375, "bytes": 563831}
-{"id": "hero", "ms": 175703, "bytes": 450873}
-{"loaded_ms": 25095, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": true}
-{"id": "worried", "ms": 183049, "bytes": 665414}
-{"id": "thinking", "ms": 181909, "bytes": 587995}
-{"id": "explain", "ms": 182202, "bytes": 537411}
-{"id": "phone", "ms": 181337, "bytes": 542647}
-{"id": "happy", "ms": 184040, "bytes": 583333}
-{"id": "mirror", "ms": 181719, "bytes": 562341}
-{"id": "gift", "ms": 183167, "bytes": 585671}
-{"id": "wave", "ms": 182415, "bytes": 571683}
+{"loaded_ms": 6255, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": false}
+{"id": "headshot", "ms": 108169, "bytes": 613890}
+{"id": "hero", "ms": 108001, "bytes": 610512}
+{"loaded_ms": 22496, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": true}
+{"id": "worried", "ms": 111490, "bytes": 666414}
+{"id": "thinking", "ms": 111586, "bytes": 557820}
+{"id": "explain", "ms": 110900, "bytes": 515928}
+{"id": "phone", "ms": 111255, "bytes": 508852}
+{"id": "happy", "ms": 111548, "bytes": 591709}
+{"id": "mirror", "ms": 111413, "bytes": 547369}
+{"id": "gift", "ms": 111448, "bytes": 555801}
+{"id": "wave", "ms": 111018, "bytes": 546258}
