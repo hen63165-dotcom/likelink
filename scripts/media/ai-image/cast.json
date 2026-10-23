@@ -1,72 +1,72 @@
 {
- "about": "The story cast (the owner, 2026-10-23: 'each one in another suit colour, hair and eyes, each one markets a different product, like Ravit recommends'). Original animated characters, AI-labelled everywhere, no brand names or logos on the clothes, no jewellery drawn (the product is always its real photo). Each one in her own athleisure outfit from the owner's references (2026-10-23): an oversized cropped hoodie with joggers, a sports bra with full-length striped leggings, a cropped collared sweatshirt with sweatpants. Always long pants, plain fabric, never a logo or letters.",
- "outfit": "wearing {outfit}, white chunky sneakers",
- "person": "original young woman fitness model character, {hair}, {eyes}, bright friendly smile, fit healthy figure",
- "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes, emblem, small logo on chest, print on clothes, shorts, hot pants, briefs, bikini, underwear, bare legs, bare thighs, exaggerated body, large breasts",
+ "about": "The story cast (the owner, 2026-10-23: 'each one in another suit colour, hair and eyes, each one markets a different product, like Ravit recommends'). Original animated characters, AI-labelled everywhere, no brand names or logos on the clothes, no jewellery drawn (the product is always its real photo). Each one in her own athleisure outfit after the owner's references (2026-10-23): an oversized hoodie with joggers, striped full-length leggings, a half-zip with sweatpants, a track jacket with track pants. Always long pants, plain fabric, never a logo or letters, the midriff covered. SD 1.5 reads only 77 tokens: the scene comes first, then the woman, then the outfit, and generate.py refuses a cast prompt that would be cut. The first cast lost the end of every prompt (a sports bra without its leggings came out as underwear, no scene action was read), so the sports-bra tops were replaced by covered ones.",
+ "outfit": "wearing {outfit}",
+ "person": "young woman, {hair}, {eyes}, friendly smile",
+ "negative": "photo, realistic, text, letters, logo, print on clothes, jewelry, shorts, underwear, bikini, swimsuit, bare legs, midriff, cleavage, sexy, nsfw, latex, shiny, deformed, extra fingers, bad hands, blurry",
  "characters": [
   {
    "id": "noa",
    "name": "נועה",
    "product": "p-live-01",
    "suit": "sage green",
-   "hair": "ash brown hair in a messy high bun with loose face-framing strands",
+   "hair": "ash brown messy bun",
    "eyes": "green eyes",
    "seed": 91000,
-   "outfit": "a matching plain sage green loungewear set: an oversized cropped hoodie and relaxed jogger sweatpants with a drawstring"
+   "outfit": "plain sage green oversized hoodie and long jogger pants"
   },
   {
    "id": "maya",
    "name": "מאיה",
    "product": "p-live-03",
    "suit": "navy blue",
-   "hair": "long straight glossy dark brown hair",
-   "eyes": "warm brown eyes",
+   "hair": "long straight dark brown hair",
+   "eyes": "brown eyes",
    "seed": 92000,
-   "outfit": "a matching plain navy blue sports set: a scoop-neck sports bra and full-length high-waisted leggings with thin white side stripes"
+   "outfit": "plain navy long-sleeve fitted top and long navy leggings with white side stripes"
   },
   {
    "id": "shira",
    "name": "שירה",
    "product": "p-live-05",
    "suit": "dusty rose pink",
-   "hair": "long wavy auburn red hair",
+   "hair": "long wavy auburn hair",
    "eyes": "hazel eyes",
    "seed": 93000,
-   "outfit": "a matching plain dusty rose loungewear set: a cropped collared half-zip sweatshirt and relaxed sweatpants"
+   "outfit": "plain dusty rose half-zip sweatshirt and long sweatpants"
   },
   {
    "id": "tal",
    "name": "טל",
    "product": "p-live-04",
    "suit": "matte black",
-   "hair": "sleek long jet black high ponytail",
+   "hair": "jet black high ponytail",
    "eyes": "grey eyes",
    "seed": 94000,
-   "outfit": "a matching plain black athletic set: a fitted cropped long-sleeve zip-up jacket and full-length high-waisted leggings"
+   "outfit": "plain matte black zip-up track jacket and long black track pants"
   },
   {
    "id": "yael",
    "name": "יעל",
    "product": "p-live-02",
    "suit": "cream white",
-   "hair": "long loose wavy golden blonde hair",
+   "hair": "long wavy golden blonde hair",
    "eyes": "blue eyes",
    "seed": 95000,
-   "outfit": "a matching plain cream white sports set: a thin-strap sports bra and full-length high-waisted leggings with thin black side stripes"
+   "outfit": "plain cream knit sweater and long cream sweatpants with black side stripes"
   }
  ],
  "face": {
-  "headshot": "head and shoulders portrait, looking at camera, light grey photo studio backdrop, soft studio lighting",
-  "hero": "standing with both hands on her hips, full body from head to sneakers, light grey photo studio backdrop, soft studio lighting"
+  "headshot": "head and shoulders portrait, looking at camera, light grey studio",
+  "hero": "full body, standing, hands on hips, white sneakers, light grey studio"
  },
  "scenes": {
-  "worried": "worried face, both hands on her cheeks, sitting on a sofa in a cozy living room, warm evening light, upper body",
-  "thinking": "thinking, one finger on her chin, looking up, bright bedroom with soft daylight, upper body",
-  "explain": "explaining a smart tip, raising one finger, confident smile, looking at camera, soft grey studio backdrop, upper body",
-  "phone": "looking at her smartphone with a delighted surprised face, sitting at a white desk in a bright room, upper body",
-  "happy": "joyful big smile, hands clasped together, bright cozy living room, upper body",
-  "mirror": "getting ready, brushing her hair in front of a vanity mirror with lights, curious face, bedroom, upper body",
-  "gift": "holding a small wrapped gift box with a pink ribbon, excited smile, pastel background, upper body",
-  "wave": "waving hello at the camera, warm friendly smile, light grey studio backdrop, upper body"
+  "worried": "upper body, worried face, hands on her cheeks, on a sofa, cozy living room",
+  "thinking": "upper body, thinking, finger on her chin, looking up, bright bedroom",
+  "explain": "upper body, raising one finger, explaining, confident, grey studio",
+  "phone": "upper body, looking at her smartphone, surprised smile, at a white desk",
+  "happy": "upper body, joyful big smile, hands clasped, cozy living room",
+  "mirror": "upper body, brushing her hair at a vanity mirror, bedroom",
+  "gift": "upper body, holding a small gift box with a pink ribbon, pastel room",
+  "wave": "upper body, waving hello, warm smile, light grey studio"
  }
 }

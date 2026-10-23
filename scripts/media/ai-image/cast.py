@@ -28,7 +28,8 @@ def jobs(cid, stage):
     shots = CAST["face"] if stage == "face" else CAST["scenes"]
     out = []
     for i, (name, what) in enumerate(shots.items()):
-        out.append({"id": name, "kind": "athlete", "prompt": f"{who}, {wears}, {what}",
+        # The shot first: SD 1.5 reads 77 tokens, and what she does must never be the part that is cut.
+        out.append({"id": name, "kind": "cast", "prompt": f"{what}, {who}, {wears}",
                     "negative": CAST["negative"], "seed": c["seed"] + (0 if stage == "face" else 100) + i})
     return out
 

@@ -214,6 +214,26 @@ class Story(unittest.TestCase):
         with self.assertRaises(ScriptError):
             self.story(presenter="nobody")
 
+    def test_cast_prompts_put_the_shot_first_and_stay_short(self):
+        """SD 1.5 reads 77 tokens and drops the rest (the first cast lost every
+        scene action and the leggings). The shot leads, prompts stay short (the
+        runner refuses a cast prompt it would cut), pants are long, tops cover."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("cast", HERE.parent / "media" / "ai-image" / "cast.py")
+        cast = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cast)
+        for member in cast.CAST["characters"]:
+            self.assertIn("long", member["outfit"], member["id"])
+            self.assertNotRegex(member["outfit"], r"bra|crop|short", member["id"])
+            for stage, shots in (("face", cast.CAST["face"]), ("scenes", cast.CAST["scenes"])):
+                for job, what in zip(cast.jobs(member["id"], stage), shots.values()):
+                    self.assertEqual(job["kind"], "cast")
+                    self.assertTrue(job["prompt"].startswith(what), f"{member['id']} {job['id']}: the shot comes first")
+                    self.assertLessEqual(len(job["prompt"].split()), 42, f"{member['id']} {job['id']}")
+        self.assertLessEqual(len(cast.CAST["negative"].split()), 32)
+        for word in ("shorts", "underwear", "logo", "midriff", "jewelry"):
+            self.assertIn(word, cast.CAST["negative"])
+
     def test_every_story_scene_is_drawn_for_its_own_presenter(self):
         """A missing picture would quietly show another face (Luna's); each
         character's own folder (Actions → "Story cast") holds every scene her story names."""
