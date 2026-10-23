@@ -89,6 +89,13 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         if not requested:
             # auto: cinematic stock footage when a free Pexels key is set, else the episode's own look.
             requested = f"pexels:{episode.pexels}" if os.environ.get("PEXELS_API_KEY") and episode.pexels else (episode.visual or "still")
+        story = episode.look == "story"
+        if story:
+            # A story is Luna's scenes, one per line, in the story captions; your own
+            # clip (video:…) still replaces the whole backdrop.
+            captions = "story"
+            if not requested.startswith("video:"):
+                requested = "scenes"
         # Luna (or a character clip you made) on screen → the AI-character label and Luna's voice.
         # Stock footage or the brand backdrop has no character → only the voice is labelled (Avri by default).
         character = not (requested == "aurora" or requested.startswith("pexels:"))
@@ -113,8 +120,8 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg")
         meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character, real=real)
         # The look in one word, for the site's reels feed (scripts/reels-feed.mjs):
-        # talking | still | aurora | pexels | video.
-        look = "real" if real else "talking" if requested == "talking" else requested.split(":", 1)[0]
+        # story | talking | still | aurora | pexels | video.
+        look = "real" if real else "story" if requested == "scenes" else "talking" if requested == "talking" else requested.split(":", 1)[0]
         meta.update({"file": mp4.name, "look": look, "captions": captions, "tier": tier, "music": music or "none",
                      "edgeVoice": voice_name if used == "edge" else None,
                      "renderSeconds": round(time.time() - t0, 1), **(extra_meta or {})})
@@ -156,7 +163,7 @@ def main(argv=None) -> int:
     m.add_argument("--voice", default="edge", help="edge | gtts | chatterbox | none | file:PATH")
     m.add_argument("--edge-voice", default=None, help="he-IL-HilaNeural (Luna) or he-IL-AvriNeural")
     m.add_argument("--visual", default="auto", help="auto | still | talking | aurora | pexels:QUERY | video:PATH_OR_URL")
-    m.add_argument("--captions", default="pop", choices=["pop", "karaoke"], help="pop = 2-3 outlined words, no box")
+    m.add_argument("--captions", default="pop", choices=["pop", "karaoke", "story"], help="pop = 2-3 outlined words, no box; story = yellow on a dark box")
     m.add_argument("--music", default=None, help="beat (our own lo-fi bed) or a file you have the rights to")
     m.add_argument("--tier", default="free", choices=["free", "pro"], help="free = LikeLink2 watermark + outro")
     m.add_argument("--logo", default=None, help="pro tier: your own logo (.png)")

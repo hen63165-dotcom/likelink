@@ -102,6 +102,26 @@ def product_card(photo: Image.Image | None, claim: str) -> Image.Image:
     return text.soft_shadow(card)
 
 
+PHOTO_TAG = "תמונת המוכר"
+
+
+def product_frame(photo: Image.Image | None, claim: str) -> Image.Image:
+    """A story's product line, full screen: the store's real photo, large, on a
+    blurred copy of itself, labelled as the seller's photo, with the seller's
+    own claim at the top right (clear of the name tag and the captions)."""
+    W, H = brand.WIDTH, brand.HEIGHT
+    frame = (blurred(photo, radius=40, darken=0.62) if photo is not None else Image.new("RGB", (W, H), brand.INK)).convert("RGBA")
+    if photo is not None:
+        card = rounded_photo(photo, 640, radius=46, border=12)
+        tag = text.text_block(PHOTO_TAG, 30, W, color=brand.WHITE, box=(13, 12, 20, 170), pad=(18, 6), radius=999, bold=False)
+        card.alpha_composite(tag, (card.width - tag.width - 14, 14))
+        frame.alpha_composite(text.soft_shadow(card), ((W - card.width) // 2 - 36, 530 - 36))
+    if claim:
+        pill = text.text_block(claim, 40, 660, color=brand.INK, box=brand.WHITE + (255,), pad=(26, 10), radius=26)
+        frame.alpha_composite(pill, (W - pill.width - 30, 318))
+    return frame.convert("RGB")
+
+
 def outro(frame: Image.Image, *, slogan: str | None, title: str, sub: str, branded: bool,
           logo: str | None, labels: list[str]) -> tuple[Image.Image, int]:
     """The closing screen: the reel's own last frame, blurred and darkened, with

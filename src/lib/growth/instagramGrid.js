@@ -124,6 +124,38 @@ export function instagramGrid({ products = [], imageOf = () => "", presenter = "
   return posts.map((p, i) => ({ id: `ig-${String(i + 1).padStart(2, "0")}-${p.kind}`, ...p }));
 }
 
+// Luna's stories (scripts/luna_reels, look "story"): posted as a Reel, then
+// shared to the story with Instagram's own link sticker to the product page.
+export const STORY_STEPS = Object.freeze([
+  "מורידים את הסרטון.",
+  "באינסטגרם: ➕ ← ריל ← בוחרים את הסרטון, ומדביקים את הכיתוב.",
+  "הגדרות מתקדמות ← „תווית AI” ← מפעילים (לונה היא דמות AI).",
+  "אחרי שהריל עלה: כפתור השיתוף ← „הוספה לסטורי”.",
+  "בסטורי: מדבקות ← „קישור” ← מדביקים את הקישור למוצר, ועל המדבקה כותבים „לפרטים על המוצר”.",
+  "מי שכותבת „רוצה” מתחת לריל מקבלת את הקישור בפרטי.",
+]);
+export const STORY_STICKER = "לפרטים על המוצר";
+
+/**
+ * The stories the kit page offers: each one's video and caption (written by
+ * the engine, the disclosure first) and the product page link for the story's
+ * link sticker. A story without the ad tag or a product is left out.
+ */
+export function storyCards(stories = [], { origin = PRODUCTION_ORIGIN } = {}) {
+  return (Array.isArray(stories) ? stories : [])
+    .filter((x) => x?.productId && x?.video && String(x.caption || "").startsWith(DROP_AD) && safeCopy(x.caption))
+    .map((x) => ({
+      id: String(x.id),
+      productId: String(x.productId),
+      title: clean(x.title),
+      video: String(x.video),
+      seconds: Number(x.seconds) || 0,
+      caption: String(x.caption),
+      link: `${origin}/p/${encodeURIComponent(x.productId)}?utm_source=instagram&utm_medium=story&utm_campaign=luna_story`,
+      sticker: STORY_STICKER,
+    }));
+}
+
 /** Every line a post says on the picture or in its caption passes the copy rules. */
 export function gridIsClean(posts = []) {
   return posts.every((p) => safeCopy(p.hook) && safeCopy(p.sub || "") && safeCopy(p.caption) && (p.kind !== "product" || p.caption.startsWith(DROP_AD)));

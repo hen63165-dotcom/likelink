@@ -23,7 +23,8 @@ BASE_TAGS = {
 def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: str, seconds: float,
           character: bool = True, real: bool = False) -> dict:
     hook = spoken_text(episode.hook.say)
-    body = [spoken_text(line.say) for line in episode.lines[:4]]
+    # A story's caption reads like its screen (digits, "925"), not like the voice ("תשע מאות...").
+    body = [spoken_text(line.caption if episode.look == "story" else line.say) for line in episode.lines[:5 if episode.look == "story" else 4]]
     lines = []
     if product:
         lines.append(brand.AD_TAG)

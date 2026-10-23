@@ -6,10 +6,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { AI_TAG, BRAND_TAG, GRID_ORDER, gridIsClean, instagramGrid, tipChecks } from "../src/lib/growth/instagramGrid.js";
+import { AI_TAG, BRAND_TAG, GRID_ORDER, gridIsClean, instagramGrid, STORY_STEPS, storyCards, tipChecks } from "../src/lib/growth/instagramGrid.js";
 import { DROP_AD } from "../src/lib/growth/dailyDrop.js";
 import { isGuidePost } from "../scripts/instagram/comment-bot.mjs";
-import { postHtml } from "../scripts/marketing/instagram-grid.mjs";
+import { gridPage, postHtml } from "../scripts/marketing/instagram-grid.mjs";
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 const P = (id, title, description = "") => ({ id, title, description, category: "Accessories" });
@@ -68,4 +68,18 @@ test("the picture carries the tag, the labels and the hook bar; the page is buil
   const wf = read(".github/workflows/deploy-frontend.yml");
   assert.match(wf, /node scripts\/marketing\/instagram-grid\.mjs dist/);
   assert.doesNotMatch(read("scripts/marketing/instagram-grid.mjs"), /graph\.facebook\.com|media_publish/, "nothing is posted from here");
+});
+
+test("Luna's stories (2026-10-23, the owner's example): a reel to post, then the story's link sticker to the product page", () => {
+  const caption = `${DROP_AD}\nהחתונה הערב, והיד נראית ריקה?\n\n👇 כתבי "רוצה" בתגובות ואשלח לך את הקישור בפרטי\n🎬 דמות וקול שנוצרו בבינה מלאכותית`;
+  const ok = { id: "story-wedding-a", productId: "p-live-03", video: "story-wedding-a.mp4", title: "החתונה הערב", seconds: 27, caption };
+  const cards = storyCards([ok, { ...ok, id: "no-ad", caption: caption.replace(DROP_AD, "") }, { ...ok, id: "loud", caption: `${caption}\nרק היום!` }, { ...ok, id: "x", productId: "" }]);
+  assert.deepEqual(cards.map((c) => c.id), ["story-wedding-a"], "only a story with the disclosure first, clean copy and a product");
+  assert.match(cards[0].link, /\/p\/p-live-03\?utm_source=instagram&utm_medium=story/);
+  assert.ok(STORY_STEPS.some((s) => /תווית AI/.test(s)) && STORY_STEPS.some((s) => /קישור/.test(s)));
+  const html = gridPage([], {}, { stories: cards });
+  assert.match(html, /הסטוריז של לונה/);
+  assert.match(html, /media\/stories\/story-wedding-a\.mp4/);
+  assert.doesNotMatch(gridPage([], {}, {}), /הסטוריז של לונה/, "no stories, no section");
+  assert.match(read("scripts/reels-feed.mjs"), /storyReels\(withMeta, listed\)/, "the deploy copies the stories next to the site");
 });

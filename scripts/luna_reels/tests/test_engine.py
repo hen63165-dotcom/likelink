@@ -145,6 +145,67 @@ class Trends(unittest.TestCase):
         self.assertEqual(hit[1]["source"], "calendar")
 
 
+class Story(unittest.TestCase):
+    """The story look (the owner's example, 2026-10-23: a creator's story with one
+    character, yellow captions on a dark box, a name tag): what it may show."""
+
+    def story(self, **over):
+        data = {"id": "t-story", "goal": "sales", "look": "story",
+                "hook": {"say": "הטבעת הגיעה, ולא עולה?", "scene": "worried"},
+                "lines": [{"say": "מודדים קודם.", "scene": "explain"},
+                          {"say": "המוכר מציין: כסף סטרלינג 925."},
+                          {"say": "ואז מזמינים."}],
+                "product": {"id": "p-live-01", "at": 2, "claim": "המוכר מציין: כסף סטרלינג 925", "mustMatch": "סטרלינג 925"},
+                "cta": {"title": "כתבי \"רוצה\" בתגובות"}}
+        data.update(over)
+        return parse_episode(data)
+
+    def test_the_product_line_shows_the_real_photo_and_scenes_carry_on(self):
+        ep = self.story()
+        check_truth(ep, CATALOG)
+        self.assertEqual([b.scene for b in ep.beats], ["worried", "explain", "product", ""])
+        beats = [compose.Beat(start=i, seconds=1, end=i + 1, caption=b.caption, clip=Clip(None, 1.0)) for i, b in enumerate(ep.beats)]
+        # A line without a scene keeps the one before it; after the product, Luna comes back.
+        self.assertEqual(compose.story_scenes(ep, beats), ["worried", "explain", "product", "luna"])
+
+    def test_scenes_are_names_the_product_or_your_own_https_clip(self):
+        self.story(lines=[{"say": "א", "scene": "video:https://drive.google.com/file/d/abcdefghijklmnop/view"}], product=None,
+                   cta={"title": "שמרי"})
+        for bad in ["../etc/passwd", "video:http://x.example/a.mp4", "Worried Face", "video:javascript:alert(1)"]:
+            with self.assertRaises(ScriptError, msg=bad):
+                self.story(lines=[{"say": "א", "scene": bad}], product=None, cta={"title": "שמרי"})
+        with self.assertRaises(ScriptError):
+            episode(lines=[{"say": "א", "scene": "worried"}])            # scenes belong to the story look
+        with self.assertRaises(ScriptError):
+            self.story(lines=[{"say": "א", "scene": "product"}], product=None, cta={"title": "שמרי"})
+        with self.assertRaises(ScriptError):
+            episode(look="cinema")
+
+    def test_story_captions_break_where_the_sentence_pauses(self):
+        cut = lambda c: [" ".join(w for w, _ in text.tokens(c)[a:b + 1]) for a, b in text.phrases(c)]  # noqa: E731
+        self.assertEqual(cut("טיפ: פרק היד + 1.5 עד 2 ס״מ"), ["טיפ:", "פרק היד + 1.5", "עד 2 ס״מ"])
+        self.assertEqual(cut("החתונה הערב... והיד נראית ריקה?"), ["החתונה הערב...", "והיד נראית ריקה?"])
+        for c in ["זה קורה כשמזמינים בלי לדעת את המידה", "3 שאלות, והמתנה בוחרת את עצמה"]:
+            self.assertTrue(all(b - a < 4 for a, b in text.phrases(c)), c)
+
+    def test_the_name_tag_and_the_yellow_box(self):
+        from PIL import Image
+        tag = text.name_tag(Image.open(brand.LUNA_FACE), branded=True)
+        self.assertLess(tag.width, 420, "a corner tag, not a banner")
+        cap = text.story("הטבעת הגיעה")
+        self.assertIn(brand.STORY_YELLOW + (255,), set(cap.getdata()), "the words are yellow")
+        self.assertEqual(brand.NAME_TAG, "לונה ממליצה")
+
+    def test_every_story_scene_is_chosen_or_falls_back_to_luna(self):
+        for f in sorted((HERE / "episodes").glob("story-*.json")):
+            ep = load_episode(f)
+            self.assertEqual(ep.look, "story", f.name)
+            for b in ep.beats:
+                if b.scene and b.scene not in ("product",) and not b.scene.startswith("video:"):
+                    self.assertTrue(compose.brand.SCENES.parent.exists())
+            self.assertTrue(any(b.scene == "product" for b in ep.beats), f"{f.name}: the product line shows its real photo")
+
+
 class Music(unittest.TestCase):
     def test_bed_level(self):
         self.assertAlmostEqual(music.db_to_gain(-20), 0.1)

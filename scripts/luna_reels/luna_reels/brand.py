@@ -19,10 +19,28 @@ WHITE = (255, 255, 255)
 HIGHLIGHT = (255, 216, 77)  # karaoke: the word being said
 AMBER = (251, 191, 36)      # #FBBF24: the spoken word in pop captions and hooks
 CAPTION_BOX = (13, 12, 20, 178)
+# Story look: the series' one caption style (yellow words on a dark box, like
+# the strong creator stories the owner showed) and its name tag.
+STORY_YELLOW = (255, 224, 64)
+STORY_BOX = (22, 20, 28, 200)
+TAG_PLATE = (109, 74, 255)       # the name tag's plate: brand violet
+TAG_EDGE = (255, 128, 178)       # its border: soft pink
+NAME_TAG = "לונה ממליצה"
 
 FONT_BOLD = ASSETS / "Heebo-ExtraBold.ttf"
 FONT_TEXT = ASSETS / "Heebo-Medium.ttf"
 LUNA = ASSETS / "luna.png"
+LUNA_FACE = ASSETS / "luna-face.jpg"
+SCENES = ASSETS / "scenes"
+
+
+def scene_path(name: str) -> Path | None:
+    """A chosen scene picture (assets/scenes/<name>.jpg|png), or None."""
+    for ext in (".jpg", ".png"):
+        path = SCENES / f"{name}{ext}"
+        if path.exists():
+            return path
+    return None
 
 SITE_URL = "likelink2.vercel.app"
 
