@@ -42,7 +42,10 @@ export function tipChecks(products = []) {
   return [...new Set([...withExample, ...general])];
 }
 
-function productPost(product, image, i, { origin }) {
+function productPost(product, picture, i, { origin }) {
+  // A picture is a src, or { src, note } when it says more than "the seller's photo" (a luxe set's own background).
+  const image = typeof picture === "object" && picture ? picture.src : picture;
+  const note = (typeof picture === "object" && picture?.note) || SELLER_PHOTO_TAG;
   const hooks = dropHooks(product);
   const hook = hooks.length ? hooks[i % hooks.length] : "";
   const title = short(product.displayTitle || product.title, 60);
@@ -58,10 +61,10 @@ function productPost(product, image, i, { origin }) {
     sub: safeCopy(title) ? short(title, 42) : "",
     image,
     tags: ["#פרסומת", BRAND_TAG],
-    imageNote: SELLER_PHOTO_TAG,
+    imageNote: note,
     caption,
     link: `${origin}/p/${product.id}`,
-    alt: `${title} · ${SELLER_PHOTO_TAG}`,
+    alt: `${title} · ${note}`,
   };
 }
 
@@ -114,7 +117,8 @@ export function instagramGrid({ products = [], imageOf = () => "", presenter = "
     } else if (slot === "tip" && ti < tips.length) {
       const ex = guideExamples(tips[ti], withImage, 1)[0];
       const n = GUIDE.checks.indexOf(tips[ti]) + 1;
-      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: imageOf(ex) } : null, n));
+      const exPic = ex ? imageOf(ex) : "";
+      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: typeof exPic === "object" ? exPic.src : exPic } : null, n));
       ti += 1;
     } else if (slot === "tool" && faces.length && !tool) {
       posts.push(toolPost(faces[(ti + 1) % faces.length], origin));

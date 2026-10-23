@@ -83,3 +83,19 @@ test("Luna's stories (2026-10-23, the owner's example): a reel to post, then the
   assert.doesNotMatch(gridPage([], {}, {}), /הסטוריז של לונה/, "no stories, no section");
   assert.match(read("scripts/reels-feed.mjs"), /storyReels\(withMeta, listed\)/, "the deploy copies the stories next to the site");
 });
+
+test("the luxe sets (2026-10-23, 'the white pictures are awful'): the seller's photo on our backdrop, said so on the post", () => {
+  const sets = JSON.parse(read("public/sets/index.json"));
+  const listed = JSON.parse(read("public/snapshot/kv.json")).keys["marketplace:products"].filter((p) => p.status === "approved").map((p) => p.id);
+  assert.match(sets.label, /תמונת המוכר/);
+  assert.match(sets.label, /רקע: LikeLink2/, "the background is ours and the post says so");
+  for (const [id, set] of Object.entries(sets.sets)) {
+    assert.ok(listed.includes(id), `${id} is a listed product`);
+    assert.ok(readFileSync(new URL(`../public/sets/${set.file}`, import.meta.url)).length > 10_000, `${set.file} exists`);
+  }
+  const posts = instagramGrid({ products, imageOf: (p) => (p.id === "e1" ? { src: "../sets/e1.jpg", note: sets.label } : imageOf(p)), presenter: "face.png" });
+  const e1 = posts.find((p) => p.productId === "e1");
+  assert.equal(e1.image, "../sets/e1.jpg");
+  assert.equal(e1.imageNote, sets.label);
+  assert.match(gridPage(posts), /המאסטר/);
+});

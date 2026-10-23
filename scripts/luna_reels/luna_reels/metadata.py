@@ -42,6 +42,8 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
         lines.append(f"{icon} {title}" + (f" · {sub}" if sub else ""))
     else:
         lines.append("📌 שמרי לפני הקנייה הבאה ושלחי לחברה שקונה באלי")
+    if episode.send:
+        lines.append(f"📩 {episode.send}")
     truth = brand.truth_label(character, voice_engine not in ("none", "file"))
     if truth:
         lines.append(f"🎬 {truth}")

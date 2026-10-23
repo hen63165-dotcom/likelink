@@ -44,17 +44,27 @@ VARIANTS = [
 ]
 
 
+SETS = REPO / "public" / "sets"
+
+
 def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
     if not episode.product:
         return None
-    p = catalog[str(episode.product["id"])]
-    photo = None
+    pid = str(episode.product["id"])
+    p = catalog[pid]
+    photo, tag, full = None, visuals.PHOTO_TAG, False
     try:
         from PIL import Image  # noqa: PLC0415
-        photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
+        # A luxe set chosen by eye (public/sets): the seller's photo on our studio backdrop, labelled so.
+        index = json.loads((SETS / "index.json").read_text(encoding="utf-8")) if (SETS / "index.json").exists() else {}
+        chosen = (index.get("sets") or {}).get(pid)
+        if chosen and (SETS / chosen["file"]).exists():
+            photo, tag, full = Image.open(SETS / chosen["file"]), index.get("label") or tag, True
+        else:
+            photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
     except Exception as exc:  # the card still shows the claim
         print(f"[product] photo not available ({exc}); showing the claim only", file=sys.stderr)
-    return {**episode.product, "photo": photo, "title": p.get("title", "")}
+    return {**episode.product, "photo": photo, "photoTag": tag, "photoFull": full, "title": p.get("title", "")}
 
 
 def _visual(requested: str, episode: Episode, beats, total: float, work: Path) -> str:

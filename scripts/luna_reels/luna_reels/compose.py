@@ -200,7 +200,9 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         dur = end - beat.start
         if scene == "product":
             clip = moving_still(visuals.product_frame(product.get("photo") if product else None,
-                                                     (product or {}).get("claim", "")), dur, "in", depth=0.04)
+                                                     (product or {}).get("claim", ""),
+                                                     (product or {}).get("photoTag") or visuals.PHOTO_TAG,
+                                                     full=bool((product or {}).get("photoFull"))), dur, "in", depth=0.04)
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
         else:

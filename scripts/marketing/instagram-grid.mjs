@@ -16,6 +16,7 @@ import { listedFromSnapshot } from "../prerender-products.mjs";
 import { inlineLocal } from "./tiktok-kit.mjs";
 import { cleanImage } from "../../src/lib/looks.js";
 import { AI_TAG, GRID_POST, instagramGrid, STORY_STEPS, storyCards } from "../../src/lib/growth/instagramGrid.js";
+import { MASTER_RULES } from "../../src/lib/growth/viralMaster.js";
 
 // Candidate E of the presenter casting (2026-10-22: the same character in two
 // frames, p-camel-0/1); the owner's pick replaces it. Comma-separated in env.
@@ -93,6 +94,14 @@ const STEPS = {
 };
 
 /** The page: the grid as it will look on the profile, then each post to download and post. */
+/** "המאסטר": the rules every post and story here was checked against (src/lib/growth/viralMaster.js). */
+function masterSection() {
+  return `<details class="card master" open><summary>המאסטר: ${MASTER_RULES.length} החוקים שכל סרטון כאן עומד בהם</summary>
+<ol>${MASTER_RULES.map((r) => `<li>${esc(r.he)}</li>`).join("")}</ol>
+<p class="note">אף אחד לא יכול להבטיח שסרטון יתפוצץ, גם לא אינסטגרם. החוקים האלה מעלים את הסיכוי, והמספרים שלך מראים מה לחזור עליו: אחרי 24 שעות בודקים בתובנות של כל ריל כמה צפו עד הסוף, כמה שלחו וכמה שמרו.</p>
+</details>`;
+}
+
 function storySection(stories = []) {
   if (!stories.length) return "";
   const cards = stories.map((x) => `<section class="card" id="${esc(x.id)}">
@@ -138,13 +147,14 @@ img.post{width:100%;border-radius:14px;display:block}
 textarea{width:100%;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14.5px;resize:vertical}
 .copy{margin-top:6px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
 details{margin:10px 0}summary{cursor:pointer;font-weight:700}ol{padding-inline-start:20px}a{color:inherit}
-h2.sec{font-size:24px;margin:34px 0 4px}video.post{background:#000;aspect-ratio:9/16;max-height:640px;object-fit:contain}
+h2.sec{font-size:24px;margin:34px 0 4px}.master summary{font-size:19px}.master li{margin:6px 0}video.post{background:#000;aspect-ratio:9/16;max-height:640px;object-fit:contain}
 </style></head><body>
 <header><div><p class="kicker">האינסטגרם של LikeLink2${date ? ` · ${esc(date)}` : ""}</p><h1>${posts.length} פוסטים במראה אחד</h1>
 <p class="note">ככה הפרופיל ייראה: כל פוסט עם התג „LikeLink2 ממליצה”, פס כותרת אחד בתחתית, ובכל שורה טיפ שמלמד משהו לפני המוצרים, כמו אצל היוצרות הגדולות. פוסט מוצר מתחיל ב־„#פרסומת · קישור שותפים” ומשתמש בתמונה של המוצר עצמו; בפוסט עם הדמות כתוב „${esc(AI_TAG)}”.</p>
 <p class="note">איך לפרסם כדי שהרשת תיראה כמו כאן: מתחילים מהפוסט האחרון ברשימה ועולים, פוסט אחד או שניים ביום (אינסטגרם מראה את החדש ביותר ראשון).</p>
 <p class="note"><a href="../drop/">לדרופ היומי</a> · <a href="../tiktok/">לטיקטוק של היום</a></p></div></header>
 <main>
+${masterSection()}
 <div class="grid" aria-label="תצוגת הרשת">${tiles}</div>
 ${cards}
 ${storySection(stories)}
@@ -165,7 +175,14 @@ export async function writeInstagramGrid({ dist = "dist", now = Date.now(), play
     copyFileSync(file, join(out, `presenter-${i + 1}.png`));
     presenter.push(`presenter-${i + 1}.png`);
   }
-  const imageOf = (p) => cleanImage(p, "..")?.src || "";
+  // A luxe set (public/sets, chosen by eye) first: the seller's product on our studio backdrop, labelled so.
+  const setsFile = join(dist, "sets", "index.json");
+  const sets = existsSync(setsFile) ? JSON.parse(readFileSync(setsFile, "utf8")) : { sets: {} };
+  const imageOf = (p) => {
+    const set = sets.sets?.[p.id];
+    if (set?.file && existsSync(join(dist, "sets", set.file))) return { src: `../sets/${set.file}`, note: sets.label };
+    return cleanImage(p, "..")?.src || "";
+  };
   const posts = instagramGrid({ products, imageOf, presenter });
   const files = await renderPosts(posts, out, { playwrightModule });
   const date = new Date(now).toISOString().slice(0, 10);

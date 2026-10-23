@@ -87,6 +87,7 @@ class Episode:
     pexels: str = ""     # a stock-footage search for the backdrop (used with a free PEXELS_API_KEY)
     keyword: str = ""    # the comment word the Instagram bot answers (e.g. "מדריך" → the site's free guide)
     look: str = ""       # "story": Luna's scenes, yellow captions on a dark box, the name tag
+    send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
 
     @property
     def beats(self) -> list[Line]:
@@ -134,7 +135,7 @@ def _scene(value, where: str) -> str:
 
 def check_truth(episode: Episode, catalog: dict[str, dict] | None = None) -> None:
     """Refuse claims the site would refuse. Raises ScriptError."""
-    for i, beat in enumerate([*episode.beats, *episode.hooks[1:]]):
+    for i, beat in enumerate([*episode.beats, *episode.hooks[1:], Line(say=episode.send or "-", caption=episode.send or "-")]):
         for text in (beat.say, beat.caption):
             m = FORBIDDEN.search(text)
             if m:
@@ -202,7 +203,14 @@ def parse_episode(data: dict) -> Episode:
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
-                   keyword=_keyword(data.get("keyword")), look=look)
+                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")))
+
+
+def _send(value) -> str:
+    send = screen_text(value or "")
+    if send and (len(send) > 90 or not re.match(r"^(שלחי|תייגי)", send)):
+        raise ScriptError("send: one short line that starts with שלחי / תייגי (a reason to send the reel)")
+    return send
 
 
 # Comment words the bot answers (scripts/instagram/comment-bot.mjs).
