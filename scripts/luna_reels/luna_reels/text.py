@@ -167,10 +167,11 @@ def story(text: str, size: int = 72) -> Image.Image:
                       box=brand.STORY_BOX, pad=(34, 14), radius=22)
 
 
-def name_tag(face: Image.Image | None, branded: bool = True) -> Image.Image:
-    """The series' name tag, top corner: Luna's round picture over a plate that
-    says "לונה ממליצה" (and, on the free tier, the LikeLink2 wordmark under it)."""
-    plate = text_block(brand.NAME_TAG, 40, brand.WIDTH, color=brand.WHITE, box=brand.TAG_PLATE + (255,), pad=(24, 8), radius=16)
+def name_tag(face: Image.Image | None, branded: bool = True, label: str = brand.NAME_TAG) -> Image.Image:
+    """The series' name tag, top corner: the presenter's round picture over a
+    plate that says her name ("נועה ממליצה"; Luna's by default), and, on the
+    free tier, the LikeLink2 wordmark under it."""
+    plate = text_block(label, 40, brand.WIDTH, color=brand.WHITE, box=brand.TAG_PLATE + (255,), pad=(24, 8), radius=16)
     edge = Image.new("RGBA", plate.size, (0, 0, 0, 0))
     ImageDraw.Draw(edge).rounded_rectangle((9, 9, plate.width - 10, plate.height - 10), radius=19, outline=brand.TAG_EDGE + (255,), width=5)
     plate.alpha_composite(edge)

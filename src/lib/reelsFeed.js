@@ -41,7 +41,7 @@ export const FEED_LOOKS = Object.freeze({
   lookbook_photos: Object.freeze({ style: "seller_photo_reel", kind: "seller_media_edit", ai: false, rank: 3.5, note: "תמונות המוצר: המוכר." }),
   seller: Object.freeze({ style: "seller_video", kind: "seller_video", ai: false, rank: 3, note: "צילום המוצר: המוכר." }),
   talking: Object.freeze({ style: "luna_talking", kind: "luna_animation", ai: true, rank: 2, note: "לונה היא דמות AI." }),
-  story: Object.freeze({ style: "luna_story", kind: "luna_animation", ai: true, rank: 2, note: "לונה היא דמות AI." }),
+  story: Object.freeze({ style: "luna_story", kind: "luna_animation", ai: true, rank: 2, note: "הדמות בסיפור היא דמות AI." }),
   still: Object.freeze({ style: "luna_tip", kind: "luna_animation", ai: true, rank: 1, note: "לונה היא דמות AI." }),
 });
 export const SELLER_MEDIA_LOOKS = Object.freeze(["lookbook", "lookbook_photos"]);

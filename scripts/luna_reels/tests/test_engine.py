@@ -196,14 +196,22 @@ class Story(unittest.TestCase):
         self.assertIn(brand.STORY_YELLOW + (255,), set(cap.getdata()), "the words are yellow")
         self.assertEqual(brand.NAME_TAG, "לונה ממליצה")
 
-    def test_every_story_scene_is_chosen_or_falls_back_to_luna(self):
+    def test_every_story_has_its_own_presenter_and_its_product_photo(self):
+        """Like a creator's series: one character per product (the cast), her name on the tag."""
+        seen = {}
         for f in sorted((HERE / "episodes").glob("story-*.json")):
             ep = load_episode(f)
             self.assertEqual(ep.look, "story", f.name)
-            for b in ep.beats:
-                if b.scene and b.scene not in ("product",) and not b.scene.startswith("video:"):
-                    self.assertTrue(compose.brand.SCENES.parent.exists())
+            member = brand.cast_member(ep.presenter)
+            self.assertIsNotNone(member, f"{f.name}: a presenter from the cast")
+            self.assertEqual(member["product"], ep.product["id"], f"{f.name}: she presents her own product")
+            self.assertNotIn(ep.presenter, seen.values(), "one product per character")
+            seen[f.name] = ep.presenter
+            self.assertEqual(brand.tag_text(ep.presenter), f"{member['name']} ממליצה")
             self.assertTrue(any(b.scene == "product" for b in ep.beats), f"{f.name}: the product line shows its real photo")
+        self.assertEqual(brand.tag_text(""), "לונה ממליצה")
+        with self.assertRaises(ScriptError):
+            self.story(presenter="nobody")
 
 
 class Music(unittest.TestCase):

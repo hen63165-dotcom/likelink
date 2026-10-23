@@ -88,6 +88,7 @@ class Episode:
     keyword: str = ""    # the comment word the Instagram bot answers (e.g. "מדריך" → the site's free guide)
     look: str = ""       # "story": Luna's scenes, yellow captions on a dark box, the name tag
     send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
+    presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
 
     @property
     def beats(self) -> list[Line]:
@@ -199,11 +200,18 @@ def parse_episode(data: dict) -> Episode:
         raise ScriptError("scenes belong to the story look (\"look\": \"story\")")
     if look == "story" and product is None and any(x.scene == "product" for x in [hook, *lines]):
         raise ScriptError("a 'product' scene needs the episode's product")
+    presenter = str(data.get("presenter") or "")
+    if presenter:
+        from . import brand  # noqa: PLC0415
+        if look != "story":
+            raise ScriptError("a presenter belongs to the story look")
+        if brand.cast_member(presenter) is None:
+            raise ScriptError(f"presenter '{presenter}' is not in the cast (scripts/media/ai-image/cast.json)")
     return Episode(id=eid, goal=goal, hook=hook, lines=lines, product=product, cta=cta, hashtags=hashtags[:8],
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
-                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")))
+                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter)
 
 
 def _send(value) -> str:

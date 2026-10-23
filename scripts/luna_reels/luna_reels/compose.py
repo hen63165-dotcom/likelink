@@ -206,9 +206,13 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
         else:
-            path = brand.scene_path(scene) if scene != "luna" else None
-            if scene != "luna" and path is None:
-                print(f"[story] scene '{scene}' is not in assets/scenes; Luna's picture instead")
+            who = episode.presenter
+            path = brand.scene_path(scene, who) if scene != "luna" else None
+            if path is None:
+                # A line with no scene of its own: the presenter explaining, else her portrait, else Luna.
+                path = brand.scene_path("explain", who) or brand.scene_path("headshot", who)
+                if scene != "luna":
+                    print(f"[story] scene '{scene}' is not drawn for '{who or 'luna'}'; another of her pictures instead")
             clip = moving_still(Image.open(path or brand.LUNA).convert("RGB"), dur, MOVES[i % len(MOVES)])
         clip = clip.with_start(beat.start)
         if i:
@@ -299,8 +303,9 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     if story:
         # The series' name tag (top left): Luna's picture and "לונה ממליצה" (+ LikeLink2 on the free tier).
-        face = Image.open(brand.LUNA_FACE) if brand.LUNA_FACE.exists() else None
-        layers.append(_img_clip(text.name_tag(face, branded=free), 0, end_at, (24, TOP_Y - 30)))
+        face_file = brand.face_path(episode.presenter)
+        face = Image.open(face_file) if face_file else None
+        layers.append(_img_clip(text.name_tag(face, branded=free, label=brand.tag_text(episode.presenter)), 0, end_at, (24, TOP_Y - 30)))
     elif free:
         # The LikeLink2 wordmark (top left): the watermark of the free tier.
         layers.append(_img_clip(text.wordmark(46), 0, end_at, (44, TOP_Y)))

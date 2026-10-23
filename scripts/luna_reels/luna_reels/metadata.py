@@ -56,7 +56,8 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
         "title": episode.title or hook,
         "caption": caption,
         "hashtags": tags,
-        "altText": f"צילום אמיתי עם כתוביות: {hook}" if real else f"דמות מונפשת בשם לונה מסבירה: {hook}" if character else f"טיפ קניות מונפש: {hook}",
+        "altText": f"צילום אמיתי עם כתוביות: {hook}" if real else f"דמות מונפשת בשם {_presenter_name(episode)} מספרת: {hook}" if character else f"טיפ קניות מונפש: {hook}",
+        "presenter": episode.presenter or None,
         "commentKeyword": brand.COMMENT_KEYWORD if product else (episode.keyword or None),
         "product": {"id": product["id"], "claim": product.get("claim", "")} if product else None,
         "voice": voice_engine,
@@ -71,6 +72,11 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
             "בשעה הראשונה: עני לכל תגובה, ושתפי לסטורי עם סקר",
         ],
     }
+
+
+def _presenter_name(episode: Episode) -> str:
+    member = brand.cast_member(episode.presenter) if episode.presenter else None
+    return member["name"] if member else "לונה"
 
 
 def write(meta: dict, out_dir: Path) -> tuple[Path, Path]:
