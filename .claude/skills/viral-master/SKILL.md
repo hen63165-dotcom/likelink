@@ -27,7 +27,7 @@ do: raise the odds with every rule below, then let her numbers decide.
 ## The 12 rules (MASTER_RULES)
 hook in the first second (≤ 8 words) · short and complete (product reel 7–15 s,
 Luna story 20–45 s) · a new picture at least every 4 s · captions on screen ·
-one face and one look (Luna, the "לונה ממליצה" tag, yellow captions) · teach
+one look per series (each product's own character and her "<name> ממליצה" tag, yellow captions) · teach
 before you sell · a reason to send ("שלחי לחברה ש…", episode field `send`) ·
 one keyword ("רוצה" product link / "מדריך" guide) · `#פרסומת · קישור שותפים`
 first · AI character labelled on screen and with Instagram's AI label · true
@@ -37,7 +37,7 @@ only (no other creator's video, no other brand's logo or name).
 ## The formats that carry them
 | Format | Where it is made | Notes |
 |---|---|---|
-| Luna's story (look `story`) | `scripts/luna_reels`, episodes `story-*.json`, Actions → "Luna reels" | scene per line (`assets/scenes`, drawn by the own image model, Actions → "Luna scenes"), yellow captions cut at the sentence's pauses, the name tag, the product's real photo full screen, `send` line in the caption |
+| Story (look `story`) | `scripts/luna_reels`, episodes `story-*.json`, Actions → "Luna reels" | one character per product (`scripts/media/ai-image/cast.json`, drawn by Actions → "Story cast"), a scene per line, yellow captions cut at the sentence's pauses, the "<name> ממליצה" tag, the product's real photo full screen, `send` line in the caption |
 | Premium product cut | `scripts/media/product-video/` | the seller's footage, ~11 s; variants b/c keep the on-screen hook |
 | Luxe-set product photo | `scripts/media/luxe-set/luxe.py`, chosen sets in `public/sets/index.json` | seller's photo cut out (rembg, free) on noir / champagne / sky; only the background is ours; label "תמונת המוכר · רקע: LikeLink2"; despill for green-screen sources |
 | Instagram grid | `src/lib/growth/instagramGrid.js` | tips before products; uses the luxe sets first |

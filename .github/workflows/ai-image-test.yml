@@ -1,7 +1,7 @@
 # Feasibility test for LikeLink's own image model (no account, no key):
 # open weights on the CPU runner. Runs when the sample jobs change and commits
 # the sample images back to the same branch for review. (Luna's story scenes
-# have their own workflow, luna-scenes.yml.)
+# have their own workflow, story-cast.yml.)
 name: Own image model — test
 on:
   push:
