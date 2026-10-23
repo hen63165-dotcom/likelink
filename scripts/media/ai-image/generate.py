@@ -33,7 +33,11 @@ STYLE = ("3d animated feature film still, original stylized character, large exp
 # pushed out by the negative prompt, or the model turns every object into a girl.
 OBJECT_STYLE = "stylized 3d animated film render, cute anthropomorphic mascot with big glossy eyes and an expressive mouth, soft light, vibrant, high detail"
 OBJECT_NEGATIVE = NEGATIVE + ", human, person, woman, man, girl, boy, child, people, human face, hair, body, legs"
-KINDS = {"character": (STYLE, NEGATIVE), "object": (OBJECT_STYLE, OBJECT_NEGATIVE)}
+# Sportswear (a sports bra and leggings, the owner's reference look, 2026-10-23):
+# the same character style and the same limits, without the "revealing clothes"
+# term that would cover the outfit up; nothing sexualised, still.
+ATHLETE_NEGATIVE = NEGATIVE.replace("revealing clothes, ", "") + ", lingerie, swimsuit, suggestive pose"
+KINDS = {"character": (STYLE, NEGATIVE), "object": (OBJECT_STYLE, OBJECT_NEGATIVE), "athlete": (STYLE, ATHLETE_NEGATIVE)}
 
 
 # A stronger open model for 3D "talking object" mascots: Segmind SSD-1B (a

@@ -1,50 +1,58 @@
 [
  {
-  "id": "look-cream-0",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in soft cream, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-hips-00",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, standing with both hands on her hips, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81000
+  "seed": 82000
  },
  {
-  "id": "look-cream-1",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in soft cream, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-hips-01",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, standing with both hands on her hips, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81001
+  "seed": 82001
  },
  {
-  "id": "look-sage-0",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in sage green, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-hips-10",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, standing with both hands on her hips, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81010
+  "seed": 82010
  },
  {
-  "id": "look-sage-1",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in sage green, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-hips-11",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, standing with both hands on her hips, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81011
+  "seed": 82011
  },
  {
-  "id": "look-espresso-0",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in espresso brown, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-wave-20",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, waving at the camera, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81020
+  "seed": 82020
  },
  {
-  "id": "look-espresso-1",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in espresso brown, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-wave-21",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, waving at the camera, full body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81021
+  "seed": 82021
  },
  {
-  "id": "look-black-0",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in matte black, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-point-30",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, pointing up with one finger like sharing a tip, three-quarter body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81030
+  "seed": 82030
  },
  {
-  "id": "look-black-1",
-  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in matte black, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "id": "look-navy-point-31",
+  "kind": "athlete",
+  "prompt": "original young woman fitness model character, long straight glossy brown hair, bright friendly smile, athletic build, wearing a matching navy blue sports set: scoop-neck sports bra with thin light contrast piping and high-waisted navy leggings with contrast seam lines, plain fabric, white chunky sneakers, pointing up with one finger like sharing a tip, three-quarter body, light grey photo studio backdrop, soft studio lighting",
   "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
-  "seed": 81031
+  "seed": 82031
  }
 ]
