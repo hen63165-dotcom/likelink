@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { MASTER_LIMITS, MASTER_RULES, MASTER_SOURCES, masterCheck } from "../src/lib/growth/viralMaster.js";
 import { DROP_AD } from "../src/lib/growth/dailyDrop.js";
+import { STORY_STEPS } from "../src/lib/growth/instagramGrid.js";
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 const DIR = new URL("../scripts/luna_reels/episodes/", import.meta.url);
@@ -32,7 +33,8 @@ function planOf(e) {
   });
   const caption = [DROP_AD, said(e.hook), "", ...e.lines.map((l) => `• ${captionOf(l).replace(/\*/g, "")}`), "", `👇 ${e.cta.title.replace(/\*/g, "")} ${e.cta.sub || ""}`, `📩 ${e.send}`, "🎬 דמות וקול שנוצרו בבינה מלאכותית"].join("\n");
   return { format: "story", hook: captionOf(e.hook), seconds: t + END, beats: [...beats, { start: t, scene: "end" }], caption,
-    captions: true, series: e.presenter, productAt: e.product.at, source: "own_render", product: true, aiCharacter: true, onScreenLabels: ["דמות וקול AI", DROP_AD] };
+    captions: true, series: e.presenter, productAt: e.product.at, source: "own_render", product: true, aiCharacter: true, onScreenLabels: ["דמות וקול AI", DROP_AD],
+    publishSteps: STORY_STEPS };
 }
 
 test("the master: twelve rules a person can read, each with the signal it serves, and no promise", () => {
@@ -69,6 +71,16 @@ test("the master catches what would sink a reel", () => {
   assert.ok(masterCheck({ ...good, series: "" }).failed.includes("one_face"));
   assert.ok(masterCheck({ ...good, productAt: 1 }).failed.includes("teach_first"), "the product comes after a tip");
   assert.ok(masterCheck({ ...good, source: "repost" }).failed.includes("original"));
+  // Whether it shows a product is stated, never assumed: a missing value fails the rules that depend on it.
+  const unknown = masterCheck({ ...good, product: undefined, caption: good.caption.replace(DROP_AD, "") });
+  assert.ok(unknown.failed.includes("disclosure") && unknown.failed.includes("teach_first"));
+  assert.ok(masterCheck({ ...good, aiCharacter: undefined }).failed.includes("ai_label"));
+  // Instagram's own AI label: the posting steps must switch it on; the picture and caption alone are not enough.
+  assert.ok(masterCheck({ ...good, publishSteps: undefined }).failed.includes("ai_label"));
+  assert.ok(masterCheck({ ...good, publishSteps: STORY_STEPS.filter((s) => !/תווית AI/.test(s)) }).failed.includes("ai_label"));
+  // A tip without a product or an AI character passes those rules only when it says so.
+  const tip = masterCheck({ ...good, product: false, aiCharacter: false, caption: good.caption.replace(DROP_AD, ""), publishSteps: [] });
+  assert.ok(!tip.failed.includes("disclosure") && !tip.failed.includes("ai_label") && !tip.failed.includes("teach_first"));
   assert.deepEqual(masterCheck({}).ok, false);
   assert.equal(MASTER_LIMITS.hookWords, 8);
 });

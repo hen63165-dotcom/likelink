@@ -46,6 +46,8 @@ export const MASTER_LIMITS = Object.freeze({
 
 const SEND = /שלחי (?:את זה )?ל|תייגי/;
 const KEYWORD = /כתבי\s*\*?["„”]?(?:רוצה|מדריך)/;
+// The posting step that switches on Instagram's own AI label (instagramGrid.js STORY_STEPS).
+const AI_LABEL_STEP = /תווית AI/;
 // Our own edits only: an engine render, footage a person filmed for us, or our cut of the seller's own media.
 export const ORIGINAL_SOURCES = Object.freeze(["own_render", "own_footage", "seller_edit"]);
 const words = (s) => String(s || "").replace(/\*/g, "").trim().split(/\s+/).filter(Boolean);
@@ -56,8 +58,11 @@ const words = (s) => String(s || "").replace(/\*/g, "").trim().split(/\s+/).filt
  * plan: { format: "reel" | "story", hook, seconds, beats: [{ start, scene }],
  *         caption, captions: bool (words on screen throughout), series: the
  *         character or series the post belongs to, productAt: the line that
- *         shows the product (0 = the hook), product: bool, aiCharacter: bool,
- *         onScreenLabels: [], source: one of ORIGINAL_SOURCES }
+ *         shows the product (0 = the hook), product: bool, aiCharacter: bool
+ *         (both stated: a missing one fails the rules that depend on it),
+ *         onScreenLabels: [], publishSteps: the steps the owner follows to post
+ *         (Instagram's own AI label is switched on there, in the app),
+ *         source: one of ORIGINAL_SOURCES }
  * Returns { ok, failed: [rule ids], checked: [rule ids] } — readiness, never a forecast.
  */
 export function masterCheck(plan = {}) {
@@ -88,11 +93,15 @@ export function masterCheck(plan = {}) {
   check("change_4s", changes);
   check("captions", plan.captions === true);
   check("one_face", Boolean(String(plan.series || "").trim()));
-  check("teach_first", !plan.product || (Number.isFinite(plan.productAt) && plan.productAt >= 2));
+  const productKnown = typeof plan.product === "boolean";
+  check("teach_first", productKnown && (!plan.product || (Number.isFinite(plan.productAt) && plan.productAt >= 2)));
   check("send_line", SEND.test(caption));
   check("keyword", KEYWORD.test(caption));
-  check("disclosure", !plan.product || caption.startsWith(DROP_AD));
-  check("ai_label", !plan.aiCharacter || ((plan.onScreenLabels || []).some((l) => /AI/.test(String(l))) && /בינה מלאכותית|AI/.test(caption)));
+  check("disclosure", productKnown && (!plan.product || caption.startsWith(DROP_AD)));
+  // Three places: on the picture, in the caption, and Instagram's own label (switched on in the app while posting).
+  const labelled = (plan.onScreenLabels || []).some((l) => /AI/.test(String(l))) && /בינה מלאכותית|AI/.test(caption)
+    && (plan.publishSteps || []).some((s) => AI_LABEL_STEP.test(String(s)));
+  check("ai_label", typeof plan.aiCharacter === "boolean" && (!plan.aiCharacter || labelled));
   check("true_only", safeCopy(caption) && safeCopy(String(plan.hook || "")));
   check("original", ORIGINAL_SOURCES.includes(plan.source));
   return { ok: failed.length === 0, failed, checked };
