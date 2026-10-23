@@ -135,9 +135,13 @@ test("AutoPilot 'פרסום עכשיו' says what the channels answered", () => 
 test("AutoPilot offers Telegram, the channel its server already posts to", () => {
   const ui = read("src/components/sell/AutoPilot.jsx");
   const list = ui.slice(ui.indexOf("const CHANNELS = ["), ui.indexOf("];", ui.indexOf("const CHANNELS = [")));
-  assert.match(list, /type: "telegram"/);
-  assert.match(list, /key: "botToken"/);
-  assert.match(list, /key: "chatId"/);
+  // The Telegram entry alone, so another channel's fields (WhatsApp's chatId) cannot satisfy these.
+  const start = list.indexOf('type: "telegram"');
+  assert.ok(start >= 0);
+  const telegram = list.slice(start, list.indexOf("type: ", start + 1));
+  assert.match(telegram, /key: "botToken"/);
+  assert.match(telegram, /key: "chatId"/);
+  assert.match(telegram, /ציבורי/, "a bot posts by @username only to a public channel");
   assert.match(read("api/autopilot.mjs"), /case "telegram": return sendTelegram\(/);
 });
 
