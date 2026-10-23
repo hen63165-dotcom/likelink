@@ -1,0 +1,14 @@
+{
+  "name": "likelink",
+  "description": "LikeLink2's own Claude Code plugins: a truth-first creator-commerce studio for Hebrew affiliate creators.",
+  "owner": {
+    "name": "LikeLink2"
+  },
+  "plugins": [
+    {
+      "name": "likelink-studio",
+      "source": "./plugins/likelink-studio",
+      "description": "One command per job on LikeLink2: today's plan, a new product end to end, a story with its own character, a studio photo, the master check, the truth guard, and shipping it live."
+    }
+  ]
+}
