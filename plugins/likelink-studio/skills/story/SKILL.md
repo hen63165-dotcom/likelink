@@ -13,15 +13,16 @@ Engine: `scripts/luna_reels` (Python, free). Read its `README.md` section "סט�
 - 5–7 `lines`, each ≤ 9 spoken words, each with a `scene` from the cast's scenes (`worried thinking explain phone happy mirror gift wave`), so the picture changes every few seconds.
 - Teach first (a real, general tip), then the product: a line "X הזה, למשל." (the product line gets `scene: "product"` automatically) and the seller's claim line starting `המוכר מציין:` with `"scene": "product"`.
 - `product`: `{id, at, claim, mustMatch}` — `mustMatch` must be words in that product's own title/description.
-- `send`: "שלחי לחברה ש…" (a reason to send it). `cta`: `כתבי *"רוצה"* בתגובות`.
+- `send`: "שלחי לחברה ש…" (a reason to send it).
+- `cta` is an object: `{"title": "כתבי *\"רוצה\"* בתגובות", "sub": "ואשלח לך את הקישור ל…"}` (a string breaks the render). A product story's keyword is "רוצה" (the comment bot sends that product's link); a tip without a product may set `"keyword": "מדריך"`.
 - Forbidden: scarcity, sales counts, ratings, "קניתי/הזמנתי", invented prices, other brands' names.
 
 ## Check
 ```
-cd scripts/luna_reels && python -m luna_reels check episodes/ && python -m unittest discover -s tests
+(cd scripts/luna_reels && python -m luna_reels check episodes/ && python -m unittest discover -s tests)
 node --test tests/viralMaster.test.mjs tests/lunaReelsEpisodes.test.mjs
 ```
-The master test (`masterCheck`) must pass: hook, length 20–45 s, a new picture every ≤ 4 s, send line, keyword, disclosure, AI label, true only.
+The master test (`masterCheck`) must pass all twelve rules: hook, length 20–45 s, a new picture every ≤ 4 s, captions, one character (`presenter`), the product after a tip (`product.at` ≥ 2), send line, keyword, disclosure, AI label, true only, original.
 
 ## Render
 Actions → "Luna reels" → `episode` = the id (`variants` 3: hooks a/b/c). Output: the `luna-reels` release (mp4 + caption .txt + preview). Cut a few frames with ffmpeg and look at them before telling her it is ready.

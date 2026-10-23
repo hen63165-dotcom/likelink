@@ -81,7 +81,7 @@ function tipPost(check, presenter, example, n) {
     inset: example?.image || "",
     insetProductId: example?.id || "",
     tags: [AI_TAG, BRAND_TAG],
-    imageNote: example?.image ? `בתמונה הקטנה: ${SELLER_PHOTO_TAG}` : "",
+    imageNote: example?.image ? `בתמונה הקטנה: ${example.note || SELLER_PHOTO_TAG}` : "",
     caption,
     link: "",
     alt: `${hook} · ${AI_TAG}`,
@@ -118,7 +118,8 @@ export function instagramGrid({ products = [], imageOf = () => "", presenter = "
       const ex = guideExamples(tips[ti], withImage, 1)[0];
       const n = GUIDE.checks.indexOf(tips[ti]) + 1;
       const exPic = ex ? imageOf(ex) : "";
-      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: typeof exPic === "object" ? exPic.src : exPic } : null, n));
+      const exSet = typeof exPic === "object" && exPic ? exPic : null;
+      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: exSet ? exSet.src : exPic, note: exSet?.note || SELLER_PHOTO_TAG } : null, n));
       ti += 1;
     } else if (slot === "tool" && faces.length && !tool) {
       posts.push(toolPost(faces[(ti + 1) % faces.length], origin));

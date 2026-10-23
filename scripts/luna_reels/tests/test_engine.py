@@ -185,6 +185,7 @@ class Story(unittest.TestCase):
         cut = lambda c: [" ".join(w for w, _ in text.tokens(c)[a:b + 1]) for a, b in text.phrases(c)]  # noqa: E731
         self.assertEqual(cut("טיפ: פרק היד + 1.5 עד 2 ס״מ"), ["טיפ:", "פרק היד + 1.5", "עד 2 ס״מ"])
         self.assertEqual(cut("החתונה הערב... והיד נראית ריקה?"), ["החתונה הערב...", "והיד נראית ריקה?"])
+        self.assertEqual(cut("1. כסף או זהב?"), ["1. כסף או זהב?"], "a list number stays with its item")
         for c in ["זה קורה כשמזמינים בלי לדעת את המידה", "3 שאלות, והמתנה בוחרת את עצמה"]:
             self.assertTrue(all(b - a < 4 for a, b in text.phrases(c)), c)
 

@@ -4,6 +4,8 @@
   python cast.py jobs <id> face     → the headshot and the full-body hero (no reference)
   python cast.py jobs <id> scenes   → every story scene, drawn with the headshot's face as reference
   python cast.py crop HEADSHOT OUT  → the face, cropped from the headshot (the IP-Adapter reference)
+  python cast.py matrix [missing|all|id,id]  → the characters to draw, as a JSON list
+                                     (missing = no face.jpg in scripts/luna_reels/assets/cast/<id>/ yet)
 """
 import json
 import sys
@@ -31,6 +33,23 @@ def jobs(cid, stage):
     return out
 
 
+CAST_ASSETS = Path(__file__).resolve().parents[2] / "luna_reels" / "assets" / "cast"
+
+
+def matrix(which="missing"):
+    """The characters a run draws: the ones never drawn (a new character), all, or the named ones."""
+    ids = [c["id"] for c in CAST["characters"]]
+    if which == "all":
+        return ids
+    if which in ("", "missing"):
+        return [i for i in ids if not (CAST_ASSETS / i / "face.jpg").exists()]
+    wanted = [w.strip() for w in which.split(",") if w.strip()]
+    unknown = [w for w in wanted if w not in ids]
+    if unknown:
+        raise SystemExit(f"not in cast.json: {', '.join(unknown)}")
+    return wanted
+
+
 def crop(src, dst):
     from PIL import Image
     img = Image.open(src).convert("RGB")
@@ -47,3 +66,5 @@ if __name__ == "__main__":
         crop(sys.argv[2], sys.argv[3])
     elif sys.argv[1] == "ids":
         print(" ".join(c["id"] for c in CAST["characters"]))
+    elif sys.argv[1] == "matrix":
+        print(json.dumps(matrix(sys.argv[2] if len(sys.argv) > 2 else "missing")))

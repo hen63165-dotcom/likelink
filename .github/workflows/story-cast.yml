@@ -1,30 +1,50 @@
-# The story cast (scripts/media/ai-image/cast.json): five original animated
-# characters, one per product, each in her own suit colour, hair and eyes (the
+# The story cast (scripts/media/ai-image/cast.json): original animated
+# characters, one per product, each in her own outfit, hair and eyes (the
 # owner, 2026-10-23, "like Ravit recommends"). For each character, in
 # parallel on free CPU runners (open weights, no account, key or credits):
 # a headshot and a full-body hero, then every story scene drawn with the
 # headshot's face as the IP-Adapter reference, so she looks the same in all
 # of them. One commit puts them in scripts/luna_reels/assets/cast/<id>/ for a
 # person to check by eye. No jewellery and no logo is drawn.
+# Which characters: a change to cast.json draws the ones never drawn (a new
+# character); Run workflow → `characters` = all, or ids (noa,maya) to redraw.
 name: Story cast
 on:
   workflow_dispatch:
+    inputs:
+      characters:
+        description: "missing (never drawn), all, or ids separated by commas (noa,maya)"
+        default: "missing"
   push:
-    branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/media/ai-image/cast.json", "scripts/media/ai-image/cast.py", ".github/workflows/story-cast.yml"]
+    branches: ["main", "claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/ai-image/cast.json", "scripts/media/ai-image/cast.py"]
 permissions:
   contents: write
 concurrency:
-  group: story-cast
+  group: story-cast-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      characters: ${{ steps.m.outputs.characters }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env:
+          WHICH: ${{ github.event.inputs.characters || 'missing' }}
+        run: |
+          echo "$WHICH" | grep -Eq '^(missing|all|[a-z0-9]{2,20}(,[a-z0-9]{2,20})*)$' || { echo "characters: missing, all, or ids like noa,maya"; exit 2; }
+          echo "characters=$(python3 scripts/media/ai-image/cast.py matrix "$WHICH")" >> "$GITHUB_OUTPUT"
   draw:
+    needs: plan
+    if: needs.plan.outputs.characters != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        character: [noa, maya, shira, tal, yael]
+        character: ${{ fromJSON(needs.plan.outputs.characters) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,25 +64,28 @@ jobs:
         env:
           C: ${{ matrix.character }}
         run: |
+          set -o pipefail
           out="cast/$C"; mkdir -p "$out"
           python scripts/media/ai-image/cast.py jobs "$C" face > /tmp/face.json
-          python scripts/media/ai-image/generate.py --jobs /tmp/face.json --out "$out" --width 576 --height 1024 2>&1 | grep '^{' | tee "$out/log.jsonl"
+          python scripts/media/ai-image/generate.py --jobs /tmp/face.json --out "$out" --width 576 --height 1024 2>&1 | { grep '^{' || true; } | tee "$out/log.jsonl"
           python scripts/media/ai-image/cast.py crop "$out/headshot.png" "$out/face.jpg"
       - name: Her scenes (her face kept by the reference)
         env:
           C: ${{ matrix.character }}
         run: |
+          set -o pipefail
           out="cast/$C"
           python scripts/media/ai-image/cast.py jobs "$C" scenes > /tmp/scenes.json
           python scripts/media/ai-image/generate.py --jobs /tmp/scenes.json --out "$out" --width 576 --height 1024 \
-            --ref "$out/face.jpg" 2>&1 | grep '^{' | tee -a "$out/log.jsonl"
+            --ref "$out/face.jpg" 2>&1 | { grep '^{' || true; } | tee -a "$out/log.jsonl"
       - uses: actions/upload-artifact@v4
         with:
           name: cast-${{ matrix.character }}
           path: cast/${{ matrix.character }}
   commit:
     needs: draw
-    if: always()
+    # A character whose drawing failed is not committed; the others are.
+    if: always() && needs.draw.result != 'skipped'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,5 +99,5 @@ jobs:
           for d in /tmp/cast/cast-*; do [ -d "$d" ] || continue; id=${d##*/cast-}; mkdir -p "scripts/luna_reels/assets/cast/$id"; cp -r "$d"/. "scripts/luna_reels/assets/cast/$id/"; done
           git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
           git add scripts/luna_reels/assets/cast
-          git commit -m "Story cast: five characters and their scenes from the own image model (review by eye)" || exit 0
+          git commit -m "Story cast: characters and their scenes from the own image model (review by eye)" || exit 0
           git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"

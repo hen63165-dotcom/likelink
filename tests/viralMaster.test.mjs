@@ -31,7 +31,8 @@ function planOf(e) {
     return b;
   });
   const caption = [DROP_AD, said(e.hook), "", ...e.lines.map((l) => `• ${captionOf(l).replace(/\*/g, "")}`), "", `👇 ${e.cta.title.replace(/\*/g, "")} ${e.cta.sub || ""}`, `📩 ${e.send}`, "🎬 דמות וקול שנוצרו בבינה מלאכותית"].join("\n");
-  return { format: "story", hook: captionOf(e.hook), seconds: t + END, beats: [...beats, { start: t, scene: "end" }], caption, product: true, aiCharacter: true, onScreenLabels: ["דמות וקול AI", DROP_AD] };
+  return { format: "story", hook: captionOf(e.hook), seconds: t + END, beats: [...beats, { start: t, scene: "end" }], caption,
+    captions: true, series: e.presenter, productAt: e.product.at, source: "own_render", product: true, aiCharacter: true, onScreenLabels: ["דמות וקול AI", DROP_AD] };
 }
 
 test("the master: twelve rules a person can read, each with the signal it serves, and no promise", () => {
@@ -46,7 +47,7 @@ test("every Luna story passes the master before it is rendered", () => {
   for (const e of stories) {
     const r = masterCheck(planOf(e));
     assert.deepEqual(r.failed, [], `${e.id}: ${r.failed.join(", ")}`);
-    for (const id of ["hook_1s", "short", "change_4s", "send_line", "keyword", "disclosure", "ai_label", "true_only"]) assert.ok(r.checked.includes(id), `${e.id}: ${id} checked`);
+    assert.deepEqual([...r.checked].sort(), MASTER_RULES.map((x) => x.id).sort(), `${e.id}: all twelve rules are checked`);
   }
 });
 
@@ -60,6 +61,15 @@ test("the master catches what would sink a reel", () => {
   assert.ok(masterCheck({ ...good, caption: good.caption.replace(DROP_AD, "") }).failed.includes("disclosure"));
   assert.ok(masterCheck({ ...good, caption: `${good.caption}\nנשארו רק 2!` }).failed.includes("true_only"));
   assert.ok(masterCheck({ ...good, onScreenLabels: [DROP_AD] }).failed.includes("ai_label"));
+  // Missing evidence never passes.
+  assert.ok(masterCheck({ ...good, seconds: undefined }).failed.includes("short"));
+  assert.ok(masterCheck({ ...good, beats: undefined }).failed.includes("change_4s"));
+  assert.ok(masterCheck({ ...good, format: "carousel" }).failed.includes("short"));
+  assert.ok(masterCheck({ ...good, captions: undefined }).failed.includes("captions"));
+  assert.ok(masterCheck({ ...good, series: "" }).failed.includes("one_face"));
+  assert.ok(masterCheck({ ...good, productAt: 1 }).failed.includes("teach_first"), "the product comes after a tip");
+  assert.ok(masterCheck({ ...good, source: "repost" }).failed.includes("original"));
+  assert.deepEqual(masterCheck({}).ok, false);
   assert.equal(MASTER_LIMITS.hookWords, 8);
 });
 

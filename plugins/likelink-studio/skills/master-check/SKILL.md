@@ -7,7 +7,7 @@ description: Check any reel, story, TikTok or post plan against LikeLink2's mast
 
 Rules: `src/lib/growth/viralMaster.js` (`MASTER_RULES`, `masterCheck`), the skill `.claude/skills/viral-master/SKILL.md`, tested by `tests/viralMaster.test.mjs`.
 
-1. Turn the plan into `{format: "reel"|"story", hook, seconds, beats: [{start, scene}], caption, product, aiCharacter, onScreenLabels}` (a story episode: see how `planOf` in `tests/viralMaster.test.mjs` estimates timing — 2.8 words a second, a breath per line, the 3 s end card).
+1. Turn the plan into `{format: "reel"|"story", hook, seconds, beats: [{start, scene}], caption, captions, series, productAt, product, aiCharacter, onScreenLabels, source}` (`source`: `own_render`, `own_footage` or `seller_edit`; a missing field fails the rule it proves) (a story episode: see how `planOf` in `tests/viralMaster.test.mjs` estimates timing — 2.8 words a second, a breath per line, the 3 s end card).
 2. Run `masterCheck(plan)`. `failed` lists rule ids; `MASTER_RULES` has the Hebrew sentence for each.
 3. Answer with each failed rule, why it matters (its `why`: watch time / sends / saves / law + trust), and the exact rewrite.
 

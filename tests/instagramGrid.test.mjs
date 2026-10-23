@@ -93,9 +93,12 @@ test("the luxe sets (2026-10-23, 'the white pictures are awful'): the seller's p
     assert.ok(listed.includes(id), `${id} is a listed product`);
     assert.ok(readFileSync(new URL(`../public/sets/${set.file}`, import.meta.url)).length > 10_000, `${set.file} exists`);
   }
-  const posts = instagramGrid({ products, imageOf: (p) => (p.id === "e1" ? { src: "../sets/e1.jpg", note: sets.label } : imageOf(p)), presenter: "face.png" });
+  const posts = instagramGrid({ products, imageOf: (p) => (["e1", "r1"].includes(p.id) ? { src: `../sets/${p.id}.jpg`, note: sets.label } : imageOf(p)), presenter: "face.png" });
   const e1 = posts.find((p) => p.productId === "e1");
   assert.equal(e1.image, "../sets/e1.jpg");
   assert.equal(e1.imageNote, sets.label);
+  const setTips = posts.filter((p) => p.insetProductId === "r1");
+  assert.ok(setTips.length, "a tip shows the set as its small picture");
+  for (const tip of setTips) assert.equal(tip.imageNote, `בתמונה הקטנה: ${sets.label}`, "a tip's small picture keeps the set's label");
   assert.match(gridPage(posts), /המאסטר/);
 });

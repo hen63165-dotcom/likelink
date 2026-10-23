@@ -283,6 +283,7 @@ def chunks(caption: str, size: int = 3) -> list[tuple[int, int]]:
 
 
 PHRASE_END = re.compile(r"(?:[,.:;?!…]|\.\.\.)$")
+LIST_NUMBER = re.compile(r"\d+\.")   # "1." opens a list item; it never ends a phrase alone
 
 
 def phrases(caption: str, size: int = 4) -> list[tuple[int, int]]:
@@ -293,7 +294,7 @@ def phrases(caption: str, size: int = 4) -> list[tuple[int, int]]:
     words = tokens(caption)
     out, start = [], 0
     for i, (w, _) in enumerate(words):
-        if PHRASE_END.search(w) or i == len(words) - 1:
+        if (PHRASE_END.search(w) and not LIST_NUMBER.fullmatch(w)) or i == len(words) - 1:
             n = i - start + 1
             parts = -(-n // size)
             base, extra = divmod(n, parts)

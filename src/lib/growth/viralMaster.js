@@ -46,12 +46,18 @@ export const MASTER_LIMITS = Object.freeze({
 
 const SEND = /שלחי (?:את זה )?ל|תייגי/;
 const KEYWORD = /כתבי\s*\*?["„”]?(?:רוצה|מדריך)/;
+// Our own edits only: an engine render, footage a person filmed for us, or our cut of the seller's own media.
+export const ORIGINAL_SOURCES = Object.freeze(["own_render", "own_footage", "seller_edit"]);
 const words = (s) => String(s || "").replace(/\*/g, "").trim().split(/\s+/).filter(Boolean);
 
 /**
- * A plan against the rules it can be checked on.
+ * A plan against all twelve rules. Missing evidence fails the rule it was
+ * needed for (a plan without timing never passes "short").
  * plan: { format: "reel" | "story", hook, seconds, beats: [{ start, scene }],
- *         caption, product: bool, aiCharacter: bool, onScreenLabels: [] }
+ *         caption, captions: bool (words on screen throughout), series: the
+ *         character or series the post belongs to, productAt: the line that
+ *         shows the product (0 = the hook), product: bool, aiCharacter: bool,
+ *         onScreenLabels: [], source: one of ORIGINAL_SOURCES }
  * Returns { ok, failed: [rule ids], checked: [rule ids] } — readiness, never a forecast.
  */
 export function masterCheck(plan = {}) {
@@ -61,10 +67,12 @@ export function masterCheck(plan = {}) {
     checked.push(id);
     if (!pass) failed.push(id);
   };
+  const caption = String(plan.caption || "");
   check("hook_1s", words(plan.hook).length > 0 && words(plan.hook).length <= MASTER_LIMITS.hookWords);
   const range = MASTER_LIMITS.seconds[plan.format];
-  if (range && Number.isFinite(plan.seconds)) check("short", plan.seconds >= range[0] && plan.seconds <= range[1]);
-  if (Array.isArray(plan.beats) && plan.beats.length) {
+  check("short", Boolean(range) && Number.isFinite(plan.seconds) && plan.seconds >= range[0] && plan.seconds <= range[1]);
+  let changes = false;
+  if (Array.isArray(plan.beats) && plan.beats.length && Number.isFinite(plan.seconds)) {
     let last = 0;
     let prev = null;
     let gap = 0;
@@ -75,14 +83,17 @@ export function masterCheck(plan = {}) {
         prev = b.scene;
       }
     }
-    if (Number.isFinite(plan.seconds)) gap = Math.max(gap, plan.seconds - last);
-    check("change_4s", gap <= MASTER_LIMITS.maxGap);
+    changes = Math.max(gap, plan.seconds - last) <= MASTER_LIMITS.maxGap;
   }
-  const caption = String(plan.caption || "");
+  check("change_4s", changes);
+  check("captions", plan.captions === true);
+  check("one_face", Boolean(String(plan.series || "").trim()));
+  check("teach_first", !plan.product || (Number.isFinite(plan.productAt) && plan.productAt >= 2));
   check("send_line", SEND.test(caption));
   check("keyword", KEYWORD.test(caption));
-  if (plan.product) check("disclosure", caption.startsWith(DROP_AD));
-  if (plan.aiCharacter) check("ai_label", (plan.onScreenLabels || []).some((l) => /AI/.test(String(l))) && /בינה מלאכותית|AI/.test(caption));
+  check("disclosure", !plan.product || caption.startsWith(DROP_AD));
+  check("ai_label", !plan.aiCharacter || ((plan.onScreenLabels || []).some((l) => /AI/.test(String(l))) && /בינה מלאכותית|AI/.test(caption)));
   check("true_only", safeCopy(caption) && safeCopy(String(plan.hook || "")));
+  check("original", ORIGINAL_SOURCES.includes(plan.source));
   return { ok: failed.length === 0, failed, checked };
 }
