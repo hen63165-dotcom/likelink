@@ -1,0 +1,27 @@
+{
+ "about": "The story cast (the owner, 2026-10-23: 'each one in another suit colour, hair and eyes, each one markets a different product, like Ravit recommends'). Original animated characters, AI-labelled everywhere, no brand names or logos on the clothes, no jewellery drawn (the product is always its real photo). The look follows the owner's reference: a plain sports bra and full-length leggings, white sneakers.",
+ "outfit": "wearing a matching plain {suit} sports set: a sports bra top and full-length high-waisted {suit} leggings, white chunky sneakers",
+ "person": "original young woman fitness model character, {hair}, {eyes}, bright friendly smile, fit healthy figure",
+ "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes, emblem, small logo on chest, shorts, hot pants, briefs, bikini, underwear, bare legs, bare thighs, exaggerated body, large breasts",
+ "characters": [
+  { "id": "noa", "name": "נועה", "product": "p-live-01", "suit": "sage green", "hair": "long straight honey blonde hair", "eyes": "green eyes", "seed": 91000 },
+  { "id": "maya", "name": "מאיה", "product": "p-live-03", "suit": "navy blue", "hair": "long straight glossy dark brown hair", "eyes": "warm brown eyes", "seed": 92000 },
+  { "id": "shira", "name": "שירה", "product": "p-live-05", "suit": "dusty rose pink", "hair": "long wavy auburn red hair", "eyes": "hazel eyes", "seed": 93000 },
+  { "id": "tal", "name": "טל", "product": "p-live-04", "suit": "matte black", "hair": "sleek long jet black ponytail", "eyes": "grey eyes", "seed": 94000 },
+  { "id": "yael", "name": "יעל", "product": "p-live-02", "suit": "cream beige", "hair": "long caramel brown hair with soft highlights", "eyes": "blue eyes", "seed": 95000 }
+ ],
+ "face": {
+  "headshot": "head and shoulders portrait, looking at camera, light grey photo studio backdrop, soft studio lighting",
+  "hero": "standing with both hands on her hips, full body from head to sneakers, light grey photo studio backdrop, soft studio lighting"
+ },
+ "scenes": {
+  "worried": "worried face, both hands on her cheeks, sitting on a sofa in a cozy living room, warm evening light, upper body",
+  "thinking": "thinking, one finger on her chin, looking up, bright bedroom with soft daylight, upper body",
+  "explain": "explaining a smart tip, raising one finger, confident smile, looking at camera, soft grey studio backdrop, upper body",
+  "phone": "looking at her smartphone with a delighted surprised face, sitting at a white desk in a bright room, upper body",
+  "happy": "joyful big smile, hands clasped together, bright cozy living room, upper body",
+  "mirror": "getting ready, brushing her hair in front of a vanity mirror with lights, curious face, bedroom, upper body",
+  "gift": "holding a small wrapped gift box with a pink ribbon, excited smile, pastel background, upper body",
+  "wave": "waving hello at the camera, warm friendly smile, light grey studio backdrop, upper body"
+ }
+}

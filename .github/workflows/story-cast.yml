@@ -1,0 +1,80 @@
+# The story cast (scripts/media/ai-image/cast.json): five original animated
+# characters, one per product, each in her own suit colour, hair and eyes (the
+# owner, 2026-10-23, "like Ravit recommends"). For each character, in
+# parallel on free CPU runners (open weights, no account, key or credits):
+# a headshot and a full-body hero, then every story scene drawn with the
+# headshot's face as the IP-Adapter reference, so she looks the same in all
+# of them. One commit puts them in scripts/luna_reels/assets/cast/<id>/ for a
+# person to check by eye. No jewellery and no logo is drawn.
+name: Story cast
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/ai-image/cast.json", "scripts/media/ai-image/cast.py", ".github/workflows/story-cast.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: story-cast
+  cancel-in-progress: true
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        character: [noa, maya, shira, tal, yael]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: own-image-model-scenes-v1
+      - name: Install (CPU torch + diffusers)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.30" transformers accelerate peft safetensors
+      - name: Her face (headshot + full-body hero)
+        env:
+          C: ${{ matrix.character }}
+        run: |
+          out="cast/$C"; mkdir -p "$out"
+          python scripts/media/ai-image/cast.py jobs "$C" face > /tmp/face.json
+          python scripts/media/ai-image/generate.py --jobs /tmp/face.json --out "$out" --width 576 --height 1024 2>&1 | grep '^{' | tee "$out/log.jsonl"
+          python scripts/media/ai-image/cast.py crop "$out/headshot.png" "$out/face.jpg"
+      - name: Her scenes (her face kept by the reference)
+        env:
+          C: ${{ matrix.character }}
+        run: |
+          out="cast/$C"
+          python scripts/media/ai-image/cast.py jobs "$C" scenes > /tmp/scenes.json
+          python scripts/media/ai-image/generate.py --jobs /tmp/scenes.json --out "$out" --width 576 --height 1024 \
+            --ref "$out/face.jpg" 2>&1 | grep '^{' | tee -a "$out/log.jsonl"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cast-${{ matrix.character }}
+          path: cast/${{ matrix.character }}
+  commit:
+    needs: draw
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cast-*
+          path: /tmp/cast
+      - name: Commit the cast for review
+        run: |
+          mkdir -p scripts/luna_reels/assets/cast
+          for d in /tmp/cast/cast-*; do [ -d "$d" ] || continue; id=${d##*/cast-}; mkdir -p "scripts/luna_reels/assets/cast/$id"; cp -r "$d"/. "scripts/luna_reels/assets/cast/$id/"; done
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add scripts/luna_reels/assets/cast
+          git commit -m "Story cast: five characters and their scenes from the own image model (review by eye)" || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
