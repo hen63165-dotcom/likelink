@@ -1,0 +1,50 @@
+[
+ {
+  "id": "look-cream-0",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in soft cream, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81000
+ },
+ {
+  "id": "look-cream-1",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in soft cream, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81001
+ },
+ {
+  "id": "look-sage-0",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in sage green, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81010
+ },
+ {
+  "id": "look-sage-1",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in sage green, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81011
+ },
+ {
+  "id": "look-espresso-0",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in espresso brown, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81020
+ },
+ {
+  "id": "look-espresso-1",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in espresso brown, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81021
+ },
+ {
+  "id": "look-black-0",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in matte black, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81030
+ },
+ {
+  "id": "look-black-1",
+  "prompt": "elegant young woman fitness model character, sleek high ponytail of glossy dark brown hair, natural glowing makeup, confident warm smile, wearing a fitted matching athleisure set: cropped long-sleeve zip-up jacket and high-waisted seamless leggings in matte black, plain fabric, upper body, looking at camera, bright minimal pilates studio with soft daylight",
+  "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes",
+  "seed": 81031
+ }
+]
