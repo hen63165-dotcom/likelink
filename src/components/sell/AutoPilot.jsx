@@ -24,6 +24,19 @@ import {
 
 const CHANNELS = [
   {
+    // The server has always posted to Telegram (sendTelegram); the screen
+    // never offered it, so the one channel a creator can connect in five
+    // minutes, for free, was missing.
+    type: "telegram",
+    name: "Telegram",
+    icon: Send,
+    hint: "הערוץ הכי קל לפרסום אוטומטי, בחינם: בטלגרם מחפשים ‎@BotFather‏, שולחים ‎/newbot‏ ומקבלים טוקן. פותחים ערוץ ציבורי (סוג הערוץ: ציבורי, עם שם משתמש), מוסיפים את הבוט כמנהל, ומדביקים כאן את הטוקן ואת שם המשתמש של הערוץ (למשל ‎@my_store‏). ערוץ פרטי בלי שם משתמש לא יעבוד כאן",
+    fields: [
+      { key: "botToken", label: "Bot Token" },
+      { key: "chatId", label: "@שם_הערוץ (ערוץ ציבורי)" },
+    ],
+  },
+  {
     type: "webhook",
     name: "Webhook (Make / Zapier / n8n)",
     icon: Globe,

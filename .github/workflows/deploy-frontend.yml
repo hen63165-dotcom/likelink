@@ -121,6 +121,14 @@ jobs:
           TIKTOK_RESULTS="$RUNNER_TEMP/tiktok-results.json" PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright \
             node scripts/marketing/tiktok-kit.mjs dist || echo "::warning::tiktok kit skipped"
 
+      - name: The Instagram grid (nine posts in one look → /instagram/)
+        # src/lib/growth/instagramGrid.js + scripts/marketing/instagram-grid.mjs:
+        # product posts with the product's own photo and the disclosure first,
+        # tip posts from the free guide with the AI character labelled, one name
+        # tag and one hook bar on every picture. Rendered with the Chrome the
+        # TikTok kit installed; nothing is posted from here.
+        run: PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright node scripts/marketing/instagram-grid.mjs dist || echo "::warning::instagram grid skipped"
+
       - name: The trend board (AliExpress hot products by category → /trend-board/)
         # src/lib/growth/trendBoard.js + scripts/catalog/trend-finder.mjs: AliExpress's
         # own hot-products list per category (ship to Israel, ILS, the owner's

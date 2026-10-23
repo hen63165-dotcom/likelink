@@ -4,11 +4,12 @@
 // and carbon-dark themes follow the device until the visitor picks one. The
 // Studio is a separate, dark surface — the header only links to it.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CirclePlus, CircleUserRound, Compass, Heart, Home, Menu, Moon, Play, Search, Sun, X, Languages } from "lucide-react";
+import { CirclePlus, CircleUserRound, Heart, Home, Menu, Moon, Play, Search, ShoppingBag, Sun, X, Languages } from "lucide-react";
 import { Go, HoverTips, useL } from "./kit";
 import { withBase } from "../../lib/basePath.js";
 import { PREFERRED_SOURCE, preferredSourceLive } from "../../lib/growth/preferredSource.js";
 import { socialProfiles } from "../../lib/growth/socialAccounts.js";
+import { visibleMenu } from "../../lib/siteMap.js";
 
 const THEME_KEY = "ll_theme";
 const PAPER = { light: "#ffffff", dark: "#070709" };
@@ -83,7 +84,7 @@ export const PUBLIC_NAV = [
 
 const TABS = [
   { to: "/", type: "landing", icon: Home, he: "בית", en: "Home" },
-  { to: "/discover", type: "discover", icon: Compass, he: "גילוי", en: "Discover" },
+  { to: "/products", type: "products", icon: ShoppingBag, he: "חנות", en: "Shop" },
   { to: "/search", type: "search", icon: Search, he: "חיפוש", en: "Search" },
   { to: "/reels", type: "reels", icon: Play, he: "סרטונים", en: "Reels" },
   { to: "/saved", type: "saved", icon: Heart, he: "שמורים", en: "Saved" },
@@ -144,27 +145,20 @@ function HeaderSearch({ navigate }) {
 // plain rows, the sections with their pages indented under them, the deals in
 // red, then the Studio with round icons. Esc, the ✕ or a tap outside closes it.
 const MENU = [
-  {
-    to: "/discover", type: "discover", he: "גילוי", en: "Discover",
-    subs: [
-      { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
-      { to: "/creators", type: "creators", he: "יוצרים", en: "Creators" },
-      { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
-      { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
-    ],
-  },
-  {
-    to: "/products", type: "products", he: "מוצרים", en: "Shop",
-    subs: [
-      { to: "/size", type: "size", he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
-      { to: "/guide", type: "guide", he: "המדריך: 8 בדיקות לפני שקונים", en: "Guide: 8 checks before you buy" },
-      { to: "/saved", type: "saved", he: "שמורים", en: "Saved" },
-    ],
-  },
+  // The shop first, split by the kinds of item the catalog really has
+  // (src/lib/siteMap.js fills them); then only the sections with content.
+  { to: "/products", type: "products", he: "חנות", en: "Shop", kinds: true, subs: [] },
+  { to: "/reels", type: "reels", he: "סרטונים", en: "Videos" },
+  { to: "/creators", type: "creators", he: "יוצרים", en: "Creators" },
+  { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
+  { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
   { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
+  { to: "/size", type: "size", he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
+  { to: "/guide", type: "guide", he: "המדריך: 8 בדיקות לפני שקונים", en: "Guide: 8 checks before you buy" },
+  { to: "/saved", type: "saved", he: "שמורים", en: "Saved" },
 ];
 
-function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
+function MenuPanel({ open, onClose, routeType, theme, onTheme, opener, graph }) {
   const { L, he, lang, setLang } = useL();
   const panel = useRef(null);
   useEffect(() => {
@@ -196,10 +190,10 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
       <div ref={panel} id="lx-menu" className="lx-dd" role="dialog" aria-label={L("תפריט", "Menu")}>
         <nav aria-label={L("ניווט ראשי", "Main navigation")}>
           <ul className="lx-dd-list">
-            {MENU.map((n) => (
+            {visibleMenu(MENU, graph).map((n) => (
               <li key={n.to}>
                 {row(n)}
-                {n.subs ? (
+                {n.subs?.length ? (
                   <ul className="lx-dd-list">
                     {n.subs.map((c) => <li key={c.to}>{row(c, " lx-dd-child")}</li>)}
                   </ul>
@@ -227,7 +221,7 @@ function MenuPanel({ open, onClose, routeType, theme, onTheme, opener }) {
   );
 }
 
-export function PublicShell({ routeType, navigate, children, immersive = false }) {
+export function PublicShell({ routeType, navigate, children, immersive = false, graph = null }) {
   const { L, he } = useL();
   const [menu, setMenu] = useState(false);
   const { theme, toggle } = useTheme();
@@ -252,12 +246,12 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
             </button>
           </div>
         </div>
-        <MenuPanel open={menu} onClose={closeMenu} routeType={routeType} theme={theme} onTheme={toggle} opener={opener} />
+        <MenuPanel open={menu} onClose={closeMenu} routeType={routeType} theme={theme} onTheme={toggle} opener={opener} graph={graph} />
       </header>
 
       <main id="lx-main" className={immersive ? "" : "pb-28 lg:pb-0"}>{children}</main>
 
-      {!immersive ? <Footer /> : null}
+      {!immersive ? <Footer graph={graph} /> : null}
       <HoverTips />
 
       {/* Floating dock: the active tab fills with colour and bounces once. On a
@@ -280,11 +274,11 @@ export function PublicShell({ routeType, navigate, children, immersive = false }
   );
 }
 
-function Footer() {
+function Footer({ graph = null }) {
   const { L, he } = useL();
   const year = new Date().getFullYear();
   const cols = [
-    { title: L("לגלות", "Discover"), links: PUBLIC_NAV.slice(1) },
+    { title: L("לגלות", "Discover"), links: visibleMenu(PUBLIC_NAV.slice(1), graph) },
     {
       title: L("ליוצרים ולסוחרים", "Creators & merchants"),
       links: [
