@@ -214,6 +214,18 @@ class Story(unittest.TestCase):
         with self.assertRaises(ScriptError):
             self.story(presenter="nobody")
 
+    def test_every_story_scene_is_drawn_for_its_own_presenter(self):
+        """A missing picture would quietly show another face (Luna's); each
+        character's own folder (Actions → "Story cast") holds every scene her story names."""
+        for f in sorted((HERE / "episodes").glob("story-*.json")):
+            ep = load_episode(f)
+            folder = brand.CAST_DIR / ep.presenter
+            self.assertEqual(brand.face_path(ep.presenter), folder / "face.jpg", f"{f.name}: her own face on the tag")
+            for scene in {b.scene for b in ep.beats if b.scene and b.scene != "product" and not b.scene.startswith("video:")}:
+                path = brand.scene_path(scene, ep.presenter)
+                self.assertIsNotNone(path, f"{f.name}: scene {scene}")
+                self.assertEqual(path.parent, folder, f"{f.name}: scene {scene} is her own, not a shared picture")
+
 
 class Music(unittest.TestCase):
     def test_bed_level(self):
