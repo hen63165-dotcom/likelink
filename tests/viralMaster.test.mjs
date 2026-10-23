@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { MASTER_LIMITS, MASTER_RULES, MASTER_SOURCES, masterCheck } from "../src/lib/growth/viralMaster.js";
+import { MASTER_LIMITS, MASTER_RULES, MASTER_SOURCES, enablesAiLabel, masterCheck } from "../src/lib/growth/viralMaster.js";
 import { DROP_AD } from "../src/lib/growth/dailyDrop.js";
 import { STORY_STEPS } from "../src/lib/growth/instagramGrid.js";
 
@@ -78,6 +78,12 @@ test("the master catches what would sink a reel", () => {
   // Instagram's own AI label: the posting steps must switch it on; the picture and caption alone are not enough.
   assert.ok(masterCheck({ ...good, publishSteps: undefined }).failed.includes("ai_label"));
   assert.ok(masterCheck({ ...good, publishSteps: STORY_STEPS.filter((s) => !/תווית AI/.test(s)) }).failed.includes("ai_label"));
+  // The step turns the label on; a step that leaves it off, or only names it, does not count.
+  assert.ok(STORY_STEPS.some(enablesAiLabel));
+  for (const off of ["אל תפעילי תווית AI", "לא מפעילים „תווית AI”", "בלי תווית AI, מפעילים רק את הכיתוב", "„תווית AI” נמצאת בהגדרות"]) {
+    assert.equal(enablesAiLabel(off), false, off);
+    assert.ok(masterCheck({ ...good, publishSteps: [off] }).failed.includes("ai_label"), off);
+  }
   // A tip without a product or an AI character passes those rules only when it says so.
   const tip = masterCheck({ ...good, product: false, aiCharacter: false, caption: good.caption.replace(DROP_AD, ""), publishSteps: [] });
   assert.ok(!tip.failed.includes("disclosure") && !tip.failed.includes("ai_label") && !tip.failed.includes("teach_first"));

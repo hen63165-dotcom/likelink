@@ -12,7 +12,7 @@ Definition: `scripts/media/ai-image/cast.json` (one character per product). Draw
 - Outfits follow the owner's references: athleisure sets (hoodie + joggers, a fitted top + striped full-length leggings, half-zip + sweatpants, track jacket + track pants). **Always long pants, the midriff covered. Plain fabric: no logo, no letters, no brand name.**
 - **Keep every prompt short.** SD 1.5 reads 77 tokens and silently drops the rest; the first cast lost the end of every prompt (a sports bra without its leggings came out as underwear, no scene action was drawn). `cast.py` puts the shot first, `generate.py` refuses a cast prompt it would cut, and a test caps the words.
 - Original animated characters only: never a real person's face, never a reference photo of a real person as an image input, never a studio's or a brand's name in a prompt.
-- Push `cast.json` → a character without pictures is drawn. To redraw existing ones: Actions → "Story cast" → Run workflow with `characters` = `all` or ids (`noa,maya`).
+- Push `cast.json` → a character with no face picture yet (`scripts/luna_reels/assets/cast/<id>/face.jpg`) is drawn; one with a face but a missing scene is not. To redraw existing ones: Actions → "Story cast" → Run workflow with `characters` = `all` or ids (`noa,maya`).
 
 ## Check every picture by eye before use
 Reject: shorts or underwear-like bottoms, any mark or letters on clothes, drawn jewellery, distorted hands or faces, a face that does not match her headshot. Redraw a character by changing her `seed`.
