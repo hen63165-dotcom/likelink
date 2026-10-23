@@ -1,14 +1,59 @@
 {
- "about": "The story cast (the owner, 2026-10-23: 'each one in another suit colour, hair and eyes, each one markets a different product, like Ravit recommends'). Original animated characters, AI-labelled everywhere, no brand names or logos on the clothes, no jewellery drawn (the product is always its real photo). The look follows the owner's reference: a plain sports bra and full-length leggings, white sneakers.",
- "outfit": "wearing a matching plain {suit} sports set: a sports bra top and full-length high-waisted {suit} leggings, white chunky sneakers",
+ "about": "The story cast (the owner, 2026-10-23: 'each one in another suit colour, hair and eyes, each one markets a different product, like Ravit recommends'). Original animated characters, AI-labelled everywhere, no brand names or logos on the clothes, no jewellery drawn (the product is always its real photo). Each one in her own athleisure outfit from the owner's references (2026-10-23): an oversized cropped hoodie with joggers, a sports bra with full-length striped leggings, a cropped collared sweatshirt with sweatpants. Always long pants, plain fabric, never a logo or letters.",
+ "outfit": "wearing {outfit}, white chunky sneakers",
  "person": "original young woman fitness model character, {hair}, {eyes}, bright friendly smile, fit healthy figure",
- "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes, emblem, small logo on chest, shorts, hot pants, briefs, bikini, underwear, bare legs, bare thighs, exaggerated body, large breasts",
+ "negative": "jewelry, earrings, necklace, bracelet, ring, watch, text, logo, brand name, letters on clothes, emblem, small logo on chest, print on clothes, shorts, hot pants, briefs, bikini, underwear, bare legs, bare thighs, exaggerated body, large breasts",
  "characters": [
-  { "id": "noa", "name": "נועה", "product": "p-live-01", "suit": "sage green", "hair": "long straight honey blonde hair", "eyes": "green eyes", "seed": 91000 },
-  { "id": "maya", "name": "מאיה", "product": "p-live-03", "suit": "navy blue", "hair": "long straight glossy dark brown hair", "eyes": "warm brown eyes", "seed": 92000 },
-  { "id": "shira", "name": "שירה", "product": "p-live-05", "suit": "dusty rose pink", "hair": "long wavy auburn red hair", "eyes": "hazel eyes", "seed": 93000 },
-  { "id": "tal", "name": "טל", "product": "p-live-04", "suit": "matte black", "hair": "sleek long jet black ponytail", "eyes": "grey eyes", "seed": 94000 },
-  { "id": "yael", "name": "יעל", "product": "p-live-02", "suit": "cream beige", "hair": "long caramel brown hair with soft highlights", "eyes": "blue eyes", "seed": 95000 }
+  {
+   "id": "noa",
+   "name": "נועה",
+   "product": "p-live-01",
+   "suit": "sage green",
+   "hair": "ash brown hair in a messy high bun with loose face-framing strands",
+   "eyes": "green eyes",
+   "seed": 91000,
+   "outfit": "a matching plain sage green loungewear set: an oversized cropped hoodie and relaxed jogger sweatpants with a drawstring"
+  },
+  {
+   "id": "maya",
+   "name": "מאיה",
+   "product": "p-live-03",
+   "suit": "navy blue",
+   "hair": "long straight glossy dark brown hair",
+   "eyes": "warm brown eyes",
+   "seed": 92000,
+   "outfit": "a matching plain navy blue sports set: a scoop-neck sports bra and full-length high-waisted leggings with thin white side stripes"
+  },
+  {
+   "id": "shira",
+   "name": "שירה",
+   "product": "p-live-05",
+   "suit": "dusty rose pink",
+   "hair": "long wavy auburn red hair",
+   "eyes": "hazel eyes",
+   "seed": 93000,
+   "outfit": "a matching plain dusty rose loungewear set: a cropped collared half-zip sweatshirt and relaxed sweatpants"
+  },
+  {
+   "id": "tal",
+   "name": "טל",
+   "product": "p-live-04",
+   "suit": "matte black",
+   "hair": "sleek long jet black high ponytail",
+   "eyes": "grey eyes",
+   "seed": 94000,
+   "outfit": "a matching plain black athletic set: a fitted cropped long-sleeve zip-up jacket and full-length high-waisted leggings"
+  },
+  {
+   "id": "yael",
+   "name": "יעל",
+   "product": "p-live-02",
+   "suit": "cream white",
+   "hair": "long loose wavy golden blonde hair",
+   "eyes": "blue eyes",
+   "seed": 95000,
+   "outfit": "a matching plain cream white sports set: a thin-strap sports bra and full-length high-waisted leggings with thin black side stripes"
+  }
  ],
  "face": {
   "headshot": "head and shoulders portrait, looking at camera, light grey photo studio backdrop, soft studio lighting",

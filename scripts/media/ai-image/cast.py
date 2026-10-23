@@ -22,7 +22,7 @@ def character(cid):
 def jobs(cid, stage):
     c = character(cid)
     who = CAST["person"].format(hair=c["hair"], eyes=c["eyes"])
-    wears = CAST["outfit"].format(suit=c["suit"])
+    wears = CAST["outfit"].format(outfit=c.get("outfit") or c["suit"])
     shots = CAST["face"] if stage == "face" else CAST["scenes"]
     out = []
     for i, (name, what) in enumerate(shots.items()):
