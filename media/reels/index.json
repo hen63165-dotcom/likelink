@@ -1,0 +1,173 @@
+{
+ "generatedAt": "2026-10-24T19:25:20.428Z",
+ "reels": [
+  {
+   "id": "luna-ring-size-a",
+   "productId": "p-live-01",
+   "video": "ring-size-a.mp4",
+   "poster": "ring-size-a-cover.jpg",
+   "title": "איך יודעים מידת טבעת לפני שמזמינים",
+   "seconds": 42.02,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792537213000
+  },
+  {
+   "id": "luna-gift-earrings-a",
+   "productId": "p-live-05",
+   "video": "gift-earrings-a.mp4",
+   "poster": "gift-earrings-a-cover.jpg",
+   "title": "3 דברים שבודקים לפני שמזמינים מתנה מאלי",
+   "seconds": 40.63,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792246252000
+  },
+  {
+   "id": "luna-wrist-size-a",
+   "productId": "p-live-04",
+   "video": "wrist-size-a.mp4",
+   "poster": "wrist-size-a-cover.jpg",
+   "title": "איך בוחרים אורך לצמיד או לשרשרת יד",
+   "seconds": 40.82,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792188839000
+  },
+  {
+   "id": "luna-moissanite",
+   "productId": "p-live-03",
+   "video": "moissanite.mp4",
+   "poster": "moissanite-cover.jpg",
+   "title": "מואסניט זה יהלום? מה כדאי לדעת",
+   "seconds": 38.76,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1791651438000
+  },
+  {
+   "id": "luna-silver-925",
+   "productId": "p-live-02",
+   "video": "silver-925.mp4",
+   "poster": "silver-925-cover.jpg",
+   "title": "איך יודעים שתכשיט הוא באמת כסף 925",
+   "seconds": 29.33,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1791636717000
+  },
+  {
+   "id": "lookbook-p-live-01",
+   "productId": "p-live-01",
+   "video": "lookbook-p-live-01.mp4",
+   "poster": "lookbook-p-live-01-cover.jpg",
+   "title": "",
+   "seconds": 11.2,
+   "look": "lookbook_photos",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-02",
+   "productId": "p-live-02",
+   "video": "lookbook-p-live-02.mp4",
+   "poster": "lookbook-p-live-02-cover.jpg",
+   "title": "",
+   "seconds": 11.2,
+   "look": "lookbook_photos",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-04",
+   "productId": "p-live-04",
+   "video": "lookbook-p-live-04.mp4",
+   "poster": "lookbook-p-live-04-cover.jpg",
+   "title": "",
+   "seconds": 13.15,
+   "look": "lookbook",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות וסרטון: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-05",
+   "productId": "p-live-05",
+   "video": "lookbook-p-live-05.mp4",
+   "poster": "lookbook-p-live-05-cover.jpg",
+   "title": "",
+   "seconds": 13.15,
+   "look": "lookbook",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות וסרטון: המוכר"
+   ],
+   "createdAt": 1792232820000
+  },
+  {
+   "id": "seller-p-live-03",
+   "productId": "p-live-03",
+   "video": "seller-p-live-03.mp4",
+   "poster": "seller-p-live-03-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1791676455000
+  },
+  {
+   "id": "seller-p-live-04",
+   "productId": "p-live-04",
+   "video": "seller-p-live-04.mp4",
+   "poster": "seller-p-live-04-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1791676454000
+  },
+  {
+   "id": "seller-p-live-05",
+   "productId": "p-live-05",
+   "video": "seller-p-live-05.mp4",
+   "poster": "seller-p-live-05-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1791676456000
+  }
+ ]
+}

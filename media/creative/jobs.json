@@ -1,0 +1,419 @@
+{
+ "engine": "creative-1",
+ "updatedAt": 1792832201794,
+ "jobs": [
+  {
+   "id": "cj_90367d654dd0a51e",
+   "key": "90367d654dd0a51e",
+   "productId": "p-live-05",
+   "template": "lookbook",
+   "look": "lookbook",
+   "asset": "p-live-05-lookbook",
+   "status": "LIVE",
+   "attempts": 1,
+   "createdAt": 1792226410748,
+   "updatedAt": 1792246844417,
+   "history": [
+    {
+     "at": 1792226410748,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792232818802,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792232821005,
+     "status": "STORED"
+    },
+    {
+     "at": 1792246844417,
+     "status": "LIVE"
+    }
+   ],
+   "output": {
+    "file": "p-live-05-lookbook.mp4",
+    "bytes": 6093205,
+    "sha256": "1388b5cb0761ac91a75b6a00a69e599284566139cea2976713807e6eb79c009a",
+    "seconds": 13.15,
+    "segments": [
+     "photo",
+     "video",
+     "photo",
+     "video",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 13.17,
+    "bytes": 6093205,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "reels",
+    "name": "p-live-05-lookbook.mp4",
+    "bytes": 6093205,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/reels/p-live-05-lookbook.mp4"
+   },
+   "live": {
+    "live": true,
+    "feedId": "lookbook-p-live-05",
+    "video": "lookbook-p-live-05.mp4",
+    "bytes": 6093205,
+    "feed": "https://hen63165-dotcom.github.io/likelink/media/reels/index.json",
+    "page": "/p/p-live-05",
+    "checkedAt": 1792246844417
+   }
+  },
+  {
+   "id": "cj_a4d7033dc133efa7",
+   "key": "a4d7033dc133efa7",
+   "productId": "p-live-04",
+   "template": "lookbook",
+   "look": "lookbook",
+   "asset": "p-live-04-lookbook",
+   "status": "LIVE",
+   "attempts": 1,
+   "createdAt": 1792226410748,
+   "updatedAt": 1792232745049,
+   "history": [
+    {
+     "at": 1792226410748,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226533053,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226535966,
+     "status": "STORED"
+    },
+    {
+     "at": 1792232745049,
+     "status": "LIVE"
+    }
+   ],
+   "output": {
+    "file": "p-live-04-lookbook.mp4",
+    "bytes": 5902580,
+    "sha256": "cba2888890ecadf5027dff6ccd823c67a9a3aee292cef9365f3a9a6e8b31784c",
+    "seconds": 13.15,
+    "segments": [
+     "photo",
+     "video",
+     "photo",
+     "video",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 13.17,
+    "bytes": 5902580,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "reels",
+    "name": "p-live-04-lookbook.mp4",
+    "bytes": 5902580,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/reels/p-live-04-lookbook.mp4"
+   },
+   "live": {
+    "live": true,
+    "feedId": "lookbook-p-live-04",
+    "video": "lookbook-p-live-04.mp4",
+    "bytes": 5902580,
+    "feed": "https://hen63165-dotcom.github.io/likelink/media/reels/index.json",
+    "page": "/p/p-live-04",
+    "checkedAt": 1792232745049
+   }
+  },
+  {
+   "id": "cj_6d67e31b497bbe29",
+   "key": "6d67e31b497bbe29",
+   "productId": "p-live-02",
+   "template": "lookbook",
+   "look": "lookbook_photos",
+   "asset": "p-live-02-lookbook",
+   "status": "LIVE",
+   "attempts": 1,
+   "createdAt": 1792226410748,
+   "updatedAt": 1792232745049,
+   "history": [
+    {
+     "at": 1792226410748,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226473854,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226535966,
+     "status": "STORED"
+    },
+    {
+     "at": 1792232745049,
+     "status": "LIVE"
+    }
+   ],
+   "output": {
+    "file": "p-live-02-lookbook.mp4",
+    "bytes": 7578797,
+    "sha256": "d396279d38404b311d07e2b5d130778153abf53225b07e90b729970516364108",
+    "seconds": 11.2,
+    "segments": [
+     "photo",
+     "photo",
+     "photo",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 11.2,
+    "bytes": 7578797,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "reels",
+    "name": "p-live-02-lookbook.mp4",
+    "bytes": 7578797,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/reels/p-live-02-lookbook.mp4"
+   },
+   "live": {
+    "live": true,
+    "feedId": "lookbook-p-live-02",
+    "video": "lookbook-p-live-02.mp4",
+    "bytes": 7578797,
+    "feed": "https://hen63165-dotcom.github.io/likelink/media/reels/index.json",
+    "page": "/p/p-live-02",
+    "checkedAt": 1792232745049
+   }
+  },
+  {
+   "id": "cj_4e7221c977955bc3",
+   "key": "4e7221c977955bc3",
+   "productId": "p-live-01",
+   "template": "lookbook",
+   "look": "lookbook_photos",
+   "asset": "p-live-01-lookbook",
+   "status": "LIVE",
+   "attempts": 1,
+   "createdAt": 1792226410748,
+   "updatedAt": 1792232745049,
+   "history": [
+    {
+     "at": 1792226410748,
+     "status": "QUEUED"
+    },
+    {
+     "at": 1792226446078,
+     "status": "RENDERED"
+    },
+    {
+     "at": 1792226535966,
+     "status": "STORED"
+    },
+    {
+     "at": 1792232745049,
+     "status": "LIVE"
+    }
+   ],
+   "output": {
+    "file": "p-live-01-lookbook.mp4",
+    "bytes": 3601129,
+    "sha256": "ea6c9899eee78fb1ccd48d092356f4e4ae9237ed9624927e5e8bf366f50c2e5c",
+    "seconds": 11.2,
+    "segments": [
+     "photo",
+     "photo",
+     "photo",
+     "photo",
+     "photo"
+    ]
+   },
+   "qc": {
+    "pass": true,
+    "checks": [
+     {
+      "name": "video_h264",
+      "pass": true
+     },
+     {
+      "name": "size_1080x1920",
+      "pass": true
+     },
+     {
+      "name": "pix_fmt_yuv420p",
+      "pass": true
+     },
+     {
+      "name": "audio_aac_48k",
+      "pass": true
+     },
+     {
+      "name": "duration",
+      "pass": true
+     },
+     {
+      "name": "file_size",
+      "pass": true
+     },
+     {
+      "name": "not_black_or_white",
+      "pass": true
+     },
+     {
+      "name": "motion",
+      "pass": true
+     }
+    ],
+    "seconds": 11.2,
+    "bytes": 3601129,
+    "width": 1080,
+    "height": 1920
+   },
+   "error": null,
+   "nextAttemptAt": null,
+   "release": {
+    "tag": "reels",
+    "name": "p-live-01-lookbook.mp4",
+    "bytes": 3601129,
+    "url": "https://github.com/hen63165-dotcom/likelink/releases/download/reels/p-live-01-lookbook.mp4"
+   },
+   "live": {
+    "live": true,
+    "feedId": "lookbook-p-live-01",
+    "video": "lookbook-p-live-01.mp4",
+    "bytes": 3601129,
+    "feed": "https://hen63165-dotcom.github.io/likelink/media/reels/index.json",
+    "page": "/p/p-live-01",
+    "checkedAt": 1792232745049
+   }
+  }
+ ],
+ "clipsOnHand": [
+  "p-live-02",
+  "p-live-03",
+  "p-live-04",
+  "p-live-05"
+ ],
+ "clipsReadAt": 1792832201794
+}

@@ -1,0 +1,211 @@
+{
+ "date": "2026-10-24",
+ "posts": [
+  {
+   "id": "tt-20261024-1-would_you",
+   "slot": 1,
+   "format": "would_you",
+   "formatName": "כן או לא?",
+   "why": "סרטון המוצר עם שאלה פשוטה על המסך, שמזמינה לענות בתגובות.",
+   "owner": false,
+   "product": {
+    "id": "p-live-03",
+    "title": "צמיד טניס מואסניט Smyoue מצופה פלטינה",
+    "link": "https://likelink2.vercel.app/p/p-live-03?utm_source=tiktok&utm_medium=social&utm_campaign=tt-20261024-1-would_you"
+   },
+   "video": {
+    "file": "seller-p-live-03.mp4",
+    "poster": "seller-p-live-03-cover.jpg",
+    "look": "seller",
+    "labels": [
+     "צילום המוצר: המוכר",
+     "#פרסומת · קישור שותפים"
+    ]
+   },
+   "slides": [],
+   "hook": "הייתם לוקחים את זה? כן או לא",
+   "onScreen": [
+    "הייתם לוקחים את זה? כן או לא",
+    "כתבו בתגובות 👇"
+   ],
+   "caption": "#פרסומת · קישור שותפים\nהייתם לוקחים את זה? כן או לא\nכתבו לי בתגובות: כן או לא?\nהקישור בביו 🔗\nצילום המוצר: המוכר.\n#תכשיטים #מתנה #אקססוריז #LikeLink2",
+   "hashtags": [
+    "#תכשיטים",
+    "#מתנה",
+    "#אקססוריז",
+    "#LikeLink2"
+   ],
+   "sound": "סאונד טרנדי מתוך הספרייה של טיקטוק (לחצו על \"הוספת צליל\"), בעוצמה נמוכה של 10–20%.",
+   "script": [],
+   "aiLabel": false,
+   "disclosure": true,
+   "choice": "exploring",
+   "steps": [
+    "פותחים טיקטוק ← + ← העלאה ← בוחרים את הסרטון שהורדתם.",
+    "מוסיפים סאונד טרנדי מתוך הספרייה של טיקטוק (לחצו על \"הוספת צליל\"), בעוצמה נמוכה של 10–20%.",
+    "מוסיפים את הטקסט שעל המסך (Aa).",
+    "מדביקים את הכיתוב.",
+    "עוד אפשרויות ← \"גילוי תוכן הפוסט\" ← מפעילים ← \"תוכן ממותג\" (זה קישור שותפים).",
+    "מפרסמים, ונשארים לענות לתגובות בשעה הראשונה."
+   ],
+   "renderedSlides": []
+  },
+  {
+   "id": "tt-20261024-2-luna_tip",
+   "slot": 2,
+   "format": "luna_tip",
+   "formatName": "הטיפ של לונה",
+   "why": "טיפ קצר ושימושי מלונה. לונה היא דמות AI, ומסמנים את זה בטיקטוק.",
+   "owner": false,
+   "product": {
+    "id": "p-live-02",
+    "title": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן",
+    "link": "https://likelink2.vercel.app/p/p-live-02?utm_source=tiktok&utm_medium=social&utm_campaign=tt-20261024-2-luna_tip"
+   },
+   "video": {
+    "file": "silver-925.mp4",
+    "poster": "silver-925-cover.jpg",
+    "look": "talking",
+    "labels": [
+     "דמות וקול שנוצרו בבינה מלאכותית",
+     "#פרסומת · קישור שותפים"
+    ]
+   },
+   "slides": [],
+   "hook": "איך יודעים שתכשיט הוא באמת כסף 925",
+   "onScreen": [
+    "איך יודעים שתכשיט הוא באמת כסף 925"
+   ],
+   "caption": "#פרסומת · קישור שותפים\nאיך יודעים שתכשיט הוא באמת כסף 925\nצמיד טניס מואסניט ATTAGEMS מצופה זהב לבן\nהקישור בביו 🔗\nלונה היא דמות AI.\n#תכשיטים #מתנה #אקססוריז #LikeLink2",
+   "hashtags": [
+    "#תכשיטים",
+    "#מתנה",
+    "#אקססוריז",
+    "#LikeLink2"
+   ],
+   "sound": "סאונד טרנדי מתוך הספרייה של טיקטוק (לחצו על \"הוספת צליל\"), בעוצמה נמוכה של 10–20%.",
+   "script": [],
+   "aiLabel": true,
+   "disclosure": true,
+   "choice": "exploring",
+   "steps": [
+    "פותחים טיקטוק ← + ← העלאה ← בוחרים את הסרטון שהורדתם.",
+    "מוסיפים סאונד טרנדי מתוך הספרייה של טיקטוק (לחצו על \"הוספת צליל\"), בעוצמה נמוכה של 10–20%.",
+    "מוסיפים את הטקסט שעל המסך (Aa).",
+    "מדביקים את הכיתוב.",
+    "עוד אפשרויות ← \"גילוי תוכן הפוסט\" ← מפעילים ← \"תוכן ממותג\" (זה קישור שותפים).",
+    "עוד אפשרויות ← מפעילים \"תוכן שנוצר ב-AI\" (לונה היא דמות AI).",
+    "מפרסמים, ונשארים לענות לתגובות בשעה הראשונה."
+   ],
+   "renderedSlides": []
+  },
+  {
+   "id": "tt-20261024-3-green_screen",
+   "slot": 3,
+   "format": "green_screen",
+   "formatName": "גרין סקרין: את מול עמוד המוצר",
+   "why": "את מדברת למצלמה, ועמוד המוצר מאחורייך (אפקט Green Screen של טיקטוק). 5 דקות צילום, עם תסריט מוכן.",
+   "owner": true,
+   "product": {
+    "id": "p-live-01",
+    "title": "טבעת כסף 925 קלאסית עם זרקון מרקיז",
+    "link": "https://likelink2.vercel.app/p/p-live-01?utm_source=tiktok&utm_medium=social&utm_campaign=tt-20261024-3-green_screen"
+   },
+   "video": null,
+   "slides": [],
+   "hook": "מתנה קטנה שעונדים כל יום?",
+   "onScreen": [
+    "מתנה קטנה שעונדים כל יום?"
+   ],
+   "caption": "#פרסומת · קישור שותפים\nמתנה קטנה שעונדים כל יום?\nטבעת כסף 925 קלאסית עם זרקון מרקיז\nהקישור בביו 🔗\nהתמונות: מתוך סרטון המוכר או החנות.\n#תכשיטים #מתנה #אקססוריז #LikeLink2",
+   "hashtags": [
+    "#תכשיטים",
+    "#מתנה",
+    "#אקססוריז",
+    "#LikeLink2"
+   ],
+   "sound": "הקול שלך, בלי מוזיקה או עם מוזיקה שקטה מאוד.",
+   "script": [
+    "פתיחה (2 שניות, ישר למצלמה): \"מתנה קטנה שעונדים כל יום?\"",
+    "\"זה טבעת כסף 925 קלאסית עם זרקון מרקיז. מה שאני אוהבת לבדוק לפני שמזמינים:\"",
+    "\"כסף 925: חותמת ומגנט. מחפשים חותמת 925 בצד הפנימי.\"",
+    "\"מידת טבעת בלי לנחש. לוקחים טבעת שיושבת טוב ומודדים את הקוטר הפנימי במילימטרים.\"",
+    "\"הקישור לחנות בביו. וזה קישור שותפים.\""
+   ],
+   "aiLabel": false,
+   "disclosure": true,
+   "choice": "bonus",
+   "steps": [
+    "פותחים טיקטוק ← + ← אפקטים ← Green Screen ← בוחרים צילום מסך של עמוד המוצר.",
+    "מוסיפים הקול שלך, בלי מוזיקה או עם מוזיקה שקטה מאוד.",
+    "מוסיפים את הטקסט שעל המסך (Aa).",
+    "מדביקים את הכיתוב.",
+    "עוד אפשרויות ← \"גילוי תוכן הפוסט\" ← מפעילים ← \"תוכן ממותג\" (זה קישור שותפים).",
+    "מפרסמים, ונשארים לענות לתגובות בשעה הראשונה."
+   ],
+   "renderedSlides": []
+  }
+ ],
+ "learning": {
+  "minPosts": 3,
+  "posts": 0,
+  "formats": [
+   {
+    "format": "reveal",
+    "posts": 0,
+    "medianViews": 0,
+    "engagementRate": 0,
+    "status": "INSUFFICIENT_EVIDENCE"
+   },
+   {
+    "format": "checklist",
+    "posts": 0,
+    "medianViews": 0,
+    "engagementRate": 0,
+    "status": "INSUFFICIENT_EVIDENCE"
+   },
+   {
+    "format": "would_you",
+    "posts": 0,
+    "medianViews": 0,
+    "engagementRate": 0,
+    "status": "INSUFFICIENT_EVIDENCE"
+   },
+   {
+    "format": "luna_tip",
+    "posts": 0,
+    "medianViews": 0,
+    "engagementRate": 0,
+    "status": "INSUFFICIENT_EVIDENCE"
+   },
+   {
+    "format": "green_screen",
+    "posts": 0,
+    "medianViews": 0,
+    "engagementRate": 0,
+    "status": "INSUFFICIENT_EVIDENCE"
+   }
+  ],
+  "leader": null,
+  "basis": "owner_logged_tiktok_analytics",
+  "note": "מתאם מתוך הפוסטים שלך, לא הבטחה לצפיות"
+ },
+ "account": {
+  "usernames": [
+   "likelink2",
+   "likelink2.il",
+   "likelink2_shop",
+   "likelink.il"
+  ],
+  "name": "LikeLink2",
+  "bio": "ההמלצות של היוצרים, במקום אחד 🛍️ #פרסומת · קישורי שותפים",
+  "link": "https://likelink2.vercel.app/reels?utm_source=tiktok&utm_medium=bio",
+  "photo": "../icons/icon-512.webp"
+ },
+ "schedule": [
+  "12:30–13:30",
+  "20:00–21:30"
+ ],
+ "scheduleNote": "שעות להתחיל איתן ולבדוק. אחרי שבועיים, בניתוח הנתונים של טיקטוק (\"מתי העוקבים פעילים\") רואים את השעות שלך ומעדכנים.",
+ "trend": null
+}
