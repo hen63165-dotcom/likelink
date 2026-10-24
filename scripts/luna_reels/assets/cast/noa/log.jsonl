@@ -1,0 +1,12 @@
+{"loaded_ms": 10187, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": false}
+{"id": "headshot", "ms": 212729, "bytes": 606244}
+{"id": "hero", "ms": 211483, "bytes": 704918}
+{"loaded_ms": 20518, "model": "Lykon/dreamshaper-8", "engine": "sd15", "reference": true}
+{"id": "worried", "ms": 218265, "bytes": 668242}
+{"id": "thinking", "ms": 218206, "bytes": 609649}
+{"id": "explain", "ms": 218542, "bytes": 544646}
+{"id": "phone", "ms": 218493, "bytes": 605963}
+{"id": "happy", "ms": 218312, "bytes": 656364}
+{"id": "mirror", "ms": 218715, "bytes": 631971}
+{"id": "gift", "ms": 218078, "bytes": 609591}
+{"id": "wave", "ms": 218319, "bytes": 589218}

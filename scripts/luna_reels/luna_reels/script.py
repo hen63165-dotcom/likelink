@@ -12,6 +12,10 @@ An episode is a JSON file (episodes/*.json):
         {"say": "טקסט להקראה", "caption": "כיתוב על המסך", "t": 2.6},
         ...                                     # caption and t are optional
       ],
+      "look": "story",                          # optional: Luna's story (one scene per line,
+                                                # yellow captions on a dark box, the name tag)
+      # in a story, a line may name its scene: "scene": "worried" (assets/scenes/worried.jpg),
+      # "product" (the store's real photo, full screen) or "video:<https link>" (your own clip)
       "product": {"id": "p-live-02", "at": 3,   # shown during line #3
                   "claim": "המוכר מציין: כסף סטרלינג 925",
                   "mustMatch": "925"},          # the claim must be in the listing
@@ -63,6 +67,7 @@ class Line:
     say: str
     caption: str
     t: float | None = None
+    scene: str = ""     # story look: a scene name, "product", or "video:<https link>"
 
 
 @dataclass
@@ -81,6 +86,9 @@ class Episode:
     visual: str = ""     # a default visual for this episode (e.g. "aurora"); "" = Luna
     pexels: str = ""     # a stock-footage search for the backdrop (used with a free PEXELS_API_KEY)
     keyword: str = ""    # the comment word the Instagram bot answers (e.g. "מדריך" → the site's free guide)
+    look: str = ""       # "story": Luna's scenes, yellow captions on a dark box, the name tag
+    send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
+    presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
 
     @property
     def beats(self) -> list[Line]:
@@ -110,12 +118,25 @@ def _line(raw, where: str) -> Line:
     if len(spoken_text(caption)) > CAPTION_MAX:
         raise ScriptError(f"{where}: caption longer than {CAPTION_MAX} characters")
     t = raw.get("t")
-    return Line(say=say, caption=caption, t=float(t) if t is not None else None)
+    return Line(say=say, caption=caption, t=float(t) if t is not None else None, scene=_scene(raw.get("scene"), where))
+
+
+SCENE_NAME = re.compile(r"[a-z0-9][a-z0-9-]{1,40}")
+SCENE_CLIP = re.compile(r"video:https://[^\s\"'<>]{8,300}")
+LOOKS = ("", "story")
+
+
+def _scene(value, where: str) -> str:
+    """A story line's picture: a drawn scene, the product's real photo, or a clip you made."""
+    scene = str(value or "").strip()
+    if scene and not (SCENE_NAME.fullmatch(scene) or SCENE_CLIP.fullmatch(scene)):
+        raise ScriptError(f"{where}: scene must be a scene name (assets/scenes), 'product' or 'video:https://…'")
+    return scene
 
 
 def check_truth(episode: Episode, catalog: dict[str, dict] | None = None) -> None:
     """Refuse claims the site would refuse. Raises ScriptError."""
-    for i, beat in enumerate([*episode.beats, *episode.hooks[1:]]):
+    for i, beat in enumerate([*episode.beats, *episode.hooks[1:], Line(say=episode.send or "-", caption=episode.send or "-")]):
         for text in (beat.say, beat.caption):
             m = FORBIDDEN.search(text)
             if m:
@@ -168,11 +189,36 @@ def parse_episode(data: dict) -> Episode:
             raise ScriptError(f"hooks[{i}] longer than {HOOK_MAX} characters")
         hooks.append(h)
     topics = [screen_text(t) for t in (data.get("topics") or []) if isinstance(t, str) and t.strip()]
+    look = str(data.get("look") or "")
+    if look not in LOOKS:
+        raise ScriptError(f"look must be one of {LOOKS}")
+    if product is not None and look == "story":
+        at_line = lines[product["at"] - 1]
+        if not at_line.scene:  # the line that names the product shows its real photo
+            lines[product["at"] - 1] = Line(say=at_line.say, caption=at_line.caption, t=at_line.t, scene="product")
+    if look != "story" and any(x.scene for x in [hook, *lines]):
+        raise ScriptError("scenes belong to the story look (\"look\": \"story\")")
+    if look == "story" and product is None and any(x.scene == "product" for x in [hook, *lines]):
+        raise ScriptError("a 'product' scene needs the episode's product")
+    presenter = str(data.get("presenter") or "")
+    if presenter:
+        from . import brand  # noqa: PLC0415
+        if look != "story":
+            raise ScriptError("a presenter belongs to the story look")
+        if brand.cast_member(presenter) is None:
+            raise ScriptError(f"presenter '{presenter}' is not in the cast (scripts/media/ai-image/cast.json)")
     return Episode(id=eid, goal=goal, hook=hook, lines=lines, product=product, cta=cta, hashtags=hashtags[:8],
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
-                   keyword=_keyword(data.get("keyword")))
+                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter)
+
+
+def _send(value) -> str:
+    send = screen_text(value or "")
+    if send and (len(send) > 90 or not re.match(r"^(שלחי|תייגי)", send)):
+        raise ScriptError("send: one short line that starts with שלחי / תייגי (a reason to send the reel)")
+    return send
 
 
 # Comment words the bot answers (scripts/instagram/comment-bot.mjs).

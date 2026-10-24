@@ -161,6 +161,46 @@ def caption(text: str, active: int | None = None) -> Image.Image:
     return text_block(text, 70, brand.WIDTH - 120, active=active, box=brand.CAPTION_BOX, pad=(40, 24), radius=34)
 
 
+def story(text: str, size: int = 72) -> Image.Image:
+    """Story captions: every word yellow, on a dark rounded box (a few words at a time)."""
+    return text_block(text, size, brand.WIDTH - 160, color=brand.STORY_YELLOW, emphasis=brand.STORY_YELLOW,
+                      box=brand.STORY_BOX, pad=(34, 14), radius=22)
+
+
+def name_tag(face: Image.Image | None, branded: bool = True, label: str = brand.NAME_TAG) -> Image.Image:
+    """The series' name tag, top corner: the presenter's round picture over a
+    plate that says her name ("נועה ממליצה"; Luna's by default), and, on the
+    free tier, the LikeLink2 wordmark under it."""
+    plate = text_block(label, 40, brand.WIDTH, color=brand.WHITE, box=brand.TAG_PLATE + (255,), pad=(24, 8), radius=16)
+    edge = Image.new("RGBA", plate.size, (0, 0, 0, 0))
+    ImageDraw.Draw(edge).rounded_rectangle((9, 9, plate.width - 10, plate.height - 10), radius=19, outline=brand.TAG_EDGE + (255,), width=5)
+    plate.alpha_composite(edge)
+    parts = []
+    if face is not None:
+        d = 176
+        circle = Image.new("RGBA", (d, d), (0, 0, 0, 0))
+        mask = Image.new("L", (d, d), 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, d - 1, d - 1), fill=255)
+        circle.paste(brand.TAG_EDGE + (255,), (0, 0), mask)
+        inner = d - 14
+        photo = face.convert("RGB").resize((inner, inner), Image.LANCZOS)
+        imask = Image.new("L", (inner, inner), 0)
+        ImageDraw.Draw(imask).ellipse((0, 0, inner - 1, inner - 1), fill=255)
+        circle.paste(photo, (7, 7), imask)
+        parts.append(circle)
+    parts.append(plate)
+    if branded:
+        parts.append(wordmark(30))
+    w = max(p.width for p in parts)
+    h = sum(p.height for p in parts) - 22 * (len(parts) - 1)
+    tag = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    y = 0
+    for part in parts:
+        tag.alpha_composite(part, ((w - part.width) // 2, y))
+        y += part.height - 22
+    return soft_shadow(tag, radius=10, alpha=90)
+
+
 def hook(text: str) -> Image.Image:
     """The first-seconds question, big, in the brand's rose box."""
     return text_block(text, 92, brand.WIDTH - 110, box=brand.ROSE + (255,), pad=(46, 32), radius=40)
@@ -239,6 +279,31 @@ def chunks(caption: str, size: int = 3) -> list[tuple[int, int]]:
             j += 1
         out.append((i, j - 1))
         i = j
+    return out
+
+
+PHRASE_END = re.compile(r"(?:[,.:;?!…]|\.\.\.)$")
+LIST_NUMBER = re.compile(r"\d+\.")   # "1." opens a list item; it never ends a phrase alone
+
+
+def phrases(caption: str, size: int = 4) -> list[tuple[int, int]]:
+    """Story captions follow the sentence: a chunk ends where the line pauses
+    (a comma, "...", a colon), and a long phrase splits into even parts of at
+    most `size` words, so "פרק היד + 1.5 עד 2 ס״מ" is never cut as "+ 1.5 עד".
+    (first index, last index) per chunk."""
+    words = tokens(caption)
+    out, start = [], 0
+    for i, (w, _) in enumerate(words):
+        if (PHRASE_END.search(w) and not LIST_NUMBER.fullmatch(w)) or i == len(words) - 1:
+            n = i - start + 1
+            parts = -(-n // size)
+            base, extra = divmod(n, parts)
+            a = start
+            for k in range(parts):
+                b = a + base + (1 if k < extra else 0) - 1
+                out.append((a, b))
+                a = b + 1
+            start = i + 1
     return out
 
 

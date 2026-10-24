@@ -13,6 +13,10 @@ Caption styles:
   karaoke  the whole line in a dark box, the spoken word on a yellow pill
   pop      2-3 big words at a time in the centre, the spoken word in colour,
            outlined and shadowed, each word popping in (the fast Reels look)
+  story    a few words at a time, all yellow on a dark rounded box, with the
+           voice (the story look: one Luna scene per line, soft cuts between
+           them, the "לונה ממליצה" name tag in the corner, and the product's
+           real photo full screen on the line that names it)
 Tiers:
   free     LikeLink2 branding: series tag, logo watermark, and the outro
            "גלו מה שווה לקנות דרך אנשים · LikeLink2" with the site address
@@ -41,6 +45,9 @@ HOOK_Y = 1230
 CARD_Y = 740          # product card centre (karaoke)
 CARD_Y_POP = 620      # product card centre (pop)
 TOP_Y = 236
+STORY_Y = 1300        # story captions centre
+XF = 0.35             # story: cross-fade between scenes
+MOVES = ("in", "left", "out", "right")
 OUTRO_SLOGAN = "גלו מה שווה לקנות דרך אנשים"
 
 
@@ -137,6 +144,83 @@ def background(total: float, visual: str, work: Path):
     return VideoClip(frame_function=frame, duration=total)
 
 
+def _ease(k: float) -> float:
+    return 0.5 - 0.5 * math.cos(math.pi * max(0.0, min(1.0, k)))
+
+
+def moving_still(img: Image.Image, dur: float, move: str = "in", depth: float = 0.1) -> VideoClip:
+    """A still that moves like a camera: a slow push in or out, or a pan."""
+    big = visuals.cover(img, (int(W * 1.14), int(H * 1.14)))
+    arr = np.array(big)
+    bw, bh = big.size
+
+    def frame(t):
+        k = _ease(t / max(dur, 0.01))
+        if move in ("left", "right"):
+            zoom = 1.0 + depth * 0.7
+            fx = 0.2 + 0.6 * (k if move == "right" else 1 - k)
+        else:
+            zoom = 1.0 + depth * (k if move == "in" else 1 - k)
+            fx = 0.5
+        ww, wh = int(bw / zoom), int(bh / zoom)
+        x0 = int((bw - ww) * fx)
+        y0 = int((bh - wh) * 0.4)
+        return np.array(Image.fromarray(arr[y0:y0 + wh, x0:x0 + ww]).resize((W, H), Image.BILINEAR))
+
+    return VideoClip(frame_function=frame, duration=max(0.04, dur))
+
+
+def _scene_video(src: str, dur: float, work: Path):
+    path = Path(src) if Path(src).exists() else visuals.download(src, work / "media", kind="video")
+    clip = VideoFileClip(str(path), audio=False)
+    clip = clip.resized(max(W / clip.w, H / clip.h))
+    clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
+    if clip.duration < dur:
+        clip = clip.with_effects([vfx.Loop(duration=dur)])
+    return clip.with_duration(dur)
+
+
+def story_scenes(episode: Episode, beats: list[Beat]) -> list[str]:
+    """The scene of every beat: its own, else the one before it, else Luna."""
+    out, current = [], "luna"
+    for line in episode.beats[:len(beats)]:
+        current = line.scene or (current if current != "product" else "luna")
+        out.append(current)
+    return out
+
+
+def story_background(episode: Episode, beats: list[Beat], end_at: float, total: float, product: dict | None, work: Path):
+    """One scene per beat with a camera move, cross-faded: Luna's drawn scenes,
+    the product's real photo on its line, or a clip you made for that line."""
+    scenes = story_scenes(episode, beats)
+    clips = []
+    for i, (beat, scene) in enumerate(zip(beats, scenes)):
+        last = i + 1 == len(beats)
+        end = total if last else beats[i + 1].start + XF
+        dur = end - beat.start
+        if scene == "product":
+            clip = moving_still(visuals.product_frame(product.get("photo") if product else None,
+                                                     (product or {}).get("claim", ""),
+                                                     (product or {}).get("photoTag") or visuals.PHOTO_TAG,
+                                                     full=bool((product or {}).get("photoFull"))), dur, "in", depth=0.04)
+        elif scene.startswith("video:"):
+            clip = _scene_video(scene[6:], dur, work)
+        else:
+            who = episode.presenter
+            path = brand.scene_path(scene, who) if scene != "luna" else None
+            if path is None:
+                # A line with no scene of its own: the presenter explaining, else her portrait, else Luna.
+                path = brand.scene_path("explain", who) or brand.scene_path("headshot", who)
+                if scene != "luna":
+                    print(f"[story] scene '{scene}' is not drawn for '{who or 'luna'}'; another of her pictures instead")
+            clip = moving_still(Image.open(path or brand.LUNA).convert("RGB"), dur, MOVES[i % len(MOVES)])
+        clip = clip.with_start(beat.start)
+        if i:
+            clip = clip.with_effects([vfx.CrossFadeIn(XF)])
+        clips.append(clip)
+    return CompositeVideoClip(clips, size=(W, H)).with_duration(total)
+
+
 def _aurora(total: float):
     """The site's look as a moving backdrop: brand colours drifting on ink (no character)."""
     small_w, small_h = 108, 192
@@ -155,16 +239,33 @@ def _aurora(total: float):
     return VideoClip(frame_function=frame, duration=total)
 
 
-def _shade() -> Image.Image:
+def _shade(strength: int = 120) -> Image.Image:
     """A soft dark gradient over the lower half, so white text reads on any footage."""
     a = Image.new("L", (1, H))
-    a.putdata([0 if y < H * 0.45 else int(120 * ((y - H * 0.45) / (H * 0.55)) ** 1.2) for y in range(H)])
+    a.putdata([0 if y < H * 0.45 else int(strength * ((y - H * 0.45) / (H * 0.55)) ** 1.2) for y in range(H)])
     shade = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     shade.putalpha(a.resize((W, H)))
     return shade
 
 
+def _story_captions(beats: list[Beat]) -> list:
+    """A few words at a time, yellow on a dark box, each chunk while it is said
+    (the hook too, a little bigger: the story has one caption style)."""
+    layers = []
+    for n, beat in enumerate(beats):
+        times = word_times(beat)
+        words = text.tokens(beat.caption)
+        for a, b in text.phrases(beat.caption):
+            t0 = times[a][0]
+            t1 = times[b + 1][0] if b + 1 < len(times) else beat.end
+            img = text.story(" ".join(w for w, _ in words[a:b + 1]), size=80 if n == 0 else 72)
+            layers.append(_img_clip(img, t0, t1 - t0, ((W - img.width) // 2, STORY_Y - img.height // 2)))
+    return layers
+
+
 def _captions(beats: list[Beat], style: str) -> list:
+    if style == "story":
+        return _story_captions(beats)
     layers = []
     for n, beat in enumerate(beats[1:]):
         times = word_times(beat)
@@ -196,10 +297,16 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
     beats, total = timeline(episode, clips)
     end_at = total - END_SECONDS
     free = tier != "pro"
-    bg_clip = background(total, visual, work)
-    layers = [bg_clip, _img_clip(_shade(), 0, end_at, (0, 0))]
+    story = captions == "story"
+    bg_clip = story_background(episode, beats, end_at, total, product, work) if visual == "scenes" else background(total, visual, work)
+    layers = [bg_clip, _img_clip(_shade(70 if story else 120), 0, end_at, (0, 0))]
 
-    if free:
+    if story:
+        # The series' name tag (top left): Luna's picture and "לונה ממליצה" (+ LikeLink2 on the free tier).
+        face_file = brand.face_path(episode.presenter)
+        face = Image.open(face_file) if face_file else None
+        layers.append(_img_clip(text.name_tag(face, branded=free, label=brand.tag_text(episode.presenter)), 0, end_at, (24, TOP_Y - 30)))
+    elif free:
         # The LikeLink2 wordmark (top left): the watermark of the free tier.
         layers.append(_img_clip(text.wordmark(46), 0, end_at, (44, TOP_Y)))
     elif logo:
@@ -207,15 +314,17 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
         own.thumbnail((180, 120), Image.LANCZOS)
         layers.append(_img_clip(own, 0, total, (52, TOP_Y)))
 
-    # Hook: pops in, stays for the first beat.
+    # Hook: pops in, stays for the first beat (a story captions its hook like every other line).
     hook_beat = beats[0]
-    hook_img = text.hook(hook_beat.caption) if captions == "karaoke" else text.pop(hook_beat.caption, active=-1, size=124)
-    layers.append(_popping(hook_img, 0, hook_beat.end, HOOK_Y, peak=1.18, settle=0.22))
+    if not story:
+        hook_img = text.hook(hook_beat.caption) if captions == "karaoke" else text.pop(hook_beat.caption, active=-1, size=124)
+        layers.append(_popping(hook_img, 0, hook_beat.end, HOOK_Y, peak=1.18, settle=0.22))
 
     layers.extend(_captions(beats, captions))
 
-    # Product: the store's own photo and the seller's own claim, sliding up.
-    if product:
+    # Product: the store's own photo and the seller's own claim, sliding up
+    # (a story shows it full screen as the scene of its line instead).
+    if product and not (story and visual == "scenes"):
         at = beats[min(product["at"], len(beats) - 1)]
         card = visuals.product_card(product.get("photo"), product.get("claim", ""))
         cw, ch = card.size

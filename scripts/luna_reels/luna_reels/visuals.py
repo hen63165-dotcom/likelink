@@ -102,6 +102,48 @@ def product_card(photo: Image.Image | None, claim: str) -> Image.Image:
     return text.soft_shadow(card)
 
 
+PHOTO_TAG = "תמונת המוכר"
+
+
+def product_frame(photo: Image.Image | None, claim: str, tag_text: str = PHOTO_TAG, full: bool = False) -> Image.Image:
+    """A story's product line, full screen: the store's real photo, large, on a
+    blurred copy of itself, labelled as the seller's photo, with the seller's
+    own claim at the top right (clear of the name tag and the captions).
+    `full`: the photo is a luxe set (public/sets, 4:5 on our own backdrop), so
+    it fills the width and its backdrop continues above and below it."""
+    W, H = brand.WIDTH, brand.HEIGHT
+    frame = (blurred(photo, radius=40, darken=0.62) if photo is not None else Image.new("RGB", (W, H), brand.INK)).convert("RGBA")
+    tag = text.text_block(tag_text, 30, W, color=brand.WHITE, box=(13, 12, 20, 170), pad=(18, 6), radius=999, bold=False)
+    if photo is not None and full:
+        set_img = ImageOps.fit(photo.convert("RGB"), (W, int(W * 1.25)), method=Image.LANCZOS).convert("RGBA")
+        # The set's own backdrop continues above and below it: its top and bottom rows' colour.
+        rows = np.array(set_img.convert("RGB")).astype(np.float32)
+        top_c, bottom_c = rows[:6].mean(axis=(0, 1)), rows[-6:].mean(axis=(0, 1))
+        t = np.linspace(0, 1, H)[:, None, None]
+        frame = Image.fromarray((top_c * (1 - t) + bottom_c * t).repeat(W, axis=1).astype(np.uint8)).convert("RGBA")
+        feather = 90
+        mask = Image.new("L", set_img.size, 255)
+        draw = ImageDraw.Draw(mask)
+        for i in range(feather):
+            a = int(255 * i / feather)
+            draw.line((0, i, W, i), fill=a)
+            draw.line((0, set_img.height - 1 - i, W, set_img.height - 1 - i), fill=a)
+        set_img.putalpha(mask)
+        top = (H - set_img.height) // 2 - 40
+        frame.alpha_composite(set_img, (0, top))
+        frame.alpha_composite(tag, (W - tag.width - 30, top + set_img.height - tag.height - 110))
+        # The seller's claim is the caption of the line that says it (the same words, on screen while said).
+        return frame.convert("RGB")
+    elif photo is not None:
+        card = rounded_photo(photo, 640, radius=46, border=12)
+        card.alpha_composite(tag, (card.width - tag.width - 14, 14))
+        frame.alpha_composite(text.soft_shadow(card), ((W - card.width) // 2 - 36, 530 - 36))
+    if claim:
+        pill = text.text_block(claim, 40, 660, color=brand.INK, box=brand.WHITE + (255,), pad=(26, 10), radius=26)
+        frame.alpha_composite(pill, (W - pill.width - 30, 318))
+    return frame.convert("RGB")
+
+
 def outro(frame: Image.Image, *, slogan: str | None, title: str, sub: str, branded: bool,
           logo: str | None, labels: list[str]) -> tuple[Image.Image, int]:
     """The closing screen: the reel's own last frame, blurred and darkened, with

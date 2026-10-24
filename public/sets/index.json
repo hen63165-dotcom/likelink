@@ -1,0 +1,9 @@
+{
+ "about": "LikeLink2 luxe sets (scripts/media/luxe-set/luxe.py): the seller's own product photo, cut out and set on a studio backdrop. Only the background is ours; the product's pixels are not repainted (a green screen's colour cast is removed: despill). Chosen by eye, 2026-10-23.",
+ "label": "תמונת המוכר · רקע: LikeLink2",
+ "sets": {
+  "p-live-03": { "file": "p-live-03-noir.jpg", "style": "noir", "from": "public/looks/p-live-03.jpg (a frame of the seller's video)", "despill": true },
+  "p-live-04": { "file": "p-live-04-noir.jpg", "style": "noir", "from": "public/looks/p-live-04.jpg (a frame of the seller's video)" },
+  "p-live-05": { "file": "p-live-05-champagne.jpg", "style": "champagne", "from": "public/looks/p-live-05.jpg (a frame of the seller's video)" }
+ }
+}

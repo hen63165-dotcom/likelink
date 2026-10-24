@@ -42,7 +42,10 @@ export function tipChecks(products = []) {
   return [...new Set([...withExample, ...general])];
 }
 
-function productPost(product, image, i, { origin }) {
+function productPost(product, picture, i, { origin }) {
+  // A picture is a src, or { src, note } when it says more than "the seller's photo" (a luxe set's own background).
+  const image = typeof picture === "object" && picture ? picture.src : picture;
+  const note = (typeof picture === "object" && picture?.note) || SELLER_PHOTO_TAG;
   const hooks = dropHooks(product);
   const hook = hooks.length ? hooks[i % hooks.length] : "";
   const title = short(product.displayTitle || product.title, 60);
@@ -58,10 +61,10 @@ function productPost(product, image, i, { origin }) {
     sub: safeCopy(title) ? short(title, 42) : "",
     image,
     tags: ["#פרסומת", BRAND_TAG],
-    imageNote: SELLER_PHOTO_TAG,
+    imageNote: note,
     caption,
     link: `${origin}/p/${product.id}`,
-    alt: `${title} · ${SELLER_PHOTO_TAG}`,
+    alt: `${title} · ${note}`,
   };
 }
 
@@ -78,7 +81,7 @@ function tipPost(check, presenter, example, n) {
     inset: example?.image || "",
     insetProductId: example?.id || "",
     tags: [AI_TAG, BRAND_TAG],
-    imageNote: example?.image ? `בתמונה הקטנה: ${SELLER_PHOTO_TAG}` : "",
+    imageNote: example?.image ? `בתמונה הקטנה: ${example.note || SELLER_PHOTO_TAG}` : "",
     caption,
     link: "",
     alt: `${hook} · ${AI_TAG}`,
@@ -114,7 +117,9 @@ export function instagramGrid({ products = [], imageOf = () => "", presenter = "
     } else if (slot === "tip" && ti < tips.length) {
       const ex = guideExamples(tips[ti], withImage, 1)[0];
       const n = GUIDE.checks.indexOf(tips[ti]) + 1;
-      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: imageOf(ex) } : null, n));
+      const exPic = ex ? imageOf(ex) : "";
+      const exSet = typeof exPic === "object" && exPic ? exPic : null;
+      posts.push(tipPost(tips[ti], faces[ti % faces.length], ex ? { id: ex.id, image: exSet ? exSet.src : exPic, note: exSet?.note || SELLER_PHOTO_TAG } : null, n));
       ti += 1;
     } else if (slot === "tool" && faces.length && !tool) {
       posts.push(toolPost(faces[(ti + 1) % faces.length], origin));
@@ -122,6 +127,38 @@ export function instagramGrid({ products = [], imageOf = () => "", presenter = "
     }
   }
   return posts.map((p, i) => ({ id: `ig-${String(i + 1).padStart(2, "0")}-${p.kind}`, ...p }));
+}
+
+// Luna's stories (scripts/luna_reels, look "story"): posted as a Reel, then
+// shared to the story with Instagram's own link sticker to the product page.
+export const STORY_STEPS = Object.freeze([
+  "מורידים את הסרטון.",
+  "באינסטגרם: ➕ ← ריל ← בוחרים את הסרטון, ומדביקים את הכיתוב.",
+  "הגדרות מתקדמות ← „תווית AI” ← מפעילים (הדמות בסרטון היא דמות AI).",
+  "אחרי שהריל עלה: כפתור השיתוף ← „הוספה לסטורי”.",
+  "בסטורי: מדבקות ← „קישור” ← מדביקים את הקישור למוצר, ועל המדבקה כותבים „לפרטים על המוצר”.",
+  "מי שכותבת „רוצה” מתחת לריל מקבלת את הקישור בפרטי.",
+]);
+export const STORY_STICKER = "לפרטים על המוצר";
+
+/**
+ * The stories the kit page offers: each one's video and caption (written by
+ * the engine, the disclosure first) and the product page link for the story's
+ * link sticker. A story without the ad tag or a product is left out.
+ */
+export function storyCards(stories = [], { origin = PRODUCTION_ORIGIN } = {}) {
+  return (Array.isArray(stories) ? stories : [])
+    .filter((x) => x?.productId && x?.video && String(x.caption || "").startsWith(DROP_AD) && safeCopy(x.caption))
+    .map((x) => ({
+      id: String(x.id),
+      productId: String(x.productId),
+      title: clean(x.title),
+      video: String(x.video),
+      seconds: Number(x.seconds) || 0,
+      caption: String(x.caption),
+      link: `${origin}/p/${encodeURIComponent(x.productId)}?utm_source=instagram&utm_medium=story&utm_campaign=luna_story`,
+      sticker: STORY_STICKER,
+    }));
 }
 
 /** Every line a post says on the picture or in its caption passes the copy rules. */

@@ -8,7 +8,8 @@
 # "luna-reels" release (video, caption .txt, preview .jpg, details .json per
 # variant) and to the run's artifacts. Nothing is posted anywhere: posting
 # stays a person's choice (with a trending sound from the Instagram app).
-# A push that changes the engine renders two episodes as a check.
+# A push that changes the engine renders the five stories (look "story": a
+# character per product, a scene per line, yellow captions, the name tag) as a check.
 name: Luna reels
 on:
   schedule:
@@ -48,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350
     env:
-      EPISODE: ${{ github.event.inputs.episode || (github.event_name == 'schedule' && 'next') || 'silver-925 link-chaos' }}
+      EPISODE: ${{ github.event.inputs.episode || (github.event_name == 'schedule' && 'next') || 'story-wedding-wrist story-ring-size story-gift-earrings story-hand-chain story-moissanite' }}
       VARIANTS: ${{ github.event.inputs.variants || '3' }}
       VOICE: ${{ github.event.inputs.voice || 'edge' }}
       VISUAL: ${{ github.event.inputs.visual || (github.event_name == 'schedule' && 'talking') || 'auto' }}
