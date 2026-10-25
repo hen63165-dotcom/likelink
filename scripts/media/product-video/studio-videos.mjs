@@ -65,7 +65,13 @@ async function plan(dir) {
   const candidates = studioVideoCandidates(products, { state, released, skip: SELLER_SKIP });
   writeFileSync(join(dir, "plan.json"), JSON.stringify({ at: new Date().toISOString(), candidates }, null, 2));
   output("count", candidates.length);
-  summary(`## Studio videos — ${new Date().toISOString()}\n${products.length} products in the cloud · ${candidates.length} to make this run${candidates.length ? `: ${candidates.map((p) => p.id).join(", ")}` : ""}`);
+  const fromAli = products.filter((p) => /aliexpress\./i.test(String(p?.affiliateUrl || "")));
+  const counts = {
+    approved: fromAli.filter((p) => p.status === "approved").length,
+    drafts: fromAli.filter((p) => p.status !== "approved").length,
+    withVideo: fromAli.filter((p) => released.has(`${p.id}.mp4`) || state?.videos?.[p.id]?.status === "READY").length,
+  };
+  summary(`## Studio videos — ${new Date().toISOString()}\n${products.length} products in the cloud · from AliExpress: ${counts.approved} published, ${counts.drafts} not published, ${counts.withVideo} with a video · ${candidates.length} to make this run${candidates.length ? `: ${candidates.map((p) => p.id).join(", ")}` : ""}`);
 }
 
 /** The store's own video (and Hebrew title) for one product, from the owner's affiliate account. */
