@@ -22,6 +22,7 @@ import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "./prerender-products.mjs";
 import { SELLER_MEDIA_LOOKS, SELLER_SKIP } from "../src/lib/reelsFeed.js";
+import { DROP_AD, safeCopy } from "../src/lib/growth/dailyDrop.js";
 
 export { SELLER_SKIP };
 
@@ -287,12 +288,19 @@ export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOS
   const stories = [];
   for (const r of storyReels(withMeta, listed)) {
     try {
+      // The caption the kit page will show, checked before the video is fetched: the
+      // page drops a story without the disclosure first or with unsafe copy.
+      const txt = release.assets.find((a) => a?.name === `${r.base}.txt`);
+      const res = txt ? await fetch(txt.browser_download_url, { redirect: "follow" }) : null;
+      const caption = (res?.ok ? await res.text() : String(r.meta.caption || "")).trim().slice(0, 2200);
+      if (!caption.startsWith(DROP_AD) || !safeCopy(caption)) {
+        console.warn(`reels-feed: story ${r.base} skipped (caption without the disclosure first, or unsafe copy)`);
+        continue;
+      }
       mkdirSync(storiesDir, { recursive: true });
       await download(r.mp4.url, join(storiesDir, `${r.base}.mp4`), token);
-      const txt = release.assets.find((a) => a?.name === `${r.base}.txt`);
-      const caption = txt ? await (await fetch(txt.browser_download_url, { redirect: "follow" })).text() : String(r.meta.caption || "");
       stories.push({ id: `story-${r.base}`, episode: r.episode, productId: r.productId, video: `${r.base}.mp4`,
-        title: String(r.meta.title || "").slice(0, 120), seconds: Number(r.meta.seconds) || 0, caption: caption.trim().slice(0, 2200),
+        title: String(r.meta.title || "").slice(0, 120), seconds: Number(r.meta.seconds) || 0, caption,
         labels: r.meta.labels.map((l) => String(l).slice(0, 80)).slice(0, 4), createdAt: r.updatedAt });
     } catch (e) {
       console.warn(`reels-feed: story ${r.base} skipped (${e.message})`);
