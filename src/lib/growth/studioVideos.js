@@ -19,6 +19,8 @@
  * nothing is invented in its place.
  */
 
+import { isPromotable, sharedAffiliateLinks } from "../discovery/catalogIntegrity.js";
+
 export const STUDIO_VIDEO_STATUS = Object.freeze({
   READY: "READY",
   NO_SELLER_VIDEO: "NO_SELLER_VIDEO",
@@ -51,18 +53,24 @@ export function linkKey(product = {}) {
 }
 
 /**
- * Which products get a video this run: approved, from an AliExpress link,
- * without one already (in the "reels" release or in the state), and not given
- * up on. A failure waits RETRY_AFTER_MS and stops after MAX_ATTEMPTS; a store
- * without a video is final until the link changes. Oldest first.
+ * Which products get a video this run: approved, from an AliExpress link that
+ * is the product's own (catalog integrity: a link several products share opens
+ * no single item and is never promoted), without a video already (in the
+ * "reels" release or in the state), and not given up on. A failure waits
+ * RETRY_AFTER_MS and stops after MAX_ATTEMPTS; a store without a video is
+ * final until the link changes. Newest first: the product she just added is
+ * the one she is waiting for.
  *
  * @param {object[]} products  the cloud's marketplace:products
  * @param {{ state?: object, released?: Set<string>, skip?: object, now?: number, limit?: number }} opts
  */
 export function studioVideoCandidates(products = [], { state = {}, released = new Set(), skip = {}, now = Date.now(), limit = PER_RUN } = {}) {
   const done = state?.videos || {};
-  return (Array.isArray(products) ? products : [])
+  const all = Array.isArray(products) ? products : [];
+  const shared = sharedAffiliateLinks(all);
+  return all
     .filter((p) => p && ID.test(String(p.id)) && ID.test(String(p.marketerId || "")) && p.status === "approved" && isAliExpressUrl(p.affiliateUrl))
+    .filter((p) => isPromotable(p, all, shared))
     .filter((p) => !released.has(`${p.id}.mp4`) && !skip[p.id])
     .filter((p) => {
       const s = done[p.id];
@@ -70,7 +78,7 @@ export function studioVideoCandidates(products = [], { state = {}, released = ne
       if (s.status === STUDIO_VIDEO_STATUS.READY || s.status === STUDIO_VIDEO_STATUS.NO_SELLER_VIDEO) return false;
       return (s.attempts || 0) < MAX_ATTEMPTS && now - Date.parse(s.at || 0) >= RETRY_AFTER_MS;
     })
-    .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+    .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
     .slice(0, limit);
 }
 

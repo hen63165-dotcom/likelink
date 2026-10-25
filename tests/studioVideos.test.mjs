@@ -15,7 +15,7 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const NOW = Date.parse("2026-10-25T12:00:00Z");
 const product = (id, over = {}) => ({ id, marketerId: "m1", status: "approved", title: "מצלמה", affiliateUrl: `https://s.click.aliexpress.com/e/_${id}`, createdAt: 1000, ...over });
 
-test("only approved products from an AliExpress link, without a video yet, oldest first, a few per run", () => {
+test("only approved products from their own AliExpress link, without a video yet, newest first, a few per run", () => {
   const list = [
     product("new2", { createdAt: 3000 }),
     product("draft", { status: "draft" }),
@@ -28,9 +28,12 @@ test("only approved products from an AliExpress link, without a video yet, oldes
     product("bad id!", {}),
   ];
   const got = studioVideoCandidates(list, { released: new Set(["has.mp4"]), skip: { "p-live-02": "another item" }, now: NOW });
-  assert.deepEqual(got.map((p) => p.id), ["new1", "new2"]);
+  assert.deepEqual(got.map((p) => p.id), ["new2", "new1"], "the product she just added first");
   const many = Array.from({ length: 9 }, (_, i) => product(`p${i}`, { createdAt: i }));
-  assert.equal(studioVideoCandidates(many, { now: NOW }).length, PER_RUN);
+  assert.deepEqual(studioVideoCandidates(many, { now: NOW }).map((p) => p.id), ["p8", "p7", "p6"].slice(0, PER_RUN));
+  // 2026-10-25, the first run: seed products sharing one link (it opens the store's home page) are never promoted.
+  const seeds = [product("s1", { affiliateUrl: "https://s.click.aliexpress.com/e/_shared" }), product("s2", { affiliateUrl: "https://s.click.aliexpress.com/e/_shared" }), product("own")];
+  assert.deepEqual(studioVideoCandidates(seeds, { now: NOW }).map((p) => p.id), ["own"]);
   assert.ok(isAliExpressUrl("https://he.aliexpress.com/item/1.html") && isAliExpressUrl("https://s.click.aliexpress.com/e/_x"));
   assert.ok(!isAliExpressUrl("https://aliexpress.com.evil.example/item/1.html") && !isAliExpressUrl("javascript:alert(1)"));
 });
