@@ -163,3 +163,21 @@ test("doctor: one pass over a site whose cloud is restricted finds no code defec
   assert.equal(broken.find((x) => x.name === "every reel and cover plays").kind, KIND.APP_DEFECT);
   assert.equal(broken.find((x) => x.name === "live revision").kind, KIND.NOT_TESTED, "no checkout: main unknown");
 });
+
+test("doctor: the owner's AliExpress account as the live API sees it (2026-10-25: 'the keys are long in Supabase')", async () => {
+  const doc = JSON.parse(read("public/snapshot/kv.json"));
+  const site = (configured) => async (url) => {
+    const u = new URL(url);
+    const reply = (status, type, body) => ({ status, headers: { get: () => type }, text: async () => JSON.stringify(body), json: async () => body });
+    if (u.pathname === "/api/store" && u.searchParams.get("op") === "affiliate-status") return reply(200, "application/json", { ok: true, configured });
+    if (u.pathname === "/snapshot/kv.json") return reply(200, "application/json", doc);
+    if (u.pathname === "/media/reels/index.json") return reply(200, "application/json", { reels: [] });
+    return reply(200, "text/html", '<div id="root"></div>');
+  };
+  const name = "AliExpress account on the site API";
+  const missing = (await runDoctor({ origin: "https://site.example", fetchImpl: site(false), git: null })).find((x) => x.name === name);
+  assert.equal(missing.kind, KIND.MISSING_CREDENTIAL);
+  assert.match(missing.action, /vjitiuirqfysexsxdxqx/, "names the project the site uses, not the retired one");
+  assert.match(missing.action, /ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET, ALIEXPRESS_TRACKING_ID/);
+  assert.equal((await runDoctor({ origin: "https://site.example", fetchImpl: site(true), git: null })).find((x) => x.name === name).kind, KIND.OK);
+});

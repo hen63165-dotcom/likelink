@@ -145,6 +145,117 @@ class Trends(unittest.TestCase):
         self.assertEqual(hit[1]["source"], "calendar")
 
 
+class Story(unittest.TestCase):
+    """The story look (the owner's example, 2026-10-23: a creator's story with one
+    character, yellow captions on a dark box, a name tag): what it may show."""
+
+    def story(self, **over):
+        data = {"id": "t-story", "goal": "sales", "look": "story",
+                "hook": {"say": "הטבעת הגיעה, ולא עולה?", "scene": "worried"},
+                "lines": [{"say": "מודדים קודם.", "scene": "explain"},
+                          {"say": "המוכר מציין: כסף סטרלינג 925."},
+                          {"say": "ואז מזמינים."}],
+                "product": {"id": "p-live-01", "at": 2, "claim": "המוכר מציין: כסף סטרלינג 925", "mustMatch": "סטרלינג 925"},
+                "cta": {"title": "כתבי \"רוצה\" בתגובות"}}
+        data.update(over)
+        return parse_episode(data)
+
+    def test_the_product_line_shows_the_real_photo_and_scenes_carry_on(self):
+        ep = self.story()
+        check_truth(ep, CATALOG)
+        self.assertEqual([b.scene for b in ep.beats], ["worried", "explain", "product", ""])
+        beats = [compose.Beat(start=i, seconds=1, end=i + 1, caption=b.caption, clip=Clip(None, 1.0)) for i, b in enumerate(ep.beats)]
+        # A line without a scene keeps the one before it; after the product, Luna comes back.
+        self.assertEqual(compose.story_scenes(ep, beats), ["worried", "explain", "product", "luna"])
+
+    def test_a_presenter_is_framed_from_the_hips_up(self):
+        # 2026-10-25: the full drawings put tight leggings at the bottom of every frame.
+        from PIL import Image
+        img = Image.new("RGB", (576, 1024))
+        self.assertEqual(compose.upper_body(img).size, (576, round(1024 * compose.UPPER)))
+        self.assertLess(compose.UPPER, 0.8)
+        src = (Path(compose.__file__).parent / "compose.py").read_text(encoding="utf-8")
+        self.assertIn("upper_body(still) if path else still", src, "every drawn scene of hers, not Luna's full portrait")
+
+    def test_scenes_are_names_the_product_or_your_own_https_clip(self):
+        self.story(lines=[{"say": "א", "scene": "video:https://drive.google.com/file/d/abcdefghijklmnop/view"}], product=None,
+                   cta={"title": "שמרי"})
+        for bad in ["../etc/passwd", "video:http://x.example/a.mp4", "Worried Face", "video:javascript:alert(1)"]:
+            with self.assertRaises(ScriptError, msg=bad):
+                self.story(lines=[{"say": "א", "scene": bad}], product=None, cta={"title": "שמרי"})
+        with self.assertRaises(ScriptError):
+            episode(lines=[{"say": "א", "scene": "worried"}])            # scenes belong to the story look
+        with self.assertRaises(ScriptError):
+            self.story(lines=[{"say": "א", "scene": "product"}], product=None, cta={"title": "שמרי"})
+        with self.assertRaises(ScriptError):
+            episode(look="cinema")
+
+    def test_story_captions_break_where_the_sentence_pauses(self):
+        cut = lambda c: [" ".join(w for w, _ in text.tokens(c)[a:b + 1]) for a, b in text.phrases(c)]  # noqa: E731
+        self.assertEqual(cut("טיפ: פרק היד + 1.5 עד 2 ס״מ"), ["טיפ:", "פרק היד + 1.5", "עד 2 ס״מ"])
+        self.assertEqual(cut("החתונה הערב... והיד נראית ריקה?"), ["החתונה הערב...", "והיד נראית ריקה?"])
+        self.assertEqual(cut("1. כסף או זהב?"), ["1. כסף או זהב?"], "a list number stays with its item")
+        for c in ["זה קורה כשמזמינים בלי לדעת את המידה", "3 שאלות, והמתנה בוחרת את עצמה"]:
+            self.assertTrue(all(b - a < 4 for a, b in text.phrases(c)), c)
+
+    def test_the_name_tag_and_the_yellow_box(self):
+        from PIL import Image
+        tag = text.name_tag(Image.open(brand.LUNA_FACE), branded=True)
+        self.assertLess(tag.width, 420, "a corner tag, not a banner")
+        cap = text.story("הטבעת הגיעה")
+        self.assertIn(brand.STORY_YELLOW + (255,), set(cap.getdata()), "the words are yellow")
+        self.assertEqual(brand.NAME_TAG, "לונה ממליצה")
+
+    def test_every_story_has_its_own_presenter_and_its_product_photo(self):
+        """Like a creator's series: one character per product (the cast), her name on the tag."""
+        seen = {}
+        for f in sorted((HERE / "episodes").glob("story-*.json")):
+            ep = load_episode(f)
+            self.assertEqual(ep.look, "story", f.name)
+            member = brand.cast_member(ep.presenter)
+            self.assertIsNotNone(member, f"{f.name}: a presenter from the cast")
+            self.assertEqual(member["product"], ep.product["id"], f"{f.name}: she presents her own product")
+            self.assertNotIn(ep.presenter, seen.values(), "one product per character")
+            seen[f.name] = ep.presenter
+            self.assertEqual(brand.tag_text(ep.presenter), f"{member['name']} ממליצה")
+            self.assertTrue(any(b.scene == "product" for b in ep.beats), f"{f.name}: the product line shows its real photo")
+        self.assertEqual(brand.tag_text(""), "לונה ממליצה")
+        with self.assertRaises(ScriptError):
+            self.story(presenter="nobody")
+
+    def test_cast_prompts_put_the_shot_first_and_stay_short(self):
+        """SD 1.5 reads 77 tokens and drops the rest (the first cast lost every
+        scene action and the leggings). The shot leads, prompts stay short (the
+        runner refuses a cast prompt it would cut), pants are long, tops cover."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("cast", HERE.parent / "media" / "ai-image" / "cast.py")
+        cast = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cast)
+        for member in cast.CAST["characters"]:
+            self.assertIn("long", member["outfit"], member["id"])
+            self.assertNotRegex(member["outfit"], r"bra|crop|short", member["id"])
+            for stage, shots in (("face", cast.CAST["face"]), ("scenes", cast.CAST["scenes"])):
+                for job, what in zip(cast.jobs(member["id"], stage), shots.values()):
+                    self.assertEqual(job["kind"], "cast")
+                    self.assertTrue(job["prompt"].startswith(what), f"{member['id']} {job['id']}: the shot comes first")
+                    self.assertLessEqual(len(job["prompt"].split()), 42, f"{member['id']} {job['id']}")
+        self.assertLessEqual(len(cast.CAST["negative"].split()), 32)
+        for word in ("shorts", "underwear", "logo", "midriff", "jewelry"):
+            self.assertIn(word, cast.CAST["negative"])
+
+    def test_every_story_scene_is_drawn_for_its_own_presenter(self):
+        """A missing picture would quietly show another face (Luna's); each
+        character's own folder (Actions → "Story cast") holds every scene her story names."""
+        for f in sorted((HERE / "episodes").glob("story-*.json")):
+            ep = load_episode(f)
+            folder = brand.CAST_DIR / ep.presenter
+            self.assertEqual(brand.face_path(ep.presenter), folder / "face.jpg", f"{f.name}: her own face on the tag")
+            for scene in {b.scene for b in ep.beats if b.scene and b.scene != "product" and not b.scene.startswith("video:")}:
+                path = brand.scene_path(scene, ep.presenter)
+                self.assertIsNotNone(path, f"{f.name}: scene {scene}")
+                self.assertEqual(path.parent, folder, f"{f.name}: scene {scene} is her own, not a shared picture")
+
+
 class Music(unittest.TestCase):
     def test_bed_level(self):
         self.assertAlmostEqual(music.db_to_gain(-20), 0.1)

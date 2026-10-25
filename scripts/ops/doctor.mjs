@@ -166,6 +166,16 @@ export async function runDoctor({ origin = "https://likelink2.vercel.app", supab
   out.push(api.status === 200 && !api.type.includes("json")
     ? r(KIND.NOT_TESTED, "cloud", "site API (/api)", `http_200 ${api.type || "no type"}: no API on this host`, "")
     : classifyCloud(api.status, api.status ? await api.text().catch(() => "") : "", "site API (/api)"));
+  // The owner's AliExpress affiliate account as the live API sees it (a boolean; the
+  // Studio's "בדיקת הקישור" reads Hebrew titles and ₪ prices through it).
+  const ae = await get(`${base}/api/store?mode=growth-engine&op=affiliate-status`, { Origin: base });
+  const aeBody = ae.status === 200 && ae.type.includes("json") ? await ae.json().catch(() => null) : null;
+  out.push(!aeBody
+    ? r(KIND.NOT_TESTED, "commerce", "AliExpress account on the site API", ae.status ? `http_${ae.status}` : ae.error || "no answer", "")
+    : aeBody.configured === true
+      ? r(KIND.OK, "commerce", "AliExpress account on the site API", "connected: the Studio's link check reads the store's Hebrew title, photos and ₪ price")
+      : r(KIND.MISSING_CREDENTIAL, "commerce", "AliExpress account on the site API", "not connected: the Studio's link check falls back to the store page (no price, foreign-language title)",
+        "Supabase project vjitiuirqfysexsxdxqx (org LikeLink2) → Edge Functions → Secrets: ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET, ALIEXPRESS_TRACKING_ID (exact names; the old project sbzzgfthgaurgcuxiuql is retired)"));
   return out;
 }
 

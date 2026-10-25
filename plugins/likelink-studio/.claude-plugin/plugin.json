@@ -1,0 +1,12 @@
+{
+  "name": "likelink-studio",
+  "version": "1.0.0",
+  "description": "LikeLink2 Studio: one command per job — today's plan, a new product end to end, a story with its own character, a studio photo, the master check, the truth guard, shipping live. Free tools only; nothing is posted or charged without the owner.",
+  "author": {
+    "name": "LikeLink2"
+  },
+  "homepage": "https://likelink2.vercel.app",
+  "repository": "https://github.com/hen63165-dotcom/likelink",
+  "license": "UNLICENSED",
+  "keywords": ["affiliate", "creators", "hebrew", "reels", "stories", "instagram", "tiktok", "truth-first"]
+}

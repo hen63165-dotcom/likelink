@@ -44,17 +44,27 @@ VARIANTS = [
 ]
 
 
+SETS = REPO / "public" / "sets"
+
+
 def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
     if not episode.product:
         return None
-    p = catalog[str(episode.product["id"])]
-    photo = None
+    pid = str(episode.product["id"])
+    p = catalog[pid]
+    photo, tag, full = None, visuals.PHOTO_TAG, False
     try:
         from PIL import Image  # noqa: PLC0415
-        photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
+        # A luxe set chosen by eye (public/sets): the seller's photo on our studio backdrop, labelled so.
+        index = json.loads((SETS / "index.json").read_text(encoding="utf-8")) if (SETS / "index.json").exists() else {}
+        chosen = (index.get("sets") or {}).get(pid)
+        if chosen and (SETS / chosen["file"]).exists():
+            photo, tag, full = Image.open(SETS / chosen["file"]), chosen.get("label") or index.get("label") or tag, True
+        else:
+            photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
     except Exception as exc:  # the card still shows the claim
         print(f"[product] photo not available ({exc}); showing the claim only", file=sys.stderr)
-    return {**episode.product, "photo": photo, "title": p.get("title", "")}
+    return {**episode.product, "photo": photo, "photoTag": tag, "photoFull": full, "title": p.get("title", "")}
 
 
 def _visual(requested: str, episode: Episode, beats, total: float, work: Path) -> str:
@@ -89,6 +99,13 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         if not requested:
             # auto: cinematic stock footage when a free Pexels key is set, else the episode's own look.
             requested = f"pexels:{episode.pexels}" if os.environ.get("PEXELS_API_KEY") and episode.pexels else (episode.visual or "still")
+        story = episode.look == "story"
+        if story:
+            # A story is Luna's scenes, one per line, in the story captions; your own
+            # clip (video:…) still replaces the whole backdrop.
+            captions = "story"
+            if not requested.startswith("video:"):
+                requested = "scenes"
         # Luna (or a character clip you made) on screen → the AI-character label and Luna's voice.
         # Stock footage or the brand backdrop has no character → only the voice is labelled (Avri by default).
         character = not (requested == "aurora" or requested.startswith("pexels:"))
@@ -113,8 +130,8 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg")
         meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character, real=real)
         # The look in one word, for the site's reels feed (scripts/reels-feed.mjs):
-        # talking | still | aurora | pexels | video.
-        look = "real" if real else "talking" if requested == "talking" else requested.split(":", 1)[0]
+        # story | talking | still | aurora | pexels | video.
+        look = "real" if real else "story" if requested == "scenes" else "talking" if requested == "talking" else requested.split(":", 1)[0]
         meta.update({"file": mp4.name, "look": look, "captions": captions, "tier": tier, "music": music or "none",
                      "edgeVoice": voice_name if used == "edge" else None,
                      "renderSeconds": round(time.time() - t0, 1), **(extra_meta or {})})
@@ -156,7 +173,7 @@ def main(argv=None) -> int:
     m.add_argument("--voice", default="edge", help="edge | gtts | chatterbox | none | file:PATH")
     m.add_argument("--edge-voice", default=None, help="he-IL-HilaNeural (Luna) or he-IL-AvriNeural")
     m.add_argument("--visual", default="auto", help="auto | still | talking | aurora | pexels:QUERY | video:PATH_OR_URL")
-    m.add_argument("--captions", default="pop", choices=["pop", "karaoke"], help="pop = 2-3 outlined words, no box")
+    m.add_argument("--captions", default="pop", choices=["pop", "karaoke", "story"], help="pop = 2-3 outlined words, no box; story = yellow on a dark box")
     m.add_argument("--music", default=None, help="beat (our own lo-fi bed) or a file you have the rights to")
     m.add_argument("--tier", default="free", choices=["free", "pro"], help="free = LikeLink2 watermark + outro")
     m.add_argument("--logo", default=None, help="pro tier: your own logo (.png)")

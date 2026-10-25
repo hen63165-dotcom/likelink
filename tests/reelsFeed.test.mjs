@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { feedEntry, groupAssets, pickReels, sellerReels, SELLER_LABELS, SELLER_SKIP } from "../scripts/reels-feed.mjs";
 import { CREATIVE_CLASS } from "../src/lib/media/videoCapability.js";
-import { feedToVideos, reelsFeedUrl, REELS_FEED_HOME } from "../src/lib/reelsFeed.js";
+import { feedLook, feedToVideos, reelsFeedUrl, REELS_FEED_HOME } from "../src/lib/reelsFeed.js";
 import { buildPublicGraph, REEL_STYLE_LABELS } from "../src/lib/publicDiscovery.js";
 import { isPublicVideo } from "../src/lib/videoSync.js";
 import { MEDIA_TRUTH } from "../src/lib/discovery/mediaTruth.js";
@@ -68,6 +68,16 @@ test("feed entries become public, synthetic, product-tagged reels labelled as AI
   assert.ok(reel, "the reel reaches the reels page");
   assert.equal(reel.state, MEDIA_TRUTH.SYNTHETIC_ANIMATION);
   assert.deepEqual(reel.productIds, ["p-live-02"]);
+});
+
+test("Luna's story (look 'story'): an AI reel with its own label, never real footage", () => {
+  const doc = { generatedAt: 1, reels: [{ id: "luna-story-ring-size-a", productId: "p-live-01", video: "story-ring-size-a.mp4", look: "story", labels: ["דמות וקול AI", "#פרסומת · קישור שותפים"] }] };
+  const [v] = feedToVideos(doc, REELS_FEED_HOME);
+  assert.equal(v.style, "luna_story");
+  assert.equal(v.synthetic, true);
+  assert.ok(!v.humanFilmed);
+  assert.ok(REEL_STYLE_LABELS.luna_story.he.includes("AI"));
+  assert.equal(feedLook("story").ai, true);
 });
 
 test("the sellers' own videos: one per listed product, labelled as the seller's video, never UGC", () => {

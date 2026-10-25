@@ -9,7 +9,9 @@ import { fetchOgImage } from "../utils/helpers.js";
  * failure returns null fields so the creator can fill them manually.
  */
 export async function fetchProductInfo(url) {
-  const info = { image: null, title: null, price: null, currency: null };
+  // reason: why nothing came back, when the server knows (e.g. the store's
+  // official connection is not set up) — the Studio says it instead of a guess.
+  const info = { image: null, title: null, price: null, currency: null, reason: null };
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);
@@ -24,6 +26,10 @@ export async function fetchProductInfo(url) {
       info.price = data.data.price != null ? String(data.data.price) : null;
       info.currency = data.data.currency ? String(data.data.currency) : null;
       return info;
+    }
+    if (data && typeof data.reason === "string") {
+      info.reason = data.reason.slice(0, 40);
+      return info; // the page is not readable from a browser either
     }
   } catch {
     /* edge function unavailable (e.g. plain `npm run dev`) — fall through */

@@ -230,6 +230,8 @@ async function main() {
   const suffix = footage === "owner" ? "-own" : "";
   const doc = JSON.parse(readFileSync(new URL("../../../public/snapshot/kv.json", import.meta.url), "utf8"));
   const byId = new Map((doc.keys["marketplace:products"] || []).map((p) => [p.id, p]));
+  // PRODUCTS_FILE: products from the cloud (studio-videos.mjs) that the catalog copy does not have yet.
+  if (process.env.PRODUCTS_FILE) for (const p of JSON.parse(readFileSync(process.env.PRODUCTS_FILE, "utf8"))) if (p?.id && !byId.has(p.id)) byId.set(p.id, p);
   mkdirSync(out, { recursive: true });
   const work = join(out, ".work");
   mkdirSync(work, { recursive: true });

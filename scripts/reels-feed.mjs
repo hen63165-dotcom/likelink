@@ -22,12 +22,14 @@ import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "./prerender-products.mjs";
 import { SELLER_MEDIA_LOOKS, SELLER_SKIP } from "../src/lib/reelsFeed.js";
+import { DROP_AD, safeCopy } from "../src/lib/growth/dailyDrop.js";
 
 export { SELLER_SKIP };
 
 const SAFE = /^[a-z0-9][a-z0-9-]{0,80}$/;
 // Real footage first (a person filmed it), then talking Luna, then the rest.
-const LOOK_RANK = { real: 4, talking: 3, video: 2, pexels: 1, still: 1, aurora: 0 };
+// A story (Luna's scenes, scripts/luna_reels look "story") ranks with talking Luna; the newer one wins.
+const LOOK_RANK = { real: 4, story: 3, talking: 3, video: 2, pexels: 1, still: 1, aurora: 0 };
 export const SELLER_LABELS = Object.freeze(["צילום המוצר: המוכר", "#פרסומת · קישור שותפים"]);
 export const OWN_LABELS = Object.freeze(["צילום: LikeLink2", "#פרסומת · קישור שותפים"]);
 
@@ -66,6 +68,27 @@ export function pickReels(reels, listed) {
     if (!cur || rank > cur.rank || (rank === cur.rank && r.updatedAt > cur.updatedAt)) best.set(productId, { ...r, rank, productId });
   }
   return [...best.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/**
+ * Luna's stories (scripts/luna_reels, look "story") for the Instagram kit page:
+ * the newest render of each story episode (variant a first), on a listed
+ * product, made by the engine (synthetic) and carrying the ad tag.
+ * @param reels [{ base, meta, updatedAt }]
+ */
+export function storyReels(reels, listed, max = 8) {
+  const best = new Map();
+  for (const r of reels) {
+    const m = r.meta || {};
+    const productId = String(m.product?.id || "");
+    if (m.look !== "story" || m.synthetic !== true || !listed.has(productId)) continue;
+    if (!Array.isArray(m.labels) || !m.labels.some((l) => /#פרסומת/.test(String(l)))) continue;
+    const episode = String(r.base).replace(/-[abc]$/, "");
+    const variantA = !/-[bc]$/.test(r.base);
+    const cur = best.get(episode);
+    if (!cur || (variantA && !cur.variantA) || (variantA === cur.variantA && r.updatedAt > cur.updatedAt)) best.set(episode, { ...r, episode, variantA, productId });
+  }
+  return [...best.values()].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 }
 
 /** The feed entry the site reads (paths relative to index.json). */
@@ -260,7 +283,31 @@ export async function buildFeed({ dist = "dist", repo = process.env.GITHUB_REPOS
     }
   } catch { /* no reels release: Luna reels only */ }
   writeFileSync(join(out, "index.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), reels: entries }, null, 1)}\n`);
-  return { reels: entries.length, of: groups.length };
+  // Luna's stories, for the Instagram kit page (/instagram/): the video and its caption.
+  const storiesDir = join(dist, "media", "stories");
+  const stories = [];
+  for (const r of storyReels(withMeta, listed)) {
+    try {
+      // The caption the kit page will show, checked before the video is fetched: the
+      // page drops a story without the disclosure first or with unsafe copy.
+      const txt = release.assets.find((a) => a?.name === `${r.base}.txt`);
+      const res = txt ? await fetch(txt.browser_download_url, { redirect: "follow" }) : null;
+      const caption = (res?.ok ? await res.text() : String(r.meta.caption || "")).trim().slice(0, 2200);
+      if (!caption.startsWith(DROP_AD) || !safeCopy(caption)) {
+        console.warn(`reels-feed: story ${r.base} skipped (caption without the disclosure first, or unsafe copy)`);
+        continue;
+      }
+      mkdirSync(storiesDir, { recursive: true });
+      await download(r.mp4.url, join(storiesDir, `${r.base}.mp4`), token);
+      stories.push({ id: `story-${r.base}`, episode: r.episode, productId: r.productId, video: `${r.base}.mp4`,
+        title: String(r.meta.title || "").slice(0, 120), seconds: Number(r.meta.seconds) || 0, caption,
+        labels: r.meta.labels.map((l) => String(l).slice(0, 80)).slice(0, 4), createdAt: r.updatedAt });
+    } catch (e) {
+      console.warn(`reels-feed: story ${r.base} skipped (${e.message})`);
+    }
+  }
+  if (stories.length) writeFileSync(join(storiesDir, "index.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), stories }, null, 1)}\n`);
+  return { reels: entries.length, of: groups.length, stories: stories.length };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

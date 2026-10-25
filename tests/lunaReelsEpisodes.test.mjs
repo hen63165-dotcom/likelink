@@ -20,7 +20,9 @@ test("episodes exist and have ids that match their files", () => {
 
 test("no episode says what the site forbids", () => {
   for (const e of episodes) {
-    const texts = [e.hook, ...(e.hooks || []), ...e.lines.flatMap((l) => [l.say, l.caption]), e.cta?.title, e.cta?.sub].filter(Boolean);
+    // A hook is text, or {say, caption, scene} in a story.
+    const said = (x) => (typeof x === "string" ? [x] : [x?.say, x?.caption]);
+    const texts = [...said(e.hook), ...(e.hooks || []).flatMap(said), ...e.lines.flatMap(said), e.cta?.title, e.cta?.sub].filter(Boolean);
     for (const t of texts) {
       assert.doesNotMatch(t, FORBIDDEN_CLAIMS, `${e.id}: ${t}`);
       // A product episode also keeps to the product-hook rule (no "sale", "everyone", "I bought").
