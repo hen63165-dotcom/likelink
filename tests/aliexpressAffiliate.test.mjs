@@ -126,9 +126,42 @@ test("Studio link check: an AliExpress link → the store's title, photos and IL
   assert.equal(noIls.currency, null);
 });
 
-test("wiring: /api/fetch-product-info asks the affiliate account before the page ladder", async () => {
+// 2026-10-25: the owner pasted an AliExpress link and got "could not fetch" — the
+// affiliate keys were in GitHub only, not on the server. The answer now says why,
+// and the page ladder (which AliExpress always blocks) is never tried for these links.
+test("Studio link check: an AliExpress link gets the store's data or the exact reason, never the page ladder", async () => {
+  const { aliexpressLinkPreview, isAliExpressLink } = await import("../api/_utils/aliexpressAffiliate.mjs");
+  assert.equal(isAliExpressLink("https://s.click.aliexpress.com/e/_c3qcPQUv"), true);
+  assert.equal(isAliExpressLink("https://he.aliexpress.com/item/1005004921269497.html"), true);
+  assert.equal(isAliExpressLink("https://s.click.aliexpress.com.evil.example/e/_x"), false);
+  assert.equal(isAliExpressLink("https://www.amazon.com/dp/B000"), false);
+  let called = 0;
+  const silent = async () => { called += 1; throw new Error("must not be called"); };
+  const missing = await aliexpressLinkPreview("https://s.click.aliexpress.com/e/_x", { env: {}, fetchImpl: silent, now: NOW });
+  assert.deepEqual(missing, { reason: "store_connection_required", store: "aliexpress" });
+  assert.doesNotMatch(JSON.stringify(missing), /ALIEXPRESS_|APP_KEY|SECRET/, "no credential names reach the browser");
+  assert.equal(await aliexpressLinkPreview("https://www.amazon.com/dp/B000", { env: ENV, fetchImpl: silent, now: NOW }), null, "other stores keep the page ladder");
+  assert.equal(called, 0);
+  const notReturned = async (url, init = {}) => (init.method === "POST"
+    ? { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: [] } } } } }) }
+    : { ok: false, status: 302, headers: new Headers({}), text: async () => "" });
+  assert.deepEqual(await aliexpressLinkPreview("https://www.aliexpress.com/item/1005004921269497.html", { env: ENV, fetchImpl: notReturned, now: NOW }),
+    { reason: "store_not_returned", store: "aliexpress" });
+  const down = async () => { throw new Error("network"); };
+  assert.equal((await aliexpressLinkPreview("https://www.aliexpress.com/item/1005004921269497.html", { env: ENV, fetchImpl: down, now: NOW })).reason, "store_not_returned");
+});
+
+test("wiring: /api/fetch-product-info answers AliExpress links before the page ladder, with the reason", async () => {
   const { readFileSync } = await import("node:fs");
   const og = readFileSync(new URL("../api/og.mjs", import.meta.url), "utf8");
   const handler = og.slice(og.indexOf("async function fetchProductInfoHandler"));
-  assert.ok(handler.indexOf("aliexpressProductInfo(") > 0 && handler.indexOf("aliexpressProductInfo(") < handler.indexOf("for (const strategy of FPI_STRATEGIES)"));
+  const at = handler.indexOf("aliexpressLinkPreview(");
+  assert.ok(at > 0 && at < handler.indexOf("for (const strategy of FPI_STRATEGIES)"));
+  assert.match(handler.slice(at, handler.indexOf("for (const strategy of FPI_STRATEGIES)")), /reason: ae\.reason/);
+  // The Studio says why, by reason.
+  const studio = readFileSync(new URL("../src/components/studio/AddProductLink.jsx", import.meta.url), "utf8");
+  assert.match(studio, /store_connection_required/);
+  assert.match(studio, /store_not_returned/);
+  const client = readFileSync(new URL("../src/lib/productInfo.js", import.meta.url), "utf8");
+  assert.match(client, /info\.reason/);
 });

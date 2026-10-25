@@ -175,7 +175,7 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
       const info = await fetchProductInfo(v.url);
       const got = Boolean(info && (info.title || info.image || info.price));
       setPreview(got ? info : null);
-      setPreviewFailed(!got);
+      setPreviewFailed(got ? false : (info?.reason || true));
       if (got) {
         setFields((s) => ({
           ...s,
@@ -720,9 +720,17 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
         )}
         {!previewing && previewFailed && checked?.ok && (
           <p className="mt-3 rounded-xl px-3.5 py-3 text-xs leading-5" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)", color: "var(--text-secondary)" }} role="status">
-            {he
-              ? "לא הצלחנו להביא תמונה ופרטים אוטומטית מהדף הזה — אין בעיה: מלאי את השדות למטה ידנית והמוצר יישמר."
-              : "We could not fetch a photo and details from this page automatically — no problem: fill the fields below manually and the product will save."}
+            {previewFailed === "store_connection_required"
+              ? (he
+                ? "אליאקספרס לא מאפשרת לקרוא את דף המוצר ישירות. את השם, התמונות והמחיר מקבלים מהחיבור הרשמי לחשבון השותפים, והוא עוד לא הופעל בשרת של האתר. בינתיים: מלאי את השדות למטה — המוצר יישמר ויעבוד כרגיל."
+                : "AliExpress does not let pages be read directly. The name, photos and price come from the official affiliate connection, which is not switched on for this site yet. Meanwhile, fill the fields below — the product saves and works as usual.")
+              : previewFailed === "store_not_returned"
+                ? (he
+                  ? "אליאקספרס לא החזירה את המוצר שהקישור הזה פותח. בדקי שהקישור פותח דף של מוצר אחד (ולא דף חנות או חיפוש), או מלאי את השדות למטה ידנית."
+                  : "AliExpress did not return the product this link opens. Check that the link opens a single product page (not a store or search page), or fill the fields below.")
+                : (he
+                  ? "לא הצלחנו להביא תמונה ופרטים אוטומטית מהדף הזה — אין בעיה: מלאי את השדות למטה ידנית והמוצר יישמר."
+                  : "We could not fetch a photo and details from this page automatically — no problem: fill the fields below manually and the product will save.")}
           </p>
         )}
 

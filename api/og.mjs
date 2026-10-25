@@ -19,7 +19,7 @@ import { isPromotable } from "../src/lib/discovery/catalogIntegrity.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
 import { MEDIA_BUCKET, isValidMediaPath } from "../src/lib/cloud/mediaStore.js";
 import { guardPublicRequest, sendGuardRefusal, classifyAgent } from "./_utils/botGuard.mjs";
-import { aliexpressProductInfo } from "./_utils/aliexpressAffiliate.mjs";
+import { aliexpressLinkPreview } from "./_utils/aliexpressAffiliate.mjs";
 
 const BOT_PATTERN =
   /facebookexternalhit|Facebot|Twitterbot|WhatsApp|TelegramBot|Slackbot|LinkedInBot|Discordbot|Pinterest|redditbot|vkShare|Googlebot|Applebot|Bingbot|SkypeUriPreview|Iframely/i;
@@ -673,12 +673,12 @@ async function fetchProductInfoHandler(req, res) {
   try { t = checkUrlSyntax(target); } catch { fpiJson(res, { ok: false, error: "invalid url" }); return; }
 
   // AliExpress: the store's own data from the owner's affiliate account (free,
-  // official). Its product pages answer servers with a slider check, so the
-  // page ladder below finds nothing there.
-  try {
-    const ae = await aliexpressProductInfo(t.href, { env: process.env });
-    if (ae && (ae.title || ae.image)) { fpiJson(res, { ok: true, data: ae }); return; }
-  } catch { /* not connected or the store did not answer: the ladder below */ }
+  // official), or the exact reason there is none. Its product pages answer
+  // servers with a slider check, so the page ladder below is never tried for
+  // them: it only made the Studio wait and then say "could not".
+  const ae = await aliexpressLinkPreview(t.href, { env: process.env });
+  if (ae?.data) { fpiJson(res, { ok: true, data: ae.data }); return; }
+  if (ae?.reason) { fpiJson(res, { ok: false, reason: ae.reason, store: ae.store }); return; }
 
   // Ladder: try each strategy until one returns parseable content.
   let lastError = "fetch or parse error";

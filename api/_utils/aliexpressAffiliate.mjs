@@ -226,6 +226,36 @@ export async function aliexpressProductInfo(link, { env: rawEnv = {}, fetchImpl 
   };
 }
 
+/** An AliExpress address (the owner's tracked link or a store page). */
+export function isAliExpressLink(link) {
+  try {
+    const u = new URL(String(link || "").trim());
+    return u.protocol === "https:" && AE_LINK_HOST.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The Studio's "בדיקת הקישור" for an AliExpress link: the store's own data, or
+ * the exact reason there is none. The store's pages answer servers with a
+ * slider check, so reading the page is never attempted for these links.
+ *   { data }                                   — title / photos / price
+ *   { reason: "store_connection_required" }    — the affiliate account is not connected on this server
+ *   { reason: "store_not_returned" }           — the store did not return the item the link opens
+ *   null                                       — not an AliExpress link
+ * Credential names never appear in the answer (it reaches the browser).
+ */
+export async function aliexpressLinkPreview(link, { env = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+  if (!isAliExpressLink(link)) return null;
+  if (!aeStatus(env).configured) return { reason: "store_connection_required", store: "aliexpress" };
+  try {
+    const data = await aliexpressProductInfo(link, { env, fetchImpl, now });
+    if (data && (data.title || data.image)) return { data };
+  } catch { /* the store did not answer: reported below */ }
+  return { reason: "store_not_returned", store: "aliexpress" };
+}
+
 /** Once a day at most (affiliate:aliexpress:last), and only with the owner's credentials. */
 export async function dailyAffiliateImport({ kvGet, kvSet, env = {}, fetchImpl, now = Date.now() }) {
   if (!aeStatus(env).configured) return { ok: true, outcome: "REQUIRES_CONNECTION" };
