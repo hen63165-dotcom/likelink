@@ -31,6 +31,7 @@ import { uploadProductImage, safePreviewSrc, safeHref } from "../../lib/uploadIm
 import { CATEGORY_KEYS } from "../../lib/i18n.js";
 import { money, isSafeImageUrl, DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { withBase } from "../../lib/basePath.js";
+import { isAliExpressUrl } from "../../lib/growth/studioVideos.js";
 import {
   LINK_ROUTE, AFFILIATE_DISCLOSURE, validateAffiliateUrl, classifyAffiliateUrl,
   linkErrorText, fetchAffiliateIntegration, networkGuide,
@@ -983,6 +984,19 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                       ? "הטיוטה נשמרה אצלך בלבד. כשתהיי מוכנה — לחצי «פרסום בחנות» כדי להציג אותה לציבור."
                       : "The draft is private to you. When ready, press “Publish to the store” to make it public.")}
               </p>
+              {/* Actions → "Studio videos" makes it from the store's own video (src/lib/growth/studioVideos.js). */}
+              {saved.status === "approved" && isAliExpressUrl(urlRaw) && (
+                <p className="mt-2 text-xs leading-5" style={{ color: "var(--text-secondary)" }}>
+                  {he
+                    ? "סרטון עם פתיח וכיתוב יוכן לבד מהסרטון של המוכר בחנות, ויחכה לך ב«פרסום לרשתות», בדרך כלל תוך שעה־שעתיים. שום דבר לא מתפרסם בלי שתלחצי."
+                    : "A video with a hook and caption will be made from the store's own video and wait for you in “Share to networks”, usually within an hour or two. Nothing is posted until you press post."}
+                  {onNavigate && (
+                    <button type="button" className="ms-1 font-bold underline" style={{ color: "var(--accent)" }} onClick={() => onNavigate("share")}>
+                      {he ? "לפרסום לרשתות" : "Go to sharing"}
+                    </button>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 

@@ -28,6 +28,8 @@
 # site reads it from its own address: no cross-site request to fail
 # (src/lib/reelsFeed.js tries this first, then GitHub Pages itself).
 /media/reels/*   https://hen63165-dotcom.github.io/likelink/media/reels/:splat   200
+# The creators' Studio videos (scripts/media/product-video/studio-videos.mjs), the same way.
+/media/studio/*  https://hen63165-dotcom.github.io/likelink/media/studio/:splat  200
 
 # Classic SPA fallback: every other route returns the app shell (index.html).
 /*               /index.html            200

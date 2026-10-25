@@ -9,7 +9,7 @@ on:
     branches: [main]
   # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Creative engine", "Add trend products", "TikTok results"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Creative engine", "Add trend products", "Studio videos", "TikTok results"]
     types: [completed]
   # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
   schedule:
@@ -86,6 +86,14 @@ jobs:
         run: |
           command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null; } || echo "::warning::no ffmpeg: covers fall back to the product photos"
           node scripts/reels-feed.mjs dist || echo "::warning::reels feed skipped"
+
+      - name: The creators' Studio videos (reels release → media/studio)
+        # Each READY video of a product published from an AliExpress link, with
+        # its caption, for the Studio's "פרסום לרשתות" (studio-videos.yml). The
+        # state's links stay in the release. A failure here never blocks the site.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/media/product-video/studio-videos.mjs feed dist || echo "::warning::studio videos skipped"
 
       - name: The Creative Engine's job ledger (ops/creative → media/creative/jobs.json)
         # The Studio's Creative Engine screen reads each product's pipeline from

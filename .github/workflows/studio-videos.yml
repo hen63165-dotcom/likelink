@@ -1,0 +1,68 @@
+# Studio videos: every product a creator publishes from an AliExpress link gets
+# a ready video in her Studio ("פרסום לרשתות"), with no extra click.
+# Each hour: the cloud's approved products still without a video → the store's
+# own product video from the owner's affiliate account (official API, no store
+# page) → the premium cut with three hooks and the labels on every frame
+# (make-reel.mjs) → the "reels" release → GitHub Pages (deploy-frontend.yml,
+# media/studio/index.json) → the Studio. Nothing is posted anywhere: the creator
+# watches the video and posts it herself. Rules: src/lib/growth/studioVideos.js.
+name: Studio videos
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/product-video/studio-videos.mjs", "src/lib/growth/studioVideos.js", ".github/workflows/studio-videos.yml"]
+
+concurrency:
+  group: studio-videos
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  videos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+      FONTSOURCE_DIR: /tmp/pw/node_modules/@fontsource
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Which products need a video
+        id: plan
+        run: node scripts/media/product-video/studio-videos.mjs plan studio
+      - name: Install Playwright (drives the runner's Google Chrome), ffmpeg and Hebrew fonts
+        if: steps.plan.outputs.count != '0'
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 @fontsource/frank-ruhl-libre@5.3.0 @fontsource/heebo@5.3.0 >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
+      - name: The store's own videos (owner's affiliate account)
+        if: steps.plan.outputs.count != '0'
+        env:
+          ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+          ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+          ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+        run: node scripts/media/product-video/studio-videos.mjs fetch studio
+      - name: Edit the reels
+        if: steps.plan.outputs.count != '0'
+        env:
+          PRODUCTS_FILE: studio/products.json
+        run: node scripts/media/product-video/make-reel.mjs studio/videos reels
+      - name: Record the outcome and attach to the "reels" release
+        if: steps.plan.outputs.count != '0'
+        run: |
+          node scripts/media/product-video/studio-videos.mjs finish studio reels
+          shopt -s nullglob
+          files=(reels/*.mp4 reels/*.txt reels/*.jpg)
+          gh release view reels >/dev/null 2>&1 || gh release create reels --prerelease --title "Reels ready to post" \
+            --notes "Real product footage (the seller's own video from the product page) edited for Instagram Reels. Each .mp4 has a matching .txt caption. Add a trending sound in the Instagram app before posting."
+          gh release upload reels "${files[@]}" studio/studio-videos.json --clobber
+          for f in "${files[@]}"; do echo "- https://github.com/${GITHUB_REPOSITORY}/releases/download/reels/$(basename "$f")" >> "$GITHUB_STEP_SUMMARY"; done
