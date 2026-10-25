@@ -5,5 +5,5 @@ Pillow>=10.0          # drawing the Hebrew overlays (HPND)
 python-bidi>=0.6      # right-to-left word order (LGPL)
 numpy>=1.24           # frames
 requests>=2.31        # product photos, optional Pexels / Drive clips
-edge-tts==7.2.8       # voice: Microsoft Edge voices (GPL-3.0 package; free, unofficial service)
+edge-tts==7.3.1       # voice: Microsoft Edge voices (GPL-3.0 package; free, unofficial service). 7.2.8 got 403 on every line on 2026-10-25 (it sends the old Sec-MS-GEC-Version)
 gTTS==2.5.4           # voice fallback: Google Translate (MIT package; free, unofficial service)

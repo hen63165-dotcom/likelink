@@ -168,6 +168,15 @@ class Story(unittest.TestCase):
         # A line without a scene keeps the one before it; after the product, Luna comes back.
         self.assertEqual(compose.story_scenes(ep, beats), ["worried", "explain", "product", "luna"])
 
+    def test_a_presenter_is_framed_from_the_hips_up(self):
+        # 2026-10-25: the full drawings put tight leggings at the bottom of every frame.
+        from PIL import Image
+        img = Image.new("RGB", (576, 1024))
+        self.assertEqual(compose.upper_body(img).size, (576, round(1024 * compose.UPPER)))
+        self.assertLess(compose.UPPER, 0.8)
+        src = (Path(compose.__file__).parent / "compose.py").read_text(encoding="utf-8")
+        self.assertIn("upper_body(still) if path else still", src, "every drawn scene of hers, not Luna's full portrait")
+
     def test_scenes_are_names_the_product_or_your_own_https_clip(self):
         self.story(lines=[{"say": "א", "scene": "video:https://drive.google.com/file/d/abcdefghijklmnop/view"}], product=None,
                    cta={"title": "שמרי"})

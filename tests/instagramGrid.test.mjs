@@ -92,7 +92,10 @@ test("the luxe sets (2026-10-23, 'the white pictures are awful'): the seller's p
   for (const [id, set] of Object.entries(sets.sets)) {
     assert.ok(listed.includes(id), `${id} is a listed product`);
     assert.ok(readFileSync(new URL(`../public/sets/${set.file}`, import.meta.url)).length > 10_000, `${set.file} exists`);
+    // A set that is not on our backdrop (a still of the seller's video) says what it is, whose it is and that we edited it.
+    if (set.label) assert.match(set.label, /המוכר.*LikeLink2/, `${id}: its own label names the seller and LikeLink2`);
   }
+  assert.match(read("scripts/marketing/instagram-grid.mjs"), /note: set\.label \|\| sets\.label/, "the post carries the set's own label when it has one");
   const posts = instagramGrid({ products, imageOf: (p) => (["e1", "r1"].includes(p.id) ? { src: `../sets/${p.id}.jpg`, note: sets.label } : imageOf(p)), presenter: "face.png" });
   const e1 = posts.find((p) => p.productId === "e1");
   assert.equal(e1.image, "../sets/e1.jpg");

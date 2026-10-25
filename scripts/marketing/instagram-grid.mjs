@@ -180,7 +180,7 @@ export async function writeInstagramGrid({ dist = "dist", now = Date.now(), play
   const sets = existsSync(setsFile) ? JSON.parse(readFileSync(setsFile, "utf8")) : { sets: {} };
   const imageOf = (p) => {
     const set = sets.sets?.[p.id];
-    if (set?.file && existsSync(join(dist, "sets", set.file))) return { src: `../sets/${set.file}`, note: sets.label };
+    if (set?.file && existsSync(join(dist, "sets", set.file))) return { src: `../sets/${set.file}`, note: set.label || sets.label };
     return cleanImage(p, "..")?.src || "";
   };
   const posts = instagramGrid({ products, imageOf, presenter });

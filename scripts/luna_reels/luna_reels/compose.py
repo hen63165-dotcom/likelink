@@ -48,6 +48,7 @@ TOP_Y = 236
 STORY_Y = 1300        # story captions centre
 XF = 0.35             # story: cross-fade between scenes
 MOVES = ("in", "left", "out", "right")
+UPPER = 0.74          # story: a presenter is framed from the hips up (the drawings reach the knees)
 OUTRO_SLOGAN = "גלו מה שווה לקנות דרך אנשים"
 
 
@@ -170,6 +171,12 @@ def moving_still(img: Image.Image, dur: float, move: str = "in", depth: float = 
     return VideoClip(frame_function=frame, duration=max(0.04, dur))
 
 
+def upper_body(img: Image.Image) -> Image.Image:
+    """A presenter from the hips up, like a creator filming herself (2026-10-25:
+    the full drawings put tight leggings at the bottom of every frame)."""
+    return img.crop((0, 0, img.width, round(img.height * UPPER)))
+
+
 def _scene_video(src: str, dur: float, work: Path):
     path = Path(src) if Path(src).exists() else visuals.download(src, work / "media", kind="video")
     clip = VideoFileClip(str(path), audio=False)
@@ -213,7 +220,8 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
                 path = brand.scene_path("explain", who) or brand.scene_path("headshot", who)
                 if scene != "luna":
                     print(f"[story] scene '{scene}' is not drawn for '{who or 'luna'}'; another of her pictures instead")
-            clip = moving_still(Image.open(path or brand.LUNA).convert("RGB"), dur, MOVES[i % len(MOVES)])
+            still = Image.open(path or brand.LUNA).convert("RGB")
+            clip = moving_still(upper_body(still) if path else still, dur, MOVES[i % len(MOVES)])
         clip = clip.with_start(beat.start)
         if i:
             clip = clip.with_effects([vfx.CrossFadeIn(XF)])

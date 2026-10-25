@@ -59,7 +59,7 @@ def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
         index = json.loads((SETS / "index.json").read_text(encoding="utf-8")) if (SETS / "index.json").exists() else {}
         chosen = (index.get("sets") or {}).get(pid)
         if chosen and (SETS / chosen["file"]).exists():
-            photo, tag, full = Image.open(SETS / chosen["file"]), index.get("label") or tag, True
+            photo, tag, full = Image.open(SETS / chosen["file"]), chosen.get("label") or index.get("label") or tag, True
         else:
             photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
     except Exception as exc:  # the card still shows the claim
