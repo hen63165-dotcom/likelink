@@ -43,7 +43,7 @@ export function signParams(params, secret) {
   return crypto.createHmac("sha256", String(secret)).update(base, "utf8").digest("hex").toUpperCase();
 }
 
-export async function aeCall(method, biz, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+export async function aeCall(method, biz, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now(), timeoutMs = 15_000 } = {}) {
   const env = aeEnv(rawEnv);
   const params = { app_key: env.ALIEXPRESS_APP_KEY, method, sign_method: "sha256", timestamp: String(now), format: "json", v: "2.0", ...biz };
   params.sign = signParams(params, env.ALIEXPRESS_APP_SECRET);
@@ -51,7 +51,7 @@ export async function aeCall(method, biz, { env: rawEnv = {}, fetchImpl = global
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded;charset=utf-8" },
     body: new URLSearchParams(params).toString(),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(Math.max(1, Math.min(15_000, timeoutMs))),
   });
   const json = await res.json().catch(() => null);
   if (!res.ok || !json) throw new Error(`aliexpress_provider_http_${res.status}`);
@@ -130,11 +130,13 @@ export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchI
   // The rotation's categories first, so a slow run still adds from them.
   const order = [...categories, ...DEAL_CATEGORIES.filter((c) => !categories.includes(c))];
   const reads = await mapLimit(order, 4, async (category) => {
-    if (Date.now() - started > budgetMs) return { category, error: "time_budget" };
+    // Each request gets only what is left of the budget, so the run ends on time.
+    const left = budgetMs - (Date.now() - started);
+    if (left <= 0) return { category, error: "time_budget" };
     const json = await aeCall("aliexpress.affiliate.product.query", {
       keywords: category.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
       ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
-    }, { env, fetchImpl, now }).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
+    }, { env, fetchImpl, now, timeoutMs: left }).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
     const result = json?.aliexpress_affiliate_product_query_response?.resp_result;
     if (!result || Number(result.resp_code) !== 200) return { category, error: json?.error || (result ? `aliexpress_resp_${result.resp_code}` : "aliexpress_no_result") };
     return { category, raw: arr(result.result?.products?.product) };

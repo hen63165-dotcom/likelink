@@ -89,7 +89,8 @@ export function dealCheck(x = {}, category, rules = DEAL_RULES) {
  * but a shekel price, the brand rule and the unlisted kinds still hold.
  */
 export function ownerPickCheck(x = {}, category = null) {
-  const numbers = { evaluate_rate: x.evaluate_rate ?? "100%", lastest_volume: x.lastest_volume ?? Number.MAX_SAFE_INTEGER };
+  // Neutral numbers whatever the answer holds (missing, blank or unreadable): they never decide her pick.
+  const numbers = { evaluate_rate: "100%", lastest_volume: 0 };
   return dealCheck({ ...x, ...numbers }, { ...(category || {}), maxPrice: 0 }, { minPositivePct: 0, minOrders: 0, minPrice: 0 });
 }
 

@@ -112,13 +112,30 @@ test("a momentum store that could not be read is never written over; the import 
 
 test("a slow AliExpress never stalls the job: reads stop at the time budget, the rotation first", async () => {
   let calls = 0;
-  const fetchImpl = async () => { calls += 1; await new Promise((ok) => setTimeout(ok, 30)); return { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: { products: { product: [] } } } } }) }; };
+  const signals = [];
+  const fetchImpl = async (url, init) => { calls += 1; signals.push(init.signal); await new Promise((ok) => setTimeout(ok, 30)); return { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: { products: { product: [] } } } } }) }; };
   const db = new Map([["marketplace:products", [{ id: "x" }]]]);
   const kv = { kvGet: async (k, fb) => (db.has(k) ? structuredClone(db.get(k)) : fb), kvSet: async (k, v) => { db.set(k, structuredClone(v)); } };
   const r = await importHotProducts({ ...kv, env: ENV, fetchImpl, now: NOW, budgetMs: 10 });
   assert.ok(calls < DEAL_CATEGORIES.length, `${calls} reads`);
   assert.ok(r.searched.some((s) => s.error === "time_budget"));
   assert.ok(!r.searched.slice(0, 3).some((s) => s.error), "the rotation's categories were read");
+  assert.ok(signals.every((x) => x instanceof AbortSignal), "every request carries a timeout");
+});
+
+test("each request gets only what is left of the budget", async () => {
+  // A request that never answers is cut at the budget, not after AliExpress's usual 15 s.
+  const hang = (url, init) => new Promise((_, fail) => init.signal.addEventListener("abort", () => fail(init.signal.reason)));
+  const db = new Map([["marketplace:products", [{ id: "x" }]]]);
+  const kv = { kvGet: async (k, fb) => (db.has(k) ? structuredClone(db.get(k)) : fb), kvSet: async (k, v) => { db.set(k, structuredClone(v)); } };
+  const t0 = Date.now();
+  // Node does not keep the process alive for AbortSignal.timeout alone; a server does.
+  const alive = setInterval(() => {}, 50);
+  const r = await importHotProducts({ ...kv, env: ENV, fetchImpl: hang, now: NOW, budgetMs: 300 }).finally(() => clearInterval(alive));
+  const took = Date.now() - t0;
+  assert.ok(took < 2_000, `the run ended in ${took} ms`);
+  assert.ok(r.searched.every((s) => s.error), "nothing was read, nothing pretended");
+  assert.equal(r.imported, 0);
 });
 
 test("the store is server-only and the site never shows momentum", () => {

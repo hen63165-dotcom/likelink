@@ -145,6 +145,9 @@ test("the owner's own pick: no rating, orders or cap needed, but the brand and k
   assert.equal(ownerPickCheck({ ...plain, product_title: "צמיד העתק של מותג" }, bracelets).reason, "not_listed_kind");
   assert.equal(ownerPickCheck({ ...plain, target_sale_price_currency: "USD" }, bracelets).reason, "no_ils_price");
   assert.equal(ownerPickCheck({ ...plain, lastest_volume: 0 }, bracelets).ok, true, "a real zero is her call too");
+  for (const odd of [{ evaluate_rate: "" }, { evaluate_rate: "n/a" }, { lastest_volume: "abc" }, { lastest_volume: "" }, { evaluate_rate: "50%", lastest_volume: 3 }]) {
+    assert.deepEqual(ownerPickCheck({ ...plain, ...odd }, bracelets), { ok: true }, `${JSON.stringify(odd)}: the numbers never decide her pick`);
+  }
 });
 
 test("Hebrew whole words: \\b knows only Latin letters", () => {
