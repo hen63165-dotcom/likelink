@@ -38,7 +38,11 @@ test("AliExpress's own numbers choose: 95%+ positive, 300+ orders, cheap for the
   assert.equal(why({ product_title: "צמיד בסגנון קרטייה" }), "brand_name");
   assert.equal(why({ product_title: "tactical knife bracelet" }), "not_listed_kind");
   // 2026-10-26, the first candidates: a celebrity doll and anime stickers (no licence), "anti-anxiety, ADHD", "wrinkle lifting", a "tactical" water gun.
-  for (const t of ["בובת קוספליי של מייקל ג'קסון", "מדבקות פוסטר דמויות אנימה Chainsaw Man", "כדור לחץ נגד חרדה ו-ADHD", "סרט פנים להרמת קמטים", "רובה מים טקטי"]) {
+  for (const t of [
+    "בובת קוספליי של מייקל ג'קסון", "מדבקות פוסטר דמויות אנימה Chainsaw Man", "כדור לחץ נגד חרדה ו-ADHD", "סרט פנים להרמת קמטים", "רובה מים טקטי",
+    // The second run, by eye: fan merchandise of a rapper, of TV series and of a TV show's prop.
+    "דגל אסאפ רוקי קישוט חדר ראפר", "100 מדבקות מצחיקות של סדרות טלוויזיה אמריקאיות", "שרשרת הסרט יומני הערפדים אלנה", "50 יחידות מדבקות מצוירות של Tokidoki",
+  ]) {
     assert.notEqual(why({ product_title: t }), undefined, t);
     assert.equal(dealCheck(item("1005001", { product_title: t }), bracelets).ok, false, t);
   }
@@ -109,6 +113,14 @@ test("the owner's picks: re-read on the server, category from the store's own wo
   assert.equal(db.get("marketplace:products").find((p) => p.id === "ae-1005001").kind, "bracelets");
   assert.equal(db.get("catalog:import:log")[0].report.length, 4);
   assert.equal((await importChosenItems([{ id: "1005001" }], { ...kv, env: {}, fetchImpl })).error, "requires_connection");
+});
+
+test("a pick may name the category it was chosen from; the cloud step sends it", async () => {
+  const { parseItems } = await import("../src/lib/growth/trendBoard.js");
+  const { pickItems } = await import("../scripts/catalog/push-picks.mjs");
+  assert.deepEqual(parseItems("1005007306776088@watches 1005008660374263"), [{ id: "1005007306776088", category: "watches" }, { id: "1005008660374263" }]);
+  assert.throws(() => parseItems("1005007306776088@nope"), /not an AliExpress item number or link/);
+  assert.deepEqual(await pickItems("1005007306776088@watches"), [{ id: "1005007306776088", category: "watches" }]);
 });
 
 test("wiring: the daily import and the trend board use the deals rules; the picks reach the cloud", () => {

@@ -18,13 +18,13 @@ const API = String(process.env.LIKELINK_API || "https://likelink2.vercel.app").r
 const SECRET = process.env.AUTOPILOT_SECRET || "";
 const summary = (l) => { console.log(l); if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${l}\n`); };
 
-/** parseItems' entries → [{ id, link? }] (a link is resolved to its store item with one request). */
+/** parseItems' entries → [{ id, category?, link? }] (a link is resolved to its store item with one request). */
 export async function pickItems(input, fetchImpl = globalThis.fetch) {
   const out = [];
   for (const it of parseItems(input)) {
     const raw = it.id || (it.link ? await resolveFromLink(it.link, fetchImpl) : "");
     const id = raw ? aliItemId({ aliexpressId: raw }) || raw : "";
-    if (id) out.push(it.link ? { id, link: it.link } : { id });
+    if (id) out.push({ id, ...(it.category ? { category: it.category } : {}), ...(it.link ? { link: it.link } : {}) });
     else summary(`- ${it.link || it.id}: LINK_NOT_RESOLVED`);
   }
   return out;

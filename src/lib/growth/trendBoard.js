@@ -104,6 +104,7 @@ const AE_HOST = (h) => h === "aliexpress.com" || h.endsWith(".aliexpress.com") |
 /**
  * What the owner pasted into the "Add trend products" form, at most 10:
  *   an item number                                   → { id }
+ *   an item number @ a board category ("…@rings")     → { id, category }
  *   a store product page (…aliexpress.com/item/<n>.html) → { id }
  *   her own tracked link (https://s.click.aliexpress.com/e/…) → { link }
  * Anything else is refused (never guessed).
@@ -112,6 +113,9 @@ export function parseItems(input = "") {
   const out = new Map();
   for (const raw of String(input).split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)) {
     if (/^\d{6,20}$/.test(raw)) { out.set(`id:${raw}`, { id: raw }); continue; }
+    // "<item number>@<board category>" (the category the item was chosen from).
+    const withCat = raw.match(/^(\d{6,20})@([a-z]+)$/);
+    if (withCat && TREND_CATEGORIES.some((c) => c.key === withCat[2])) { out.set(`id:${withCat[1]}`, { id: withCat[1], category: withCat[2] }); continue; }
     let u = null;
     try { u = new URL(raw); } catch { /* not a link */ }
     const page = u && u.protocol === "https:" && AE_HOST(u.hostname) ? u.pathname.match(/^\/item\/(\d{6,20})\.html$/) : null;
