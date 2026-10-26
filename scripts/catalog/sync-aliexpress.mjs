@@ -28,7 +28,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
 // aliexpress.us item ids are the global id + 2^51 (e.g. 3256804734954745 ↔ 1005004921269497).
 const US_OFFSET = 2n ** 51n;
-const https = (u) => String(u || "").trim().replace(/^http:\/\//, "https://").replace(/^\/\//, "https://");
 
 /** The global AliExpress product id a catalog product points at, or "". */
 export function aliItemId(p = {}) {
@@ -39,26 +38,9 @@ export function aliItemId(p = {}) {
   return String(n >= US_OFFSET + 1000000000000000n ? n - US_OFFSET : n);
 }
 
-/** One API product → the fields LikeLink may write (null when the price is not real). */
-export function storeFacts(x = {}, now = Date.now()) {
-  const price = Number(x.target_sale_price);
-  const currency = String(x.target_sale_price_currency || "");
-  if (!(price > 0) || currency !== "ILS") return null;
-  const original = Number(x.target_original_price);
-  const gallery = [x.product_main_image_url, ...(Array.isArray(x.product_small_image_urls?.string) ? x.product_small_image_urls.string : [])]
-    .map(https).filter((u, i, a) => /^https:\/\/\S+$/.test(u) && a.indexOf(u) === i).slice(0, 8);
-  const video = https(x.product_video_url);
-  return {
-    price: Math.round(price * 100) / 100,
-    currency: "ILS",
-    originalPrice: original > price ? Math.round(original * 100) / 100 : undefined,
-    priceFrom: true,
-    priceSource: "aliexpress_api",
-    priceCheckedAt: new Date(now).toISOString(),
-    images: gallery,
-    sellerVideo: /^https:\/\/\S+\.mp4(\?|$)/i.test(video) ? video : "",
-  };
-}
+// One API product → the fields LikeLink may write (shared with the deals import).
+import { storeFacts } from "../../src/lib/growth/deals.js";
+export { storeFacts };
 
 /** Apply store facts to a catalog product; the photo changes only to a cleaner gallery photo. */
 export function applyFacts(p, facts, { cleanest = "", now = Date.now() } = {}) {
