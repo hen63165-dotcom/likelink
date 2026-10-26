@@ -48,7 +48,7 @@ export const dealCategory = (key) => DEAL_CATEGORIES.find((c) => c.key === key) 
 const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו/i;
 // Items the site does not list whatever their numbers: weapons, adult items, and
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
-const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|העתק\b|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/i;
+const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
 
 /** "97.4%" → 97.4 (null when AliExpress did not answer one). */
 export function positivePct(x = {}) {
@@ -81,6 +81,16 @@ export function dealCheck(x = {}, category, rules = DEAL_RULES) {
   if (BRAND_IMITATION.test(title)) return { ok: false, reason: "brand_name" };
   if (NOT_LISTED.test(title)) return { ok: false, reason: "not_listed_kind" };
   return { ok: true };
+}
+
+/**
+ * An item the owner chose herself: her choice stands in for the rating, orders
+ * and the category's price cap (the detail answer may not carry the numbers),
+ * but a shekel price, the brand rule and the unlisted kinds still hold.
+ */
+export function ownerPickCheck(x = {}, category = null) {
+  const numbers = { evaluate_rate: x.evaluate_rate ?? "100%", lastest_volume: x.lastest_volume ?? Number.MAX_SAFE_INTEGER };
+  return dealCheck({ ...x, ...numbers }, { ...(category || {}), maxPrice: 0 }, { minPositivePct: 0, minOrders: 0, minPrice: 0 });
 }
 
 /** The deals of one category: passing items, discounted first, then by orders (AliExpress's own order otherwise). */
@@ -118,7 +128,7 @@ const FEATURES = [
   [/חרוז|bead/i, "חרוז"],
   [/גיאומטרי|geometric/i, "גיאומטרי"],
   [/שכבות|layered/i, "שכבות"],
-  [/\bלב\b|heart/i, "לב"],
+  [/(?<!\p{L})לב(?!\p{L})|heart/iu, "לב"],
   [/ירח|moon/i, "ירח"],
   [/כוכב|star\b/i, "כוכב"],
   [/פרפר|butterfly/i, "פרפר"],
@@ -255,9 +265,9 @@ export function nextCategories(cursor = 0, count = 3) {
 // Extra words for a category, beyond the trend board's Hebrew words (the store's own category names).
 const EXTRA_WORDS = Object.freeze({
   rings: ["ring", "טבעת"], earrings: ["earring", "עגיל"], necklaces: ["necklace", "pendant", "תליון"], bracelets: ["bracelet", "bangle", "צמיד"],
-  watches: ["watch", "שעון"], bags: ["bag", "wallet", "תיק", "ארנק"], beauty: ["makeup", "cosmetic", "איפור", "יופי"],
-  hair: ["hair", "שיער"], home: ["home decor", "תפאורה", "קישוט"], kitchen: ["kitchen", "מטבח"], kids: ["toy", "baby", "צעצוע", "תינוק", "ילד"],
-  tech: ["phone", "earphone", "charger", "טלפון", "אוזני", "מטען"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
+  watches: ["watch", "שעון"], bags: ["bag", "handbag", "wallet", "תיק", "ארנק"], beauty: ["makeup", "cosmetic", "איפור", "יופי"],
+  hair: ["hair", "hairpin", "hairclip", "scrunchie", "שיער"], home: ["home decor", "תפאורה", "קישוט"], kitchen: ["kitchen", "מטבח"], kids: ["toy", "baby", "צעצוע", "תינוק", "ילד"],
+  tech: ["phone", "earphone", "headphone", "charger", "טלפון", "אוזני", "מטען"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
 });
 
 /**
@@ -270,7 +280,15 @@ export function guessCategory(x = {}) {
   if (/שרשרת\s*יד|hand\s*chain/.test(text)) return dealCategory("bracelets");
   for (const c of DEAL_CATEGORIES) {
     const words = [...(c.words || []), ...(EXTRA_WORDS[c.key] || [])].map((w) => String(w).toLowerCase());
-    if (words.some((w) => text.includes(w))) return c;
+    if (words.some((w) => hasWord(text, w))) return c;
   }
   return null;
+}
+
+// A Latin word only as a whole word (plural allowed): "ring" is not inside
+// "earrings" or "keyring". Hebrew words stay substrings, because a prefix
+// letter attaches to the word ("הטבעת", "ועגילים").
+function hasWord(text, w) {
+  if (!/^[a-z][a-z ]*$/.test(w)) return text.includes(w);
+  return new RegExp(`(?<![a-z])${w.replace(/ /g, "\\s+")}(?:s|es)?(?![a-z])`).test(text);
 }

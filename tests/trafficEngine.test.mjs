@@ -68,6 +68,7 @@ test("the meter shows only catalog rings and bracelets the public site lists", (
   for (const p of bracelets) {
     assert.ok(listed.has(p.id), p.id);
     assert.match(p.title, /צמיד|bracelet|שרשרת יד|hand chain/i, p.id);
+    assert.doesNotMatch(p.title, /עגיל|earring/i, `${p.id}: an earring is not a bracelet`);
   }
   assert.ok(sizeProducts(list, "ring").length <= 6 && sizeProducts(list, "bracelet").length <= 6, "the page shows a few, not the whole shop");
 });

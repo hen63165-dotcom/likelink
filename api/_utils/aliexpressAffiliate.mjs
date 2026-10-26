@@ -168,7 +168,7 @@ export async function importChosenItems(items = [], { kvGet, kvSet, env: rawEnv 
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
-  const { dealCategory, dealCheck, guessCategory, toDealProduct } = await import("../../src/lib/growth/deals.js");
+  const { dealCategory, guessCategory, ownerPickCheck, toDealProduct } = await import("../../src/lib/growth/deals.js");
   const wanted = arr(items)
     .map((it) => ({ id: String(it?.id || ""), category: dealCategory(String(it?.category || "")), link: String(it?.link || "").trim() }))
     .filter((it) => /^\d{6,20}$/.test(it.id))
@@ -193,9 +193,9 @@ export async function importChosenItems(items = [], { kvGet, kvSet, env: rawEnv 
     if (!x) { report.push({ id: w.id, status: "NOT_RETURNED" }); continue; }
     w.category = w.category || guessCategory(x);
     if (!w.category) { report.push({ id: w.id, status: "UNKNOWN_CATEGORY" }); continue; }
-    // The owner chose it: price and brand rules still hold; the rating is not in this answer.
-    const check = dealCheck({ ...x, evaluate_rate: x.evaluate_rate ?? "100%", lastest_volume: x.lastest_volume ?? Infinity }, w.category, { minPositivePct: 0, minOrders: 0, minPrice: 0 });
-    if (!check.ok && check.reason !== "price_above_cap") { report.push({ id: w.id, status: check.reason.toUpperCase() }); continue; }
+    // The owner chose it: a shekel price, the brand rule and the unlisted kinds still hold.
+    const check = ownerPickCheck(x, w.category);
+    if (!check.ok) { report.push({ id: w.id, status: check.reason.toUpperCase() }); continue; }
     const p = toDealProduct(x, { category: w.category, marketerId, now, link: /^https:\/\/s\.click\.aliexpress\.com\//.test(w.link) ? w.link : "" });
     if (!p) { report.push({ id: w.id, status: "MISSING_REAL_FIELDS" }); continue; }
     if (have.links.has(p.affiliateUrl)) { report.push({ id: w.id, status: "LINK_ALREADY_USED" }); continue; }

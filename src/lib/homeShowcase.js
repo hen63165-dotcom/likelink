@@ -128,12 +128,20 @@ export function circleOf(product) {
   return SHOP_CIRCLES.find((c) => c.words.some((w) => name.includes(w))) || null;
 }
 
+// A product with a known kind sits only in that kind's circle (a "שרשרת יד"
+// of kind bracelets is never the necklaces' picture); otherwise by its name.
+function inCircle(p, c) {
+  const kind = String(p?.kind || "").toLowerCase();
+  if (kind && SHOP_CIRCLES.some((x) => x.en.toLowerCase() === kind)) return c.en.toLowerCase() === kind;
+  return circleOf(p) === c || c.words.some((w) => nameOf(p).includes(w));
+}
+
 export function shopCircles(products = [], { limit = 8 } = {}) {
   const used = new Set();
   const out = [];
   for (const c of SHOP_CIRCLES) {
     if (out.length >= limit) break;
-    const hit = products.find((p) => !used.has(p.id) && cleanImage(p) && (circleOf(p) === c || c.words.some((w) => nameOf(p).includes(w))));
+    const hit = products.find((p) => !used.has(p.id) && cleanImage(p) && inCircle(p, c));
     if (!hit) continue;
     used.add(hit.id);
     out.push({ q: c.q, he: c.he, en: c.en, to: `/search?q=${encodeURIComponent(c.q)}`, image: cleanImage(hit).src, productId: hit.id });
