@@ -37,6 +37,11 @@ test("AliExpress's own numbers choose: 95%+ positive, 300+ orders, cheap for the
   assert.equal(why({ product_title: "Pandora style bracelet" }), "brand_name", "on AliExpress a brand's name is an imitation");
   assert.equal(why({ product_title: "צמיד בסגנון קרטייה" }), "brand_name");
   assert.equal(why({ product_title: "tactical knife bracelet" }), "not_listed_kind");
+  // 2026-10-26, the first candidates: a celebrity doll and anime stickers (no licence), "anti-anxiety, ADHD", "wrinkle lifting", a "tactical" water gun.
+  for (const t of ["בובת קוספליי של מייקל ג'קסון", "מדבקות פוסטר דמויות אנימה Chainsaw Man", "כדור לחץ נגד חרדה ו-ADHD", "סרט פנים להרמת קמטים", "רובה מים טקטי"]) {
+    assert.notEqual(why({ product_title: t }), undefined, t);
+    assert.equal(dealCheck(item("1005001", { product_title: t }), bracelets).ok, false, t);
+  }
   assert.equal(dealCheck(item("1005001", { product_title: "תיק מיני לנשים" }), dealCategory("bags")).ok, true, "mini is not a forbidden word");
   assert.deepEqual(DEAL_RULES, { minPositivePct: 95, minOrders: 300, minPrice: 4 });
   for (const c of DEAL_CATEGORIES) assert.ok(c.maxPrice > 0 && c.kind && c.category && c.keywords, c.key);
@@ -55,7 +60,10 @@ test("ranking: real discounts first, then AliExpress's recent orders; duplicates
 });
 
 test("a short, clean Hebrew name from the store's own words only", () => {
-  assert.equal(dealTitle(item("1005001"), bracelets), "צמיד טניס · מואסניט · כסף 925 · ציפוי זהב");
+  // "925 silver / gold plated / moissanite" at a deals price is the seller's claim and often not true: never in our name.
+  assert.equal(dealTitle(item("1005001"), bracelets), "צמיד טניס");
+  assert.doesNotMatch(dealTitle(item("1005001", { product_title: "moissanite 925 sterling silver gold plated heart necklace" }), dealCategory("necklaces")), /925|מואסניט|זהב|כסף/);
+  assert.equal(dealTitle(item("1005001", { product_title: "earrings hoop moon" }), dealCategory("earrings")), "עגילים · חישוק · ירח");
   assert.equal(dealTitle(item("1005001", { product_title: "ring zircon heart adjustable" }), dealCategory("rings")), "טבעת · זרקון · לב · מתכוונן");
   assert.equal(dealTitle(item("1005001", { product_title: "plain ring" }), dealCategory("rings")), "טבעת", "no detail is invented");
   const home = dealTitle(item("1005001", { product_title: "2026 New Hot Sale ATTAGEMS מנורת לילה LED מנורת לילה ירח לחדר שינה משלוח חינם" }), dealCategory("home"));

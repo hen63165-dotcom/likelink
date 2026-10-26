@@ -26,11 +26,11 @@ export const TREND_CATEGORIES = Object.freeze([
   { key: "bags", he: "תיקים", keywords: "women handbag", words: ["תיק", "תיקים", "ארנק", "bag"] },
   { key: "beauty", he: "איפור וטיפוח", keywords: "makeup beauty tools", words: ["איפור", "טיפוח", "שפתון", "makeup"] },
   { key: "hair", he: "שיער", keywords: "hair accessories women", words: ["שיער", "קליפס", "hair"] },
-  { key: "home", he: "בית ועיצוב", keywords: "home decor", words: ["עיצוב", "בית", "דקור", "decor"] },
+  { key: "home", he: "בית ועיצוב", keywords: "aesthetic room decor", words: ["עיצוב", "בית", "דקור", "decor"] },
   { key: "kitchen", he: "מטבח", keywords: "kitchen gadgets", words: ["מטבח", "kitchen"] },
   { key: "kids", he: "ילדים ותינוקות", keywords: "kids toys", words: ["ילדים", "תינוק", "צעצוע", "toys"] },
-  { key: "tech", he: "גאדג'טים", keywords: "phone accessories gadgets", words: ["טלפון", "אוזניות", "גאדג", "phone"] },
-  { key: "fitness", he: "ספורט וכושר", keywords: "fitness workout", words: ["כושר", "ספורט", "fitness"] },
+  { key: "tech", he: "גאדג'טים", keywords: "aesthetic phone case", words: ["טלפון", "אוזניות", "גאדג", "phone"] },
+  { key: "fitness", he: "ספורט וכושר", keywords: "women yoga gym set", words: ["כושר", "ספורט", "fitness"] },
   { key: "pets", he: "חיות מחמד", keywords: "pet supplies", words: ["כלב", "חתול", "חיות", "pet"] },
 ]);
 

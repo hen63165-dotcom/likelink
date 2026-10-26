@@ -43,10 +43,12 @@ const CATEGORY_DEALS = Object.freeze({
 export const DEAL_CATEGORIES = Object.freeze(TREND_CATEGORIES.map((c) => Object.freeze({ ...c, ...CATEGORY_DEALS[c.key] })));
 export const dealCategory = (key) => DEAL_CATEGORIES.find((c) => c.key === key) || null;
 
-// Names that, on AliExpress, mean an imitation of the brand (never the brand itself).
-const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס/i;
-// Items the site does not list whatever their numbers.
-const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|סיגרי|סכין|אקדח|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|העתק\b/i;
+// Names that, on AliExpress, mean an imitation of the brand, or a character/celebrity
+// sold without a licence (never the brand itself).
+const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|אנימה|קוספליי|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו/i;
+// Items the site does not list whatever their numbers: weapons, adult items, and
+// health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
+const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|העתק\b|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/i;
 
 /** "97.4%" → 97.4 (null when AliExpress did not answer one). */
 export function positivePct(x = {}) {
@@ -100,19 +102,28 @@ export function rankDeals(list = [], category, { exclude = new Set(), rules = DE
     .map(({ x }) => x);
 }
 
-// Words of the store's own title that describe the item (never a claim).
+// Words of the store's own title that describe how the item looks. Materials
+// ("925 silver", "gold plated", "moissanite") are the seller's claim and at a
+// deals price often not true, so they stay out of our name for it.
 const FEATURES = [
-  [/מואסניט|moissanite/i, "מואסניט"],
+  [/טניס|tennis/i, "טניס"],
   [/זרקון|zircon|\bcz\b/i, "זרקון"],
   [/פנינ|pearl/i, "פנינים"],
   [/קריסטל|crystal|rhinestone/i, "קריסטלים"],
-  [/\b925\b|s925|כסף\s*סטרלינג|sterling/i, "כסף 925"],
   [/נירוסטה|פלדת\s*אל[- ]?חלד|stainless/i, "נירוסטה"],
-  [/מצופה\s*זהב|ציפוי\s*זהב|gold[\s-]*plated|\b1[48]k\b/i, "ציפוי זהב"],
-  [/טניס|tennis/i, "טניס"],
+  [/חישוק|hoop/i, "חישוק"],
+  [/צמוד|stud/i, "צמודים"],
+  [/תליון|pendant/i, "תליון"],
+  [/שכבות|layered/i, "שכבות"],
   [/\bלב\b|heart/i, "לב"],
+  [/ירח|moon/i, "ירח"],
+  [/כוכב|star\b/i, "כוכב"],
   [/פרפר|butterfly/i, "פרפר"],
   [/פרח|flower/i, "פרח"],
+  [/נחש|snake/i, "נחש"],
+  [/אינסוף|infinity/i, "אינסוף"],
+  [/עלה|leaf/i, "עלה"],
+  [/פתוח|open\b/i, "פתוחה"],
   [/מתכוונ|adjustable/i, "מתכוונן"],
   [/מינימליסט|minimalist/i, "מינימליסטי"],
   [/וינטג|vintage|רטרו|retro/i, "וינטג'"],
