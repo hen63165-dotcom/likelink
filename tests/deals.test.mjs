@@ -75,6 +75,12 @@ test("a short, clean Hebrew name from the store's own words only", () => {
   assert.match(home, /מנורת לילה LED/);
   assert.ok(home.length <= 56);
   assert.equal(cleanStoreTitle("A A b b"), "A b");
+  // 2026-10-26, the first batch: "חם" (hot) inside "לחם" (bread) left "בצורת ל"; long titles were cut mid-phrase.
+  assert.equal(cleanStoreTitle("עוגת יוגורט בצורת לחם, צעצוע רך ונעים למגע, מתמתח ואורך זמן"), "עוגת יוגורט בצורת לחם");
+  assert.equal(cleanStoreTitle("1 יחידה, מגרדת מטבח מנירוסטה, 30 ס\"מ, מתאימה ללימון"), "מגרדת מטבח מנירוסטה");
+  assert.equal(cleanStoreTitle("2/3/4 יחידות סגסוגת בסגנון סיני עתיק פרחים אלגנטיים מקל שיער"), "סגסוגת בסגנון סיני עתיק פרחים אלגנטיים מקל שיער");
+  assert.equal(cleanStoreTitle("מראה שולחנית יצירתית בצורת פרח לחדר מעונות, בעלת ערך אסתטי גבוה"), "מראה שולחנית יצירתית בצורת פרח לחדר מעונות");
+  assert.equal(dealTitle({ product_title: "יוקרה זוהרת מלאה בצבע זהב זירקון שרשרת תליון כנפי מלאך" }, dealCategory("necklaces")), "שרשרת · זרקון · תליון · כנפיים");
 });
 
 test("a catalog product: the store's facts, her own link, the kind; never the rating, orders or commission", () => {

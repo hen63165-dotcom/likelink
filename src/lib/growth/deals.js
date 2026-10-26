@@ -107,13 +107,16 @@ export function rankDeals(list = [], category, { exclude = new Set(), rules = DE
 // deals price often not true, so they stay out of our name for it.
 const FEATURES = [
   [/טניס|tennis/i, "טניס"],
-  [/זרקון|zircon|\bcz\b/i, "זרקון"],
+  [/זי?רקון|zircon|\bcz\b/i, "זרקון"],
   [/פנינ|pearl/i, "פנינים"],
   [/קריסטל|crystal|rhinestone/i, "קריסטלים"],
   [/נירוסטה|פלדת\s*אל[- ]?חלד|stainless/i, "נירוסטה"],
   [/חישוק|hoop/i, "חישוק"],
   [/צמוד|stud/i, "צמודים"],
   [/תליון|pendant/i, "תליון"],
+  [/כנפ|wings?\b/i, "כנפיים"],
+  [/חרוז|bead/i, "חרוז"],
+  [/גיאומטרי|geometric/i, "גיאומטרי"],
   [/שכבות|layered/i, "שכבות"],
   [/\bלב\b|heart/i, "לב"],
   [/ירח|moon/i, "ירח"],
@@ -129,14 +132,27 @@ const FEATURES = [
   [/וינטג|vintage|רטרו|retro/i, "וינטג'"],
 ];
 
-const NOISE = /\b(20[12]\d|new|hot|sale|free\s*shipping|high\s*quality|original|fashion|trendy|luxury|women'?s?|girls?|gift)\b|חדש(?:ה|ים|ות)?|חם|מכירה\s*חמה|משלוח\s*חינם|איכות\s*גבוהה|באיכות\s*גבוהה|מקורי|100%|יוקרה|אופנה(?:תי|תית)?/gi;
-const KEEP_CAPS = new Set(["LED", "USB", "RGB", "UV", "3D", "PU"]);
+// Sale words, years and size noise. English words end at a word boundary; Hebrew
+// ones only at letters (JS \b does not see Hebrew: "חם" must not leave "לחם" as "ל").
+const NOISE_EN = /\b(20[12]\d|new|hot|sale|free\s*shipping|high\s*quality|original|fashion|trendy|luxury|women'?s?|girls?|gift)\b/gi;
+const NOISE_HE = /(?<!\p{L})(חדש(?:ה|ים|ות)?|חם|מכירה\s*חמה|משלוח\s*חינם|איכות\s*גבוהה|באיכות\s*גבוהה|מקורי|יוקרה|יוקרתי(?:ת|ים)?|אופנתי(?:ת|ים)?|אופנה)(?!\p{L})|100%/gu;
+// A count at the start ("1 יחידה,", "2/3/4 יחידות", "2 יח'", "10 pcs") says nothing about the item.
+const LEADING_COUNT = /^\s*\d[\d\s/.-]*\s*(יחידות|יחידה|יח'|יח|חתיכות|חבילה|זוגות|זוג|pcs|pc|pieces)(?![\p{L}])[\s,\\/]*/iu;
+const KEEP_CAPS = new Set(["LED", "USB", "RGB", "UV", "3D", "PU", "LCD"]);
 
-/** The store's title without years, sale words, brand codes in capitals and repeats, cut at a word. */
+/**
+ * The store's own product name: its first phrase (store titles list phrases
+ * between commas) without a leading count, years, sale words, brand codes in
+ * capitals and repeats, cut at a word.
+ */
 export function cleanStoreTitle(title = "", max = 56) {
-  const words = String(title)
-    .replace(NOISE, " ")
-    .replace(/[|/\\,;:()[\]{}"!?*+_~^]+/g, " ")
+  const phrases = String(title).replace(LEADING_COUNT, "").split(/[,،]+/).map((x) => x.trim()).filter(Boolean);
+  let head = phrases.shift() || "";
+  while (head.length < 18 && phrases.length) head = `${head} ${phrases.shift()}`;
+  const words = head
+    .replace(NOISE_EN, " ")
+    .replace(NOISE_HE, " ")
+    .replace(/[|/\\;:()[\]{}"!?*+_~^]+/g, " ")
     .split(/\s+/)
     .filter(Boolean)
     .filter((w) => !(/^[A-Z]{3,}$/.test(w) && !KEEP_CAPS.has(w)));
