@@ -45,17 +45,27 @@ test("without the owner's credentials nothing is called", async () => {
   assert.equal((await dailyAffiliateImport({ ...kvOf({}), env: {} })).outcome, "REQUIRES_CONNECTION");
 });
 
-test("hot products import: real fields only, own link, read back, idempotent", async () => {
+test("deals import: real fields only, own link, cheap + well rated by AliExpress, read back, idempotent", async () => {
   assert.equal(toProduct(item("1", { promotion_link: "https://www.aliexpress.com/" }), { marketerId: "m" }), null, "no own tracked link → never imported");
   assert.equal(toProduct(item("1", { target_sale_price: "0" }), { marketerId: "m" }), null);
-  const kv = kvOf({ "marketplace:products": [{ id: "x", affiliateUrl: "https://s.click.aliexpress.com/e/_own2" }] });
-  const payload = { aliexpress_affiliate_hotproduct_query_response: { resp_result: { resp_code: 200, result: { products: { product: [item("1"), item("2"), item("3")] } } } } };
-  const r = await importHotProducts({ ...kv, env: ENV, fetchImpl: fetchWith(payload), now: NOW });
-  assert.equal(r.ok, true); assert.deepEqual(r.ids, ["ae-1", "ae-3"], "a link we already have is not imported twice");
-  assert.match(fetchWith.last.body, /tracking_id=t/); assert.match(fetchWith.last.body, /ship_to_country=IL/);
-  const p = kv.db.get("marketplace:products").find((x) => x.id === "ae-1");
-  assert.equal(p.marketerId, "msd6go4kff49s5"); assert.equal(p.category, "Accessories"); assert.equal(p.imageSource.provenance, "merchant_photo");
-  const again = await importHotProducts({ ...kv, env: ENV, fetchImpl: fetchWith(payload), now: NOW });
+  // 2026-10-26, the owner: cheap, hot, high-rated deals in every category. The
+  // numbers are AliExpress's own (evaluate_rate, lastest_volume), used to choose only.
+  const deal = (id, extra = {}) => item(id, { evaluate_rate: "97.5%", lastest_volume: 1500, target_original_price: "39.80", ...extra });
+  const kv = kvOf({ "marketplace:products": [{ id: "x", affiliateUrl: "https://s.click.aliexpress.com/e/_own1005002" }] });
+  const payload = { aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: { products: { product: [
+    deal("1005001"), deal("1005002"), deal("1005003"),
+    deal("1005004", { evaluate_rate: "93.8%" }), deal("1005005", { lastest_volume: 40 }), deal("1005006", { target_sale_price: "120" }),
+    deal("1005007", { product_title: "Pandora style charm ring" }), deal("1005008", { evaluate_rate: undefined }),
+  ] } } } } };
+  const r = await importHotProducts({ ...kv, env: ENV, fetchImpl: fetchWith(payload), now: NOW, perCategory: 5, categoryCount: 1 });
+  assert.equal(r.ok, true); assert.deepEqual(r.ids, ["ae-1005001", "ae-1005003"], "a link we already have is not imported twice; below 95%, few orders, above the category's price, a brand's name or no rating → not imported");
+  assert.match(fetchWith.last.body, /tracking_id=t/); assert.match(fetchWith.last.body, /ship_to_country=IL/); assert.match(fetchWith.last.body, /target_currency=ILS/);
+  const p = kv.db.get("marketplace:products").find((x) => x.id === "ae-1005001");
+  assert.equal(p.marketerId, "msd6go4kff49s5"); assert.equal(p.category, "Accessories"); assert.equal(p.kind, "rings"); assert.equal(p.imageSource.provenance, "merchant_photo");
+  assert.equal(p.priceSource, "aliexpress_api"); assert.equal(p.originalPrice, 39.8);
+  assert.doesNotMatch(JSON.stringify(p), /evaluate_rate|lastest_volume|97\.5|1500|commission/, "the rating, orders and commission are never stored");
+  assert.equal(kv.db.get("affiliate:aliexpress:last").cursor, 1, "the next run searches the next category");
+  const again = await importHotProducts({ ...kv, env: ENV, fetchImpl: fetchWith(payload), now: NOW, perCategory: 5, categoryCount: 1 });
   assert.equal(again.imported, 0);
 });
 

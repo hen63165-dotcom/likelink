@@ -21,6 +21,7 @@ import { aeCall, aeEnv, aeStatus, toProduct } from "../../api/_utils/aliexpressA
 import { aliItemId, applyFacts, resolveFromLink, storeFacts } from "./sync-aliexpress.mjs";
 import { readTrends } from "../marketing/daily-drop.mjs";
 import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseItems } from "../../src/lib/growth/trendBoard.js";
+import { DEAL_RULES, dealCategory, rankDeals } from "../../src/lib/growth/deals.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
@@ -44,7 +45,7 @@ export function productsOf(res, method) {
 async function hotFor(category, env, now, fetchImpl) {
   const biz = {
     keywords: category.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
-    ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC",
+    ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
   };
   let list = [];
   let error = null;
@@ -85,7 +86,8 @@ export async function findTrends({ env: rawEnv = process.env, now = Date.now(), 
       continue;
     }
     try {
-      results[c.key] = await hotFor(c, env, now, fetchImpl);
+      // The deals rules (src/lib/growth/deals.js): cheap for the category, 95%+ rated, 300+ orders, no brand names.
+      results[c.key] = rankDeals(await hotFor(c, env, now, fetchImpl), dealCategory(c.key));
     } catch (e) {
       errors.push({ category: c.key, error: String(e?.message || e).slice(0, 120) });
     }
@@ -127,6 +129,7 @@ ul.g{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repea
 </style></head><body>
 <header><div><p class="note">LikeLink2 · ${esc(board.generatedAt.slice(0, 10))}</p><h1>הטרנדים של היום מ-AliExpress</h1>
 <p class="note">המוצרים החמים של AliExpress היום, עם משלוח לישראל ומחיר בשקלים, לפי קטגוריות. קטגוריה שמחפשים בגוגל בישראל היום מסומנת ועולה לראש. שום מוצר לא עולה לאתר לפני שאת בוחרת אותו.</p>
+<p class="note">מוצגים רק מציאות: מחיר זול לקטגוריה, דירוג חיובי של ${DEAL_RULES.minPositivePct}% ומעלה ו־${DEAL_RULES.minOrders}+ הזמנות לפי AliExpress (המספרים משמשים רק לבחירה ולא מוצגים באתר), ובלי מוצרים שנקראים על שם מותג.</p>
 <nav>${cats.map((c) => `<a href="#${esc(c.key)}">${esc(c.he)}</a>`).join("")}</nav>
 <p class="note"><a href="../drop/">לדרופ היומי</a> · <a href="../tiktok/">לעמוד הטיקטוק</a></p></div></header>
 <main>
@@ -136,9 +139,9 @@ ${outcome === "FAILED" || outcome === "EMPTY" ? `<p class="card">הפעם לא �
 <li>מעתיקים את מספרי המוצרים שבחרת (כפתור "העתקה").</li>
 <li>ב-GitHub: Actions ← <b>Add trend products</b> ← Run workflow ← מדביקים את המספרים, מופרדים בפסיק (עד 10) ← Run.</li>
 <li>אפשר להדביק שם גם קישור שותפים שלך (s.click.aliexpress.com) או קישור לעמוד מוצר ב-AliExpress, ולא רק מספרים. קישור שלך נשמר באתר בדיוק כמו שהדבקת.</li>
-<li>המוצרים נקראים שוב מ-AliExpress (מחיר, תמונות, סרטון המוכר והקישור שלך) ועולים לאתר תוך כמה דקות.</li>
+<li>המוצרים נקראים שוב מ-AliExpress (מחיר, תמונות, סרטון המוכר והקישור שלך) ועולים לאתר החי (likelink2.vercel.app) תוך כמה דקות, עם שם קצר ונקי ובקטגוריה הנכונה.</li>
 </ol></section>
-${cats.map((c) => `<h2 id="${esc(c.key)}">${esc(c.he)}${c.searchedToday.length ? `<span class="hot">מחפשים היום בגוגל: ${esc(c.searchedToday[0].term)}</span>` : ""}</h2>
+${cats.map((c) => `<h2 id="${esc(c.key)}">${esc(c.he)}${dealCategory(c.key)?.maxPrice ? ` <span class="m">עד ₪${dealCategory(c.key).maxPrice}</span>` : ""}${c.searchedToday.length ? `<span class="hot">מחפשים היום בגוגל: ${esc(c.searchedToday[0].term)}</span>` : ""}</h2>
 <ul class="g">${c.items.map(card).join("")}</ul>`).join("\n")}
 ${cats.length || outcome !== "OK" ? "" : `<p class="card">היום AliExpress לא החזירה מוצרים מתאימים.</p>`}
 <p class="note">${esc(board.note)}</p>

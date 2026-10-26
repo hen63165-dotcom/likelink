@@ -1,24 +1,34 @@
-# One-off check of the AliExpress affiliate search fields (deals rules).
+# The deals the rules would pick today, as contact sheets for a person to look
+# at before an import (scripts/catalog/deals-probe.mjs). Nothing reaches the site.
 name: Deals probe
 on:
   workflow_dispatch:
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/catalog/deals-probe.mjs", ".github/workflows/deals-probe.yml"]
+    paths: ["scripts/catalog/deals-probe.mjs", "src/lib/growth/deals.js", ".github/workflows/deals-probe.yml"]
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Fields the search returns
+      - name: Today's deals by category
         env:
           ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
           ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
           ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
-        run: node scripts/catalog/deals-probe.mjs
+        run: node scripts/catalog/deals-probe.mjs deals-preview
+      - name: Contact sheets → the "deals-preview" pre-release (not the site)
+        run: |
+          gh release view deals-preview >/dev/null 2>&1 || gh release create deals-preview --prerelease --title "Deals preview (not on the site)" --notes "Candidates the deals rules would pick, for a person to look at before an import."
+          shopt -s nullglob
+          sheets=()
+          for f in deals-preview/*.jpg; do case "$(basename "$f")" in *-[0-9].jpg) ;; *) sheets+=("$f");; esac; done
+          gh release upload deals-preview "${sheets[@]}" deals-preview/candidates.json --clobber

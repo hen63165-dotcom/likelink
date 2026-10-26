@@ -4,8 +4,10 @@
 // products. LikeLink never invents a link, a price or an image. Everything here
 // comes from the API response, and is written only after a read-back.
 //
-//   hotproduct.query  → trending products (ship to IL, prices in ILS) with the
+//   product.query     → deals by category (src/lib/growth/deals.js: cheap for the
+//                       category, 95%+ rated, 300+ orders; ship to IL, ILS) with the
 //                       owner's own promotion_link → imported into the owner's studio
+//   productdetail.get → the items the owner chose on the trend board
 //   link.generate     → an own tracked link for a product whose current link is
 //                       shared by several products (opens the store home page)
 //
@@ -87,40 +89,128 @@ export function toProduct(x, { marketerId, now = Date.now() } = {}) {
   };
 }
 
+/** The ids and links already in the catalog, so an item is never added twice. */
+function catalogKeys(products) {
+  const ids = new Set();
+  const links = new Set();
+  for (const p of products) {
+    if (p?.affiliateUrl) links.add(p.affiliateUrl);
+    const raw = String(p?.aliexpressId || p?.imageSource?.itemId || String(p?.id || "").replace(/^ae-/, "") || "");
+    if (/^\d{6,20}$/.test(raw)) ids.add(raw);
+  }
+  return { ids, links };
+}
+
 /**
- * Import trending products from the owner's affiliate account into the owner's
- * studio. It is idempotent (by AliExpress product id and by link), capped per
- * run, and verified by read-back.
+ * Deals from the owner's affiliate account into the owner's studio
+ * (src/lib/growth/deals.js): a few categories per run, in rotation, each
+ * searched by AliExpress's recent orders; an item is added only when it is
+ * cheap for its category, rated 95%+ with 300+ orders by AliExpress, not
+ * named after a brand, and not already listed. Idempotent (by item id and by
+ * link), capped per run, verified by read-back. The rating and orders are
+ * used to choose and are never stored.
  */
-export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), limit = 6, keywords = "" }) {
+export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), limit = 6, perCategory = 2, categoryCount = 3 }) {
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
+  const { nextCategories, rankDeals, toDealProduct } = await import("../../src/lib/growth/deals.js");
   const marketerId = env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
-  const json = await aeCall("aliexpress.affiliate.hotproduct.query", {
-    tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE", ship_to_country: "IL",
-    page_size: "30", sort: "LAST_VOLUME_DESC", ...(keywords ? { keywords: String(keywords).slice(0, 60) } : {}),
-  }, { env, fetchImpl, now });
-  const result = json?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
-  if (result && Number(result.resp_code) !== 200) return { ok: false, status: 502, error: `aliexpress_resp_${result.resp_code}`, message: String(result.resp_msg || "").slice(0, 120) };
-  const raw = arr(result?.result?.products?.product);
+  const last = await kvGet("affiliate:aliexpress:last", null);
+  const { categories, cursor } = nextCategories(last?.cursor || 0, categoryCount);
   const products = arr(await kvGet("marketplace:products", null));
   if (!products.length) return { ok: false, status: 503, error: "kv_read_failed" };
-  const haveIds = new Set(products.map((p) => p?.id));
-  const haveLinks = new Set(products.map((p) => p?.affiliateUrl).filter(Boolean));
+  const have = catalogKeys(products);
   const fresh = [];
-  for (const x of raw) {
-    const p = toProduct(x, { marketerId, now });
-    if (!p || haveIds.has(p.id) || haveLinks.has(p.affiliateUrl)) continue;
-    fresh.push(p);
+  const searched = [];
+  for (const category of categories) {
     if (fresh.length >= limit) break;
+    const method = "aliexpress.affiliate.product.query";
+    const json = await aeCall(method, {
+      keywords: category.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
+      ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
+    }, { env, fetchImpl, now });
+    const result = json?.aliexpress_affiliate_product_query_response?.resp_result;
+    if (!result || Number(result.resp_code) !== 200) {
+      searched.push({ category: category.key, error: result ? `aliexpress_resp_${result.resp_code}` : "aliexpress_no_result" });
+      continue;
+    }
+    const raw = arr(result.result?.products?.product);
+    let added = 0;
+    for (const x of rankDeals(raw, category, { exclude: have.ids })) {
+      if (added >= perCategory || fresh.length >= limit) break;
+      const p = toDealProduct(x, { category, marketerId, now });
+      if (!p || have.links.has(p.affiliateUrl)) continue;
+      fresh.push(p);
+      have.ids.add(p.aliexpressId);
+      have.links.add(p.affiliateUrl);
+      added += 1;
+    }
+    searched.push({ category: category.key, received: raw.length, added });
   }
   if (fresh.length) await kvSet("marketplace:products", [...products, ...fresh]);
-  const back = arr(await kvGet("marketplace:products", []));
+  const back = fresh.length ? arr(await kvGet("marketplace:products", [])) : [];
   const verified = fresh.filter((p) => back.some((b) => b?.id === p.id && b.affiliateUrl === p.affiliateUrl));
-  const summary = { at: new Date(now).toISOString(), source: "aliexpress.affiliate.hotproduct.query", received: raw.length, imported: verified.length, ids: verified.map((p) => p.id) };
+  const summary = { at: new Date(now).toISOString(), source: "aliexpress.affiliate.product.query", rules: "deals-v1", cursor, searched, imported: verified.length, ids: verified.map((p) => p.id) };
   await kvSet("affiliate:aliexpress:last", summary);
   return { ok: verified.length === fresh.length, status: 200, ...summary };
+}
+
+/**
+ * Exactly the items the owner chose (the trend board → "Add trend products"),
+ * re-read on the server from her affiliate account (productdetail.get: ILS,
+ * ship to Israel, her tracked link) and added to her studio in the cloud.
+ * `items`: [{ id, category?, link? }] — a board category key, or read from the
+ * store's own title and category names (guessCategory);
+ * `link` is her own s.click link when she pasted one (kept exactly).
+ */
+export async function importChosenItems(items = [], { kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
+  const st = aeStatus(env);
+  if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
+  const { dealCategory, dealCheck, guessCategory, toDealProduct } = await import("../../src/lib/growth/deals.js");
+  const wanted = arr(items)
+    .map((it) => ({ id: String(it?.id || ""), category: dealCategory(String(it?.category || "")), link: String(it?.link || "").trim() }))
+    .filter((it) => /^\d{6,20}$/.test(it.id))
+    .slice(0, 20);
+  if (!wanted.length) return { ok: false, status: 400, error: "no_items" };
+  const marketerId = env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
+  const products = arr(await kvGet("marketplace:products", null));
+  if (!products.length) return { ok: false, status: 503, error: "kv_read_failed" };
+  const json = await aeCall("aliexpress.affiliate.productdetail.get", {
+    product_ids: [...new Set(wanted.map((w) => w.id))].join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
+  }, { env, fetchImpl, now });
+  const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+  if (!result) return { ok: false, status: 502, error: "aliexpress_no_result" };
+  if (Number(result.resp_code) !== 200) return { ok: false, status: 502, error: `aliexpress_resp_${result.resp_code}` };
+  const found = new Map(arr(result.result?.products?.product).map((x) => [String(x.product_id), x]));
+  const have = catalogKeys(products);
+  const fresh = [];
+  const report = [];
+  for (const w of wanted) {
+    const x = found.get(w.id);
+    if (have.ids.has(w.id)) { report.push({ id: w.id, status: "ALREADY_ON_SITE" }); continue; }
+    if (!x) { report.push({ id: w.id, status: "NOT_RETURNED" }); continue; }
+    w.category = w.category || guessCategory(x);
+    if (!w.category) { report.push({ id: w.id, status: "UNKNOWN_CATEGORY" }); continue; }
+    // The owner chose it: price and brand rules still hold; the rating is not in this answer.
+    const check = dealCheck({ ...x, evaluate_rate: x.evaluate_rate ?? "100%", lastest_volume: x.lastest_volume ?? Infinity }, w.category, { minPositivePct: 0, minOrders: 0, minPrice: 0 });
+    if (!check.ok && check.reason !== "price_above_cap") { report.push({ id: w.id, status: check.reason.toUpperCase() }); continue; }
+    const p = toDealProduct(x, { category: w.category, marketerId, now, link: /^https:\/\/s\.click\.aliexpress\.com\//.test(w.link) ? w.link : "" });
+    if (!p) { report.push({ id: w.id, status: "MISSING_REAL_FIELDS" }); continue; }
+    if (have.links.has(p.affiliateUrl)) { report.push({ id: w.id, status: "LINK_ALREADY_USED" }); continue; }
+    fresh.push(p);
+    have.ids.add(w.id);
+    have.links.add(p.affiliateUrl);
+    report.push({ id: w.id, status: "ADDED", product: p.id, title: p.title, price: p.price });
+  }
+  if (fresh.length) await kvSet("marketplace:products", [...products, ...fresh]);
+  const back = fresh.length ? arr(await kvGet("marketplace:products", [])) : [];
+  const verified = new Set(fresh.filter((p) => back.some((b) => b?.id === p.id && b.affiliateUrl === p.affiliateUrl)).map((p) => p.id));
+  for (const r of report) if (r.status === "ADDED" && !verified.has(r.product)) r.status = "NOT_VERIFIED";
+  const log = arr(await kvGet("catalog:import:log", []));
+  await kvSet("catalog:import:log", [{ at: new Date(now).toISOString(), report }, ...log].slice(0, 30));
+  return { ok: verified.size === fresh.length, status: 200, added: verified.size, report };
 }
 
 /**
@@ -262,7 +352,7 @@ export async function dailyAffiliateImport({ kvGet, kvSet, env = {}, fetchImpl, 
   const last = await kvGet("affiliate:aliexpress:last", null);
   if (last?.at && now - Date.parse(last.at) < 20 * 3_600_000) return { ok: true, outcome: "NOT_DUE", last: last.at };
   try {
-    const r = await importHotProducts({ kvGet, kvSet, env, fetchImpl, now, limit: 4 });
+    const r = await importHotProducts({ kvGet, kvSet, env, fetchImpl, now, limit: 6 });
     return { ok: r.ok, outcome: r.ok ? "IMPORTED" : r.error, imported: r.imported || 0 };
   } catch (e) {
     return { ok: false, outcome: "FAILED", error: String(e?.message || e).slice(0, 160) };

@@ -5,6 +5,7 @@
 //   GET  ?mode=growth-engine&op=status                    session: own studio, full log
 //   POST ?mode=growth-engine&op=run      { scope? }       cron bearer (platform + enabled studios),
 //                                                         admin/owner (any), session (own studio)
+//   POST ?mode=growth-engine&op=affiliate-choose { items:[{id,category?,link?}] }  AUTOPILOT_SECRET: the owner's trend-board picks → her studio
 //   POST ?mode=growth-engine&op=enable|disable|pause|resume|settings { scope?, settings? }
 //
 // Identity comes only from the server: a cron bearer (CRON_SECRET /
@@ -20,7 +21,7 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { PLATFORM_SCOPE, studioScope, parseScope, sanitizeSettings, ENGINE_QUOTA_KEY, KEYS } from "../../src/lib/growth/marketingEngine.js";
 import { runCycle, setControl, engineView, engineSweep } from "../../src/lib/cloud/marketingEngineRunner.js";
 import { planIncluding } from "../../src/lib/discovery/quotas.js";
-import { aeStatus, importHotProducts, repairSharedLinks, dailyAffiliateImport } from "./aliexpressAffiliate.mjs";
+import { aeStatus, importHotProducts, importChosenItems, repairSharedLinks, dailyAffiliateImport } from "./aliexpressAffiliate.mjs";
 import { sharedAffiliateLinks } from "../../src/lib/discovery/catalogIntegrity.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
@@ -104,6 +105,15 @@ export function createMarketingEngineHandler({
       if (req.method === "GET" && op === "affiliate-status") {
         const last = await kvGet("affiliate:aliexpress:last", null);
         json(res, { ok: true, provider: "aliexpress_affiliate_api", configured: aeStatus(env).configured, last }, 200, req);
+        return;
+      }
+
+      // The owner's picks from the trend board ("Add trend products", AUTOPILOT_SECRET):
+      // exactly these items, re-read on the server from her affiliate account.
+      if (req.method === "POST" && op === "affiliate-choose" && cronAuthorized(req)) {
+        const body = (await readBody(req).catch(() => null)) || {};
+        const out = await importChosenItems(Array.isArray(body.items) ? body.items : [], { kvGet, kvSet, env, fetchImpl, now: now() });
+        json(res, out, out.status || 200, req);
         return;
       }
 

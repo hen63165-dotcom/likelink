@@ -1,35 +1,46 @@
-// Which fields AliExpress's affiliate search really returns (field names, the
-// rating/orders formats and the coupon block), so the deals rules are built on
-// what the API answers and not on a guess. Prints no credential.
+// The deals the rules would pick today, per category, as contact sheets for a
+// person to look at before the first import (src/lib/growth/deals.js).
+//   node scripts/catalog/deals-probe.mjs <dir>
+// → <dir>/candidates.json (id, category, short title, ILS price, image) and
+//   <dir>/<category>.jpg (the photos, numbered). Prints no credential.
+import { execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { productsOf } from "./trend-finder.mjs";
+import { DEAL_CATEGORIES, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
 
+const dir = process.argv[2] || "deals-preview";
 const env = aeEnv(process.env);
 if (!aeStatus(env).configured) { console.log("REQUIRES_CONNECTION"); process.exit(0); }
-const out = [];
-for (const [method, keywords, extra] of [
-  ["aliexpress.affiliate.hotproduct.query", "women ring zircon", {}],
-  ["aliexpress.affiliate.product.query", "women earrings", {}],
-  ["aliexpress.affiliate.product.query", "home decor", { max_sale_price: "3000", min_sale_price: "500" }],
-]) {
+mkdirSync(dir, { recursive: true });
+const method = "aliexpress.affiliate.product.query";
+const all = [];
+for (const c of DEAL_CATEGORIES) {
+  let list = [];
   try {
-    const list = productsOf(await aeCall(method, {
-      keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
-      ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC", ...extra,
+    list = productsOf(await aeCall(method, {
+      keywords: c.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
+      ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
     }, { env }), method);
-    const keys = new Set(list.flatMap((x) => Object.keys(x || {})));
-    const promo = list.filter((x) => x?.promo_code_info);
-    out.push({
-      method, keywords, extra, n: list.length, keys: [...keys].sort(),
-      sample: list.slice(0, 4).map((x) => ({ evaluate_rate: x.evaluate_rate, lastest_volume: x.lastest_volume, discount: x.discount, target_sale_price: x.target_sale_price, target_original_price: x.target_original_price, sale_price: x.sale_price, cat1: x.first_level_category_name, cat2: x.second_level_category_name, shop: x.shop_id ? "yes" : "no" })),
-      prices: list.map((x) => Number(x.target_sale_price)).sort((a, b) => a - b),
-      withPromo: promo.length,
-      promoSample: promo.slice(0, 3).map((x) => x.promo_code_info),
-      rates: list.map((x) => x.evaluate_rate).slice(0, 30),
-      volumes: list.map((x) => x.lastest_volume).slice(0, 30),
-    });
   } catch (e) {
-    out.push({ method, keywords, error: String(e?.message || e).slice(0, 200) });
+    console.log(`${c.key}: ${String(e?.message || e).slice(0, 120)}`);
+    continue;
   }
+  const picks = rankDeals(list, c).slice(0, 8);
+  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules`);
+  const files = [];
+  picks.forEach((x, i) => {
+    const img = String(x.product_main_image_url || "").replace(/^\/\//, "https://");
+    const file = join(dir, `${c.key}-${i + 1}.jpg`);
+    try {
+      execFileSync("curl", ["-sSL", "--max-time", "20", "-o", file, img]);
+      execFileSync("convert", [file, "-resize", "360x360^", "-gravity", "center", "-extent", "360x360", file]);
+      files.push(["-label", `${i + 1}  ${x.product_id}  ILS ${x.target_sale_price}`, file]);
+    } catch { /* a photo that does not download is left out */ }
+    all.push({ n: i + 1, category: c.key, id: String(x.product_id), title: dealTitle(x, c), price: Number(x.target_sale_price), was: Number(x.target_original_price) || null, image: img, storeTitle: String(x.product_title || "").slice(0, 120) });
+  });
+  if (files.length) execFileSync("montage", [...files.flat(), "-tile", "4x", "-geometry", "+6+6", "-pointsize", "16", join(dir, `${c.key}.jpg`)]);
 }
-console.log(JSON.stringify(out, null, 1));
+writeFileSync(join(dir, "candidates.json"), JSON.stringify(all, null, 1));
+console.log(JSON.stringify(all.map(({ image, storeTitle, ...r }) => r)));

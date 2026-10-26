@@ -104,6 +104,12 @@ export const SHOP_CIRCLES = Object.freeze([
   { q: "ילדים", he: "ילדים", en: "Kids", words: ["ילדים", "תינוק", "kids", "baby"] },
   { q: "גיימינג", he: "גיימינג", en: "Gaming", words: ["גיימינג", "gaming", "gamer"] },
   { q: "אוזניות", he: "אוזניות", en: "Headphones", words: ["אוזניות", "headphone", "earbud"] },
+  // The deals import's kinds (src/lib/growth/deals.js `kind`), 2026-10-26: every category, not only jewellery.
+  { q: "שיער", he: "שיער", en: "Hair", words: ["שיער", " hair"] },
+  { q: "עיצוב הבית", he: "עיצוב הבית", en: "Home", words: ["עיצוב הבית", "home decor"] },
+  { q: "גאדג'טים", he: "גאדג'טים", en: "Gadgets", words: ["גאדג", "gadget"] },
+  { q: "כושר", he: "ספורט וכושר", en: "Fitness", words: ["כושר", "יוגה", "fitness", "yoga"] },
+  { q: "חיות מחמד", he: "חיות מחמד", en: "Pets", words: ["חיות מחמד", "לכלב", "לחתול", " pet "] },
 ]);
 export const MIN_CIRCLES = 2;
 
@@ -111,8 +117,13 @@ export const MIN_CIRCLES = 2;
 // never makes a circle. English words start at a word ("earring" is not a ring).
 const nameOf = (p) => ` ${String(p?.displayTitle || p?.title || "")} ${String(p?.category || "")} `.toLowerCase();
 
-/** The kind of item a product is (its own name/category only), or null. */
+/** The kind of item a product is (the kind the import gave it, else its own name/category only), or null. */
 export function circleOf(product) {
+  const kind = String(product?.kind || "").toLowerCase();
+  if (kind) {
+    const byKind = SHOP_CIRCLES.find((c) => c.en.toLowerCase() === kind);
+    if (byKind) return byKind;
+  }
   const name = nameOf(product);
   return SHOP_CIRCLES.find((c) => c.words.some((w) => name.includes(w))) || null;
 }
@@ -122,7 +133,7 @@ export function shopCircles(products = [], { limit = 8 } = {}) {
   const out = [];
   for (const c of SHOP_CIRCLES) {
     if (out.length >= limit) break;
-    const hit = products.find((p) => !used.has(p.id) && cleanImage(p) && c.words.some((w) => nameOf(p).includes(w)));
+    const hit = products.find((p) => !used.has(p.id) && cleanImage(p) && (circleOf(p) === c || c.words.some((w) => nameOf(p).includes(w))));
     if (!hit) continue;
     used.add(hit.id);
     out.push({ q: c.q, he: c.he, en: c.en, to: `/search?q=${encodeURIComponent(c.q)}`, image: cleanImage(hit).src, productId: hit.id });
