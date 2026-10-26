@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/catalog/deals-probe.mjs", "src/lib/growth/deals.js", ".github/workflows/deals-probe.yml"]
+    paths: ["scripts/catalog/deals-probe.mjs", "scripts/catalog/deals-sheet.py", "src/lib/growth/deals.js", ".github/workflows/deals-probe.yml"]
 permissions:
   contents: write
 jobs:
@@ -19,14 +19,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: ImageMagick (contact sheets)
-        run: sudo apt-get -qq update && sudo apt-get -qq install -y imagemagick >/dev/null
       - name: Today's deals by category
         env:
           ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
           ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
           ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
         run: node scripts/catalog/deals-probe.mjs deals-preview
+      - name: Contact sheets (Pillow)
+        run: |
+          python3 -c 'import PIL' 2>/dev/null || python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
+          python3 scripts/catalog/deals-sheet.py deals-preview
       - name: Contact sheets → the "deals-preview" pre-release (not the site)
         run: |
           gh release view deals-preview >/dev/null 2>&1 || gh release create deals-preview --prerelease --title "Deals preview (not on the site)" --notes "Candidates the deals rules would pick, for a person to look at before an import."
