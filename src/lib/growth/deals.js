@@ -58,7 +58,10 @@ export function positivePct(x = {}) {
 
 /** AliExpress's recent orders count (null when missing). */
 export function orderCount(x = {}) {
-  const n = Number(x.lastest_volume);
+  // Number(null) and Number("") are 0: a missing count is unknown, never zero orders.
+  const raw = x?.lastest_volume;
+  if (raw === null || raw === undefined || (typeof raw === "string" && !raw.trim())) return null;
+  const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
 

@@ -26,6 +26,9 @@ test("AliExpress's own numbers choose: 95%+ positive, 300+ orders, cheap for the
   assert.equal(positivePct({ evaluate_rate: "93.8%" }), 93.8);
   assert.equal(positivePct({}), null);
   assert.equal(orderCount({ lastest_volume: 1711 }), 1711);
+  for (const v of [null, undefined, "", " ", "abc"]) assert.equal(orderCount({ lastest_volume: v }), null, `${JSON.stringify(v)} is unknown, never 0`);
+  assert.equal(orderCount({ lastest_volume: 0 }), 0);
+  assert.equal(orderCount({ lastest_volume: "250" }), 250);
   assert.ok(dealCheck(item("1005001"), bracelets).ok);
   const why = (extra) => dealCheck(item("1005001", extra), bracelets).reason;
   assert.equal(why({ evaluate_rate: "94.9%" }), "rating_below_rule");

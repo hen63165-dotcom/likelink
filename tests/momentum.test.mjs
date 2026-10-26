@@ -22,6 +22,12 @@ const deal = (id, v, extra = {}) => ({
 test("one reading per item per day; the newest readings kept; bad rows and old items dropped", () => {
   let s = recordReadings(null, [deal("1005001", 100), deal("bad", 5), deal("1005002", undefined)], { category: "rings", now: ago(3) });
   assert.deepEqual(Object.keys(s.items), ["1005001"], "an id that is not an item number, or no order count, is not recorded");
+  // A missing count the same day never replaces a real reading with zero (Number(null) is 0).
+  for (const v of [null, "", "  ", "abc"]) {
+    const same = recordReadings(s, [deal("1005001", v)], { category: "rings", now: ago(3) + 60_000 });
+    assert.deepEqual(same.items["1005001"].r, [["2026-10-23", 100]], JSON.stringify(v));
+  }
+  assert.deepEqual(recordReadings(null, [deal("1005003", 0)], { now: NOW }).items["1005003"].r, [["2026-10-26", 0]], "a real zero is a reading");
   s = recordReadings(s, [deal("1005001", 110)], { category: "rings", now: ago(3) + 3_600_000 });
   assert.deepEqual(s.items["1005001"].r, [["2026-10-23", 110]], "a later reading the same day replaces it");
   for (let d = 2; d >= 0; d--) s = recordReadings(s, [deal("1005001", 120 + d)], { category: "rings", now: ago(d) });
