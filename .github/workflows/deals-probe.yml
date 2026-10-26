@@ -1,0 +1,24 @@
+# One-off check of the AliExpress affiliate search fields (deals rules).
+name: Deals probe
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/catalog/deals-probe.mjs", ".github/workflows/deals-probe.yml"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fields the search returns
+        env:
+          ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+          ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+          ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+        run: node scripts/catalog/deals-probe.mjs
