@@ -177,7 +177,7 @@ test("a pick may name the category it was chosen from; the cloud step sends it",
 
 test("wiring: the daily import and the trend board use the deals rules; the picks reach the cloud", () => {
   const ae = read("api/_utils/aliexpressAffiliate.mjs");
-  assert.match(ae, /rankDeals\(raw, category/);
+  assert.match(ae, /byMomentum\(rankDeals\(r\.raw, r\.category/, "the deals rules first, then demand momentum (tests/momentum.test.mjs)");
   assert.match(read("scripts/catalog/trend-finder.mjs"), /rankDeals\(await hotFor/);
   assert.match(read("api/_utils/marketingEngineHandler.mjs"), /op === "affiliate-choose" && cronAuthorized\(req\)/);
   const wf = read(".github/workflows/trend-add.yml");

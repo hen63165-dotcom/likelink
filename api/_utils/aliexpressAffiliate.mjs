@@ -103,57 +103,93 @@ function catalogKeys(products) {
 
 /**
  * Deals from the owner's affiliate account into the owner's studio
- * (src/lib/growth/deals.js): a few categories per run, in rotation, each
- * searched by AliExpress's recent orders; an item is added only when it is
- * cheap for its category, rated 95%+ with 300+ orders by AliExpress, not
- * named after a brand, and not already listed. Idempotent (by item id and by
- * link), capped per run, verified by read-back. The rating and orders are
- * used to choose and are never stored.
+ * (src/lib/growth/deals.js). Every category is read once per run, searched by
+ * AliExpress's recent orders, and each item's order count is recorded
+ * (src/lib/growth/momentum.js, server-only `deals:momentum`). New products
+ * come first from items whose demand is RISING in any category (fastest
+ * first), then from a few categories in rotation; a COOLING item is never
+ * added. An item is added only when it is cheap for its category, rated 95%+
+ * with 300+ orders by AliExpress, not named after a brand, and not already
+ * listed. Idempotent (by item id and by link), capped per run and per
+ * category, verified by read-back. The numbers are used to choose and are
+ * never stored on a product.
  */
-export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), limit = 6, perCategory = 2, categoryCount = 3 }) {
+export async function importHotProducts({ kvGet, kvSet, env: rawEnv = {}, fetchImpl, now = Date.now(), limit = 6, perCategory = 2, categoryCount = 3, budgetMs = 45_000 }) {
   const env = aeEnv(rawEnv);
   const st = aeStatus(env);
   if (!st.configured) return { ok: false, status: 409, error: "requires_connection", missing: st.missing };
-  const { nextCategories, rankDeals, toDealProduct } = await import("../../src/lib/growth/deals.js");
+  const { DEAL_CATEGORIES, nextCategories, rankDeals, toDealProduct } = await import("../../src/lib/growth/deals.js");
+  const { byMomentum, momentumIndex, momentumSummary, recordReadings } = await import("../../src/lib/growth/momentum.js");
   const marketerId = env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5";
   const last = await kvGet("affiliate:aliexpress:last", null);
   const { categories, cursor } = nextCategories(last?.cursor || 0, categoryCount);
   const products = arr(await kvGet("marketplace:products", null));
   if (!products.length) return { ok: false, status: 503, error: "kv_read_failed" };
   const have = catalogKeys(products);
-  const fresh = [];
-  const searched = [];
-  for (const category of categories) {
-    if (fresh.length >= limit) break;
-    const method = "aliexpress.affiliate.product.query";
-    const json = await aeCall(method, {
+  const started = Date.now();
+  // The rotation's categories first, so a slow run still adds from them.
+  const order = [...categories, ...DEAL_CATEGORIES.filter((c) => !categories.includes(c))];
+  const reads = await mapLimit(order, 4, async (category) => {
+    if (Date.now() - started > budgetMs) return { category, error: "time_budget" };
+    const json = await aeCall("aliexpress.affiliate.product.query", {
       keywords: category.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
       ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
-    }, { env, fetchImpl, now });
+    }, { env, fetchImpl, now }).catch((e) => ({ error: String(e?.message || e).slice(0, 80) }));
     const result = json?.aliexpress_affiliate_product_query_response?.resp_result;
-    if (!result || Number(result.resp_code) !== 200) {
-      searched.push({ category: category.key, error: result ? `aliexpress_resp_${result.resp_code}` : "aliexpress_no_result" });
-      continue;
-    }
-    const raw = arr(result.result?.products?.product);
-    let added = 0;
-    for (const x of rankDeals(raw, category, { exclude: have.ids })) {
-      if (added >= perCategory || fresh.length >= limit) break;
-      const p = toDealProduct(x, { category, marketerId, now });
-      if (!p || have.links.has(p.affiliateUrl)) continue;
-      fresh.push(p);
-      have.ids.add(p.aliexpressId);
-      have.links.add(p.affiliateUrl);
-      added += 1;
-    }
-    searched.push({ category: category.key, received: raw.length, added });
-  }
-  if (fresh.length) await kvSet("marketplace:products", [...products, ...fresh]);
+    if (!result || Number(result.resp_code) !== 200) return { category, error: json?.error || (result ? `aliexpress_resp_${result.resp_code}` : "aliexpress_no_result") };
+    return { category, raw: arr(result.result?.products?.product) };
+  });
+  let store = await kvGet("deals:momentum", null);
+  for (const r of reads) if (r.raw) store = recordReadings(store, r.raw, { category: r.category.key, now });
+  let momentumSaved = false;
+  try { await kvSet("deals:momentum", store); momentumSaved = true; } catch { /* a failed read is never written over */ }
+  const index = momentumIndex(store, { now });
+  const ranked = new Map(reads.filter((r) => r.raw).map((r) => [r.category.key, byMomentum(rankDeals(r.raw, r.category, { exclude: have.ids }), index)]));
+  const fresh = [];
+  const perCat = new Map();
+  const take = (category, x, why) => {
+    if (fresh.length >= limit || (perCat.get(category.key) || 0) >= perCategory) return;
+    if (have.ids.has(String(x.product_id))) return;
+    const p = toDealProduct(x, { category, marketerId, now });
+    if (!p || have.links.has(p.affiliateUrl)) return;
+    fresh.push({ p, why, category: category.key });
+    have.ids.add(p.aliexpressId);
+    have.links.add(p.affiliateUrl);
+    perCat.set(category.key, (perCat.get(category.key) || 0) + 1);
+  };
+  // 1. Rising demand anywhere, the fastest growth first.
+  const rising = reads
+    .filter((r) => r.raw)
+    .flatMap((r) => (ranked.get(r.category.key) || []).map((x) => ({ category: r.category, x, m: index.get(String(x.product_id)) })))
+    .filter(({ m }) => m?.state === "RISING")
+    .sort((a, b) => (b.m.growth || 0) - (a.m.growth || 0));
+  for (const { category, x } of rising) take(category, x, "rising");
+  // 2. The categories in turn (their deals, rising first, never cooling).
+  for (const category of categories) for (const x of ranked.get(category.key) || []) take(category, x, "rotation");
+  const searched = reads.map((r) => (r.raw ? { category: r.category.key, received: r.raw.length, added: perCat.get(r.category.key) || 0 } : { category: r.category.key, error: r.error }));
+  if (fresh.length) await kvSet("marketplace:products", [...products, ...fresh.map((f) => f.p)]);
   const back = fresh.length ? arr(await kvGet("marketplace:products", [])) : [];
-  const verified = fresh.filter((p) => back.some((b) => b?.id === p.id && b.affiliateUrl === p.affiliateUrl));
-  const summary = { at: new Date(now).toISOString(), source: "aliexpress.affiliate.product.query", rules: "deals-v1", cursor, searched, imported: verified.length, ids: verified.map((p) => p.id) };
+  const verified = fresh.filter(({ p }) => back.some((b) => b?.id === p.id && b.affiliateUrl === p.affiliateUrl));
+  const summary = {
+    at: new Date(now).toISOString(), source: "aliexpress.affiliate.product.query", rules: "deals-v2-momentum", cursor, searched,
+    momentum: { ...momentumSummary(index), saved: momentumSaved },
+    imported: verified.length, ids: verified.map(({ p }) => p.id), why: Object.fromEntries(verified.map(({ p, why }) => [p.id, why])),
+  };
   await kvSet("affiliate:aliexpress:last", summary);
   return { ok: verified.length === fresh.length, status: 200, ...summary };
+}
+
+/** Runs fn over items with at most `n` at a time, keeping the input order. */
+async function mapLimit(items, n, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  }));
+  return out;
 }
 
 /**

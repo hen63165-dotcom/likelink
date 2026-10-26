@@ -102,5 +102,6 @@ that the system filters the noise.
 | Creative Orchestrator (6 stages from real evidence, method registry, server-side paid lock) + Studio screen "מנוע הסרטונים" | Built 2026-10-17 (the screen needs a signed-in creator) |
 | Luna: passports, scores, goals, campaign drafts, marketing engine | Live |
 | TikTok engine: two ready posts a day (video, rendered photo-mode carousel, Luna tip, a script to film), learning from the owner's logged results | Built 2026-10-15 (the owner opens the account and posts; no API posting) |
+| Deals by category from AliExpress's own numbers (cheap for the kind, 95%+ positive, 300+ orders) with demand momentum: each item's order count read daily, rising items added first, cooling ones never; numbers used to choose only | Built 2026-10-26 (momentum needs a second reading 2+ days later; coupons: the affiliate API returns none) |
 | Conversions measured end-to-end for affiliate links | Not available (store-side data) |
 | Channels: site feed live; Instagram via owner-approved posting; others need connection | Partial |
