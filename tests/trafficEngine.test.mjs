@@ -52,8 +52,24 @@ test("the screen is calibrated by a real card's long side; bracelet advice is la
 test("the meter shows only catalog rings and bracelets the public site lists", () => {
   const { products } = listedFromSnapshot(snap);
   const list = products.map(({ product }) => ({ ...product, displayTitle: product.title }));
-  assert.deepEqual(sizeProducts(list, "ring").map((p) => p.id), ["p-live-01"]);
-  assert.deepEqual(sizeProducts(list, "bracelet").map((p) => p.id).sort(), ["p-live-02", "p-live-03", "p-live-04"]);
+  // The catalog grows (the deals, 2026-10-26: new rings and bracelets are listed
+  // too), so the rule is pinned, not a fixed list of ids: every product the meter
+  // shows is a listed ring/bracelet by its own name, and never an earring.
+  const listed = new Set(list.map((p) => p.id));
+  const rings = sizeProducts(list, "ring", 100);
+  const bracelets = sizeProducts(list, "bracelet", 100);
+  assert.ok(rings.some((p) => p.id === "p-live-01"));
+  for (const id of ["p-live-02", "p-live-03", "p-live-04"]) assert.ok(bracelets.some((p) => p.id === id), id);
+  for (const p of rings) {
+    assert.ok(listed.has(p.id), p.id);
+    assert.match(p.title, /טבעת|ring/i, p.id);
+    assert.doesNotMatch(p.title, /עגיל|earring/i, `${p.id}: an earring is not a ring`);
+  }
+  for (const p of bracelets) {
+    assert.ok(listed.has(p.id), p.id);
+    assert.match(p.title, /צמיד|bracelet|שרשרת יד|hand chain/i, p.id);
+  }
+  assert.ok(sizeProducts(list, "ring").length <= 6 && sizeProducts(list, "bracelet").length <= 6, "the page shows a few, not the whole shop");
 });
 
 test("/size is a real public page on every host, with its own head for search", () => {
