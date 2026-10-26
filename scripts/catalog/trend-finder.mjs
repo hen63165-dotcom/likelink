@@ -21,7 +21,7 @@ import { aeCall, aeEnv, aeStatus, toProduct } from "../../api/_utils/aliexpressA
 import { aliItemId, applyFacts, resolveFromLink, storeFacts } from "./sync-aliexpress.mjs";
 import { readTrends } from "../marketing/daily-drop.mjs";
 import { PER_CATEGORY, TREND_CATEGORIES, buildBoard, parseItems } from "../../src/lib/growth/trendBoard.js";
-import { DEAL_RULES, dealCategory, guessCategory, rankDeals, toDealProduct } from "../../src/lib/growth/deals.js";
+import { DEAL_RULES, dealCategory, guessCategory, ownerPickCheck, rankDeals, toDealProduct } from "../../src/lib/growth/deals.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const SNAPSHOT = join(ROOT, "public/snapshot/kv.json");
@@ -194,6 +194,10 @@ export async function addItems(items, { env: rawEnv = process.env, now = Date.no
     if (haveIds.has(id)) { report.push({ id, status: "ALREADY_ON_SITE" }); continue; }
     // The same product the cloud gets (src/lib/growth/deals.js: short title, kind, store facts) when its category is known.
     const cat = x ? dealCategory(category) || guessCategory(x) : null;
+    // The same rules the cloud applies to her picks (brand names, unlisted kinds); a
+    // missing shekel price is reported below as MISSING_REAL_FIELDS.
+    const check = x ? ownerPickCheck(x, cat) : { ok: true };
+    if (!check.ok && check.reason !== "no_ils_price") { report.push({ id, status: check.reason.toUpperCase() }); continue; }
     const dealt = cat ? toDealProduct(x, { category: cat, marketerId: owner, now, link }) : null;
     // With her own link the API's promotion_link is not needed (it may be missing or http://).
     const base = dealt || (x ? toProduct(link ? { ...x, promotion_link: link } : x, { marketerId: owner, now }) : null);

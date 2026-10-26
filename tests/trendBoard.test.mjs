@@ -216,12 +216,14 @@ test("adding: only the typed items, re-read from the API, as the owner's product
         item("1005001111111111"),
         item("1005006666666666", { promotion_link: usedLink }),
         item("1005007777777777", { target_sale_price_currency: "USD" }),
+        // Her pick, but a brand's name on AliExpress is an imitation: the same rule the cloud applies.
+        item("1005009999999999", { product_title: "Pandora style bracelet" }),
       ],
     });
-    const r = await addItems(["1005001111111111", "1005006666666666", "1005007777777777", "1005008888888888"], { env: ENV, now: NOW, fetchImpl: api.impl, snapshot: snap.file });
+    const r = await addItems(["1005001111111111", "1005006666666666", "1005007777777777", "1005008888888888", "1005009999999999"], { env: ENV, now: NOW, fetchImpl: api.impl, snapshot: snap.file });
     assert.equal(r.outcome, "OK");
-    assert.deepEqual(r.report.map((x) => x.status), ["ADDED", "LINK_ALREADY_USED", "MISSING_REAL_FIELDS", "NOT_RETURNED"]);
-    assert.equal(api.calls[0].product_ids, "1005001111111111,1005006666666666,1005007777777777,1005008888888888");
+    assert.deepEqual(r.report.map((x) => x.status), ["ADDED", "LINK_ALREADY_USED", "MISSING_REAL_FIELDS", "NOT_RETURNED", "BRAND_NAME"]);
+    assert.equal(api.calls[0].product_ids, "1005001111111111,1005006666666666,1005007777777777,1005008888888888,1005009999999999");
     const after = JSON.parse(readFileSync(snap.file, "utf8"));
     const list = after.keys["marketplace:products"];
     assert.equal(list.length, before.keys["marketplace:products"].length + 1);

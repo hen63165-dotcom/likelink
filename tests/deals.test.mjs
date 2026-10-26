@@ -6,10 +6,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   DEAL_CATEGORIES, DEAL_RULES, cleanStoreTitle, dealCategory, dealCheck, dealTitle, guessCategory, nextCategories,
-  orderCount, positivePct, rankDeals, toDealProduct,
+  orderCount, ownerPickCheck, positivePct, rankDeals, toDealProduct,
 } from "../src/lib/growth/deals.js";
 import { importChosenItems } from "../api/_utils/aliexpressAffiliate.mjs";
-import { circleOf } from "../src/lib/homeShowcase.js";
+import { circleOf, shopCircles } from "../src/lib/homeShowcase.js";
 import { productKind } from "../src/lib/siteMap.js";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -26,6 +26,9 @@ test("AliExpress's own numbers choose: 95%+ positive, 300+ orders, cheap for the
   assert.equal(positivePct({ evaluate_rate: "93.8%" }), 93.8);
   assert.equal(positivePct({}), null);
   assert.equal(orderCount({ lastest_volume: 1711 }), 1711);
+  for (const v of [null, undefined, "", " ", "abc"]) assert.equal(orderCount({ lastest_volume: v }), null, `${JSON.stringify(v)} is unknown, never 0`);
+  assert.equal(orderCount({ lastest_volume: 0 }), 0);
+  assert.equal(orderCount({ lastest_volume: "250" }), 250);
   assert.ok(dealCheck(item("1005001"), bracelets).ok);
   const why = (extra) => dealCheck(item("1005001", extra), bracelets).reason;
   assert.equal(why({ evaluate_rate: "94.9%" }), "rating_below_rule");
@@ -109,16 +112,65 @@ test("the owner's picks: re-read on the server, category from the store's own wo
   assert.equal(guessCategory({ product_title: "שרשרת יד מואסניט" }).key, "bracelets", "a hand chain is a bracelet");
   assert.equal(guessCategory({ product_title: "Night light", second_level_category_name: "בית תפאורה" }).key, "home");
   assert.equal(guessCategory({ product_title: "something" }), null);
+  // A Latin word counts only as a whole word: "ring" is inside "earrings" and "keyring".
+  assert.equal(guessCategory({ product_title: "Women Hoop Earrings" }).key, "earrings");
+  assert.equal(guessCategory({ product_title: "x", second_level_category_name: "Earrings" }).key, "earrings");
+  assert.equal(guessCategory({ product_title: "Keyring holder" }), null);
+  assert.equal(guessCategory({ product_title: "Crossbody Handbag" }).key, "bags");
+  assert.equal(guessCategory({ product_title: "Rings Set" }).key, "rings");
   const db = new Map([["marketplace:products", [{ id: "p-live-01", aliexpressId: "1005009", affiliateUrl: "https://s.click.aliexpress.com/e/_x" }]]]);
   const kv = { kvGet: async (k, fb) => (db.has(k) ? structuredClone(db.get(k)) : fb), kvSet: async (k, v) => { db.set(k, structuredClone(v)); } };
-  const products = [item("1005001"), item("1005002", { product_title: "Pandora bracelet" }), item("1005009")];
+  const products = [
+    item("1005001"), item("1005002", { product_title: "Pandora bracelet" }), item("1005009"),
+    // Above the category's cap: her choice lifts the cap, never the brand rule (it used to skip it).
+    item("1005003", { product_title: "Pandora bracelet", target_sale_price: "300.00" }),
+    // The detail answer without the rating and orders: her choice stands in for them.
+    item("1005004", { product_title: "צמיד חרוזים", evaluate_rate: undefined, lastest_volume: undefined, target_sale_price: "120.00" }),
+  ];
   const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: products } } } } }) });
-  const r = await importChosenItems([{ id: "1005001" }, { id: "1005002" }, { id: "1005009" }, { id: "1005077" }, { id: "bad" }], { ...kv, env: ENV, fetchImpl, now: NOW });
-  assert.deepEqual(r.report.map((x) => [x.id, x.status]), [["1005001", "ADDED"], ["1005002", "BRAND_NAME"], ["1005009", "ALREADY_ON_SITE"], ["1005077", "NOT_RETURNED"]]);
-  assert.equal(r.added, 1);
+  const picks = ["1005001", "1005002", "1005009", "1005077", "bad", "1005003", "1005004"].map((id) => ({ id }));
+  const r = await importChosenItems(picks, { ...kv, env: ENV, fetchImpl, now: NOW });
+  assert.deepEqual(r.report.map((x) => [x.id, x.status]), [
+    ["1005001", "ADDED"], ["1005002", "BRAND_NAME"], ["1005009", "ALREADY_ON_SITE"], ["1005077", "NOT_RETURNED"], ["1005003", "BRAND_NAME"], ["1005004", "ADDED"],
+  ]);
+  assert.equal(r.added, 2);
   assert.equal(db.get("marketplace:products").find((p) => p.id === "ae-1005001").kind, "bracelets");
-  assert.equal(db.get("catalog:import:log")[0].report.length, 4);
+  assert.equal(db.get("catalog:import:log")[0].report.length, 6);
   assert.equal((await importChosenItems([{ id: "1005001" }], { ...kv, env: {}, fetchImpl })).error, "requires_connection");
+});
+
+test("the owner's own pick: no rating, orders or cap needed, but the brand and kind rules always hold", () => {
+  const plain = item("1005001", { product_title: "צמיד חרוזים", target_sale_price: "300.00", evaluate_rate: undefined, lastest_volume: undefined });
+  assert.equal(dealCheck(plain, bracelets).ok, false, "the deals rules alone would refuse it");
+  assert.deepEqual(ownerPickCheck(plain, bracelets), { ok: true });
+  assert.deepEqual(ownerPickCheck(plain, null), { ok: true }, "a category is not needed for the check");
+  assert.equal(ownerPickCheck({ ...plain, product_title: "Cartier love bracelet" }, bracelets).reason, "brand_name", "the cap is lifted, the brand rule is not");
+  assert.equal(ownerPickCheck({ ...plain, product_title: "צמיד העתק של מותג" }, bracelets).reason, "not_listed_kind");
+  assert.equal(ownerPickCheck({ ...plain, target_sale_price_currency: "USD" }, bracelets).reason, "no_ils_price");
+  assert.equal(ownerPickCheck({ ...plain, lastest_volume: 0 }, bracelets).ok, true, "a real zero is her call too");
+  for (const odd of [{ evaluate_rate: "" }, { evaluate_rate: "n/a" }, { lastest_volume: "abc" }, { lastest_volume: "" }, { evaluate_rate: "50%", lastest_volume: 3 }]) {
+    assert.deepEqual(ownerPickCheck({ ...plain, ...odd }, bracelets), { ok: true }, `${JSON.stringify(odd)}: the numbers never decide her pick`);
+  }
+});
+
+test("Hebrew whole words: \\b knows only Latin letters", () => {
+  const ok = (t) => dealCheck(item("1005001", { product_title: t }), bracelets).ok;
+  assert.equal(ok("צמיד העתק"), false);
+  assert.equal(ok("צמיד העתק של מותג"), false);
+  assert.equal(ok("צמיד בהעתקה עדינה"), true, "a longer word is not the word");
+  assert.equal(dealTitle(item("1005001", { product_title: "שרשרת לב זהב" }), dealCategory("necklaces")), "שרשרת · לב");
+  assert.equal(dealTitle(item("1005001", { product_title: "שרשרת לבנה" }), dealCategory("necklaces")), "שרשרת", "לבנה (white) is not a heart");
+});
+
+test("a product of a known kind is the picture of that kind's circle only", () => {
+  const p = (id, title, kind) => ({ id, title, displayTitle: title, kind, category: "Accessories", media: { image: "https://ae01.alicdn.com/kf/x.jpg" }, image: "https://ae01.alicdn.com/kf/x.jpg" });
+  // Ids with a clean picture on the site (src/lib/looks.js), so each one can be a circle.
+  const circles = shopCircles([p("p-live-05", "עגילי טבעת לאוזן", "earrings"), p("p-live-01", "טבעת · זרקון", "rings"), p("p-live-04", "שרשרת יד · פרפר", "bracelets")]);
+  const byHe = Object.fromEntries(circles.map((c) => [c.he, c.productId]));
+  assert.equal(byHe["טבעות"], "p-live-01", "an earring whose store name says ring is never the rings' picture");
+  assert.equal(byHe["עגילים"], "p-live-05");
+  assert.equal(byHe["צמידים"], "p-live-04");
+  assert.equal(byHe["שרשראות"], undefined, "a hand chain of kind bracelets is never the necklaces' picture");
 });
 
 test("a pick may name the category it was chosen from; the cloud step sends it", async () => {
@@ -131,7 +183,7 @@ test("a pick may name the category it was chosen from; the cloud step sends it",
 
 test("wiring: the daily import and the trend board use the deals rules; the picks reach the cloud", () => {
   const ae = read("api/_utils/aliexpressAffiliate.mjs");
-  assert.match(ae, /rankDeals\(raw, category/);
+  assert.match(ae, /byMomentum\(rankDeals\(r\.raw, r\.category/, "the deals rules first, then demand momentum (tests/momentum.test.mjs)");
   assert.match(read("scripts/catalog/trend-finder.mjs"), /rankDeals\(await hotFor/);
   assert.match(read("api/_utils/marketingEngineHandler.mjs"), /op === "affiliate-choose" && cronAuthorized\(req\)/);
   const wf = read(".github/workflows/trend-add.yml");
