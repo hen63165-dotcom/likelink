@@ -1,1 +1,1 @@
-{"jobs": "pilot-hoops.json", "only": "", "stage": "animate", "from_run": "40555160241"}
+{"jobs": "pilot-hoops.json", "only": "hook-shirt,hook-shirt-2,cta", "stage": "all"}

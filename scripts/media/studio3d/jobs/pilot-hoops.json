@@ -13,9 +13,15 @@
     },
     {
       "id": "hook-shirt",
-      "seed": 93002,
-      "prompt": "close-up of a plain white cotton t-shirt lying flat on a made bed, the t-shirt is a cute cartoon character with big glossy eyes and a small pouting mouth, looking bored and sad up at the camera, morning window light",
-      "motion": "the cartoon t-shirt slowly blinks its big glossy eyes and sighs, its sleeves droop, the camera slowly pushes in"
+      "seed": 93012,
+      "prompt": "a cute anthropomorphic white cotton t-shirt mascot lying flat on a neatly made bed, the t-shirt itself has two big glossy cartoon eyes and a small pouting mouth on its chest, its short sleeves like little arms, it looks bored and sad up at the camera, top-down view, soft morning window light",
+      "motion": "the t-shirt mascot slowly blinks its big eyes and sighs, its little sleeves droop, the camera slowly pushes in"
+    },
+    {
+      "id": "hook-shirt-2",
+      "seed": 93022,
+      "prompt": "a plain white t-shirt laid flat on a pink bedspread, the t-shirt is a cartoon character with big shiny eyes and a tiny frowning mouth printed on the fabric, looking bored, its sleeves spread out like arms, flat lay seen from above, cozy bedroom, warm morning light",
+      "motion": "the t-shirt mascot slowly blinks its big eyes and sighs, its little sleeves droop, the camera slowly pushes in"
     },
     {
       "id": "mirror",
@@ -34,9 +40,9 @@
     {
       "id": "cta",
       "character": true,
-      "seed": 93005,
-      "prompt": "medium shot, she smiles brightly at the camera and points down toward the bottom of the frame with one finger, excited, bright bedroom background",
-      "motion": "she smiles brightly and points down with one finger, nodding, the camera holds steady"
+      "seed": 93015,
+      "prompt": "medium shot, she smiles brightly at the camera and points straight down at the floor with her index finger, her arm stretched downward, excited, bright bedroom background",
+      "motion": "she smiles and points down with her finger, nodding toward the bottom of the frame, the camera holds steady"
     }
   ],
   "episode": {
@@ -100,5 +106,14 @@
     "send": "שלחי לחברה שתמיד בחולצה לבנה",
     "keyword": "רוצה",
     "presenter": "shira"
+  },
+  "face": {
+    "from": "hero",
+    "box": [
+      0.22,
+      0.05,
+      0.76,
+      0.355
+    ]
   }
 }
