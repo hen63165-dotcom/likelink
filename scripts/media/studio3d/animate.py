@@ -43,6 +43,14 @@ def checkpoint():
         raise SystemExit(f"no 2B distilled checkpoint in {FILES_REPO}")
     best = max(names, key=lambda f: tuple(int(x) for x in CHECKPOINT.match(f).groups()))
     note(source="ltx", used=FILES_REPO, path=best, gated=getattr(info, "gated", None), license=lic)
+    try:  # the licence's own words, for the record (its name in the card is only "other")
+        from huggingface_hub import hf_hub_download
+        names = [f for f in api.list_repo_files(FILES_REPO) if re.search(r"licen[cs]e", f, re.I)]
+        for name in names[:2]:
+            text = open(hf_hub_download(FILES_REPO, name), encoding="utf-8", errors="replace").read()
+            note(licence_file=name, head=re.sub(r"\s+", " ", text)[:1500])
+    except Exception as exc:  # noqa: BLE001
+        note(licence_file=None, error=str(exc)[:160])
     return f"https://huggingface.co/{FILES_REPO}/blob/main/{best}"
 
 
@@ -98,6 +106,15 @@ def main():
                              lambda how, repo, sub: FlowMatchEulerDiscreteScheduler.from_pretrained(repo, subfolder=sub))
     if scheduler is None:
         raise SystemExit("no scheduler config answered")
+    # Decoding 97 frames at once needs ~20 GB on the CPU (the first run's
+    # runner was shut down there): the VAE decodes in small tiles, a few
+    # frames at a time, overlapping so the seams blend.
+    try:
+        vae.enable_tiling(tile_sample_min_height=256, tile_sample_min_width=256, tile_sample_min_num_frames=16,
+                          tile_sample_stride_height=192, tile_sample_stride_width=192, tile_sample_stride_num_frames=8)
+    except TypeError:
+        vae.enable_tiling()
+    vae.use_framewise_decoding = True
     pipe = LTXConditionPipeline(scheduler=scheduler, vae=vae, text_encoder=None, tokenizer=None, transformer=transformer)
     pipe.set_progress_bar_config(disable=True)
     note(stage="loaded", s=round(time.time() - t0))
