@@ -156,7 +156,7 @@ jobs:
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots
       - name: The newest committed pictures (animate only)
-        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == '
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == ''
         env:
           NAME: ${{ needs.plan.outputs.name }}
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME"
@@ -216,7 +216,7 @@ jobs:
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots
       - name: The newest committed pictures and clips
-        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == '
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == ''
         env:
           NAME: ${{ needs.plan.outputs.name }}
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
