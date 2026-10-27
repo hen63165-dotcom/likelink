@@ -52,6 +52,15 @@ jobs:
           df -h / /mnt | tail -2
           free -g | head -2
           nproc
+      - name: Which model copies are open (no sign-in)
+        run: |
+          for r in city96/FLUX.1-schnell-gguf openai/clip-vit-large-patch14 google/t5-v1_1-xxl \
+                   city96/t5-v1_1-xxl-encoder-bf16 comfyanonymous/flux_text_encoders \
+                   Comfy-Org/Lumina_Image_2.0_Repackaged Comfy-Org/z_image_turbo Comfy-Org/HiDream-I1_ComfyUI \
+                   Tongyi-MAI/Z-Image-Turbo madebyollin/taef1; do
+            g=$(curl -sS -m 20 "https://huggingface.co/api/models/$r" | python3 -c "import sys,json; d=json.load(sys.stdin); print('gated=' + str(d.get('gated')), 'files=' + str(len(d.get('siblings', []))))" 2>/dev/null || echo "not found")
+            echo "$r: $g"
+          done
       - name: Install (CPU torch + diffusers with GGUF)
         run: |
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu

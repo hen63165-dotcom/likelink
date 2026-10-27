@@ -11,6 +11,13 @@ whole, so it runs in two passes:
   2. the transformer (a public 4-bit GGUF of the same weights,
      city96/FLUX.1-schnell-gguf) and the VAE draw each picture in 4 steps.
 
+black-forest-labs' own repository asks every downloader to sign in (the first
+run, 2026-10-27: 401 GatedRepoError), so the pipeline is put together from
+open copies of the same parts, with the configs written here: CLIP-L
+(openai, MIT), the T5-XXL encoder (Apache-2.0), the GGUF transformer and the
+FLUX autoencoder (Apache-2.0, from the first open source that answers; the
+tiny open TAEF1 decoder, MIT, only when none does — the log says which).
+
 It draws ORIGINAL characters and talking objects only. A product is never
 drawn: the reel shows its real photo (a drawn bracelet would be a promise
 the seller never made). Hebrew is never drawn either; captions are
@@ -22,11 +29,39 @@ Writes DIR/<id>.png and one JSON line per picture (id, seconds, bytes).
 """
 import argparse, gc, json, os, sys, time
 
-REPO = "black-forest-labs/FLUX.1-schnell"
 GGUF = os.environ.get(
     "FLUX_GGUF",
     "https://huggingface.co/city96/FLUX.1-schnell-gguf/blob/main/flux1-schnell-Q4_K_S.gguf",
 )
+CLIP = "openai/clip-vit-large-patch14"
+T5_TOKENIZER = "google/t5-v1_1-xxl"  # its config and tokenizer only (small files)
+# The T5-XXL encoder: a diffusers-ready encoder-only copy, else the single
+# encoder file ComfyUI ships (same tensor names as transformers' T5EncoderModel).
+T5_SOURCES = [("pretrained", "city96/t5-v1_1-xxl-encoder-bf16", None),
+              ("file", "comfyanonymous/flux_text_encoders", "t5xxl_fp16.safetensors")]
+# The FLUX autoencoder ("ae", Apache-2.0 with FLUX.1 [schnell]); other open
+# models ship the very same file, so the first open copy that answers is used.
+VAE_SOURCES = [("file", "Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/vae/ae.safetensors"),
+               ("file", "Comfy-Org/z_image_turbo", "split_files/vae/ae.safetensors"),
+               ("file", "Comfy-Org/HiDream-I1_ComfyUI", "split_files/vae/ae.safetensors"),
+               ("pretrained", "Tongyi-MAI/Z-Image-Turbo", "vae")]
+TINY_VAE = "madebyollin/taef1"
+
+# FLUX.1 [schnell]'s own configs (the gated repository's model_index parts).
+TRANSFORMER_CONFIG = {
+    "_class_name": "FluxTransformer2DModel", "attention_head_dim": 128, "guidance_embeds": False,
+    "in_channels": 64, "joint_attention_dim": 4096, "num_attention_heads": 24, "num_layers": 19,
+    "num_single_layers": 38, "patch_size": 1, "pooled_projection_dim": 768, "axes_dims_rope": [16, 56, 56],
+}
+VAE_CONFIG = {
+    "_class_name": "AutoencoderKL", "act_fn": "silu", "block_out_channels": [128, 256, 512, 512],
+    "down_block_types": ["DownEncoderBlock2D"] * 4, "up_block_types": ["UpDecoderBlock2D"] * 4,
+    "force_upcast": True, "in_channels": 3, "out_channels": 3, "latent_channels": 16, "layers_per_block": 2,
+    "mid_block_add_attention": True, "norm_num_groups": 32, "sample_size": 1024,
+    "scaling_factor": 0.3611, "shift_factor": 0.1159, "use_post_quant_conv": False, "use_quant_conv": False,
+}
+SCHEDULER_CONFIG = {"num_train_timesteps": 1000, "shift": 1.0, "use_dynamic_shifting": False, "base_shift": 0.5,
+                    "max_shift": 1.15, "base_image_seq_len": 256, "max_image_seq_len": 4096}
 # No studio or artist names (a style is described, never borrowed). FLUX has
 # no negative prompt and reads "no X" as a hint of X, so nothing unwanted is
 # named at all: the clothes are "plain", and ears, wrists and necks are never
@@ -39,6 +74,79 @@ def prompt_of(spec, shot):
     character's fixed look when she is in it, the shot, and the guard."""
     parts = [spec.get("style", ""), spec.get("character", "") if shot.get("character") else "", shot["prompt"], GUARD]
     return ", ".join(p.strip().rstrip(".") for p in parts if p and p.strip())
+
+
+def write_configs(root):
+    """The transformer and VAE configs as a local folder (from_single_file reads them there)."""
+    for sub, cfg in (("transformer", TRANSFORMER_CONFIG), ("vae", VAE_CONFIG)):
+        os.makedirs(os.path.join(root, sub), exist_ok=True)
+        with open(os.path.join(root, sub, "config.json"), "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
+    return root
+
+
+def note(**kw):
+    print(json.dumps(kw), flush=True)
+
+
+def first_source(kind, sources, load):
+    """The first source that loads; every refusal is logged (short), none is fatal here."""
+    for src in sources:
+        try:
+            obj = load(*src)
+            note(source=kind, used=src[1], path=src[2])
+            return obj
+        except Exception as exc:  # noqa: BLE001 (a closed or missing copy: try the next)
+            note(source=kind, refused=src[1], error=f"{type(exc).__name__}: {str(exc)[:160]}")
+    return None
+
+
+def load_t5(torch):
+    from huggingface_hub import hf_hub_download
+    from safetensors.torch import load_file
+    from transformers import T5Config, T5EncoderModel
+
+    def load(how, repo, path):
+        if how == "pretrained":
+            return T5EncoderModel.from_pretrained(repo, torch_dtype=torch.bfloat16)
+        cfg = T5Config.from_pretrained(T5_TOKENIZER)
+        with torch.device("meta"):  # no second copy in memory: the file's tensors are used as they are
+            model = T5EncoderModel(cfg)
+        state = load_file(hf_hub_download(repo, path))
+        missing, _ = model.load_state_dict(state, strict=False, assign=True)
+        del state
+        model.tie_weights()  # encoder.embed_tokens is "shared"
+        missing = [k for k in missing if k != "encoder.embed_tokens.weight"]
+        if missing:
+            raise RuntimeError(f"missing {len(missing)} tensors, e.g. {missing[:3]}")
+        return model.to(torch.bfloat16).eval()
+
+    t5 = first_source("t5", T5_SOURCES, load)
+    if t5 is None:
+        raise SystemExit("no open copy of the T5-XXL encoder answered")
+    return t5
+
+
+def load_vae(torch, cfg_root):
+    from diffusers import AutoencoderKL, AutoencoderTiny
+    from huggingface_hub import hf_hub_download
+
+    def load(how, repo, path):
+        if how == "pretrained":
+            vae = AutoencoderKL.from_pretrained(repo, subfolder=path, torch_dtype=torch.float32)
+            if vae.config.latent_channels != 16:
+                raise RuntimeError(f"not the FLUX autoencoder (latent_channels={vae.config.latent_channels})")
+            # The same weights as FLUX's "ae": its own scaling and shift.
+            vae.register_to_config(scaling_factor=VAE_CONFIG["scaling_factor"], shift_factor=VAE_CONFIG["shift_factor"])
+            return vae
+        return AutoencoderKL.from_single_file(hf_hub_download(repo, path), config=cfg_root, subfolder="vae",
+                                              torch_dtype=torch.float32)
+
+    vae = first_source("vae", VAE_SOURCES, load)
+    if vae is None:
+        vae = AutoencoderTiny.from_pretrained(TINY_VAE, torch_dtype=torch.float32)
+        note(source="vae", used=TINY_VAE, path="tiny", warning="full autoencoder unavailable; finer detail is softer")
+    return vae
 
 
 def main():
@@ -54,13 +162,22 @@ def main():
     shots = [s for s in spec["shots"] if not a.only or s["id"] in a.only.split(",")]
     os.makedirs(a.out, exist_ok=True)
 
+    import tempfile
     import torch
-    from diffusers import FluxPipeline, FluxTransformer2DModel, GGUFQuantizationConfig
+    from diffusers import FlowMatchEulerDiscreteScheduler, FluxPipeline, FluxTransformer2DModel, GGUFQuantizationConfig
+    from transformers import CLIPTextModel, CLIPTokenizer, T5TokenizerFast
 
     torch.set_num_threads(os.cpu_count() or 4)
+    cfg_root = write_configs(tempfile.mkdtemp(prefix="flux-cfg-"))
+    scheduler = FlowMatchEulerDiscreteScheduler(**SCHEDULER_CONFIG)
     t0 = time.time()
     # Pass 1: the prompts become embeddings; the encoders are freed after.
-    enc = FluxPipeline.from_pretrained(REPO, transformer=None, vae=None, torch_dtype=torch.bfloat16)
+    enc = FluxPipeline(
+        scheduler=scheduler, vae=None, transformer=None,
+        text_encoder=CLIPTextModel.from_pretrained(CLIP, torch_dtype=torch.bfloat16),
+        tokenizer=CLIPTokenizer.from_pretrained(CLIP),
+        text_encoder_2=load_t5(torch), tokenizer_2=T5TokenizerFast.from_pretrained(T5_TOKENIZER),
+    )
     embeds = {}
     with torch.no_grad():
         for s in shots:
@@ -69,7 +186,7 @@ def main():
             embeds[s["id"]] = (pe.float(), ppe.float())
     del enc
     gc.collect()
-    print(json.dumps({"stage": "encoded", "shots": len(shots), "s": round(time.time() - t0)}), flush=True)
+    note(stage="encoded", shots=len(shots), s=round(time.time() - t0))
 
     # Pass 2: the 4-bit transformer computes in float32 (the runner's CPU has
     # no native bf16, so float32 is the fast path here).
@@ -77,13 +194,16 @@ def main():
         GGUF,
         quantization_config=GGUFQuantizationConfig(compute_dtype=torch.float32),
         torch_dtype=torch.float32,
-        config=REPO,
+        config=cfg_root,
         subfolder="transformer",
     )
-    pipe = FluxPipeline.from_pretrained(
-        REPO, transformer=transformer, text_encoder=None, text_encoder_2=None,
-        tokenizer=None, tokenizer_2=None, torch_dtype=torch.float32,
+    pipe = FluxPipeline(
+        scheduler=scheduler, vae=None, transformer=transformer,
+        text_encoder=None, tokenizer=None, text_encoder_2=None, tokenizer_2=None,
     )
+    pipe.vae = load_vae(torch, cfg_root)  # after: the tiny decoder has no block_out_channels (scale stays 8)
+    pipe.set_progress_bar_config(disable=True)
+    note(stage="loaded", s=round(time.time() - t0))
     for s in shots:
         t = time.time()
         pe, ppe = embeds[s["id"]]
@@ -96,7 +216,7 @@ def main():
             ).images[0]
         path = os.path.join(a.out, f"{s['id']}.png")
         img.save(path)
-        print(json.dumps({"id": s["id"], "s": round(time.time() - t), "bytes": os.path.getsize(path)}), flush=True)
+        note(id=s["id"], s=round(time.time() - t), bytes=os.path.getsize(path))
     return 0
 
 
