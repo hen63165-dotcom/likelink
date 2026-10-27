@@ -89,6 +89,7 @@ class Episode:
     look: str = ""       # "story": Luna's scenes, yellow captions on a dark box, the name tag
     send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
     presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
+    studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/out/<name>/): its pictures are the scenes
 
     @property
     def beats(self) -> list[Line]:
@@ -122,6 +123,7 @@ def _line(raw, where: str) -> Line:
 
 
 SCENE_NAME = re.compile(r"[a-z0-9][a-z0-9-]{1,40}")
+STUDIO_NAME = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 SCENE_CLIP = re.compile(r"video:https://[^\s\"'<>]{8,300}")
 LOOKS = ("", "story")
 
@@ -207,11 +209,18 @@ def parse_episode(data: dict) -> Episode:
             raise ScriptError("a presenter belongs to the story look")
         if brand.cast_member(presenter) is None:
             raise ScriptError(f"presenter '{presenter}' is not in the cast (scripts/media/ai-image/cast.json)")
+    studio = str(data.get("studio") or "")
+    if studio:
+        if look != "story":
+            raise ScriptError("a 3D studio shot list belongs to the story look")
+        if not STUDIO_NAME.fullmatch(studio):
+            raise ScriptError("studio: the shot list's name (lowercase letters, digits, '-')")
     return Episode(id=eid, goal=goal, hook=hook, lines=lines, product=product, cta=cta, hashtags=hashtags[:8],
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
-                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter)
+                   keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter,
+                   studio=studio)
 
 
 def _send(value) -> str:
@@ -266,20 +275,47 @@ def load_episode(path: str | Path) -> Episode:
     return parse_text_script(text, eid=re.sub(r"[^a-z0-9-]+", "-", path.stem.lower()).strip("-") or "episode")
 
 
-def load_catalog(snapshot_path: str | Path) -> dict[str, dict]:
-    """The products the public site lists, from the catalog copy it ships."""
-    doc = json.loads(Path(snapshot_path).read_text(encoding="utf-8"))
-    products = (doc.get("keys") or {}).get("marketplace:products") or []
-    links = [str(p.get("affiliateUrl") or "") for p in products if isinstance(p, dict)]
+def listable(products) -> dict[str, dict]:
+    """Approved products whose own store link no other product shares (catalogIntegrity.js)."""
+    products = [p for p in (products if isinstance(products, list) else []) if isinstance(p, dict)]
+    links = [str(p.get("affiliateUrl") or "") for p in products]
     out = {}
     for p in products:
-        if not isinstance(p, dict) or p.get("status") != "approved":
+        if p.get("status") != "approved":
             continue
         link = str(p.get("affiliateUrl") or "")
         if not link.startswith("https://") or links.count(link) != 1:
-            continue  # a shared link does not lead to this product (catalogIntegrity.js)
+            continue  # a shared link does not lead to this product
         out[str(p.get("id"))] = p
     return out
+
+
+CLOUD_FILE = Path(__file__).resolve().parents[3] / "src" / "constants" / "cloud.js"
+
+
+def load_cloud_catalog(timeout: float = 25) -> dict[str, dict]:
+    """The live catalog (the products the Studio and the daily import added),
+    read like every visitor reads it: the cloud's public row with its public
+    anon key (src/constants/cloud.js). Read-only."""
+    import urllib.request  # noqa: PLC0415
+    src = CLOUD_FILE.read_text(encoding="utf-8")
+    url = re.search(r'url:\s*"(https://[a-z0-9]{20}\.supabase\.co)"', src)
+    key = re.search(r'anonKey:\s*"([A-Za-z0-9._-]{40,})"', src)
+    if not (url and key):
+        raise ScriptError("the cloud's public address is not in src/constants/cloud.js")
+    req = urllib.request.Request(f"{url.group(1)}/rest/v1/kv?key=eq.marketplace:products&select=value",
+                                 headers={"apikey": key.group(1), "authorization": f"Bearer {key.group(1)}"})
+    with urllib.request.urlopen(req, timeout=timeout) as res:
+        rows = json.loads(res.read().decode("utf-8"))
+    value = rows[0]["value"] if rows else []
+    value = json.loads(value) if isinstance(value, str) else value
+    return listable(value)
+
+
+def load_catalog(snapshot_path: str | Path) -> dict[str, dict]:
+    """The products the public site lists, from the catalog copy it ships."""
+    doc = json.loads(Path(snapshot_path).read_text(encoding="utf-8"))
+    return listable((doc.get("keys") or {}).get("marketplace:products") or [])
 
 
 def ideas_to_episode(idea: str, eid: str, product_id: str | None = None, catalog: dict | None = None) -> Episode:

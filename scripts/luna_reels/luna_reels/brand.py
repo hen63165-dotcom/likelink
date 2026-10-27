@@ -55,11 +55,26 @@ def tag_text(presenter: str = "") -> str:
     return f"{member['name']} ממליצה" if member else NAME_TAG
 
 
-def face_path(presenter: str = "") -> Path | None:
+def face_path(presenter: str = "", studio: str = "") -> Path | None:
+    """The name tag's round picture: the studio's own face (the same drawing as
+    the reel), else the cast member's, else Luna's."""
+    own = STUDIO_DIR / studio / "face.jpg" if studio else None
+    if own is not None and own.exists():
+        return own
     face = CAST_DIR / presenter / "face.jpg" if presenter else None
     if face is not None and face.exists():
         return face
     return LUNA_FACE if LUNA_FACE.exists() else None
+
+
+# The 3D studio's pictures (scripts/media/studio3d): one folder per shot list,
+# drawn whole for a 9:16 frame (never cropped to the hips like the cast drawings).
+STUDIO_DIR = Path(__file__).resolve().parents[2] / "media" / "studio3d" / "out"
+
+
+def studio_scene(name: str, studio: str = "") -> Path | None:
+    path = STUDIO_DIR / studio / f"{name}.png" if studio and name else None
+    return path if path is not None and path.exists() else None
 
 
 def scene_path(name: str, presenter: str = "") -> Path | None:

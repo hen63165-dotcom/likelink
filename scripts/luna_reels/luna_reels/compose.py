@@ -212,6 +212,10 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
                                                      full=bool((product or {}).get("photoFull"))), dur, "in", depth=0.04)
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
+        elif brand.studio_scene(scene, episode.studio):
+            # A 3D studio picture is drawn for the whole frame: no hip crop, a gentler move.
+            still = Image.open(brand.studio_scene(scene, episode.studio)).convert("RGB")
+            clip = moving_still(still, dur, MOVES[i % len(MOVES)], depth=0.08)
         else:
             who = episode.presenter
             path = brand.scene_path(scene, who) if scene != "luna" else None
@@ -311,7 +315,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     if story:
         # The series' name tag (top left): Luna's picture and "לונה ממליצה" (+ LikeLink2 on the free tier).
-        face_file = brand.face_path(episode.presenter)
+        face_file = brand.face_path(episode.presenter, episode.studio)
         face = Image.open(face_file) if face_file else None
         layers.append(_img_clip(text.name_tag(face, branded=free, label=brand.tag_text(episode.presenter)), 0, end_at, (24, TOP_Y - 30)))
     elif free:

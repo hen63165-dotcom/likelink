@@ -1,9 +1,14 @@
-# LikeLink's 3D studio, stage 1 (scripts/media/studio3d/flux.py): the scene
-# pictures of a reel, from the open FLUX.1 [schnell] weights (Apache-2.0) on
-# the free CPU runner — no account, no key, no credits (the owner,
-# 2026-10-27: "@ravitrecommends' level, on our own free engine"). The
-# pictures are committed to scripts/media/studio3d/out/<shot list>/ for a
-# person to check by eye before any reel is made from them.
+# LikeLink's 3D studio (scripts/media/studio3d): the scene pictures of a reel
+# from the open FLUX.1 [schnell] weights (Apache-2.0) on the free CPU runner —
+# no account, no key, no credits (the owner, 2026-10-27: "@ravitrecommends'
+# level, on our own free engine") — then the reel itself. The pictures are
+# committed to scripts/media/studio3d/out/<shot list>/ and the reel waits on
+# the studio3d-preview pre-release for a person to watch before anything is
+# posted or shown.
+#
+# What a push runs is written in scripts/media/studio3d/run.json ({"jobs":
+# shot list, "only": shot ids, "stage": "all" | "reel"}): a branch workflow
+# cannot be started by hand until it is on main.
 name: 3D studio
 on:
   workflow_dispatch:
@@ -14,35 +19,62 @@ on:
       only:
         description: "only these shot ids (comma-separated), or empty for all"
         default: ""
+      stage:
+        description: "all = draw, then the reel | reel = the reel only, from the pictures already committed"
+        default: "all"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/media/studio3d/jobs/**", "scripts/media/studio3d/flux.py", ".github/workflows/studio3d.yml"]
+    paths: ["scripts/media/studio3d/run.json", "scripts/media/studio3d/*.py", ".github/workflows/studio3d.yml"]
 # Read-only by default: only the commit job can push (the drawing job installs
 # packages and downloads model weights, and never holds a write token).
 permissions:
   contents: read
+# A new push waits for the drawing in progress (hours on a CPU) instead of
+# cancelling it.
 concurrency:
   group: studio3d-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
-  draw:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
     outputs:
-      name: ${{ steps.n.outputs.name }}
+      jobs: ${{ steps.p.outputs.jobs }}
+      name: ${{ steps.p.outputs.name }}
+      only: ${{ steps.p.outputs.only }}
+      stage: ${{ steps.p.outputs.stage }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - id: n
+      - id: p
         env:
-          JOBS: ${{ github.event.inputs.jobs || 'pilot-hoops.json' }}
-          ONLY: ${{ github.event.inputs.only || '' }}
+          IN_JOBS: ${{ github.event.inputs.jobs }}
+          IN_ONLY: ${{ github.event.inputs.only }}
+          IN_STAGE: ${{ github.event.inputs.stage }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"
+          else
+            f=scripts/media/studio3d/run.json
+            JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
+            ONLY=$(python3 -c "import json; print(json.load(open('$f')).get('only', ''))")
+            STAGE=$(python3 -c "import json; print(json.load(open('$f')).get('stage', 'all'))")
+          fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
           echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
+          echo "$STAGE" | grep -Eq '^(all|reel)$' || { echo "stage: all or reel"; exit 2; }
           test -f "scripts/media/studio3d/jobs/$JOBS"
-          echo "name=${JOBS%.json}" >> "$GITHUB_OUTPUT"
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; } >> "$GITHUB_OUTPUT"
+          echo "plan: $JOBS · stage $STAGE · only '${ONLY:-all}'"
+  draw:
+    needs: plan
+    if: needs.plan.outputs.stage == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -69,8 +101,8 @@ jobs:
         env:
           HF_HOME: /mnt/hf
           HF_HUB_DISABLE_PROGRESS_BARS: "1"
-          JOBS: ${{ github.event.inputs.jobs || 'pilot-hoops.json' }}
-          ONLY: ${{ github.event.inputs.only || '' }}
+          JOBS: ${{ needs.plan.outputs.jobs }}
+          ONLY: ${{ needs.plan.outputs.only }}
         run: |
           set -o pipefail
           out="studio3d/${JOBS%.json}"; mkdir -p "$out"
@@ -83,19 +115,75 @@ jobs:
           name: studio3d
           path: studio3d
           if-no-files-found: ignore
+  # Stage 2: the shot list's story → a 9:16 reel with the reel engine's story
+  # look (scripts/luna_reels: Hebrew voice, captions, the name tag, the real
+  # product photo labelled "תמונת המוכר", the AI and ad labels on every frame).
+  reel:
+    needs: [plan, draw]
+    if: always() && needs.plan.result == 'success' && (needs.draw.result == 'success' || (needs.draw.result == 'skipped' && needs.plan.outputs.stage == 'reel'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'success'
+        with:
+          name: studio3d
+          path: scripts/media/studio3d/out
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/luna_reels/requirements.txt
+      - name: Install FFmpeg and the reel engine
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+      - name: Render the reel
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: |
+          pics="scripts/media/studio3d/out/$NAME"
+          if ! ls "$pics"/*.png >/dev/null 2>&1; then
+            # Reel only: the newest pictures the drawing committed to this branch (after this commit).
+            git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "$pics" || true
+          fi
+          ls "$pics"/*.png
+          python scripts/media/studio3d/episode.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$pics" \
+            --episode "$RUNNER_TEMP/episode.json" || { [ $? -eq 3 ] && exit 0; exit 1; }
+          cd scripts/luna_reels
+          python -m luna_reels make "$RUNNER_TEMP/episode.json" --variants 1 --voice edge --visual auto --tier free --out "$RUNNER_TEMP/reel"
+          ls -la "$RUNNER_TEMP/reel"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio3d-reel
+          path: ${{ runner.temp }}/reel
+          if-no-files-found: ignore
   commit:
-    needs: draw
-    if: always() && needs.draw.result == 'success'
+    needs: [draw, reel]
+    if: always() && (needs.draw.result == 'success' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'success'
         with:
           name: studio3d
           path: /tmp/studio3d
+      - uses: actions/download-artifact@v4
+        if: needs.reel.result == 'success'
+        continue-on-error: true
+        with:
+          name: studio3d-reel
+          path: /tmp/reel
       - name: Commit the scenes for review
+        if: needs.draw.result == 'success'
         run: |
           mkdir -p scripts/media/studio3d/out
           cp -r /tmp/studio3d/. scripts/media/studio3d/out/
@@ -103,3 +191,13 @@ jobs:
           git add scripts/media/studio3d/out
           git commit -m "3D studio: scene pictures from the free engine (review by eye)" || exit 0
           git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
+      # The reel waits on a pre-release the site never reads: a person watches
+      # it before anything is posted or shown.
+      - name: The reel, for review (studio3d-preview)
+        if: needs.reel.result == 'success'
+        run: |
+          ls /tmp/reel/*.mp4 >/dev/null 2>&1 || { echo "no reel"; exit 0; }
+          gh release view studio3d-preview >/dev/null 2>&1 || gh release create studio3d-preview --prerelease \
+            --title "3D studio previews" --notes "סרטוני בדיקה מהסטודיו התלת־ממדי. לא מפורסמים ולא מוצגים באתר."
+          gh release upload studio3d-preview /tmp/reel/* --clobber
+          for f in /tmp/reel/*.mp4; do n=$(basename "$f"); echo "- [$n](https://github.com/${{ github.repository }}/releases/download/studio3d-preview/$n)" >> "$GITHUB_STEP_SUMMARY"; done
