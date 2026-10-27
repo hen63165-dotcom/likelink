@@ -1,0 +1,13 @@
+{
+  "series": "shira-recommends",
+  "product": "ae-1005006861665924",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "character": "Shira, a young woman with long wavy auburn hair and hazel eyes, light freckles, friendly round face, wearing a plain dusty rose half-zip sweatshirt and long matching dusty rose sweatpants",
+  "shots": [
+    {"id": "hero", "character": true, "seed": 93001, "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip"},
+    {"id": "hook-shirt", "seed": 93002, "prompt": "close-up of a plain white cotton t-shirt lying flat on a made bed, the t-shirt is a cute cartoon character with big glossy eyes and a small pouting mouth, looking bored and sad up at the camera, morning window light"},
+    {"id": "mirror", "character": true, "seed": 93003, "prompt": "medium shot from behind her shoulder, she stands at a tall bedroom mirror looking at her reflection, head tilted, shrugging with a puzzled 'something is missing' expression"},
+    {"id": "wow", "character": true, "seed": 93004, "prompt": "medium close-up, she gasps with delight, eyes wide and sparkling, both hands on her cheeks, bright bedroom background"},
+    {"id": "cta", "character": true, "seed": 93005, "prompt": "medium shot, she smiles brightly at the camera and points down toward the bottom of the frame with one finger, excited, bright bedroom background"}
+  ]
+}

@@ -1,0 +1,96 @@
+# LikeLink's 3D studio, stage 1 (scripts/media/studio3d/flux.py): the scene
+# pictures of a reel, from the open FLUX.1 [schnell] weights (Apache-2.0) on
+# the free CPU runner — no account, no key, no credits (the owner,
+# 2026-10-27: "@ravitrecommends' level, on our own free engine"). The
+# pictures are committed to scripts/media/studio3d/out/<shot list>/ for a
+# person to check by eye before any reel is made from them.
+name: 3D studio
+on:
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: "shot list under scripts/media/studio3d/jobs/ (file name)"
+        default: "pilot-hoops.json"
+      only:
+        description: "only these shot ids (comma-separated), or empty for all"
+        default: ""
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/studio3d/jobs/**", "scripts/media/studio3d/flux.py", ".github/workflows/studio3d.yml"]
+# Read-only by default: only the commit job can push (the drawing job installs
+# packages and downloads model weights, and never holds a write token).
+permissions:
+  contents: read
+concurrency:
+  group: studio3d-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    outputs:
+      name: ${{ steps.n.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: n
+        env:
+          JOBS: ${{ github.event.inputs.jobs || 'pilot-hoops.json' }}
+          ONLY: ${{ github.event.inputs.only || '' }}
+        run: |
+          echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
+          echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
+          test -f "scripts/media/studio3d/jobs/$JOBS"
+          echo "name=${JOBS%.json}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Room for the weights (the runner's second disk)
+        run: |
+          sudo mkdir -p /mnt/hf && sudo chown "$USER" /mnt/hf
+          df -h / /mnt | tail -2
+          free -g | head -2
+          nproc
+      - name: Install (CPU torch + diffusers with GGUF)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.32" "gguf>=0.10" transformers accelerate sentencepiece protobuf safetensors
+      - name: Draw the scenes
+        env:
+          HF_HOME: /mnt/hf
+          HF_HUB_DISABLE_PROGRESS_BARS: "1"
+          JOBS: ${{ github.event.inputs.jobs || 'pilot-hoops.json' }}
+          ONLY: ${{ github.event.inputs.only || '' }}
+        run: |
+          set -o pipefail
+          out="studio3d/${JOBS%.json}"; mkdir -p "$out"
+          python scripts/media/studio3d/flux.py --jobs "scripts/media/studio3d/jobs/$JOBS" --out "$out" \
+            --width 576 --height 1024 --only "$ONLY" 2>&1 | tee /tmp/flux.log
+          grep '^{' /tmp/flux.log > "$out/log.jsonl" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio3d
+          path: studio3d
+          if-no-files-found: ignore
+  commit:
+    needs: draw
+    if: always() && needs.draw.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d
+          path: /tmp/studio3d
+      - name: Commit the scenes for review
+        run: |
+          mkdir -p scripts/media/studio3d/out
+          cp -r /tmp/studio3d/. scripts/media/studio3d/out/
+          git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
+          git add scripts/media/studio3d/out
+          git commit -m "3D studio: scene pictures from the free engine (review by eye)" || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
