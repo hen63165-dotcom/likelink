@@ -171,6 +171,56 @@ def moving_still(img: Image.Image, dur: float, move: str = "in", depth: float = 
     return VideoClip(frame_function=frame, duration=max(0.04, dur))
 
 
+def _bilinear(src: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """src sampled at (x, y), bilinear, clamped to the edges."""
+    h, w = src.shape[:2]
+    x = np.clip(x, 0, w - 1.001)
+    y = np.clip(y, 0, h - 1.001)
+    x0, y0 = x.astype(np.int32), y.astype(np.int32)
+    fx, fy = (x - x0)[..., None], (y - y0)[..., None]
+    top = src[y0, x0] + (src[y0, x0 + 1] - src[y0, x0]) * fx
+    bottom = src[y0 + 1, x0] + (src[y0 + 1, x0 + 1] - src[y0 + 1, x0]) * fx
+    return (top + (bottom - top) * fy).astype(np.uint8)
+
+
+def parallax_still(img: Image.Image, depth_map: Image.Image, dur: float, move: str = "in", amount: float = 0.07) -> VideoClip:
+    """A still with a real 3D camera move: by its depth map, near things grow
+    and slide more than far ones (a dolly shot, not a flat zoom)."""
+    from PIL import ImageFilter  # noqa: PLC0415
+    big = visuals.cover(img, (int(W * 1.08), int(H * 1.08)))
+    bw, bh = big.size
+    src = np.asarray(big, dtype=np.float32)
+    d = np.asarray(visuals.cover(depth_map, (bw, bh)).convert("L").filter(ImageFilter.GaussianBlur(8)), dtype=np.float32)
+    d = (d - d.min()) / max(1e-6, float(d.max() - d.min()))  # 1 = nearest
+    ox, oy = (bw - W) / 2, (bh - H) / 2
+    near = d[int(oy):int(oy) + H, int(ox):int(ox) + W]
+    ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx, cy = W / 2, H * 0.45
+
+    def frame(t):
+        k = _ease(t / max(dur, 0.01))
+        if move in ("left", "right"):
+            zoom, shift = amount * 0.4, (k - 0.5) * (1 if move == "right" else -1) * amount * W * 0.9
+        else:
+            zoom, shift = amount * (k if move == "in" else 1 - k), 0.0
+        scale = 1.0 + zoom * (0.3 + near)
+        sx = cx + (xs - cx) / scale - shift * (near - 0.35) + ox
+        sy = cy + (ys - cy) / scale + oy
+        return _bilinear(src, sx, sy)
+
+    return VideoClip(frame_function=frame, duration=max(0.04, dur))
+
+
+def _studio_clip(path: Path, dur: float) -> VideoClip:
+    """An animated studio shot fitted to its beat: slowed (never looped) when short."""
+    clip = VideoFileClip(str(path), audio=False)
+    clip = clip.resized(max(W / clip.w, H / clip.h))
+    clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
+    if clip.duration < dur:
+        clip = clip.with_effects([vfx.MultiplySpeed(final_duration=dur)])
+    return clip.with_duration(dur)
+
+
 def upper_body(img: Image.Image) -> Image.Image:
     """A presenter from the hips up, like a creator filming herself (2026-10-25:
     the full drawings put tight leggings at the bottom of every frame)."""
@@ -213,9 +263,17 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
         elif brand.studio_scene(scene, episode.studio):
-            # A 3D studio picture is drawn for the whole frame: no hip crop, a gentler move.
+            # A 3D studio shot: its animated clip when one was made, else the picture
+            # (drawn whole for the frame, no hip crop) with a 3D camera move by its depth.
+            animated = brand.studio_scene(scene, episode.studio, ".mp4")
+            depth_file = brand.studio_scene(scene, episode.studio, ".depth.png")
             still = Image.open(brand.studio_scene(scene, episode.studio)).convert("RGB")
-            clip = moving_still(still, dur, MOVES[i % len(MOVES)], depth=0.08)
+            if animated:
+                clip = _studio_clip(animated, dur)
+            elif depth_file:
+                clip = parallax_still(still, Image.open(depth_file), dur, MOVES[i % len(MOVES)])
+            else:
+                clip = moving_still(still, dur, MOVES[i % len(MOVES)], depth=0.08)
         else:
             who = episode.presenter
             path = brand.scene_path(scene, who) if scene != "luna" else None

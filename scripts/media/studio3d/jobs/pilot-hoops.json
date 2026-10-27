@@ -8,30 +8,35 @@
       "id": "hero",
       "character": true,
       "seed": 93001,
-      "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip"
+      "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip",
+      "motion": "she smiles, tilts her head and gives a small friendly wave, her hair moves softly, the camera slowly pushes in"
     },
     {
       "id": "hook-shirt",
       "seed": 93002,
-      "prompt": "close-up of a plain white cotton t-shirt lying flat on a made bed, the t-shirt is a cute cartoon character with big glossy eyes and a small pouting mouth, looking bored and sad up at the camera, morning window light"
+      "prompt": "close-up of a plain white cotton t-shirt lying flat on a made bed, the t-shirt is a cute cartoon character with big glossy eyes and a small pouting mouth, looking bored and sad up at the camera, morning window light",
+      "motion": "the cartoon t-shirt slowly blinks its big glossy eyes and sighs, its sleeves droop, the camera slowly pushes in"
     },
     {
       "id": "mirror",
       "character": true,
       "seed": 93003,
-      "prompt": "medium shot from behind her shoulder, she stands at a tall bedroom mirror looking at her reflection, head tilted, shrugging with a puzzled 'something is missing' expression"
+      "prompt": "medium shot from behind her shoulder, she stands at a tall bedroom mirror looking at her reflection, head tilted, shrugging with a puzzled 'something is missing' expression",
+      "motion": "she turns her head slightly to look at her reflection and shrugs her shoulders, the camera slowly drifts closer"
     },
     {
       "id": "wow",
       "character": true,
       "seed": 93004,
-      "prompt": "medium close-up, she gasps with delight, eyes wide and sparkling, both hands on her cheeks, bright bedroom background"
+      "prompt": "medium close-up, she gasps with delight, eyes wide and sparkling, both hands on her cheeks, bright bedroom background",
+      "motion": "she gasps with delight, her eyes widen and sparkle, she bounces a little with excitement, her hair moves"
     },
     {
       "id": "cta",
       "character": true,
       "seed": 93005,
-      "prompt": "medium shot, she smiles brightly at the camera and points down toward the bottom of the frame with one finger, excited, bright bedroom background"
+      "prompt": "medium shot, she smiles brightly at the camera and points down toward the bottom of the frame with one finger, excited, bright bedroom background",
+      "motion": "she smiles brightly and points down with one finger, nodding, the camera holds steady"
     }
   ],
   "episode": {

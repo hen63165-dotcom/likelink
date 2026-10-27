@@ -72,8 +72,9 @@ def face_path(presenter: str = "", studio: str = "") -> Path | None:
 STUDIO_DIR = Path(__file__).resolve().parents[2] / "media" / "studio3d" / "out"
 
 
-def studio_scene(name: str, studio: str = "") -> Path | None:
-    path = STUDIO_DIR / studio / f"{name}.png" if studio and name else None
+def studio_scene(name: str, studio: str = "", ext: str = ".png") -> Path | None:
+    """A studio shot's picture (.png), its animated clip (.mp4) or its depth map (.depth.png)."""
+    path = STUDIO_DIR / studio / f"{name}{ext}" if studio and name else None
     return path if path is not None and path.exists() else None
 
 
