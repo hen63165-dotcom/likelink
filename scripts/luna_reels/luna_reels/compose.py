@@ -211,10 +211,17 @@ def parallax_still(img: Image.Image, depth_map: Image.Image, dur: float, move: s
     return VideoClip(frame_function=frame, duration=max(0.04, dur))
 
 
+# An image-to-video clip drifts from its first frame as it goes: the 2026-10-27
+# pilot's faces were clean for about 3 s and smeared in the 4th. Only the clean
+# start is used, slowed to fill its line.
+STUDIO_CLIP_KEEP = 2.9
+
+
 def _studio_clip(path: Path, dur: float) -> VideoClip:
-    """An animated studio shot fitted to its beat: slowed (never looped) when short."""
+    """An animated studio shot fitted to its beat: its clean start, slowed (never looped) when short."""
     clip = VideoFileClip(str(path), audio=False)
-    clip = clip.resized(max(W / clip.w, H / clip.h))
+    clip = clip.subclipped(0, min(clip.duration, STUDIO_CLIP_KEEP))
+    clip = clip.resized(max(W / clip.w, H / clip.h) + 0.002)  # a hair over, so rounding never leaves a row short
     clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
     if clip.duration < dur:
         clip = clip.with_effects([vfx.MultiplySpeed(final_duration=dur)])
