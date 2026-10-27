@@ -15,7 +15,7 @@
 #
 # What a push runs is written in scripts/media/studio3d/run.json ({"jobs":
 # shot list, "only": shot ids, "stage": "all" | "animate" | "reel", and
-# optionally "from_run": an earlier run whose drawn pictures to use): a
+# optionally "from_run": an earlier run whose pictures and clips to use): a
 # branch workflow cannot be started by hand until it is on main.
 name: 3D studio
 on:
@@ -147,8 +147,10 @@ jobs:
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
       - uses: actions/download-artifact@v4
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
         with:
-          name: studio3d
+          pattern: studio3d-pic-*
+          merge-multiple: true
           run-id: ${{ needs.plan.outputs.from_run }}
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots
@@ -212,11 +214,22 @@ jobs:
         run: for s in $(echo "$SHOTS" | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)))"); do rm -f "scripts/media/studio3d/shots/$NAME/$s.mp4"; done
       - uses: actions/download-artifact@v4
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
         with:
-          name: studio3d
+          pattern: studio3d-pic-*
+          merge-multiple: true
           run-id: ${{ needs.plan.outputs.from_run }}
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
+        with:
+          pattern: studio3d-clip-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
       - uses: actions/download-artifact@v4
         if: needs.draw.result != 'skipped'
         continue-on-error: true
@@ -270,7 +283,11 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       NAME: ${{ needs.plan.outputs.name }}
     steps:
+      # The branch as it is now (an earlier run may have committed since this
+      # one started): the 2026-10-27 redraw's rebase hit add/add conflicts.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - uses: actions/download-artifact@v4
         if: needs.draw.result != 'skipped'
         continue-on-error: true
@@ -282,10 +299,20 @@ jobs:
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
         continue-on-error: true
         with:
-          name: studio3d
+          pattern: studio3d-pic-*
+          merge-multiple: true
           run-id: ${{ needs.plan.outputs.from_run }}
           github-token: ${{ github.token }}
           path: /tmp/studio3d
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
+        with:
+          pattern: studio3d-clip-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: /tmp/studio3d/${{ needs.plan.outputs.name }}
       - uses: actions/download-artifact@v4
         if: needs.animate.result != 'skipped'
         continue-on-error: true
@@ -315,7 +342,7 @@ jobs:
           git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
           git add scripts/media/studio3d/shots
           git commit -m "3D studio: $NAME pictures and clips from the free engine (review by eye)" || exit 0
-          git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
+          git push -q origin "HEAD:$GITHUB_REF_NAME" || { git pull --rebase -X theirs -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"; }
       # The reel waits on a pre-release the site never reads: a person watches
       # it before anything is posted or shown.
       - name: The reel, for review (studio3d-preview)
