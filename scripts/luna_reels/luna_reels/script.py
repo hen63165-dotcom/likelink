@@ -89,7 +89,7 @@ class Episode:
     look: str = ""       # "story": Luna's scenes, yellow captions on a dark box, the name tag
     send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
     presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
-    studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/out/<name>/): its pictures are the scenes
+    studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/shots/<name>/): its pictures are the scenes
 
     @property
     def beats(self) -> list[Line]:

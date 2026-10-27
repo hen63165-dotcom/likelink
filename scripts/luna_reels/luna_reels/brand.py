@@ -69,7 +69,7 @@ def face_path(presenter: str = "", studio: str = "") -> Path | None:
 
 # The 3D studio's pictures (scripts/media/studio3d): one folder per shot list,
 # drawn whole for a 9:16 frame (never cropped to the hips like the cast drawings).
-STUDIO_DIR = Path(__file__).resolve().parents[2] / "media" / "studio3d" / "out"
+STUDIO_DIR = Path(__file__).resolve().parents[2] / "media" / "studio3d" / "shots"
 
 
 def studio_scene(name: str, studio: str = "", ext: str = ".png") -> Path | None:

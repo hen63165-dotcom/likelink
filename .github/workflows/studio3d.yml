@@ -9,12 +9,13 @@
 #            shot's clip, else its picture with a 3D camera move by
 #            its depth map; Hebrew voice, captions, the name tag, the
 #            seller's real product photo, the AI and ad labels        episode.py, depth.py
-#   commit   pictures and clips to scripts/media/studio3d/out/<shot list>/,
+#   commit   pictures and clips to scripts/media/studio3d/shots/<shot list>/,
 #            the reel to the studio3d-preview pre-release, which the site
 #            never reads: a person watches it before anything is posted.
 #
 # What a push runs is written in scripts/media/studio3d/run.json ({"jobs":
-# shot list, "only": shot ids, "stage": "all" | "animate" | "reel"}): a
+# shot list, "only": shot ids, "stage": "all" | "animate" | "reel", and
+# optionally "from_run": an earlier run whose drawn pictures to use): a
 # branch workflow cannot be started by hand until it is on main.
 name: 3D studio
 on:
@@ -36,6 +37,7 @@ on:
 # packages and download model weights, and never hold a write token).
 permissions:
   contents: read
+  actions: read
 # A new push waits for the work in progress (hours on a CPU) instead of
 # cancelling it.
 concurrency:
@@ -50,6 +52,7 @@ jobs:
       only: ${{ steps.p.outputs.only }}
       stage: ${{ steps.p.outputs.stage }}
       shots: ${{ steps.p.outputs.shots }}
+      from_run: ${{ steps.p.outputs.from_run }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,7 +70,9 @@ jobs:
             JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
             ONLY=$(python3 -c "import json; print(json.load(open('$f')).get('only', ''))")
             STAGE=$(python3 -c "import json; print(json.load(open('$f')).get('stage', 'all'))")
+            FROM_RUN=$(python3 -c "import json; print(json.load(open('$f')).get('from_run', ''))")
           fi
+          echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
           echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
           echo "$STAGE" | grep -Eq '^(all|animate|reel)$' || { echo "stage: all, animate or reel"; exit 2; }
@@ -77,7 +82,7 @@ jobs:
           ids = [s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']]
           only = [x for x in os.environ['ONLY'].split(',') if x]
           print(json.dumps([i for i in ids if not only or i in only]))")
-          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; } >> "$GITHUB_OUTPUT"
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "from_run=${FROM_RUN:-}"; } >> "$GITHUB_OUTPUT"
           echo "plan: $JOBS · stage $STAGE · shots $SHOTS"
   draw:
     needs: plan
@@ -142,12 +147,19 @@ jobs:
         with:
           pattern: studio3d-pic-*
           merge-multiple: true
-          path: scripts/media/studio3d/out
+          path: scripts/media/studio3d/shots
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        with:
+          name: studio3d
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: scripts/media/studio3d/shots
       - name: The newest committed pictures (animate only)
-        if: needs.draw.result == 'skipped'
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == '
         env:
           NAME: ${{ needs.plan.outputs.name }}
-        run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/out/$NAME"
+        run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -165,7 +177,7 @@ jobs:
           SHOT: ${{ matrix.shot }}
         run: |
           set -o pipefail
-          dir="scripts/media/studio3d/out/$NAME"
+          dir="scripts/media/studio3d/shots/$NAME"
           mkdir -p /tmp/clip
           python scripts/media/studio3d/animate.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$dir" --only "$SHOT" 2>&1 | tee /tmp/animate.log
           cp "$dir/$SHOT.mp4" /tmp/clip/
@@ -195,19 +207,26 @@ jobs:
         with:
           pattern: studio3d-pic-*
           merge-multiple: true
-          path: scripts/media/studio3d/out
+          path: scripts/media/studio3d/shots
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        with:
+          name: studio3d
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: scripts/media/studio3d/shots
       - name: The newest committed pictures and clips
-        if: needs.draw.result == 'skipped'
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run == '
         env:
           NAME: ${{ needs.plan.outputs.name }}
-        run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/out/$NAME" || true
+        run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
       - uses: actions/download-artifact@v4
         if: needs.animate.result != 'skipped'
         continue-on-error: true
         with:
           pattern: studio3d-clip-*
           merge-multiple: true
-          path: scripts/media/studio3d/out/${{ needs.plan.outputs.name }}
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -223,7 +242,7 @@ jobs:
         env:
           NAME: ${{ needs.plan.outputs.name }}
         run: |
-          pics="scripts/media/studio3d/out/$NAME"
+          pics="scripts/media/studio3d/shots/$NAME"
           ls -la "$pics"
           python scripts/media/studio3d/depth.py "$pics"
           python scripts/media/studio3d/episode.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$pics" \
@@ -242,6 +261,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     env:
       GH_TOKEN: ${{ github.token }}
       NAME: ${{ needs.plan.outputs.name }}
@@ -253,6 +273,14 @@ jobs:
         with:
           pattern: studio3d-pic-*
           merge-multiple: true
+          path: /tmp/studio3d
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
+        with:
+          name: studio3d
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
           path: /tmp/studio3d
       - uses: actions/download-artifact@v4
         if: needs.animate.result != 'skipped'
@@ -270,10 +298,10 @@ jobs:
       - name: Commit the pictures and clips for review
         run: |
           [ -d /tmp/studio3d ] || { echo "nothing new"; exit 0; }
-          mkdir -p scripts/media/studio3d/out
-          cp -r /tmp/studio3d/. scripts/media/studio3d/out/
+          mkdir -p scripts/media/studio3d/shots
+          cp -r /tmp/studio3d/. scripts/media/studio3d/shots/
           git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
-          git add scripts/media/studio3d/out
+          git add scripts/media/studio3d/shots
           git commit -m "3D studio: $NAME pictures and clips from the free engine (review by eye)" || exit 0
           git pull --rebase -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"
       # The reel waits on a pre-release the site never reads: a person watches
