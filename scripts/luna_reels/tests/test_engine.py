@@ -256,6 +256,45 @@ class Story(unittest.TestCase):
                 self.assertEqual(path.parent, folder, f"{f.name}: scene {scene} is her own, not a shared picture")
 
 
+class Studio3D(unittest.TestCase):
+    """The free 3D studio's shots in the story look (scripts/media/studio3d)."""
+
+    def test_a_studio_belongs_to_the_story_look_and_is_a_plain_name(self):
+        ep = episode(look="story", studio="pilot-hoops", lines=[{"say": "שורה.", "scene": "hero"}])
+        self.assertEqual(ep.studio, "pilot-hoops")
+        with self.assertRaises(ScriptError):
+            episode(studio="pilot-hoops")  # not a story
+        for bad in ["../etc", "Pilot", "a b", "x" * 41]:
+            with self.assertRaises(ScriptError, msg=bad):
+                episode(look="story", studio=bad)
+
+    def test_studio_files_resolve_only_inside_its_folder(self):
+        self.assertIsNone(brand.studio_scene("hero", ""))
+        self.assertIsNone(brand.studio_scene("", "pilot-hoops"))
+        self.assertIsNone(brand.studio_scene("no-such-shot", "pilot-hoops"))
+        pic = brand.studio_scene("hero", "pilot-hoops")
+        if pic is not None:  # the pilot's pictures are committed for review
+            self.assertEqual(pic.parent, brand.STUDIO_DIR / "pilot-hoops")
+
+    def test_the_depth_camera_moves_near_things_more_than_far_ones(self):
+        from PIL import Image, ImageDraw
+        import numpy as np
+        img = Image.new("RGB", (288, 512), (90, 120, 170))
+        ImageDraw.Draw(img).ellipse((94, 196, 194, 296), fill=(240, 180, 140))
+        depth = Image.new("L", (288, 512), 30)
+        ImageDraw.Draw(depth).ellipse((94, 196, 194, 296), fill=230)
+        clip = compose.parallax_still(img, depth, 2.0, "in")
+        a, b = clip.get_frame(0).astype(int), clip.get_frame(2.0).astype(int)
+        self.assertEqual(a.shape, (compose.H, compose.W, 3))
+        moved = np.abs(a - b).sum(axis=2) > 30
+        self.assertGreater(moved.sum(), 1000)  # the near disc grew
+        h, w = moved.shape
+        self.assertLess(moved[: h // 6].mean(), moved[h // 3: 2 * h // 3].mean())  # far top moves least
+
+    def test_an_animated_shot_uses_only_its_clean_start(self):
+        self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
+
+
 class Music(unittest.TestCase):
     def test_bed_level(self):
         self.assertAlmostEqual(music.db_to_gain(-20), 0.1)
