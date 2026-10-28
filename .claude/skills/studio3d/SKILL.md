@@ -38,6 +38,31 @@ everything below, and records the outcome in the `studio3d` release
 hours from the press to the reel on the free runners. A Studio run never
 commits pictures to `main`. Tests: `tests/animatedReels.test.mjs`.
 
+## The same woman in every reel: her keyframe
+
+Drawing every shot of her anew gives another face, hair and age per shot,
+even with three takes to choose from (2026-10-28, v5: one shot with auburn
+hair and a narrower face; SFace scored every cartoon face 0.67–0.77 against
+her portrait, the child included, so no measure can choose for us). A series
+presenter is one picture, checked once:
+
+1. `python scripts/media/studio3d/autoplan.py --masters` → `jobs/cast-masters.json`
+   (4 waist-up candidates per presenter, facing the camera, her top only);
+   `run.json` → `{"jobs": "cast-masters.json", "stage": "all"}`, push. The
+   candidates are committed to `shots/cast-masters/`.
+2. Look at them side by side with her portrait: an adult, the cast's hair and
+   eyes, plain clothes, hands natural, nothing that could pass for jewellery,
+   her face large and sharp. Copy the chosen one to
+   `scripts/media/studio3d/cast/<id>/master.png` and write `master.json`:
+   `{"face": [x0, y0, x1, y1]}` — her head with its hair, as fractions (the
+   name tag's round picture and the talking close-ups are cut from it).
+3. From then on autoplan marks every shot of her `"cast": "master.png"`: it is
+   never drawn again, `castframes.py` copies the keyframe in, and each shot
+   moves from it (her own motion line; the talking lines are lip-synced on
+   close-ups cut around her head, each a little closer or wider). Only the
+   talking object is drawn per reel. Delete the unchosen candidates before
+   a merge.
+
 ## One product in, one reel out (the fast path)
 
 `run.json` → `{"product": "<id>", "presenter": "<cast id>", "stage": "all"}`
