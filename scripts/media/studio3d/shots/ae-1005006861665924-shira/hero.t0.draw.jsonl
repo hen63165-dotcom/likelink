@@ -1,0 +1,5 @@
+{"source": "t5", "used": "city96/t5-v1_1-xxl-encoder-bf16", "path": null}
+{"stage": "encoded", "shots": 1, "s": 70}
+{"source": "vae", "used": "Comfy-Org/Lumina_Image_2.0_Repackaged", "path": "split_files/vae/ae.safetensors"}
+{"stage": "loaded", "s": 111}
+{"id": "hero", "take": 0, "seed": 93103, "s": 819, "bytes": 765501}

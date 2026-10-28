@@ -1,0 +1,134 @@
+{
+  "series": "shira-recommends",
+  "product": "ae-1005006861665924",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt and long sweatpants",
+  "productSet": "champagne",
+  "takes": 3,
+  "shots": [
+    {
+      "id": "hook",
+      "seed": 93101,
+      "prompt": "a cute anthropomorphic plain white cotton t-shirt mascot lying flat on a neatly made bed, top-down view, the t-shirt itself has two big glossy cartoon eyes and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light",
+      "motion": "the t-shirt mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"
+    },
+    {
+      "id": "problem",
+      "character": true,
+      "seed": 93102,
+      "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
+      "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"
+    },
+    {
+      "id": "hero",
+      "character": true,
+      "talk": true,
+      "seed": 93103,
+      "prompt": "medium close-up from the chest up, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile, her face large and clear in the frame",
+      "motion": "she smiles, tilts her head slightly and nods, her hair moves softly, the camera slowly pushes in"
+    },
+    {
+      "id": "tip",
+      "character": true,
+      "talk": true,
+      "seed": 93104,
+      "prompt": "medium close-up from the chest up, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, her face large and clear, bright cozy bedroom background",
+      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly"
+    },
+    {
+      "id": "wow",
+      "character": true,
+      "seed": 93105,
+      "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
+      "motion": "her face lights up with a delighted smile, eyebrows rise, she laughs softly, her hair moves"
+    },
+    {
+      "id": "cta",
+      "character": true,
+      "talk": true,
+      "seed": 93106,
+      "prompt": "medium close-up from the chest up, she smiles warmly and points her index finger at the camera, inviting, her face large and clear, bright bedroom background",
+      "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in"
+    },
+    {
+      "id": "tag",
+      "character": true,
+      "still": true,
+      "seed": 93107,
+      "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background"
+    }
+  ],
+  "episode": {
+    "id": "studio-ae-1005006861665924-shira",
+    "goal": "sales",
+    "title": "טריק קטן: עגילי חישוק",
+    "hook": {
+      "say": "החולצה הלבנה שלי ממש משועממת.",
+      "caption": "החולצה הלבנה שלי... משועממת",
+      "scene": "hook"
+    },
+    "topics": [
+      "earrings",
+      "סטיילינג"
+    ],
+    "lines": [
+      {
+        "say": "כל בוקר אותה חולצה לבנה, ותמיד מרגיש לי שמשהו חסר.",
+        "caption": "כל בוקר... ומשהו חסר",
+        "scene": "problem"
+      },
+      {
+        "say": "טריק קטן: עגילי חישוק.",
+        "caption": "טריק קטן: עגילי חישוק",
+        "scene": "hero"
+      },
+      {
+        "say": "כשהבגד פשוט, דווקא העגילים עושים את כל ההבדל.",
+        "caption": "בגד פשוט? העגילים עושים את ההבדל",
+        "scene": "tip"
+      },
+      {
+        "say": "כמו החישוקים האלה.",
+        "caption": "כמו החישוקים האלה"
+      },
+      {
+        "say": "ופתאום, אותה חולצה פשוטה נראית כמו לוק שלם.",
+        "caption": "ופתאום זה לוק",
+        "scene": "wow"
+      },
+      {
+        "say": "רוצה את הקישור? כתבי רוצה בתגובות ואשלח לך אותו.",
+        "caption": "כתבי \"רוצה\" בתגובות",
+        "scene": "cta"
+      }
+    ],
+    "product": {
+      "id": "ae-1005006861665924",
+      "at": 4
+    },
+    "cta": {
+      "title": "כתבי *\"רוצה\"* בתגובות",
+      "sub": "ואשלח לך את הקישור"
+    },
+    "hashtags": [
+      "#עגילים",
+      "#טיפסטיילינג",
+      "#אופנה"
+    ],
+    "send": "שלחי לחברה שתמיד בחולצה לבנה",
+    "keyword": "רוצה",
+    "presenter": "shira"
+  },
+  "face": {
+    "from": "tag",
+    "box": [
+      0.14,
+      0.14,
+      0.86,
+      0.545
+    ]
+  },
+  "auto": {
+    "kind": "earrings"
+  }
+}
