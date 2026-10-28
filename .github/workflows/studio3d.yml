@@ -284,7 +284,7 @@ jobs:
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
           pip install -q -r scripts/luna_reels/requirements.txt
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q transformers
+          pip install -q transformers "rembg[cpu]"
       - name: Render the reel
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -292,6 +292,7 @@ jobs:
           pics="scripts/media/studio3d/shots/$NAME"
           ls -la "$pics"
           python scripts/media/studio3d/depth.py "$pics"
+          python scripts/media/studio3d/product_set.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$pics" || true
           python scripts/media/studio3d/episode.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$pics" \
             --episode "$RUNNER_TEMP/episode.json" || { [ $? -eq 3 ] && exit 0; exit 1; }
           cd scripts/luna_reels

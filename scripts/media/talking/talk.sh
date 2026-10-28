@@ -11,7 +11,7 @@
 #   full-move    whole picture kept, natural head motion while talking
 #   face         a tighter talking-face crop (the most motion)
 #   full-talk    whole picture kept, a calm head and a clearly moving mouth
-#                (the 3D studio's drawn presenters: their mouths moved too little at 1.1)
+#                (the 3D studio's drawn presenters: their mouths moved too little at 1.1 and 1.7)
 # The result is always synthetic: every reel made from it carries the label
 # "דמות שנוצרה בבינה מלאכותית" (the tip renderer burns it in).
 set -euo pipefail
@@ -41,7 +41,7 @@ for v in ${VARIANTS[*]}; do
     full-still) args=(--preprocess full --still) ;;
     full-move)  args=(--preprocess full --pose_style 12 --expression_scale 1.1) ;;
     face)       args=(--preprocess extcrop --pose_style 12 --expression_scale 1.1) ;;
-    full-talk)  args=(--preprocess full --pose_style 0 --expression_scale 1.7) ;;
+    full-talk)  args=(--preprocess full --pose_style 0 --expression_scale 2.0) ;;
     *) echo "unknown variant $v" >&2; exit 2 ;;
   esac
   res="$OUT/.run-$v"

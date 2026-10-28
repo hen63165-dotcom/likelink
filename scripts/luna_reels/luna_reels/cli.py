@@ -72,7 +72,11 @@ def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
         # A luxe set chosen by eye (public/sets): the seller's photo on our studio backdrop, labelled so.
         index = json.loads((SETS / "index.json").read_text(encoding="utf-8")) if (SETS / "index.json").exists() else {}
         chosen = (index.get("sets") or {}).get(pid)
-        if chosen and (SETS / chosen["file"]).exists():
+        studio_set = visuals.brand.studio_scene("product", episode.studio, ".set.jpg") if episode.studio else None
+        if studio_set:
+            # A 3D studio reel: the seller's photo cut out on the series' own backdrop (studio3d/product_set.py).
+            photo, tag, full = Image.open(studio_set), index.get("label") or tag, True
+        elif chosen and (SETS / chosen["file"]).exists():
             photo, tag, full = Image.open(SETS / chosen["file"]), chosen.get("label") or index.get("label") or tag, True
         else:
             photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
