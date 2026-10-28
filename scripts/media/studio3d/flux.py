@@ -24,7 +24,8 @@ the seller never made). Hebrew is never drawn either; captions are
 composited later.
 
   python flux.py --jobs jobs.json --out DIR [--width 576 --height 1024]
-  jobs.json: {"style": "...", "character": "...", "shots": [{"id", "prompt", "seed", "character": true}]}
+  jobs.json: {"style": "...", "character": "...", "characterTop": "...",
+              "shots": [{"id", "prompt", "seed", "character": true | "<her own look>", "frame": "upper"}]}
 Writes DIR/<id>.png and one JSON line per picture (id, seconds, bytes).
 """
 import argparse, gc, json, os, sys, time
@@ -74,10 +75,26 @@ def seed_of(shot, take=-1):
     return int(shot.get("seed", 1)) + (max(0, take) * 7919)
 
 
+def look_of(spec, shot):
+    """Her fixed look in this shot: the shot's own (a cast candidate), else the
+    shot list's; a shot framed from the waist up names only her top — "long
+    sweatpants" in the prompt drew her whole body in every "close-up" (2026-10-28)."""
+    c = shot.get("character")
+    if isinstance(c, str):
+        return c
+    if not c:
+        return ""
+    if shot.get("frame") == "upper" and spec.get("characterTop"):
+        return spec["characterTop"]
+    return spec.get("character", "")
+
+
 def prompt_of(spec, shot):
-    """The one prompt the model reads for a shot: the series style, the
-    character's fixed look when she is in it, the shot, and the guard."""
-    parts = [spec.get("style", ""), spec.get("character", "") if shot.get("character") else "", shot["prompt"], GUARD]
+    """The one prompt the model reads for a shot: the series style, the shot
+    (its framing first), the character's fixed look when she is in it, and the
+    guard. CLIP reads only the first 77 tokens: with the look before the shot,
+    the framing fell outside them and "from the chest up" was drawn from the knees."""
+    parts = [spec.get("style", ""), shot["prompt"], look_of(spec, shot), GUARD]
     return ", ".join(p.strip().rstrip(".") for p in parts if p and p.strip())
 
 
@@ -166,7 +183,8 @@ def main():
                     help="one of several takes of a shot (another seed); writes <shot>.t<take>.png for pick.py")
     a = ap.parse_args()
     spec = json.load(open(a.jobs, encoding="utf-8"))
-    shots = [s for s in spec["shots"] if not a.only or s["id"] in a.only.split(",")]
+    # A shot from the presenter's checked keyframe ("cast") is never drawn again.
+    shots = [s for s in spec["shots"] if not s.get("cast") and (not a.only or s["id"] in a.only.split(","))]
     os.makedirs(a.out, exist_ok=True)
 
     import tempfile

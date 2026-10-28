@@ -156,7 +156,7 @@ jobs:
           only = [x for x in os.environ['ONLY'].split(',') if x]
           out = []
           for s in spec['shots']:
-              if only and s['id'] not in only:
+              if (only and s['id'] not in only) or s.get('cast'):  # the presenter's checked keyframe: never drawn
                   continue
               n = int(s.get('takes', spec.get('takes', 1)))
               out += [{'shot': s['id'], 'take': k} for k in range(n)] if n > 1 else [{'shot': s['id'], 'take': -1}]
@@ -318,6 +318,10 @@ jobs:
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q "diffusers>=0.33" transformers accelerate sentencepiece protobuf safetensors imageio imageio-ffmpeg
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+      - name: The presenter's checked keyframe (shots drawn from the cast)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: python3 scripts/media/studio3d/castframes.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "scripts/media/studio3d/shots/$NAME"
       - name: Animate ${{ matrix.shot }}
         env:
           HF_HOME: /mnt/hf
@@ -396,6 +400,10 @@ jobs:
           pattern: studio3d-clip-*
           merge-multiple: true
           path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      - name: The presenter's checked keyframe (shots drawn from the cast)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: python3 scripts/media/studio3d/castframes.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "scripts/media/studio3d/shots/$NAME"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -471,13 +479,8 @@ jobs:
         with:
           name: studio3d-jobs
           path: scripts/media/studio3d/jobs
-      - uses: actions/download-artifact@v4
-        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
-        continue-on-error: true
-        with:
-          pattern: studio3d-pic-*
-          merge-multiple: true
-          path: /tmp/studio3d
+      # An earlier run's pictures first, this run's over them (the other way
+      # round, a pick from an earlier run's takes would commit its old choice).
       - uses: actions/download-artifact@v4
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
         continue-on-error: true
@@ -486,6 +489,13 @@ jobs:
           merge-multiple: true
           run-id: ${{ needs.plan.outputs.from_run }}
           github-token: ${{ github.token }}
+          path: /tmp/studio3d
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
+        continue-on-error: true
+        with:
+          pattern: studio3d-pic-*
+          merge-multiple: true
           path: /tmp/studio3d
       - uses: actions/download-artifact@v4
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''

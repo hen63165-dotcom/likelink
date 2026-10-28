@@ -419,6 +419,47 @@ class AutoPlan(unittest.TestCase):
                     self.assertIn("from the chest up", s["prompt"], s["id"])
                 self.assertNotRegex(s.get("prompt", ""), r"hands on her cheeks")  # read as a child in pilot v4
 
+    def test_the_framing_comes_before_her_look_and_a_close_shot_names_only_her_top(self):
+        import flux  # noqa: PLC0415
+        for _pid, _member, spec in self.plans():
+            for s in spec["shots"]:
+                text = flux.prompt_of(spec, s)
+                self.assertTrue(text.startswith(f"{spec['style']}, {s['prompt']}"), s["id"])  # CLIP reads 77 tokens
+                if s.get("frame") == "upper":
+                    self.assertNotRegex(text, r"pants|leggings", s["id"])  # drawn from the knees in v5
+        self.assertEqual(self.ap.top_of("plain dusty rose half-zip sweatshirt and long sweatpants"), "plain dusty rose half-zip sweatshirt")
+
+    def test_keyframe_candidates_for_every_presenter_are_chosen_by_eye(self):
+        spec = self.ap.masters({"characters": self.cast})
+        self.assertNotIn("episode", spec)  # drawn and committed for review only: nothing is animated
+        self.assertEqual(len(spec["shots"]), len(self.cast) * self.ap.MASTER_TAKES)
+        self.assertLessEqual(len(spec["shots"]), 20)  # one wave of free runners
+        self.assertEqual(len({s["seed"] for s in spec["shots"]}), len(spec["shots"]))
+        for s in spec["shots"]:
+            self.assertTrue(s["still"])
+            self.assertIn("in her late twenties", s["character"])
+            self.assertNotRegex(s["character"], r"pants|leggings|auburn")
+            self.assertNotRegex(s["prompt"], self.ap.DRAWN_JEWELLERY)
+
+    def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import castframes  # noqa: PLC0415
+        master = {"face": [0.3, 0.1, 0.7, 0.35]}
+        spec = self.ap.plan(CATALOG["p-live-05"], self.cast[0], master)
+        self.ap.check_plan(spec)
+        drawn = [s["id"] for s in spec["shots"] if not s.get("cast")]
+        self.assertEqual(drawn, ["hook"])  # the talking object alone
+        self.assertEqual(spec["face"], {"from": "tag", "box": master["face"]})
+        self.assertTrue(all(s["cast"] == "master.png" for s in spec["shots"] if s.get("character")))
+        frames = castframes.frames(spec)
+        self.assertEqual({sid for sid, _ in frames}, {s["id"] for s in spec["shots"] if s.get("character")})
+        self.assertTrue(all(path == castframes.CAST / spec["presenter"] / "master.png" for _, path in frames))
+        with self.assertRaises(SystemExit):  # never a path out of the cast folder
+            castframes.frames({**spec, "shots": [{"id": "x", "cast": "../../evil.png"}]})
+        self.assertIsNone(self.ap.master_of("nobody"))
+        without = self.ap.plan(CATALOG["p-live-05"], self.cast[0])
+        self.assertFalse(any(s.get("cast") for s in without["shots"]))  # no keyframe yet: every shot is drawn
+
     def test_the_story_is_held_to_the_masters_length(self):
         for _pid, _member, spec in self.plans():
             self.assertGreaterEqual(self.ap.estimate_seconds(spec["episode"]), 20)

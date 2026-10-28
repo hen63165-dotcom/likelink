@@ -1,0 +1,146 @@
+{
+  "series": "cast-masters",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "shots": [
+    {
+      "id": "noa-m0",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91500,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "noa-m1",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91513,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "noa-m2",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91526,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "noa-m3",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91539,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "maya-m0",
+      "character": "Maya, a woman in her late twenties with an adult face and adult proportions, long straight dark brown hair, brown eyes, wearing a plain navy long-sleeve tunic top covering the hips",
+      "still": true,
+      "seed": 92500,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "maya-m1",
+      "character": "Maya, a woman in her late twenties with an adult face and adult proportions, long straight dark brown hair, brown eyes, wearing a plain navy long-sleeve tunic top covering the hips",
+      "still": true,
+      "seed": 92513,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "maya-m2",
+      "character": "Maya, a woman in her late twenties with an adult face and adult proportions, long straight dark brown hair, brown eyes, wearing a plain navy long-sleeve tunic top covering the hips",
+      "still": true,
+      "seed": 92526,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "maya-m3",
+      "character": "Maya, a woman in her late twenties with an adult face and adult proportions, long straight dark brown hair, brown eyes, wearing a plain navy long-sleeve tunic top covering the hips",
+      "still": true,
+      "seed": 92539,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "shira-m0",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
+      "still": true,
+      "seed": 93500,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "shira-m1",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
+      "still": true,
+      "seed": 93513,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "shira-m2",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
+      "still": true,
+      "seed": 93526,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "shira-m3",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
+      "still": true,
+      "seed": 93539,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "tal-m0",
+      "character": "Tal, a woman in her late twenties with an adult face and adult proportions, jet black high ponytail, grey eyes, wearing a plain black oversized hoodie zipped to the neck",
+      "still": true,
+      "seed": 94500,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "tal-m1",
+      "character": "Tal, a woman in her late twenties with an adult face and adult proportions, jet black high ponytail, grey eyes, wearing a plain black oversized hoodie zipped to the neck",
+      "still": true,
+      "seed": 94513,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "tal-m2",
+      "character": "Tal, a woman in her late twenties with an adult face and adult proportions, jet black high ponytail, grey eyes, wearing a plain black oversized hoodie zipped to the neck",
+      "still": true,
+      "seed": 94526,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "tal-m3",
+      "character": "Tal, a woman in her late twenties with an adult face and adult proportions, jet black high ponytail, grey eyes, wearing a plain black oversized hoodie zipped to the neck",
+      "still": true,
+      "seed": 94539,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "yael-m0",
+      "character": "Yael, a woman in her late twenties with an adult face and adult proportions, long wavy golden blonde hair, blue eyes, wearing a plain cream knit sweater",
+      "still": true,
+      "seed": 95500,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "yael-m1",
+      "character": "Yael, a woman in her late twenties with an adult face and adult proportions, long wavy golden blonde hair, blue eyes, wearing a plain cream knit sweater",
+      "still": true,
+      "seed": 95513,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    },
+    {
+      "id": "yael-m2",
+      "character": "Yael, a woman in her late twenties with an adult face and adult proportions, long wavy golden blonde hair, blue eyes, wearing a plain cream knit sweater",
+      "still": true,
+      "seed": 95526,
+      "prompt": "medium shot from the waist up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her arms relaxed with her hands visible at her waist"
+    },
+    {
+      "id": "yael-m3",
+      "character": "Yael, a woman in her late twenties with an adult face and adult proportions, long wavy golden blonde hair, blue eyes, wearing a plain cream knit sweater",
+      "still": true,
+      "seed": 95539,
+      "prompt": "medium shot from the waist up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit, relaxed shoulders, her hands loosely at her waist"
+    }
+  ]
+}
