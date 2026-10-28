@@ -5,6 +5,7 @@ Run from scripts/luna_reels:  python -m unittest discover -s tests -v
 import datetime as dt
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -302,6 +303,75 @@ class Studio3D(unittest.TestCase):
     def test_an_animated_shot_uses_only_its_clean_start(self):
         self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
 
+    def test_a_talking_shot_cuts_in_to_her_face_in_the_same_frame_shape(self):
+        x0, y0, x1, y1 = compose.close_up_box(576, 1024)
+        self.assertAlmostEqual((x1 - x0) / (y1 - y0), 576 / 1024, places=2)
+        self.assertLess(x1 - x0, 576)  # closer than the drawing
+        self.assertLess(y0, 1024 * 0.05)  # her face is near the top
+        self.assertEqual((x0 + x1) / 2, 288)  # centred across
+        self.assertTrue(0 <= x0 and x1 <= 576 and y1 <= 1024)
+
+    def test_from_her_keyframe_the_close_up_is_cut_around_her_head(self):
+        head = [0.32, 0.12, 0.68, 0.36]  # a head-and-hair box, a little left of centre would move the crop too
+        boxes = [compose.close_up_box(576, 1024, head=head, n=n) for n in range(3)]
+        for x0, y0, x1, y1 in boxes:
+            self.assertAlmostEqual((x1 - x0) / (y1 - y0), 9 / 16, places=2)
+            self.assertTrue(0 <= x0 and x1 <= 576 and 0 <= y0 and y1 <= 1024)
+            self.assertLessEqual(x0, head[0] * 576)
+            self.assertGreaterEqual(x1, head[2] * 576)  # her whole head is in
+            self.assertLessEqual(y0, head[1] * 1024)
+        self.assertEqual(len({b[2] - b[0] for b in boxes}), 3)  # each talking line another cut
+        x0, _y0, x1, _y1 = compose.close_up_box(576, 1024, head=[0.0, 0.1, 0.3, 0.3])
+        self.assertEqual(x0, 0)  # never outside the picture
+        with tempfile.TemporaryDirectory() as d:
+            pic = Path(d) / "hero.png"
+            self.assertIsNone(compose.head_of(pic))
+            (Path(d) / "hero.face.json").write_text(json.dumps({"head": head}))
+            self.assertEqual(compose.head_of(pic), head)
+            (Path(d) / "hero.face.json").write_text(json.dumps({"head": [0.5, 0.1, 0.2, 0.3]}))
+            self.assertIsNone(compose.head_of(pic))  # a box turned inside out is no box
+
+
+class SameWoman(unittest.TestCase):
+    """pick.py: per shot, the take that is most the same adult presenter (pilot v4: a child in one shot, orange hair in another)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import flux  # noqa: PLC0415
+        import pick  # noqa: PLC0415
+        cls.flux, cls.pick = flux, pick
+
+    def take(self, k, **kw):
+        return {"take": k, "face": True, "adult": 0.9, "identity": 0.9, "prompt": 0.3, "jewel": 0.1, **kw}
+
+    def test_each_take_draws_from_its_own_seed(self):
+        shot = {"seed": 93101}
+        self.assertEqual(self.flux.seed_of(shot), 93101)
+        self.assertEqual(self.flux.seed_of(shot, 0), 93101)
+        self.assertEqual(len({self.flux.seed_of(shot, k) for k in range(3)}), 3)
+
+    def test_a_child_is_never_chosen_while_an_adult_take_exists(self):
+        chosen = self.pick.choose([self.take(0, adult=0.2, identity=0.99), self.take(1, adult=0.7, identity=0.8)])
+        self.assertEqual(chosen["take"], 1)
+
+    def test_a_take_without_her_face_is_out(self):
+        chosen = self.pick.choose([self.take(0, face=False, identity=0.99), self.take(1, identity=0.8)])
+        self.assertEqual(chosen["take"], 1)
+
+    def test_the_same_face_weighs_most_then_the_shot(self):
+        takes = [self.take(0, identity=0.80, prompt=0.33), self.take(1, identity=0.93, prompt=0.30), self.take(2, identity=0.86, prompt=0.31)]
+        self.assertEqual(self.pick.choose(takes)["take"], 1)
+
+    def test_jewellery_weighs_a_take_down(self):
+        takes = [self.take(0, identity=0.91, jewel=0.95), self.take(1, identity=0.90, jewel=0.05)]
+        self.assertEqual(self.pick.choose(takes)["take"], 1)
+
+    def test_an_object_shot_is_chosen_by_the_shot_asked_for(self):
+        takes = [self.take(0, prompt=0.25), self.take(1, prompt=0.32)]
+        self.assertEqual(self.pick.choose(takes, character=False)["take"], 1)
+        self.assertIsNone(self.pick.choose([]))
+
 
 class AutoPlan(unittest.TestCase):
     """One product in, one reel out (scripts/media/studio3d/autoplan.py)."""
@@ -360,6 +430,77 @@ class AutoPlan(unittest.TestCase):
             self.assertTrue(tag.get("still"), "the name tag's portrait is never animated")
             self.assertNotIn(tag["id"], scenes)
 
+    def test_one_adult_look_and_close_ups_for_the_talking_shots(self):
+        for _pid, member, spec in self.plans():
+            self.assertIn("in her late twenties", spec["character"])
+            self.assertNotIn("auburn", spec["character"])  # read as brown in one shot, orange in another
+            self.assertGreaterEqual(spec["takes"], 2)
+            for s in spec["shots"]:
+                if s.get("talk"):  # a large face: the lips move clearly and sharply
+                    self.assertIn("from the chest up", s["prompt"], s["id"])
+                self.assertNotRegex(s.get("prompt", ""), r"hands on her cheeks")  # read as a child in pilot v4
+
+    def test_the_framing_comes_before_her_look_and_a_close_shot_names_only_her_top(self):
+        import flux  # noqa: PLC0415
+        for _pid, _member, spec in self.plans():
+            for s in spec["shots"]:
+                text = flux.prompt_of(spec, s)
+                self.assertTrue(text.startswith(f"{spec['style']}, {s['prompt']}"), s["id"])  # CLIP reads 77 tokens
+                if s.get("frame") == "upper":
+                    self.assertNotRegex(text, r"pants|leggings", s["id"])  # drawn from the knees in v5
+        self.assertEqual(self.ap.top_of("plain dusty rose half-zip sweatshirt and long sweatpants"), "plain dusty rose half-zip sweatshirt")
+
+    def test_keyframe_candidates_for_every_presenter_are_chosen_by_eye(self):
+        spec = self.ap.masters({"characters": self.cast})
+        self.assertNotIn("episode", spec)  # drawn and committed for review only: nothing is animated
+        self.assertEqual(len(spec["shots"]), len(self.cast) * self.ap.MASTER_TAKES)
+        self.assertLessEqual(len(spec["shots"]), 20)  # one wave of free runners
+        self.assertEqual(len({s["seed"] for s in spec["shots"]}), len(spec["shots"]))
+        for s in spec["shots"]:
+            self.assertTrue(s["still"])
+            self.assertIn("in her late twenties", s["character"])
+            self.assertNotRegex(s["character"], r"pants|leggings|auburn")
+            self.assertNotRegex(s["prompt"], self.ap.DRAWN_JEWELLERY)
+
+    def test_every_saved_keyframe_is_a_cast_member_with_a_square_head_box(self):
+        from PIL import Image  # noqa: PLC0415
+        ids = {c["id"] for c in self.cast}
+        saved = sorted(p.parent.name for p in self.ap.CAST_DIR.glob("*/master.json"))
+        self.assertTrue(saved)
+        for who in saved:
+            self.assertIn(who, ids)
+            master = self.ap.master_of(who)
+            self.assertIsNotNone(master, who)  # the picture is there too
+            x0, y0, x1, y1 = master["face"]
+            w, h = Image.open(self.ap.CAST_DIR / who / "master.png").size
+            self.assertAlmostEqual((x1 - x0) * w, (y1 - y0) * h, delta=3, msg=who)  # the name tag is round
+
+    def test_a_later_round_is_drawn_from_the_chest_up_with_new_seeds(self):
+        first = self.ap.masters({"characters": self.cast}, only=["noa"])
+        later = self.ap.masters({"characters": self.cast}, only=["noa"], round_=2)
+        self.assertEqual(len(later["shots"]), self.ap.MASTER_TAKES)
+        self.assertTrue(all(s["id"].startswith("noa-r2m") and "from the chest up" in s["prompt"] for s in later["shots"]))
+        self.assertFalse({s["seed"] for s in first["shots"]} & {s["seed"] for s in later["shots"]})
+
+    def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import castframes  # noqa: PLC0415
+        master = {"face": [0.3, 0.1, 0.7, 0.35]}
+        spec = self.ap.plan(CATALOG["p-live-05"], self.cast[0], master)
+        self.ap.check_plan(spec)
+        drawn = [s["id"] for s in spec["shots"] if not s.get("cast")]
+        self.assertEqual(drawn, ["hook"])  # the talking object alone
+        self.assertEqual(spec["face"], {"from": "tag", "box": master["face"]})
+        self.assertTrue(all(s["cast"] == "master.png" for s in spec["shots"] if s.get("character")))
+        frames = castframes.frames(spec)
+        self.assertEqual({sid for sid, _ in frames}, {s["id"] for s in spec["shots"] if s.get("character")})
+        self.assertTrue(all(path == castframes.CAST / spec["presenter"] / "master.png" for _, path in frames))
+        with self.assertRaises(SystemExit):  # never a path out of the cast folder
+            castframes.frames({**spec, "shots": [{"id": "x", "cast": "../../evil.png"}]})
+        self.assertIsNone(self.ap.master_of("nobody"))
+        without = self.ap.plan(CATALOG["p-live-05"], self.cast[0])
+        self.assertFalse(any(s.get("cast") for s in without["shots"]))  # no keyframe yet: every shot is drawn
+
     def test_the_story_is_held_to_the_masters_length(self):
         for _pid, _member, spec in self.plans():
             self.assertGreaterEqual(self.ap.estimate_seconds(spec["episode"]), 20)
@@ -368,6 +509,125 @@ class AutoPlan(unittest.TestCase):
         short["episode"]["lines"] = short["episode"]["lines"][:2]
         with self.assertRaises(SystemExit):
             self.ap.check_plan(short)
+
+
+class CloudStudio(unittest.TestCase):
+    """The cloud studio (scripts/media/gpu): every scene says its own line, from the very voice the edit plays."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "gpu"))
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import autoplan  # noqa: PLC0415
+        import cloudplan  # noqa: PLC0415
+        cls.ap, cls.cp = autoplan, cloudplan
+        cls.cast = json.loads((HERE.parent / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))["characters"]
+
+    def spec(self, master=None):
+        return self.ap.plan(CATALOG["p-live-05"], self.cast[2], master, engine="gpu")
+
+    def manifest(self, spec):
+        beats = [spec["episode"]["hook"], *spec["episode"]["lines"]]
+        return {"beats": [{"beat": i, "scene": b.get("scene", ""), "file": f"ep-{i:02d}.mp3", "seconds": 2.5}
+                          for i, b in enumerate(beats)]}
+
+    def test_on_the_gpu_every_scene_says_its_line_and_nothing_claims(self):
+        spec = self.spec()
+        self.ap.check_plan(spec)
+        talking = [s["id"] for s in spec["shots"] if s.get("talk")]
+        self.assertEqual(talking, ["hook", "problem", "hero", "tip", "wow", "cta"])
+        self.assertEqual(spec["engine"], "gpu")
+        for s in spec["shots"]:
+            if s.get("talk"):
+                self.assertIn("talks", s["talkPrompt"])
+                self.assertNotRegex(s["talkPrompt"], self.ap.DRAWN_JEWELLERY)
+        with self.assertRaises(SystemExit):
+            self.ap.plan(CATALOG["p-live-05"], self.cast[2], engine="kling")
+        cpu = self.ap.plan(CATALOG["p-live-05"], self.cast[2])
+        self.assertFalse(any(s.get("talkPrompt") for s in cpu["shots"]))  # the free studio is unchanged
+
+    def test_one_job_per_scene_with_its_own_line_and_the_product_line_is_never_drawn_talking(self):
+        spec = self.spec()
+        jobs = self.cp.talk_jobs(spec, self.manifest(spec), "/p", "/v")
+        self.assertEqual([j["scene"] for j in jobs], ["hook", "problem", "hero", "tip", "wow", "cta"])
+        hero = next(j for j in jobs if j["scene"] == "hero")
+        self.assertEqual(hero["audio"], "/v/ep-02.mp3")  # the trick line is said in the hero shot
+        self.assertEqual(hero["picture"], "/p/hero.png")
+        self.assertNotIn("tag", [j["scene"] for j in jobs])  # the name tag's portrait never moves
+        twice = self.manifest(spec)
+        twice["beats"][1]["scene"] = "hook"
+        with self.assertRaises(ValueError):
+            self.cp.talk_jobs(spec, twice, "/p", "/v")
+        bad = self.manifest(spec)
+        bad["beats"][0]["file"] = "../../etc/passwd"
+        with self.assertRaises(ValueError):
+            self.cp.talk_jobs(spec, bad, "/p", "/v")
+
+    def test_with_her_keyframe_only_the_talking_object_is_drawn(self):
+        spec = self.spec({"face": [0.3, 0.1, 0.7, 0.35]})
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(self.cp.draw_needed(spec, d), ["hook"])
+            (Path(d) / "hook.png").write_bytes(b"x")
+            self.assertEqual(self.cp.draw_needed(spec, d), [])
+        without = self.spec()
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(len(self.cp.draw_needed(without, d)), len(without["shots"]))
+
+    def test_the_month_allowance_stays_under_the_free_credit(self):
+        self.assertLessEqual(self.cp.MONTH_HOURS * 3.95, 30)  # H100 at $3.95 an hour, $30 free a month
+        planned = self.cp.planned_seconds(6, 1)
+        self.assertTrue(self.cp.budget_allows(0, planned))
+        self.assertFalse(self.cp.budget_allows(self.cp.MONTH_HOURS * 3600 - planned + 1, planned))
+        self.assertEqual(self.cp.month_key(0), "1970-01")
+
+    def test_the_infinitetalk_command_follows_its_lora(self):
+        lora = {"path": "/w/lora/x.safetensors", "steps": 4, "shift": 2.0, "text": 1.0, "audio": 2.0}
+        args = self.cp.infinitetalk_args("/w/", lora, "/t/in.json", "/t/out", 7)
+        self.assertIn("/w/Wan2.1-I2V-14B-480P", args)
+        self.assertEqual(args[args.index("--sample_steps") + 1], "4")
+        self.assertEqual(args[args.index("--mode") + 1], "streaming")  # any line length
+        self.assertNotIn("--num_persistent_param_in_dit", args)
+        plain = self.cp.infinitetalk_args("/w", None, "/t/in.json", "/t/out", 7, low_vram=True)
+        self.assertEqual(plain[plain.index("--sample_steps") + 1], "40")
+        self.assertNotIn("--lora_dir", plain)
+        self.assertIn("--num_persistent_param_in_dit", plain)
+
+    def test_the_edit_plays_the_very_voice_the_scene_was_made_with(self):
+        from luna_reels import voice  # noqa: PLC0415
+        a = voice.cache_key("שורה אחת.", "he-IL-HilaNeural")
+        self.assertEqual(a, voice.cache_key("שורה אחת.", "he-IL-HilaNeural"))
+        self.assertNotEqual(a, voice.cache_key("שורה אחרת.", "he-IL-HilaNeural"))
+        self.assertNotEqual(a, voice.cache_key("שורה אחת.", "he-IL-AvriNeural"))
+        with tempfile.TemporaryDirectory() as d:
+            cache = Path(d) / "cache"
+            cache.mkdir()
+            (cache / f"{a}.mp3").write_bytes(b"\0" * 2000)
+            (cache / f"{a}.json").write_text(json.dumps([[0.1, 0.3, "שורה"]]))
+            dst = Path(d) / "out.mp3"
+            words = voice._edge_cached("שורה אחת.", dst, "he-IL-HilaNeural", str(cache))  # no network: from the cache
+            self.assertEqual(dst.read_bytes(), b"\0" * 2000)
+            self.assertEqual(words, [(0.1, 0.3, "שורה")])
+
+    def test_a_made_talking_shot_is_used_only_when_it_lasts_the_line(self):
+        self.assertIsNone(compose.made_talk(None, 2.0))
+        with tempfile.TemporaryDirectory() as d:
+            pic = Path(d) / "hero.png"
+            self.assertIsNone(compose.made_talk(pic, 2.0))
+            from moviepy import ColorClip  # noqa: PLC0415
+            ColorClip((64, 112), (200, 120, 120), duration=2.0).write_videofile(
+                str(Path(d) / "hero.talk.mp4"), fps=10, codec="libx264", audio=False, logger=None)
+            self.assertEqual(compose.made_talk(pic, 2.1), Path(d) / "hero.talk.mp4")
+            self.assertIsNone(compose.made_talk(pic, 3.0))  # the end of the line would go unsaid
+
+    def test_the_cloud_runs_only_with_the_owners_token_and_falls_back_to_the_free_studio(self):
+        wf = (HERE.parent.parent / ".github" / "workflows" / "studio3d.yml").read_text(encoding="utf-8")
+        self.assertIn("HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}", wf)
+        self.assertIn("if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage == 'all' && needs.gpu.result != 'success'", wf)
+        self.assertIn("needs.gpu.result != 'success' && needs.plan.outputs.moving", wf)  # no CPU animation after the cloud
+        self.assertNotRegex(wf, r"echo .*MODAL_TOKEN")  # the token is never printed
+        gpu = (HERE.parent / "media" / "gpu" / "studio_gpu.py").read_text(encoding="utf-8")
+        self.assertIn("budget_allows", gpu)
+        self.assertNotRegex(gpu, r"kling|klingai|runway|heygen", "open models only")
 
 
 class Music(unittest.TestCase):

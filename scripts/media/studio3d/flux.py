@@ -24,7 +24,8 @@ the seller never made). Hebrew is never drawn either; captions are
 composited later.
 
   python flux.py --jobs jobs.json --out DIR [--width 576 --height 1024]
-  jobs.json: {"style": "...", "character": "...", "shots": [{"id", "prompt", "seed", "character": true}]}
+  jobs.json: {"style": "...", "character": "...", "characterTop": "...",
+              "shots": [{"id", "prompt", "seed", "character": true | "<her own look>", "frame": "upper"}]}
 Writes DIR/<id>.png and one JSON line per picture (id, seconds, bytes).
 """
 import argparse, gc, json, os, sys, time
@@ -69,10 +70,31 @@ SCHEDULER_CONFIG = {"num_train_timesteps": 1000, "shift": 1.0, "use_dynamic_shif
 GUARD = ""
 
 
+def seed_of(shot, take=-1):
+    """A shot's seed; each further take of it draws from another seed."""
+    return int(shot.get("seed", 1)) + (max(0, take) * 7919)
+
+
+def look_of(spec, shot):
+    """Her fixed look in this shot: the shot's own (a cast candidate), else the
+    shot list's; a shot framed from the waist up names only her top — "long
+    sweatpants" in the prompt drew her whole body in every "close-up" (2026-10-28)."""
+    c = shot.get("character")
+    if isinstance(c, str):
+        return c
+    if not c:
+        return ""
+    if shot.get("frame") == "upper" and spec.get("characterTop"):
+        return spec["characterTop"]
+    return spec.get("character", "")
+
+
 def prompt_of(spec, shot):
-    """The one prompt the model reads for a shot: the series style, the
-    character's fixed look when she is in it, the shot, and the guard."""
-    parts = [spec.get("style", ""), spec.get("character", "") if shot.get("character") else "", shot["prompt"], GUARD]
+    """The one prompt the model reads for a shot: the series style, the shot
+    (its framing first), the character's fixed look when she is in it, and the
+    guard. CLIP reads only the first 77 tokens: with the look before the shot,
+    the framing fell outside them and "from the chest up" was drawn from the knees."""
+    parts = [spec.get("style", ""), shot["prompt"], look_of(spec, shot), GUARD]
     return ", ".join(p.strip().rstrip(".") for p in parts if p and p.strip())
 
 
@@ -157,9 +179,14 @@ def main():
     ap.add_argument("--height", type=int, default=1024)
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--only", default="", help="comma-separated shot ids")
+    ap.add_argument("--device", default="cpu", choices=["cpu", "cuda"],
+                    help="cuda on the cloud studio's GPU (scripts/media/gpu): the same open copies, in bf16, seconds a picture")
+    ap.add_argument("--take", type=int, default=-1,
+                    help="one of several takes of a shot (another seed); writes <shot>.t<take>.png for pick.py")
     a = ap.parse_args()
     spec = json.load(open(a.jobs, encoding="utf-8"))
-    shots = [s for s in spec["shots"] if not a.only or s["id"] in a.only.split(",")]
+    # A shot from the presenter's checked keyframe ("cast") is never drawn again.
+    shots = [s for s in spec["shots"] if not s.get("cast") and (not a.only or s["id"] in a.only.split(","))]
     os.makedirs(a.out, exist_ok=True)
 
     import tempfile
@@ -167,7 +194,9 @@ def main():
     from diffusers import FlowMatchEulerDiscreteScheduler, FluxPipeline, FluxTransformer2DModel, GGUFQuantizationConfig
     from transformers import CLIPTextModel, CLIPTokenizer, T5TokenizerFast
 
-    torch.set_num_threads(os.cpu_count() or 4)
+    gpu = a.device == "cuda"
+    if not gpu:
+        torch.set_num_threads(os.cpu_count() or 4)
     cfg_root = write_configs(tempfile.mkdtemp(prefix="flux-cfg-"))
     scheduler = FlowMatchEulerDiscreteScheduler(**SCHEDULER_CONFIG)
     t0 = time.time()
@@ -178,22 +207,25 @@ def main():
         tokenizer=CLIPTokenizer.from_pretrained(CLIP),
         text_encoder_2=load_t5(torch), tokenizer_2=T5TokenizerFast.from_pretrained(T5_TOKENIZER),
     )
+    if gpu:
+        enc.to("cuda")
     embeds = {}
     with torch.no_grad():
         for s in shots:
             text = prompt_of(spec, s)
             pe, ppe, _ = enc.encode_prompt(prompt=text, prompt_2=text, max_sequence_length=256)
-            embeds[s["id"]] = (pe.float(), ppe.float())
+            embeds[s["id"]] = (pe.float(), ppe.float()) if not gpu else (pe.to(torch.bfloat16), ppe.to(torch.bfloat16))
     del enc
     gc.collect()
     note(stage="encoded", shots=len(shots), s=round(time.time() - t0))
 
-    # Pass 2: the 4-bit transformer computes in float32 (the runner's CPU has
-    # no native bf16, so float32 is the fast path here).
+    # Pass 2: the 4-bit transformer computes in float32 on the runner's CPU (it
+    # has no native bf16, so float32 is the fast path there), in bf16 on a GPU.
+    dtype = torch.bfloat16 if gpu else torch.float32
     transformer = FluxTransformer2DModel.from_single_file(
         GGUF,
-        quantization_config=GGUFQuantizationConfig(compute_dtype=torch.float32),
-        torch_dtype=torch.float32,
+        quantization_config=GGUFQuantizationConfig(compute_dtype=dtype),
+        torch_dtype=dtype,
         config=cfg_root,
         subfolder="transformer",
     )
@@ -202,6 +234,9 @@ def main():
         text_encoder=None, tokenizer=None, text_encoder_2=None, tokenizer_2=None,
     )
     pipe.vae = load_vae(torch, cfg_root)  # after: the tiny decoder has no block_out_channels (scale stays 8)
+    if gpu:
+        pipe.to("cuda")
+        pipe.vae.to(dtype=dtype)  # the latents arrive in bf16
     pipe.set_progress_bar_config(disable=True)
     note(stage="loaded", s=round(time.time() - t0))
     for s in shots:
@@ -212,11 +247,11 @@ def main():
                 prompt_embeds=pe, pooled_prompt_embeds=ppe,
                 num_inference_steps=a.steps, guidance_scale=0.0,
                 width=a.width, height=a.height,
-                generator=torch.Generator().manual_seed(int(s.get("seed", 1))),
+                generator=torch.Generator("cuda" if gpu else "cpu").manual_seed(seed_of(s, a.take)),
             ).images[0]
-        path = os.path.join(a.out, f"{s['id']}.png")
+        path = os.path.join(a.out, f"{s['id']}.png" if a.take < 0 else f"{s['id']}.t{a.take}.png")
         img.save(path)
-        note(id=s["id"], s=round(time.time() - t), bytes=os.path.getsize(path))
+        note(id=s["id"], take=a.take, seed=seed_of(s, a.take), s=round(time.time() - t), bytes=os.path.getsize(path))
     return 0
 
 

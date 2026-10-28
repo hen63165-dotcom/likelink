@@ -322,6 +322,9 @@ export default function UGCCampaignStudio({ onNavigate }) {
               {he ? `הסרטון נבנה בטלפון שלך מתמונות המוצר מהחנות (עד 4 תמונות, כ־${secondsFor(1)} שניות לכל תמונה), נשמר בענן ומקושר למוצר. זו אנימציה של תמונות — לא צילום של אדם ולא UGC אמיתי. נוצר רק כשלוחצים, ומוצר שכבר יש לו סרטון לא נוצר שוב.` : `Made on your device from the product's store photos (up to 4, about ${secondsFor(1)} s each), saved to the cloud and linked to the product. An animation of photos — not footage of a person, not real UGC. Made only when you press, and never again for a product that has one.`}
             </p>
           </div>
+          <button type="button" onClick={() => onNavigate?.("share")} className="flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black" style={{ background: "var(--accent)", color: "#fff" }}>
+            <Sparkles size={15} /> {he ? "סרטון אנימציה עם דמות שמדברת ← בפרסום לרשתות" : "Animated character reel → Share"}
+          </button>
           <div className="flex items-center gap-2 rounded-full px-3 py-2 text-xs font-black" style={{ background: "var(--success-subtle)", color: "var(--success)" }}>
             <ShieldCheck size={15} /> {he ? "רק תמונות המוצר · בלי המצאות" : "Product photos only · nothing invented"}
           </div>
