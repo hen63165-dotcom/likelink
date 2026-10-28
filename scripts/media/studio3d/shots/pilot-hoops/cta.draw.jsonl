@@ -1,5 +1,5 @@
 {"source": "t5", "used": "city96/t5-v1_1-xxl-encoder-bf16", "path": null}
-{"stage": "encoded", "shots": 1, "s": 69}
+{"stage": "encoded", "shots": 1, "s": 140}
 {"source": "vae", "used": "Comfy-Org/Lumina_Image_2.0_Repackaged", "path": "split_files/vae/ae.safetensors"}
-{"stage": "loaded", "s": 114}
-{"id": "cta", "s": 606, "bytes": 698122}
+{"stage": "loaded", "s": 164}
+{"id": "cta", "s": 1078, "bytes": 803855}
