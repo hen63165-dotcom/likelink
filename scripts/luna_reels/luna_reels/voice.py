@@ -20,6 +20,7 @@ Each beat's duration comes from its real audio, so captions follow the voice.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import shutil
@@ -32,6 +33,10 @@ from pathlib import Path
 
 EDGE_VOICE = os.environ.get("LUNA_EDGE_VOICE", "he-IL-HilaNeural")
 EDGE_RATE = os.environ.get("LUNA_EDGE_RATE", "+12%")
+# A folder of voices already spoken (LUNA_VOICE_CACHE): the cloud studio
+# (scripts/media/gpu) lip-syncs each scene to its line's voice before the reel
+# is edited, and the edit must play the very same audio, not a second reading.
+VOICE_CACHE = os.environ.get("LUNA_VOICE_CACHE", "")
 CHARS_PER_SEC = 13.0      # silent / single-file timing: an easy Hebrew reading pace
 MIN_BEAT, PAD = 1.4, 0.12  # never flash a caption; a short breath between beats
 
@@ -98,6 +103,29 @@ def _edge(text: str, dst: Path, voice: str = EDGE_VOICE) -> list[tuple[float, fl
     return words
 
 
+def cache_key(text: str, voice: str, rate: str = EDGE_RATE) -> str:
+    """One line read by one voice at one rate (pure; tested)."""
+    return hashlib.sha256(f"{voice}|{rate}|{text}".encode("utf-8")).hexdigest()[:24]
+
+
+def _edge_cached(text: str, dst: Path, voice: str, cache: str = "") -> list[tuple[float, float, str]]:
+    """The Edge voice, from the cache when this line was spoken already (with its word timings)."""
+    cache = cache or VOICE_CACHE
+    if not cache:
+        return _retry(lambda: _edge(text, dst, voice))
+    folder = Path(cache)
+    key = cache_key(text, voice)
+    audio, timing = folder / f"{key}.mp3", folder / f"{key}.json"
+    if audio.exists() and timing.exists() and audio.stat().st_size >= 1000:
+        shutil.copyfile(audio, dst)
+        return [tuple(w) for w in json.loads(timing.read_text(encoding="utf-8"))]
+    words = _retry(lambda: _edge(text, dst, voice))
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(dst, audio)
+    timing.write_text(json.dumps(words, ensure_ascii=False), encoding="utf-8")
+    return words
+
+
 def _gtts(text: str, dst: Path) -> None:  # no word timings from gTTS
     from gtts import gTTS  # noqa: PLC0415 (optional dependency)
 
@@ -143,7 +171,7 @@ def synthesize(texts: list[str], engine: str, out_dir: Path, eid: str = "reel", 
             for i, text in enumerate(texts):
                 dst = out_dir / f"{eid}-{i:02d}.mp3"
                 if name == "edge":
-                    words = _retry(lambda: _edge(text, dst, edge_voice))
+                    words = _edge_cached(text, dst, edge_voice)
                 else:
                     _retry(lambda: _gtts(text, dst))
                     words = None

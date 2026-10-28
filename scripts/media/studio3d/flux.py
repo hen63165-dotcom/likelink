@@ -179,6 +179,8 @@ def main():
     ap.add_argument("--height", type=int, default=1024)
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--only", default="", help="comma-separated shot ids")
+    ap.add_argument("--device", default="cpu", choices=["cpu", "cuda"],
+                    help="cuda on the cloud studio's GPU (scripts/media/gpu): the same open copies, in bf16, seconds a picture")
     ap.add_argument("--take", type=int, default=-1,
                     help="one of several takes of a shot (another seed); writes <shot>.t<take>.png for pick.py")
     a = ap.parse_args()
@@ -192,7 +194,9 @@ def main():
     from diffusers import FlowMatchEulerDiscreteScheduler, FluxPipeline, FluxTransformer2DModel, GGUFQuantizationConfig
     from transformers import CLIPTextModel, CLIPTokenizer, T5TokenizerFast
 
-    torch.set_num_threads(os.cpu_count() or 4)
+    gpu = a.device == "cuda"
+    if not gpu:
+        torch.set_num_threads(os.cpu_count() or 4)
     cfg_root = write_configs(tempfile.mkdtemp(prefix="flux-cfg-"))
     scheduler = FlowMatchEulerDiscreteScheduler(**SCHEDULER_CONFIG)
     t0 = time.time()
@@ -203,22 +207,25 @@ def main():
         tokenizer=CLIPTokenizer.from_pretrained(CLIP),
         text_encoder_2=load_t5(torch), tokenizer_2=T5TokenizerFast.from_pretrained(T5_TOKENIZER),
     )
+    if gpu:
+        enc.to("cuda")
     embeds = {}
     with torch.no_grad():
         for s in shots:
             text = prompt_of(spec, s)
             pe, ppe, _ = enc.encode_prompt(prompt=text, prompt_2=text, max_sequence_length=256)
-            embeds[s["id"]] = (pe.float(), ppe.float())
+            embeds[s["id"]] = (pe.float(), ppe.float()) if not gpu else (pe.to(torch.bfloat16), ppe.to(torch.bfloat16))
     del enc
     gc.collect()
     note(stage="encoded", shots=len(shots), s=round(time.time() - t0))
 
-    # Pass 2: the 4-bit transformer computes in float32 (the runner's CPU has
-    # no native bf16, so float32 is the fast path here).
+    # Pass 2: the 4-bit transformer computes in float32 on the runner's CPU (it
+    # has no native bf16, so float32 is the fast path there), in bf16 on a GPU.
+    dtype = torch.bfloat16 if gpu else torch.float32
     transformer = FluxTransformer2DModel.from_single_file(
         GGUF,
-        quantization_config=GGUFQuantizationConfig(compute_dtype=torch.float32),
-        torch_dtype=torch.float32,
+        quantization_config=GGUFQuantizationConfig(compute_dtype=dtype),
+        torch_dtype=dtype,
         config=cfg_root,
         subfolder="transformer",
     )
@@ -227,6 +234,9 @@ def main():
         text_encoder=None, tokenizer=None, text_encoder_2=None, tokenizer_2=None,
     )
     pipe.vae = load_vae(torch, cfg_root)  # after: the tiny decoder has no block_out_channels (scale stays 8)
+    if gpu:
+        pipe.to("cuda")
+        pipe.vae.to(dtype=dtype)  # the latents arrive in bf16
     pipe.set_progress_bar_config(disable=True)
     note(stage="loaded", s=round(time.time() - t0))
     for s in shots:
@@ -237,7 +247,7 @@ def main():
                 prompt_embeds=pe, pooled_prompt_embeds=ppe,
                 num_inference_steps=a.steps, guidance_scale=0.0,
                 width=a.width, height=a.height,
-                generator=torch.Generator().manual_seed(seed_of(s, a.take)),
+                generator=torch.Generator("cuda" if gpu else "cpu").manual_seed(seed_of(s, a.take)),
             ).images[0]
         path = os.path.join(a.out, f"{s['id']}.png" if a.take < 0 else f"{s['id']}.t{a.take}.png")
         img.save(path)

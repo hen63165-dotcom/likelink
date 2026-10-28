@@ -381,13 +381,44 @@ def head_of(picture: Path):
     return box if ok and 0 <= box[0] < box[2] <= 1 and 0 <= box[1] < box[3] <= 1 else None
 
 
+# A talking scene the cloud studio already made (scripts/media/gpu: the whole
+# shot moves and says its line, from the very same voice file) is used as it is
+# when it lasts the line; a shorter one would leave the end of the line unsaid.
+TALK_MADE_SLACK = 0.3
+
+
+def made_talk(picture: Path | None, seconds: float) -> Path | None:
+    """<scene>.talk.mp4 beside the scene's picture, when it covers the line (else None)."""
+    if picture is None:
+        return None
+    made = picture.with_suffix(".talk.mp4")
+    if not made.exists():
+        return None
+    try:
+        clip = VideoFileClip(str(made), audio=False)
+        got = clip.duration
+        clip.close()
+    except Exception as exc:  # noqa: BLE001 (an unreadable file is no shot)
+        print(f"[talk] {made.name}: unreadable ({exc})")
+        return None
+    if got + TALK_MADE_SLACK < seconds:
+        print(f"[talk] {made.name}: {got:.2f}s for a {seconds:.2f}s line; not used")
+        return None
+    return made
+
+
 def _talking_shot(picture: Path | None, beat: Beat, work: Path, n: int = 0) -> Path | None:
-    """The presenter says this line on camera: SadTalker (Apache-2.0, CPU) moves her
-    lips to the line's own voice on the studio picture. None when it cannot run
-    (no SadTalker on this machine, no voice, no face found): the shot then moves as before."""
+    """The presenter says this line on camera: the cloud studio's own talking shot
+    when one was made for it, else SadTalker (Apache-2.0, CPU) moves her lips to
+    the line's own voice on the studio picture. None when neither can run (no
+    SadTalker on this machine, no voice, no face found): the shot then moves as before."""
     import os  # noqa: PLC0415
     import subprocess  # noqa: PLC0415
     import sys  # noqa: PLC0415
+    if picture is not None and beat.clip.path is not None:
+        made = made_talk(picture, beat.clip.seconds)
+        if made:
+            return made
     if picture is None or beat.clip.path is None or not os.environ.get("SADTALKER_VENV"):
         return None
     out = work / f"talk-{picture.stem}"

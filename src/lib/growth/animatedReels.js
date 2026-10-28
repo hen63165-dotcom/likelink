@@ -4,11 +4,11 @@
  * The owner, 2026-10-28: build it into the site, so a creator gets a reel at
  * @ravitrecommends' level by pressing a button, without anyone running it by
  * hand. Pure core, shared by the Studio ("פרסום לרשתות") and the runner
- * (scripts/media/studio3d/queue.mjs, Actions → "3D studio", hourly):
+ * (scripts/media/studio3d/queue.mjs, Actions → "3D studio", every 10 minutes):
  *
  *   the creator presses "סרטון אנימציה עם דמות" and picks a presenter → her
  *   own product record carries `reelRequest` (an owner-writable field: no new
- *   API, the store's write policy is unchanged) → the hourly run reads the
+ *   API, the store's write policy is unchanged) → the scheduled run reads the
  *   cloud's products (public read), takes the oldest open request
  *   (animatedQueue) → autoplan.py writes the story for the product's kind →
  *   draw (3 takes) → pick (the same adult woman) → animate → reel → the

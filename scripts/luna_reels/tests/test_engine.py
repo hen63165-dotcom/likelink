@@ -491,6 +491,125 @@ class AutoPlan(unittest.TestCase):
             self.ap.check_plan(short)
 
 
+class CloudStudio(unittest.TestCase):
+    """The cloud studio (scripts/media/gpu): every scene says its own line, from the very voice the edit plays."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "gpu"))
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import autoplan  # noqa: PLC0415
+        import cloudplan  # noqa: PLC0415
+        cls.ap, cls.cp = autoplan, cloudplan
+        cls.cast = json.loads((HERE.parent / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))["characters"]
+
+    def spec(self, master=None):
+        return self.ap.plan(CATALOG["p-live-05"], self.cast[2], master, engine="gpu")
+
+    def manifest(self, spec):
+        beats = [spec["episode"]["hook"], *spec["episode"]["lines"]]
+        return {"beats": [{"beat": i, "scene": b.get("scene", ""), "file": f"ep-{i:02d}.mp3", "seconds": 2.5}
+                          for i, b in enumerate(beats)]}
+
+    def test_on_the_gpu_every_scene_says_its_line_and_nothing_claims(self):
+        spec = self.spec()
+        self.ap.check_plan(spec)
+        talking = [s["id"] for s in spec["shots"] if s.get("talk")]
+        self.assertEqual(talking, ["hook", "problem", "hero", "tip", "wow", "cta"])
+        self.assertEqual(spec["engine"], "gpu")
+        for s in spec["shots"]:
+            if s.get("talk"):
+                self.assertIn("talks", s["talkPrompt"])
+                self.assertNotRegex(s["talkPrompt"], self.ap.DRAWN_JEWELLERY)
+        with self.assertRaises(SystemExit):
+            self.ap.plan(CATALOG["p-live-05"], self.cast[2], engine="kling")
+        cpu = self.ap.plan(CATALOG["p-live-05"], self.cast[2])
+        self.assertFalse(any(s.get("talkPrompt") for s in cpu["shots"]))  # the free studio is unchanged
+
+    def test_one_job_per_scene_with_its_own_line_and_the_product_line_is_never_drawn_talking(self):
+        spec = self.spec()
+        jobs = self.cp.talk_jobs(spec, self.manifest(spec), "/p", "/v")
+        self.assertEqual([j["scene"] for j in jobs], ["hook", "problem", "hero", "tip", "wow", "cta"])
+        hero = next(j for j in jobs if j["scene"] == "hero")
+        self.assertEqual(hero["audio"], "/v/ep-02.mp3")  # the trick line is said in the hero shot
+        self.assertEqual(hero["picture"], "/p/hero.png")
+        self.assertNotIn("tag", [j["scene"] for j in jobs])  # the name tag's portrait never moves
+        twice = self.manifest(spec)
+        twice["beats"][1]["scene"] = "hook"
+        with self.assertRaises(ValueError):
+            self.cp.talk_jobs(spec, twice, "/p", "/v")
+        bad = self.manifest(spec)
+        bad["beats"][0]["file"] = "../../etc/passwd"
+        with self.assertRaises(ValueError):
+            self.cp.talk_jobs(spec, bad, "/p", "/v")
+
+    def test_with_her_keyframe_only_the_talking_object_is_drawn(self):
+        spec = self.spec({"face": [0.3, 0.1, 0.7, 0.35]})
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(self.cp.draw_needed(spec, d), ["hook"])
+            (Path(d) / "hook.png").write_bytes(b"x")
+            self.assertEqual(self.cp.draw_needed(spec, d), [])
+        without = self.spec()
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(len(self.cp.draw_needed(without, d)), len(without["shots"]))
+
+    def test_the_month_allowance_stays_under_the_free_credit(self):
+        self.assertLessEqual(self.cp.MONTH_HOURS * 3.95, 30)  # H100 at $3.95 an hour, $30 free a month
+        planned = self.cp.planned_seconds(6, 1)
+        self.assertTrue(self.cp.budget_allows(0, planned))
+        self.assertFalse(self.cp.budget_allows(self.cp.MONTH_HOURS * 3600 - planned + 1, planned))
+        self.assertEqual(self.cp.month_key(0), "1970-01")
+
+    def test_the_infinitetalk_command_follows_its_lora(self):
+        lora = {"path": "/w/lora/x.safetensors", "steps": 4, "shift": 2.0, "text": 1.0, "audio": 2.0}
+        args = self.cp.infinitetalk_args("/w/", lora, "/t/in.json", "/t/out", 7)
+        self.assertIn("/w/Wan2.1-I2V-14B-480P", args)
+        self.assertEqual(args[args.index("--sample_steps") + 1], "4")
+        self.assertEqual(args[args.index("--mode") + 1], "streaming")  # any line length
+        self.assertNotIn("--num_persistent_param_in_dit", args)
+        plain = self.cp.infinitetalk_args("/w", None, "/t/in.json", "/t/out", 7, low_vram=True)
+        self.assertEqual(plain[plain.index("--sample_steps") + 1], "40")
+        self.assertNotIn("--lora_dir", plain)
+        self.assertIn("--num_persistent_param_in_dit", plain)
+
+    def test_the_edit_plays_the_very_voice_the_scene_was_made_with(self):
+        from luna_reels import voice  # noqa: PLC0415
+        a = voice.cache_key("שורה אחת.", "he-IL-HilaNeural")
+        self.assertEqual(a, voice.cache_key("שורה אחת.", "he-IL-HilaNeural"))
+        self.assertNotEqual(a, voice.cache_key("שורה אחרת.", "he-IL-HilaNeural"))
+        self.assertNotEqual(a, voice.cache_key("שורה אחת.", "he-IL-AvriNeural"))
+        with tempfile.TemporaryDirectory() as d:
+            cache = Path(d) / "cache"
+            cache.mkdir()
+            (cache / f"{a}.mp3").write_bytes(b"\0" * 2000)
+            (cache / f"{a}.json").write_text(json.dumps([[0.1, 0.3, "שורה"]]))
+            dst = Path(d) / "out.mp3"
+            words = voice._edge_cached("שורה אחת.", dst, "he-IL-HilaNeural", str(cache))  # no network: from the cache
+            self.assertEqual(dst.read_bytes(), b"\0" * 2000)
+            self.assertEqual(words, [(0.1, 0.3, "שורה")])
+
+    def test_a_made_talking_shot_is_used_only_when_it_lasts_the_line(self):
+        self.assertIsNone(compose.made_talk(None, 2.0))
+        with tempfile.TemporaryDirectory() as d:
+            pic = Path(d) / "hero.png"
+            self.assertIsNone(compose.made_talk(pic, 2.0))
+            from moviepy import ColorClip  # noqa: PLC0415
+            ColorClip((64, 112), (200, 120, 120), duration=2.0).write_videofile(
+                str(Path(d) / "hero.talk.mp4"), fps=10, codec="libx264", audio=False, logger=None)
+            self.assertEqual(compose.made_talk(pic, 2.1), Path(d) / "hero.talk.mp4")
+            self.assertIsNone(compose.made_talk(pic, 3.0))  # the end of the line would go unsaid
+
+    def test_the_cloud_runs_only_with_the_owners_token_and_falls_back_to_the_free_studio(self):
+        wf = (HERE.parent.parent / ".github" / "workflows" / "studio3d.yml").read_text(encoding="utf-8")
+        self.assertIn("HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}", wf)
+        self.assertIn("if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage == 'all' && needs.gpu.result != 'success'", wf)
+        self.assertIn("needs.gpu.result != 'success' && needs.plan.outputs.moving", wf)  # no CPU animation after the cloud
+        self.assertNotRegex(wf, r"echo .*MODAL_TOKEN")  # the token is never printed
+        gpu = (HERE.parent / "media" / "gpu" / "studio_gpu.py").read_text(encoding="utf-8")
+        self.assertIn("budget_allows", gpu)
+        self.assertNotRegex(gpu, r"kling|klingai|runway|heygen", "open models only")
+
+
 class Music(unittest.TestCase):
     def test_bed_level(self):
         self.assertAlmostEqual(music.db_to_gain(-20), 0.1)

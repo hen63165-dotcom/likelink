@@ -5,7 +5,8 @@ Pictures and clips are made at 576×1024 (what a CPU runner can draw and
 animate); enlarging them plainly to the reel's 1080×1920 left them soft next
 to @ravitrecommends' reels. This enlarges them with Real-ESRGAN's model for
 animation (realesr-animevideov3, BSD-3-Clause, xinntao/Real-ESRGAN v0.2.5.0)
-on the CPU — ×4, then down to 1080×1920 — so lines and eyes stay crisp.
+on the CPU (on the GPU when there is one: the cloud studio, scripts/media/gpu)
+— ×4, then down to 1080×1920 — so lines and eyes stay crisp.
 Pixels are only enlarged, never repainted. The network (SRVGGNetCompact: 16
 plain convolutions and a pixel shuffle) is written out here: a loader
 package pulled a GPU build of torchvision over the CPU torch and broke every
@@ -20,6 +21,7 @@ import json, os, shutil, subprocess, sys, tempfile, time
 WEIGHTS = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth"
 SIZE = (1080, 1920)
 _model = None
+_device = "cpu"
 
 
 def compact_net(torch, num_feat=64, num_conv=16, scale=4):
@@ -47,7 +49,7 @@ def compact_net(torch, num_feat=64, num_conv=16, scale=4):
 
 def model():
     """The ×4 animation upscaler, loaded once (None when it cannot be)."""
-    global _model
+    global _model, _device
     if _model is None:
         try:
             import torch
@@ -59,7 +61,8 @@ def model():
             state = torch.load(cache, map_location="cpu", weights_only=True)
             net = compact_net(torch)
             net.load_state_dict(state.get("params", state.get("params_ema", state)), strict=True)
-            _model = net.eval()
+            _device = "cuda" if torch.cuda.is_available() else "cpu"
+            _model = net.eval().to(_device)
         except Exception as exc:  # noqa: BLE001
             print(json.dumps({"upscale": None, "error": str(exc)[:200]}))
             _model = False
@@ -73,9 +76,9 @@ def enlarge(img):
     if m is not None:
         import numpy as np
         import torch
-        x = torch.from_numpy(np.asarray(img.convert("RGB"), dtype=np.float32) / 255.0).permute(2, 0, 1)[None]
+        x = torch.from_numpy(np.asarray(img.convert("RGB"), dtype=np.float32) / 255.0).permute(2, 0, 1)[None].to(_device)
         with torch.no_grad():
-            y = m(x).clamp(0, 1)[0].permute(1, 2, 0).numpy()
+            y = m(x).clamp(0, 1)[0].permute(1, 2, 0).cpu().numpy()
         img = Image.fromarray((y * 255.0 + 0.5).astype("uint8"))
     scale = max(SIZE[0] / img.width, SIZE[1] / img.height)
     img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)

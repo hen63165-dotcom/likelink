@@ -24,15 +24,22 @@
 # (or the same two inputs by hand) writes the shot list itself (autoplan.py:
 # the story for the product's kind, the presenter's look, the truth check and
 # the master's length) and runs everything from it.
+# The cloud studio (scripts/media/gpu, "gpu" job): when the repository has the
+# owner's Modal token (MODAL_TOKEN_ID / MODAL_TOKEN_SECRET), a product's reel is
+# made on cloud GPUs in minutes instead — every scene says its own line on
+# camera (InfiniteTalk), within a monthly GPU allowance under the free credit;
+# without the token, or when that job fails, the free CPU path below runs.
 # From the Studio: a creator presses "סרטון אנימציה עם דמות" and her product
-# carries a request; every hour the scheduled run takes the oldest open one
+# carries a request; every 10 minutes the scheduled run takes the oldest open one
 # (queue.mjs next), makes it, and records the reel in the "studio3d" release
 # (queue.mjs record), which deploy-frontend.yml serves to her Studio
 # (media/studio3d/index.json). Rules: src/lib/growth/animatedReels.js.
 name: 3D studio
 on:
+  # Every 10 minutes: a press in the Studio starts within minutes (a run with
+  # no open request ends after its plan job, ~15 s).
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
     inputs:
       jobs:
@@ -81,6 +88,7 @@ jobs:
       presenter: ${{ steps.p.outputs.presenter }}
       request_at: ${{ steps.p.outputs.request_at }}
       marketer: ${{ steps.p.outputs.marketer }}
+      gpu: ${{ steps.p.outputs.gpu }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -105,10 +113,12 @@ jobs:
           Q_PRESENTER: ${{ steps.q.outputs.presenter }}
           Q_REQUEST_AT: ${{ steps.q.outputs.request_at }}
           Q_MARKETER: ${{ steps.q.outputs.marketer }}
+          # Only whether the owner's Modal token exists (true/false), never its value.
+          HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             if [ -z "$Q_PRODUCT" ]; then
-              { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; } >> "$GITHUB_OUTPUT"
+              { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
               echo "no open request"; exit 0
             fi
             JOBS=""; ONLY=""; STAGE="all"; PRODUCT="$Q_PRODUCT"; PRESENTER="$Q_PRESENTER"
@@ -123,16 +133,21 @@ jobs:
             FROM_RUN=$(python3 -c "import json; print(json.load(open('$f')).get('from_run', ''))")
             PRODUCT=$(python3 -c "import json; print(json.load(open('$f')).get('product', ''))")
             PRESENTER=$(python3 -c "import json; print(json.load(open('$f')).get('presenter', 'shira'))")
+            ENGINE=$(python3 -c "import json; print(json.load(open('$f')).get('engine', ''))")
           fi
+          # The cloud studio when the owner connected it, for a whole new reel; run.json may ask for "cpu".
+          if [ -z "${ENGINE:-}" ]; then ENGINE=cpu; [ "$HAS_GPU" = "true" ] && [ "$STAGE" = "all" ] && ENGINE=gpu; fi
+          [ "$ENGINE" = "gpu" ] && [ "$HAS_GPU" != "true" ] && { echo "engine gpu: the repository has no Modal token; the free studio runs"; ENGINE=cpu; }
+          echo "$ENGINE" | grep -Eq '^(cpu|gpu)$' || { echo "engine: cpu or gpu"; exit 2; }
           echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
           if [ "$STAGE" = "none" ]; then  # run.json at rest: a push that only changes code runs nothing
-            { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; } >> "$GITHUB_OUTPUT"
+            { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
             echo "nothing to run"; exit 0
           fi
           if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
             echo "$PRODUCT" | grep -Eq '^[a-z0-9-]{2,30}$' || { echo "product: an id like ae-1005006861665924"; exit 2; }
             echo "$PRESENTER" | grep -Eq '^[a-z]{2,10}$' || { echo "presenter: a cast id like shira"; exit 2; }
-            JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER")
+            JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER" --engine "$ENGINE")
             { echo "product=$PRODUCT"; echo "presenter=$PRESENTER"; } >> "$GITHUB_OUTPUT"
           fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
@@ -165,17 +180,78 @@ jobs:
           TALK=$(JOBS="$JOBS" python3 -c "
           import json, os
           print('true' if any(s.get('talk') for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']) else 'false')")
-          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "draws=$DRAWS"; echo "takes=$TAKES"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; } >> "$GITHUB_OUTPUT"
-          echo "plan: $JOBS · stage $STAGE · shots $SHOTS · animated $MOVING · takes $TAKES"
+          # The cloud studio makes a whole story: a shot list with an episode, every shot.
+          GPU=$(JOBS="$JOBS" ENGINE="$ENGINE" STAGE="$STAGE" ONLY="$ONLY" python3 -c "
+          import json, os
+          spec = json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))
+          print('true' if os.environ['ENGINE'] == 'gpu' and os.environ['STAGE'] == 'all' and not os.environ['ONLY'] and isinstance(spec.get('episode'), dict) else 'false')")
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "draws=$DRAWS"; echo "takes=$TAKES"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; echo "gpu=$GPU"; } >> "$GITHUB_OUTPUT"
+          echo "plan: $JOBS · stage $STAGE · engine $ENGINE (cloud $GPU) · shots $SHOTS · animated $MOVING · takes $TAKES"
           mkdir -p /tmp/jobs && cp "scripts/media/studio3d/jobs/$JOBS" /tmp/jobs/
       # The shot list every later job reads (written here when a product was given).
       - uses: actions/upload-artifact@v4
         with:
           name: studio3d-jobs
           path: /tmp/jobs
-  draw:
+  # The cloud studio: the voices on the runner, then every scene says its
+  # line on Modal GPUs side by side (scripts/media/gpu/studio_gpu.py).
+  gpu:
     needs: plan
-    if: needs.plan.outputs.stage == 'all'
+    if: needs.plan.outputs.gpu == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
+      - name: The presenter's checked keyframe (shots drawn from the cast)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: python3 scripts/media/studio3d/castframes.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$RUNNER_TEMP/pictures"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/luna_reels/requirements.txt
+      - name: Install FFmpeg, the reel engine and Modal's client
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+          pip install -q "modal>=1.0"
+      - name: The voices (spoken once; the edit plays the same files)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          LUNA_VOICE_CACHE: ${{ runner.temp }}/voicecache
+        run: |
+          python scripts/media/studio3d/episode.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$RUNNER_TEMP/pictures" \
+            --episode "$RUNNER_TEMP/episode.json"
+          cd scripts/luna_reels
+          python -m luna_reels voices "$RUNNER_TEMP/episode.json" --out "$RUNNER_TEMP/voices"
+      - name: Every scene says its line (Modal GPUs)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          STUDIO_GPU_MONTH_HOURS: ${{ vars.STUDIO_GPU_MONTH_HOURS }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/gpu"
+          modal run scripts/media/gpu/studio_gpu.py --jobs "scripts/media/studio3d/jobs/$NAME.json" \
+            --pictures "$RUNNER_TEMP/pictures" --voices "$RUNNER_TEMP/voices" --out "$RUNNER_TEMP/gpu"
+          cp -r "$RUNNER_TEMP/voicecache" "$RUNNER_TEMP/gpu/voicecache"
+          ls -la "$RUNNER_TEMP/gpu"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio3d-gpu
+          path: ${{ runner.temp }}/gpu
+          if-no-files-found: error
+  draw:
+    needs: [plan, gpu]
+    # The free studio: when the cloud studio was not asked for, or failed.
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage == 'all' && needs.gpu.result != 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 330
     strategy:
@@ -272,8 +348,8 @@ jobs:
           path: studio3d
           if-no-files-found: error
   animate:
-    needs: [plan, draw, pick]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && needs.pick.result != 'failure' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate' || (needs.plan.outputs.stage == 'pick' && needs.pick.result == 'success'))
+    needs: [plan, gpu, draw, pick]
+    if: always() && needs.plan.result == 'success' && needs.gpu.result != 'success' && needs.plan.outputs.moving != '[]' && needs.pick.result != 'failure' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate' || (needs.plan.outputs.stage == 'pick' && needs.pick.result == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -346,7 +422,7 @@ jobs:
           path: /tmp/clip
           if-no-files-found: ignore
   reel:
-    needs: [plan, draw, pick, animate]
+    needs: [plan, gpu, draw, pick, animate]
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
@@ -363,11 +439,11 @@ jobs:
           NAME: ${{ needs.plan.outputs.name }}
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
       - name: A redrawn picture's old clip is stale
-        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success' || needs.gpu.result == 'success'
         env:
           NAME: ${{ needs.plan.outputs.name }}
           SHOTS: ${{ needs.plan.outputs.shots }}
-        run: for s in $(echo "$SHOTS" | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)))"); do rm -f "scripts/media/studio3d/shots/$NAME/$s.mp4"; done
+        run: for s in $(echo "$SHOTS" | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)))"); do rm -f "scripts/media/studio3d/shots/$NAME/$s.mp4" "scripts/media/studio3d/shots/$NAME/$s.talk.mp4"; done
       - uses: actions/download-artifact@v4
         if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
         continue-on-error: true
@@ -400,6 +476,19 @@ jobs:
           pattern: studio3d-clip-*
           merge-multiple: true
           path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      # The cloud studio's talking scenes (+ any picture it drew) and the very voices they say.
+      - uses: actions/download-artifact@v4
+        if: needs.gpu.result == 'success'
+        with:
+          name: studio3d-gpu
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      - name: The cloud studio's voices
+        if: needs.gpu.result == 'success'
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: |
+          mv "scripts/media/studio3d/shots/$NAME/voicecache" "$RUNNER_TEMP/voicecache"
+          echo "LUNA_VOICE_CACHE=$RUNNER_TEMP/voicecache" >> "$GITHUB_ENV"
       - name: The presenter's checked keyframe (shots drawn from the cast)
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -413,16 +502,16 @@ jobs:
       # (Apache-2.0) in its own Python 3.10 venv, as in the Luna reels workflow.
       - uses: actions/setup-python@v5
         id: py310
-        if: needs.plan.outputs.talk == 'true'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
         with:
           python-version: "3.10"
       - uses: actions/cache@v4
-        if: needs.plan.outputs.talk == 'true'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
         with:
           path: ~/sadtalker
           key: sadtalker-v0.0.2-rc
       - name: SadTalker (lip-sync)
-        if: needs.plan.outputs.talk == 'true'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
         run: |
           "${{ steps.py310.outputs.python-path }}" -m venv ~/sadtalker-venv
           V=~/sadtalker-venv/bin/pip
@@ -460,7 +549,7 @@ jobs:
           path: ${{ runner.temp }}/reel
           if-no-files-found: ignore
   commit:
-    needs: [plan, draw, pick, animate, reel]
+    needs: [plan, gpu, draw, pick, animate, reel]
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:
@@ -514,6 +603,12 @@ jobs:
           merge-multiple: true
           path: /tmp/studio3d/${{ needs.plan.outputs.name }}
       - uses: actions/download-artifact@v4
+        if: needs.gpu.result == 'success'
+        continue-on-error: true
+        with:
+          name: studio3d-gpu
+          path: /tmp/studio3d/${{ needs.plan.outputs.name }}
+      - uses: actions/download-artifact@v4
         if: needs.reel.result == 'success'
         continue-on-error: true
         with:
@@ -526,6 +621,7 @@ jobs:
           SHOTS: ${{ needs.plan.outputs.shots }}
         run: |
           [ -d /tmp/studio3d ] || { echo "nothing new"; exit 0; }
+          rm -rf "/tmp/studio3d/$NAME/voicecache"
           mkdir -p scripts/media/studio3d/shots
           if [ "$DRAWN" != "skipped" ]; then  # a redrawn picture's old clip is stale
             for s in $(echo "$SHOTS" | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)))"); do
@@ -553,7 +649,7 @@ jobs:
   # A run that did not finish is recorded as FAILED, so the Studio says so
   # and the queue tries once more later.
   record:
-    needs: [plan, draw, pick, animate, reel]
+    needs: [plan, gpu, draw, pick, animate, reel]
     # Only from main (the site's queue, or a run by hand there): a branch run is a review run (studio3d-preview).
     if: always() && github.ref_name == 'main' && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.product != ''
     runs-on: ubuntu-latest
@@ -580,7 +676,7 @@ jobs:
           PRESENTER: ${{ needs.plan.outputs.presenter }}
           REQUEST_AT: ${{ needs.plan.outputs.request_at }}
           MARKETER: ${{ needs.plan.outputs.marketer }}
-          REASON: "draw ${{ needs.draw.result }} · pick ${{ needs.pick.result }} · animate ${{ needs.animate.result }} · reel ${{ needs.reel.result }}"
+          REASON: "cloud ${{ needs.gpu.result }} · draw ${{ needs.draw.result }} · pick ${{ needs.pick.result }} · animate ${{ needs.animate.result }} · reel ${{ needs.reel.result }}"
           OK: ${{ needs.reel.result == 'success' }}
         run: |
           if [ "$OK" = "true" ] && ls /tmp/reel/*.mp4 >/dev/null 2>&1; then

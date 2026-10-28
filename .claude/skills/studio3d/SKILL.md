@@ -29,7 +29,7 @@ A push waits for the run in progress (never cancels it).
 Studio → "פרסום לרשתות" → under a product: "סרטון אנימציה עם דמות" → she
 picks the presenter and presses once. Her product carries `reelRequest`
 (`src/lib/growth/animatedReels.js` `makeRequest`; an owner-writable field, no
-API change). Every hour the scheduled "3D studio" run takes the oldest open
+API change). Every 10 minutes the scheduled "3D studio" run takes the oldest open
 request (`queue.mjs next`: approved, promotable, a kind with a story; a new
 press is a new reel; a failure retries after 3 h, twice at most), runs
 everything below, and records the outcome in the `studio3d` release
@@ -37,6 +37,38 @@ everything below, and records the outcome in the `studio3d` release
 (`media/studio3d/index.json`, also proxied at `/media/studio3d/*`). About two
 hours from the press to the reel on the free runners. A Studio run never
 commits pictures to `main`. Tests: `tests/animatedReels.test.mjs`.
+
+## The cloud studio (GPU, minutes)
+
+The owner, 2026-10-28: a Ravit-level reel in minutes, for any product and
+character. CPU runners cannot do that (about two hours, SadTalker lips), so
+when the repository has the owner's Modal token (secrets `MODAL_TOKEN_ID` and
+`MODAL_TOKEN_SECRET`; she creates them herself in modal.com → Settings → API
+Tokens and adds them in GitHub, never in a chat), a whole new reel goes to the
+`gpu` job instead (`scripts/media/gpu/`):
+
+1. the runner speaks every line once (`python -m luna_reels voices`, Edge
+   Hila) into `LUNA_VOICE_CACHE`, so the edit later plays the very same audio;
+2. `modal run scripts/media/gpu/studio_gpu.py`: a missing picture (the talking
+   object; a presenter without a keyframe) is drawn by the studio's own
+   `flux.py --device cuda`; **every scene says its own line** — the talking
+   object its hook, the presenter every line of hers — with InfiniteTalk
+   (MeiGen-AI, Apache-2.0, on Wan2.1-I2V-14B-480P, Apache-2.0; a step LoRA from
+   `cloudplan.LORAS` when one downloads), each scene on its own GPU side by
+   side, then Real-ESRGAN to 1080×1920 on the GPU;
+3. the reel job edits it as before; `compose.made_talk` plays
+   `<scene>.talk.mp4` when it lasts the line (SadTalker is not installed).
+
+Weights live in the Modal volume `likelink-studio-weights` (downloaded once).
+A month's GPU time is held to `cloudplan.MONTH_HOURS` (6 h ≈ $24 of H100,
+under the Starter plan's $30 free credit; repository variable
+`STUDIO_GPU_MONTH_HOURS` lowers it), counted in the Modal dict
+`likelink-studio-budget`; past it, or when the cloud job fails, the free
+studio below makes the reel. In `run.json`, `"engine": "cpu"` forces the
+free path. autoplan `--engine gpu` marks every scene `talk` with its
+`talkPrompt` (`TALK_ACTIONS`). Tests: `CloudStudio` in
+`scripts/luna_reels/tests/test_engine.py`. The first real run needs the
+owner's token; until then nothing of it has run, and nothing says it has.
 
 ## The same woman in every reel: her keyframe
 

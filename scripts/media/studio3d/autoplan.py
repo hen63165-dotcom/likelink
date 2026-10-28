@@ -61,6 +61,21 @@ WPS, PAD, END = 2.8, 0.35, 3
 STORY_SECONDS = (20, 45)
 HOOK_WORDS = 8
 
+# The cloud studio (scripts/media/gpu, engine "gpu"): every scene says its own
+# line on camera — the talking object its hook, the presenter every line of
+# hers — moving as a whole (InfiniteTalk), the way a series presenter talks to
+# her followers. What each one does while she talks:
+TALK_ACTIONS = {
+    "hook": "the cartoon {name} mascot talks to the camera with its little mouth, blinking its big glossy eyes, bored and sad",
+    "problem": "she talks to the camera with a puzzled look, tilts her head and shrugs her shoulders, natural hand gestures",
+    "hero": "she talks warmly to the camera with a confident smile, small natural nods and hand gestures",
+    "tip": "she talks to the camera as if sharing a little secret, raises her index finger, a playful smile",
+    "wow": "she talks to the camera, delighted, eyebrows raised, one hand on her chest, laughing softly",
+    "cta": "she talks warmly to the camera and points at the viewer, inviting, nodding",
+}
+TALK_STYLE = "3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+ENGINES = ("cpu", "gpu")
+
 # The talking object of each story, drawn alone (no person), and what it says.
 MASCOT = ("a cute anthropomorphic {obj} mascot {where}, the {name} itself has two big glossy cartoon eyes "
           "and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light")
@@ -186,7 +201,7 @@ def estimate_seconds(episode: dict) -> float:
     return sum(len(l["say"].split()) / WPS + PAD for l in lines) + END
 
 
-def plan(product: dict, member: dict, master: dict | None = None) -> dict:
+def plan(product: dict, member: dict, master: dict | None = None, engine: str = "cpu") -> dict:
     kind = kind_of(product)
     if kind is None:
         raise SystemExit("no story for this kind of product yet (earrings, ring, bracelet, necklace)")
@@ -229,6 +244,13 @@ def plan(product: dict, member: dict, master: dict | None = None) -> dict:
                 if sh["id"] in motions:
                     sh["motion"] = motions[sh["id"]]
         face = {"from": "tag", "box": master["face"]}
+    if engine not in ENGINES:
+        raise SystemExit(f"engine: one of {', '.join(ENGINES)}")
+    if engine == "gpu":  # every scene says its line on camera
+        for sh in shots:
+            if sh["id"] in TALK_ACTIONS:
+                sh["talk"] = True
+                sh["talkPrompt"] = f"{TALK_ACTIONS[sh['id']].format(name=name)}, {TALK_STYLE}"
     pid = str(product["id"])
     episode = {
         "id": f"studio-{pid}-{member['id']}"[:49].rstrip("-"),
@@ -254,7 +276,7 @@ def plan(product: dict, member: dict, master: dict | None = None) -> dict:
     return {"series": f"{member['id']}-recommends", "product": pid, "presenter": member["id"], "style": STYLE,
             "character": character(member), "characterTop": character(member, top=True),
             "productSet": "champagne", "takes": TAKES, "shots": shots, "episode": episode,
-            "face": face, "auto": {"kind": kind, "master": bool(master)}}
+            "face": face, "engine": engine, "auto": {"kind": kind, "master": bool(master)}}
 
 
 def check_plan(spec: dict) -> None:
@@ -270,7 +292,7 @@ def check_plan(spec: dict) -> None:
         if line.get("scene") and line["scene"] not in ids:
             raise SystemExit(f"scene '{line['scene']}' is not a shot")
     for s in spec["shots"]:
-        if DRAWN_JEWELLERY.search(f"{s.get('prompt', '')} {s.get('motion', '')}"):
+        if DRAWN_JEWELLERY.search(f"{s.get('prompt', '')} {s.get('motion', '')} {s.get('talkPrompt', '')}"):
             raise SystemExit(f"shot '{s['id']}' names jewellery: the product is shown only in its real photo")
     if not spec.get("face", {}).get("from") in ids:
         raise SystemExit("face: the name tag's picture must be a shot")
@@ -281,6 +303,8 @@ def main():
     ap.add_argument("--product")
     ap.add_argument("--presenter")
     ap.add_argument("--masters", action="store_true", help="candidates for every presenter's keyframe instead")
+    ap.add_argument("--engine", default="cpu", choices=list(ENGINES),
+                    help="gpu: the cloud studio, where every scene says its line on camera (scripts/media/gpu)")
     ap.add_argument("--out", default=str(HERE / "jobs"))
     a = ap.parse_args()
     cast = json.loads((REPO / "scripts" / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))
@@ -297,7 +321,7 @@ def main():
         catalog = {**load_cloud_catalog(), **catalog}
     if a.product not in catalog:
         raise SystemExit(f"product {a.product} is not listed (approved, with its own store link)")
-    spec = plan(catalog[a.product], presenter_of(cast, a.presenter), master_of(a.presenter))
+    spec = plan(catalog[a.product], presenter_of(cast, a.presenter), master_of(a.presenter), a.engine)
     name = f"{a.product}-{a.presenter}"[:40]
     check_plan(spec)
     check_truth(parse_episode({**spec["episode"], "look": "story", "studio": name}), catalog)
