@@ -21,7 +21,7 @@ copy), no key, no paid credit. Nothing is posted: the reel waits on the
 
 Workflow: `.github/workflows/studio3d.yml` ("3D studio"). Until it is on
 `main`, a push decides what runs: `scripts/media/studio3d/run.json`
-`{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "animate" | "reel", "from_run": "<run id>"}`.
+`{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "pick" | "animate" | "reel" | "none", "from_run": "<run id>"}` (`pick`: choose again from `from_run`'s takes, then animate and edit, without drawing again; `none`: at rest).
 A push waits for the run in progress (never cancels it).
 
 ## From the site (the creator's own button)

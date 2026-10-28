@@ -85,14 +85,21 @@ class Judge:
             print(json.dumps({"detector": None, "error": str(exc)[:160]}))
         self.labels = {k: self.text(v) for k, v in (("adult", ADULT), ("child", CHILD), ("jewel", JEWEL), ("bare", BARE))}
 
+    # The towers and their projections directly: get_*_features returns a
+    # model output object instead of a tensor in newer transformers (the
+    # first run of this job failed there), and the projections are stable.
     def text(self, texts):
+        inputs = self.proc(text=texts, return_tensors="pt", padding=True, truncation=True)
         with self.torch.no_grad():
-            t = self.model.get_text_features(**self.proc(text=texts, return_tensors="pt", padding=True, truncation=True))
+            pooled = self.model.text_model(input_ids=inputs["input_ids"], attention_mask=inputs["attention_mask"]).pooler_output
+            t = self.model.text_projection(pooled)
         return t / t.norm(dim=-1, keepdim=True)
 
     def image(self, img):
+        inputs = self.proc(images=img, return_tensors="pt")
         with self.torch.no_grad():
-            v = self.model.get_image_features(**self.proc(images=img, return_tensors="pt"))
+            pooled = self.model.vision_model(pixel_values=inputs["pixel_values"]).pooler_output
+            v = self.model.visual_projection(pooled)
         return (v / v.norm(dim=-1, keepdim=True))[0]
 
     def face(self, img):

@@ -137,7 +137,7 @@ jobs:
           fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
           echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
-          echo "$STAGE" | grep -Eq '^(all|animate|reel)$' || { echo "stage: all, animate or reel"; exit 2; }
+          echo "$STAGE" | grep -Eq '^(all|pick|animate|reel)$' || { echo "stage: all, pick, animate or reel"; exit 2; }
           test -f "scripts/media/studio3d/jobs/$JOBS"
           SHOTS=$(ONLY="$ONLY" JOBS="$JOBS" python3 -c "
           import json, os
@@ -226,7 +226,7 @@ jobs:
           if-no-files-found: ignore
   pick:
     needs: [plan, draw]
-    if: always() && needs.plan.outputs.stage == 'all' && needs.plan.outputs.takes == 'true' && needs.draw.result != 'skipped' && needs.draw.result != 'cancelled'
+    if: always() && needs.plan.outputs.takes == 'true' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'skipped' && needs.draw.result != 'cancelled') || (needs.plan.outputs.stage == 'pick' && needs.plan.outputs.from_run != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -238,9 +238,19 @@ jobs:
           name: studio3d-jobs
           path: scripts/media/studio3d/jobs
       - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.stage != 'pick'
         with:
           pattern: studio3d-take-*
           merge-multiple: true
+          path: studio3d
+      # stage "pick": choose again from an earlier run's takes, without drawing them again.
+      - uses: actions/download-artifact@v4
+        if: needs.plan.outputs.stage == 'pick'
+        with:
+          pattern: studio3d-take-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
           path: studio3d
       - uses: actions/setup-python@v5
         with:
@@ -263,7 +273,7 @@ jobs:
           if-no-files-found: error
   animate:
     needs: [plan, draw, pick]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && needs.pick.result != 'failure' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate')
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && needs.pick.result != 'failure' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate' || (needs.plan.outputs.stage == 'pick' && needs.pick.result == 'success'))
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -292,7 +302,7 @@ jobs:
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots
       - uses: actions/download-artifact@v4
-        if: needs.draw.result != 'skipped'
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
         continue-on-error: true
         with:
           pattern: studio3d-pic-*
@@ -349,7 +359,7 @@ jobs:
           NAME: ${{ needs.plan.outputs.name }}
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
       - name: A redrawn picture's old clip is stale
-        if: needs.draw.result != 'skipped'
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
         env:
           NAME: ${{ needs.plan.outputs.name }}
           SHOTS: ${{ needs.plan.outputs.shots }}
@@ -373,7 +383,7 @@ jobs:
           github-token: ${{ github.token }}
           path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
       - uses: actions/download-artifact@v4
-        if: needs.draw.result != 'skipped'
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
         continue-on-error: true
         with:
           pattern: studio3d-pic-*
@@ -462,7 +472,7 @@ jobs:
           name: studio3d-jobs
           path: scripts/media/studio3d/jobs
       - uses: actions/download-artifact@v4
-        if: needs.draw.result != 'skipped'
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
         continue-on-error: true
         with:
           pattern: studio3d-pic-*
@@ -534,7 +544,8 @@ jobs:
   # and the queue tries once more later.
   record:
     needs: [plan, draw, pick, animate, reel]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.product != ''
+    # Only from main (the site's queue, or a run by hand there): a branch run is a review run (studio3d-preview).
+    if: always() && github.ref_name == 'main' && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.product != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
