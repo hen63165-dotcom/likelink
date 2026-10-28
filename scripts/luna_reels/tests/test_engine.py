@@ -303,6 +303,47 @@ class Studio3D(unittest.TestCase):
         self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
 
 
+class SameWoman(unittest.TestCase):
+    """pick.py: per shot, the take that is most the same adult presenter (pilot v4: a child in one shot, orange hair in another)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import flux  # noqa: PLC0415
+        import pick  # noqa: PLC0415
+        cls.flux, cls.pick = flux, pick
+
+    def take(self, k, **kw):
+        return {"take": k, "face": True, "adult": 0.9, "identity": 0.9, "prompt": 0.3, "jewel": 0.1, **kw}
+
+    def test_each_take_draws_from_its_own_seed(self):
+        shot = {"seed": 93101}
+        self.assertEqual(self.flux.seed_of(shot), 93101)
+        self.assertEqual(self.flux.seed_of(shot, 0), 93101)
+        self.assertEqual(len({self.flux.seed_of(shot, k) for k in range(3)}), 3)
+
+    def test_a_child_is_never_chosen_while_an_adult_take_exists(self):
+        chosen = self.pick.choose([self.take(0, adult=0.2, identity=0.99), self.take(1, adult=0.7, identity=0.8)])
+        self.assertEqual(chosen["take"], 1)
+
+    def test_a_take_without_her_face_is_out(self):
+        chosen = self.pick.choose([self.take(0, face=False, identity=0.99), self.take(1, identity=0.8)])
+        self.assertEqual(chosen["take"], 1)
+
+    def test_the_same_face_weighs_most_then_the_shot(self):
+        takes = [self.take(0, identity=0.80, prompt=0.33), self.take(1, identity=0.93, prompt=0.30), self.take(2, identity=0.86, prompt=0.31)]
+        self.assertEqual(self.pick.choose(takes)["take"], 1)
+
+    def test_jewellery_weighs_a_take_down(self):
+        takes = [self.take(0, identity=0.91, jewel=0.95), self.take(1, identity=0.90, jewel=0.05)]
+        self.assertEqual(self.pick.choose(takes)["take"], 1)
+
+    def test_an_object_shot_is_chosen_by_the_shot_asked_for(self):
+        takes = [self.take(0, prompt=0.25), self.take(1, prompt=0.32)]
+        self.assertEqual(self.pick.choose(takes, character=False)["take"], 1)
+        self.assertIsNone(self.pick.choose([]))
+
+
 class AutoPlan(unittest.TestCase):
     """One product in, one reel out (scripts/media/studio3d/autoplan.py)."""
 
@@ -359,6 +400,16 @@ class AutoPlan(unittest.TestCase):
             tag = shots[spec["face"]["from"]]
             self.assertTrue(tag.get("still"), "the name tag's portrait is never animated")
             self.assertNotIn(tag["id"], scenes)
+
+    def test_one_adult_look_and_close_ups_for_the_talking_shots(self):
+        for _pid, member, spec in self.plans():
+            self.assertIn("in her late twenties", spec["character"])
+            self.assertNotIn("auburn", spec["character"])  # read as brown in one shot, orange in another
+            self.assertGreaterEqual(spec["takes"], 2)
+            for s in spec["shots"]:
+                if s.get("talk"):  # a large face: the lips move clearly and sharply
+                    self.assertIn("from the chest up", s["prompt"], s["id"])
+                self.assertNotRegex(s.get("prompt", ""), r"hands on her cheeks")  # read as a child in pilot v4
 
     def test_the_story_is_held_to_the_masters_length(self):
         for _pid, _member, spec in self.plans():

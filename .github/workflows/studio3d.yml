@@ -2,7 +2,10 @@
 # credits (the owner, 2026-10-27: "@ravitrecommends' level, on our own free
 # engine"). Four stages on the free runners:
 #   draw     the scene pictures, FLUX.1 [schnell] (Apache-2.0), one
-#            shot per runner, side by side                            flux.py
+#            shot (or one take of a shot) per runner, side by side    flux.py
+#   pick     per shot, the take that is most the same adult presenter
+#            (YuNet face + CLIP: adult, same face/hair, the shot, no
+#            jewellery) — the same woman in every shot                pick.py
 #   animate  each picture → a clip with real motion, LTX-Video 2B
 #            distilled, one shot per runner, side by side             animate.py
 #   reel     the story with the reel engine (scripts/luna_reels): a
@@ -63,6 +66,8 @@ jobs:
       stage: ${{ steps.p.outputs.stage }}
       shots: ${{ steps.p.outputs.shots }}
       moving: ${{ steps.p.outputs.moving }}
+      draws: ${{ steps.p.outputs.draws }}
+      takes: ${{ steps.p.outputs.takes }}
       from_run: ${{ steps.p.outputs.from_run }}
       talk: ${{ steps.p.outputs.talk }}
     steps:
@@ -108,11 +113,24 @@ jobs:
           ids = [s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots'] if not s.get('still')]
           only = [x for x in os.environ['ONLY'].split(',') if x]
           print(json.dumps([i for i in ids if not only or i in only]))")
+          # One draw per shot, or one per take of it when the shot list asks for takes.
+          DRAWS=$(ONLY="$ONLY" JOBS="$JOBS" python3 -c "
+          import json, os
+          spec = json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))
+          only = [x for x in os.environ['ONLY'].split(',') if x]
+          out = []
+          for s in spec['shots']:
+              if only and s['id'] not in only:
+                  continue
+              n = int(s.get('takes', spec.get('takes', 1)))
+              out += [{'shot': s['id'], 'take': k} for k in range(n)] if n > 1 else [{'shot': s['id'], 'take': -1}]
+          print(json.dumps(out))")
+          TAKES=$(echo "$DRAWS" | python3 -c "import json, sys; print('true' if any(d['take'] >= 0 for d in json.load(sys.stdin)) else 'false')")
           TALK=$(JOBS="$JOBS" python3 -c "
           import json, os
           print('true' if any(s.get('talk') for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']) else 'false')")
-          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; } >> "$GITHUB_OUTPUT"
-          echo "plan: $JOBS · stage $STAGE · shots $SHOTS · animated $MOVING"
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "draws=$DRAWS"; echo "takes=$TAKES"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; } >> "$GITHUB_OUTPUT"
+          echo "plan: $JOBS · stage $STAGE · shots $SHOTS · animated $MOVING · takes $TAKES"
           mkdir -p /tmp/jobs && cp "scripts/media/studio3d/jobs/$JOBS" /tmp/jobs/
       # The shot list every later job reads (written here when a product was given).
       - uses: actions/upload-artifact@v4
@@ -127,7 +145,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shot: ${{ fromJSON(needs.plan.outputs.shots) }}
+        include: ${{ fromJSON(needs.plan.outputs.draws) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -149,27 +167,67 @@ jobs:
         run: |
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
           pip install -q "diffusers>=0.32" "gguf>=0.10" transformers accelerate sentencepiece protobuf safetensors
-      - name: Draw ${{ matrix.shot }}
+      - name: Draw ${{ matrix.shot }} (take ${{ matrix.take }})
         env:
           HF_HOME: /mnt/hf
           HF_HUB_DISABLE_PROGRESS_BARS: "1"
           JOBS: ${{ needs.plan.outputs.jobs }}
           SHOT: ${{ matrix.shot }}
+          TAKE: ${{ matrix.take }}
         run: |
           set -o pipefail
           out="studio3d/${JOBS%.json}"; mkdir -p "$out"
           python scripts/media/studio3d/flux.py --jobs "scripts/media/studio3d/jobs/$JOBS" --out "$out" \
-            --width 576 --height 1024 --only "$SHOT" 2>&1 | tee /tmp/flux.log
-          grep '^{' /tmp/flux.log > "$out/$SHOT.draw.jsonl" || true
+            --width 576 --height 1024 --only "$SHOT" --take "$TAKE" 2>&1 | tee /tmp/flux.log
+          log="$out/$SHOT.draw.jsonl"; [ "$TAKE" -ge 0 ] && log="$out/$SHOT.t$TAKE.draw.jsonl"
+          grep '^{' /tmp/flux.log > "$log" || true
+      # A single draw is a picture already; takes wait for the pick job.
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: studio3d-pic-${{ matrix.shot }}
+          name: ${{ matrix.take < 0 && format('studio3d-pic-{0}', matrix.shot) || format('studio3d-take-{0}-{1}', matrix.shot, matrix.take) }}
           path: studio3d
           if-no-files-found: ignore
-  animate:
+  pick:
     needs: [plan, draw]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate')
+    if: always() && needs.plan.outputs.takes == 'true' && needs.draw.result != 'skipped' && needs.draw.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: studio3d-take-*
+          merge-multiple: true
+          path: studio3d
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install (CPU torch, CLIP, OpenCV)
+        run: |
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q transformers pillow opencv-python-headless
+      - name: Pick the same woman in every shot
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: |
+          ls -la "studio3d/$NAME"
+          python scripts/media/studio3d/pick.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "studio3d/$NAME"
+          ls -la "studio3d/$NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio3d-pic-picked
+          path: studio3d
+          if-no-files-found: error
+  animate:
+    needs: [plan, draw, pick]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && needs.pick.result != 'failure' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate')
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -212,7 +270,8 @@ jobs:
       - name: Install (CPU torch + diffusers)
         run: |
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q "diffusers>=0.33" transformers accelerate sentencepiece protobuf safetensors imageio imageio-ffmpeg
+          pip install -q "diffusers>=0.33" transformers accelerate sentencepiece protobuf safetensors imageio imageio-ffmpeg spandrel
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
       - name: Animate ${{ matrix.shot }}
         env:
           HF_HOME: /mnt/hf
@@ -237,8 +296,8 @@ jobs:
           path: /tmp/clip
           if-no-files-found: ignore
   reel:
-    needs: [plan, draw, animate]
-    if: always() && needs.plan.result == 'success' && needs.draw.result != 'cancelled'
+    needs: [plan, draw, pick, animate]
+    if: always() && needs.plan.result == 'success' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -327,7 +386,7 @@ jobs:
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
           pip install -q -r scripts/luna_reels/requirements.txt
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q transformers "rembg[cpu]"
+          pip install -q transformers "rembg[cpu]" spandrel
       - name: Render the reel
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -347,7 +406,7 @@ jobs:
           path: ${{ runner.temp }}/reel
           if-no-files-found: ignore
   commit:
-    needs: [plan, draw, animate, reel]
+    needs: [plan, draw, pick, animate, reel]
     if: always() && needs.plan.result == 'success' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:

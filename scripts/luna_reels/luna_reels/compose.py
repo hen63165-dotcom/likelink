@@ -342,6 +342,7 @@ def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
     (no SadTalker on this machine, no voice, no face found): the shot then moves as before."""
     import os  # noqa: PLC0415
     import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
     if picture is None or beat.clip.path is None or not os.environ.get("SADTALKER_VENV"):
         return None
     out = work / f"talk-{picture.stem}"
@@ -355,7 +356,18 @@ def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
         print(f"[talk] {picture.stem}: no lip-sync ({exc})")
         return None
     mp4 = out / "luna-full-talk.mp4"
-    return mp4 if mp4.exists() else None
+    if not mp4.exists():
+        return None
+    # Sharp at 1080×1920 like the animated shots (the studio's upscaler), when it is installed.
+    try:
+        studio = str(Path(__file__).resolve().parents[2] / "media" / "studio3d")
+        if studio not in sys.path:
+            sys.path.insert(0, studio)
+        import upscale  # noqa: PLC0415
+        upscale.video(str(mp4))
+    except Exception as exc:  # noqa: BLE001 (the talking shot stays at its own size)
+        print(f"[talk] {picture.stem}: not upscaled ({exc})")
+    return mp4
 
 
 def _aurora(total: float):

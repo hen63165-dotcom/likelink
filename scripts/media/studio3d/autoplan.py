@@ -35,6 +35,11 @@ LATIN = {"noa": "Noa", "maya": "Maya", "shira": "Shira", "tal": "Tal", "yael": "
 # never animated), so the crop does not depend on where her face fell in a
 # full-body shot. The head sits in the upper middle of a 9:16 portrait.
 TAG_BOX = [0.14, 0.14, 0.86, 0.545]
+# Words the picture model reads loosely: pilot v4 drew "auburn" brown in one
+# shot and orange in another. Each is replaced by one unambiguous colour.
+HAIR_EXACT = {"auburn": "warm chestnut-brown"}
+# Takes per shot: pick.py keeps the one that is most the same woman.
+TAKES = 3
 # The master's story length, estimated as tests/viralMaster.test.mjs planOf
 # does: the voice reads ~2.8 words a second, a breath per line, the end card.
 WPS, PAD, END = 2.8, 0.35, 3
@@ -118,8 +123,13 @@ def presenter_of(cast: dict, pid: str) -> dict:
 
 
 def character(member: dict) -> str:
+    """Her fixed look. An adult in her late twenties, said outright: pilot v4's
+    "wow" shot came out a little girl."""
     name = LATIN.get(member["id"], member["id"].title())
-    return (f"{name}, a young woman with {member['hair']} and {member['eyes']}, friendly round face, "
+    hair = member["hair"]
+    for loose, exact in HAIR_EXACT.items():
+        hair = re.sub(rf"\b{loose}\b", exact, hair)
+    return (f"{name}, a woman in her late twenties with an adult face and adult proportions, {hair}, {member['eyes']}, "
             f"wearing a {member['outfit']}")
 
 
@@ -146,16 +156,16 @@ def plan(product: dict, member: dict) -> dict:
          "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
          "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"},
         {"id": "hero", "character": True, "talk": True, "seed": seed + 3,
-         "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip",
-         "motion": "she smiles, tilts her head and gives a small friendly wave, her hair moves softly, the camera slowly pushes in"},
+         "prompt": "medium close-up from the chest up, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile, her face large and clear in the frame",
+         "motion": "she smiles, tilts her head slightly and nods, her hair moves softly, the camera slowly pushes in"},
         {"id": "tip", "character": True, "talk": True, "seed": seed + 4,
-         "prompt": "medium close-up, she holds up her index finger as if sharing a little secret, a knowing playful smile at the camera, bright cozy bedroom background",
+         "prompt": "medium close-up from the chest up, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, her face large and clear, bright cozy bedroom background",
          "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly"},
         {"id": "wow", "character": True, "seed": seed + 5,
-         "prompt": "medium close-up, she gasps with delight, eyes wide and sparkling, both hands on her cheeks, bright bedroom background",
-         "motion": "she gasps with delight, her eyes widen and sparkle, she bounces a little with excitement, her hair moves"},
+         "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
+         "motion": "her face lights up with a delighted smile, eyebrows rise, she laughs softly, her hair moves"},
         {"id": "cta", "character": True, "talk": True, "seed": seed + 6,
-         "prompt": "medium shot, she smiles warmly and points her index finger straight at the camera, inviting, bright bedroom background",
+         "prompt": "medium close-up from the chest up, she smiles warmly and points her index finger at the camera, inviting, her face large and clear, bright bedroom background",
          "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in"},
         {"id": "tag", "character": True, "still": True, "seed": seed + 7,
          "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background"},
@@ -183,7 +193,7 @@ def plan(product: dict, member: dict) -> dict:
         "presenter": member["id"],
     }
     return {"series": f"{member['id']}-recommends", "product": pid, "style": STYLE, "character": character(member),
-            "productSet": "champagne", "shots": shots, "episode": episode,
+            "productSet": "champagne", "takes": TAKES, "shots": shots, "episode": episode,
             "face": {"from": "tag", "box": TAG_BOX}, "auto": {"kind": kind}}
 
 

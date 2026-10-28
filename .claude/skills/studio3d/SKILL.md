@@ -14,7 +14,8 @@ copy), no key, no paid credit. Nothing is posted: the reel waits on the
 | Stage | What | Where | Time (CPU runner) |
 |---|---|---|---|
 | draw | one picture per shot, FLUX.1 [schnell] GGUF Q4 (Apache-2.0), 576×1024, 4 steps | `scripts/media/studio3d/flux.py` | ~18 min a shot, all shots side by side |
-| animate | each picture → 73 frames (3 s, 24 fps) of real motion at the picture's own 576×1024, LTX-Video 2B 0.9.8 distilled, tiled VAE decode | `animate.py` | ~30–40 min a shot, side by side |
+| animate | each picture → 73 frames (3 s, 24 fps) of real motion at the picture's own 576×1024, LTX-Video 2B 0.9.8 distilled, tiled VAE decode; then every frame enlarged to 1080×1920 with Real-ESRGAN's animation model (`upscale.py`, also used on the lip-synced shots) | `animate.py` | ~35–45 min a shot, side by side |
+| pick | per shot, the take that is most the same adult presenter: YuNet finds her face, CLIP scores adult vs child, the same face and hair as the `tag` portrait, the shot asked for, no jewellery (`pick.py`, `pick.jsonl`) | `pick.py` | ~5 min |
 | reel | the story with `scripts/luna_reels` (look `story`): Hebrew voice (edge Hila), lip-sync on the shots marked `"talk": true` (SadTalker `full-talk`, ~5–7 min a line), hard cuts with a punch-in, the lo-fi bed + a whoosh on every cut, yellow captions, name tag, the seller's real photo (900 px) labelled "תמונת המוכר", AI + ad labels on every frame | `episode.py`, `depth.py` | ~15–25 min |
 | commit | pictures + clips → `scripts/media/studio3d/shots/<name>/` (branch tip); reel → `studio3d-preview` | workflow | — |
 
@@ -39,7 +40,13 @@ commit, push. The plan job runs `autoplan.py`, which writes
   her "wow", the call to action (`talk`), plus `tag`, a head-and-shoulders
   portrait that is never animated (`"still": true`) and is cut for the name tag;
 - the presenter's look from `scripts/media/ai-image/cast.json` (one product
-  per character, as in the stories);
+  per character, as in the stories), said as an adult in her late twenties,
+  with one unambiguous hair colour (`HAIR_EXACT`: pilot v4 drew "auburn"
+  brown in one shot and orange in another, and a "both hands on her cheeks"
+  shot as a little girl);
+- the talking shots are close-ups from the chest up (a large face moves its
+  lips clearly and sharply); every shot is drawn in three takes (`takes`)
+  and `pick.py` keeps the same woman;
 - `check_plan`: hook ≤ 8 words, the master's story length (20–45 s by
   `tests/viralMaster.test.mjs`' estimate), every scene a shot, no prompt that
   names jewellery; then the reel engine's truth check.

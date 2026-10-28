@@ -69,6 +69,11 @@ SCHEDULER_CONFIG = {"num_train_timesteps": 1000, "shift": 1.0, "use_dynamic_shif
 GUARD = ""
 
 
+def seed_of(shot, take=-1):
+    """A shot's seed; each further take of it draws from another seed."""
+    return int(shot.get("seed", 1)) + (max(0, take) * 7919)
+
+
 def prompt_of(spec, shot):
     """The one prompt the model reads for a shot: the series style, the
     character's fixed look when she is in it, the shot, and the guard."""
@@ -157,6 +162,8 @@ def main():
     ap.add_argument("--height", type=int, default=1024)
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--only", default="", help="comma-separated shot ids")
+    ap.add_argument("--take", type=int, default=-1,
+                    help="one of several takes of a shot (another seed); writes <shot>.t<take>.png for pick.py")
     a = ap.parse_args()
     spec = json.load(open(a.jobs, encoding="utf-8"))
     shots = [s for s in spec["shots"] if not a.only or s["id"] in a.only.split(",")]
@@ -212,11 +219,11 @@ def main():
                 prompt_embeds=pe, pooled_prompt_embeds=ppe,
                 num_inference_steps=a.steps, guidance_scale=0.0,
                 width=a.width, height=a.height,
-                generator=torch.Generator().manual_seed(int(s.get("seed", 1))),
+                generator=torch.Generator().manual_seed(seed_of(s, a.take)),
             ).images[0]
-        path = os.path.join(a.out, f"{s['id']}.png")
+        path = os.path.join(a.out, f"{s['id']}.png" if a.take < 0 else f"{s['id']}.t{a.take}.png")
         img.save(path)
-        note(id=s["id"], s=round(time.time() - t), bytes=os.path.getsize(path))
+        note(id=s["id"], take=a.take, seed=seed_of(s, a.take), s=round(time.time() - t), bytes=os.path.getsize(path))
     return 0
 
 
