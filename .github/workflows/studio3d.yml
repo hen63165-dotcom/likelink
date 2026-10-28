@@ -17,6 +17,10 @@
 # shot list, "only": shot ids, "stage": "all" | "animate" | "reel", and
 # optionally "from_run": an earlier run whose pictures and clips to use): a
 # branch workflow cannot be started by hand until it is on main.
+# One product in, one reel out: {"product": <id>, "presenter": <cast id>}
+# (or the same two inputs by hand) writes the shot list itself (autoplan.py:
+# the story for the product's kind, the presenter's look, the truth check and
+# the master's length) and runs everything from it.
 name: 3D studio
 on:
   workflow_dispatch:
@@ -30,6 +34,12 @@ on:
       stage:
         description: "all = draw, animate, reel | animate = animate + reel from the committed pictures | reel = the reel only"
         default: "all"
+      product:
+        description: "or: a product id (the shot list is written for it; jobs is then ignored)"
+        default: ""
+      presenter:
+        description: "with product: the presenter from the cast (noa, maya, shira, tal, yael)"
+        default: "shira"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/media/studio3d/run.json", "scripts/media/studio3d/*.py", ".github/workflows/studio3d.yml"]
@@ -52,6 +62,7 @@ jobs:
       only: ${{ steps.p.outputs.only }}
       stage: ${{ steps.p.outputs.stage }}
       shots: ${{ steps.p.outputs.shots }}
+      moving: ${{ steps.p.outputs.moving }}
       from_run: ${{ steps.p.outputs.from_run }}
       talk: ${{ steps.p.outputs.talk }}
     steps:
@@ -63,17 +74,26 @@ jobs:
           IN_JOBS: ${{ github.event.inputs.jobs }}
           IN_ONLY: ${{ github.event.inputs.only }}
           IN_STAGE: ${{ github.event.inputs.stage }}
+          IN_PRODUCT: ${{ github.event.inputs.product }}
+          IN_PRESENTER: ${{ github.event.inputs.presenter }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"
+            JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"; PRODUCT="$IN_PRODUCT"; PRESENTER="$IN_PRESENTER"
           else
             f=scripts/media/studio3d/run.json
             JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
             ONLY=$(python3 -c "import json; print(json.load(open('$f')).get('only', ''))")
             STAGE=$(python3 -c "import json; print(json.load(open('$f')).get('stage', 'all'))")
             FROM_RUN=$(python3 -c "import json; print(json.load(open('$f')).get('from_run', ''))")
+            PRODUCT=$(python3 -c "import json; print(json.load(open('$f')).get('product', ''))")
+            PRESENTER=$(python3 -c "import json; print(json.load(open('$f')).get('presenter', 'shira'))")
           fi
           echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
+          if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
+            echo "$PRODUCT" | grep -Eq '^[a-z0-9-]{2,30}$' || { echo "product: an id like ae-1005006861665924"; exit 2; }
+            echo "$PRESENTER" | grep -Eq '^[a-z]{2,10}$' || { echo "presenter: a cast id like shira"; exit 2; }
+            JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER")
+          fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
           echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
           echo "$STAGE" | grep -Eq '^(all|animate|reel)$' || { echo "stage: all, animate or reel"; exit 2; }
@@ -83,11 +103,22 @@ jobs:
           ids = [s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']]
           only = [x for x in os.environ['ONLY'].split(',') if x]
           print(json.dumps([i for i in ids if not only or i in only]))")
+          MOVING=$(ONLY="$ONLY" JOBS="$JOBS" python3 -c "
+          import json, os
+          ids = [s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots'] if not s.get('still')]
+          only = [x for x in os.environ['ONLY'].split(',') if x]
+          print(json.dumps([i for i in ids if not only or i in only]))")
           TALK=$(JOBS="$JOBS" python3 -c "
           import json, os
           print('true' if any(s.get('talk') for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']) else 'false')")
-          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; } >> "$GITHUB_OUTPUT"
-          echo "plan: $JOBS · stage $STAGE · shots $SHOTS"
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; } >> "$GITHUB_OUTPUT"
+          echo "plan: $JOBS · stage $STAGE · shots $SHOTS · animated $MOVING"
+          mkdir -p /tmp/jobs && cp "scripts/media/studio3d/jobs/$JOBS" /tmp/jobs/
+      # The shot list every later job reads (written here when a product was given).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: /tmp/jobs
   draw:
     needs: plan
     if: needs.plan.outputs.stage == 'all'
@@ -101,6 +132,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -134,17 +169,21 @@ jobs:
           if-no-files-found: ignore
   animate:
     needs: [plan, draw]
-    if: always() && needs.plan.result == 'success' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate')
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.moving != '[]' && ((needs.plan.outputs.stage == 'all' && needs.draw.result != 'cancelled') || needs.plan.outputs.stage == 'animate')
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
-        shot: ${{ fromJSON(needs.plan.outputs.shots) }}
+        shot: ${{ fromJSON(needs.plan.outputs.moving) }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
       - name: The newest committed pictures and clips
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -206,6 +245,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
       - name: The newest committed pictures and clips
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -320,6 +363,10 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
       - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
+      - uses: actions/download-artifact@v4
         if: needs.draw.result != 'skipped'
         continue-on-error: true
         with:
@@ -371,7 +418,7 @@ jobs:
           fi
           cp -r /tmp/studio3d/. scripts/media/studio3d/shots/
           git config user.name "likelink-bot"; git config user.email "likelink-bot@users.noreply.github.com"
-          git add scripts/media/studio3d/shots
+          git add scripts/media/studio3d/shots "scripts/media/studio3d/jobs/$NAME.json"
           git commit -m "3D studio: $NAME pictures and clips from the free engine (review by eye)" || exit 0
           git push -q origin "HEAD:$GITHUB_REF_NAME" || { git pull --rebase -X theirs -q origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME"; }
       # The reel waits on a pre-release the site never reads: a person watches

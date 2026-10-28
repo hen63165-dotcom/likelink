@@ -1,0 +1,133 @@
+{
+  "series": "noa-recommends",
+  "product": "p-live-01",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "character": "Noa, a young woman with ash brown messy bun and green eyes, friendly round face, wearing a plain sage green oversized hoodie and long jogger pants",
+  "productSet": "champagne",
+  "shots": [
+    {
+      "id": "hook",
+      "seed": 91101,
+      "prompt": "a cute anthropomorphic small bottle of pale pink nail polish mascot standing on a white vanity table, the bottle itself has two big glossy cartoon eyes and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light",
+      "motion": "the bottle mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"
+    },
+    {
+      "id": "problem",
+      "character": true,
+      "seed": 91102,
+      "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
+      "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"
+    },
+    {
+      "id": "hero",
+      "character": true,
+      "talk": true,
+      "seed": 91103,
+      "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip",
+      "motion": "she smiles, tilts her head and gives a small friendly wave, her hair moves softly, the camera slowly pushes in"
+    },
+    {
+      "id": "tip",
+      "character": true,
+      "talk": true,
+      "seed": 91104,
+      "prompt": "medium close-up, she holds up her index finger as if sharing a little secret, a knowing playful smile at the camera, bright cozy bedroom background",
+      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly"
+    },
+    {
+      "id": "wow",
+      "character": true,
+      "seed": 91105,
+      "prompt": "medium close-up, she gasps with delight, eyes wide and sparkling, both hands on her cheeks, bright bedroom background",
+      "motion": "she gasps with delight, her eyes widen and sparkle, she bounces a little with excitement, her hair moves"
+    },
+    {
+      "id": "cta",
+      "character": true,
+      "talk": true,
+      "seed": 91106,
+      "prompt": "medium shot, she smiles warmly and points her index finger straight at the camera, inviting, bright bedroom background",
+      "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in"
+    },
+    {
+      "id": "tag",
+      "character": true,
+      "still": true,
+      "seed": 91107,
+      "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background"
+    }
+  ],
+  "episode": {
+    "id": "studio-p-live-01-noa",
+    "goal": "sales",
+    "title": "טריק קטן: טבעת אחת",
+    "hook": {
+      "say": "הלק החדש שלי ממש משועמם.",
+      "caption": "הלק החדש שלי... משועמם",
+      "scene": "hook"
+    },
+    "topics": [
+      "ring",
+      "סטיילינג"
+    ],
+    "lines": [
+      {
+        "say": "הציפורניים כבר מוכנות, ועדיין מרגיש לי שמשהו חסר ביד.",
+        "caption": "ציפורניים מוכנות... ומשהו חסר",
+        "scene": "problem"
+      },
+      {
+        "say": "טריק קטן: טבעת אחת.",
+        "caption": "טריק קטן: טבעת אחת",
+        "scene": "hero"
+      },
+      {
+        "say": "כשהציפורניים מוכנות, טבעת אחת משלימה את כל היד.",
+        "caption": "טבעת אחת משלימה את היד",
+        "scene": "tip"
+      },
+      {
+        "say": "כמו הטבעת הזאת.",
+        "caption": "כמו הטבעת הזאת"
+      },
+      {
+        "say": "ופתאום, כל תנועה של היד נראית מוקפדת.",
+        "caption": "ופתאום זה מוקפד",
+        "scene": "wow"
+      },
+      {
+        "say": "רוצה את הקישור? כתבי רוצה בתגובות ואשלח לך אותו.",
+        "caption": "כתבי \"רוצה\" בתגובות",
+        "scene": "cta"
+      }
+    ],
+    "product": {
+      "id": "p-live-01",
+      "at": 4
+    },
+    "cta": {
+      "title": "כתבי *\"רוצה\"* בתגובות",
+      "sub": "ואשלח לך את הקישור"
+    },
+    "hashtags": [
+      "#טבעות",
+      "#טיפסטיילינג",
+      "#אופנה"
+    ],
+    "send": "שלחי לחברה שעושה לק כל שבוע",
+    "keyword": "רוצה",
+    "presenter": "noa"
+  },
+  "face": {
+    "from": "tag",
+    "box": [
+      0.14,
+      0.14,
+      0.86,
+      0.545
+    ]
+  },
+  "auto": {
+    "kind": "ring"
+  }
+}

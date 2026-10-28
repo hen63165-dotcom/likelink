@@ -23,7 +23,31 @@ Workflow: `.github/workflows/studio3d.yml` ("3D studio"). Until it is on
 `{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "animate" | "reel", "from_run": "<run id>"}`.
 A push waits for the run in progress (never cancels it).
 
-## Make a reel
+## One product in, one reel out (the fast path)
+
+`run.json` → `{"product": "<id>", "presenter": "<cast id>", "stage": "all"}`
+(or the workflow's `product` + `presenter` inputs once it is on `main`),
+commit, push. The plan job runs `autoplan.py`, which writes
+`jobs/<product>-<presenter>.json` itself and refuses before anything is drawn:
+
+- the story comes from the product's own kind (`STORIES`: earrings → a bored
+  white t-shirt, ring → a bored nail-polish bottle, bracelet / hand chain →
+  a bored sweater, necklace → a bored black dress); any other kind is refused,
+  never guessed (add a story first);
+- seven shots: the talking object (hook), her problem at the mirror, the trick
+  (`talk`), a styling tip (`talk`), the seller's real photo on its luxe set,
+  her "wow", the call to action (`talk`), plus `tag`, a head-and-shoulders
+  portrait that is never animated (`"still": true`) and is cut for the name tag;
+- the presenter's look from `scripts/media/ai-image/cast.json` (one product
+  per character, as in the stories);
+- `check_plan`: hook ≤ 8 words, the master's story length (20–45 s by
+  `tests/viralMaster.test.mjs`' estimate), every scene a shot, no prompt that
+  names jewellery; then the reel engine's truth check.
+
+Locally: `python scripts/media/studio3d/autoplan.py --product p-live-01 --presenter noa`.
+Then review by eye (step 4 below) and fix only what is wrong (step 5).
+
+## Make a reel by hand
 
 1. **Pick the product** the way the owner asked (trending, checked, a real
    seller photo). The reel engine reads it from the site's catalog copy, else
