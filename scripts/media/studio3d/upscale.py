@@ -5,12 +5,15 @@ Pictures and clips are made at 576×1024 (what a CPU runner can draw and
 animate); enlarging them plainly to the reel's 1080×1920 left them soft next
 to @ravitrecommends' reels. This enlarges them with Real-ESRGAN's model for
 animation (realesr-animevideov3, BSD-3-Clause, xinntao/Real-ESRGAN v0.2.5.0)
-through spandrel (MIT) on the CPU — ×4, then down to 1080×1920 — so lines and
-eyes stay crisp. Pixels are only enlarged, never repainted.
+on the CPU — ×4, then down to 1080×1920 — so lines and eyes stay crisp.
+Pixels are only enlarged, never repainted. The network (SRVGGNetCompact: 16
+plain convolutions and a pixel shuffle) is written out here: a loader
+package pulled a GPU build of torchvision over the CPU torch and broke every
+model import on the runner (2026-10-28), so nothing else is installed for it.
 
   python upscale.py video IN.mp4 [OUT.mp4]     (OUT defaults to IN)
   python upscale.py image IN.png [OUT.png]
-Without torch/spandrel or the weights it leaves the file as it is (exit 0).
+Without torch or the weights it leaves the file as it is (exit 0).
 """
 import json, os, shutil, subprocess, sys, tempfile, time
 
@@ -19,19 +22,44 @@ SIZE = (1080, 1920)
 _model = None
 
 
+def compact_net(torch, num_feat=64, num_conv=16, scale=4):
+    """Real-ESRGAN's SRVGGNetCompact (the animevideov3 shape): conv + PReLU × 17, a last conv, pixel shuffle, plus the nearest-upscaled input."""
+    nn, F = torch.nn, torch.nn.functional
+
+    class SRVGGNetCompact(nn.Module):
+        def __init__(self):
+            super().__init__()
+            body = [nn.Conv2d(3, num_feat, 3, 1, 1), nn.PReLU(num_parameters=num_feat)]
+            for _ in range(num_conv):
+                body += [nn.Conv2d(num_feat, num_feat, 3, 1, 1), nn.PReLU(num_parameters=num_feat)]
+            body.append(nn.Conv2d(num_feat, 3 * scale * scale, 3, 1, 1))
+            self.body = nn.ModuleList(body)
+            self.upsampler = nn.PixelShuffle(scale)
+
+        def forward(self, x):
+            out = x
+            for layer in self.body:
+                out = layer(out)
+            return self.upsampler(out) + F.interpolate(x, scale_factor=scale, mode="nearest")
+
+    return SRVGGNetCompact()
+
+
 def model():
     """The ×4 animation upscaler, loaded once (None when it cannot be)."""
     global _model
     if _model is None:
         try:
             import torch
-            from spandrel import ModelLoader
             cache = os.path.join(os.environ.get("HF_HOME", tempfile.gettempdir()), "realesr-animevideov3.pth")
             if not os.path.exists(cache):
                 import urllib.request
                 urllib.request.urlretrieve(WEIGHTS, cache)
             torch.set_num_threads(os.cpu_count() or 4)
-            _model = ModelLoader().load_from_file(cache).eval()
+            state = torch.load(cache, map_location="cpu", weights_only=True)
+            net = compact_net(torch)
+            net.load_state_dict(state.get("params", state.get("params_ema", state)), strict=True)
+            _model = net.eval()
         except Exception as exc:  # noqa: BLE001
             print(json.dumps({"upscale": None, "error": str(exc)[:200]}))
             _model = False

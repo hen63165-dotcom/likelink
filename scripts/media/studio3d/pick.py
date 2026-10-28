@@ -11,7 +11,7 @@ per shot, the take that is most the same presenter, by open models on the CPU:
     face is expected; without a detection the upper middle of the frame is used;
   - an adult, never a child: CLIP (OpenAI, MIT) compares the face with "an
     adult woman" against "a little girl" / "a teenage girl"; a take that reads
-    as a child is out unless every take does;
+    clearly younger than the shot's most adult take is out;
   - the same face and hair: CLIP's picture of the face (with its hair) against
     the reference portrait (the shot list's "face" shot, chosen first);
   - the shot asked for: CLIP's picture against the shot's own prompt;
@@ -34,31 +34,38 @@ YUNET = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yun
 
 # How much each measure counts. CLIP's cosines differ between takes by a few
 # hundredths, so they are scaled to the same range as a probability: a clearly
-# closer face (+0.05) outweighs a slightly better match to the shot, and a take
-# that reads as wearing jewellery loses to one that does not.
+# closer face (+0.05) outweighs a slightly better match to the shot.
 W_IDENTITY, W_PROMPT, W_JEWEL = 10.0, 5.0, 1.0
+# CLIP reads every big-eyed cartoon face as rather young (the first real run,
+# 2026-10-28: "adult" 0.11–0.63 for one and the same woman) and finds
+# "jewellery" on nearly every take (0.60–0.88). Both are therefore compared
+# between the takes of a shot, never against a fixed line: a take that reads
+# clearly younger than the shot's most adult take is out, and jewellery
+# weighs only by how much more of it a take shows than the cleanest one.
+CHILD_MARGIN = 0.15
 
 
 def choose(takes, character=True):
     """The chosen take of one shot from its measured takes (pure; tested).
 
     takes: [{"take", "face": bool, "adult": 0..1, "identity": cos or None, "prompt": cos, "jewel": 0..1}]
-    A character take must show her face and read as an adult; among those that
-    do (or all, when none does) the same face and hair weigh most, then the shot
-    asked for, minus anything that could pass for jewellery.
+    A character take must show her face and must not read clearly younger than
+    the shot's most adult take; among those, the same face and hair weigh most,
+    then the shot asked for, minus any jewellery more than the cleanest take shows.
     """
     if not takes:
         return None
     pool = takes
     if character:
         pool = [t for t in takes if t.get("face", True)] or takes
-        adults = [t for t in pool if t.get("adult", 1.0) >= 0.5]
-        pool = adults or [max(pool, key=lambda t: t.get("adult", 0.0))]
+        oldest = max(t.get("adult", 0.0) for t in pool)
+        pool = [t for t in pool if t.get("adult", 0.0) >= oldest - CHILD_MARGIN]
+    cleanest = min(t.get("jewel", 0.0) for t in pool)
 
     def score(t):
         s = W_PROMPT * t.get("prompt", 0.0)
         if character:
-            s += W_IDENTITY * (t.get("identity") or 0.0) - W_JEWEL * t.get("jewel", 0.0)
+            s += W_IDENTITY * (t.get("identity") or 0.0) - W_JEWEL * (t.get("jewel", 0.0) - cleanest)
         return s
 
     return max(pool, key=score)

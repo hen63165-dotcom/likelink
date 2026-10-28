@@ -316,7 +316,7 @@ jobs:
       - name: Install (CPU torch + diffusers)
         run: |
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q "diffusers>=0.33" transformers accelerate sentencepiece protobuf safetensors imageio imageio-ffmpeg spandrel
+          pip install -q "diffusers>=0.33" transformers accelerate sentencepiece protobuf safetensors imageio imageio-ffmpeg
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
       - name: Animate ${{ matrix.shot }}
         env:
@@ -432,7 +432,7 @@ jobs:
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
           pip install -q -r scripts/luna_reels/requirements.txt
           pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -q transformers "rembg[cpu]" spandrel
+          pip install -q transformers "rembg[cpu]"
       - name: Render the reel
         env:
           NAME: ${{ needs.plan.outputs.name }}

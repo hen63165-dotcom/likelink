@@ -302,6 +302,14 @@ class Studio3D(unittest.TestCase):
     def test_an_animated_shot_uses_only_its_clean_start(self):
         self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
 
+    def test_a_talking_shot_cuts_in_to_her_face_in_the_same_frame_shape(self):
+        x0, y0, x1, y1 = compose.close_up_box(576, 1024)
+        self.assertAlmostEqual((x1 - x0) / (y1 - y0), 576 / 1024, places=2)
+        self.assertLess(x1 - x0, 576)  # closer than the drawing
+        self.assertLess(y0, 1024 * 0.05)  # her face is near the top
+        self.assertEqual((x0 + x1) / 2, 288)  # centred across
+        self.assertTrue(0 <= x0 and x1 <= 576 and y1 <= 1024)
+
 
 class SameWoman(unittest.TestCase):
     """pick.py: per shot, the take that is most the same adult presenter (pilot v4: a child in one shot, orange hair in another)."""

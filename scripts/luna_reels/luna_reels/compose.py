@@ -336,6 +336,21 @@ def _held(path: Path, dur: float) -> VideoClip:
     return clip.with_duration(dur)
 
 
+# A talking shot cuts in to her face, as creators' reels do when the presenter
+# speaks: the picture model draws "from the chest up" as a three-quarter shot,
+# and lips on a small face barely read. The upper middle of the picture, in the
+# same 9:16, is what SadTalker animates (then enlarged to 1080×1920).
+TALK_CLOSE_UP = 0.66
+
+
+def close_up_box(w: int, h: int, scale: float = TALK_CLOSE_UP) -> tuple[int, int, int, int]:
+    """The 9:16 window of a scale-sized crop, centred across and near the top (where her face is)."""
+    cw, ch = round(w * scale), round(h * scale)
+    x0 = (w - cw) // 2
+    y0 = min(round(h * 0.02), h - ch)
+    return x0, y0, x0 + cw, y0 + ch
+
+
 def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
     """The presenter says this line on camera: SadTalker (Apache-2.0, CPU) moves her
     lips to the line's own voice on the studio picture. None when it cannot run
@@ -346,11 +361,14 @@ def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
     if picture is None or beat.clip.path is None or not os.environ.get("SADTALKER_VENV"):
         return None
     out = work / f"talk-{picture.stem}"
+    close = work / f"close-{picture.stem}.png"
+    with Image.open(picture) as img:
+        img.convert("RGB").crop(close_up_box(*img.size)).save(close)
     env = dict(os.environ)
     env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
     talk = Path(__file__).resolve().parents[2] / "media" / "talking" / "talk.sh"
     try:
-        subprocess.run(["bash", str(talk), str(picture), str(beat.clip.path), str(out), "full-talk"],
+        subprocess.run(["bash", str(talk), str(close), str(beat.clip.path), str(out), "full-talk"],
                        check=True, timeout=3600, env=env)
     except Exception as exc:  # noqa: BLE001 (the shot keeps its own motion)
         print(f"[talk] {picture.stem}: no lip-sync ({exc})")
