@@ -1425,6 +1425,8 @@ export function StudioShell({ view: initialView, onNavigate: externalNavigate })
     setView(v);
     setDrawerOpen(false);
     externalNavigate?.(v);
+    // A button low on a long page opens the new view at its top (on a phone it looked like nothing happened).
+    try { window.scrollTo({ top: 0 }); } catch { /* no window */ }
   }
 
   const inAdvanced = NAV_SECTIONS.some((sec) => ADVANCED_SECTIONS.includes(sec.id) && sec.items.some((i) => i.view === view));
