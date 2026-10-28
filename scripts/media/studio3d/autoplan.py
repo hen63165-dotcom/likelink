@@ -182,16 +182,29 @@ def master_of(pid: str):
     return master
 
 
-def masters(cast: dict, per: int = MASTER_TAKES) -> dict:
-    """Candidates for every presenter's keyframe, drawn side by side and chosen
-    by eye (the same face as her portrait, an adult, plain clothes, nothing that
+# A second round from the chest up, for a presenter none of whose waist-up
+# candidates passed: with only her top named, a few drew bare legs below it.
+MASTER_PROMPTS_CLOSE = [
+    "medium close-up from the chest up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, "
+    "her face large, clear and well lit, her shoulders relaxed",
+    "medium close-up from the chest up, she stands by the window of a bright cozy bedroom facing the camera, "
+    "a natural warm smile, her face large, clear and well lit",
+]
+
+
+def masters(cast: dict, per: int = MASTER_TAKES, only: list[str] | None = None, round_: int = 0) -> dict:
+    """Candidates for every presenter's keyframe (or only some, in a later round), drawn side by
+    side and chosen by eye (the same face as her portrait, an adult, plain clothes, nothing that
     could pass for jewellery). No story: nothing is animated or edited."""
     shots = []
+    prompts = MASTER_PROMPTS_CLOSE if round_ else MASTER_PROMPTS
     for member in cast.get("characters", []):
+        if only and member["id"] not in only:
+            continue
         for k in range(per):
-            shots.append({"id": f"{member['id']}-m{k}", "character": character(member, top=True), "still": True,
-                          "seed": int(member.get("seed", 93000)) + 500 + 13 * k,
-                          "prompt": MASTER_PROMPTS[k % len(MASTER_PROMPTS)]})
+            shots.append({"id": f"{member['id']}-{'r%d' % round_ if round_ else ''}m{k}", "character": character(member, top=True),
+                          "still": True, "seed": int(member.get("seed", 93000)) + 500 + 101 * round_ + 13 * k,
+                          "prompt": prompts[k % len(prompts)]})
     return {"series": "cast-masters", "style": STYLE, "shots": shots}
 
 
@@ -303,14 +316,18 @@ def main():
     ap.add_argument("--product")
     ap.add_argument("--presenter")
     ap.add_argument("--masters", action="store_true", help="candidates for every presenter's keyframe instead")
+    ap.add_argument("--only", default="", help="with --masters: only these presenters (comma-separated)")
+    ap.add_argument("--round", type=int, default=0, help="with --masters: a later round, from the chest up")
     ap.add_argument("--engine", default="cpu", choices=list(ENGINES),
                     help="gpu: the cloud studio, where every scene says its line on camera (scripts/media/gpu)")
     ap.add_argument("--out", default=str(HERE / "jobs"))
     a = ap.parse_args()
     cast = json.loads((REPO / "scripts" / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))
     if a.masters:
-        out = Path(a.out) / "cast-masters.json"
-        out.write_text(json.dumps(masters(cast), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        only = [x for x in a.only.split(",") if x]
+        out = Path(a.out) / ("cast-masters.json" if not a.round else f"cast-masters-r{a.round}.json")
+        out.write_text(json.dumps(masters(cast, only=only or None, round_=a.round), ensure_ascii=False, indent=2) + "\n",
+                       encoding="utf-8")
         print(out.name)
         return
     if not a.product or not a.presenter or not re.fullmatch(r"[a-z0-9-]{2,30}", a.product) or not re.fullmatch(r"[a-z]{2,10}", a.presenter):

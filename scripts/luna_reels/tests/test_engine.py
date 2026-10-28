@@ -462,6 +462,26 @@ class AutoPlan(unittest.TestCase):
             self.assertNotRegex(s["character"], r"pants|leggings|auburn")
             self.assertNotRegex(s["prompt"], self.ap.DRAWN_JEWELLERY)
 
+    def test_every_saved_keyframe_is_a_cast_member_with_a_square_head_box(self):
+        from PIL import Image  # noqa: PLC0415
+        ids = {c["id"] for c in self.cast}
+        saved = sorted(p.parent.name for p in self.ap.CAST_DIR.glob("*/master.json"))
+        self.assertTrue(saved)
+        for who in saved:
+            self.assertIn(who, ids)
+            master = self.ap.master_of(who)
+            self.assertIsNotNone(master, who)  # the picture is there too
+            x0, y0, x1, y1 = master["face"]
+            w, h = Image.open(self.ap.CAST_DIR / who / "master.png").size
+            self.assertAlmostEqual((x1 - x0) * w, (y1 - y0) * h, delta=3, msg=who)  # the name tag is round
+
+    def test_a_later_round_is_drawn_from_the_chest_up_with_new_seeds(self):
+        first = self.ap.masters({"characters": self.cast}, only=["noa"])
+        later = self.ap.masters({"characters": self.cast}, only=["noa"], round_=2)
+        self.assertEqual(len(later["shots"]), self.ap.MASTER_TAKES)
+        self.assertTrue(all(s["id"].startswith("noa-r2m") and "from the chest up" in s["prompt"] for s in later["shots"]))
+        self.assertFalse({s["seed"] for s in first["shots"]} & {s["seed"] for s in later["shots"]})
+
     def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
         sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
         import castframes  # noqa: PLC0415
