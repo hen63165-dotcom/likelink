@@ -24,6 +24,20 @@ Workflow: `.github/workflows/studio3d.yml` ("3D studio"). Until it is on
 `{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "animate" | "reel", "from_run": "<run id>"}`.
 A push waits for the run in progress (never cancels it).
 
+## From the site (the creator's own button)
+
+Studio → "פרסום לרשתות" → under a product: "סרטון אנימציה עם דמות" → she
+picks the presenter and presses once. Her product carries `reelRequest`
+(`src/lib/growth/animatedReels.js` `makeRequest`; an owner-writable field, no
+API change). Every hour the scheduled "3D studio" run takes the oldest open
+request (`queue.mjs next`: approved, promotable, a kind with a story; a new
+press is a new reel; a failure retries after 3 h, twice at most), runs
+everything below, and records the outcome in the `studio3d` release
+(`queue.mjs record`); `deploy-frontend.yml` serves it to her Studio
+(`media/studio3d/index.json`, also proxied at `/media/studio3d/*`). About two
+hours from the press to the reel on the free runners. A Studio run never
+commits pictures to `main`. Tests: `tests/animatedReels.test.mjs`.
+
 ## One product in, one reel out (the fast path)
 
 `run.json` → `{"product": "<id>", "presenter": "<cast id>", "stage": "all"}`

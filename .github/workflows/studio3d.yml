@@ -24,8 +24,15 @@
 # (or the same two inputs by hand) writes the shot list itself (autoplan.py:
 # the story for the product's kind, the presenter's look, the truth check and
 # the master's length) and runs everything from it.
+# From the Studio: a creator presses "סרטון אנימציה עם דמות" and her product
+# carries a request; every hour the scheduled run takes the oldest open one
+# (queue.mjs next), makes it, and records the reel in the "studio3d" release
+# (queue.mjs record), which deploy-frontend.yml serves to her Studio
+# (media/studio3d/index.json). Rules: src/lib/growth/animatedReels.js.
 name: 3D studio
 on:
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       jobs:
@@ -70,10 +77,23 @@ jobs:
       takes: ${{ steps.p.outputs.takes }}
       from_run: ${{ steps.p.outputs.from_run }}
       talk: ${{ steps.p.outputs.talk }}
+      product: ${{ steps.p.outputs.product }}
+      presenter: ${{ steps.p.outputs.presenter }}
+      request_at: ${{ steps.p.outputs.request_at }}
+      marketer: ${{ steps.p.outputs.marketer }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The hour's run: the oldest open request from the Studio, if any.
+      - id: q
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/media/studio3d/queue.mjs next
       - id: p
         env:
           IN_JOBS: ${{ github.event.inputs.jobs }}
@@ -81,8 +101,19 @@ jobs:
           IN_STAGE: ${{ github.event.inputs.stage }}
           IN_PRODUCT: ${{ github.event.inputs.product }}
           IN_PRESENTER: ${{ github.event.inputs.presenter }}
+          Q_PRODUCT: ${{ steps.q.outputs.product }}
+          Q_PRESENTER: ${{ steps.q.outputs.presenter }}
+          Q_REQUEST_AT: ${{ steps.q.outputs.request_at }}
+          Q_MARKETER: ${{ steps.q.outputs.marketer }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            if [ -z "$Q_PRODUCT" ]; then
+              { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; } >> "$GITHUB_OUTPUT"
+              echo "no open request"; exit 0
+            fi
+            JOBS=""; ONLY=""; STAGE="all"; PRODUCT="$Q_PRODUCT"; PRESENTER="$Q_PRESENTER"
+            { echo "request_at=$Q_REQUEST_AT"; echo "marketer=$Q_MARKETER"; } >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"; PRODUCT="$IN_PRODUCT"; PRESENTER="$IN_PRESENTER"
           else
             f=scripts/media/studio3d/run.json
@@ -94,10 +125,15 @@ jobs:
             PRESENTER=$(python3 -c "import json; print(json.load(open('$f')).get('presenter', 'shira'))")
           fi
           echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
+          if [ "$STAGE" = "none" ]; then  # run.json at rest: a push that only changes code runs nothing
+            { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; } >> "$GITHUB_OUTPUT"
+            echo "nothing to run"; exit 0
+          fi
           if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
             echo "$PRODUCT" | grep -Eq '^[a-z0-9-]{2,30}$' || { echo "product: an id like ae-1005006861665924"; exit 2; }
             echo "$PRESENTER" | grep -Eq '^[a-z]{2,10}$' || { echo "presenter: a cast id like shira"; exit 2; }
             JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER")
+            { echo "product=$PRODUCT"; echo "presenter=$PRESENTER"; } >> "$GITHUB_OUTPUT"
           fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }
           echo "$ONLY" | grep -Eq '^([a-z0-9-]{1,30}(,[a-z0-9-]{1,30})*)?$' || { echo "only: shot ids like hero,cta"; exit 2; }
@@ -190,7 +226,7 @@ jobs:
           if-no-files-found: ignore
   pick:
     needs: [plan, draw]
-    if: always() && needs.plan.outputs.takes == 'true' && needs.draw.result != 'skipped' && needs.draw.result != 'cancelled'
+    if: always() && needs.plan.outputs.stage == 'all' && needs.plan.outputs.takes == 'true' && needs.draw.result != 'skipped' && needs.draw.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -297,7 +333,7 @@ jobs:
           if-no-files-found: ignore
   reel:
     needs: [plan, draw, pick, animate]
-    if: always() && needs.plan.result == 'success' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -407,7 +443,7 @@ jobs:
           if-no-files-found: ignore
   commit:
     needs: [plan, draw, pick, animate, reel]
-    if: always() && needs.plan.result == 'success' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -464,6 +500,7 @@ jobs:
           name: studio3d-reel
           path: /tmp/reel
       - name: Commit the pictures and clips for review
+        if: github.ref_name != 'main'
         env:
           DRAWN: ${{ needs.draw.result }}
           SHOTS: ${{ needs.plan.outputs.shots }}
@@ -490,3 +527,43 @@ jobs:
             --title "3D studio previews" --notes "סרטוני בדיקה מהסטודיו התלת־ממדי. לא מפורסמים ולא מוצגים באתר."
           gh release upload studio3d-preview /tmp/reel/* --clobber
           for f in /tmp/reel/*.mp4; do n=$(basename "$f"); echo "- [$n](https://github.com/${{ github.repository }}/releases/download/studio3d-preview/$n)" >> "$GITHUB_STEP_SUMMARY"; done
+  # A reel made for a product (from the Studio's queue, or by hand with a
+  # product) goes to the "studio3d" release with its outcome, and from there
+  # to that creator's Studio (deploy-frontend.yml → media/studio3d/index.json).
+  # A run that did not finish is recorded as FAILED, so the Studio says so
+  # and the queue tries once more later.
+  record:
+    needs: [plan, draw, pick, animate, reel]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.product != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        if: needs.reel.result == 'success'
+        continue-on-error: true
+        with:
+          name: studio3d-reel
+          path: /tmp/reel
+      - name: Record the reel for the Studio
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCT: ${{ needs.plan.outputs.product }}
+          PRESENTER: ${{ needs.plan.outputs.presenter }}
+          REQUEST_AT: ${{ needs.plan.outputs.request_at }}
+          MARKETER: ${{ needs.plan.outputs.marketer }}
+          REASON: "draw ${{ needs.draw.result }} · pick ${{ needs.pick.result }} · animate ${{ needs.animate.result }} · reel ${{ needs.reel.result }}"
+          OK: ${{ needs.reel.result == 'success' }}
+        run: |
+          if [ "$OK" = "true" ] && ls /tmp/reel/*.mp4 >/dev/null 2>&1; then
+            node scripts/media/studio3d/queue.mjs record READY /tmp/reel
+          else
+            node scripts/media/studio3d/queue.mjs record FAILED
+          fi

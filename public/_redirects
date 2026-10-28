@@ -30,6 +30,7 @@
 /media/reels/*   https://hen63165-dotcom.github.io/likelink/media/reels/:splat   200
 # The creators' Studio videos (scripts/media/product-video/studio-videos.mjs), the same way.
 /media/studio/*  https://hen63165-dotcom.github.io/likelink/media/studio/:splat  200
+/media/studio3d/*  https://hen63165-dotcom.github.io/likelink/media/studio3d/:splat  200
 
 # Classic SPA fallback: every other route returns the app shell (index.html).
 /*               /index.html            200
