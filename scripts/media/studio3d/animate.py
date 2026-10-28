@@ -65,9 +65,11 @@ def main():
     ap.add_argument("--jobs", required=True)
     ap.add_argument("--pictures", required=True)
     ap.add_argument("--only", required=True, help="one shot id")
-    ap.add_argument("--width", type=int, default=480)
-    ap.add_argument("--height", type=int, default=832)
-    ap.add_argument("--frames", type=int, default=97, help="8k+1 frames at 24 fps (97 = 4 s)")
+    # The pictures' own size (sharper than 480x832 upscaled) and 3 s: the
+    # model drifts from the first frame after about 3 s (the 2026-10-27 pilot).
+    ap.add_argument("--width", type=int, default=576)
+    ap.add_argument("--height", type=int, default=1024)
+    ap.add_argument("--frames", type=int, default=73, help="8k+1 frames at 24 fps (73 = 3 s)")
     a = ap.parse_args()
     spec = json.load(open(a.jobs, encoding="utf-8"))
     shot = next((s for s in spec["shots"] if s["id"] == a.only), None)
@@ -139,7 +141,7 @@ def main():
     t = time.time()
     frames = render(a.width, a.height, a.frames)
     path = os.path.join(a.pictures, f"{shot['id']}.mp4")
-    export_to_video(frames, path, fps=24)
+    export_to_video(frames, path, fps=24, quality=9)  # the default quality left ~600 kb/s
     note(id=shot["id"], kind="clip", frames=len(frames), s=round(time.time() - t), bytes=os.path.getsize(path))
     return 0
 

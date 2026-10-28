@@ -6,7 +6,9 @@ The shot list (jobs/<name>.json) carries the story it was drawn for under
 "story"). This writes that episode with "studio": <name>, so its scenes are
 the studio's own pictures, and cuts the name tag's round picture from the
 drawing the shot list names under "face" ({"from": shot id, "box": [x0, y0,
-x1, y1] as fractions of the picture}).
+x1, y1] as fractions of the picture}). Shots marked "talk": true are the
+ones where she says her line to the camera: the reel engine moves her lips
+to that line's voice (SadTalker) when the runner has it.
 
   python episode.py --jobs jobs/pilot-hoops.json --pictures out/pilot-hoops --episode /tmp/ep.json
 Prints the episode's id; exits 3 when the shot list has no story (nothing to render).
@@ -26,7 +28,8 @@ def main():
     if not isinstance(episode, dict):
         print(f"{name}: no story in this shot list", file=sys.stderr)
         return 3
-    episode = {**episode, "look": "story", "studio": name}
+    talk = [s["id"] for s in spec.get("shots", []) if s.get("talk")]
+    episode = {**episode, "look": "story", "studio": name, **({"talk": talk} if talk else {})}
     face = spec.get("face") or {}
     src = os.path.join(a.pictures, f"{face.get('from', '')}.png")
     if face and os.path.exists(src):

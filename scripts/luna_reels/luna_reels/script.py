@@ -90,6 +90,7 @@ class Episode:
     send: str = ""       # a reason to send it ("שלחי לחברה ש…"): sends are a top Reels signal
     presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
     studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/shots/<name>/): its pictures are the scenes
+    talk: list[str] = field(default_factory=list)  # studio shots where she talks to the camera (lip-synced)
 
     @property
     def beats(self) -> list[Line]:
@@ -215,12 +216,17 @@ def parse_episode(data: dict) -> Episode:
             raise ScriptError("a 3D studio shot list belongs to the story look")
         if not STUDIO_NAME.fullmatch(studio):
             raise ScriptError("studio: the shot list's name (lowercase letters, digits, '-')")
+    talk = [str(t) for t in (data.get("talk") or []) if isinstance(t, str)]
+    if talk and not studio:
+        raise ScriptError("talk: the lip-synced shots belong to a 3D studio story")
+    if any(not SCENE_NAME.fullmatch(t) for t in talk):
+        raise ScriptError("talk: shot ids")
     return Episode(id=eid, goal=goal, hook=hook, lines=lines, product=product, cta=cta, hashtags=hashtags[:8],
                    title=screen_text(data.get("title") or hook.say), hooks=hooks, topics=topics,
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
                    keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter,
-                   studio=studio)
+                   studio=studio, talk=talk)
 
 
 def _send(value) -> str:

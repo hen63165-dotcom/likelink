@@ -214,7 +214,7 @@ def parallax_still(img: Image.Image, depth_map: Image.Image, dur: float, move: s
 # An image-to-video clip drifts from its first frame as it goes: the 2026-10-27
 # pilot's faces were clean for about 3 s and smeared in the 4th. Only the clean
 # start is used, slowed to fill its line.
-STUDIO_CLIP_KEEP = 2.9
+STUDIO_CLIP_KEEP = 3.0
 
 
 def _studio_clip(path: Path, dur: float) -> VideoClip:
@@ -266,7 +266,9 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
             clip = moving_still(visuals.product_frame(product.get("photo") if product else None,
                                                      (product or {}).get("claim", ""),
                                                      (product or {}).get("photoTag") or visuals.PHOTO_TAG,
-                                                     full=bool((product or {}).get("photoFull"))), dur, "in", depth=0.04)
+                                                     full=bool((product or {}).get("photoFull")),
+                                                     size=900 if episode.studio else 640),
+                                dur, "in", depth=0.10 if episode.studio else 0.04)
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
         elif brand.studio_scene(scene, episode.studio):
@@ -275,7 +277,10 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
             animated = brand.studio_scene(scene, episode.studio, ".mp4")
             depth_file = brand.studio_scene(scene, episode.studio, ".depth.png")
             still = Image.open(brand.studio_scene(scene, episode.studio)).convert("RGB")
-            if animated:
+            talking = _talking_shot(brand.studio_scene(scene, episode.studio), beat, work) if scene in episode.talk else None
+            if talking:
+                clip = _held(talking, dur)
+            elif animated:
                 clip = _studio_clip(animated, dur)
             elif depth_file:
                 clip = parallax_still(still, Image.open(depth_file), dur, MOVES[i % len(MOVES)])
@@ -291,11 +296,66 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
                     print(f"[story] scene '{scene}' is not drawn for '{who or 'luna'}'; another of her pictures instead")
             still = Image.open(path or brand.LUNA).convert("RGB")
             clip = moving_still(upper_body(still) if path else still, dur, MOVES[i % len(MOVES)])
-        clip = clip.with_start(beat.start)
-        if i:
-            clip = clip.with_effects([vfx.CrossFadeIn(XF)])
+        if episode.studio:
+            # A studio reel cuts like a creator's edit: a hard cut with a short punch-in, no dissolve.
+            clip = _punch_in(clip.with_duration(max(0.04, dur - XF if not last else dur)))
+            clip = clip.with_start(beat.start)
+        else:
+            clip = clip.with_start(beat.start)
+            if i:
+                clip = clip.with_effects([vfx.CrossFadeIn(XF)])
         clips.append(clip)
     return CompositeVideoClip(clips, size=(W, H)).with_duration(total)
+
+
+PUNCH = 0.22  # s: a cut lands 6% closer and settles
+
+
+def _punch_in(clip: VideoClip) -> VideoClip:
+    def zoom(get_frame, t):
+        frame = get_frame(t)
+        if t >= PUNCH:
+            return frame
+        k = 1.0 + 0.06 * (1 - _ease(t / PUNCH))
+        h, w = frame.shape[:2]
+        cw, ch = int(w / k), int(h / k)
+        x0, y0 = (w - cw) // 2, (h - ch) // 2
+        return np.array(Image.fromarray(frame[y0:y0 + ch, x0:x0 + cw]).resize((w, h), Image.BILINEAR))
+    return clip.transform(zoom)
+
+
+def _held(path: Path, dur: float) -> VideoClip:
+    """A lip-synced shot at its own speed (the lips follow the voice), its last frame held to the cut."""
+    clip = VideoFileClip(str(path), audio=False)
+    clip = clip.resized(max(W / clip.w, H / clip.h) + 0.002)
+    clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
+    if clip.duration < dur:
+        last = ImageClip(clip.get_frame(max(0.0, clip.duration - 0.05))).with_duration(dur - clip.duration)
+        from moviepy import concatenate_videoclips  # noqa: PLC0415
+        clip = concatenate_videoclips([clip, last])
+    return clip.with_duration(dur)
+
+
+def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
+    """The presenter says this line on camera: SadTalker (Apache-2.0, CPU) moves her
+    lips to the line's own voice on the studio picture. None when it cannot run
+    (no SadTalker on this machine, no voice, no face found): the shot then moves as before."""
+    import os  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    if picture is None or beat.clip.path is None or not os.environ.get("SADTALKER_VENV"):
+        return None
+    out = work / f"talk-{picture.stem}"
+    env = dict(os.environ)
+    env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
+    talk = Path(__file__).resolve().parents[2] / "media" / "talking" / "talk.sh"
+    try:
+        subprocess.run(["bash", str(talk), str(picture), str(beat.clip.path), str(out), "full-move"],
+                       check=True, timeout=3600, env=env)
+    except Exception as exc:  # noqa: BLE001 (the shot keeps its own motion)
+        print(f"[talk] {picture.stem}: no lip-sync ({exc})")
+        return None
+    mp4 = out / "luna-full-move.mp4"
+    return mp4 if mp4.exists() else None
 
 
 def _aurora(total: float):
@@ -432,11 +492,16 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
                       .with_position(lambda t: ((W - bw * pulse(t)) / 2, button_y - bh * pulse(t) / 2)))
 
     video = CompositeVideoClip(layers, size=(W, H)).with_duration(total)
+    if episode.studio:
+        return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
     return video.with_audio(_audio(beats, total, work, music_src)), beats, total
 
 
-def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None):
+def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None, whooshes: list[float] = ()):
     tracks = [AudioFileClip(str(silent_track(total, work / "silence.m4a")))]
+    if whooshes:
+        swish = AudioFileClip(str(music.write_whoosh(work / "whoosh.wav")))
+        tracks += [swish.with_start(max(0.0, t - 0.12)) for t in whooshes if t < total - 0.3]
     for beat in beats:
         if beat.clip.path is not None:
             a = AudioFileClip(str(beat.clip.path))

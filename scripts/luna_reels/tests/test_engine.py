@@ -291,6 +291,14 @@ class Studio3D(unittest.TestCase):
         h, w = moved.shape
         self.assertLess(moved[: h // 6].mean(), moved[h // 3: 2 * h // 3].mean())  # far top moves least
 
+    def test_lip_synced_shots_belong_to_a_studio_story(self):
+        ep = episode(look="story", studio="pilot-hoops", talk=["hero", "cta-2"], lines=[{"say": "שורה.", "scene": "hero"}])
+        self.assertEqual(ep.talk, ["hero", "cta-2"])
+        with self.assertRaises(ScriptError):
+            episode(look="story", talk=["hero"])  # no studio
+        with self.assertRaises(ScriptError):
+            episode(look="story", studio="pilot-hoops", talk=["../x"])
+
     def test_an_animated_shot_uses_only_its_clean_start(self):
         self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
 

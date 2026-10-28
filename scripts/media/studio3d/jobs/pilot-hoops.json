@@ -9,7 +9,8 @@
       "character": true,
       "seed": 93001,
       "prompt": "full body, standing in a bright cozy bedroom, warm smile at the camera, one hand on her hip",
-      "motion": "she smiles, tilts her head and gives a small friendly wave, her hair moves softly, the camera slowly pushes in"
+      "motion": "she smiles, tilts her head and gives a small friendly wave, her hair moves softly, the camera slowly pushes in",
+      "talk": true
     },
     {
       "id": "hook-shirt",
@@ -49,7 +50,8 @@
       "character": true,
       "seed": 93035,
       "prompt": "medium shot, her long loose wavy auburn hair flowing down over her shoulders, she smiles warmly and points her index finger straight at the camera, inviting, bright bedroom background",
-      "motion": "she smiles and points at the camera, nodding, her long hair moves softly, the camera slowly pushes in"
+      "motion": "she smiles and points at the camera, nodding, her long hair moves softly, the camera slowly pushes in",
+      "talk": true
     }
   ],
   "episode": {
