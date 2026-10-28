@@ -1,0 +1,79 @@
+# One-off diagnosis (2026-10-28): the Studio's UGC screen said "CLOUD READY"
+# for 39 reels recorded on the owner's iPhone, but iPhone Safari showed the
+# "cannot play" icon. The proxy answers byte ranges correctly (206, checked),
+# so this looks at the files themselves: ffprobe/ffmpeg on Linux, and WebKit
+# on macOS (AVFoundation, the iPhone's media stack) playing a studio reel next
+# to a known-good reel from GitHub Pages. Three files, once; no schedule.
+name: Studio media probe
+on:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: [".github/workflows/studio-media-probe.yml"]
+permissions:
+  contents: read
+env:
+  REELS: >-
+    https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1793183028113-7r38zl.mp4
+    https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1793183022672-1lq5ke.mp4
+jobs:
+  ffprobe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+      - name: Probe and decode
+        run: |
+          i=0
+          for u in $REELS; do
+            i=$((i+1)); f="/tmp/r$i.mp4"
+            curl -sSf -o "$f" "$u"
+            echo "== $u ($(stat -c %s "$f") bytes)"
+            ffprobe -v error -show_entries format=format_name,duration,bit_rate:stream=codec_name,profile,width,height,r_frame_rate,avg_frame_rate,nb_frames,duration,time_base,pix_fmt -of compact "$f"
+            echo "decode:"; ffmpeg -v error -i "$f" -f null - 2>&1 | head -5; echo "frames: $(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$f")"
+            echo "first/last packets:"; ffprobe -v error -select_streams v:0 -show_entries packet=pts_time,dts_time,flags -of csv=p=0 "$f" | sed -n '1,4p;$p'
+          done
+  webkit:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright WebKit
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          (cd /tmp/pw && npx playwright install webkit >/dev/null)
+      - name: Play in WebKit (iPhone viewport)
+        run: |
+          cat > /tmp/pw/probe.mjs <<'EOF'
+          import { webkit, devices } from "playwright";
+          const index = await (await fetch("https://hen63165-dotcom.github.io/likelink/media/reels/index.json")).json();
+          const items = Array.isArray(index) ? index : index.reels || index.items || [];
+          const control = items.map((r) => r.video || r.videoUrl || r.url).find((u) => /\.mp4/.test(String(u)));
+          const base = "https://hen63165-dotcom.github.io/likelink/media/reels/";
+          const urls = [...process.env.REELS.trim().split(/\s+/), control && (/^https?:/.test(control) ? control : base + control.replace(/^.*\//, ""))].filter(Boolean);
+          const browser = await webkit.launch();
+          const page = await (await browser.newContext({ ...devices["iPhone 13"] })).newPage();
+          await page.goto("https://likelink2.vercel.app/robots.txt");
+          for (const url of urls) {
+            const r = await page.evaluate(async (src) => {
+              const v = document.createElement("video");
+              v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = src;
+              document.body.appendChild(v);
+              const ev = await new Promise((done) => {
+                const t = setTimeout(() => done("timeout"), 25000);
+                v.addEventListener("loadeddata", () => { clearTimeout(t); done("loadeddata"); });
+                v.addEventListener("error", () => { clearTimeout(t); done("error"); });
+              });
+              let played = null;
+              if (ev === "loadeddata") {
+                try { await v.play(); await new Promise((d) => setTimeout(d, 2500)); played = v.currentTime; } catch (e) { played = String(e); }
+              }
+              return { ev, readyState: v.readyState, error: v.error && { code: v.error.code, message: v.error.message },
+                duration: v.duration, width: v.videoWidth, height: v.videoHeight, played };
+            }, url);
+            console.log(JSON.stringify({ url: url.slice(-60), ...r }));
+          }
+          await browser.close();
+          EOF
+          cd /tmp/pw && node probe.mjs
