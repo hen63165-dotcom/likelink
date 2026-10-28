@@ -277,7 +277,8 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
             animated = brand.studio_scene(scene, episode.studio, ".mp4")
             depth_file = brand.studio_scene(scene, episode.studio, ".depth.png")
             still = Image.open(brand.studio_scene(scene, episode.studio)).convert("RGB")
-            talking = _talking_shot(brand.studio_scene(scene, episode.studio), beat, work) if scene in episode.talk else None
+            talking = (_talking_shot(brand.studio_scene(scene, episode.studio), beat, work, episode.talk.index(scene))
+                       if scene in episode.talk else None)
             if talking:
                 clip = _held(talking, dur)
             elif animated:
@@ -341,17 +342,46 @@ def _held(path: Path, dur: float) -> VideoClip:
 # and lips on a small face barely read. The upper middle of the picture, in the
 # same 9:16, is what SadTalker animates (then enlarged to 1080×1920).
 TALK_CLOSE_UP = 0.66
+# With the presenter's checked keyframe, the close-up is cut around her head
+# (the keyframe's own head box, hair included): the head fills about this much
+# of the frame's width, and each further talking line cuts a little closer or
+# wider so three lines from one picture never look like one shot repeated.
+TALK_HEAD_SHARE = 0.6
+TALK_VARIETY = (1.0, 0.86, 1.14)
 
 
-def close_up_box(w: int, h: int, scale: float = TALK_CLOSE_UP) -> tuple[int, int, int, int]:
-    """The 9:16 window of a scale-sized crop, centred across and near the top (where her face is)."""
+def close_up_box(w: int, h: int, scale: float = TALK_CLOSE_UP, head=None, n: int = 0) -> tuple[int, int, int, int]:
+    """The 9:16 window of a close-up: around her head when its box is known
+    (fractions x0, y0, x1, y1), else a scale-sized crop centred across and near
+    the top (where her face is in a drawing of her)."""
+    if head:
+        hw = (head[2] - head[0]) * w
+        cw = hw / TALK_HEAD_SHARE * TALK_VARIETY[n % len(TALK_VARIETY)]
+        cw = max(w * 0.4, min(cw, w, h * 9 / 16))
+        cw, ch = round(cw), round(cw * 16 / 9)
+        cx = (head[0] + head[2]) / 2 * w
+        x0 = round(min(max(cx - cw / 2, 0), w - cw))
+        y0 = round(min(max(head[1] * h - ch * 0.08, 0), h - ch))
+        return x0, y0, x0 + cw, y0 + ch
     cw, ch = round(w * scale), round(h * scale)
     x0 = (w - cw) // 2
     y0 = min(round(h * 0.02), h - ch)
     return x0, y0, x0 + cw, y0 + ch
 
 
-def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
+def head_of(picture: Path):
+    """The head box written next to a keyframe's copy (castframes.py), or None."""
+    import json  # noqa: PLC0415
+    side = picture.with_suffix(".face.json")
+    try:
+        box = json.loads(side.read_text(encoding="utf-8")).get("head")
+    except (OSError, ValueError):
+        return None
+    ok = isinstance(box, list) and len(box) == 4 and all(isinstance(v, (int, float)) for v in box)
+    return box if ok and 0 <= box[0] < box[2] <= 1 and 0 <= box[1] < box[3] <= 1 else None
+
+
+def _talking_shot(picture: Path | None, beat: Beat, work: Path, n: int = 0) -> Path | None:
     """The presenter says this line on camera: SadTalker (Apache-2.0, CPU) moves her
     lips to the line's own voice on the studio picture. None when it cannot run
     (no SadTalker on this machine, no voice, no face found): the shot then moves as before."""
@@ -363,7 +393,7 @@ def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
     out = work / f"talk-{picture.stem}"
     close = work / f"close-{picture.stem}.png"
     with Image.open(picture) as img:
-        img.convert("RGB").crop(close_up_box(*img.size)).save(close)
+        img.convert("RGB").crop(close_up_box(*img.size, head=head_of(picture), n=n)).save(close)
     env = dict(os.environ)
     env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
     talk = Path(__file__).resolve().parents[2] / "media" / "talking" / "talk.sh"

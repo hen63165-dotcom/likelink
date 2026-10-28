@@ -40,7 +40,11 @@ def main():
         if not src.exists():
             raise SystemExit(f"shot {sid}: {src.relative_to(CAST.parent)} is missing")
         shutil.copyfile(src, dest / f"{sid}.png")
-        print(json.dumps({"cast": sid, "from": str(src.relative_to(CAST.parent))}))
+        meta = src.with_suffix(".json")  # its head box: the talking close-ups are cut around it
+        head = json.loads(meta.read_text(encoding="utf-8")).get("face") if meta.exists() else None
+        if head:
+            (dest / f"{sid}.face.json").write_text(json.dumps({"head": head}), encoding="utf-8")
+        print(json.dumps({"cast": sid, "from": str(src.relative_to(CAST.parent)), "head": head}))
     return 0
 
 

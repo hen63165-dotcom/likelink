@@ -5,6 +5,7 @@ Run from scripts/luna_reels:  python -m unittest discover -s tests -v
 import datetime as dt
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -309,6 +310,26 @@ class Studio3D(unittest.TestCase):
         self.assertLess(y0, 1024 * 0.05)  # her face is near the top
         self.assertEqual((x0 + x1) / 2, 288)  # centred across
         self.assertTrue(0 <= x0 and x1 <= 576 and y1 <= 1024)
+
+    def test_from_her_keyframe_the_close_up_is_cut_around_her_head(self):
+        head = [0.32, 0.12, 0.68, 0.36]  # a head-and-hair box, a little left of centre would move the crop too
+        boxes = [compose.close_up_box(576, 1024, head=head, n=n) for n in range(3)]
+        for x0, y0, x1, y1 in boxes:
+            self.assertAlmostEqual((x1 - x0) / (y1 - y0), 9 / 16, places=2)
+            self.assertTrue(0 <= x0 and x1 <= 576 and 0 <= y0 and y1 <= 1024)
+            self.assertLessEqual(x0, head[0] * 576)
+            self.assertGreaterEqual(x1, head[2] * 576)  # her whole head is in
+            self.assertLessEqual(y0, head[1] * 1024)
+        self.assertEqual(len({b[2] - b[0] for b in boxes}), 3)  # each talking line another cut
+        x0, _y0, x1, _y1 = compose.close_up_box(576, 1024, head=[0.0, 0.1, 0.3, 0.3])
+        self.assertEqual(x0, 0)  # never outside the picture
+        with tempfile.TemporaryDirectory() as d:
+            pic = Path(d) / "hero.png"
+            self.assertIsNone(compose.head_of(pic))
+            (Path(d) / "hero.face.json").write_text(json.dumps({"head": head}))
+            self.assertEqual(compose.head_of(pic), head)
+            (Path(d) / "hero.face.json").write_text(json.dumps({"head": [0.5, 0.1, 0.2, 0.3]}))
+            self.assertIsNone(compose.head_of(pic))  # a box turned inside out is no box
 
 
 class SameWoman(unittest.TestCase):
