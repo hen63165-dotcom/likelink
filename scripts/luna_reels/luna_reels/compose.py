@@ -349,12 +349,12 @@ def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
     env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
     talk = Path(__file__).resolve().parents[2] / "media" / "talking" / "talk.sh"
     try:
-        subprocess.run(["bash", str(talk), str(picture), str(beat.clip.path), str(out), "full-move"],
+        subprocess.run(["bash", str(talk), str(picture), str(beat.clip.path), str(out), "full-talk"],
                        check=True, timeout=3600, env=env)
     except Exception as exc:  # noqa: BLE001 (the shot keeps its own motion)
         print(f"[talk] {picture.stem}: no lip-sync ({exc})")
         return None
-    mp4 = out / "luna-full-move.mp4"
+    mp4 = out / "luna-full-talk.mp4"
     return mp4 if mp4.exists() else None
 
 
