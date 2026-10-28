@@ -1,0 +1,9 @@
+{"source": "t5", "used": "city96/t5-v1_1-xxl-encoder-bf16", "path": null}
+{"stage": "encoded", "shots": 5, "s": 572}
+{"source": "vae", "used": "Comfy-Org/Lumina_Image_2.0_Repackaged", "path": "split_files/vae/ae.safetensors"}
+{"stage": "loaded", "s": 604}
+{"id": "hero", "s": 1086, "bytes": 799848}
+{"id": "hook-shirt", "s": 1087, "bytes": 491038}
+{"id": "mirror", "s": 1095, "bytes": 673256}
+{"id": "wow", "s": 1089, "bytes": 765514}
+{"id": "cta", "s": 1090, "bytes": 773824}

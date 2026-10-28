@@ -10,6 +10,8 @@
 #   full-still   whole picture kept, the face talks and blinks, calm head
 #   full-move    whole picture kept, natural head motion while talking
 #   face         a tighter talking-face crop (the most motion)
+#   full-talk    whole picture kept, a calm head and a clearly moving mouth
+#                (the 3D studio's drawn presenters: their mouths moved too little at 1.1 and 1.7)
 # The result is always synthetic: every reel made from it carries the label
 # "דמות שנוצרה בבינה מלאכותית" (the tip renderer burns it in).
 set -euo pipefail
@@ -39,6 +41,7 @@ for v in ${VARIANTS[*]}; do
     full-still) args=(--preprocess full --still) ;;
     full-move)  args=(--preprocess full --pose_style 12 --expression_scale 1.1) ;;
     face)       args=(--preprocess extcrop --pose_style 12 --expression_scale 1.1) ;;
+    full-talk)  args=(--preprocess full --pose_style 0 --expression_scale 2.0) ;;
     *) echo "unknown variant $v" >&2; exit 2 ;;
   esac
   res="$OUT/.run-$v"
@@ -51,7 +54,9 @@ for v in ${VARIANTS[*]}; do
   # H.264 + AAC 48 kHz, the same voice track (SadTalker writes its own copy).
   ffmpeg -y -loglevel error -i "$mp4" -i "$AUDIO" -map 0:v -map 1:a -c:v libx264 -pix_fmt yuv420p -crf 20 \
     -c:a aac -b:a 128k -ar 48000 -shortest -movflags +faststart "$OUT/luna-$v.mp4"
-  ffmpeg -y -loglevel error -ss 3 -i "$OUT/luna-$v.mp4" -frames:v 1 "$OUT/luna-$v.jpg"
+  # A preview frame from the middle (a line shorter than 3 s has no frame at 3 s; the preview never fails the run).
+  half=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/luna-$v.mp4" | awk '{printf "%.2f", $1 / 2}')
+  ffmpeg -y -loglevel error -ss "${half:-0}" -i "$OUT/luna-$v.mp4" -frames:v 1 "$OUT/luna-$v.jpg" || true
   echo "$v: $(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/luna-$v.mp4")s in $(( $(date +%s) - t0 ))s"
   rm -rf "$res"
 done

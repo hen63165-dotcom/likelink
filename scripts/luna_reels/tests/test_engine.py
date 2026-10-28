@@ -256,6 +256,120 @@ class Story(unittest.TestCase):
                 self.assertEqual(path.parent, folder, f"{f.name}: scene {scene} is her own, not a shared picture")
 
 
+class Studio3D(unittest.TestCase):
+    """The free 3D studio's shots in the story look (scripts/media/studio3d)."""
+
+    def test_a_studio_belongs_to_the_story_look_and_is_a_plain_name(self):
+        ep = episode(look="story", studio="pilot-hoops", lines=[{"say": "שורה.", "scene": "hero"}])
+        self.assertEqual(ep.studio, "pilot-hoops")
+        with self.assertRaises(ScriptError):
+            episode(studio="pilot-hoops")  # not a story
+        for bad in ["../etc", "Pilot", "a b", "x" * 41]:
+            with self.assertRaises(ScriptError, msg=bad):
+                episode(look="story", studio=bad)
+
+    def test_studio_files_resolve_only_inside_its_folder(self):
+        self.assertIsNone(brand.studio_scene("hero", ""))
+        self.assertIsNone(brand.studio_scene("", "pilot-hoops"))
+        self.assertIsNone(brand.studio_scene("no-such-shot", "pilot-hoops"))
+        pic = brand.studio_scene("hero", "pilot-hoops")
+        if pic is not None:  # the pilot's pictures are committed for review
+            self.assertEqual(pic.parent, brand.STUDIO_DIR / "pilot-hoops")
+
+    def test_the_depth_camera_moves_near_things_more_than_far_ones(self):
+        from PIL import Image, ImageDraw
+        import numpy as np
+        img = Image.new("RGB", (288, 512), (90, 120, 170))
+        ImageDraw.Draw(img).ellipse((94, 196, 194, 296), fill=(240, 180, 140))
+        depth = Image.new("L", (288, 512), 30)
+        ImageDraw.Draw(depth).ellipse((94, 196, 194, 296), fill=230)
+        clip = compose.parallax_still(img, depth, 2.0, "in")
+        a, b = clip.get_frame(0).astype(int), clip.get_frame(2.0).astype(int)
+        self.assertEqual(a.shape, (compose.H, compose.W, 3))
+        moved = np.abs(a - b).sum(axis=2) > 30
+        self.assertGreater(moved.sum(), 1000)  # the near disc grew
+        h, w = moved.shape
+        self.assertLess(moved[: h // 6].mean(), moved[h // 3: 2 * h // 3].mean())  # far top moves least
+
+    def test_lip_synced_shots_belong_to_a_studio_story(self):
+        ep = episode(look="story", studio="pilot-hoops", talk=["hero", "cta-2"], lines=[{"say": "שורה.", "scene": "hero"}])
+        self.assertEqual(ep.talk, ["hero", "cta-2"])
+        with self.assertRaises(ScriptError):
+            episode(look="story", talk=["hero"])  # no studio
+        with self.assertRaises(ScriptError):
+            episode(look="story", studio="pilot-hoops", talk=["../x"])
+
+    def test_an_animated_shot_uses_only_its_clean_start(self):
+        self.assertLessEqual(compose.STUDIO_CLIP_KEEP, 3.0)
+
+
+class AutoPlan(unittest.TestCase):
+    """One product in, one reel out (scripts/media/studio3d/autoplan.py)."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
+        import autoplan  # noqa: PLC0415
+        cls.ap = autoplan
+        cls.cast = json.loads((HERE.parent / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))["characters"]
+
+    def plans(self):
+        for pid, product in CATALOG.items():
+            for member in self.cast:
+                yield pid, member, self.ap.plan(product, member)
+
+    def test_every_listed_product_gets_a_story_that_passes_before_anything_is_drawn(self):
+        self.assertGreaterEqual(len(CATALOG), 5)
+        for pid, member, spec in self.plans():
+            self.ap.check_plan(spec)  # hook, the master's length, scenes, no drawn jewellery, the tag
+            name = f"{pid}-{member['id']}"[:40]
+            check_truth(parse_episode({**spec["episode"], "look": "story", "studio": name}), CATALOG)
+
+    def test_the_story_follows_the_product_kind(self):
+        kind = self.ap.kind_of
+        self.assertEqual(kind({"title": "עגילי חישוק"}), "earrings")
+        self.assertEqual(kind({"title": "Gold hoop earrings"}), "earrings")
+        self.assertEqual(kind({"title": "שרשרת יד עם תליונים"}), "bracelet")  # a hand chain is worn as a bracelet
+        self.assertEqual(kind({"title": "טבעת כסף"}), "ring")
+        self.assertEqual(kind({"title": "שרשרת עם תליון"}), "necklace")
+        self.assertIsNone(kind({"title": "כרית לכלב"}))  # no story yet: refused, never guessed
+        with self.assertRaises(SystemExit):
+            self.ap.plan({"id": "x-1", "title": "כרית לכלב"}, self.cast[0])
+
+    def test_the_product_is_shown_only_in_its_real_photo(self):
+        for _pid, _member, spec in self.plans():
+            ep = spec["episode"]
+            at = ep["product"]["at"]
+            self.assertGreaterEqual(at, 2, "a tip before the product")
+            self.assertFalse(ep["lines"][at - 1].get("scene"), "the product line shows the seller's photo")
+            for s in spec["shots"]:
+                self.assertNotRegex(f"{s.get('prompt', '')} {s.get('motion', '')}", self.ap.DRAWN_JEWELLERY)
+        with self.assertRaises(SystemExit):
+            bad = self.ap.plan(CATALOG["p-live-05"], self.cast[0])
+            bad["shots"][2]["prompt"] += ", wearing hoop earrings"
+            self.ap.check_plan(bad)
+
+    def test_each_talking_line_has_its_own_shot_and_the_tag_is_a_still(self):
+        for _pid, _member, spec in self.plans():
+            shots = {s["id"]: s for s in spec["shots"]}
+            scenes = [l.get("scene") for l in [spec["episode"]["hook"], *spec["episode"]["lines"]] if l.get("scene")]
+            for sid, s in shots.items():
+                if s.get("talk"):  # the lip-sync output is named after its picture
+                    self.assertEqual(scenes.count(sid), 1, sid)
+            tag = shots[spec["face"]["from"]]
+            self.assertTrue(tag.get("still"), "the name tag's portrait is never animated")
+            self.assertNotIn(tag["id"], scenes)
+
+    def test_the_story_is_held_to_the_masters_length(self):
+        for _pid, _member, spec in self.plans():
+            self.assertGreaterEqual(self.ap.estimate_seconds(spec["episode"]), 20)
+            self.assertLessEqual(self.ap.estimate_seconds(spec["episode"]), 45)
+        short = self.ap.plan(CATALOG["p-live-01"], self.cast[0])
+        short["episode"]["lines"] = short["episode"]["lines"][:2]
+        with self.assertRaises(SystemExit):
+            self.ap.check_plan(short)
+
+
 class Music(unittest.TestCase):
     def test_bed_level(self):
         self.assertAlmostEqual(music.db_to_gain(-20), 0.1)

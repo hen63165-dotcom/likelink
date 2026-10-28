@@ -104,3 +104,30 @@ def write_bed(seconds: float, dst: Path, db: float = BED_DB) -> Path:
                    check=True, timeout=120)
     wav.unlink(missing_ok=True)
     return dst
+
+
+WHOOSH_DB = -16.0
+
+
+def write_whoosh(dst: Path, seconds: float = 0.38) -> Path:
+    """A soft air whoosh for a cut: noise through a sweeping low-pass, rising then fading."""
+    n = int(seconds * SR)
+    rng = np.random.default_rng(7)
+    noise = rng.standard_normal(n)
+    out = np.zeros(n)
+    y = 0.0
+    for i in range(n):  # a one-pole low-pass whose cutoff sweeps up then down
+        k = i / n
+        alpha = 0.02 + 0.25 * np.sin(np.pi * k) ** 2
+        y += alpha * (noise[i] - y)
+        out[i] = y
+    out *= np.sin(np.pi * np.linspace(0, 1, n)) ** 1.5
+    out = out / (np.abs(out).max() or 1) * db_to_gain(WHOOSH_DB)
+    pcm = (out * 32767).astype(np.int16)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(dst), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(pcm.tobytes())
+    return dst

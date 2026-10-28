@@ -171,6 +171,63 @@ def moving_still(img: Image.Image, dur: float, move: str = "in", depth: float = 
     return VideoClip(frame_function=frame, duration=max(0.04, dur))
 
 
+def _bilinear(src: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """src sampled at (x, y), bilinear, clamped to the edges."""
+    h, w = src.shape[:2]
+    x = np.clip(x, 0, w - 1.001)
+    y = np.clip(y, 0, h - 1.001)
+    x0, y0 = x.astype(np.int32), y.astype(np.int32)
+    fx, fy = (x - x0)[..., None], (y - y0)[..., None]
+    top = src[y0, x0] + (src[y0, x0 + 1] - src[y0, x0]) * fx
+    bottom = src[y0 + 1, x0] + (src[y0 + 1, x0 + 1] - src[y0 + 1, x0]) * fx
+    return (top + (bottom - top) * fy).astype(np.uint8)
+
+
+def parallax_still(img: Image.Image, depth_map: Image.Image, dur: float, move: str = "in", amount: float = 0.07) -> VideoClip:
+    """A still with a real 3D camera move: by its depth map, near things grow
+    and slide more than far ones (a dolly shot, not a flat zoom)."""
+    from PIL import ImageFilter  # noqa: PLC0415
+    big = visuals.cover(img, (int(W * 1.08), int(H * 1.08)))
+    bw, bh = big.size
+    src = np.asarray(big, dtype=np.float32)
+    d = np.asarray(visuals.cover(depth_map, (bw, bh)).convert("L").filter(ImageFilter.GaussianBlur(8)), dtype=np.float32)
+    d = (d - d.min()) / max(1e-6, float(d.max() - d.min()))  # 1 = nearest
+    ox, oy = (bw - W) / 2, (bh - H) / 2
+    near = d[int(oy):int(oy) + H, int(ox):int(ox) + W]
+    ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx, cy = W / 2, H * 0.45
+
+    def frame(t):
+        k = _ease(t / max(dur, 0.01))
+        if move in ("left", "right"):
+            zoom, shift = amount * 0.4, (k - 0.5) * (1 if move == "right" else -1) * amount * W * 0.9
+        else:
+            zoom, shift = amount * (k if move == "in" else 1 - k), 0.0
+        scale = 1.0 + zoom * (0.3 + near)
+        sx = cx + (xs - cx) / scale - shift * (near - 0.35) + ox
+        sy = cy + (ys - cy) / scale + oy
+        return _bilinear(src, sx, sy)
+
+    return VideoClip(frame_function=frame, duration=max(0.04, dur))
+
+
+# An image-to-video clip drifts from its first frame as it goes: the 2026-10-27
+# pilot's faces were clean for about 3 s and smeared in the 4th. Only the clean
+# start is used, slowed to fill its line.
+STUDIO_CLIP_KEEP = 3.0
+
+
+def _studio_clip(path: Path, dur: float) -> VideoClip:
+    """An animated studio shot fitted to its beat: its clean start, slowed (never looped) when short."""
+    clip = VideoFileClip(str(path), audio=False)
+    clip = clip.subclipped(0, min(clip.duration, STUDIO_CLIP_KEEP))
+    clip = clip.resized(max(W / clip.w, H / clip.h) + 0.002)  # a hair over, so rounding never leaves a row short
+    clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
+    if clip.duration < dur:
+        clip = clip.with_effects([vfx.MultiplySpeed(final_duration=dur)])
+    return clip.with_duration(dur)
+
+
 def upper_body(img: Image.Image) -> Image.Image:
     """A presenter from the hips up, like a creator filming herself (2026-10-25:
     the full drawings put tight leggings at the bottom of every frame)."""
@@ -209,9 +266,26 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
             clip = moving_still(visuals.product_frame(product.get("photo") if product else None,
                                                      (product or {}).get("claim", ""),
                                                      (product or {}).get("photoTag") or visuals.PHOTO_TAG,
-                                                     full=bool((product or {}).get("photoFull"))), dur, "in", depth=0.04)
+                                                     full=bool((product or {}).get("photoFull")),
+                                                     size=900 if episode.studio else 640),
+                                dur, "in", depth=0.10 if episode.studio else 0.04)
         elif scene.startswith("video:"):
             clip = _scene_video(scene[6:], dur, work)
+        elif brand.studio_scene(scene, episode.studio):
+            # A 3D studio shot: its animated clip when one was made, else the picture
+            # (drawn whole for the frame, no hip crop) with a 3D camera move by its depth.
+            animated = brand.studio_scene(scene, episode.studio, ".mp4")
+            depth_file = brand.studio_scene(scene, episode.studio, ".depth.png")
+            still = Image.open(brand.studio_scene(scene, episode.studio)).convert("RGB")
+            talking = _talking_shot(brand.studio_scene(scene, episode.studio), beat, work) if scene in episode.talk else None
+            if talking:
+                clip = _held(talking, dur)
+            elif animated:
+                clip = _studio_clip(animated, dur)
+            elif depth_file:
+                clip = parallax_still(still, Image.open(depth_file), dur, MOVES[i % len(MOVES)])
+            else:
+                clip = moving_still(still, dur, MOVES[i % len(MOVES)], depth=0.08)
         else:
             who = episode.presenter
             path = brand.scene_path(scene, who) if scene != "luna" else None
@@ -222,11 +296,66 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
                     print(f"[story] scene '{scene}' is not drawn for '{who or 'luna'}'; another of her pictures instead")
             still = Image.open(path or brand.LUNA).convert("RGB")
             clip = moving_still(upper_body(still) if path else still, dur, MOVES[i % len(MOVES)])
-        clip = clip.with_start(beat.start)
-        if i:
-            clip = clip.with_effects([vfx.CrossFadeIn(XF)])
+        if episode.studio:
+            # A studio reel cuts like a creator's edit: a hard cut with a short punch-in, no dissolve.
+            clip = _punch_in(clip.with_duration(max(0.04, dur - XF if not last else dur)))
+            clip = clip.with_start(beat.start)
+        else:
+            clip = clip.with_start(beat.start)
+            if i:
+                clip = clip.with_effects([vfx.CrossFadeIn(XF)])
         clips.append(clip)
     return CompositeVideoClip(clips, size=(W, H)).with_duration(total)
+
+
+PUNCH = 0.22  # s: a cut lands 6% closer and settles
+
+
+def _punch_in(clip: VideoClip) -> VideoClip:
+    def zoom(get_frame, t):
+        frame = get_frame(t)
+        if t >= PUNCH:
+            return frame
+        k = 1.0 + 0.06 * (1 - _ease(t / PUNCH))
+        h, w = frame.shape[:2]
+        cw, ch = int(w / k), int(h / k)
+        x0, y0 = (w - cw) // 2, (h - ch) // 2
+        return np.array(Image.fromarray(frame[y0:y0 + ch, x0:x0 + cw]).resize((w, h), Image.BILINEAR))
+    return clip.transform(zoom)
+
+
+def _held(path: Path, dur: float) -> VideoClip:
+    """A lip-synced shot at its own speed (the lips follow the voice), its last frame held to the cut."""
+    clip = VideoFileClip(str(path), audio=False)
+    clip = clip.resized(max(W / clip.w, H / clip.h) + 0.002)
+    clip = clip.cropped(x_center=clip.w / 2, y_center=clip.h / 2, width=W, height=H)
+    if clip.duration < dur:
+        last = ImageClip(clip.get_frame(max(0.0, clip.duration - 0.05))).with_duration(dur - clip.duration)
+        from moviepy import concatenate_videoclips  # noqa: PLC0415
+        clip = concatenate_videoclips([clip, last])
+    return clip.with_duration(dur)
+
+
+def _talking_shot(picture: Path | None, beat: Beat, work: Path) -> Path | None:
+    """The presenter says this line on camera: SadTalker (Apache-2.0, CPU) moves her
+    lips to the line's own voice on the studio picture. None when it cannot run
+    (no SadTalker on this machine, no voice, no face found): the shot then moves as before."""
+    import os  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    if picture is None or beat.clip.path is None or not os.environ.get("SADTALKER_VENV"):
+        return None
+    out = work / f"talk-{picture.stem}"
+    env = dict(os.environ)
+    env["PATH"] = f"{os.environ['SADTALKER_VENV']}/bin:{env.get('PATH', '')}"
+    talk = Path(__file__).resolve().parents[2] / "media" / "talking" / "talk.sh"
+    try:
+        subprocess.run(["bash", str(talk), str(picture), str(beat.clip.path), str(out), "full-talk"],
+                       check=True, timeout=3600, env=env)
+    except Exception as exc:  # noqa: BLE001 (the shot keeps its own motion)
+        print(f"[talk] {picture.stem}: no lip-sync ({exc})")
+        return None
+    mp4 = out / "luna-full-talk.mp4"
+    return mp4 if mp4.exists() else None
 
 
 def _aurora(total: float):
@@ -311,7 +440,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     if story:
         # The series' name tag (top left): Luna's picture and "לונה ממליצה" (+ LikeLink2 on the free tier).
-        face_file = brand.face_path(episode.presenter)
+        face_file = brand.face_path(episode.presenter, episode.studio)
         face = Image.open(face_file) if face_file else None
         layers.append(_img_clip(text.name_tag(face, branded=free, label=brand.tag_text(episode.presenter)), 0, end_at, (24, TOP_Y - 30)))
     elif free:
@@ -363,11 +492,16 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
                       .with_position(lambda t: ((W - bw * pulse(t)) / 2, button_y - bh * pulse(t) / 2)))
 
     video = CompositeVideoClip(layers, size=(W, H)).with_duration(total)
+    if episode.studio:
+        return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
     return video.with_audio(_audio(beats, total, work, music_src)), beats, total
 
 
-def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None):
+def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None, whooshes: list[float] = ()):
     tracks = [AudioFileClip(str(silent_track(total, work / "silence.m4a")))]
+    if whooshes:
+        swish = AudioFileClip(str(music.write_whoosh(work / "whoosh.wav")))
+        tracks += [swish.with_start(max(0.0, t - 0.12)) for t in whooshes if t < total - 0.3]
     for beat in beats:
         if beat.clip.path is not None:
             a = AudioFileClip(str(beat.clip.path))

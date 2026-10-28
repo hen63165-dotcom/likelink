@@ -27,7 +27,8 @@ import traceback
 from pathlib import Path
 
 from . import compose, metadata, trends, visuals
-from .script import Episode, Line, ScriptError, check_truth, ideas_to_episode, load_catalog, load_episode, with_hook
+from .script import (Episode, Line, ScriptError, check_truth, ideas_to_episode, load_catalog, load_cloud_catalog,
+                     load_episode, with_hook)
 from .voice import EDGE_VOICE, synthesize, temp_dir
 
 STOCK_VOICE = "he-IL-AvriNeural"  # over stock footage / the brand backdrop (no Luna on screen)
@@ -47,6 +48,19 @@ VARIANTS = [
 SETS = REPO / "public" / "sets"
 
 
+def catalog_for(episode: Episode) -> dict:
+    """The site's catalog copy; a product it does not list yet (added in the
+    Studio or by the daily import) is looked up in the live catalog."""
+    catalog = load_catalog(SNAPSHOT)
+    pid = str((episode.product or {}).get("id") or "")
+    if pid and pid not in catalog:
+        try:
+            catalog = {**load_cloud_catalog(), **catalog}
+        except Exception as exc:  # noqa: BLE001 (the truth check then names the missing product)
+            print(f"[product] the live catalog could not be read ({exc})", file=sys.stderr)
+    return catalog
+
+
 def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
     if not episode.product:
         return None
@@ -58,7 +72,11 @@ def _product(episode: Episode, catalog: dict, work: Path) -> dict | None:
         # A luxe set chosen by eye (public/sets): the seller's photo on our studio backdrop, labelled so.
         index = json.loads((SETS / "index.json").read_text(encoding="utf-8")) if (SETS / "index.json").exists() else {}
         chosen = (index.get("sets") or {}).get(pid)
-        if chosen and (SETS / chosen["file"]).exists():
+        studio_set = visuals.brand.studio_scene("product", episode.studio, ".set.jpg") if episode.studio else None
+        if studio_set:
+            # A 3D studio reel: the seller's photo cut out on the series' own backdrop (studio3d/product_set.py).
+            photo, tag, full = Image.open(studio_set), index.get("label") or tag, True
+        elif chosen and (SETS / chosen["file"]).exists():
             photo, tag, full = Image.open(SETS / chosen["file"]), chosen.get("label") or index.get("label") or tag, True
         else:
             photo = Image.open(visuals.download(str(p.get("image") or ""), work / "media", kind="image"))
@@ -91,7 +109,7 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
          captions: str = "pop", tier: str = "free", logo: str | None = None, edge_voice: str | None = None,
          extra_meta: dict | None = None, footage: str = "auto") -> dict:
     t0 = time.time()
-    catalog = load_catalog(SNAPSHOT)
+    catalog = catalog_for(episode)
     check_truth(episode, catalog)
     work = temp_dir()
     try:

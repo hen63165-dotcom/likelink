@@ -105,7 +105,8 @@ def product_card(photo: Image.Image | None, claim: str) -> Image.Image:
 PHOTO_TAG = "תמונת המוכר"
 
 
-def product_frame(photo: Image.Image | None, claim: str, tag_text: str = PHOTO_TAG, full: bool = False) -> Image.Image:
+def product_frame(photo: Image.Image | None, claim: str, tag_text: str = PHOTO_TAG, full: bool = False,
+                  size: int = 640) -> Image.Image:
     """A story's product line, full screen: the store's real photo, large, on a
     blurred copy of itself, labelled as the seller's photo, with the seller's
     own claim at the top right (clear of the name tag and the captions).
@@ -135,9 +136,9 @@ def product_frame(photo: Image.Image | None, claim: str, tag_text: str = PHOTO_T
         # The seller's claim is the caption of the line that says it (the same words, on screen while said).
         return frame.convert("RGB")
     elif photo is not None:
-        card = rounded_photo(photo, 640, radius=46, border=12)
+        card = rounded_photo(photo, size, radius=46, border=12)
         card.alpha_composite(tag, (card.width - tag.width - 14, 14))
-        frame.alpha_composite(text.soft_shadow(card), ((W - card.width) // 2 - 36, 530 - 36))
+        frame.alpha_composite(text.soft_shadow(card), ((W - card.width) // 2 - 36, (530 if size <= 640 else 420) - 36))
     if claim:
         pill = text.text_block(claim, 40, 660, color=brand.INK, box=brand.WHITE + (255,), pad=(26, 10), radius=26)
         frame.alpha_composite(pill, (W - pill.width - 30, 318))
