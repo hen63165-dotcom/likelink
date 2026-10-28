@@ -1,8 +1,10 @@
 {
   "series": "shira-recommends",
   "product": "ae-1005006861665924",
+  "presenter": "shira",
   "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
   "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt and long sweatpants",
+  "characterTop": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
   "productSet": "champagne",
   "takes": 3,
   "shots": [
@@ -17,45 +19,56 @@
       "character": true,
       "seed": 93102,
       "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
-      "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"
+      "motion": "she tilts her head with a puzzled 'something is missing' look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in",
+      "cast": "master.png"
     },
     {
       "id": "hero",
       "character": true,
       "talk": true,
+      "frame": "upper",
       "seed": 93103,
-      "prompt": "medium close-up from the chest up, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile, her face large and clear in the frame",
-      "motion": "she smiles, tilts her head slightly and nods, her hair moves softly, the camera slowly pushes in"
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
+      "motion": "she smiles, tilts her head slightly and nods, her hair moves softly, the camera slowly pushes in",
+      "cast": "master.png"
     },
     {
       "id": "tip",
       "character": true,
       "talk": true,
+      "frame": "upper",
       "seed": 93104,
-      "prompt": "medium close-up from the chest up, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, her face large and clear, bright cozy bedroom background",
-      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly"
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
+      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly",
+      "cast": "master.png"
     },
     {
       "id": "wow",
       "character": true,
+      "frame": "upper",
       "seed": 93105,
       "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
-      "motion": "her face lights up with a delighted smile, eyebrows rise, she laughs softly, her hair moves"
+      "motion": "her face lights up with delighted surprise, eyebrows rise, she places one hand on her chest and laughs softly, her hair moves",
+      "cast": "master.png"
     },
     {
       "id": "cta",
       "character": true,
       "talk": true,
+      "frame": "upper",
       "seed": 93106,
-      "prompt": "medium close-up from the chest up, she smiles warmly and points her index finger at the camera, inviting, her face large and clear, bright bedroom background",
-      "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in"
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
+      "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in",
+      "cast": "master.png"
     },
     {
       "id": "tag",
       "character": true,
       "still": true,
+      "frame": "upper",
       "seed": 93107,
-      "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background"
+      "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background",
+      "cast": "master.png"
     }
   ],
   "episode": {
@@ -122,13 +135,15 @@
   "face": {
     "from": "tag",
     "box": [
-      0.14,
-      0.14,
-      0.86,
-      0.545
+      0.261,
+      0.178,
+      0.859,
+      0.514
     ]
   },
+  "engine": "cpu",
   "auto": {
-    "kind": "earrings"
+    "kind": "earrings",
+    "master": true
   }
 }
