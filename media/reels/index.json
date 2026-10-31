@@ -1,0 +1,173 @@
+{
+ "generatedAt": "2026-10-31T18:38:05.445Z",
+ "reels": [
+  {
+   "id": "luna-story-gift-earrings-a",
+   "productId": "p-live-05",
+   "video": "story-gift-earrings-a.mp4",
+   "poster": "story-gift-earrings-a-cover.jpg",
+   "title": "יום הולדת מחר: שלוש שאלות לבחירת עגילים במתנה",
+   "seconds": 33.36,
+   "look": "story",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1793455927000
+  },
+  {
+   "id": "luna-ring-size-a",
+   "productId": "p-live-01",
+   "video": "ring-size-a.mp4",
+   "poster": "ring-size-a-cover.jpg",
+   "title": "איך יודעים מידת טבעת לפני שמזמינים",
+   "seconds": 37.51,
+   "look": "talking",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1793404740000
+  },
+  {
+   "id": "luna-story-wedding-wrist-c",
+   "productId": "p-live-03",
+   "video": "story-wedding-wrist-c.mp4",
+   "poster": "story-wedding-wrist-c-cover.jpg",
+   "title": "החתונה הערב והיד ריקה: איך בוחרים אורך של צמיד טניס",
+   "seconds": 29.14,
+   "look": "story",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1793201459000
+  },
+  {
+   "id": "luna-story-moissanite-a",
+   "productId": "p-live-02",
+   "video": "story-moissanite-a.mp4",
+   "poster": "story-moissanite-a-cover.jpg",
+   "title": "מואסניט: מה זה, ומה בודקים לפני שמזמינים",
+   "seconds": 31.27,
+   "look": "story",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1793201456000
+  },
+  {
+   "id": "luna-story-hand-chain-c",
+   "productId": "p-live-04",
+   "video": "story-hand-chain-c.mp4",
+   "poster": "story-hand-chain-c-cover.jpg",
+   "title": "מה זה שרשרת יד, ואיך עונדים אותה",
+   "seconds": 30.79,
+   "look": "story",
+   "labels": [
+    "דמות וקול שנוצרו בבינה מלאכותית",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1793201455000
+  },
+  {
+   "id": "lookbook-p-live-01",
+   "productId": "p-live-01",
+   "video": "lookbook-p-live-01.mp4",
+   "poster": "lookbook-p-live-01-cover.jpg",
+   "title": "",
+   "seconds": 11.2,
+   "look": "lookbook_photos",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-02",
+   "productId": "p-live-02",
+   "video": "lookbook-p-live-02.mp4",
+   "poster": "lookbook-p-live-02-cover.jpg",
+   "title": "",
+   "seconds": 11.2,
+   "look": "lookbook_photos",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-04",
+   "productId": "p-live-04",
+   "video": "lookbook-p-live-04.mp4",
+   "poster": "lookbook-p-live-04-cover.jpg",
+   "title": "",
+   "seconds": 13.15,
+   "look": "lookbook",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות וסרטון: המוכר"
+   ],
+   "createdAt": 1792226535000
+  },
+  {
+   "id": "lookbook-p-live-05",
+   "productId": "p-live-05",
+   "video": "lookbook-p-live-05.mp4",
+   "poster": "lookbook-p-live-05-cover.jpg",
+   "title": "",
+   "seconds": 13.15,
+   "look": "lookbook",
+   "labels": [
+    "#פרסומת · קישור שותפים",
+    "תמונות וסרטון: המוכר"
+   ],
+   "createdAt": 1792232820000
+  },
+  {
+   "id": "seller-p-live-03",
+   "productId": "p-live-03",
+   "video": "seller-p-live-03.mp4",
+   "poster": "seller-p-live-03-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792926433000
+  },
+  {
+   "id": "seller-p-live-04",
+   "productId": "p-live-04",
+   "video": "seller-p-live-04.mp4",
+   "poster": "seller-p-live-04-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792926434000
+  },
+  {
+   "id": "seller-p-live-05",
+   "productId": "p-live-05",
+   "video": "seller-p-live-05.mp4",
+   "poster": "seller-p-live-05-cover.jpg",
+   "title": "",
+   "seconds": 0,
+   "look": "seller",
+   "labels": [
+    "צילום המוצר: המוכר",
+    "#פרסומת · קישור שותפים"
+   ],
+   "createdAt": 1792926434000
+  }
+ ]
+}

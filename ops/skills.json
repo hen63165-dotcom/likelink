@@ -1,0 +1,699 @@
+{
+ "generatedAt": "2026-10-31T18:37:28.026Z",
+ "snapshotTakenAt": "2026-10-09T10:37:09Z",
+ "build": {
+  "commit": "f54ca1001e445ddc92661f91cde3cd759632e576",
+  "branch": "main",
+  "host": "github-actions",
+  "builtAt": "2026-10-31T18:37:28.026Z"
+ },
+ "skills": [
+  {
+   "name": "product-integrity",
+   "version": 1,
+   "purpose": "Each listed product has what the site needs and nothing it cannot prove: an owner, a title, its own store link, a real photo; no rating/review/sales field, no price without an approved source.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "link-health",
+   "version": 1,
+   "purpose": "Every purchase link is a well-formed https store link of its own. Links are not opened: an affiliate link would count a click, and the store may answer with a CAPTCHA, which we never work around.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "price-freshness",
+   "version": 1,
+   "purpose": "Each price has an approved source and a recent check, or is shown as 'the current price is at the store'. Never invents a price.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "media-matching",
+   "version": 1,
+   "purpose": "Every image and video is tied to the product it shows: MATCHED only with evidence (a person's check, an upload for that product), REJECTED when it shows another item, UNCERTAIN otherwise.",
+   "permissions": [
+    "read:catalog",
+    "read:media"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "discovery-ranking",
+   "version": 1,
+   "purpose": "An explainable product order from data quality (own store link, checked video, clean image, checked price) — never popularity, ratings or sales.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "content-production",
+   "version": 1,
+   "purpose": "Claim-free Hebrew hooks, a storyboard and a disclosed caption per publishable product, ready for the existing renderers. It renders nothing itself and never says a video exists.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  }
+ ],
+ "workflow": "catalog-health",
+ "status": "ok",
+ "startedAt": "2026-10-31T18:37:28.026Z",
+ "finishedAt": "2026-10-31T18:37:28.026Z",
+ "stages": [
+  {
+   "skill": "product-integrity",
+   "inputKey": "vk4xm0-auj",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 5,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "products": [
+     {
+      "id": "p-live-01",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-02",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-03",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-04",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-05",
+      "ok": true,
+      "issues": []
+     }
+    ],
+    "publishable": [
+     "p-live-01",
+     "p-live-02",
+     "p-live-03",
+     "p-live-04",
+     "p-live-05"
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  },
+  {
+   "skill": "link-health",
+   "inputKey": "vk4xm0-auj",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 5,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "links": [
+     {
+      "id": "p-live-01",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-10-31T18:37:28.026Z"
+     },
+     {
+      "id": "p-live-02",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-10-31T18:37:28.026Z"
+     },
+     {
+      "id": "p-live-03",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-10-31T18:37:28.026Z"
+     },
+     {
+      "id": "p-live-04",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-10-31T18:37:28.026Z"
+     },
+     {
+      "id": "p-live-05",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-10-31T18:37:28.026Z"
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  },
+  {
+   "skill": "price-freshness",
+   "inputKey": "vk4xm0-auj",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 5,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "prices": [
+     {
+      "id": "p-live-01",
+      "state": "FRESH",
+      "ageH": 8,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 8 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-02",
+      "state": "FRESH",
+      "ageH": 8,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 8 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-03",
+      "state": "FRESH",
+      "ageH": 8,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 8 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-04",
+      "state": "FRESH",
+      "ageH": 8,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 8 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-05",
+      "state": "FRESH",
+      "ageH": 8,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 8 שעות (ממשק AliExpress הרשמי)"
+     }
+    ],
+    "fresh": 5
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  },
+  {
+   "skill": "media-matching",
+   "inputKey": "vk4xm0-auj",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 15,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "items": [
+     {
+      "media": "luna-story-gift-earrings-a",
+      "productId": "p-live-05",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-ring-size-a",
+      "productId": "p-live-01",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-story-wedding-wrist-c",
+      "productId": "p-live-03",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-story-moissanite-a",
+      "productId": "p-live-02",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-story-hand-chain-c",
+      "productId": "p-live-04",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "lookbook-p-live-01",
+      "productId": "p-live-01",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-02",
+      "productId": "p-live-02",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-04",
+      "productId": "p-live-04",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-05",
+      "productId": "p-live-05",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "seller-p-live-03",
+      "productId": "p-live-03",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "seller-p-live-04",
+      "productId": "p-live-04",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "seller-p-live-05",
+      "productId": "p-live-05",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "looks/p-live-03.jpg",
+      "productId": "p-live-03",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     },
+     {
+      "media": "looks/p-live-04.jpg",
+      "productId": "p-live-04",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     },
+     {
+      "media": "looks/p-live-05.jpg",
+      "productId": "p-live-05",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     }
+    ],
+    "feedChecked": true
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  },
+  {
+   "skill": "discovery-ranking",
+   "inputKey": "vk4xm0-auj",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 5,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "ranked": [
+     {
+      "id": "p-live-03",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-04",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-05",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-01",
+      "score": 8,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-02",
+      "score": 8,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "מחיר שנבדק מול החנות"
+      ]
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  },
+  {
+   "skill": "content-production",
+   "inputKey": "ehrwq-awn",
+   "startedAt": "2026-10-31T18:37:28.026Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 5,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "packs": [
+     {
+      "id": "p-live-01",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪14.19? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת כסף 925 קלאסית עם זרקון מרקיז"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-02",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪429.22? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-03",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪269.90? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צמיד טניס מואסניט Smyoue מצופה פלטינה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-04",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪114.99? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-05",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪55.48? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "עגילי Smyoue מואסניט ורודים 0.2-3 קראט"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-10-31T18:37:28.026Z",
+   "ms": 0
+  }
+ ]
+}
