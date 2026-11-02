@@ -49,6 +49,13 @@ CROP = 256                    # the face crop the model was trained on
 MARGIN = 0.05                 # below the chin, of the face box height (v1.5's extra margin)
 KEEP = 3.0                    # an animated clip's clean first seconds (STUDIO_CLIP_KEEP)
 SMOOTH = 5                    # frames: the face box and landmarks are averaged over this window
+# The redrawn oval's half-width, of the face box: at 0.40 (v7, 2026-11-02) it
+# reached her cheek line, which the model redrew a little wavy and fuller, and
+# brushed a finger raised by her cheek; 0.30 keeps the mouth, the chin's middle
+# and the smile lines, and leaves her outline (and a hand near it) as drawn.
+MOUTH_WIDTH = 0.30
+MOUTH_MAX = 0.36              # a wide smile widens it, never past this
+SHARPEN = (2, 60, 2)          # the redrawn part's unsharp mask (radius, percent, threshold): as crisp as her eyes
 BATCH = 4
 MUSE = ("TMElyralab/MuseTalk", "musetalkV15/musetalk.json", "musetalkV15/unet.pth")
 VAE = "stabilityai/sd-vae-ft-mse"
@@ -113,15 +120,23 @@ def fill_gaps(rows: list) -> list:
     return [rows[min(found, key=lambda j: (abs(j - i), j))] if r is None else r for i, r in enumerate(rows)]
 
 
-def mouth_oval(box_w: int, box_h: int, nose_rel: float):
+def mouth_oval(box_w: int, box_h: int, nose_rel: float, mouth: tuple[float, float] | None = None):
     """The soft mask (0..1, numpy) laid over the crop: an oval from just under
-    the nose (nose_rel: its height in the crop, 0..1) down to the chin, cheek
-    to cheek inside the face, feathered so no edge shows."""
+    the nose (nose_rel: its height in the crop, 0..1) down to the chin, centred
+    on her mouth (its corners across the crop, 0..1, when known: a face turned
+    a little has its mouth off the box's middle) and wide enough that both
+    corners are fully redrawn, never out to her cheek line; feathered so no
+    edge shows."""
     import numpy as np
     yy, xx = np.mgrid[0:box_h, 0:box_w].astype(np.float32)
     top = (nose_rel + 0.04) * box_h
     cy, ry = (top + box_h) / 2, (box_h - top) / 2 * 1.02
-    cx, rx = box_w / 2, box_w * 0.40
+    if mouth:
+        lo, hi = sorted(mouth)
+        cx = box_w * (lo + hi) / 2
+        rx = box_w * min(max(MOUTH_WIDTH, 0.85 * (hi - lo)), MOUTH_MAX)
+    else:
+        cx, rx = box_w / 2, box_w * MOUTH_WIDTH
     d = ((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2
     edge = 0.22  # the outer part of the oval fades out
     return np.clip((1.0 - d) / edge, 0.0, 1.0) ** 1.5
@@ -322,7 +337,7 @@ def _sharp(face):
 
 def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, seconds: float | None = None) -> dict:
     import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageFilter
     t0 = time.time()
     work = Path(tempfile.mkdtemp(prefix="lips-"))
     try:
@@ -347,8 +362,10 @@ def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, second
         dst.mkdir()
         for i, (fr, (x1, y1, x2, y2), face, m) in enumerate(zip(frames, boxes, faces, mouths)):
             bw, bh = x2 - x1, y2 - y1
-            big = np.asarray(Image.fromarray(_sharp(m)).resize((bw, bh), Image.LANCZOS)).astype(np.float32)
-            mask = mouth_oval(bw, bh, (face[9] - y1) / bh)[..., None]
+            big = Image.fromarray(_sharp(m)).resize((bw, bh), Image.LANCZOS)
+            big = np.asarray(big.filter(ImageFilter.UnsharpMask(*SHARPEN))).astype(np.float32)
+            corners = ((face[10] - x1) / bw, (face[12] - x1) / bw)
+            mask = mouth_oval(bw, bh, (face[9] - y1) / bh, corners)[..., None]
             frame = fr.astype(np.float32).copy()
             frame[y1:y2, x1:x2] = frame[y1:y2, x1:x2] * (1 - mask) + big * mask
             Image.fromarray(frame.clip(0, 255).astype(np.uint8)).save(dst / f"f{i:05d}.png")

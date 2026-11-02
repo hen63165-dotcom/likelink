@@ -717,6 +717,15 @@ class FreeLipSync(unittest.TestCase):
         self.assertEqual(float(mask[:120].max()), 0.0, "eyes and nose stay as drawn")
         self.assertGreater(float(mask[190, 100]), 0.9, "the mouth is redrawn")
         self.assertEqual(float(mask[190, 2]), 0.0, "her cheeks' edge and hair stay")
+        self.assertEqual(float(mask[190, 30]), 0.0, "her cheek outline (and a hand by it) is never redrawn")
+        self.assertGreater(float(mask[190, 80]), 0.5, "the corners of her mouth are")
+        # Shira's keyframe: her mouth at 26%..65% of the face box, off its middle
+        off = self.m.mouth_oval(200, 200, 0.5, (0.26, 0.65))
+        row = round(0.657 * 200)  # her mouth's height in the box
+        self.assertGreater(float(off[row, round(0.26 * 200)]), 0.9, "the left corner is fully redrawn")
+        self.assertGreater(float(off[row, round(0.65 * 200)]), 0.9, "and the right one")
+        self.assertEqual(float(off[row, 8]), 0.0)
+        self.assertEqual(float(off[row, 192]), 0.0, "never out to her cheek line")
 
 
 if __name__ == "__main__":
