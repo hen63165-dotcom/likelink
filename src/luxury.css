@@ -115,7 +115,7 @@ html:not([data-theme="dark"]) body,
 html:not([data-theme="dark"]) #root { background: var(--ll-canvas) !important; }
 
 body {
-  font-family: "Inter", "Space Grotesk", system-ui, sans-serif !important;
+  font-family: "Heebo", system-ui, sans-serif !important;
   color: var(--ll-ink) !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -127,7 +127,7 @@ body {
 }
 
 .disp, .disp * {
-  font-family: "Fraunces", "Cormorant Garamond", "Space Grotesk", serif !important;
+  font-family: "Frank Ruhl Libre", Georgia, serif !important;
   font-weight: 400 !important;
   letter-spacing: -0.01em !important;
   font-optical-sizing: auto;
@@ -366,7 +366,7 @@ div[class*="rounded-full"][style*="F1EFFB"] {
   --header-blur:     rgba(247, 243, 234, 0.82);
   --overlay:         rgba(27, 23, 18, 0.45);
   --gradient-brand:  linear-gradient(135deg, #C9A86C 0%, #B78F4F 55%, #9C7437 100%);
-  --font-sans:       "Inter", "Space Grotesk", system-ui, sans-serif;
-  --font-disp:       "Fraunces", "Cormorant Garamond", "Space Grotesk", serif;
-  --font-mono:       "JetBrains Mono", monospace;
+  --font-sans:       "Heebo", system-ui, sans-serif;
+  --font-disp:       "Frank Ruhl Libre", Georgia, serif;
+  --font-mono:       ui-monospace, SFMono-Regular, Consolas, monospace;
 }

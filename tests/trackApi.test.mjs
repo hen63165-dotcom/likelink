@@ -41,19 +41,19 @@ test("the deployment stays within the 12-function serverless limit", () => {
   );
 });
 
-test("api/store implements the tracking event types without counting views as clicks", () => {
+test("api/store persists tracking as normalized rows and excludes views from click counters", () => {
   const store = read("api/store.mjs");
   assert.ok(store.includes('"record-click"'), "store must serve mode=record-click");
   for (const t of TRACK_TYPES) {
     assert.ok(store.includes(t), `store tracking must support event type ${t}`);
   }
   assert.ok(
-    /const isClick = type !== "product_view"/.test(store),
-    "views must be excluded from the click counter"
+    store.includes('event_type: rawType') && store.includes("insertUserEvent"),
+    "tracking rows must be inserted into the normalized event table"
   );
   assert.ok(
-    store.includes("marketplace:events"),
-    "views/leads must be stored in the lightweight events log"
+    store.includes('event_type: type') && store.includes("product_view"),
+    "the route must preserve the event type so the database counter excludes views"
   );
 });
 
@@ -64,4 +64,3 @@ test("client beacons post to the store mode router with a valid event type", () 
     assert.ok(helpers.includes(`type: "${t}"`), `helpers must send event type ${t}`);
   }
 });
-

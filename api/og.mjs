@@ -202,47 +202,39 @@ export default async function handler(req, res) {
     }
     const clickProductId = productId || String(products.find((p) => p && (String(p.affiliateUrl || "") === dest.href || String(p.affiliateUrl || "") === target))?.id || "");
 
-    // Server-side affiliate click ledger: persist the click before redirecting.
+    // Server-side affiliate event row: persist before redirecting.
     // This makes AliExpress outbound attribution reliable even when the browser
     // closes immediately after the tap.
     if (clickProductId && sbUrl && sbKey && !isCrawler) {
       try {
         {
-          const key = "marketplace:clicks";
-          // Never rewrite the 5,000-entry ledger from a failed/garbled read —
-          // skip the ledger write instead (the redirect still happens).
-          const ledger = await readKvStrict(sbUrl, sbKey, key, 3500);
-          if (ledger.failed) throw new Error("click_ledger_read_failed");
-          const clicks = ledger.value === undefined ? [] : ledger.value;
-          if (!Array.isArray(clicks)) throw new Error("click_ledger_not_array");
-          const productId = clickProductId;
-          // Attribution comes from the catalog, not from the (editable) ?mid= param.
-          const catalogOwner = products.find((p) => p && String(p.id) === productId)?.marketerId;
-          const event = {
-            id: `out-${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            type: "outbound_click",
-            productId,
-            marketerId: catalogOwner ? String(catalogOwner) : marketerId,
-            affiliateUrl: dest.toString(),
-            source,
-            ref: String(url.searchParams.get("ref") || "").slice(0, 80) || null,
-            ts: Date.now(),
-          };
-          const write = await fetch(`${sbUrl}/rest/v1/kv?on_conflict=key`, {
+          const catalogOwner = products.find((p) => p && String(p.id) === clickProductId)?.marketerId;
+          const write = await fetch(`${sbUrl}/rest/v1/user_events?on_conflict=id`, {
             method: "POST",
             headers: {
               apikey: sbKey,
               Authorization: `Bearer ${sbKey}`,
               "content-type": "application/json",
-              Prefer: "resolution=merge-duplicates",
+              Prefer: "resolution=ignore-duplicates,return=minimal",
             },
-            body: JSON.stringify({ key, value: JSON.stringify([...clicks.slice(-4999), event]) }),
+            body: JSON.stringify({
+              id: `out-${clickProductId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              event_type: "outbound_click",
+              product_id: clickProductId,
+              marketer_id: catalogOwner ? String(catalogOwner) : marketerId,
+              source: source.slice(0, 80),
+              campaign_id: String(url.searchParams.get("cid") || "").slice(0, 120) || null,
+              utm_source: String(url.searchParams.get("utm_source") || "").slice(0, 80) || null,
+              utm_medium: String(url.searchParams.get("utm_medium") || "").slice(0, 80) || null,
+              utm_campaign: String(url.searchParams.get("utm_campaign") || "").slice(0, 120) || null,
+              occurred_at: new Date().toISOString(),
+            }),
             signal: AbortSignal.timeout(3500),
           });
-          if (!write.ok) console.warn("[affiliate-redirect] click ledger write failed", write.status);
+          if (!write.ok) console.warn("[affiliate-redirect] event insert failed", write.status);
         }
       } catch (error) {
-        console.warn("[affiliate-redirect] click ledger unavailable", error?.message || error);
+        console.warn("[affiliate-redirect] event insert unavailable", error?.message || error);
       }
     }
 
@@ -695,4 +687,3 @@ async function fetchProductInfoHandler(req, res) {
   }
   fpiJson(res, { ok: false, error: lastError });
 }
-

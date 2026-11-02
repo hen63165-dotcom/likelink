@@ -112,7 +112,7 @@ const LIVE_EVIDENCE = {
   campaigns: [["src/lib/discovery/orchestrator.js", "export async function createCampaign"], ["api/_utils/discoveryHandler.mjs", "\"campaigns\""]],
   recruit: [["src/lib/discovery/campaigns.js", "recruitCreators"], ["api/_utils/discoveryHandler.mjs", "\"recruitDrafts\""]],
   priority_support: [["src/lib/plans.js", "prioritySupport: true"]],
-  click_stats: [["src/lib/discovery/distribution.js", "export function clickStats"], ["api/_utils/distributionRoutes.mjs", "\"click-stats\""], ["api/og.mjs", "source,"]],
+  click_stats: [["src/lib/discovery/distribution.js", "export function clickStats"], ["api/_utils/distributionRoutes.mjs", "\"click-stats\""], ["api/og.mjs", "event_type: \"outbound_click\""]],
   distribution_plans: [["src/lib/discovery/distribution.js", "export function generateDistributionPlan"], ["api/_utils/distributionRoutes.mjs", "\"distributionPlans\""]],
   content_export: [["src/lib/discovery/distribution.js", "export function exportContentPack"], ["api/_utils/distributionRoutes.mjs", "\"content_export\""]],
 };

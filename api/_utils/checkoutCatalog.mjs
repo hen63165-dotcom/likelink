@@ -6,10 +6,16 @@
 // Pure function (no I/O) so the rules are unit-tested directly.
 
 export const CHECKOUT_CURRENCY = "ILS";
+export const SUPPORTED_CURRENCIES = Object.freeze(["ILS", "USD", "EUR"]);
+export const REFERRAL_COMMISSION_RATE_PERCENT = 10;
 export const MAX_QTY_PER_LINE = 10;
 export const MAX_LINES = 20;
 
-const round2 = (n) => Math.round(Number(n) * 100) / 100;
+export function calculateReferralCommission(platformFee, hasReferral) {
+  const fee = Number(platformFee);
+  if (!hasReferral || !Number.isFinite(fee) || fee <= 0) return 0;
+  return Math.round((fee * (REFERRAL_COMMISSION_RATE_PERCENT / 100) + Number.EPSILON) * 100) / 100;
+}
 
 /**
  * @param {Array<{productId:string, quantity?:number}>} items  client cart
@@ -28,28 +34,29 @@ export function priceCart(items, products) {
     if (!Number.isFinite(qty) || qty < 1 || qty > MAX_QTY_PER_LINE) return { ok: false, error: "invalid_quantity", productId };
     merged.set(productId, (merged.get(productId) || 0) + qty);
   }
-  const lines = [];
   for (const [productId, quantity] of merged) {
     if (quantity > MAX_QTY_PER_LINE) return { ok: false, error: "invalid_quantity", productId };
     const p = catalog.get(productId);
     if (!p) return { ok: false, error: "product_not_found", productId };
     if (p.status !== "approved") return { ok: false, error: "product_not_available", productId };
-    const unitPrice = round2(p.price);
-    if (!Number.isFinite(unitPrice) || unitPrice <= 0) return { ok: false, error: "product_not_available", productId };
+    const commerceType = String(p.commerceType || p.commerce_type || "").trim().toLowerCase();
+    if (!commerceType) return { ok: false, error: "product_type_required", productId };
+    if (commerceType === "affiliate") return { ok: false, error: "affiliate_checkout_external", productId };
+    if (commerceType !== "physical" && commerceType !== "digital") {
+      return { ok: false, error: "product_type_unsupported", productId };
+    }
     const currency = String(p.currency || CHECKOUT_CURRENCY).toUpperCase();
+    if (!SUPPORTED_CURRENCIES.includes(currency)) return { ok: false, error: "currency_unsupported", productId };
     if (currency !== CHECKOUT_CURRENCY) return { ok: false, error: "currency_unsupported", productId };
-    lines.push({
-      productId,
-      marketerId: p.marketerId ? String(p.marketerId) : null,
-      title: String(p.title || "Product").slice(0, 120),
-      unitPrice,
-      quantity,
-      lineTotal: round2(unitPrice * quantity),
-    });
+    if (commerceType === "physical") {
+      const stock = Number(p.stockQuantity);
+      if (p.inventoryVerified !== true || !Number.isInteger(stock) || stock < quantity) {
+        return { ok: false, error: "inventory_unverified", productId };
+      }
+    }
+    return { ok: false, error: "fulfillment_unconfigured", productId };
   }
-  const total = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
-  if (!(total > 0)) return { ok: false, error: "empty_cart" };
-  return { ok: true, lines, total, currency: CHECKOUT_CURRENCY };
+  return { ok: false, error: "empty_cart" };
 }
 
 /** Does the capture PayPal returned match the stored order record exactly? */

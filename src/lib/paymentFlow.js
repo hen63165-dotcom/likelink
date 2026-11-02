@@ -1,3 +1,5 @@
+import { landingAttribution } from "./attribution.js";
+
 /**
  * Israeli commerce payment flow for Likelink2.
  * Uses a Business PayPal path as the current operational fallback while preserving a clean provider abstraction.
@@ -99,18 +101,44 @@ export function buildPayPalStandardCheckoutUrl({
 export function createPayPalCheckout({ items = [], buyerEmail = "" }) {
   // Only WHICH products and HOW MANY: the server prices the cart from the
   // catalog and builds the PayPal return/cancel URLs itself.
+  const key = getCheckoutIdempotencyKey();
+  const referralCreatorId = landingAttribution().referralCreatorId || null;
   return fetch("/api/checkout/create-order", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "idempotency-key": key },
     body: JSON.stringify({
       items: items.map((it) => ({
         productId: it.product?.id || it.productId || null,
         quantity: Math.max(1, Number(it.quantity || 1)),
       })),
       buyerEmail,
+      referralCreatorId,
     }),
     signal: AbortSignal.timeout(15000),
-  }).then((r) => r.json().catch(() => ({ ok: false, error: `http_${r.status}` })));
+  }).then(async (response) => {
+    const result = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` }));
+    if (!result.ok && result.error !== "checkout_in_progress") clearCheckoutIdempotencyKey();
+    return result;
+  });
+}
+
+const CHECKOUT_IDEMPOTENCY_KEY = "likelink_checkout_idempotency";
+
+function getCheckoutIdempotencyKey() {
+  try {
+    const existing = sessionStorage.getItem(CHECKOUT_IDEMPOTENCY_KEY);
+    if (existing) return existing;
+  } catch {
+    // Generate an in-memory key when browser storage is unavailable.
+  }
+  const key = globalThis.crypto?.randomUUID?.()
+    || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  try { sessionStorage.setItem(CHECKOUT_IDEMPOTENCY_KEY, key); } catch { /* in-memory request remains valid */ }
+  return key;
+}
+
+export function clearCheckoutIdempotencyKey() {
+  try { sessionStorage.removeItem(CHECKOUT_IDEMPOTENCY_KEY); } catch { /* private mode */ }
 }
 
 /**

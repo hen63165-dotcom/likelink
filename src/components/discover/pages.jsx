@@ -30,6 +30,7 @@ import {
   relatedProducts,
   offersOf,
   evidenceOf,
+  rankProductsByAttention,
   searchGraph,
   enCount,
   hasStorePrices,
@@ -359,7 +360,7 @@ export function ProductsPage({ graph, category }) {
   }, [graph.products, graph.reels]);
   const videoOnly = only === "video";
   let list = graph.products.filter((p) => (!category || p.category === category) && (!band || band.test(Number(p.price))) && (!videoOnly || withVideo.has(p.id)));
-  list = [...list].sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
+  list = rankProductsByAttention(list, order);
   if (priced && sort === "price-asc") list = [...list].sort((a, b) => (Number(a.price) || Infinity) - (Number(b.price) || Infinity));
   if (priced && sort === "price-desc") list = [...list].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
 
@@ -372,7 +373,7 @@ export function ProductsPage({ graph, category }) {
             <Play size={13} aria-hidden="true" /> {L("עם סרטון", "With video")} <span className="opacity-60">{graph.products.filter((p) => (!category || p.category === category) && withVideo.has(p.id)).length}</span>
           </button>
           <span className="lx-mute text-[12.5px]">
-            {L("הסדר: קודם מוצרים עם קישור משלהם לחנות, סרטון שנבדק ותמונה נקייה. לא לפי פופולריות.", "Order: products with their own store link, a checked video and a clean image first. Never by popularity.")}{" "}
+            {L(`הסדר משלב אירועי עניין שנרשמו ב־${TREND_WINDOW_DAYS} הימים האחרונים (קליק משוקלל פי 2 מצפייה) ואיכות נתוני המוצר.`, `Order combines recorded attention events from the last ${TREND_WINDOW_DAYS} days (clicks weighted 2× views) with product data quality.`)}{" "}
             <Go to="/status" className="underline underline-offset-2">{L("מה נבדק", "What was checked")}</Go>
           </span>
         </div>

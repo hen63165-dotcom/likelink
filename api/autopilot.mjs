@@ -3,6 +3,7 @@ import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
+import { readUserEvents } from "./_utils/checkoutOrders.mjs";
 
 let readBody, verifyToken, audit;
 let lunaHook, buildCampaign, selectOpportunity;
@@ -238,6 +239,12 @@ function json(res, obj, status = 200, req) {
 // kvSet below refuses to write that {} back over every creator's config.
 async function kvGet(key) {
   if (!SB_URL || !SB_KEY) return null;
+  if (key === "marketplace:clicks") {
+    try { return await readUserEvents(SB_URL, SB_KEY); }
+    catch (error) {
+      console.warn("[autopilot] user event read unavailable; using legacy click snapshot", String(error?.message || error).slice(0, 120));
+    }
+  }
   let res;
   try {
     res = await fetch(
@@ -2428,7 +2435,6 @@ function stripRuntime(store) {
   for (const [k, v] of Object.entries(store)) if (!k.startsWith("__")) out[k] = v;
   return out;
 }
-
 
 
 

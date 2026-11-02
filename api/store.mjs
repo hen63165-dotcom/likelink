@@ -50,6 +50,7 @@ import { runGrowthCycle, runDailyTrendScan, diagnoseProduct } from "../src/lib/c
 import { buildOwnerReport } from "./_utils/analytics.js";
 import { verifyToken } from "./_utils/authVerify.js";
 import { getOrCreatePassport, recordVisit, rateAllow } from "./_utils/passport.js";
+import { insertUserEvent, readUserEvents } from "./_utils/checkoutOrders.mjs";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -2257,10 +2258,8 @@ export default async function handler(req, res) {
   }
 
   // ─── Server-side click recording (mode=record-click) ───────────────────────
-  // Records a click server-side — tamper-resistant. Works alongside the
-  // client-side recordClick (which gives instant UI feedback) but the server
-  // copy is the authoritative counter. Each click appends to the VERITAS chain
-  // so the integrity ledger proves no clicks were silently added or removed.
+  // Records each interaction as one database row. The database trigger updates
+  // bounded per-product counters without rewriting shared KV arrays.
   // No auth required (clicks are public traffic signals), but rate-limited.
   if (req.method === "POST" && new URL(req.url, "https://x").searchParams.get("mode") === "record-click") {
     if (passport && !rateAllow("record-click", passport.hash, 300)) {
@@ -2278,29 +2277,27 @@ export default async function handler(req, res) {
       if (bodyRc?.siteEvent === true) {
         if (!SITE_EVENT_TYPES.has(rawType)) { json(res, { ok: false, error: "invalid_site_event" }, 400, req); return; }
         const now = Date.now();
-        const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
-        const ua = String(getHeader(req, "user-agent") || "").slice(0, 200);
-        const ref = String(bodyRc?.ref || bodyRc?.source || "").slice(0, 80) || null;
-        const event = {
-          id: `site-${now}-${Math.random().toString(36).slice(2, 8)}`,
-          type: rawType,
-          page: bodyRc?.page ? String(bodyRc.page).slice(0, 200) : null,
-          target: bodyRc?.target ? String(bodyRc.target).slice(0, 24) : null,
-          productId: bodyRc?.productId ? String(bodyRc.productId).slice(0, 80) : null,
-          marketerId: bodyRc?.marketerId ? String(bodyRc.marketerId).slice(0, 80) : null,
-          storyId: bodyRc?.storyId ? String(bodyRc.storyId).slice(0, 80) : null,
-          ref,
-          utm_source: bodyRc?.utm_source ? String(bodyRc.utm_source).slice(0, 120) : null,
-          utm_medium: bodyRc?.utm_medium ? String(bodyRc.utm_medium).slice(0, 120) : null,
-          utm_campaign: bodyRc?.utm_campaign ? String(bodyRc.utm_campaign).slice(0, 120) : null,
-          utm_content: bodyRc?.utm_content ? String(bodyRc.utm_content).slice(0, 120) : null,
+        let page = null;
+        try { page = new URL(String(bodyRc?.page || "/"), "https://likelink.invalid").pathname.slice(0, 200); } catch { page = null; }
+        const eventId = `site-${now}-${Math.random().toString(36).slice(2, 8)}`;
+        await insertUserEvent(SB_URL, SB_KEY, {
+          id: eventId,
+          event_type: rawType,
+          product_id: String(bodyRc?.productId || "").slice(0, 80) || null,
+          marketer_id: String(bodyRc?.marketerId || "").slice(0, 80) || null,
+          source: String(bodyRc?.ref || bodyRc?.source || "").slice(0, 80) || null,
+          campaign_id: String(bodyRc?.cid || "").slice(0, 120) || null,
+          utm_source: String(bodyRc?.utm_source || "").slice(0, 80) || null,
+          utm_medium: String(bodyRc?.utm_medium || "").slice(0, 80) || null,
+          utm_campaign: String(bodyRc?.utm_campaign || "").slice(0, 120) || null,
+          utm_content: String(bodyRc?.utm_content || "").slice(0, 120) || null,
+          page,
+          event_target: String(bodyRc?.target || "").slice(0, 24) || null,
+          story_id: String(bodyRc?.storyId || "").slice(0, 80) || null,
           language: String(bodyRc?.language || "he").slice(0, 8),
-          ip: ip.slice(0, 45), ua, ts: now,
-        };
-        const existingEvents = (await kvGet("marketplace:events")) || [];
-        const eventList = Array.isArray(existingEvents) ? existingEvents : [];
-        await kvSet("marketplace:events", [...eventList.slice(-4999), event]);
-        json(res, { ok: true, mode: "record-click", type: rawType, eventId: event.id, stored: true }, 200, req);
+          occurred_at: new Date(now).toISOString(),
+        });
+        json(res, { ok: true, mode: "record-click", type: rawType, eventId, stored: true }, 200, req);
         return;
       }
       const productId = String(bodyRc?.productId || "").slice(0, 80);
@@ -2308,78 +2305,26 @@ export default async function handler(req, res) {
       // Product events: views never count as outbound clicks.
       const TRACK_TYPES = new Set(["product_view", "outbound_click", "lead_capture"]);
       const type = TRACK_TYPES.has(rawType) ? rawType : "outbound_click";
-      const isClick = type !== "product_view";
 
       const now = Date.now();
-      const ip = String(getHeader(req, "x-forwarded-for")).split(",")[0].trim() || "unknown";
-      const ua = String(getHeader(req, "user-agent") || "").slice(0, 200);
       const ref = String(bodyRc?.ref || bodyRc?.source || "").slice(0, 80);
-
-      // 1. Record the event — clicks feed `marketplace:clicks`, views/leads feed
-      //    the lightweight `marketplace:events` log (never mixed with clicks,
-      //    so analytics can count traffic separately from real clicks).
       const clickId = `${productId}-${now}-${Math.random().toString(36).slice(2, 8)}`;
       const marketerId = String(bodyRc?.marketerId || "").slice(0, 80) || null;
-      let clickCount = 0;
-      if (isClick) {
-        const existingClicks = (await kvGet("marketplace:clicks")) || [];
-        const clickList = Array.isArray(existingClicks) ? existingClicks : [];
-        const newClick = {
-          id: clickId,
-          productId,
-          marketerId,
-          ts: now,
-          ip: ip.slice(0, 45),
-          ua,
-          ref: ref || null,
-          type,
-        };
-        await kvSet("marketplace:clicks", [...clickList.slice(-4999), newClick]);
-        clickCount = clickList.length + 1;
-      } else {
-        const existingEvents = (await kvGet("marketplace:events")) || [];
-        const eventList = Array.isArray(existingEvents) ? existingEvents : [];
-        await kvSet("marketplace:events", [
-          ...eventList.slice(-4999),
-          {
-            id: clickId,
-            type,
-            productId,
-            marketerId,
-            language: String(bodyRc?.language || "he").slice(0, 8),
-            source: ref || null,
-            ts: now,
-          },
-        ]);
-      }
+      await insertUserEvent(SB_URL, SB_KEY, {
+        id: clickId,
+        event_type: type,
+        product_id: productId,
+        marketer_id: marketerId,
+        source: ref || null,
+        campaign_id: String(bodyRc?.cid || "").slice(0, 120) || null,
+        utm_source: String(bodyRc?.utm_source || "").slice(0, 80) || null,
+        utm_medium: String(bodyRc?.utm_medium || "").slice(0, 80) || null,
+        utm_campaign: String(bodyRc?.utm_campaign || "").slice(0, 120) || null,
+        language: String(bodyRc?.language || "he").slice(0, 8),
+        occurred_at: new Date(now).toISOString(),
+      });
 
-      // 2. Increment product click count (read-modify-write, best-effort).
-      //    Views deliberately do NOT increment clicks — views are not clicks.
-      if (isClick) {
-        const prods = (await kvGet("marketplace:products")) || [];
-        if (Array.isArray(prods)) {
-          const updated = prods.map((p) =>
-            p && p.id === productId ? { ...p, clicks: (p.clicks || 0) + 1, updatedAt: now } : p
-          );
-          await kvSet("marketplace:products", updated);
-        }
-      }
-
-      // 3. Append VERITAS entry (fail-safe: never blocks the action)
-      try {
-        const { appendVeritas } = await import("../src/lib/cloud/veritas.js");
-        const veritasRow = await kvGet("marketplace:veritas", []);
-        const ledger = Array.isArray(veritasRow) ? veritasRow : [];
-        const next = appendVeritas(ledger, {
-          type: isClick ? "click" : type,
-          productId,
-          ...(ref ? { ref } : {}),
-          ...(ua ? { ua } : {}),
-        });
-        await kvSet("marketplace:veritas", next);
-      } catch { /* pulse is best-effort */ }
-
-      json(res, { ok: true, mode: "record-click", type, clickId, productId, clicks: clickCount }, 200, req);
+      json(res, { ok: true, mode: "record-click", type, clickId, productId, clicks: null }, 200, req);
     } catch (e) {
       json(res, { ok: false, error: String(e.message || e) }, 500, req);
     }
@@ -2656,7 +2601,15 @@ export default async function handler(req, res) {
 // kvSet SPLITS them out. Both private keys go through the read guard: if the
 // private map cannot be read, nothing is written.
 const privateKv = createPrivateKv({ get: (k) => kvGetRaw(k), set: (k, v) => kvSetRaw(k, v), assertWritable: assertKvWritable });
-async function kvGet(key) { return privateKv.get(key, null); }
+async function kvGet(key) {
+  if (key === "marketplace:clicks") {
+    try { return await readUserEvents(SB_URL, SB_KEY); }
+    catch (error) {
+      console.warn("[store] user event read unavailable; using legacy click snapshot", String(error?.message || error).slice(0, 120));
+    }
+  }
+  return privateKv.get(key, null);
+}
 
 // The plan of the creator behind a verified session (server-verified
 // subscription only; the platform owner is unlimited).

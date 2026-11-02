@@ -338,12 +338,12 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
         },
         { clicks: 0, views: 0 }
       );
-      return { category: cat.id, ...ev, total: ev.clicks + ev.views, productIds: [...cat.productIds].sort((a, b) => score(byId.get(b)) - score(byId.get(a))), creatorIds: cat.creatorIds, cover: cat.cover, windowDays: TREND_WINDOW_DAYS };
+      return { category: cat.id, ...ev, total: ev.clicks + ev.views, productIds: [...cat.productIds].sort((a, b) => attentionScore(byId.get(b)) - attentionScore(byId.get(a))), creatorIds: cat.creatorIds, cover: cat.cover, windowDays: TREND_WINDOW_DAYS };
     })
     .filter((t) => t.total >= TREND_MIN_EVENTS)
     .sort((a, b) => b.total - a.total);
 
-  const attention = pub.filter((p) => score(p) > 0).sort((a, b) => score(b) - score(a));
+  const attention = pub.filter((p) => attentionScore(p) > 0).sort((a, b) => attentionScore(b) - attentionScore(a));
   const deals = pub.filter((p) => p.deal).sort((a, b) => b.deal.discountPct - a.deal.discountPct);
   // Reels: playable media only, classified by mediaTruth. A product photo is
   // never turned into a "reel"; a LikeLink render is labelled as animation.
@@ -382,8 +382,19 @@ export function buildPublicGraph({ products = [], marketers = [], collections = 
   return { products: pub, byId, creators, creatorById, categories, collections: boards, trends, attention, deals, reels, sharedLinks };
 }
 
-function score(p) {
+export function attentionScore(p) {
   return p ? p.attention.clicks * 2 + p.attention.views : 0;
+}
+
+export function rankProductsByAttention(products = [], fallbackOrder = new Map()) {
+  const originalOrder = new Map(products.map((product, index) => [String(product.id), index]));
+  return [...products].sort((a, b) => {
+    const attention = attentionScore(b) - attentionScore(a);
+    if (attention) return attention;
+    const aOrder = fallbackOrder.get(a.id) ?? originalOrder.get(String(a.id));
+    const bOrder = fallbackOrder.get(b.id) ?? originalOrder.get(String(b.id));
+    return aOrder - bOrder;
+  });
 }
 
 export function findCollection(graph, id) {

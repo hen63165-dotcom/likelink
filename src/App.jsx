@@ -17,7 +17,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Cart } from "./components/cart/Cart";
 import { installGlobalErrorHealing } from "./lib/autoHeal.js";
 import { startAutoPilotSwarm } from "./lib/autopilotTick.js";
-import { capturePayPalCheckout } from "./lib/paymentFlow.js";
+import { capturePayPalCheckout, clearCheckoutIdempotencyKey } from "./lib/paymentFlow.js";
 import { toHebrewError } from "./lib/errorMessages.js";
 import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
 
@@ -146,21 +146,10 @@ function App() {
     const orderId = params.get("token");
     if (params.get("paypal_return") !== "1" || !orderId) return;
 
-    let pendingItems;
-    try {
-      pendingItems = JSON.parse(sessionStorage.getItem("likelink_pending_checkout") || "null");
-    } catch {
-      pendingItems = [];
-    }
-    if (!pendingItems || !Array.isArray(pendingItems.items) || pendingItems.items.length === 0) {
-      showToast("לא נמצאו פריטי ההזמנה");
-      return;
-    }
-
     capturePayPalCheckout({ orderId })
       .then((result) => {
         if (!result.ok) throw new Error(result.error || "capture_failed");
-        sessionStorage.removeItem("likelink_pending_checkout");
+        clearCheckoutIdempotencyKey();
         clearCart();
         window.history.replaceState({}, "", withBase("/"));
         showToast(result.alreadyRecorded ? "ההזמנה כבר נקלטה" : "התשלום הצליח וההזמנה נקלטה");

@@ -18,6 +18,7 @@ import { getSellerPayoutSummary, PAYOUT_STATUS } from "../lib/payments.js";
 import { getPendingReferral, clearPendingReferral, trackReferralConversion } from "../lib/referral.js";
 import { resolveCurrentMarketer, linkMarketer, fetchOwnPrivate } from "../lib/cloud/identity.js";
 import { assertAuthSafeForEnvironment } from "../lib/auth-v2/prodGuard.js";
+import { snapshotGet } from "../lib/catalogSnapshot.js";
 
 const MarketplaceContext = createContext(null);
 
@@ -127,6 +128,51 @@ async function setJSON(key, value, shared) {
   await storage.set(key, JSON.stringify(value), shared);
 }
 
+let eventTableWarningShown = false;
+async function getClickEvents() {
+  const { data, error } = await supabase
+    .from("user_events")
+    .select("id,event_type,product_id,marketer_id,source,campaign_id,utm_source,utm_medium,utm_campaign,occurred_at")
+    .in("event_type", ["outbound_click", "product_view"])
+    .order("occurred_at", { ascending: false })
+    .limit(5000);
+  if (error) {
+    if (!eventTableWarningShown) {
+      eventTableWarningShown = true;
+      console.warn("[Likelink] user events unavailable; loading legacy click snapshot", error.message);
+    }
+    return getJSON(K.clicks, true, []);
+  }
+  eventTableWarningShown = false;
+  return (data || []).map((row) => ({
+    id: row.id,
+    type: row.event_type,
+    productId: row.product_id,
+    marketerId: row.marketer_id,
+    source: row.source,
+    cid: row.campaign_id,
+    utm_source: row.utm_source,
+    utm_medium: row.utm_medium,
+    utm_campaign: row.utm_campaign,
+    ts: new Date(row.occurred_at).getTime(),
+  })).reverse();
+}
+
+function sendUserEvent(event) {
+  try {
+    fetch("/api/store?mode=record-click", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event),
+      keepalive: true,
+    }).then((response) => {
+      if (!response.ok) console.warn("[Likelink] event insert rejected", response.status);
+    }).catch((error) => console.warn("[Likelink] event insert failed", error?.message || error));
+  } catch (error) {
+    console.warn("[Likelink] event insert unavailable", error?.message || error);
+  }
+}
+
 // Safe coercion helpers — never throw "Cannot convert object to primitive value",
 // even when a legacy record holds a non-primitive field.
 const toArr = (v) => (Array.isArray(v) ? v : []);
@@ -195,6 +241,7 @@ export function MarketplaceProvider({ children }) {
 
   // Read once, when a studio session appears (login) or the admin asks for it.
   const studioLoaded = useRef(false);
+  const liveHydrated = useRef(false);
   const loadStudioData = useCallback(async () => {
     if (studioLoaded.current) return;
     studioLoaded.current = true;
@@ -203,13 +250,39 @@ export function MarketplaceProvider({ children }) {
   }, [applyStudioData]);
 
   useEffect(() => {
+    let snapshotActive = true;
+    const hydrateSnapshot = async () => {
+      try {
+        const [snapshotMarketers, snapshotProducts, snapshotClicks, snapshotCollections] = await Promise.all([
+          snapshotGet(K.marketers),
+          snapshotGet(K.products),
+          snapshotGet(K.clicks),
+          snapshotGet(K.collections),
+        ]);
+        if (!snapshotActive || liveHydrated.current) return;
+        const safeMarketers = toArr(snapshotMarketers).filter((row) => row && row.id);
+        const marketerIds = new Set(safeMarketers.map((row) => String(row.id)));
+        setMarketers(safeMarketers);
+        setProducts(toArr(snapshotProducts)
+          .filter((row) => row && marketerIds.has(String(row.marketerId || "")))
+          .map((row) => ({ ...row, price: toNum(row.price, 0), commission: toNum(row.commission, 0) })));
+        setClicks(toArr(snapshotClicks));
+        setCollections(toArr(snapshotCollections));
+      } catch (error) {
+        console.warn("[Likelink] public snapshot hydration failed", error?.message || error);
+      } finally {
+        if (snapshotActive) setLoading(false);
+      }
+    };
+    void hydrateSnapshot();
+
     (async () => {
       const wantStudio = studioDataWantedHere();
       if (wantStudio) studioLoaded.current = true;
       const [m, p, c, s, st, sess, fav, intro, cols, follow, po, ch, nt] = await Promise.all([
         getJSON(K.marketers, true, []),
         getJSON(K.products, true, []),
-        getJSON(K.clicks, true, []),
+        getClickEvents(),
         getJSON(K.sales, true, []),
         getJSON(K.settings, true, { platformFeePercent: PLATFORM_FEE_PERCENT_DEFAULT }),
         getJSON(K.session, false, { marketerId: null }),
@@ -222,6 +295,7 @@ export function MarketplaceProvider({ children }) {
         wantStudio ? getJSON(K.notifications, true, []) : [],
       ]);
 
+            liveHydrated.current = true;
             const legacySeedDetected = isLegacyDemoSeed(p || [], m || []);
       if (legacySeedDetected) {
         // 🔥 Self-heal: wipe the localStorage copies of the 14 legacy demo
@@ -333,6 +407,7 @@ export function MarketplaceProvider({ children }) {
       if (wantStudio) applyStudioData(po, ch, nt);
       setLoading(false);
     })();
+    return () => { snapshotActive = false; };
   }, [applyStudioData]);
 
   // A login (or a session resolved after load) brings the Studio-only data in.
@@ -364,11 +439,6 @@ export function MarketplaceProvider({ children }) {
   const persistProducts = useCallback(async (next) => {
     setProducts(next);
     await setJSON(K.products, next, true);
-  }, []);
-
-  const persistClicks = useCallback(async (next) => {
-    setClicks(next);
-    await setJSON(K.clicks, next, true);
   }, []);
 
   const persistSales = useCallback(async (next) => {
@@ -451,43 +521,26 @@ export function MarketplaceProvider({ children }) {
       // URL (or this visit's landing) wins; then the in-app source; then the referrer.
       if (isAutomated()) return;
       const attr = landingAttribution({ fallback: attribution });
-      const c = {
+      const event = {
         id: uid(),
+        type: "outbound_click",
         productId: product.id,
         marketerId: product.marketerId,
         ts: Date.now(),
+        source: attr.ref || null,
+        cid: attr.cid || null,
+        utm_source: attr.utm_source || null,
+        utm_medium: attr.utm_medium || null,
+        utm_campaign: attr.utm_campaign || null,
         ...attr,
       };
-      const nextClicks = [...clicks, c];
-      const nextProducts = products.map((p) =>
-        p.id === product.id ? { ...p, clicks: (p.clicks || 0) + 1 } : p
-      );
-      // Tracking is best-effort and must NEVER block the buyer: callers await
-      // this before opening the deal, so a failed write is logged, not thrown.
-      try {
-        await persistClicks(nextClicks);
-        await persistProducts(nextProducts);
-        // Real-time buyer activity → seller notification (click = someone tapped their deal)
-        await persistNotifications([
-          {
-            id: uid(),
-            marketerId: product.marketerId,
-            kind: "click",
-            productId: product.id,
-            ts: Date.now(),
-          },
-          ...(notifications || []),
-        ].slice(0, 60));
-      } catch (e) {
-        console.warn("[Likelink] click tracking not saved", e?.message || e);
-      }
+      setClicks((prev) => [...prev, event].slice(-5000));
+      sendUserEvent(event);
     },
-    [clicks, products, notifications, persistClicks, persistProducts, persistNotifications]
+    [pushActivity]
   );
 
-  // Product-view tracking (first-party, no guessing). A view event is stored in
-  // the SAME shared clicks feed with type:'view' so legacy click consumers that
-  // ignore the type field see zero change; analytics counts views separately.
+  // Product views and outbound clicks share the normalized event table.
   const recordProductView = useCallback(
     async (product) => {
       if (!product?.id) return; pushActivity('product.view', 'צפית במוצר', { productId: product.id });
@@ -502,15 +555,16 @@ export function MarketplaceProvider({ children }) {
       const attr = landingAttribution();
       const v = {
         id: uid(),
-        type: "view",
+        type: "product_view",
         productId: product.id,
         marketerId: product.marketerId || null,
         ts: Date.now(),
         ...attr,
       };
-      try { await persistClicks([...clicks, v]); } catch (e) { console.warn("[Likelink] view tracking not saved", e?.message || e); }
+      setClicks((prev) => [...prev, v].slice(-5000));
+      sendUserEvent(v);
     },
-    [clicks, persistClicks]
+    []
   );
 
   // After a VERIFIED Supabase sign-in: open the user's studio, creating it when
@@ -567,7 +621,6 @@ export function MarketplaceProvider({ children }) {
       showToast,
       persistMarketers,
       persistProducts,
-      persistClicks,
       persistSales,
       persistSettings,
       persistSession,
@@ -916,7 +969,7 @@ export function MarketplaceProvider({ children }) {
     [
       loading, marketers, products, clicks, sales, payouts, charges, notifications, settings, sessionMarketerId, activityFeed, activityTick, pushActivity,
       favorites, collections, following, introSeen, toast, currentMarketer,
-      showToast, persistMarketers, persistProducts, persistClicks, persistSales, persistPayouts, persistCharges, persistNotifications,
+      showToast, persistMarketers, persistProducts, persistSales, persistPayouts, persistCharges, persistNotifications,
       persistSettings, persistSession, toggleFavorite, dismissIntro, persistCollections, activityFeed, activityTick, pushActivity,
       toggleFollow, recordClick, recordProductView, activityFeed, activityTick, pushActivity, t, lang,
       openStudioForVerifiedUser, loadStudioData,

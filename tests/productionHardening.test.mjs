@@ -21,6 +21,7 @@ const SB = "https://sb.test";
 process.env.VITE_SUPABASE_URL = SB;
 process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
 const kv = new Map();
+const userEvents = [];
 const USERS = {
   "tok-owner": { id: "u-owner", email: "owner@likelink.test" },
   "tok-other": { id: "u-other", email: "other@likelink.test" },
@@ -43,6 +44,10 @@ globalThis.fetch = async (url, init = {}) => {
     const b = JSON.parse(init.body);
     kv.set(b.key, typeof b.value === "string" ? b.value : JSON.stringify(b.value));
     return jsonResponse(201, {});
+  }
+  if (u.startsWith(`${SB}/rest/v1/user_events`) && init.method === "POST") {
+    userEvents.push(JSON.parse(init.body));
+    return jsonResponse(201, []);
   }
   if (u.startsWith(`${SB}/rest/v1/`)) return jsonResponse(200, []);
   return jsonResponse(404, {});
@@ -182,19 +187,23 @@ test("adminAuth: with no admin secret configured, no token is issued or accepted
 });
 
 // ── checkout pricing ─────────────────────────────────────────────────────────
-test("checkoutCatalog: prices come from the catalog; the capture must match the stored order", async () => {
-  const { priceCart, captureMatchesOrder } = await import("../api/_utils/checkoutCatalog.mjs");
+test("checkoutCatalog: unsupported commerce fails closed; the capture must match the stored order", async () => {
+  const { priceCart, captureMatchesOrder, calculateReferralCommission } = await import("../api/_utils/checkoutCatalog.mjs");
   const catalog = [
-    { id: "p1", marketerId: "m1", title: "Bag", price: 120, status: "approved" },
+    { id: "p1", marketerId: "m1", title: "Bag", price: 120, status: "approved", commerceType: "physical", inventoryVerified: true, stockQuantity: 5 },
     { id: "p2", marketerId: "m2", title: "Hidden", price: 50, status: "flagged" },
-    { id: "p3", marketerId: "m3", title: "USD", price: 9, status: "approved", currency: "USD" },
+    { id: "p3", marketerId: "m3", title: "USD", price: 9, status: "approved", commerceType: "physical", inventoryVerified: true, stockQuantity: 5, currency: "USD" },
+    { id: "p4", marketerId: "m4", title: "Untyped", price: 9, status: "approved" },
+    { id: "p5", marketerId: "m5", title: "Affiliate", price: 9, status: "approved", commerceType: "affiliate" },
+    { id: "p6", marketerId: "m6", title: "Digital", price: 9, status: "approved", commerceType: "digital" },
   ];
-  const ok = priceCart([{ productId: "p1", quantity: 2, price: 0.01, marketerId: "attacker" }], catalog);
-  assert.equal(ok.total, 240);
-  assert.equal(ok.lines[0].marketerId, "m1", "the credited creator comes from the catalog");
+  assert.equal(priceCart([{ productId: "p1", quantity: 2, price: 0.01, marketerId: "attacker" }], catalog).error, "fulfillment_unconfigured");
   assert.equal(priceCart([{ productId: "p2" }], catalog).error, "product_not_available");
   assert.equal(priceCart([{ productId: "nope" }], catalog).error, "product_not_found");
   assert.equal(priceCart([{ productId: "p3" }], catalog).error, "currency_unsupported");
+  assert.equal(priceCart([{ productId: "p4" }], catalog).error, "product_type_required");
+  assert.equal(priceCart([{ productId: "p5" }], catalog).error, "affiliate_checkout_external");
+  assert.equal(priceCart([{ productId: "p6" }], catalog).error, "fulfillment_unconfigured");
   assert.equal(priceCart([{ productId: "p1", quantity: 11 }], catalog).error, "invalid_quantity");
   const record = { total: 240, currency: "ILS", checkoutId: "co_1" };
   const capture = (value, currency = "ILS", custom_id = "co_1") => ({ purchase_units: [{ payments: { captures: [{ amount: { value, currency_code: currency }, custom_id }] } }] });
@@ -202,14 +211,22 @@ test("checkoutCatalog: prices come from the catalog; the capture must match the 
   assert.equal(captureMatchesOrder(capture("1.00"), record), false);
   assert.equal(captureMatchesOrder(capture("240.00", "USD"), record), false);
   assert.equal(captureMatchesOrder(capture("240.00", "ILS", "co_other"), record), false);
+  assert.equal(calculateReferralCommission(18, true), 1.8, "creator commission is 10% of platform fee");
+  assert.equal(calculateReferralCommission(18, false), 0, "no referral means no creator commission");
+  assert.equal(calculateReferralCommission(-18, true), 0, "invalid negative platform fee is not commissionable");
 });
 
 test("client checkout sends only product ids and quantities", () => {
   const src = readFileSync(path.join(ROOT, "src/lib/paymentFlow.js"), "utf8");
   const create = src.slice(src.indexOf("export function createPayPalCheckout"), src.indexOf("export function capturePayPalCheckout"));
   assert.doesNotMatch(create, /price:/, "the browser must not send prices to create-order");
+  assert.match(create, /idempotency-key/, "order creation must carry a stable idempotency key");
+  assert.match(create, /referralCreatorId/, "checkout carries the separately tracked referral creator");
   const capture = src.slice(src.indexOf("export function capturePayPalCheckout"));
   assert.doesNotMatch(capture, /items:/, "capture sends only the order id");
+  const cart = readFileSync(path.join(ROOT, "src/components/cart/Cart.jsx"), "utf8");
+  const app = readFileSync(path.join(ROOT, "src/App.jsx"), "utf8");
+  assert.doesNotMatch(cart + app, /likelink_pending_checkout/, "cart contents and buyer email must not be persisted in session storage");
 });
 
 // ── price watch + SSRF guard ─────────────────────────────────────────────────
@@ -339,6 +356,7 @@ test("image proxy serves catalog image hosts and refuses everything else", async
 
 // ── /r affiliate forwarder ───────────────────────────────────────────────────
 test("/r redirects only to catalog destinations; anything else gets an interstitial", async () => {
+  userEvents.length = 0;
   kv.set("marketplace:products", JSON.stringify([{ id: "p1", marketerId: "m1", affiliateUrl: "https://www.aliexpress.com/item/1.html", status: "approved" }]));
   kv.set("marketplace:clicks", JSON.stringify([]));
   const { default: og } = await import("../api/og.mjs");
@@ -346,8 +364,8 @@ test("/r redirects only to catalog destinations; anything else gets an interstit
   await og(mockReq({ method: "GET", url: "/api/og?mode=r&pid=p1&u=" + encodeURIComponent("https://evil.example/phish") }), res);
   assert.equal(res.statusCode, 302);
   assert.equal(res.headers.location, "https://www.aliexpress.com/item/1.html", "the stored affiliate URL wins over ?u=");
-  assert.equal(read("marketplace:clicks").length, 1, "the outbound click is recorded");
-  assert.equal(read("marketplace:clicks")[0].marketerId, "m1", "attribution comes from the catalog");
+  assert.equal(userEvents.length, 1, "the outbound click is recorded as a normalized event");
+  assert.equal(userEvents[0].marketer_id, "m1", "attribution comes from the catalog");
 
   res = mockRes();
   await og(mockReq({ method: "GET", url: "/api/og?mode=r&u=" + encodeURIComponent("https://evil.example/phish") }), res);
@@ -357,6 +375,7 @@ test("/r redirects only to catalog destinations; anything else gets an interstit
 });
 
 test("/r bot guard: scrapers are refused, preview bots are not counted as clicks, bursts get 429", async () => {
+  userEvents.length = 0;
   kv.set("marketplace:products", JSON.stringify([{ id: "p1", marketerId: "m1", affiliateUrl: "https://www.aliexpress.com/item/1.html", status: "approved" }]));
   kv.set("marketplace:clicks", JSON.stringify([]));
   const { default: og } = await import("../api/og.mjs");
@@ -365,10 +384,10 @@ test("/r bot guard: scrapers are refused, preview bots are not counted as clicks
   assert.equal(res.statusCode, 403);
   res = await hit("WhatsApp/2.24.1 A");
   assert.equal(res.statusCode, 302, "preview bots still get the redirect");
-  assert.equal(read("marketplace:clicks").length, 0, "…but are never counted as a click");
+  assert.equal(userEvents.length, 0, "…but are never counted as a click");
   res = await hit("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1");
   assert.equal(res.statusCode, 302);
-  assert.equal(read("marketplace:clicks").length, 1, "a person's click is recorded");
+  assert.equal(userEvents.length, 1, "a person's click is recorded");
   let last;
   for (let i = 0; i < 61; i++) last = await hit("Mozilla/5.0 Chrome/126", "198.51.100.99");
   assert.equal(last.statusCode, 429);

@@ -3,6 +3,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/Heebo-Medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./assets/fonts/Heebo-ExtraBold.ttf") format("truetype");
+}
+
 :root {
   /* Light theme preserved */
   --bg: #f7f3ee;
@@ -38,9 +54,9 @@
   --overlay: rgba(19, 17, 16, 0.5);
   --flip: 1;
   --gradient-brand: linear-gradient(135deg, #bf8d5c 0%, #b0674a 38%, #d9b57f 100%);
-  --font-sans: 'Inter', 'Heebo', system-ui, sans-serif;
-  --font-disp: 'Fraunces', 'Georgia', serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Heebo', system-ui, sans-serif;
+  --font-disp: 'Frank Ruhl Libre', Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 [data-theme="dark"] {

@@ -34,7 +34,8 @@ test("the value object was found and has the tracking functions", () => {
 test("automated browsers never record views or clicks (no fake traffic from checks)", () => {
   assert.match(ctx, /navigator\.webdriver === true/);
   const click = ctx.slice(ctx.indexOf("const recordClick = useCallback("), ctx.indexOf("const recordProductView = useCallback("));
-  const view = ctx.slice(ctx.indexOf("const recordProductView = useCallback("), ctx.indexOf("const recordProductView = useCallback(") + 900);
-  assert.ok(click.indexOf("if (isAutomated()) return;") > -1 && click.indexOf("if (isAutomated()) return;") < click.indexOf("persistClicks"));
-  assert.ok(view.indexOf("if (isAutomated()) return;") > -1 && view.indexOf("if (isAutomated()) return;") < view.indexOf("persistClicks"));
+  const viewStart = ctx.indexOf("const recordProductView = useCallback(");
+  const view = ctx.slice(viewStart, ctx.indexOf("\n  // After a VERIFIED", viewStart));
+  assert.ok(click.indexOf("if (isAutomated()) return;") > -1 && click.indexOf("if (isAutomated()) return;") < click.indexOf("sendUserEvent"));
+  assert.ok(view.indexOf("if (isAutomated()) return;") > -1 && view.indexOf("if (isAutomated()) return;") < view.indexOf("sendUserEvent"));
 });

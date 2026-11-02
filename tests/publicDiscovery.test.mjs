@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
   buildPublicGraph,
+  attentionScore,
+  rankProductsByAttention,
   searchGraph,
   lunaPicks,
   productInsights,
@@ -78,6 +80,22 @@ test("trends need recorded events inside the window", () => {
   assert.equal(g.trends[0].clicks, 1);
   assert.equal(g.trends[0].views, TREND_MIN_EVENTS - 1);
   assert.equal(g.attention[0].id, "a");
+  assert.equal(attentionScore(g.byId.get("a")), TREND_MIN_EVENTS + 1);
+});
+
+test("product attention ordering uses recorded clicks and views, preserving quality order on ties", () => {
+  const g = buildPublicGraph({
+    products,
+    marketers: [creator],
+    clicks: [
+      { productId: "b", ts: NOW - 1000, type: "view" },
+      { productId: "a", ts: NOW - 2000, type: "click" },
+    ],
+    now: NOW,
+  });
+  const ranked = rankProductsByAttention([g.byId.get("b"), g.byId.get("a")], new Map([["a", 0], ["b", 1]]));
+  assert.deepEqual(ranked.map((product) => product.id), ["a", "b"], "two weighted clicks rank above one view");
+  assert.deepEqual(rankProductsByAttention([g.byId.get("b"), g.byId.get("d")]).map((product) => product.id), ["b", "d"], "ties preserve input order");
 });
 
 test("deals exist only with a real higher previous price", () => {

@@ -22,7 +22,6 @@ export function Cart() {
       return;
     }
     try {
-      sessionStorage.setItem("likelink_pending_checkout", JSON.stringify({ items, buyerEmail: buyerEmail.trim() }));
       const result = await createPayPalCheckout({ items, buyerEmail: buyerEmail.trim() });
       if (result.ok && result.approvalUrl) {
         // Redirect buyer to PayPal for approval
@@ -32,6 +31,18 @@ export function Cart() {
         const reasons = {
           paypal_not_configured:
             "התשלום דרך PayPal עדיין לא מופעל בעסק — המוכרת/הפלטפורמה צריכה לחבר חשבון PayPal Business. נסו שוב מאוחר יותר או פנו אלינו.",
+          product_type_required:
+            "לא ניתן לרכוש את הפריט כרגע כי סוג המוצר עדיין לא הוגדר.",
+          affiliate_checkout_external:
+            "הפריט נרכש בחנות החיצונית דרך הקישור של המוצר.",
+          fulfillment_unconfigured:
+            "הרכישה באתר עדיין לא זמינה לפריט הזה. אפשר להמשיך לחנות המקורית.",
+          inventory_unverified:
+            "המלאי של הפריט עדיין לא אומת ולכן אי אפשר להשלים את הרכישה באתר.",
+          idempotency_key_conflict:
+            "העגלה השתנתה. נסו להתחיל את התשלום מחדש.",
+          checkout_in_progress:
+            "בקשת התשלום עדיין בטיפול. המתינו רגע לפני ניסיון נוסף.",
           paypal_order_failed:
             "PayPal דחה את יצירת ההזמנה. נסו שוב בעוד רגע — אם זה חוזר, פנו אלינו עם פרטי הסל.",
           empty_cart: "העגלה ריקה.",

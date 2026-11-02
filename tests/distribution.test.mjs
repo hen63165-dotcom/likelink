@@ -14,6 +14,7 @@ const SB = "https://sb.test";
 process.env.VITE_SUPABASE_URL = SB;
 process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-key";
 const kv = new Map();
+const userEvents = [];
 const USERS = { "tok-owner": { id: "u-owner", email: "owner@likelink.test" }, "tok-other": { id: "u-other", email: "other@likelink.test" } };
 const outbound = [];
 const jsonResponse = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -45,6 +46,10 @@ globalThis.fetch = async (url, init = {}) => {
     kv.set(b.key, typeof b.value === "string" ? b.value : JSON.stringify(b.value));
     return jsonResponse(201, {});
   }
+  if (u.startsWith(`${SB}/rest/v1/user_events`)) {
+    if (init.method === "POST") userEvents.push(JSON.parse(init.body));
+    return jsonResponse(200, userEvents);
+  }
   return jsonResponse(200, []);
 };
 const put = (k, v) => kv.set(k, JSON.stringify(v));
@@ -58,6 +63,7 @@ function mockReq({ method = "GET", url, token = "", body = null }) {
 const PRODUCT = { id: "p1", title: "שרשרת כסף עדינה עם תליון לב", description: "שרשרת כסף 925 באורך 45 ס\"מ. תליון לב קטן בגודל 1 ס\"מ. מגיעה בקופסת מתנה.", price: 89, currency: "ILS", image: "https://ae01.alicdn.com/kf/S-real-product-photo.jpg", category: "תכשיטים", affiliateUrl: "https://s.click.aliexpress.com/e/1", status: "approved", marketerId: "m1" };
 function seed(planId = null) {
   kv.clear();
+  userEvents.length = 0;
   put("marketplace:products", [PRODUCT, { ...PRODUCT, id: "p2", marketerId: "m2", affiliateUrl: "https://s.click.aliexpress.com/e/2" }]);
   put("marketplace:marketers", [{ id: "m1", name: "נועה", slug: "noa" }, { id: "m2", name: "Other", slug: "other" }]);
   put("marketplace:marketers:private", { m1: { email: "owner@likelink.test" }, m2: { email: "other@likelink.test" } });
@@ -247,7 +253,10 @@ test("API: export needs Starter; click stats break down only on Starter+", async
   res = await call({ url: `/api/store?mode=discovery&action=distribution-export&id=${id}&format=csv`, token: "tok-owner" });
   assert.equal(res.statusCode, 200);
   assert.match(res.body.file.content, /"date","time","channel"/);
-  put("marketplace:clicks", [{ type: "outbound_click", productId: "p1", source: `tiktok.${id}-2` }, { type: "outbound_click", productId: "p2", source: "x.other" }]);
+  userEvents.push(
+    { id: "click-p1", event_type: "outbound_click", product_id: "p1", source: `tiktok.${id}-2`, occurred_at: new Date().toISOString() },
+    { id: "click-p2", event_type: "outbound_click", product_id: "p2", source: "x.other", occurred_at: new Date().toISOString() }
+  );
   res = await call({ url: "/api/store?mode=discovery&action=click-stats", token: "tok-owner" });
   assert.deepEqual([res.body.total, res.body.byChannel], [1, { tiktok: 1 }], "only my products, broken down");
   kv.delete("marketplace:subscriptions");

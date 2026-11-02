@@ -21,6 +21,7 @@ import { sendViaResend } from "../invoice/send.mjs";
 import { learnFromClicks } from "../../src/lib/cloud/campaign.js";
 import { selectOpportunity } from "../../src/lib/cloud/growth.js";
 import { visitorStats } from "./passport.js";
+import { readUserEvents } from "./checkoutOrders.mjs";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -42,6 +43,12 @@ const TZ = "Asia/Jerusalem";
 
 async function kvGet(key, fallback) {
   if (!SB_URL || !SB_KEY) return fallback;
+  if (key === K.clicks) {
+    try { return await readUserEvents(SB_URL, SB_KEY); }
+    catch (error) {
+      console.warn("[analytics] user event read unavailable; using legacy click snapshot", String(error?.message || error).slice(0, 120));
+    }
+  }
   try {
     const res = await fetch(
       `${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value`,
@@ -667,4 +674,3 @@ function weekKey() {
   const weekNum = Math.ceil((d.getMonth() * 30 + d.getDate()) / 7);
   return `${year}-W${weekNum}`;
 }
-

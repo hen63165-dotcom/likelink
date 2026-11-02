@@ -36,7 +36,7 @@ const SB_HEADERS = {
 
 // A failed read returns the fallback but marks the key (kvReadGuard): the
 // import/rotation jobs can then never write "catalog = imports only".
-async function svKvGet(key, fallback) {
+async function readLegacyKv(key, fallback) {
   if (!SB_URL || !SB_KEY) return fallback;
   let res;
   try {
@@ -50,6 +50,47 @@ async function svKvGet(key, fallback) {
   }
   const row = await readKvResponse(key, res);
   return row.found ? row.value : fallback;
+}
+
+async function svKvGet(key, fallback) {
+  if (!SB_URL || !SB_KEY) return fallback;
+  if (key === "marketplace:clicks") {
+    const params = new URLSearchParams({
+      select: "id,event_type,product_id,marketer_id,source,campaign_id,utm_source,utm_medium,utm_campaign,utm_content,page,event_target,story_id,language,occurred_at",
+      order: "occurred_at.desc",
+      limit: "5000",
+    });
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/user_events?${params}`, {
+        headers: SB_HEADERS,
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`user_events_read_failed_${res.status}`);
+      const rows = await res.json();
+      if (!Array.isArray(rows)) throw new Error("user_events_invalid_response");
+      return rows.map((row) => ({
+        id: row.id,
+        type: row.event_type,
+        productId: row.product_id,
+        marketerId: row.marketer_id,
+        source: row.source,
+        cid: row.campaign_id,
+        utm_source: row.utm_source,
+        utm_medium: row.utm_medium,
+        utm_campaign: row.utm_campaign,
+        utm_content: row.utm_content,
+        page: row.page,
+        target: row.event_target,
+        storyId: row.story_id,
+        language: row.language,
+        ts: new Date(row.occurred_at).getTime(),
+      })).reverse();
+    } catch (error) {
+      noteKvReadFailed(key);
+      console.warn("[autonomous-jobs] user event read unavailable; using legacy click snapshot", String(error?.message || error).slice(0, 120));
+    }
+  }
+  return readLegacyKv(key, fallback);
 }
 
 async function svKvSet(key, value) {

@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import heeboMediumFont from './assets/fonts/Heebo-Medium.ttf?url'
+import heeboExtraBoldFont from './assets/fonts/Heebo-ExtraBold.ttf?url'
 // Ultra-Luxury Minimalist Theme (2026) — imported into the bundle so the
 // redesign ships with every production build. Keep in sync with the
 // /public/luxury.css copy that index.html & login.html also load via <link>.
@@ -20,6 +22,16 @@ import './lib/pwa.js'
 // Referral tracking — reads ?ref=<slug> from the URL on load and stores it
 // in sessionStorage so the marketeer signup flow can attach it.
 import { initReferral } from './lib/referral.js'
+
+for (const href of [heeboMediumFont, heeboExtraBoldFont]) {
+  const preload = document.createElement('link')
+  preload.rel = 'preload'
+  preload.as = 'font'
+  preload.type = 'font/ttf'
+  preload.crossOrigin = 'anonymous'
+  preload.href = href
+  document.head.append(preload)
+}
 
 installGlobalErrorHealing();
 initReferral();
