@@ -495,6 +495,15 @@ class AutoPlan(unittest.TestCase):
         for s in r3["shots"]:  # nothing that could be drawn as jewellery
             self.assertNotRegex(s["prompt"] + s["character"], r"(?i)earring|necklace|bracelet|\bring\b|jewel")
 
+    def test_when_she_talks_the_camera_stays_still(self):
+        for master in (None, {"face": [0.26, 0.18, 0.86, 0.51]}):
+            spec = self.ap.plan(CATALOG["p-live-05"], self.cast[2], master)
+            talking = [s for s in spec["shots"] if s.get("talk")]
+            self.assertEqual([s["id"] for s in talking], ["hero", "tip", "cta"])
+            for s in talking:
+                self.assertIn(self.ap.STEADY, s["motion"])
+                self.assertNotIn("pushes in", s["motion"])
+
     def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
         sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
         import castframes  # noqa: PLC0415
@@ -671,6 +680,14 @@ class FreeLipSync(unittest.TestCase):
         self.assertTrue(all(abs(a - b) <= 2 for a, b in zip(idx, idx[1:])), "no jump back to the first frame")
         self.assertEqual(max(idx), 72)
         self.assertEqual({self.m.base_index(i, 1, 25.0) for i in range(10)}, {0})
+
+    def test_a_zooming_clip_plays_only_its_steady_opening(self):
+        self.assertEqual(self.m.steady_frames([100, 104, 110, 118, 125, 140]), 4)
+        self.assertEqual(self.m.steady_frames([100, None, 105, 99]), 4, "a frame without a face keeps the run")
+        self.assertEqual(self.m.steady_frames([100, 130]), 1, "an immediate zoom holds her first frame")
+        self.assertEqual(self.m.steady_frames([None, None, None]), 3)
+        self.assertEqual(self.m.steady_frames([100, 90, 85]), 3)
+        self.assertEqual(self.m.steady_frames([100, 80]), 1, "a zoom out counts too")
 
     def test_the_crop_is_musetalks_nose_in_the_middle(self):
         # YuNet: x, y, w, h, right eye, left eye, nose, mouth corners (Shira's keyframe at 1080x1920)

@@ -55,6 +55,7 @@ SMOOTH = 5                    # frames: the face box and landmarks are averaged 
 # and the smile lines, and leaves her outline (and a hand near it) as drawn.
 MOUTH_WIDTH = 0.30
 MOUTH_MAX = 0.36              # a wide smile widens it, never past this
+STEADY_ZOOM = 1.2             # her face may grow or shrink this much within the clip's played part
 SHARPEN = (2, 60, 2)          # the redrawn part's unsharp mask (radius, percent, threshold): as crisp as her eyes
 BATCH = 4
 MUSE = ("TMElyralab/MuseTalk", "musetalkV15/musetalk.json", "musetalkV15/unet.pth")
@@ -83,6 +84,21 @@ def base_index(i: int, base_frames: int, base_fps: float, fps: int = FPS, keep: 
     if t > span:
         t = 2 * span - t
     return min(base_frames - 1, max(0, round(t * base_fps)))
+
+
+def steady_frames(widths: list, limit: float = STEADY_ZOOM) -> int:
+    """How many opening frames of her clip keep her face within `limit` of its
+    first width (a frame where it was not found keeps the run going): a clip
+    whose camera zooms in turns the talking close-up into an extreme one, so
+    only its steady opening is played (forward and back)."""
+    known = [w for w in widths if w]
+    if not known:
+        return max(1, len(widths))
+    w0 = known[0]
+    for i, w in enumerate(widths):
+        if w and not (w0 / limit <= w <= w0 * limit):
+            return max(1, i)
+    return len(widths)
 
 
 def muse_box(face, w: int, h: int, margin: float = MARGIN) -> tuple[int, int, int, int]:
@@ -287,8 +303,9 @@ def _voice(audio: Path, work: Path):
     return np.frombuffer(raw, dtype=np.float32).copy()
 
 
-def _base(base: Path, work: Path, n: int, head, close_n: int):
-    """Her close-up under every output frame (1080×1920 RGB arrays) from her clip, or her picture held."""
+def _base(base: Path, work: Path, n: int, head, close_n: int, det=None):
+    """Her close-up under every output frame (1080×1920 RGB arrays) from her clip
+    (only its steady opening, when a detector is given), or her picture held."""
     import numpy as np
     from PIL import Image
     sys.path.insert(0, str(ROOT / "scripts" / "luna_reels"))
@@ -305,15 +322,23 @@ def _base(base: Path, work: Path, n: int, head, close_n: int):
     else:
         files, base_fps = [base], float(FPS)
     cache = {}
-    frames = []
-    for i in range(n):
-        j = base_index(i, len(files), base_fps)
+
+    def close(j):
         if j not in cache:
             img = Image.open(files[j]).convert("RGB")
             box = close_up_box(*img.size, head=head, n=close_n)
             cache[j] = np.asarray(img.crop(box).resize(SIZE, Image.LANCZOS))
-        frames.append(cache[j])
-    return frames
+        return cache[j]
+
+    usable = len(files)
+    if det is not None and len(files) > 1:
+        widths = [(row[2] if row else None) for row in _faces([close(j) for j in range(len(files))], det)]
+        usable = steady_frames(widths)
+        if usable < len(files):
+            print(json.dumps({"lips": "steady part", "frames": usable, "of": len(files)}))
+        for j in range(usable, len(files)):
+            cache.pop(j, None)
+    return [close(base_index(i, usable, base_fps)) for i in range(n)]
 
 
 def _sharp(face):
@@ -344,8 +369,9 @@ def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, second
         wav = _voice(audio, work)
         secs = seconds or len(wav) / 16000
         n = frames_for(secs)
-        frames = _base(base, work, n, head, close_n)
-        faces = fill_gaps(_faces(frames, _yunet(work)))
+        det = _yunet(work)
+        frames = _base(base, work, n, head, close_n, det)
+        faces = fill_gaps(_faces(frames, det))
         if not faces:
             raise SystemExit(f"{base.name}: no face found")
         faces = smooth(faces)
