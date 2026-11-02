@@ -637,5 +637,74 @@ class Music(unittest.TestCase):
         self.assertLessEqual(float(abs(x).max()), 1.0)
 
 
+class FreeLipSync(unittest.TestCase):
+    """The free lip-sync (scripts/media/talking/musetalk.py): only her mouth and jaw are redrawn, over her own clip."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(HERE.parent / "media" / "talking"))
+        import musetalk  # noqa: PLC0415 (no torch at import: the models load only when a shot is made)
+        cls.m = musetalk
+
+    def test_the_shot_covers_the_whole_line(self):
+        self.assertEqual(self.m.frames_for(3.0), 75)
+        self.assertEqual(self.m.frames_for(3.01), 76)
+        self.assertEqual(self.m.frames_for(0.0), 1)
+
+    def test_her_clip_plays_forward_then_back_never_jumps(self):
+        idx = [self.m.base_index(i, 73, 24.0) for i in range(200)]
+        self.assertEqual(idx[0], 0)
+        self.assertTrue(all(0 <= j <= 72 for j in idx))
+        self.assertTrue(all(abs(a - b) <= 2 for a, b in zip(idx, idx[1:])), "no jump back to the first frame")
+        self.assertEqual(max(idx), 72)
+        self.assertEqual({self.m.base_index(i, 1, 25.0) for i in range(10)}, {0})
+
+    def test_the_crop_is_musetalks_nose_in_the_middle(self):
+        # YuNet: x, y, w, h, right eye, left eye, nose, mouth corners (Shira's keyframe at 1080x1920)
+        face = [420, 500, 372, 432, 500, 640, 700, 640, 566, 769, 518, 833, 660, 822]
+        x1, y1, x2, y2 = self.m.muse_box(face, 1080, 1920)
+        self.assertEqual((x1, x2), (420, 792))
+        self.assertAlmostEqual((y1 + y2) / 2, 769, delta=1)
+        self.assertGreater(y2, 500 + 432)
+        with self.assertRaises(ValueError):
+            self.m.muse_box([10, 10, 8, 8, 0, 0, 0, 0, 12, 14, 0, 0, 0, 0], 100, 100)
+
+    def test_a_missed_frame_takes_the_nearest_face_and_the_box_is_steady(self):
+        rows = [None, [10.0], None, None, [20.0], None]
+        self.assertEqual(self.m.fill_gaps(rows), [[10.0], [10.0], [10.0], [20.0], [20.0], [20.0]])
+        self.assertEqual(self.m.fill_gaps([None, None]), [])
+        steady = self.m.smooth([[0.0], [10.0], [0.0], [10.0], [0.0]], k=5)
+        self.assertTrue(all(2 <= r[0] <= 8 for r in steady))
+
+    def test_each_talking_shot_gets_its_own_line_clip_and_framing(self):
+        spec = {"shots": [{"id": "hook"}, {"id": "hero", "talk": True}, {"id": "tip", "talk": True},
+                          {"id": "tag", "still": True, "talk": True}]}
+        manifest = {"beats": [{"scene": "hook", "file": "ep-00.mp3", "seconds": 2.0},
+                              {"scene": "hero", "file": "ep-01.mp3", "seconds": 1.8},
+                              {"scene": "tip", "file": "ep-02.mp3", "seconds": 3.2}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            pics = Path(tmp)
+            (pics / "tip.mp4").write_bytes(b"x")
+            (pics / "tip.face.json").write_text(json.dumps({"head": [0.2, 0.1, 0.8, 0.5]}), encoding="utf-8")
+            tip = self.m.line_for(spec, manifest, pics, "/v", "tip")
+            self.assertEqual((tip["base"], tip["audio"], tip["seconds"], tip["n"], tip["head"]),
+                             (str(pics / "tip.mp4"), "/v/ep-02.mp3", 3.2, 1, [0.2, 0.1, 0.8, 0.5]))
+            hero = self.m.line_for(spec, manifest, pics, "/v", "hero")
+            self.assertEqual((hero["base"], hero["n"], hero["head"]), (str(pics / "hero.png"), 0, None))
+            for bad in ("hook", "tag"):
+                with self.assertRaises(ValueError):
+                    self.m.line_for(spec, manifest, pics, "/v", bad)
+            twice = {"beats": manifest["beats"] + [{"scene": "tip", "file": "ep-03.mp3", "seconds": 1}]}
+            with self.assertRaises(ValueError):
+                self.m.line_for(spec, twice, pics, "/v", "tip")
+
+    def test_only_the_mouth_and_jaw_change(self):
+        mask = self.m.mouth_oval(200, 240, 0.5)
+        self.assertEqual(mask.shape, (240, 200))
+        self.assertEqual(float(mask[:120].max()), 0.0, "eyes and nose stay as drawn")
+        self.assertGreater(float(mask[190, 100]), 0.9, "the mouth is redrawn")
+        self.assertEqual(float(mask[190, 2]), 0.0, "her cheeks' edge and hair stay")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -84,6 +84,7 @@ jobs:
       takes: ${{ steps.p.outputs.takes }}
       from_run: ${{ steps.p.outputs.from_run }}
       talk: ${{ steps.p.outputs.talk }}
+      talking: ${{ steps.p.outputs.talking }}
       product: ${{ steps.p.outputs.product }}
       presenter: ${{ steps.p.outputs.presenter }}
       request_at: ${{ steps.p.outputs.request_at }}
@@ -118,7 +119,7 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             if [ -z "$Q_PRODUCT" ]; then
-              { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
+              { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "talking=[]"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
               echo "no open request"; exit 0
             fi
             JOBS=""; ONLY=""; STAGE="all"; PRODUCT="$Q_PRODUCT"; PRESENTER="$Q_PRESENTER"
@@ -141,7 +142,7 @@ jobs:
           echo "$ENGINE" | grep -Eq '^(cpu|gpu)$' || { echo "engine: cpu or gpu"; exit 2; }
           echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
           if [ "$STAGE" = "none" ]; then  # run.json at rest: a push that only changes code runs nothing
-            { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
+            { echo "stage=none"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "talking=[]"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
             echo "nothing to run"; exit 0
           fi
           if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
@@ -180,12 +181,16 @@ jobs:
           TALK=$(JOBS="$JOBS" python3 -c "
           import json, os
           print('true' if any(s.get('talk') for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']) else 'false')")
+          # Every shot where she says her line (the free lip-sync makes each on its own runner).
+          TALKING=$(JOBS="$JOBS" python3 -c "
+          import json, os
+          print(json.dumps([s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots'] if s.get('talk') and not s.get('still')]))")
           # The cloud studio makes a whole story: a shot list with an episode, every shot.
           GPU=$(JOBS="$JOBS" ENGINE="$ENGINE" STAGE="$STAGE" ONLY="$ONLY" python3 -c "
           import json, os
           spec = json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))
           print('true' if os.environ['ENGINE'] == 'gpu' and os.environ['STAGE'] == 'all' and not os.environ['ONLY'] and isinstance(spec.get('episode'), dict) else 'false')")
-          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "draws=$DRAWS"; echo "takes=$TAKES"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; echo "gpu=$GPU"; } >> "$GITHUB_OUTPUT"
+          { echo "jobs=$JOBS"; echo "name=${JOBS%.json}"; echo "only=$ONLY"; echo "stage=$STAGE"; echo "shots=$SHOTS"; echo "moving=$MOVING"; echo "draws=$DRAWS"; echo "takes=$TAKES"; echo "from_run=${FROM_RUN:-}"; echo "talk=$TALK"; echo "talking=$TALKING"; echo "gpu=$GPU"; } >> "$GITHUB_OUTPUT"
           echo "plan: $JOBS · stage $STAGE · engine $ENGINE (cloud $GPU) · shots $SHOTS · animated $MOVING · takes $TAKES"
           mkdir -p /tmp/jobs && cp "scripts/media/studio3d/jobs/$JOBS" /tmp/jobs/
       # The shot list every later job reads (written here when a product was given).
@@ -421,8 +426,149 @@ jobs:
           name: studio3d-clip-${{ matrix.shot }}
           path: /tmp/clip
           if-no-files-found: ignore
+  # The free lip-sync (when the cloud studio did not run): her mouth and jaw
+  # redrawn to each line by MuseTalk 1.5 on a CPU (scripts/media/talking/
+  # musetalk.py), over her own animated clip. The voices are spoken once, so
+  # every talking shot and the edit play the very same recording.
+  voices:
+    needs: [plan, gpu]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.talk == 'true' && needs.plan.outputs.stage != 'none' && needs.gpu.result != 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/luna_reels/requirements.txt
+      - name: Install FFmpeg and the reel engine
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+      - name: The voices (spoken once)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          LUNA_VOICE_CACHE: ${{ runner.temp }}/voices/voicecache
+        run: |
+          mkdir -p "$RUNNER_TEMP/pictures"
+          python scripts/media/studio3d/episode.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "$RUNNER_TEMP/pictures" \
+            --episode "$RUNNER_TEMP/episode.json"
+          cd scripts/luna_reels
+          python -m luna_reels voices "$RUNNER_TEMP/episode.json" --out "$RUNNER_TEMP/voices"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio3d-voices
+          path: ${{ runner.temp }}/voices
+          if-no-files-found: error
+  lips:
+    needs: [plan, gpu, draw, pick, animate, voices]
+    if: always() && needs.voices.result == 'success' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure' && needs.animate.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shot: ${{ fromJSON(needs.plan.outputs.talking) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-jobs
+          path: scripts/media/studio3d/jobs
+      - name: The newest committed pictures and clips
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
+      - name: A redrawn picture's old clip is stale
+        if: needs.draw.result != 'skipped'
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+          SHOTS: ${{ needs.plan.outputs.shots }}
+        run: for s in $(echo "$SHOTS" | python3 -c "import json, sys; print(' '.join(json.load(sys.stdin)))"); do rm -f "scripts/media/studio3d/shots/$NAME/$s.mp4"; done
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
+        with:
+          pattern: studio3d-pic-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: scripts/media/studio3d/shots
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result == 'skipped' && needs.plan.outputs.from_run != ''
+        continue-on-error: true
+        with:
+          pattern: studio3d-clip-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      - uses: actions/download-artifact@v4
+        if: needs.draw.result != 'skipped' || needs.pick.result == 'success'
+        continue-on-error: true
+        with:
+          pattern: studio3d-pic-*
+          merge-multiple: true
+          path: scripts/media/studio3d/shots
+      - uses: actions/download-artifact@v4
+        if: needs.animate.result != 'skipped'
+        continue-on-error: true
+        with:
+          pattern: studio3d-clip-*
+          merge-multiple: true
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio3d-voices
+          path: ${{ runner.temp }}/voices
+      - name: The presenter's checked keyframe (shots drawn from the cast)
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: python3 scripts/media/studio3d/castframes.py --jobs "scripts/media/studio3d/jobs/$NAME.json" --pictures "scripts/media/studio3d/shots/$NAME"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Room for the weights
+        run: sudo mkdir -p /mnt/hf && sudo chown "$USER" /mnt/hf
+      - name: Install (CPU torch, diffusers, Whisper, OpenCV)
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.33" transformers accelerate safetensors huggingface_hub opencv-python-headless
+      - name: She says her line (${{ matrix.shot }})
+        env:
+          HF_HOME: /mnt/hf
+          HF_HUB_DISABLE_PROGRESS_BARS: "1"
+          NAME: ${{ needs.plan.outputs.name }}
+          SHOT: ${{ matrix.shot }}
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/lips
+          python scripts/media/talking/musetalk.py --scene "$SHOT" --jobs "scripts/media/studio3d/jobs/$NAME.json" \
+            --pictures "scripts/media/studio3d/shots/$NAME" --voices "$RUNNER_TEMP/voices" --out "/tmp/lips/$SHOT.talk.mp4" 2>&1 | tee /tmp/lips.log
+      - name: Keep the log
+        if: always()
+        env:
+          SHOT: ${{ matrix.shot }}
+        run: mkdir -p /tmp/lips && (grep '^{' /tmp/lips.log > "/tmp/lips/$SHOT.lips.jsonl" || true)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: studio3d-lips-${{ matrix.shot }}
+          path: /tmp/lips
+          if-no-files-found: ignore
   reel:
-    needs: [plan, gpu, draw, pick, animate]
+    needs: [plan, gpu, draw, pick, animate, voices, lips]
     if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
@@ -438,6 +584,11 @@ jobs:
         env:
           NAME: ${{ needs.plan.outputs.name }}
         run: git fetch -q --depth 1 origin "$GITHUB_REF_NAME" && git checkout FETCH_HEAD -- "scripts/media/studio3d/shots/$NAME" || true
+      # A talking clip is tied to the voice it was made for: only this run's are used.
+      - name: No talking clip from an earlier run
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: rm -f scripts/media/studio3d/shots/"$NAME"/*.talk.mp4
       - name: A redrawn picture's old clip is stale
         if: needs.draw.result != 'skipped' || needs.pick.result == 'success' || needs.gpu.result == 'success'
         env:
@@ -489,6 +640,26 @@ jobs:
         run: |
           mv "scripts/media/studio3d/shots/$NAME/voicecache" "$RUNNER_TEMP/voicecache"
           echo "LUNA_VOICE_CACHE=$RUNNER_TEMP/voicecache" >> "$GITHUB_ENV"
+      # The free lip-sync's talking shots and the very voices they say.
+      - uses: actions/download-artifact@v4
+        if: needs.lips.result != 'skipped' && needs.voices.result == 'success'
+        continue-on-error: true
+        with:
+          pattern: studio3d-lips-*
+          merge-multiple: true
+          path: scripts/media/studio3d/shots/${{ needs.plan.outputs.name }}
+      - uses: actions/download-artifact@v4
+        if: needs.voices.result == 'success'
+        with:
+          name: studio3d-voices
+          path: ${{ runner.temp }}/voices
+      - name: The free lip-sync's voices
+        if: needs.voices.result == 'success'
+        env:
+          NAME: ${{ needs.plan.outputs.name }}
+        run: |
+          echo "LUNA_VOICE_CACHE=$RUNNER_TEMP/voices/voicecache" >> "$GITHUB_ENV"
+          cat scripts/media/studio3d/shots/"$NAME"/*.lips.jsonl 2>/dev/null || true
       - name: The presenter's checked keyframe (shots drawn from the cast)
         env:
           NAME: ${{ needs.plan.outputs.name }}
@@ -498,20 +669,20 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: scripts/luna_reels/requirements.txt
-      # Lip-sync for the shots where she talks to the camera: SadTalker
+      # When the free lip-sync did not make every talking shot: SadTalker
       # (Apache-2.0) in its own Python 3.10 venv, as in the Luna reels workflow.
       - uses: actions/setup-python@v5
         id: py310
-        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success' && needs.lips.result != 'success'
         with:
           python-version: "3.10"
       - uses: actions/cache@v4
-        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success' && needs.lips.result != 'success'
         with:
           path: ~/sadtalker
           key: sadtalker-v0.0.2-rc
       - name: SadTalker (lip-sync)
-        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success'
+        if: needs.plan.outputs.talk == 'true' && needs.gpu.result != 'success' && needs.lips.result != 'success'
         run: |
           "${{ steps.py310.outputs.python-path }}" -m venv ~/sadtalker-venv
           V=~/sadtalker-venv/bin/pip
