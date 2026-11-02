@@ -1,0 +1,48 @@
+{
+  "series": "cast-masters",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "shots": [
+    {
+      "id": "noa-r3m0",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91803,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her shoulders relaxed"
+    },
+    {
+      "id": "noa-r3m1",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91816,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit"
+    },
+    {
+      "id": "noa-r3m2",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91829,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her shoulders relaxed"
+    },
+    {
+      "id": "noa-r3m3",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91842,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit"
+    },
+    {
+      "id": "noa-r3m4",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91855,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her shoulders relaxed"
+    },
+    {
+      "id": "noa-r3m5",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green fitted hoodie",
+      "still": true,
+      "seed": 91868,
+      "prompt": "medium close-up from the chest up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit"
+    }
+  ]
+}

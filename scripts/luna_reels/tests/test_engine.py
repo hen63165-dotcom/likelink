@@ -482,6 +482,19 @@ class AutoPlan(unittest.TestCase):
         self.assertTrue(all(s["id"].startswith("noa-r2m") and "from the chest up" in s["prompt"] for s in later["shots"]))
         self.assertFalse({s["seed"] for s in first["shots"]} & {s["seed"] for s in later["shots"]})
 
+    def test_from_round_three_a_grown_womans_features_come_right_after_the_framing(self):
+        r2 = self.ap.masters({"characters": self.cast}, only=["noa"], round_=2)
+        r3 = self.ap.masters({"characters": self.cast}, per=6, only=["noa"], round_=3)
+        self.assertEqual(len(r3["shots"]), 6)
+        for s in r3["shots"]:
+            self.assertTrue(s["prompt"].startswith("medium close-up from the chest up, a grown woman, not a girl"))
+            self.assertNotIn("oversized", s["character"])
+            self.assertIn("fitted", s["character"])
+        self.assertFalse({s["seed"] for s in r2["shots"]} & {s["seed"] for s in r3["shots"]})
+        self.assertNotIn("grown woman", r2["shots"][0]["prompt"], "earlier rounds stay as they were drawn")
+        for s in r3["shots"]:  # nothing that could be drawn as jewellery
+            self.assertNotRegex(s["prompt"] + s["character"], r"(?i)earring|necklace|bracelet|\bring\b|jewel")
+
     def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
         sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))
         import castframes  # noqa: PLC0415

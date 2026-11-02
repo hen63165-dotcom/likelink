@@ -192,6 +192,14 @@ MASTER_PROMPTS_CLOSE = [
 ]
 
 
+# Noa's round 2 (2026-11-02) still read as a girl in every candidate: a messy
+# bun, an oversized hoodie and the cartoon style together draw a child. From
+# round 3 the prompt names a grown woman's features right after the framing
+# (CLIP reads 77 tokens), and the hoodie is fitted.
+ADULT_FACE = ("a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, "
+              "mascara and soft lip colour")
+
+
 def masters(cast: dict, per: int = MASTER_TAKES, only: list[str] | None = None, round_: int = 0) -> dict:
     """Candidates for every presenter's keyframe (or only some, in a later round), drawn side by
     side and chosen by eye (the same face as her portrait, an adult, plain clothes, nothing that
@@ -201,10 +209,17 @@ def masters(cast: dict, per: int = MASTER_TAKES, only: list[str] | None = None, 
     for member in cast.get("characters", []):
         if only and member["id"] not in only:
             continue
+        look = character(member, top=True)
+        if round_ >= 3:
+            look = look.replace(" oversized ", " fitted ")
         for k in range(per):
-            shots.append({"id": f"{member['id']}-{'r%d' % round_ if round_ else ''}m{k}", "character": character(member, top=True),
+            prompt = prompts[k % len(prompts)]
+            if round_ >= 3:
+                framing, _, rest = prompt.partition(", ")
+                prompt = f"{framing}, {ADULT_FACE}, {rest}"
+            shots.append({"id": f"{member['id']}-{'r%d' % round_ if round_ else ''}m{k}", "character": look,
                           "still": True, "seed": int(member.get("seed", 93000)) + 500 + 101 * round_ + 13 * k,
-                          "prompt": prompts[k % len(prompts)]})
+                          "prompt": prompt})
     return {"series": "cast-masters", "style": STYLE, "shots": shots}
 
 
@@ -317,7 +332,8 @@ def main():
     ap.add_argument("--presenter")
     ap.add_argument("--masters", action="store_true", help="candidates for every presenter's keyframe instead")
     ap.add_argument("--only", default="", help="with --masters: only these presenters (comma-separated)")
-    ap.add_argument("--round", type=int, default=0, help="with --masters: a later round, from the chest up")
+    ap.add_argument("--round", type=int, default=0, help="with --masters: a later round, from the chest up (3+: a grown woman's features named)")
+    ap.add_argument("--per", type=int, default=MASTER_TAKES, help="with --masters: candidates per presenter")
     ap.add_argument("--engine", default="cpu", choices=list(ENGINES),
                     help="gpu: the cloud studio, where every scene says its line on camera (scripts/media/gpu)")
     ap.add_argument("--out", default=str(HERE / "jobs"))
@@ -326,7 +342,7 @@ def main():
     if a.masters:
         only = [x for x in a.only.split(",") if x]
         out = Path(a.out) / ("cast-masters.json" if not a.round else f"cast-masters-r{a.round}.json")
-        out.write_text(json.dumps(masters(cast, only=only or None, round_=a.round), ensure_ascii=False, indent=2) + "\n",
+        out.write_text(json.dumps(masters(cast, per=max(1, min(a.per, 8)), only=only or None, round_=a.round), ensure_ascii=False, indent=2) + "\n",
                        encoding="utf-8")
         print(out.name)
         return
