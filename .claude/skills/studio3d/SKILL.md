@@ -16,7 +16,9 @@ copy), no key, no paid credit. Nothing is posted: the reel waits on the
 | draw | one picture per shot, FLUX.1 [schnell] GGUF Q4 (Apache-2.0), 576×1024, 4 steps | `scripts/media/studio3d/flux.py` | ~18 min a shot, all shots side by side |
 | animate | each picture → 73 frames (3 s, 24 fps) of real motion at the picture's own 576×1024, LTX-Video 2B 0.9.8 distilled, tiled VAE decode; then every frame enlarged to 1080×1920 with Real-ESRGAN's animation model (`upscale.py`, also used on the lip-synced shots) | `animate.py` | ~35–45 min a shot, side by side |
 | pick | per shot, the take that is most the same adult presenter: YuNet finds her face, CLIP scores adult vs child, the same face and hair as the `tag` portrait, the shot asked for, no jewellery (`pick.py`, `pick.jsonl`) | `pick.py` | ~5 min |
-| reel | the story with `scripts/luna_reels` (look `story`): Hebrew voice (edge Hila), lip-sync on the shots marked `"talk": true` (SadTalker `full-talk`, ~5–7 min a line), hard cuts with a punch-in, the lo-fi bed + a whoosh on every cut, yellow captions, name tag, the seller's real photo (900 px) labelled "תמונת המוכר", AI + ad labels on every frame | `episode.py`, `depth.py` | ~15–25 min |
+| voices | every line spoken once (edge Hila) into a cache, so the lip-sync and the edit play the very same recording (`luna_reels voices`) | workflow | ~1 min |
+| lips | per talking shot (`"talk": true`), on its own runner: MuseTalk 1.5 redraws only her mouth and jaw to the line, frame by frame, over her own animated clip (blinks, nods), cut to the reel's close-up; YuNet finds her face; the redrawn oval follows her mouth's corners and stays off her cheek line (`scripts/media/talking/musetalk.py` → `<shot>.talk.mp4`) | `musetalk.py` | ~12–20 min a line |
+| reel | the story with `scripts/luna_reels` (look `story`): Hebrew voice from the cache, the talking shots from `lips` (SadTalker `full-talk` only for a line `lips` did not make), hard cuts with a punch-in, the lo-fi bed + a whoosh on every cut, yellow captions, name tag, the seller's real photo (900 px) labelled "תמונת המוכר", AI + ad labels on every frame | `episode.py`, `depth.py` | ~15–25 min |
 | commit | pictures + clips → `scripts/media/studio3d/shots/<name>/` (branch tip); reel → `studio3d-preview` | workflow | — |
 
 Workflow: `.github/workflows/studio3d.yml` ("3D studio"). Until it is on
@@ -94,6 +96,12 @@ presenter is one picture, checked once:
    close-ups cut around her head, each a little closer or wider). Only the
    talking object is drawn per reel. Delete the unchosen candidates before
    a merge.
+
+A presenter who reads young needs a later round: `--masters --only noa
+--round 3 --per 6` names a grown woman's features right after the framing
+and draws her hoodie fitted (Noa's rounds 1–2 read as a girl in every
+candidate: a messy bun, an oversized hoodie and the cartoon style together
+draw a child). All five presenters have a keyframe (Noa: round 3, 2026-11-02).
 
 ## One product in, one reel out (the fast path)
 
@@ -179,7 +187,11 @@ FLUX.1 [schnell] Apache-2.0 · CLIP-L MIT · T5-XXL Apache-2.0 · FLUX VAE
 Apache-2.0 (via an open repackage) · Depth Anything V2 Small Apache-2.0 ·
 LTX-Video 2B 0.9.8 distilled: LTXV Open Weights License — free, commercial
 use included, for a business under $10M annual revenue (the repository's
-licence text is printed in every animate log).
+licence text is printed in every animate log) · MuseTalk 1.5: code MIT, "the
+trained models are available for any purpose, even commercially" (its
+README, checked 2026-11-02) · Whisper-tiny MIT · SD VAE ft-mse MIT · YuNet
+(OpenCV Zoo) MIT. MuseTalk's own detectors (DWPose, S3FD) and face parser
+are not used.
 
 ## Known limits
 
@@ -187,6 +199,11 @@ licence text is printed in every animate log).
   would take minutes; none is free without an account.
 - Clips are 576×1024, upscaled to 1080×1920; motion drifts after ~3 s
   (hence 3 s clips).
-- Lip-sync (SadTalker on a drawn face) moves the mouth clearly but less
-  than paid talking-head tools; the face is rendered at 256 px.
-- Check the mouths by eye: crop the face at 5 fps through the line.
+- Lip-sync: SadTalker on the keyframe only opened and closed the mouth
+  inside her smile (v6, checked at 5 fps, 2026-11-02). MuseTalk shapes the
+  syllables (closed, open with teeth, rounded) in the cartoon's own style,
+  smooth at 25 fps; it redraws a 256-px face crop, enlarged by the
+  animation upscaler and lightly sharpened. Its head motion is the
+  animated clip's own (3 s, played forward and back).
+- Check the mouths by eye: crop the face at 5 fps through the line, and the
+  cheek line at 25 fps (a wavy outline means the oval is too wide).
