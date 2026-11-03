@@ -29,7 +29,7 @@
       "frame": "upper",
       "seed": 93103,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
-      "motion": "she smiles, tilts her head slightly and nods, her hair moves softly, the camera slowly pushes in",
+      "motion": "she smiles, tilts her head slightly and nods, she blinks naturally, her hair moves softly, the camera remains completely still, a fixed steady shot",
       "cast": "master.png"
     },
     {
@@ -39,7 +39,7 @@
       "frame": "upper",
       "seed": 93104,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
-      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her hair moves softly",
+      "motion": "she raises her index finger, nods knowingly and smiles at the camera, she blinks naturally, her hair moves softly, the camera remains completely still, a fixed steady shot",
       "cast": "master.png"
     },
     {
@@ -58,7 +58,7 @@
       "frame": "upper",
       "seed": 93106,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
-      "motion": "she smiles and points at the camera, nodding, her hair moves softly, the camera slowly pushes in",
+      "motion": "she smiles and points at the camera, nodding gently, she blinks naturally, her hair moves softly, the camera remains completely still, a fixed steady shot",
       "cast": "master.png"
     },
     {
