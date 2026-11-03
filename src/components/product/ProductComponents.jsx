@@ -486,7 +486,6 @@ export const ProductModal = memo(function ProductModal({
   onGetDeal,
 }) {
   const { t, categoryLabel } = useI18n();
-  const { addItem, setIsOpen } = useCart();
   const checkout = product?.checkoutUrl || product?.directCheckoutUrl || product?.purchaseUrl || product?.paymentUrl;
   const isDirectCheckout = (() => {
     try {
@@ -578,20 +577,6 @@ export const ProductModal = memo(function ProductModal({
               style={{ background: "var(--accent-subtle)", color: "var(--accent)" }}>
               ✦ {lang === "he" ? "למה עכשיו" : "Why now"} · {trendLabel}
             </div>
-          )}
-
-          {!isDirectCheckout && product?.price > 0 && product?.affiliateUrl && (
-            <button
-              type="button"
-              onClick={() => {
-                addItem(product, marketer);
-                setIsOpen(true);
-              }}
-              className="tap w-full mt-2 py-3 rounded-2xl border text-xs font-bold"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
-            >
-              {lang === "he" ? "שמרי לעגלת LikeLink" : "Save to LikeLink cart"}
-            </button>
           )}
 
           {product.affiliateUrl && (

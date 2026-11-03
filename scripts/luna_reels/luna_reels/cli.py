@@ -8,6 +8,7 @@
     python -m luna_reels trends episodes/                              # which trends fit which episode
     python -m luna_reels check episodes/                               # validate, render nothing
     python -m luna_reels list
+    python -m luna_reels voices episode.json --out voices/            # only the voices + voices.json (cloud studio)
 
 Variants (--variants 3) test what stops the scroll, one change at a time:
     a  main hook · karaoke captions · no music (add a trending sound in the app)
@@ -160,6 +161,22 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
         shutil.rmtree(work, ignore_errors=True)
 
 
+def voices(episode: Episode, out: Path) -> list[dict]:
+    """Only the voice of every beat, spoken the way make() speaks it, and a
+    manifest (voices.json: beat, scene, text, file, seconds). The cloud studio
+    (scripts/media/gpu) lip-syncs each scene to its own line from these files;
+    with LUNA_VOICE_CACHE set, the edit later plays the very same audio."""
+    check_truth(episode, catalog_for(episode))
+    voice_name = episode.voice or EDGE_VOICE
+    clips, _used = synthesize(compose.spoken(episode), "edge", out, eid=episode.id, fallback=False, edge_voice=voice_name)
+    rows = [{"beat": i, "scene": line.scene or "", "say": clip.text, "file": clip.path.name, "seconds": round(clip.seconds, 3)}
+            for i, (line, clip) in enumerate(zip(episode.beats, clips))]
+    (out / "voices.json").write_text(json.dumps({"episode": episode.id, "voice": voice_name, "beats": rows},
+                                                ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"✓ {len(rows)} voices → {out}")
+    return rows
+
+
 def make_variants(episode: Episode, n: int, *, captions: str = "pop", music: str | None = None, **kw) -> list[dict]:
     """One reel as asked (n=1), or up to 3 variants that differ in hook, caption style and music."""
     if n <= 1:
@@ -211,6 +228,9 @@ def main(argv=None) -> int:
     c = sub.add_parser("check", help="validate scripts without rendering")
     c.add_argument("paths", nargs="+")
     sub.add_parser("list", help="list the episodes in episodes/")
+    vo = sub.add_parser("voices", help="only the voice of every beat, with voices.json (for the cloud studio)")
+    vo.add_argument("script")
+    vo.add_argument("--out", required=True)
     a = p.parse_args(argv)
 
     def files(paths):
@@ -227,6 +247,9 @@ def main(argv=None) -> int:
             for f in files(a.paths):
                 check_truth(load_episode(f), catalog)
                 print(f"✓ {f.name}")
+            return 0
+        if a.cmd == "voices":
+            voices(load_episode(a.script), Path(a.out))
             return 0
         if a.cmd == "trends":
             today = trends.fetch()

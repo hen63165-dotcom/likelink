@@ -14,14 +14,94 @@ copy), no key, no paid credit. Nothing is posted: the reel waits on the
 | Stage | What | Where | Time (CPU runner) |
 |---|---|---|---|
 | draw | one picture per shot, FLUX.1 [schnell] GGUF Q4 (Apache-2.0), 576×1024, 4 steps | `scripts/media/studio3d/flux.py` | ~18 min a shot, all shots side by side |
-| animate | each picture → 73 frames (3 s, 24 fps) of real motion at the picture's own 576×1024, LTX-Video 2B 0.9.8 distilled, tiled VAE decode | `animate.py` | ~30–40 min a shot, side by side |
-| reel | the story with `scripts/luna_reels` (look `story`): Hebrew voice (edge Hila), lip-sync on the shots marked `"talk": true` (SadTalker `full-talk`, ~5–7 min a line), hard cuts with a punch-in, the lo-fi bed + a whoosh on every cut, yellow captions, name tag, the seller's real photo (900 px) labelled "תמונת המוכר", AI + ad labels on every frame | `episode.py`, `depth.py` | ~15–25 min |
+| animate | each picture → 73 frames (3 s, 24 fps) of real motion at the picture's own 576×1024, LTX-Video 2B 0.9.8 distilled, tiled VAE decode; then every frame enlarged to 1080×1920 with Real-ESRGAN's animation model (`upscale.py`, also used on the lip-synced shots) | `animate.py` | ~35–45 min a shot, side by side |
+| pick | per shot, the take that is most the same adult presenter: YuNet finds her face, CLIP scores adult vs child, the same face and hair as the `tag` portrait, the shot asked for, no jewellery (`pick.py`, `pick.jsonl`) | `pick.py` | ~5 min |
+| voices | every line spoken once (edge Hila) into a cache, so the lip-sync and the edit play the very same recording (`luna_reels voices`) | workflow | ~1 min |
+| lips | per talking shot (`"talk": true`), on its own runner: MuseTalk 1.5 redraws only her mouth and jaw to the line, frame by frame, over her own animated clip (blinks, nods), cut to the reel's close-up; YuNet finds her face; the redrawn oval follows her mouth's corners and stays off her cheek line (`scripts/media/talking/musetalk.py` → `<shot>.talk.mp4`) | `musetalk.py` | ~12–20 min a line |
+| reel | the story with `scripts/luna_reels` (look `story`): Hebrew voice from the cache, the talking shots from `lips` (SadTalker `full-talk` only for a line `lips` did not make), hard cuts with a punch-in, the lo-fi bed + a whoosh on every cut, yellow captions, name tag, the seller's real photo (900 px) labelled "תמונת המוכר", AI + ad labels on every frame | `episode.py`, `depth.py` | ~15–25 min |
 | commit | pictures + clips → `scripts/media/studio3d/shots/<name>/` (branch tip); reel → `studio3d-preview` | workflow | — |
 
 Workflow: `.github/workflows/studio3d.yml` ("3D studio"). Until it is on
 `main`, a push decides what runs: `scripts/media/studio3d/run.json`
-`{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "animate" | "reel", "from_run": "<run id>"}`.
+`{"jobs": "<name>.json", "only": "shot,shot", "stage": "all" | "pick" | "animate" | "reel" | "none", "from_run": "<run id>"}` (`pick`: choose again from `from_run`'s takes, then animate and edit, without drawing again; `none`: at rest).
 A push waits for the run in progress (never cancels it).
+
+## From the site (the creator's own button)
+
+Studio → "פרסום לרשתות" → under a product: "סרטון אנימציה עם דמות" → she
+picks the presenter and presses once. Her product carries `reelRequest`
+(`src/lib/growth/animatedReels.js` `makeRequest`; an owner-writable field, no
+API change). Every 10 minutes the scheduled "3D studio" run takes the oldest open
+request (`queue.mjs next`: approved, promotable, a kind with a story; a new
+press is a new reel; a failure retries after 3 h, twice at most), runs
+everything below, and records the outcome in the `studio3d` release
+(`queue.mjs record`); `deploy-frontend.yml` serves it to her Studio
+(`media/studio3d/index.json`, also proxied at `/media/studio3d/*`). About two
+hours from the press to the reel on the free runners. A Studio run never
+commits pictures to `main`. Tests: `tests/animatedReels.test.mjs`.
+
+## The cloud studio (GPU, minutes)
+
+The owner, 2026-10-28: a Ravit-level reel in minutes, for any product and
+character. CPU runners cannot do that (about two hours, SadTalker lips), so
+when the repository has the owner's Modal token (secrets `MODAL_TOKEN_ID` and
+`MODAL_TOKEN_SECRET`; she creates them herself in modal.com → Settings → API
+Tokens and adds them in GitHub, never in a chat), a whole new reel goes to the
+`gpu` job instead (`scripts/media/gpu/`):
+
+1. the runner speaks every line once (`python -m luna_reels voices`, Edge
+   Hila) into `LUNA_VOICE_CACHE`, so the edit later plays the very same audio;
+2. `modal run scripts/media/gpu/studio_gpu.py`: a missing picture (the talking
+   object; a presenter without a keyframe) is drawn by the studio's own
+   `flux.py --device cuda`; **every scene says its own line** — the talking
+   object its hook, the presenter every line of hers — with InfiniteTalk
+   (MeiGen-AI, Apache-2.0, on Wan2.1-I2V-14B-480P, Apache-2.0; a step LoRA from
+   `cloudplan.LORAS` when one downloads), each scene on its own GPU side by
+   side, then Real-ESRGAN to 1080×1920 on the GPU;
+3. the reel job edits it as before; `compose.made_talk` plays
+   `<scene>.talk.mp4` when it lasts the line (SadTalker is not installed).
+
+Weights live in the Modal volume `likelink-studio-weights` (downloaded once).
+A month's GPU time is held to `cloudplan.MONTH_HOURS` (6 h ≈ $24 of H100,
+under the Starter plan's $30 free credit; repository variable
+`STUDIO_GPU_MONTH_HOURS` lowers it), counted in the Modal dict
+`likelink-studio-budget`; past it, or when the cloud job fails, the free
+studio below makes the reel. In `run.json`, `"engine": "cpu"` forces the
+free path. autoplan `--engine gpu` marks every scene `talk` with its
+`talkPrompt` (`TALK_ACTIONS`). Tests: `CloudStudio` in
+`scripts/luna_reels/tests/test_engine.py`. The first real run needs the
+owner's token; until then nothing of it has run, and nothing says it has.
+
+## The same woman in every reel: her keyframe
+
+Drawing every shot of her anew gives another face, hair and age per shot,
+even with three takes to choose from (2026-10-28, v5: one shot with auburn
+hair and a narrower face; SFace scored every cartoon face 0.67–0.77 against
+her portrait, the child included, so no measure can choose for us). A series
+presenter is one picture, checked once:
+
+1. `python scripts/media/studio3d/autoplan.py --masters` → `jobs/cast-masters.json`
+   (4 waist-up candidates per presenter, facing the camera, her top only);
+   `run.json` → `{"jobs": "cast-masters.json", "stage": "all"}`, push. The
+   candidates are committed to `shots/cast-masters/`.
+2. Look at them side by side with her portrait: an adult, the cast's hair and
+   eyes, plain clothes, hands natural, nothing that could pass for jewellery,
+   her face large and sharp. Copy the chosen one to
+   `scripts/media/studio3d/cast/<id>/master.png` and write `master.json`:
+   `{"face": [x0, y0, x1, y1]}` — her head with its hair, as fractions (the
+   name tag's round picture and the talking close-ups are cut from it).
+3. From then on autoplan marks every shot of her `"cast": "master.png"`: it is
+   never drawn again, `castframes.py` copies the keyframe in, and each shot
+   moves from it (her own motion line; the talking lines are lip-synced on
+   close-ups cut around her head, each a little closer or wider). Only the
+   talking object is drawn per reel. Delete the unchosen candidates before
+   a merge.
+
+A presenter who reads young needs a later round: `--masters --only noa
+--round 3 --per 6` names a grown woman's features right after the framing
+and draws her hoodie fitted (Noa's rounds 1–2 read as a girl in every
+candidate: a messy bun, an oversized hoodie and the cartoon style together
+draw a child). All five presenters have a keyframe (Noa: round 3, 2026-11-02).
 
 ## One product in, one reel out (the fast path)
 
@@ -39,7 +119,13 @@ commit, push. The plan job runs `autoplan.py`, which writes
   her "wow", the call to action (`talk`), plus `tag`, a head-and-shoulders
   portrait that is never animated (`"still": true`) and is cut for the name tag;
 - the presenter's look from `scripts/media/ai-image/cast.json` (one product
-  per character, as in the stories);
+  per character, as in the stories), said as an adult in her late twenties,
+  with one unambiguous hair colour (`HAIR_EXACT`: pilot v4 drew "auburn"
+  brown in one shot and orange in another, and a "both hands on her cheeks"
+  shot as a little girl);
+- the talking shots are close-ups from the chest up (a large face moves its
+  lips clearly and sharply); every shot is drawn in three takes (`takes`)
+  and `pick.py` keeps the same woman;
 - `check_plan`: hook ≤ 8 words, the master's story length (20–45 s by
   `tests/viralMaster.test.mjs`' estimate), every scene a shot, no prompt that
   names jewellery; then the reel engine's truth check.
@@ -101,7 +187,11 @@ FLUX.1 [schnell] Apache-2.0 · CLIP-L MIT · T5-XXL Apache-2.0 · FLUX VAE
 Apache-2.0 (via an open repackage) · Depth Anything V2 Small Apache-2.0 ·
 LTX-Video 2B 0.9.8 distilled: LTXV Open Weights License — free, commercial
 use included, for a business under $10M annual revenue (the repository's
-licence text is printed in every animate log).
+licence text is printed in every animate log) · MuseTalk 1.5: code MIT, "the
+trained models are available for any purpose, even commercially" (its
+README, checked 2026-11-02) · Whisper-tiny MIT · SD VAE ft-mse MIT · YuNet
+(OpenCV Zoo) MIT. MuseTalk's own detectors (DWPose, S3FD) and face parser
+are not used.
 
 ## Known limits
 
@@ -109,6 +199,21 @@ licence text is printed in every animate log).
   would take minutes; none is free without an account.
 - Clips are 576×1024, upscaled to 1080×1920; motion drifts after ~3 s
   (hence 3 s clips).
-- Lip-sync (SadTalker on a drawn face) moves the mouth clearly but less
-  than paid talking-head tools; the face is rendered at 256 px.
-- Check the mouths by eye: crop the face at 5 fps through the line.
+- Lip-sync: SadTalker on the keyframe only opened and closed the mouth
+  inside her smile (v6, checked at 5 fps, 2026-11-02). MuseTalk shapes the
+  syllables (closed, open with teeth, rounded) in the cartoon's own style,
+  smooth at 25 fps; it redraws a 256-px face crop, enlarged by the
+  animation upscaler and lightly sharpened. Its head motion is the
+  animated clip's own (3 s, played forward and back).
+- Talking shots ask LTX for a still camera and open eyes (`STEADY`, `EYES`
+  in autoplan), yet from a waist-up keyframe it still zooms in within
+  1.1-1.5 s whatever the prompt (v10: her face 1.5-1.75x). So the lip-sync
+  plays only a clip's steady opening, forward and back (`steady_frames`), and
+  a line whose own clip is too short or squints there (`eye_score` < 90% of
+  the best talking clip's) says it over her best talking clip, in its own
+  framing, starting halfway in (`pick_base`; the log says `borrowed`). v11
+  (2026-11-03): hero and tip their own, cta over tip's.
+- Check the mouths by eye: crop the face at 5 fps through the line, and the
+  cheek line at 25 fps (a wavy outline means the oval is too wide). Check
+  the eyes through each talking line too: a squint for a whole line is
+  another face than her keyframe.

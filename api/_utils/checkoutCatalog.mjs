@@ -11,6 +11,12 @@ export const MAX_LINES = 20;
 
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
+/** Sold through a store link (an affiliate product), not by LikeLink itself. */
+export function isAffiliateProduct(p) {
+  const type = String(p?.commerceType || p?.commerce_type || "").trim().toLowerCase();
+  return type === "affiliate" || Boolean(String(p?.affiliateUrl || "").trim());
+}
+
 /**
  * @param {Array<{productId:string, quantity?:number}>} items  client cart
  * @param {Array<object>} products                              stored catalog
@@ -34,6 +40,9 @@ export function priceCart(items, products) {
     const p = catalog.get(productId);
     if (!p) return { ok: false, error: "product_not_found", productId };
     if (p.status !== "approved") return { ok: false, error: "product_not_available", productId };
+    // An affiliate product is sold and shipped by its own store: its price is
+    // the store's, and LikeLink never takes the payment for it (nobody here ships it).
+    if (isAffiliateProduct(p)) return { ok: false, error: "affiliate_checkout_external", productId };
     const unitPrice = round2(p.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) return { ok: false, error: "product_not_available", productId };
     const currency = String(p.currency || CHECKOUT_CURRENCY).toUpperCase();

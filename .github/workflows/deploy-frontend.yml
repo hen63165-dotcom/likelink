@@ -9,7 +9,7 @@ on:
     branches: [main]
   # New reels (luna-reels and reels releases) and synced store prices reach the site right away.
   workflow_run:
-    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Creative engine", "Add trend products", "Studio videos", "TikTok results"]
+    workflows: ["Luna reels", "Catalog sync", "Product video reels", "Creative engine", "Add trend products", "Studio videos", "3D studio", "TikTok results"]
     types: [completed]
   # Every morning (06:40 Israel summer time): a fresh daily drop with today's trends.
   schedule:
@@ -94,6 +94,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/media/product-video/studio-videos.mjs feed dist || echo "::warning::studio videos skipped"
+
+      - name: The creators' animated character reels (studio3d release → media/studio3d)
+        # Each READY reel a creator asked for with "סרטון אנימציה עם דמות"
+        # (studio3d.yml, scripts/media/studio3d/queue.mjs), with its caption,
+        # for her Studio only. A failure here never blocks the site.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/media/studio3d/queue.mjs feed dist || echo "::warning::animated reels skipped"
 
       - name: The Creative Engine's job ledger (ops/creative → media/creative/jobs.json)
         # The Studio's Creative Engine screen reads each product's pipeline from

@@ -70,6 +70,7 @@ def main():
     ap.add_argument("--width", type=int, default=576)
     ap.add_argument("--height", type=int, default=1024)
     ap.add_argument("--frames", type=int, default=73, help="8k+1 frames at 24 fps (73 = 3 s)")
+    ap.add_argument("--no-upscale", action="store_true", help="keep the clip at the model's own size")
     a = ap.parse_args()
     spec = json.load(open(a.jobs, encoding="utf-8"))
     shot = next((s for s in spec["shots"] if s["id"] == a.only), None)
@@ -143,6 +144,13 @@ def main():
     path = os.path.join(a.pictures, f"{shot['id']}.mp4")
     export_to_video(frames, path, fps=24, quality=9)  # the default quality left ~600 kb/s
     note(id=shot["id"], kind="clip", frames=len(frames), s=round(time.time() - t), bytes=os.path.getsize(path))
+    if not a.no_upscale:  # sharp at the reel's 1080×1920 (upscale.py: Real-ESRGAN's animation model)
+        del pipe, transformer, vae
+        gc.collect()
+        import upscale
+        t = time.time()
+        done = upscale.video(path)
+        note(id=shot["id"], kind="upscale", done=done, s=round(time.time() - t), bytes=os.path.getsize(path))
     return 0
 
 

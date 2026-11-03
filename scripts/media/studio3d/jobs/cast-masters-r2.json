@@ -1,0 +1,34 @@
+{
+  "series": "cast-masters",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "shots": [
+    {
+      "id": "noa-r2m0",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91702,
+      "prompt": "medium close-up from the chest up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her shoulders relaxed"
+    },
+    {
+      "id": "noa-r2m1",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91715,
+      "prompt": "medium close-up from the chest up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit"
+    },
+    {
+      "id": "noa-r2m2",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91728,
+      "prompt": "medium close-up from the chest up, she stands in a bright cozy bedroom and faces the camera, a warm friendly smile, her face large, clear and well lit, her shoulders relaxed"
+    },
+    {
+      "id": "noa-r2m3",
+      "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+      "still": true,
+      "seed": 91741,
+      "prompt": "medium close-up from the chest up, she stands by the window of a bright cozy bedroom facing the camera, a natural warm smile, her face large, clear and well lit"
+    }
+  ]
+}

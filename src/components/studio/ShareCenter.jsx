@@ -9,7 +9,7 @@
  * returns an id. The clicks that come back show in "ביצועים וקליקים".
  */
 import React, { useEffect, useMemo, useState } from "react";
-import { Megaphone, Copy, Check, ExternalLink, Film, Store, CircleAlert } from "lucide-react";
+import { Megaphone, Copy, Check, ExternalLink, Film, Store, CircleAlert, Sparkles, Loader2 } from "lucide-react";
 import { useI18n } from "../../lib/LangContext";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Button } from "../ui/index.jsx";
@@ -19,6 +19,8 @@ import { safePreviewSrc } from "../../lib/uploadImage.js";
 import { DEFAULT_PRODUCT_IMAGE } from "../../utils/helpers.js";
 import { feedEntries, bestFeedReels, productShareKit, storeShareKit, todaysPick } from "../../lib/growth/shareCenter.js";
 import { loadStudioVideos, studioVideoState, studioVideosUrls } from "../../lib/growth/studioVideos.js";
+import { PRESENTERS, animatedState, animatedUrls, loadAnimated, makeRequest, requestOf } from "../../lib/growth/animatedReels.js";
+import { toHebrewError } from "../../lib/errorMessages.js";
 import { BASE } from "../../lib/basePath.js";
 
 const BRAND = {
@@ -127,7 +129,105 @@ function StudioVideo({ product, entry, showToast }) {
   );
 }
 
-function ProductCard({ product, kit, marketerId, showToast, highlight = false, studioVideo = null }) {
+/**
+ * The animated character reel (the 3D studio, from a button): she picks a
+ * presenter and presses once; her product carries the request, the cloud
+ * makes the reel within about two hours and it appears here. Labelled AI on
+ * every frame; the product only in the seller's real photo; nothing posts.
+ */
+function AnimatedReel({ product, entry, onRequest, showToast }) {
+  const line = animatedState(product, entry);
+  const req = requestOf(product);
+  const [presenter, setPresenter] = useState(req?.presenter || entry?.presenter || PRESENTERS[0].id);
+  const [sending, setSending] = useState(false);
+  if (line.state === "unsupported") return null;
+  const ready = line.state === "ready";
+  const queued = line.state === "queued";
+  const ask = async () => {
+    setSending(true);
+    try {
+      await onRequest(product, presenter);
+      showToast?.("הבקשה נשלחה. הסרטון נוצר בענן ויופיע כאן, בדרך כלל תוך כשעתיים");
+    } catch (e) {
+      showToast?.(toHebrewError(e?.message, "הבקשה לא נשמרה. נסי שוב"));
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }}>
+      <p className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--text)" }}>
+        <Sparkles size={13} /> סרטון אנימציה עם דמות
+      </p>
+      <p className="mt-1 text-[11.5px] leading-5" style={{ color: "var(--text-secondary)" }}>{line.he}</p>
+      {ready ? (
+        <>
+          <video
+            className="mt-2 w-full max-w-[16rem] rounded-xl"
+            style={{ aspectRatio: "9 / 16", background: "#000" }}
+            src={entry.video}
+            poster={entry.poster || undefined}
+            controls
+            playsInline
+            preload="metadata"
+          />
+          <p className="mt-1.5 text-[10.5px]" style={{ color: "var(--text-muted)" }}>
+            דמות וקול AI, תמונת המוצר מהמוכר · על כל פריים כתוב #פרסומת · קישור שותפים ו"דמות וקול AI".
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[11.5px]">
+            <a href={entry.video} target="_blank" rel="noopener noreferrer" className="ll-tap inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-bold" style={{ background: "var(--accent)", color: "#fff" }}>
+              פתיחת הסרטון לשמירה <ExternalLink size={11} />
+            </a>
+            <button
+              type="button"
+              className="ll-tap inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-semibold"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+              onClick={async () => showToast?.((await copyText(entry.caption)) ? "הכיתוב הועתק. הדביקי אותו בפוסט" : "ההעתקה נחסמה. הכיתוב מופיע מתחת לסרטון")}
+            >
+              <Copy size={11} /> העתקת הכיתוב
+            </button>
+          </div>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>הכיתוב המלא</summary>
+            <p className="mt-1.5 whitespace-pre-line text-[11px] leading-5" style={{ color: "var(--text-secondary)" }}>{entry.caption}</p>
+          </details>
+        </>
+      ) : null}
+      {queued ? null : (
+        <div className="mt-2">
+          <p className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>מי מציגה?</p>
+          <div className="mt-1 flex flex-wrap gap-1.5" role="radiogroup" aria-label="מי מציגה">
+            {PRESENTERS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={presenter === p.id}
+                onClick={() => setPresenter(p.id)}
+                className="ll-tap rounded-full px-3 py-1 text-[11.5px] font-semibold"
+                style={{ background: presenter === p.id ? "var(--accent)" : "var(--bg)", color: presenter === p.id ? "#fff" : "var(--text)", border: "1px solid var(--border)" }}
+              >
+                {p.he}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={sending}
+            onClick={ask}
+            className="ll-tap mt-2 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-bold"
+            style={{ background: "var(--accent)", color: "#fff", opacity: sending ? 0.7 : 1 }}
+          >
+            {sending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            {ready ? "יצירת סרטון חדש" : "יצירת סרטון אנימציה"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductCard({ product, kit, marketerId, showToast, highlight = false, studioVideo = null, animated = null, onAnimatedRequest = null }) {
   const [copied, setCopied] = useState({});
   const [marks, setMarks] = useState(() => Object.fromEntries(kit.actions.map((a) => [a.id, readMark(markKey(marketerId, product.id, a.id))])));
   const thumb = lookOf(product.id)?.src || product.image || "";
@@ -160,6 +260,7 @@ function ProductCard({ product, kit, marketerId, showToast, highlight = false, s
       </div>
 
       {kit.video ? null : <StudioVideo product={product} entry={studioVideo} showToast={showToast} />}
+      {onAnimatedRequest ? <AnimatedReel product={product} entry={animated} onRequest={onAnimatedRequest} showToast={showToast} /> : null}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {kit.actions.map((a) => (
@@ -207,14 +308,16 @@ function ProductCard({ product, kit, marketerId, showToast, highlight = false, s
 export default function ShareCenter({ onNavigate }) {
   const { lang } = useI18n();
   const he = lang === "he";
-  const { currentMarketer: marketer, products, showToast } = useMarketplace();
+  const { currentMarketer: marketer, products, showToast, persistProducts } = useMarketplace();
   const [entries, setEntries] = useState([]);
   const [studioVideos, setStudioVideos] = useState(() => new Map());
+  const [animated, setAnimated] = useState(() => new Map());
 
   useEffect(() => {
     let alive = true;
     loadReelsFeed().then((videos) => { if (alive) setEntries(feedEntries(videos)); }).catch(() => {});
     loadStudioVideos(fetch, studioVideosUrls(BASE)).then((map) => { if (alive) setStudioVideos(map); }).catch(() => {});
+    loadAnimated(fetch, animatedUrls(BASE)).then((map) => { if (alive) setAnimated(map); }).catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -224,6 +327,12 @@ export default function ShareCenter({ onNavigate }) {
   const ordered = useMemo(() => (pick ? [pick.product, ...mine.filter((p) => p.id !== pick.product.id)] : mine), [mine, pick]);
   const store = useMemo(() => storeShareKit({ marketer }), [marketer]);
   const [storeCopied, setStoreCopied] = useState({});
+  // Her own product carries the request (an owner-writable field); the hourly cloud run makes the reel.
+  const requestAnimated = async (product, presenter) => {
+    if (typeof persistProducts !== "function") throw new Error("cloud_unavailable");
+    const reelRequest = makeRequest(presenter);
+    await persistProducts((list) => list.map((p) => (p.id === product.id && p.marketerId === marketer?.id ? { ...p, reelRequest } : p)));
+  };
 
   if (!marketer) {
     return (
@@ -290,7 +399,15 @@ export default function ShareCenter({ onNavigate }) {
         ordered.map((p) => {
           const kit = productShareKit({ product: p, reel: best.get(p.id) || null, image: p.image });
           const own = studioVideos.get(p.id);
-          return kit ? <ProductCard key={p.id} product={p} kit={kit} marketerId={marketer.id} showToast={showToast} highlight={pick?.product?.id === p.id} studioVideo={own && own.marketerId === marketer.id ? own : null} /> : null;
+          const anim = animated.get(p.id);
+          return kit ? (
+            <ProductCard
+              key={p.id} product={p} kit={kit} marketerId={marketer.id} showToast={showToast} highlight={pick?.product?.id === p.id}
+              studioVideo={own && own.marketerId === marketer.id ? own : null}
+              animated={anim && anim.marketerId === marketer.id ? anim : null}
+              onAnimatedRequest={requestAnimated}
+            />
+          ) : null;
         })
       )}
 

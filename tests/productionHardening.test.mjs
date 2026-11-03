@@ -196,6 +196,13 @@ test("checkoutCatalog: prices come from the catalog; the capture must match the 
   assert.equal(priceCart([{ productId: "nope" }], catalog).error, "product_not_found");
   assert.equal(priceCart([{ productId: "p3" }], catalog).error, "currency_unsupported");
   assert.equal(priceCart([{ productId: "p1", quantity: 11 }], catalog).error, "invalid_quantity");
+  const store = [
+    { id: "a1", marketerId: "m1", title: "Ring", price: 19, status: "approved", affiliateUrl: "https://s.click.aliexpress.com/e/_x" },
+    { id: "a2", marketerId: "m1", title: "Typed", price: 19, status: "approved", commerceType: "affiliate" },
+  ];
+  assert.equal(priceCart([{ productId: "a1" }], store).error, "affiliate_checkout_external", "LikeLink never takes the payment for a store's product");
+  assert.equal(priceCart([{ productId: "a2" }], store).error, "affiliate_checkout_external");
+  assert.equal(priceCart([{ productId: "p1" }, { productId: "a1" }], [...catalog, ...store]).error, "affiliate_checkout_external", "one store product refuses the whole cart");
   const record = { total: 240, currency: "ILS", checkoutId: "co_1" };
   const capture = (value, currency = "ILS", custom_id = "co_1") => ({ purchase_units: [{ payments: { captures: [{ amount: { value, currency_code: currency }, custom_id }] } }] });
   assert.equal(captureMatchesOrder(capture("240.00"), record), true);
