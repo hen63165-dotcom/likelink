@@ -1,5 +1,5 @@
 {"source": "t5", "used": "city96/t5-v1_1-xxl-encoder-bf16", "path": null}
-{"stage": "encoded", "shots": 1, "s": 200}
+{"stage": "encoded", "shots": 1, "s": 102}
 {"source": "vae", "used": "Comfy-Org/Lumina_Image_2.0_Repackaged", "path": "split_files/vae/ae.safetensors"}
-{"stage": "loaded", "s": 266}
-{"id": "hook", "take": 2, "seed": 106939, "s": 1091, "bytes": 606401}
+{"stage": "loaded", "s": 146}
+{"id": "hook", "take": 2, "seed": 106939, "s": 973, "bytes": 557065}
