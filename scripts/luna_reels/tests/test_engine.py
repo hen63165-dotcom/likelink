@@ -4,6 +4,7 @@ Run from scripts/luna_reels:  python -m unittest discover -s tests -v
 """
 import datetime as dt
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -533,6 +534,35 @@ class AutoPlan(unittest.TestCase):
         short["episode"]["lines"] = short["episode"]["lines"][:2]
         with self.assertRaises(SystemExit):
             self.ap.check_plan(short)
+
+    def test_the_sites_own_stories_say_only_what_is_live_and_promise_nothing(self):
+        # The owner, 2026-11-03: reels that make buyers and creators understand
+        # what LikeLink2 gives. No product, no ad tag, no income or crowd claims.
+        promise = re.compile(r"הכנסה|להרוויח|תרוויחי|רווח|כסף קל|משתמשות|משתמשים|אלפי|מקומות אחרונים|רק היום|מובטח|הכי")
+        self.assertEqual(set(self.ap.BRAND_STORIES), {"creators", "buyers"})
+        for story, st in self.ap.BRAND_STORIES.items():
+            for engine in ("cpu", "gpu"):
+                for member in self.cast:
+                    spec = self.ap.plan_brand(story, member, engine=engine)
+                    self.ap.check_plan(spec)
+                    ep = parse_episode({**spec["episode"], "look": "story", "studio": f"brand-{story}-{member['id']}"})
+                    check_truth(ep, {})
+                    self.assertIsNone(ep.product)  # no product scene, so no ad tag on the frames
+                    self.assertTrue(20 <= self.ap.estimate_seconds(spec["episode"]) <= 45)
+                    self.assertTrue(re.fullmatch(r"[a-z0-9][a-z0-9-]{1,48}", ep.id))
+                    self.assertEqual(spec["product"], f"brand-{story}")
+                    self.assertTrue(re.fullmatch(r"[a-z0-9-]{2,30}", spec["product"]))  # the workflow's product input
+            words = " ".join(" ".join(v) if isinstance(v, tuple) else str(v) for v in st.values())
+            self.assertIsNone(promise.search(words), story)
+            self.assertIn(st["link"], ("/", "/join"))
+            self.assertIn("בתגובה הראשונה", st["card"]["sub"])  # the posting task puts the link there
+        meta = metadata.build(parse_episode({**self.ap.plan_brand("creators", self.cast[0])["episode"], "look": "story"}),
+                              product=None, voice_engine="edge", visual="scenes", seconds=22)
+        self.assertNotIn(brand.AD_TAG, meta["caption"])
+        self.assertNotIn("רוצה", meta["caption"])  # no DM promise: the link is in the first comment
+        self.assertIn("פתיחת סטודיו בחינם", meta["caption"])
+        with self.assertRaises(SystemExit):
+            self.ap.plan_brand("investors", self.cast[0])
 
 
 class CloudStudio(unittest.TestCase):
