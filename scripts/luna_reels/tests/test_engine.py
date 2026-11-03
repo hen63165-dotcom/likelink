@@ -502,7 +502,9 @@ class AutoPlan(unittest.TestCase):
             self.assertEqual([s["id"] for s in talking], ["hero", "tip", "cta"])
             for s in talking:
                 self.assertIn(self.ap.STEADY, s["motion"])
+                self.assertIn(self.ap.EYES, s["motion"])
                 self.assertNotIn("pushes in", s["motion"])
+                self.assertNotIn("points at", s["motion"], "a pointing hand came out as a squint and no hand")
 
     def test_with_her_checked_keyframe_no_shot_of_her_is_drawn_again(self):
         sys.path.insert(0, str(HERE.parent / "media" / "studio3d"))

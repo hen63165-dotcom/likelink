@@ -70,6 +70,10 @@ HOOK_WORDS = 8
 # 3 s (v8, 2026-11-02), so the talking close-up lost her forehead and her
 # cheek line warped. Ravit's talking shots are steady; only she moves.
 STEADY = "the camera remains completely still, a fixed steady shot"
+# Her eyes stay her own: "smiles and points at the camera" came out as a
+# half-closed squint for the whole line (v9 cta, 2026-11-03), another face
+# than her bright keyframe; the pointing hand never appeared.
+EYES = "her eyes stay bright and wide open, she blinks naturally now and then"
 
 TALK_ACTIONS = {
     "hook": "the cartoon {name} mascot talks to the camera with its little mouth, blinking its big glossy eyes, bored and sad",
@@ -253,16 +257,16 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
          "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"},
         {"id": "hero", "character": True, "talk": True, "frame": "upper", "seed": seed + 3,
          "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
-         "motion": f"she smiles, tilts her head slightly and nods, she blinks naturally, her hair moves softly, {STEADY}"},
+         "motion": f"she smiles, tilts her head slightly and nods, {EYES}, her hair moves softly, {STEADY}"},
         {"id": "tip", "character": True, "talk": True, "frame": "upper", "seed": seed + 4,
          "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
-         "motion": f"she raises her index finger, nods knowingly and smiles at the camera, she blinks naturally, her hair moves softly, {STEADY}"},
+         "motion": f"she raises her index finger, nods knowingly and smiles at the camera, {EYES}, her hair moves softly, {STEADY}"},
         {"id": "wow", "character": True, "frame": "upper", "seed": seed + 5,
          "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
          "motion": "her face lights up with a delighted smile, eyebrows rise, she laughs softly, her hair moves"},
         {"id": "cta", "character": True, "talk": True, "frame": "upper", "seed": seed + 6,
          "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
-         "motion": f"she smiles and points at the camera, nodding gently, she blinks naturally, her hair moves softly, {STEADY}"},
+         "motion": f"she looks straight at the camera with a warm inviting smile and a small friendly nod, {EYES}, her hair moves softly, {STEADY}"},
         {"id": "tag", "character": True, "still": True, "frame": "upper", "seed": seed + 7,
          "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background"},
     ]
