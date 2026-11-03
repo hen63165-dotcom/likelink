@@ -176,7 +176,7 @@ BRAND_STORIES = {
     "buyers": {
         "goal": "trust",
         "link": "/",
-        "object": ("brown cardboard delivery box", "sitting on a doormat by the front door", "box"),
+        "object": ("plain blank brown cardboard box without any printing", "sitting on a doormat by the front door", "box"),
         "hook": ("החבילה הזאת ממש מאוכזבת.", "החבילה... מאוכזבת"),
         "problem": ("קונים מתמונה יפה, ומה שמגיע לא תמיד נראה אותו דבר.", "קונים מתמונה... ומופתעים"),
         "trick": ("טריק קטן: לראות את המוצר בסרטון לפני שקונים.", "טריק קטן: לראות בסרטון קודם"),

@@ -47,7 +47,9 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
     truth = brand.truth_label(character, voice_engine not in ("none", "file"))
     if truth:
         lines.append(f"🎬 {truth}")
-    tags = list(dict.fromkeys([*episode.hashtags, *BASE_TAGS.get(episode.goal, [])]))[:8]
+    # The series tag names who tells the story: a cast member's reel is "#<her name>ממליצה", never Luna's.
+    base = [f"#{_presenter_name(episode)}ממליצה" if t == "#לונהממליצה" else t for t in BASE_TAGS.get(episode.goal, [])]
+    tags = list(dict.fromkeys([*episode.hashtags, *base]))[:8]
     lines.append(" ".join(tags))
     caption = "\n".join(lines)
     return {

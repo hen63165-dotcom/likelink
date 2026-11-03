@@ -561,6 +561,14 @@ class AutoPlan(unittest.TestCase):
         self.assertNotIn(brand.AD_TAG, meta["caption"])
         self.assertNotIn("רוצה", meta["caption"])  # no DM promise: the link is in the first comment
         self.assertIn("פתיחת סטודיו בחינם", meta["caption"])
+        # 2026-11-03: the buyers reel told by Noa carried "#לונהממליצה"; the series tag names who tells it.
+        noa = next(m for m in self.cast if m["id"] == "noa")
+        buyers = metadata.build(parse_episode({**self.ap.plan_brand("buyers", noa)["episode"], "look": "story"}),
+                                product=None, voice_engine="edge", visual="scenes", seconds=22)
+        self.assertIn(f"#{noa['name']}ממליצה", buyers["caption"])
+        self.assertNotIn("#לונהממליצה", buyers["caption"])
+        # ...and its box had made-up letters printed on it: the talking object is described as unprinted.
+        self.assertIn("without any printing", self.ap.BRAND_STORIES["buyers"]["object"][0])
         with self.assertRaises(SystemExit):
             self.ap.plan_brand("investors", self.cast[0])
 
