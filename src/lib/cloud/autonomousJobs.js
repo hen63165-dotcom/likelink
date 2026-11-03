@@ -759,7 +759,24 @@ registerJob("affiliate-product-rotation", {
   },
 });
 
+// Real orders and commission from the owner's AliExpress affiliate account
+// (aliexpress.affiliate.order.list) into the server-only affiliate:earnings:
+// paid, confirmed and settled kept apart, an estimate never shown as income
+// (src/lib/growth/earnings.js). The owner, 2026-11-03: "חבר נתוני רכישות ועמלות".
+registerJob("affiliate-earnings", {
+  description: "Read the owner's real AliExpress affiliate orders and commission (paid / confirmed / settled apart)",
+  intervalMs: 12 * 60 * 60 * 1000,
+  maxDurationMs: 45000,
+  async fn({ kvGet, kvSet, now }) {
+    const { syncAffiliateEarnings } = await import("../../../api/_utils/aliexpressAffiliate.mjs");
+    const env = typeof process !== "undefined" ? process.env : {};
+    const r = await syncAffiliateEarnings({ kvGet, kvSet, env, now: Number(now) || Date.now() });
+    return { cycle: "affiliate-earnings", timestamp: now, ...r };
+  },
+});
+
 export const AUTONOMOUS_JOBS = [
+  "affiliate-earnings",
   "autonomous-growth-cycle",
   "daily-trend-scan",
   "site-campaign-cycle",

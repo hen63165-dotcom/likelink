@@ -396,3 +396,45 @@ export async function dailyAffiliateImport({ kvGet, kvSet, env = {}, fetchImpl, 
     return { ok: false, outcome: "FAILED", error: String(e?.message || e).slice(0, 160) };
   }
 }
+
+/**
+ * The owner's real orders and commission (aliexpress.affiliate.order.list),
+ * summarised into the server-only key affiliate:earnings for her report
+ * (src/lib/growth/earnings.js). Paid and confirmed orders are read
+ * separately, over the last `days` in Pacific time (the API's own window).
+ * A refused call is recorded with its reason; nothing is guessed. Only with the
+ * owner's credentials; at most every 12 hours.
+ */
+export async function syncAffiliateEarnings({ kvGet, kvSet, env = {}, fetchImpl, now = Date.now(), days = 30, maxPages = 5 }) {
+  const { ORDER_STATUSES, ORDER_FIELDS, EARNINGS_KEY, pacificTime, ordersOf, summarizeOrders } = await import("../../src/lib/growth/earnings.js");
+  if (!aeStatus(env).configured) return { ok: true, outcome: "REQUIRES_CONNECTION" };
+  const last = await kvGet(EARNINGS_KEY, null);
+  if (last?.checkedAt && now - Date.parse(last.checkedAt) < 11 * 3_600_000) return { ok: true, outcome: "NOT_DUE", last: last.checkedAt };
+  const window = { start_time: pacificTime(now - days * 86_400_000), end_time: pacificTime(now) };
+  const lists = { paid: [], confirmed: [] };
+  const errors = [];
+  for (const [name, status] of [["paid", ORDER_STATUSES.PAID], ["confirmed", ORDER_STATUSES.CONFIRMED]]) {
+    for (let page = 1; page <= maxPages; page += 1) {
+      try {
+        const json = await aeCall("aliexpress.affiliate.order.list", {
+          ...window, status, page_no: String(page), page_size: "50", fields: ORDER_FIELDS.join(","),
+        }, { env, fetchImpl, now });
+        const r = ordersOf(json);
+        if (r.error) { errors.push(`${name}:${r.error}`); break; }
+        lists[name].push(...r.orders);
+        if (page >= r.pages || r.orders.length < 50) break;
+      } catch (e) {
+        errors.push(`${name}:${String(e?.message || e).slice(0, 100)}`);
+        break;
+      }
+    }
+  }
+  const failed = errors.length === 2 && !lists.paid.length && !lists.confirmed.length;
+  const record = {
+    checkedAt: new Date(now).toISOString(), windowDays: days, window,
+    state: failed ? "PROVIDER_ERROR" : "OK", errors,
+    ...summarizeOrders(lists),
+  };
+  await kvSet(EARNINGS_KEY, record);
+  return { ok: !failed, outcome: record.state, paid: record.paid.orders, confirmed: record.confirmed.orders, errors };
+}

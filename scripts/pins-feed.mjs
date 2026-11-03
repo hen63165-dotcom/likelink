@@ -121,10 +121,12 @@ export function pinsRss(pins, { feedBase = PINS_FEED_HOME, now = new Date() } = 
   ].join("\n");
 }
 
-export function writePinsFeed({ dist = "dist", feedBase = PINS_FEED_HOME, now = new Date() } = {}) {
+// `catalog`: the catalog doc to pin (the CLI passes the copy merged with the
+// live cloud, scripts/catalog/live-catalog.mjs); without it, the copy in dist.
+export function writePinsFeed({ dist = "dist", feedBase = PINS_FEED_HOME, now = new Date(), catalog = null } = {}) {
   const snapshot = join(dist, "snapshot", "kv.json");
-  if (!existsSync(snapshot)) return { pins: 0, reason: "no catalog copy in dist" };
-  const { products } = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8")));
+  if (!catalog && !existsSync(snapshot)) return { pins: 0, reason: "no catalog copy in dist" };
+  const { products } = listedFromSnapshot(catalog || JSON.parse(readFileSync(snapshot, "utf8")));
   const reelsIndex = join(dist, "media", "reels", "index.json");
   const reels = existsSync(reelsIndex) ? JSON.parse(readFileSync(reelsIndex, "utf8")).reels || [] : [];
   const pins = buildPins({ products, reels, feedBase });
@@ -133,6 +135,16 @@ export function writePinsFeed({ dist = "dist", feedBase = PINS_FEED_HOME, now = 
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const r = writePinsFeed({ dist: process.argv[2] || "dist" });
-  console.log(r.reason ? `pins-feed: ${r.reason}` : `pins-feed: ${r.pins} pin(s) in pins.xml`);
+  const dist = process.argv[2] || "dist";
+  // Pins for every product the live cloud lists, not only the copy's (PINS_LIVE=0: the copy alone).
+  let catalog = null, note = "copy only";
+  const snapshot = join(dist, "snapshot", "kv.json");
+  if (process.env.PINS_LIVE !== "0" && existsSync(snapshot)) {
+    const { buildCatalog } = await import("./catalog/live-catalog.mjs");
+    const built = await buildCatalog(JSON.parse(readFileSync(snapshot, "utf8")));
+    catalog = built.doc;
+    note = built.live === "ok" ? `copy + ${built.added} live products` : `copy only (live catalog: ${built.live})`;
+  }
+  const r = writePinsFeed({ dist, catalog });
+  console.log(r.reason ? `pins-feed: ${r.reason}` : `pins-feed: ${r.pins} pin(s) in pins.xml (${note})`);
 }

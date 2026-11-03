@@ -1,0 +1,140 @@
+{
+  "series": "noa-recommends",
+  "product": "brand-buyers",
+  "presenter": "noa",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "character": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie and long jogger pants",
+  "characterTop": "Noa, a woman in her late twenties with an adult face and adult proportions, ash brown messy bun, green eyes, wearing a plain sage green oversized hoodie",
+  "takes": 3,
+  "shots": [
+    {
+      "id": "hook",
+      "seed": 91101,
+      "prompt": "a cute anthropomorphic plain blank brown cardboard box without any printing mascot sitting on a doormat by the front door, the box itself has two big glossy cartoon eyes and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light",
+      "motion": "the box mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"
+    },
+    {
+      "id": "problem",
+      "character": true,
+      "seed": 91102,
+      "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
+      "motion": "she tilts her head with a puzzled 'something is missing' look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in",
+      "cast": "master.png"
+    },
+    {
+      "id": "hero",
+      "character": true,
+      "talk": true,
+      "frame": "upper",
+      "seed": 91103,
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
+      "motion": "she smiles, tilts her head slightly and nods, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
+      "cast": "master.png"
+    },
+    {
+      "id": "tip",
+      "character": true,
+      "talk": true,
+      "frame": "upper",
+      "seed": 91104,
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
+      "motion": "she raises her index finger, nods knowingly and smiles at the camera, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
+      "cast": "master.png"
+    },
+    {
+      "id": "wow",
+      "character": true,
+      "frame": "upper",
+      "seed": 91105,
+      "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
+      "motion": "her face lights up with delighted surprise, eyebrows rise, she places one hand on her chest and laughs softly, her hair moves",
+      "cast": "master.png"
+    },
+    {
+      "id": "cta",
+      "character": true,
+      "talk": true,
+      "frame": "upper",
+      "seed": 91106,
+      "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
+      "motion": "she looks straight at the camera with a warm inviting smile and a small friendly nod, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
+      "cast": "master.png"
+    },
+    {
+      "id": "tag",
+      "character": true,
+      "still": true,
+      "frame": "upper",
+      "seed": 91107,
+      "prompt": "close-up portrait, head and shoulders centered in the frame, she smiles warmly straight at the camera, soft plain blush pink background",
+      "cast": "master.png"
+    }
+  ],
+  "episode": {
+    "id": "studio-brand-buyers-noa",
+    "goal": "trust",
+    "title": "טריק קטן: לראות בסרטון קודם",
+    "hook": {
+      "say": "החבילה הזאת ממש מאוכזבת.",
+      "caption": "החבילה... מאוכזבת",
+      "scene": "hook"
+    },
+    "topics": [
+      "LikeLink2",
+      "buyers"
+    ],
+    "lines": [
+      {
+        "say": "קונים מתמונה יפה, ומה שמגיע לא תמיד נראה אותו דבר.",
+        "caption": "קונים מתמונה... ומופתעים",
+        "scene": "problem"
+      },
+      {
+        "say": "טריק קטן: לראות את המוצר בסרטון לפני שקונים.",
+        "caption": "טריק קטן: לראות בסרטון קודם",
+        "scene": "hero"
+      },
+      {
+        "say": "בלייק לינק רואים את המוצר בסרטון, עם קישור ישיר לחנות.",
+        "caption": "סרטון + קישור ישיר לחנות",
+        "scene": "tip"
+      },
+      {
+        "say": "ופתאום, הרבה יותר ברור מה מזמינים.",
+        "caption": "ופתאום זה ברור",
+        "scene": "wow"
+      },
+      {
+        "say": "רוצה להציץ? הקישור לאתר מחכה לך בתגובה הראשונה.",
+        "caption": "הקישור בתגובה הראשונה",
+        "scene": "cta"
+      }
+    ],
+    "cta": {
+      "title": "רואים לפני שקונים",
+      "sub": "הקישור בתגובה הראשונה"
+    },
+    "hashtags": [
+      "#LikeLink2",
+      "#קניותאונליין",
+      "#קניותחכמות"
+    ],
+    "send": "שלחי לחברה שתמיד מתאכזבת מחבילות",
+    "presenter": "noa"
+  },
+  "link": "/",
+  "face": {
+    "from": "tag",
+    "box": [
+      0.069,
+      0.063,
+      0.942,
+      0.555
+    ]
+  },
+  "engine": "cpu",
+  "auto": {
+    "brand": "buyers",
+    "master": true
+  }
+}

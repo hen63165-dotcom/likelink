@@ -133,6 +133,18 @@ commit, push. The plan job runs `autoplan.py`, which writes
 Locally: `python scripts/media/studio3d/autoplan.py --product p-live-01 --presenter noa`.
 Then review by eye (step 4 below) and fix only what is wrong (step 5).
 
+**Reels about LikeLink2 itself** (the owner, 2026-11-03: the reels must bring
+buyers and make creators open a studio): product `brand-creators` (a bored
+phone; "open a free studio", goal `studio`, link `/join`) or `brand-buyers`
+(a disappointed delivery box; "see the product on video before buying", goal
+`trust`, link `/`). These are `BRAND_STORIES` in autoplan.py: the same beats
+and keyframes, with no product scene and no ad tag. The closing card and the
+caption say "the link is in the first comment", which the posting task writes.
+Every line says only what is live: sign-up is free and open (checked on
+2026-11-03: `disable_signup` false, email auto-confirm on), and "פרסום לרשתות"
+builds a post for every network. The lines promise no income, no user counts
+and no scarcity; a test (`AutoPlan`) holds them to that.
+
 ## Make a reel by hand
 
 1. **Pick the product** the way the owner asked (trending, checked, a real

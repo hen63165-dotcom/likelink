@@ -18,6 +18,7 @@ story is held to the master's length for a story (20–45 s, estimated the way
 tests/viralMaster.test.mjs does) before an hour of drawing is spent on it.
 
   python autoplan.py --product ae-1005006861665924 --presenter shira [--out jobs/]
+  python autoplan.py --product brand-creators --presenter shira   # a reel about LikeLink2 itself (BRAND_STORIES)
 Prints the shot list's file name.
 """
 import argparse, json, re, sys
@@ -142,6 +143,52 @@ STORIES = {
     },
 }
 CTA = ("רוצה את הקישור? כתבי רוצה בתגובות ואשלח לך אותו.", 'כתבי "רוצה" בתגובות')
+
+# LikeLink2's own stories (the owner, 2026-11-03: the reels must make people
+# understand what the site gives, so buyers come to buy and creators open a
+# studio). Same series, same presenters, same beats as a product story, but
+# about the site, and every line says only what is live today: sign-up is open
+# and free (plans.js "free"; checked 2026-11-03: disable_signup false, email
+# auto-confirm on), "פרסום לרשתות" builds a post for every network
+# (ShareCenter), every creator has her own store page (/u/:slug), and a
+# product page has a video and a direct link to the store (dailyDrop `value`).
+# No income, no user counts, no scarcity (recruit.js RECRUIT_FORBIDDEN). The
+# voice reads the name as "לייק לינק", as the Luna episodes do; the screen
+# shows LikeLink2. There is no product: no product scene and no ad tag (the
+# post is about her own site, not an affiliate item); the link goes in the
+# first comment, which the posting task writes (`link`).
+# Run: product id "brand-creators" / "brand-buyers" (the workflow's product input).
+BRAND_STORIES = {
+    "creators": {
+        "goal": "studio",
+        "link": "/join",
+        "object": ("smartphone on a small tripod", "standing on a tidy white desk", "phone"),
+        "hook": ("הטלפון שלי ממש משועמם.", "הטלפון שלי... משועמם"),
+        "problem": ("יש לי המלצות טובות, אבל הקישורים שלי מפוזרים בכל מקום.", "המלצות טובות... וקישורים בכל מקום"),
+        "trick": ("טריק קטן: סטודיו חינם בלייק לינק.", "טריק קטן: סטודיו חינם ב־LikeLink2"),
+        "tip": ("מדביקים קישור למוצר, הוא נכנס לדף החנות שלך, ומקבלים פוסט מוכן לכל רשת.", "מדביקים קישור: חנות + פוסט לכל רשת"),
+        "look": ("ופתאום, כל ההמלצות שלך במקום אחד.", "ופתאום הכול במקום אחד"),
+        "cta": ("רוצה לנסות? פתחי סטודיו בחינם, הקישור בתגובה הראשונה.", "פתחי סטודיו בחינם"),
+        "card": {"title": "פתיחת סטודיו בחינם", "sub": "הקישור בתגובה הראשונה"},
+        "send": "שלחי לחברה שתמיד ממליצה על מוצרים",
+        "tags": ["#LikeLink2", "#יוצרות", "#ממליצה"],
+    },
+    "buyers": {
+        "goal": "trust",
+        "link": "/",
+        "object": ("plain blank brown cardboard box without any printing", "sitting on a doormat by the front door", "box"),
+        "hook": ("החבילה הזאת ממש מאוכזבת.", "החבילה... מאוכזבת"),
+        "problem": ("קונים מתמונה יפה, ומה שמגיע לא תמיד נראה אותו דבר.", "קונים מתמונה... ומופתעים"),
+        "trick": ("טריק קטן: לראות את המוצר בסרטון לפני שקונים.", "טריק קטן: לראות בסרטון קודם"),
+        "tip": ("בלייק לינק רואים את המוצר בסרטון, עם קישור ישיר לחנות.", "סרטון + קישור ישיר לחנות"),
+        "look": ("ופתאום, הרבה יותר ברור מה מזמינים.", "ופתאום זה ברור"),
+        "cta": ("רוצה להציץ? הקישור לאתר מחכה לך בתגובה הראשונה.", "הקישור בתגובה הראשונה"),
+        "card": {"title": "רואים לפני שקונים", "sub": "הקישור בתגובה הראשונה"},
+        "send": "שלחי לחברה שתמיד מתאכזבת מחבילות",
+        "tags": ["#LikeLink2", "#קניותאונליין", "#קניותחכמות"],
+    },
+}
+BRAND_PREFIX = "brand-"
 # Words that would make the picture model draw jewellery (the product is shown only in its real photo).
 DRAWN_JEWELLERY = re.compile(r"jewel|earring|\bring|necklace|bracelet|pendant|bangle|chain|hoop|diamond|gold|silver", re.I)
 
@@ -239,15 +286,8 @@ def estimate_seconds(episode: dict) -> float:
     return sum(len(l["say"].split()) / WPS + PAD for l in lines) + END
 
 
-def plan(product: dict, member: dict, master: dict | None = None, engine: str = "cpu") -> dict:
-    kind = kind_of(product)
-    if kind is None:
-        raise SystemExit("no story for this kind of product yet (earrings, ring, bracelet, necklace)")
-    st = STORIES[kind]
-    hoops = kind == "earrings" and re.search(r"hoop|חישוק", " ".join(str(product.get(k) or "") for k in ("title", "storeTitle")), re.I)
-    trick = st["hoops"] if hoops else st["trick"]
-    prod_line = st["hoops_product"] if hoops else st["product"]
-    obj, where, name = st["object"]
+def _shots(obj: str, where: str, name: str, member: dict, master: dict | None, engine: str) -> tuple[list, dict]:
+    """The seven shots every story has (hook object, problem, three talking lines, wow, the tag) and the tag's face."""
     seed = int(member.get("seed", 93000)) + 100
     shots = [
         {"id": "hook", "seed": seed + 1, "prompt": MASCOT.format(obj=obj, where=where, name=name),
@@ -289,6 +329,19 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
             if sh["id"] in TALK_ACTIONS:
                 sh["talk"] = True
                 sh["talkPrompt"] = f"{TALK_ACTIONS[sh['id']].format(name=name)}, {TALK_STYLE}"
+    return shots, face
+
+
+def plan(product: dict, member: dict, master: dict | None = None, engine: str = "cpu") -> dict:
+    kind = kind_of(product)
+    if kind is None:
+        raise SystemExit("no story for this kind of product yet (earrings, ring, bracelet, necklace)")
+    st = STORIES[kind]
+    hoops = kind == "earrings" and re.search(r"hoop|חישוק", " ".join(str(product.get(k) or "") for k in ("title", "storeTitle")), re.I)
+    trick = st["hoops"] if hoops else st["trick"]
+    prod_line = st["hoops_product"] if hoops else st["product"]
+    obj, where, name = st["object"]
+    shots, face = _shots(obj, where, name, member, master, engine)
     pid = str(product["id"])
     episode = {
         "id": f"studio-{pid}-{member['id']}"[:49].rstrip("-"),
@@ -315,6 +368,37 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
             "character": character(member), "characterTop": character(member, top=True),
             "productSet": "champagne", "takes": TAKES, "shots": shots, "episode": episode,
             "face": face, "engine": engine, "auto": {"kind": kind, "master": bool(master)}}
+
+
+def plan_brand(story: str, member: dict, master: dict | None = None, engine: str = "cpu") -> dict:
+    """A story about LikeLink2 itself (BRAND_STORIES): the same series, no product."""
+    st = BRAND_STORIES.get(story)
+    if st is None:
+        raise SystemExit(f"brand story: one of {', '.join(BRAND_STORIES)}")
+    obj, where, name = st["object"]
+    shots, face = _shots(obj, where, name, member, master, engine)
+    episode = {
+        "id": f"studio-{BRAND_PREFIX}{story}-{member['id']}"[:49].rstrip("-"),
+        "goal": st["goal"],
+        "title": st["trick"][1],
+        "hook": {"say": st["hook"][0], "caption": st["hook"][1], "scene": "hook"},
+        "topics": ["LikeLink2", story],
+        "lines": [
+            {"say": st["problem"][0], "caption": st["problem"][1], "scene": "problem"},
+            {"say": st["trick"][0], "caption": st["trick"][1], "scene": "hero"},
+            {"say": st["tip"][0], "caption": st["tip"][1], "scene": "tip"},
+            {"say": st["look"][0], "caption": st["look"][1], "scene": "wow"},
+            {"say": st["cta"][0], "caption": st["cta"][1], "scene": "cta"},
+        ],
+        "cta": dict(st["card"]),
+        "hashtags": st["tags"],
+        "send": st["send"],
+        "presenter": member["id"],
+    }
+    return {"series": f"{member['id']}-recommends", "product": f"{BRAND_PREFIX}{story}", "presenter": member["id"],
+            "style": STYLE, "character": character(member), "characterTop": character(member, top=True),
+            "takes": TAKES, "shots": shots, "episode": episode, "link": st["link"],
+            "face": face, "engine": engine, "auto": {"brand": story, "master": bool(master)}}
 
 
 def check_plan(spec: dict) -> None:
@@ -359,6 +443,15 @@ def main():
     if not a.product or not a.presenter or not re.fullmatch(r"[a-z0-9-]{2,30}", a.product) or not re.fullmatch(r"[a-z]{2,10}", a.presenter):
         raise SystemExit("product: an id like ae-1005006861665924; presenter: a cast id like shira")
     from luna_reels.script import check_truth, load_catalog, load_cloud_catalog, parse_episode
+    if a.product.startswith(BRAND_PREFIX):  # a story about LikeLink2 itself: no catalog, no product
+        spec = plan_brand(a.product[len(BRAND_PREFIX):], presenter_of(cast, a.presenter), master_of(a.presenter), a.engine)
+        name = f"{a.product}-{a.presenter}"[:40]
+        check_plan(spec)
+        check_truth(parse_episode({**spec["episode"], "look": "story", "studio": name}), {})
+        out = Path(a.out) / f"{name}.json"
+        out.write_text(json.dumps(spec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(out.name)
+        return 0
     catalog = load_catalog(REPO / "public" / "snapshot" / "kv.json")
     if a.product not in catalog:
         catalog = {**load_cloud_catalog(), **catalog}

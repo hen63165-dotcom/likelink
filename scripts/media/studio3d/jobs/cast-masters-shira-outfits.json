@@ -1,0 +1,34 @@
+{
+  "series": "cast-masters",
+  "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
+  "shots": [
+    {
+      "id": "shira-suit-m0",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain tailored dusty rose blazer, buttoned, over a plain white silk blouse",
+      "still": true,
+      "seed": 93900,
+      "prompt": "medium shot from the waist up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands in a bright modern living room and faces the camera, a confident warm smile, her face clear and well lit"
+    },
+    {
+      "id": "shira-suit-m1",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain tailored dusty rose blazer, buttoned, over a plain white silk blouse",
+      "still": true,
+      "seed": 93917,
+      "prompt": "medium shot from the waist up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands by a bright window and faces the camera, a natural warm smile, her shoulders relaxed, her face clear and well lit"
+    },
+    {
+      "id": "shira-track-m0",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain fitted dusty rose satin track jacket zipped up to the collarbone",
+      "still": true,
+      "seed": 94000,
+      "prompt": "medium shot from the waist up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands in a bright modern living room and faces the camera, a confident warm smile, her face clear and well lit"
+    },
+    {
+      "id": "shira-track-m1",
+      "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain fitted dusty rose satin track jacket zipped up to the collarbone",
+      "still": true,
+      "seed": 94017,
+      "prompt": "medium shot from the waist up, a grown woman, not a girl: a slim oval face with defined cheekbones and jawline, a long neck, mascara and soft lip colour, she stands by a bright window and faces the camera, a natural warm smile, her shoulders relaxed, her face clear and well lit"
+    }
+  ]
+}
