@@ -243,6 +243,11 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           STUDIO_GPU_MONTH_HOURS: ${{ vars.STUDIO_GPU_MONTH_HOURS }}
         run: |
+          # A pasted token can carry a line break (2026-11-03: Modal answered
+          # "Invalid metadata value: '***\n'"); the values are trimmed, as aeEnv trims AliExpress's.
+          MODAL_TOKEN_ID="$(printf %s "$MODAL_TOKEN_ID" | tr -d '[:space:]')"
+          MODAL_TOKEN_SECRET="$(printf %s "$MODAL_TOKEN_SECRET" | tr -d '[:space:]')"
+          export MODAL_TOKEN_ID MODAL_TOKEN_SECRET
           mkdir -p "$RUNNER_TEMP/gpu"
           modal run scripts/media/gpu/studio_gpu.py --jobs "scripts/media/studio3d/jobs/$NAME.json" \
             --pictures "$RUNNER_TEMP/pictures" --voices "$RUNNER_TEMP/voices" --out "$RUNNER_TEMP/gpu"
