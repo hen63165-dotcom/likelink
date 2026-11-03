@@ -56,6 +56,9 @@ SMOOTH = 5                    # frames: the face box and landmarks are averaged 
 MOUTH_WIDTH = 0.30
 MOUTH_MAX = 0.36              # a wide smile widens it, never past this
 STEADY_ZOOM = 1.2             # her face may grow or shrink this much within the clip's played part
+MIN_STEADY = 24               # frames: a shorter steady part is not enough to talk over
+EYES_SHARE = 0.9              # her eyes at least this open, against the best talking clip
+EYE_PATCH, EYE_DARK = 0.11, 70  # the eye's box (of the face width) and what counts as dark
 SHARPEN = (2, 60, 2)          # the redrawn part's unsharp mask (radius, percent, threshold): as crisp as her eyes
 BATCH = 4
 MUSE = ("TMElyralab/MuseTalk", "musetalkV15/musetalk.json", "musetalkV15/unet.pth")
@@ -71,16 +74,19 @@ def frames_for(seconds: float, fps: int = FPS) -> int:
     return max(1, math.ceil(round(seconds * fps, 6)))
 
 
-def base_index(i: int, base_frames: int, base_fps: float, fps: int = FPS, keep: float = KEEP) -> int:
+def base_index(i: int, base_frames: int, base_fps: float, fps: int = FPS, keep: float = KEEP,
+               phase: float = 0.0) -> int:
     """Which frame of her animated clip is under output frame i: the clean
     first `keep` seconds played forward, then back, then forward (a nod
-    reversed is still a nod; a loop would jump)."""
+    reversed is still a nod; a loop would jump). `phase` (a share of the
+    played part) starts elsewhere in it: a borrowed clip never opens the way
+    the shot it was made for does."""
     if base_frames <= 1:
         return 0
     span = min(keep, (base_frames - 1) / base_fps)
     if span <= 0:
         return 0
-    t = (i / fps) % (2 * span)
+    t = (i / fps + phase * span) % (2 * span)
     if t > span:
         t = 2 * span - t
     return min(base_frames - 1, max(0, round(t * base_fps)))
@@ -99,6 +105,40 @@ def steady_frames(widths: list, limit: float = STEADY_ZOOM) -> int:
         if w and not (w0 / limit <= w <= w0 * limit):
             return max(1, i)
     return len(widths)
+
+
+def eye_score(gray, face) -> float:
+    """How open her eyes are in one frame: the share of dark pixels (iris,
+    pupil, lashes) around each eye YuNet found. A drawn open eye is a large
+    dark iris; a squint or a blink is a thin lash line (v10's cta: 0.33-0.36
+    in its squint frames, 0.52-0.56 for open eyes)."""
+    r = max(2, int(face[2] * EYE_PATCH))
+    vals = []
+    for ex, ey in ((face[4], face[5]), (face[6], face[7])):
+        x, y = int(ex), int(ey)
+        patch = gray[max(0, y - r):y + r, max(0, x - r):x + r]
+        if patch.size:
+            vals.append(float((patch < EYE_DARK).mean()))
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def pick_base(profiles: dict, own: str, min_frames: int = MIN_STEADY, eyes_share: float = EYES_SHARE) -> str:
+    """Which talking clip says this line: its own, unless its steady part is
+    too short or her eyes are clearly less open in it than in the best one
+    (profiles: shot → (steady frames, mean eye score)); then the best of her
+    other talking clips (the same keyframe, the same woman)."""
+    if own not in profiles:
+        return own
+    best_eyes = max((e for _, e in profiles.values()), default=0.0)
+
+    def good(sid):
+        steady, eyes = profiles[sid]
+        return steady >= min_frames and eyes >= eyes_share * best_eyes
+
+    if good(own):
+        return own
+    others = [sid for sid in profiles if sid != own and good(sid)]
+    return max(others, key=lambda sid: (profiles[sid][1], profiles[sid][0])) if others else own
 
 
 def muse_box(face, w: int, h: int, margin: float = MARGIN) -> tuple[int, int, int, int]:
@@ -303,7 +343,7 @@ def _voice(audio: Path, work: Path):
     return np.frombuffer(raw, dtype=np.float32).copy()
 
 
-def _base(base: Path, work: Path, n: int, head, close_n: int, det=None):
+def _base(base: Path, work: Path, n: int, head, close_n: int, det=None, phase: float = 0.0):
     """Her close-up under every output frame (1080×1920 RGB arrays) from her clip
     (only its steady opening, when a detector is given), or her picture held."""
     import numpy as np
@@ -338,7 +378,23 @@ def _base(base: Path, work: Path, n: int, head, close_n: int, det=None):
             print(json.dumps({"lips": "steady part", "frames": usable, "of": len(files)}))
         for j in range(usable, len(files)):
             cache.pop(j, None)
-    return [close(base_index(i, usable, base_fps)) for i in range(n)]
+    return [close(base_index(i, usable, base_fps, phase=phase)) for i in range(n)]
+
+
+def clip_profile(path: Path, det) -> tuple[int, float]:
+    """A talking clip's steady frames and how open her eyes are in that part."""
+    import cv2
+    import numpy as np
+    work = Path(tempfile.mkdtemp(prefix="prof-"))
+    try:
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), str(work / "f%04d.png")], check=True)
+        imgs = [cv2.cvtColor(cv2.imread(str(f)), cv2.COLOR_BGR2RGB) for f in sorted(work.glob("f*.png"))]
+        faces = _faces(imgs, det)
+        steady = steady_frames([(f[2] if f else None) for f in faces])
+        eyes = [eye_score(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), f) for img, f in zip(imgs[:steady], faces[:steady]) if f]
+        return steady, (float(np.mean(eyes)) if eyes else 0.0)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def _sharp(face):
@@ -360,7 +416,8 @@ def _sharp(face):
         return face
 
 
-def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, seconds: float | None = None) -> dict:
+def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, seconds: float | None = None,
+         phase: float = 0.0) -> dict:
     import numpy as np
     from PIL import Image, ImageFilter
     t0 = time.time()
@@ -370,7 +427,7 @@ def make(base: Path, audio: Path, out: Path, head=None, close_n: int = 0, second
         secs = seconds or len(wav) / 16000
         n = frames_for(secs)
         det = _yunet(work)
-        frames = _base(base, work, n, head, close_n, det)
+        frames = _base(base, work, n, head, close_n, det, phase)
         faces = fill_gaps(_faces(frames, det))
         if not faces:
             raise SystemExit(f"{base.name}: no face found")
@@ -424,8 +481,20 @@ def main(argv=None) -> int:
         spec = json.load(open(a.jobs, encoding="utf-8"))
         manifest = json.load(open(Path(a.voices) / "voices.json", encoding="utf-8"))
         job = line_for(spec, manifest, a.pictures, a.voices, a.scene)
+        phase = 0.0
+        clips = {s["id"]: Path(a.pictures) / f"{s['id']}.mp4" for s in spec.get("shots", [])
+                 if s.get("talk") and not s.get("still")}
+        clips = {sid: p for sid, p in clips.items() if p.exists()}
+        if job["base"].endswith(".mp4") and len(clips) > 1:
+            det = _yunet(Path(tempfile.mkdtemp(prefix="det-")))
+            profiles = {sid: clip_profile(p, det) for sid, p in clips.items()}
+            chosen = pick_base(profiles, a.scene)
+            print(json.dumps({"lips": "clips", **{sid: [st, round(ey, 3)] for sid, (st, ey) in profiles.items()}}))
+            if chosen != a.scene:
+                job["base"], phase = str(clips[chosen]), 0.5
+                print(json.dumps({"lips": "borrowed", "scene": a.scene, "from": chosen}))
         print(json.dumps({"lips": "job", **job}))
-        make(Path(job["base"]), Path(job["audio"]), Path(a.out), job["head"], job["n"], job["seconds"] or None)
+        make(Path(job["base"]), Path(job["audio"]), Path(a.out), job["head"], job["n"], job["seconds"] or None, phase)
         return 0
     if not (a.base and a.audio):
         raise SystemExit("--scene with --jobs/--pictures/--voices, or --base and --audio")

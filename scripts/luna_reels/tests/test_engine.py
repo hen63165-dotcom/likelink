@@ -691,6 +691,31 @@ class FreeLipSync(unittest.TestCase):
         self.assertEqual(self.m.steady_frames([100, 90, 85]), 3)
         self.assertEqual(self.m.steady_frames([100, 80]), 1, "a zoom out counts too")
 
+    def test_a_line_whose_clip_squints_or_zooms_borrows_her_best_talking_clip(self):
+        v10 = {"hero": (36, 0.515), "tip": (34, 0.530), "cta": (27, 0.443)}
+        self.assertEqual(self.m.pick_base(v10, "cta"), "tip", "her eyes half-closed through the line")
+        self.assertEqual(self.m.pick_base(v10, "hero"), "hero")
+        self.assertEqual(self.m.pick_base(v10, "tip"), "tip")
+        self.assertEqual(self.m.pick_base({"hero": (36, 0.5), "cta": (10, 0.5)}, "cta"), "hero", "too short to talk over")
+        self.assertEqual(self.m.pick_base({"hero": (10, 0.5), "cta": (12, 0.3)}, "cta"), "cta", "nothing better: its own")
+        self.assertEqual(self.m.pick_base({}, "cta"), "cta")
+
+    def test_open_eyes_score_higher_than_a_squint(self):
+        import numpy as np
+        face = [100, 100, 200, 200, 150, 160, 250, 160, 200, 220, 170, 260, 230, 260]
+        open_eyes = np.full((400, 400), 220, np.uint8)
+        squint = open_eyes.copy()
+        for x in (150, 250):
+            open_eyes[150:171, x - 10:x + 11] = 20   # a big dark iris
+            squint[159:162, x - 20:x + 21] = 20      # a thin lash line
+        self.assertGreater(self.m.eye_score(open_eyes, face), 2 * self.m.eye_score(squint, face))
+
+    def test_a_borrowed_clip_starts_elsewhere(self):
+        self.assertNotEqual(self.m.base_index(0, 36, 24.0, phase=0.5), self.m.base_index(0, 36, 24.0))
+        idx = [self.m.base_index(i, 36, 24.0, phase=0.5) for i in range(120)]
+        self.assertTrue(all(0 <= j <= 35 for j in idx))
+        self.assertTrue(all(abs(a - b) <= 2 for a, b in zip(idx, idx[1:])), "still never jumps")
+
     def test_the_crop_is_musetalks_nose_in_the_middle(self):
         # YuNet: x, y, w, h, right eye, left eye, nose, mouth corners (Shira's keyframe at 1080x1920)
         face = [420, 500, 372, 432, 500, 640, 700, 640, 566, 769, 518, 833, 660, 822]
