@@ -49,7 +49,7 @@ on:
         description: "only these shot ids (comma-separated), or empty for all"
         default: ""
       stage:
-        description: "all = draw, animate, reel | animate = animate + reel from the committed pictures | reel = the reel only"
+        description: "all = draw, animate, reel | animate = animate + reel from the committed pictures | reel = the reel only | finds = the finds cut of a finished reel (jobs = its spec under finds/)"
         default: "all"
       product:
         description: "or: a product id (the shot list is written for it; jobs is then ignored)"
@@ -127,6 +127,7 @@ jobs:
             { echo "request_at=$Q_REQUEST_AT"; echo "marketer=$Q_MARKETER"; } >> "$GITHUB_OUTPUT"
           elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"; PRODUCT="$IN_PRODUCT"; PRESENTER="$IN_PRESENTER"
+            [ "$STAGE" = "finds" ] && FINDS="${IN_JOBS%.json}"  # by hand: the cut's spec name in "jobs"
           else
             f=scripts/media/studio3d/run.json
             JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
