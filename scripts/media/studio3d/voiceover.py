@@ -70,6 +70,9 @@ def check_spec(spec: dict) -> None:
             raise SpecError(f"headline: an untrue claim ({FORBIDDEN.search(head['text']).group(0)})")
         if not 0 <= float(head.get("from", 0)) < float(head.get("to", 0)):
             raise SpecError("headline: from < to")
+    rate = spec.get("rate")
+    if rate is not None and not __import__("re").fullmatch(r"[+-]\d{1,2}%", str(rate)):
+        raise SpecError("rate: like +15% (the Edge voice's speed)")
     post = str(spec.get("caption") or "")
     if not post.startswith(brand.AD_TAG):
         raise SpecError("the post caption opens with the ad tag")
@@ -106,6 +109,8 @@ def render(spec: dict, video: Path, out_dir: Path) -> Path:
     work = out_dir / "work"
     work.mkdir(exist_ok=True)
     lines = spec["lines"]
+    if spec.get("rate"):
+        voice.EDGE_RATE = str(spec["rate"])  # read by the Edge voice at call time
     clips, used = voice.synthesize([spoken_text(ln["say"]) for ln in lines], spec.get("voice", "edge"), work,
                                    eid=spec["id"], fallback=False)
     if used in ("none", "") or any(c.path is None for c in clips):
