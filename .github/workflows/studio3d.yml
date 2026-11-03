@@ -90,6 +90,7 @@ jobs:
       request_at: ${{ steps.p.outputs.request_at }}
       marketer: ${{ steps.p.outputs.marketer }}
       gpu: ${{ steps.p.outputs.gpu }}
+      finds: ${{ steps.p.outputs.finds }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -135,6 +136,15 @@ jobs:
             PRODUCT=$(python3 -c "import json; print(json.load(open('$f')).get('product', ''))")
             PRESENTER=$(python3 -c "import json; print(json.load(open('$f')).get('presenter', 'shira'))")
             ENGINE=$(python3 -c "import json; print(json.load(open('$f')).get('engine', ''))")
+            FINDS=$(python3 -c "import json; print(json.load(open('$f')).get('finds', ''))")
+          fi
+          # The finds cut (finds.py): a finished reel re-edited with the product on screen
+          # from the first frame; nothing is drawn, animated or voiced again.
+          if [ "$STAGE" = "finds" ]; then
+            echo "${FINDS:-}" | grep -Eq '^[a-z0-9-]{1,60}$' || { echo "finds: a spec name under scripts/media/studio3d/finds/"; exit 2; }
+            test -f "scripts/media/studio3d/finds/$FINDS.json"
+            { echo "stage=finds"; echo "finds=$FINDS"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "talking=[]"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
+            echo "finds cut: $FINDS"; exit 0
           fi
           # The cloud studio when the owner connected it, for a whole new reel; run.json may ask for "cpu".
           if [ -z "${ENGINE:-}" ]; then ENGINE=cpu; [ "$HAS_GPU" = "true" ] && [ "$STAGE" = "all" ] && ENGINE=gpu; fi
@@ -574,7 +584,7 @@ jobs:
           if-no-files-found: ignore
   reel:
     needs: [plan, gpu, draw, pick, animate, voices, lips]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -726,7 +736,7 @@ jobs:
           if-no-files-found: ignore
   commit:
     needs: [plan, gpu, draw, pick, animate, reel]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -860,3 +870,46 @@ jobs:
           else
             node scripts/media/studio3d/queue.mjs record FAILED
           fi
+  # The finds cut of a finished reel (scripts/media/studio3d/finds.py): the
+  # store's real photos on screen from the first frame, the presenter in a
+  # circle with her own voice and lips. Goes to the review pre-release only.
+  finds:
+    needs: [plan]
+    if: needs.plan.outputs.stage == 'finds'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FINDS: ${{ needs.plan.outputs.finds }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/luna_reels/requirements.txt
+      - name: Install FFmpeg and the reel engine
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+      - name: The finds cut
+        run: |
+          spec="scripts/media/studio3d/finds/$FINDS.json"
+          rel=$(python3 -c "import json; print(json.load(open('$spec'))['source']['release'])")
+          asset=$(python3 -c "import json; print(json.load(open('$spec'))['source']['asset'])")
+          echo "$rel" | grep -Eq '^studio3d(-preview)?$' || { echo "source: a studio3d release"; exit 2; }
+          echo "$asset" | grep -Eq '^[a-z0-9-]{1,80}\.mp4$' || { echo "source asset: a reel file name"; exit 2; }
+          mkdir -p "$RUNNER_TEMP/src" "$RUNNER_TEMP/finds"
+          gh release download "$rel" --repo "${{ github.repository }}" --pattern "$asset" --dir "$RUNNER_TEMP/src"
+          python scripts/media/studio3d/finds.py --spec "$spec" --reel "$RUNNER_TEMP/src/$asset" --out "$RUNNER_TEMP/finds"
+          rm -rf "$RUNNER_TEMP/finds/photos" "$RUNNER_TEMP/finds/voice.m4a"
+          ls -la "$RUNNER_TEMP/finds"
+      - name: The cut, for review (studio3d-preview)
+        run: |
+          gh release view studio3d-preview --repo "${{ github.repository }}" >/dev/null 2>&1 || gh release create studio3d-preview --repo "${{ github.repository }}" --prerelease \
+            --title "3D studio previews" --notes "סרטוני בדיקה מהסטודיו התלת־ממדי. לא מפורסמים ולא מוצגים באתר."
+          gh release upload studio3d-preview "$RUNNER_TEMP"/finds/* --repo "${{ github.repository }}" --clobber
+          for f in "$RUNNER_TEMP"/finds/*.mp4; do n=$(basename "$f"); echo "- [$n](https://github.com/${{ github.repository }}/releases/download/studio3d-preview/$n)" >> "$GITHUB_STEP_SUMMARY"; done
