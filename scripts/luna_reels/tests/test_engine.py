@@ -564,6 +564,16 @@ class AutoPlan(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.ap.plan_brand("investors", self.cast[0])
 
+    def test_every_caption_on_the_screen_uses_only_characters_the_font_draws(self):
+        # 2026-11-03: "מדביקים קישור → חנות" came out as an empty box: the
+        # story captions' font has no arrow (emoji are dropped, but → is not one).
+        drawable = re.compile(r"[א-ת־ A-Za-z0-9.,:!?'\"+\-…()]*")
+        for st in [*self.ap.STORIES.values(), *self.ap.BRAND_STORIES.values()]:
+            for value in st.values():
+                if isinstance(value, tuple) and len(value) == 2 and all(isinstance(v, str) for v in value):
+                    self.assertTrue(drawable.fullmatch(value[1]), f"caption '{value[1]}'")
+        self.assertTrue(drawable.fullmatch(self.ap.CTA[1]))
+
 
 class CloudStudio(unittest.TestCase):
     """The cloud studio (scripts/media/gpu): every scene says its own line, from the very voice the edit plays."""
