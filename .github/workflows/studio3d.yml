@@ -49,7 +49,7 @@ on:
         description: "only these shot ids (comma-separated), or empty for all"
         default: ""
       stage:
-        description: "all = draw, animate, reel | animate = animate + reel from the committed pictures | reel = the reel only | finds = the finds cut of a finished reel (jobs = its spec under finds/)"
+        description: "all = draw, animate, reel | animate = animate + reel from the committed pictures | reel = the reel only | finds = the finds cut of a finished reel (jobs = its spec under finds/) | preview = a run's pictures on the review pre-release (from_run)"
         default: "all"
       product:
         description: "or: a product id (the shot list is written for it; jobs is then ignored)"
@@ -57,6 +57,9 @@ on:
       presenter:
         description: "with product: the presenter from the cast (noa, maya, shira, tal, yael)"
         default: "shira"
+      from_run:
+        description: "stage preview: the run whose drawn pictures go to the review pre-release (a run id)"
+        required: false
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/media/studio3d/run.json", "scripts/media/studio3d/*.py", ".github/workflows/studio3d.yml"]
@@ -111,6 +114,7 @@ jobs:
           IN_STAGE: ${{ github.event.inputs.stage }}
           IN_PRODUCT: ${{ github.event.inputs.product }}
           IN_PRESENTER: ${{ github.event.inputs.presenter }}
+          IN_FROM_RUN: ${{ github.event.inputs.from_run }}
           Q_PRODUCT: ${{ steps.q.outputs.product }}
           Q_PRESENTER: ${{ steps.q.outputs.presenter }}
           Q_REQUEST_AT: ${{ steps.q.outputs.request_at }}
@@ -128,6 +132,7 @@ jobs:
           elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             JOBS="$IN_JOBS"; ONLY="$IN_ONLY"; STAGE="$IN_STAGE"; PRODUCT="$IN_PRODUCT"; PRESENTER="$IN_PRESENTER"
             [ "$STAGE" = "finds" ] && FINDS="${IN_JOBS%.json}"  # by hand: the cut's spec name in "jobs"
+            FROM_RUN="${IN_FROM_RUN:-}"
           else
             f=scripts/media/studio3d/run.json
             JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
@@ -141,6 +146,12 @@ jobs:
           fi
           # The finds cut (finds.py): a finished reel re-edited with the product on screen
           # from the first frame; nothing is drawn, animated or voiced again.
+          # A run's drawn pictures on the review pre-release (a run on main commits none).
+          if [ "$STAGE" = "preview" ]; then
+            echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{6,15}$' || { echo "preview: from_run, the run id whose pictures to show"; exit 2; }
+            { echo "stage=preview"; echo "from_run=$FROM_RUN"; echo "shots=[]"; echo "moving=[]"; echo "draws=[]"; echo "takes=false"; echo "talk=false"; echo "talking=[]"; echo "product="; echo "gpu=false"; } >> "$GITHUB_OUTPUT"
+            echo "preview of run $FROM_RUN"; exit 0
+          fi
           if [ "$STAGE" = "finds" ]; then
             echo "${FINDS:-}" | grep -Eq '^[a-z0-9-]{1,60}$' || { echo "finds: a spec name under scripts/media/studio3d/finds/"; exit 2; }
             test -f "scripts/media/studio3d/finds/$FINDS.json"
@@ -585,7 +596,7 @@ jobs:
           if-no-files-found: ignore
   reel:
     needs: [plan, gpu, draw, pick, animate, voices, lips]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && needs.plan.outputs.stage != 'preview' && needs.draw.result != 'cancelled' && needs.pick.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -737,7 +748,7 @@ jobs:
           if-no-files-found: ignore
   commit:
     needs: [plan, gpu, draw, pick, animate, reel]
-    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage != 'none' && needs.plan.outputs.stage != 'finds' && needs.plan.outputs.stage != 'preview' && (needs.draw.result != 'skipped' || needs.animate.result != 'skipped' || needs.reel.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -914,3 +925,49 @@ jobs:
             --title "3D studio previews" --notes "סרטוני בדיקה מהסטודיו התלת־ממדי. לא מפורסמים ולא מוצגים באתר."
           gh release upload studio3d-preview "$RUNNER_TEMP"/finds/* --repo "${{ github.repository }}" --clobber
           for f in "$RUNNER_TEMP"/finds/*.mp4; do n=$(basename "$f"); echo "- [$n](https://github.com/${{ github.repository }}/releases/download/studio3d-preview/$n)" >> "$GITHUB_STEP_SUMMARY"; done
+  # A run's drawn pictures (cast keyframe candidates, shots) as files on the
+  # review pre-release, with a numbered contact sheet, for a person to choose
+  # by eye. A run on main keeps its pictures only as artifacts.
+  preview:
+    needs: [plan]
+    if: needs.plan.outputs.stage == 'preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FROM_RUN: ${{ needs.plan.outputs.from_run }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: studio3d-pic-*
+          merge-multiple: true
+          run-id: ${{ needs.plan.outputs.from_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/pics
+      - name: The pictures and a contact sheet, for review (studio3d-preview)
+        run: |
+          pip install -q pillow
+          mkdir -p "$RUNNER_TEMP/out"
+          find "$RUNNER_TEMP/pics" -type f -name '*.png' | sort > "$RUNNER_TEMP/list.txt"
+          test -s "$RUNNER_TEMP/list.txt" || { echo "no pictures in run $FROM_RUN"; exit 1; }
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          tmp = Path(os.environ["RUNNER_TEMP"]); run = os.environ["FROM_RUN"]
+          files = [Path(p) for p in (tmp / "list.txt").read_text().split()]
+          tiles = []
+          for f in files:
+              im = Image.open(f).convert("RGB")
+              im.save(tmp / "out" / f"run{run}-{f.stem}.jpg", quality=92)
+              t = im.copy(); t.thumbnail((360, 640)); tiles.append((f.stem, t))
+          w = sum(t.width for _, t in tiles) + 10 * (len(tiles) + 1); h = max(t.height for _, t in tiles) + 60
+          sheet = Image.new("RGB", (w, h), (20, 20, 24)); d = ImageDraw.Draw(sheet); x = 10
+          for name, t in tiles:
+              sheet.paste(t, (x, 50)); d.text((x, 16), name, fill=(255, 255, 255)); x += t.width + 10
+          sheet.save(tmp / "out" / f"run{run}-sheet.jpg", quality=90)
+          PY
+          gh release upload studio3d-preview "$RUNNER_TEMP"/out/* --repo "${{ github.repository }}" --clobber
+          ls "$RUNNER_TEMP/out" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
