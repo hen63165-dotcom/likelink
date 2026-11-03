@@ -205,5 +205,15 @@ are not used.
   smooth at 25 fps; it redraws a 256-px face crop, enlarged by the
   animation upscaler and lightly sharpened. Its head motion is the
   animated clip's own (3 s, played forward and back).
+- Talking shots ask LTX for a still camera and open eyes (`STEADY`, `EYES`
+  in autoplan), yet from a waist-up keyframe it still zooms in within
+  1.1-1.5 s whatever the prompt (v10: her face 1.5-1.75x). So the lip-sync
+  plays only a clip's steady opening, forward and back (`steady_frames`), and
+  a line whose own clip is too short or squints there (`eye_score` < 90% of
+  the best talking clip's) says it over her best talking clip, in its own
+  framing, starting halfway in (`pick_base`; the log says `borrowed`). v11
+  (2026-11-03): hero and tip their own, cta over tip's.
 - Check the mouths by eye: crop the face at 5 fps through the line, and the
-  cheek line at 25 fps (a wavy outline means the oval is too wide).
+  cheek line at 25 fps (a wavy outline means the oval is too wide). Check
+  the eyes through each talking line too: a squint for a whole line is
+  another face than her keyframe.
