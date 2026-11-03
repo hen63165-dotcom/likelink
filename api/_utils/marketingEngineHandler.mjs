@@ -23,6 +23,7 @@ import { runCycle, setControl, engineView, engineSweep } from "../../src/lib/clo
 import { planIncluding } from "../../src/lib/discovery/quotas.js";
 import { aeStatus, importHotProducts, importChosenItems, repairSharedLinks, dailyAffiliateImport } from "./aliexpressAffiliate.mjs";
 import { sharedAffiliateLinks } from "../../src/lib/discovery/catalogIntegrity.js";
+import { growthMetrics } from "../../src/lib/growth/metrics.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 const CONTROL_OPS = new Set(["enable", "disable", "pause", "resume", "settings"]);
@@ -126,6 +127,18 @@ export function createMarketingEngineHandler({
           ? await importHotProducts({ kvGet, kvSet, env, fetchImpl, now: now(), limit: 8 })
           : await repairSharedLinks({ kvGet, kvSet, env, fetchImpl, now: now(), sharedAffiliateLinks });
         json(res, out.ok ? out : { ...out, missing: who.admin || who.platformOwner ? out.missing : undefined }, out.status || 200, req);
+        return;
+      }
+
+      // The owner's five numbers from production records only (src/lib/growth/metrics.js):
+      // visits, sources, product views, exits to the store, real orders and commission.
+      if (req.method === "GET" && op === "metrics") {
+        if (!who || !(who.admin || who.platformOwner)) { json(res, { ok: false, error: who ? "owner_only" : "authentication_required" }, who ? 403 : 401, req); return; }
+        const [funnel, clicks, earnings, products] = await Promise.all([
+          kvGet("marketplace:funnel", []), kvGet("marketplace:clicks", []),
+          kvGet("affiliate:earnings", null), kvGet("marketplace:products", []),
+        ]);
+        json(res, { ok: true, ...growthMetrics({ funnel, clicks, earnings, products, now: now() }) }, 200, req);
         return;
       }
 

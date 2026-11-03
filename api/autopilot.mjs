@@ -1728,6 +1728,7 @@ export default async function handler(req, res) {
         "discovery-sweep","native-reel-audit","marketing-engine",
         "distribution-autorun",
         "publishing-orchestrator",
+        "affiliate-earnings",
       ];
       const readKV = async (key, fallback) => {
         const sbUrl = process.env.VITE_SUPABASE_URL;
