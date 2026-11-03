@@ -11,9 +11,7 @@
       "id": "hook",
       "seed": 93101,
       "prompt": "a cute anthropomorphic smartphone on a small tripod mascot standing on a tidy white desk, the phone itself has two big glossy cartoon eyes and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light",
-      "motion": "the phone mascot slowly blinks its big eyes and sighs, the camera slowly pushes in",
-      "talk": true,
-      "talkPrompt": "the cartoon phone mascot talks to the camera with its little mouth, blinking its big glossy eyes, bored and sad, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "motion": "the phone mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"
     },
     {
       "id": "problem",
@@ -21,9 +19,7 @@
       "seed": 93102,
       "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
       "motion": "she tilts her head with a puzzled 'something is missing' look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in",
-      "cast": "master.png",
-      "talk": true,
-      "talkPrompt": "she talks to the camera with a puzzled look, tilts her head and shrugs her shoulders, natural hand gestures, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "cast": "master.png"
     },
     {
       "id": "hero",
@@ -33,8 +29,7 @@
       "seed": 93103,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
       "motion": "she smiles, tilts her head slightly and nods, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png",
-      "talkPrompt": "she talks warmly to the camera with a confident smile, small natural nods and hand gestures, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "cast": "master.png"
     },
     {
       "id": "tip",
@@ -44,8 +39,7 @@
       "seed": 93104,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
       "motion": "she raises her index finger, nods knowingly and smiles at the camera, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png",
-      "talkPrompt": "she talks to the camera as if sharing a little secret, raises her index finger, a playful smile, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "cast": "master.png"
     },
     {
       "id": "wow",
@@ -54,9 +48,7 @@
       "seed": 93105,
       "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
       "motion": "her face lights up with delighted surprise, eyebrows rise, she places one hand on her chest and laughs softly, her hair moves",
-      "cast": "master.png",
-      "talk": true,
-      "talkPrompt": "she talks to the camera, delighted, eyebrows raised, one hand on her chest, laughing softly, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "cast": "master.png"
     },
     {
       "id": "cta",
@@ -66,8 +58,7 @@
       "seed": 93106,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
       "motion": "she looks straight at the camera with a warm inviting smile and a small friendly nod, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png",
-      "talkPrompt": "she talks warmly to the camera and points at the viewer, inviting, nodding, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
+      "cast": "master.png"
     },
     {
       "id": "tag",
@@ -105,7 +96,7 @@
       },
       {
         "say": "מדביקים קישור למוצר, הוא נכנס לדף החנות שלך, ומקבלים פוסט מוכן לכל רשת.",
-        "caption": "מדביקים קישור: חנות + פוסט לכל רשת",
+        "caption": "מדביקים קישור → חנות + פוסט לכל רשת",
         "scene": "tip"
       },
       {
@@ -141,7 +132,7 @@
       0.514
     ]
   },
-  "engine": "gpu",
+  "engine": "cpu",
   "auto": {
     "brand": "creators",
     "master": true
