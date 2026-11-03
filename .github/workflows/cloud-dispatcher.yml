@@ -22,4 +22,10 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$AUTOPILOT_SECRET"
-          curl --fail-with-body --silent --show-error --max-time 200             -H "Authorization: Bearer $AUTOPILOT_SECRET"             "https://likelink2.vercel.app/api/autopilot?cron=light"
+          # Straight to the cloud's Edge Function "api" (src/constants/cloud.js CLOUD.url),
+          # not through likelink2.vercel.app: that path (Vercel route -> Netlify -> Supabase)
+          # answers 504 after ~30 s while the time-boxed light cron (up to 90 s) still runs,
+          # so every beat since 2026-11-01 was red although its jobs finished.
+          curl --fail-with-body --silent --show-error --max-time 200 \
+            -H "Authorization: Bearer $AUTOPILOT_SECRET" \
+            "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/autopilot?cron=light"

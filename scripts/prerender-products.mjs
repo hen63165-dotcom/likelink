@@ -111,11 +111,13 @@ export function listedFromSnapshot(doc) {
   };
 }
 
-export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "public/snapshot/kv.json"), origin = PRODUCTION_ORIGIN, now = new Date() } = {}) {
+// `catalog`: the catalog doc to publish (the build passes the copy merged with
+// the live cloud, scripts/catalog/live-catalog.mjs); without it, the copy alone.
+export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "public/snapshot/kv.json"), origin = PRODUCTION_ORIGIN, now = new Date(), catalog = null } = {}) {
   const shellPath = join(dist, "index.html");
-  if (!existsSync(shellPath) || !existsSync(snapshot)) return { pages: 0, skipped: true };
+  if (!existsSync(shellPath) || (!catalog && !existsSync(snapshot))) return { pages: 0, skipped: true };
   const shell = readFileSync(shellPath, "utf8");
-  const { products, creators, graph } = listedFromSnapshot(JSON.parse(readFileSync(snapshot, "utf8")));
+  const { products, creators, graph } = listedFromSnapshot(catalog || JSON.parse(readFileSync(snapshot, "utf8")));
   const rules = [];
   for (const { product, owner } of products) {
     const seo = buildProductSeo(canonicalProduct(product, owner, origin));
@@ -152,6 +154,16 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const result = prerender();
-  console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls`);
+  // Every product the live cloud lists gets its own page and sitemap entry,
+  // not only the copy's (PRERENDER_LIVE=0 builds from the copy alone).
+  const snapshotPath = join(ROOT, "public/snapshot/kv.json");
+  let catalog = null, note = "copy only";
+  if (process.env.PRERENDER_LIVE !== "0" && existsSync(snapshotPath)) {
+    const { buildCatalog } = await import("./catalog/live-catalog.mjs");
+    const built = await buildCatalog(JSON.parse(readFileSync(snapshotPath, "utf8")));
+    catalog = built.doc;
+    note = built.live === "ok" ? `copy + ${built.added} live products` : `copy only (live catalog: ${built.live})`;
+  }
+  const result = prerender({ catalog });
+  console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls (${note})`);
 }
