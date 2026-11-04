@@ -110,6 +110,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/media/studio3d/queue.mjs next
+      # Whether the owner's Modal token can be used (an id ak-… and a secret
+      # as-…, read out of whatever was pasted); only its shape is ever logged.
+      - id: mt
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: python3 scripts/media/gpu/cloudplan.py tokens --check
       - id: p
         env:
           IN_JOBS: ${{ github.event.inputs.jobs }}
@@ -123,8 +130,8 @@ jobs:
           Q_PRESENTER: ${{ steps.q.outputs.presenter }}
           Q_REQUEST_AT: ${{ steps.q.outputs.request_at }}
           Q_MARKETER: ${{ steps.q.outputs.marketer }}
-          # Only whether the owner's Modal token exists (true/false), never its value.
-          HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}
+          # Only whether the owner's Modal token is usable (true/false), never its value.
+          HAS_GPU: ${{ steps.mt.outputs.ok == 'true' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             if [ -z "$Q_PRODUCT" ]; then
@@ -174,7 +181,7 @@ jobs:
           fi
           # The cloud studio when the owner connected it, for a whole new reel; run.json may ask for "cpu".
           if [ -z "${ENGINE:-}" ]; then ENGINE=cpu; [ "$HAS_GPU" = "true" ] && [ "$STAGE" = "all" ] && ENGINE=gpu; fi
-          [ "$ENGINE" = "gpu" ] && [ "$HAS_GPU" != "true" ] && { echo "engine gpu: the repository has no Modal token; the free studio runs"; ENGINE=cpu; }
+          [ "$ENGINE" = "gpu" ] && [ "$HAS_GPU" != "true" ] && { echo "engine gpu: no usable Modal token (see the step before); the free studio runs"; ENGINE=cpu; }
           echo "$ENGINE" | grep -Eq '^(cpu|gpu)$' || { echo "engine: cpu or gpu"; exit 2; }
           echo "${FROM_RUN:-}" | grep -Eq '^[0-9]{0,15}$' || { echo "from_run: a run id"; exit 2; }
           if [ "$STAGE" = "none" ]; then  # run.json at rest: a push that only changes code runs nothing
@@ -280,11 +287,12 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
           STUDIO_GPU_MONTH_HOURS: ${{ vars.STUDIO_GPU_MONTH_HOURS }}
         run: |
-          # A pasted token can carry a line break (2026-11-03: Modal answered
-          # "Invalid metadata value: '***\n'"); the values are trimmed, as aeEnv trims AliExpress's.
-          MODAL_TOKEN_ID="$(printf %s "$MODAL_TOKEN_ID" | tr -d '[:space:]')"
-          MODAL_TOKEN_SECRET="$(printf %s "$MODAL_TOKEN_SECRET" | tr -d '[:space:]')"
-          export MODAL_TOKEN_ID MODAL_TOKEN_SECRET
+          # A pasted token can carry more than the token: a line break (2026-11-03:
+          # "Invalid metadata value: '***\n'"), then "Token ID is malformed" (2026-11-04).
+          # The id (ak-…) and secret (as-…) are read out of it, masked, never printed.
+          python3 scripts/media/gpu/cloudplan.py tokens --env-file "$RUNNER_TEMP/modal.env"
+          set -a; . "$RUNNER_TEMP/modal.env"; set +a
+          rm -f "$RUNNER_TEMP/modal.env"
           mkdir -p "$RUNNER_TEMP/gpu"
           modal run scripts/media/gpu/studio_gpu.py --jobs "scripts/media/studio3d/jobs/$NAME.json" \
             --pictures "$RUNNER_TEMP/pictures" --voices "$RUNNER_TEMP/voices" --out "$RUNNER_TEMP/gpu"

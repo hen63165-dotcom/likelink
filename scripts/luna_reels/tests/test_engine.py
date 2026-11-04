@@ -653,6 +653,19 @@ class CloudStudio(unittest.TestCase):
         return {"beats": [{"beat": i, "scene": b.get("scene", ""), "file": f"ep-{i:02d}.mp3", "seconds": 2.5}
                           for i, b in enumerate(beats)]}
 
+    def test_the_modal_token_is_read_out_of_whatever_was_pasted_and_never_shown(self):
+        # 2026-11-04: Modal answered "Token ID is malformed" for the stored id.
+        tid, sec = "ak-exampleId0001", "as-exampleSecret0001"
+        self.assertEqual(self.cp.modal_tokens(tid, sec), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f" {tid}\n", f"'{sec}'"), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f"modal token set --token-id {tid} --token-secret {sec}", ""), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f"MODAL_TOKEN_ID={tid}", f"MODAL_TOKEN_SECRET={sec}"), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(sec, tid), (tid, sec), "swapped fields")
+        self.assertEqual(self.cp.modal_tokens("not a token", ""), ("", ""))
+        shape = self.cp.token_shape(f"modal token set --token-id {tid}")
+        self.assertTrue(shape["hasAk"] and shape["spaceInside"])
+        self.assertNotIn("example", json.dumps(shape), "the shape never carries the value")
+
     def test_on_the_gpu_every_scene_says_its_line_and_nothing_claims(self):
         spec = self.spec()
         self.ap.check_plan(spec)
@@ -743,7 +756,10 @@ class CloudStudio(unittest.TestCase):
 
     def test_the_cloud_runs_only_with_the_owners_token_and_falls_back_to_the_free_studio(self):
         wf = (HERE.parent.parent / ".github" / "workflows" / "studio3d.yml").read_text(encoding="utf-8")
-        self.assertIn("HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}", wf)
+        # Usable, not just present: an id ak-… and a secret as-… (2026-11-04: "Token ID is malformed").
+        self.assertIn("HAS_GPU: ${{ steps.mt.outputs.ok == 'true' }}", wf)
+        self.assertIn("run: python3 scripts/media/gpu/cloudplan.py tokens --check", wf)
+        self.assertIn('cloudplan.py tokens --env-file "$RUNNER_TEMP/modal.env"', wf)
         self.assertIn("if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage == 'all' && needs.gpu.result != 'success'", wf)
         self.assertIn("needs.gpu.result != 'success' && needs.plan.outputs.moving", wf)  # no CPU animation after the cloud
         self.assertNotRegex(wf, r"echo .*MODAL_TOKEN")  # the token is never printed

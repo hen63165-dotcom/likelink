@@ -15,6 +15,9 @@ the voices the reel engine spoke (luna_reels voices → voices.json):
 """
 from __future__ import annotations
 
+import os
+import re
+import sys
 import time
 from pathlib import Path
 
@@ -102,3 +105,62 @@ def infinitetalk_args(weights: str, lora: dict | None, input_json: str, save: st
     if low_vram:
         args += ["--num_persistent_param_in_dit", "0"]
     return args
+
+
+# Modal's token: an id "ak-…" and a secret "as-…" (modal token set --token-id ak-… --token-secret as-…).
+# 2026-11-04: Modal answered "Token ID is malformed" for the stored id, after
+# the line break was already trimmed; a pasted value may carry more than the
+# token (a whole command line, a "name=" prefix, quotes, both tokens in one
+# field), so each is read out of whatever was pasted.
+TOKEN_ID = re.compile(r"ak-[A-Za-z0-9]{8,}")
+TOKEN_SECRET = re.compile(r"as-[A-Za-z0-9]{8,}")
+
+
+def modal_tokens(id_value: str, secret_value: str) -> tuple[str, str]:
+    """The token id and secret from what was pasted (its own field first, then either); "" when absent."""
+    a, b = id_value or "", secret_value or ""
+    both = f"{a} {b}"
+    tid = TOKEN_ID.search(a) or TOKEN_ID.search(both)
+    sec = TOKEN_SECRET.search(b) or TOKEN_SECRET.search(both)
+    return (tid.group(0) if tid else "", sec.group(0) if sec else "")
+
+
+def token_shape(value: str) -> dict:
+    """What a pasted value looks like, never any part of it: for the log when no token is found."""
+    v = (value or "").strip()
+    return {"length": len(v), "startsAk": v.startswith("ak-"), "startsAs": v.startswith("as-"),
+            "hasAk": "ak-" in v, "hasAs": "as-" in v, "spaceInside": any(c.isspace() for c in v),
+            "equals": "=" in v, "quotes": any(q in v for q in "\"'"), "nonAscii": any(ord(c) > 127 for c in v)}
+
+
+def _tokens_cli(argv: list[str]) -> int:
+    """tokens --check: ok=true|false to GITHUB_OUTPUT; tokens --env-file F: the two tokens into F, masked."""
+    tid, sec = modal_tokens(os.environ.get("MODAL_TOKEN_ID", ""), os.environ.get("MODAL_TOKEN_SECRET", ""))
+    ok = bool(tid and sec)
+    for t in (tid, sec):
+        if t:
+            print(f"::add-mask::{t}")
+    if not ok:
+        print("the Modal token is not in Modal's format (an id ak-… and a secret as-…): "
+              f"MODAL_TOKEN_ID {token_shape(os.environ.get('MODAL_TOKEN_ID', ''))}, "
+              f"MODAL_TOKEN_SECRET {token_shape(os.environ.get('MODAL_TOKEN_SECRET', ''))}")
+    if "--check" in argv:
+        out = os.environ.get("GITHUB_OUTPUT")
+        if out:
+            with open(out, "a", encoding="utf-8") as f:
+                f.write(f"ok={'true' if ok else 'false'}\n")
+        print(f"modal token: {'ok' if ok else 'not usable'}")
+        return 0
+    if "--env-file" in argv:
+        if not ok:
+            return 1
+        path = argv[argv.index("--env-file") + 1]
+        Path(path).write_text(f"MODAL_TOKEN_ID={tid}\nMODAL_TOKEN_SECRET={sec}\n", encoding="utf-8")
+        return 0
+    return 2
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] == ["tokens"]:
+        raise SystemExit(_tokens_cli(sys.argv[2:]))
+    raise SystemExit("usage: cloudplan.py tokens --check | --env-file FILE")
