@@ -406,7 +406,7 @@ class AutoPlan(unittest.TestCase):
         spec = self.ap.plan(hoops, member, ending="comment")
         self.ap.check_plan(spec)
         ep = spec["episode"]
-        self.assertIn("קופסת תכשיטים", ep["hook"]["say"])
+        self.assertIn("קופסת התכשיטים", ep["hook"]["say"])
         self.assertNotRegex(spec["shots"][0]["prompt"], self.ap.DRAWN_JEWELLERY)
         self.assertIs(ep["outro"], False)
         self.assertNotIn("keyword", ep)

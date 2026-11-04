@@ -77,7 +77,7 @@ STEADY = "the camera remains completely still, a fixed steady shot"
 EYES = "her eyes stay bright and wide open, she blinks naturally now and then"
 
 TALK_ACTIONS = {
-    "hook": "the cartoon {name} mascot talks to the camera with its little mouth, blinking its big glossy eyes, bored and sad",
+    "hook": "the cartoon {name} mascot talks to the camera with its little mouth, blinking its big glossy eyes, {mood}",
     "problem": "she talks to the camera with a puzzled look, tilts her head and shrugs her shoulders, natural hand gestures",
     "hero": "she talks warmly to the camera with a confident smile, small natural nods and hand gestures",
     "tip": "she talks to the camera as if sharing a little secret, raises her index finger, a playful smile",
@@ -89,7 +89,12 @@ ENGINES = ("cpu", "gpu")
 
 # The talking object of each story, drawn alone (no person), and what it says.
 MASCOT = ("a cute anthropomorphic {obj} mascot {where}, the {name} itself has two big glossy cartoon eyes "
-          "and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light")
+          "and a small {mouth} mouth, it looks {look} up at the camera, soft morning window light")
+# How the object feels: bored and sad unless its story says otherwise (the
+# earrings box calls out "wait!", so it is eager, not sad).
+MOODS = {"sad": ("pouting", "bored and sad", "bored and sad", "slowly blinks its big eyes and sighs"),
+         "eager": ("open", "wide-eyed and eager", "wide-eyed and eager, as if calling out to her",
+                   "blinks its big eyes and bounces a little with excitement")}
 STORIES = {
     "earrings": {
         "words": r"עגיל|earring|ear stud|hoop",
@@ -98,15 +103,20 @@ STORIES = {
         # talking T-shirt: "it sells earrings but nobody understands that".
         "object": ("small closed white keepsake box with a pink satin bow on its lid",
                    "standing on a white vanity table beside a round mirror", "box"),
-        "hook": ("אני קופסת תכשיטים, ואני ריקה לגמרי.", "קופסת תכשיטים... ריקה לגמרי"),
-        "problem": ("חולצה לבנה, ג'ינס, ותמיד מרגיש לי שמשהו חסר.", "חולצה לבנה... ומשהו חסר"),
+        "mood": "eager",
+        "hook": ("רגע! לפני שאת יוצאת, תפתחי את קופסת התכשיטים.", "רגע! לפני שאת יוצאת..."),
+        # Said over her own outfit (Shira wears a rose tank top): never a garment she is not
+        # wearing (the owner, 2026-11-04, on "a white shirt" over another top).
+        "problem": ("אני מתלבשת פשוט, ותמיד מרגיש לי שמשהו חסר.", "לבוש פשוט... ומשהו חסר"),
         "trick": ("טריק קטן: עגילים.", "טריק קטן: עגילים"),
         "hoops": ("טריק קטן: עגילי חישוק.", "טריק קטן: עגילי חישוק"),
         "tip": ("כשהבגד פשוט, דווקא העגילים עושים את כל ההבדל.", "בגד פשוט? העגילים עושים את ההבדל"),
         "product": ("כמו העגילים האלה.", "כמו העגילים האלה"),
-        "hoops_product": ("כמו החישוקים האלה.", "כמו החישוקים האלה"),
-        "look": ("ופתאום, אותה חולצה פשוטה נראית כמו לוק שלם.", "ופתאום זה לוק"),
-        "send": "שלחי לחברה שתמיד בחולצה לבנה",
+        # The store title says "round hoops, 5 cm" and nothing about thin or sparkle
+        # (checked 2026-11-04), so the line says only that, as the seller's.
+        "hoops_product": ("כמו החישוקים האלה: עגולים וגדולים, חמישה סנטימטרים לפי המוכר.", 'עגולים, 5 ס"מ לפי המוכר'),
+        "look": ("ופתאום, אותו בגד פשוט נראה כמו לוק שלם.", "ופתאום זה לוק"),
+        "send": "שלחי לחברה שתמיד מתלבשת פשוט",
         "tags": ["#עגילים", "#טיפסטיילינג", "#אופנה"],
     },
     "ring": {
@@ -150,7 +160,7 @@ CTA = ("רוצה את הקישור? כתבי רוצה בתגובות ואשלח 
 # An account where nothing answers comments with a DM (no comment bot): the reel
 # ends on her own line, with no promise and no end card (the owner, 2026-11-03:
 # viewers left during the 4 s card).
-CTA_COMMENT = ("הקישור מחכה לך בתגובה הראשונה.", "הקישור בתגובה הראשונה")
+CTA_COMMENT = ("רוצה לראות אותם מקרוב? הקישור בתגובה הראשונה.", "הקישור בתגובה הראשונה")
 ENDINGS = ("dm", "comment")
 
 # LikeLink2's own stories (the owner, 2026-11-03: the reels must make people
@@ -295,12 +305,14 @@ def estimate_seconds(episode: dict) -> float:
     return sum(len(l["say"].split()) / WPS + PAD for l in lines) + END
 
 
-def _shots(obj: str, where: str, name: str, member: dict, master: dict | None, engine: str) -> tuple[list, dict]:
+def _shots(obj: str, where: str, name: str, member: dict, master: dict | None, engine: str,
+           mood: str = "sad") -> tuple[list, dict]:
     """The seven shots every story has (hook object, problem, three talking lines, wow, the tag) and the tag's face."""
     seed = int(member.get("seed", 93000)) + 100
+    mouth, look, talk_mood, move = MOODS[mood]
     shots = [
-        {"id": "hook", "seed": seed + 1, "prompt": MASCOT.format(obj=obj, where=where, name=name),
-         "motion": f"the {name} mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"},
+        {"id": "hook", "seed": seed + 1, "prompt": MASCOT.format(obj=obj, where=where, name=name, mouth=mouth, look=look),
+         "motion": f"the {name} mascot {move}, the camera slowly pushes in"},
         {"id": "problem", "character": True, "seed": seed + 2,
          "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
          "motion": "she glances from the mirror to the camera with a puzzled look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in"},
@@ -337,7 +349,7 @@ def _shots(obj: str, where: str, name: str, member: dict, master: dict | None, e
         for sh in shots:
             if sh["id"] in TALK_ACTIONS:
                 sh["talk"] = True
-                sh["talkPrompt"] = f"{TALK_ACTIONS[sh['id']].format(name=name)}, {TALK_STYLE}"
+                sh["talkPrompt"] = f"{TALK_ACTIONS[sh['id']].format(name=name, mood=talk_mood)}, {TALK_STYLE}"
     return shots, face
 
 
@@ -352,7 +364,7 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
     trick = st["hoops"] if hoops else st["trick"]
     prod_line = st["hoops_product"] if hoops else st["product"]
     obj, where, name = st["object"]
-    shots, face = _shots(obj, where, name, member, master, engine)
+    shots, face = _shots(obj, where, name, member, master, engine, st.get("mood", "sad"))
     pid = str(product["id"])
     episode = {
         "id": f"studio-{pid}-{member['id']}"[:49].rstrip("-"),
@@ -393,7 +405,7 @@ def plan_brand(story: str, member: dict, master: dict | None = None, engine: str
     if st is None:
         raise SystemExit(f"brand story: one of {', '.join(BRAND_STORIES)}")
     obj, where, name = st["object"]
-    shots, face = _shots(obj, where, name, member, master, engine)
+    shots, face = _shots(obj, where, name, member, master, engine, st.get("mood", "sad"))
     episode = {
         "id": f"studio-{BRAND_PREFIX}{story}-{member['id']}"[:49].rstrip("-"),
         "goal": st["goal"],
