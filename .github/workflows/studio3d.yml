@@ -60,6 +60,9 @@ on:
       from_run:
         description: "stage preview: the run whose drawn pictures go to the review pre-release (a run id)"
         required: false
+      ending:
+        description: "with product: dm = 'write רוצה and I'll send it' (an account with the comment bot) | comment = the link in the first comment, no end card"
+        default: "dm"
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
     paths: ["scripts/media/studio3d/run.json", "scripts/media/studio3d/*.py", ".github/workflows/studio3d.yml"]
@@ -115,6 +118,7 @@ jobs:
           IN_PRODUCT: ${{ github.event.inputs.product }}
           IN_PRESENTER: ${{ github.event.inputs.presenter }}
           IN_FROM_RUN: ${{ github.event.inputs.from_run }}
+          IN_ENDING: ${{ github.event.inputs.ending }}
           Q_PRODUCT: ${{ steps.q.outputs.product }}
           Q_PRESENTER: ${{ steps.q.outputs.presenter }}
           Q_REQUEST_AT: ${{ steps.q.outputs.request_at }}
@@ -134,6 +138,7 @@ jobs:
             [ "$STAGE" = "finds" ] && FINDS="${IN_JOBS%.json}"  # by hand: the cut's spec name in "jobs"
             [ "$STAGE" = "voiceover" ] && VOICEOVER="${IN_JOBS%.json}"  # by hand: the voice-over's spec name in "jobs"
             FROM_RUN="${IN_FROM_RUN:-}"
+            ENDING="${IN_ENDING:-dm}"
           else
             f=scripts/media/studio3d/run.json
             JOBS=$(python3 -c "import json; print(json.load(open('$f')).get('jobs', ''))")
@@ -144,6 +149,7 @@ jobs:
             PRESENTER=$(python3 -c "import json; print(json.load(open('$f')).get('presenter', 'shira'))")
             ENGINE=$(python3 -c "import json; print(json.load(open('$f')).get('engine', ''))")
             FINDS=$(python3 -c "import json; print(json.load(open('$f')).get('finds', ''))")
+            ENDING=$(python3 -c "import json; print(json.load(open('$f')).get('ending', 'dm'))")
           fi
           # The finds cut (finds.py): a finished reel re-edited with the product on screen
           # from the first frame; nothing is drawn, animated or voiced again.
@@ -178,7 +184,8 @@ jobs:
           if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
             echo "$PRODUCT" | grep -Eq '^[a-z0-9-]{2,30}$' || { echo "product: an id like ae-1005006861665924"; exit 2; }
             echo "$PRESENTER" | grep -Eq '^[a-z]{2,10}$' || { echo "presenter: a cast id like shira"; exit 2; }
-            JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER" --engine "$ENGINE")
+            echo "${ENDING:-dm}" | grep -Eq '^(dm|comment)$' || { echo "ending: dm or comment"; exit 2; }
+            JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER" --engine "$ENGINE" --ending "${ENDING:-dm}")
             { echo "product=$PRODUCT"; echo "presenter=$PRESENTER"; } >> "$GITHUB_OUTPUT"
           fi
           echo "$JOBS" | grep -Eq '^[a-z0-9-]{1,40}\.json$' || { echo "jobs: a file name like pilot-hoops.json"; exit 2; }

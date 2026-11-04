@@ -91,6 +91,7 @@ class Episode:
     presenter: str = ""  # a story's character from the cast (scripts/media/ai-image/cast.json), e.g. "noa"
     studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/shots/<name>/): its pictures are the scenes
     talk: list[str] = field(default_factory=list)  # studio shots where she talks to the camera (lip-synced)
+    outro: bool = True   # False: no end card; the reel ends on its last line (and loops)
 
     @property
     def beats(self) -> list[Line]:
@@ -226,7 +227,7 @@ def parse_episode(data: dict) -> Episode:
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
                    keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter,
-                   studio=studio, talk=talk)
+                   studio=studio, talk=talk, outro=data.get("outro", True) is not False)
 
 
 def _send(value) -> str:
