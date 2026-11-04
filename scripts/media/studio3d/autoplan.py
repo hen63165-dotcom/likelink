@@ -370,6 +370,7 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
              "scene": "cta"},
         ],
         "product": {"id": pid, "at": 4},
+        "productInset": 2,  # the seller's photo stays in a corner from "טריק קטן: …" to the end
         "cta": {"title": 'כתבי *"רוצה"* בתגובות', "sub": "ואשלח לך את הקישור"},
         "hashtags": st["tags"],
         "send": st["send"],

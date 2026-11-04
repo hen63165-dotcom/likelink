@@ -555,6 +555,12 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     layers.extend(_captions(beats, captions))
 
+    # A story may keep the seller's photo in a corner from the line that names
+    # the product to the end (the owner, 2026-11-03: the earrings were on screen
+    # for 2 s of 29). Hidden on the product's own full-screen line.
+    if story and product and product.get("photo") is not None and 0 < getattr(episode, "inset_from", -1) < len(beats):
+        layers.extend(_product_inset(product, beats, episode.inset_from, end_at))
+
     # Product: the store's own photo and the seller's own claim, sliding up
     # (a story shows it full screen as the scene of its line instead).
     if product and not (story and visual == "scenes"):
@@ -597,6 +603,36 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
     if episode.studio:
         return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
     return video.with_audio(_audio(beats, total, work, music_src)), beats, total
+
+
+INSET = 300            # px: the seller's photo in the corner
+INSET_POS = (36, 900)  # left, under the name tag, above the captions and clear of Instagram's buttons
+
+
+def product_inset_card(photo: Image.Image) -> Image.Image:
+    """The seller's photo, rounded, with its label under it."""
+    card = visuals.rounded_photo(photo, INSET, radius=28, border=8)
+    tag = text.label(visuals.PHOTO_TAG, 24)
+    out = Image.new("RGBA", (max(card.width, tag.width), card.height + tag.height - 4), (0, 0, 0, 0))
+    out.alpha_composite(card, ((out.width - card.width) // 2, 0))
+    out.alpha_composite(tag, ((out.width - tag.width) // 2, card.height - 4))
+    return out
+
+
+def inset_spans(beats: list[Beat], start_beat: int, product_beat: int, end_at: float) -> list[tuple[float, float]]:
+    """When the corner photo shows: from its beat to the end, except the product's own line."""
+    start = beats[start_beat].start
+    if 0 <= product_beat < len(beats) and beats[product_beat].start >= start:
+        a = beats[product_beat].start
+        b = beats[product_beat + 1].start if product_beat + 1 < len(beats) else end_at
+        return [(t0, t1) for t0, t1 in ((start, a), (b, end_at)) if t1 - t0 > 0.05]
+    return [(start, end_at)] if end_at - start > 0.05 else []
+
+
+def _product_inset(product: dict, beats: list[Beat], start_beat: int, end_at: float) -> list:
+    card = product_inset_card(product["photo"])
+    return [_img_clip(card, a, b - a, INSET_POS).with_effects([vfx.CrossFadeIn(0.2)])
+            for a, b in inset_spans(beats, start_beat, int(product.get("at", -1)), end_at)]
 
 
 def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None, whooshes: list[float] = ()):

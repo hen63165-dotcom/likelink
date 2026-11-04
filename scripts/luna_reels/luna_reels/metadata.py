@@ -32,7 +32,10 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
     lines.append("")
     lines.extend(f"• {b}" for b in body)
     lines.append("")
-    if product:
+    comment_ending = not getattr(episode, "outro", True)  # autoplan --ending comment: no bot answers DMs
+    if product and comment_ending:
+        lines.append("👇 הקישור בתגובה הראשונה")
+    elif product:
         lines.append(f"👇 כתבי \"{brand.COMMENT_KEYWORD}\" בתגובות ואשלח לך את הקישור בפרטי")
     elif episode.keyword:
         lines.append(f"👇 כתבי \"{episode.keyword}\" בתגובות ואשלח לך את המדריך החינמי בפרטי")
@@ -60,7 +63,7 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
         "hashtags": tags,
         "altText": f"צילום אמיתי עם כתוביות: {hook}" if real else f"דמות מונפשת בשם {_presenter_name(episode)} מספרת: {hook}" if character else f"טיפ קניות מונפש: {hook}",
         "presenter": episode.presenter or None,
-        "commentKeyword": brand.COMMENT_KEYWORD if product else (episode.keyword or None),
+        "commentKeyword": None if comment_ending else brand.COMMENT_KEYWORD if product else (episode.keyword or None),
         "product": {"id": product["id"], "claim": product.get("claim", "")} if product else None,
         "voice": voice_engine,
         "visual": visual.split(":", 1)[0],

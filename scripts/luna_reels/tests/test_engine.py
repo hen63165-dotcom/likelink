@@ -422,6 +422,29 @@ class AutoPlan(unittest.TestCase):
         self.assertEqual(compose.end_seconds(parse_episode({**default["episode"], "look": "story", "studio": "ae-1-shira"})), compose.END_SECONDS)
         with self.assertRaises(SystemExit):
             self.ap.plan(hoops, member, ending="other")
+        # The post says where the link is, never a DM, and names no comment keyword.
+        meta = metadata.build(episode, product={"id": "ae-1", "claim": ""}, voice_engine="edge", visual="scenes",
+                              seconds=24.0, character=True) if hasattr(metadata, "build") else None
+        if meta is not None:
+            self.assertIn("הקישור בתגובה הראשונה", meta["caption"])
+            self.assertNotIn("ואשלח", meta["caption"])
+            self.assertIsNone(meta["commentKeyword"])
+
+    def test_the_sellers_photo_stays_in_a_corner_from_the_line_that_names_it(self):
+        # The owner, 2026-11-03: the earrings were on screen for 2 s of 29.
+        member = next(m for m in self.cast if m["id"] == "shira")
+        spec = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member, ending="comment")
+        ep = parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira"})
+        self.assertEqual(ep.inset_from, 2)
+        self.assertEqual(ep.lines[ep.inset_from - 1].caption, "טריק קטן: עגילי חישוק")
+        beats = [compose.Beat(start=float(i * 3), seconds=2.5, end=i * 3 + 2.8, caption="x", clip=None) for i in range(7)]
+        spans = compose.inset_spans(beats, ep.inset_from, ep.product["at"], 21.0)
+        self.assertEqual(spans, [(6.0, 12.0), (15.0, 21.0)], "hidden on the product's own full-screen line")
+        self.assertEqual(compose.inset_spans(beats, 2, -1, 21.0), [(6.0, 21.0)])
+        with self.assertRaises(ScriptError):
+            parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira", "productInset": 0})
+        card = compose.product_inset_card(compose.Image.new("RGB", (800, 800), (200, 10, 10)))
+        self.assertGreaterEqual(card.width, compose.INSET)
 
     def test_the_story_follows_the_product_kind(self):
         kind = self.ap.kind_of
