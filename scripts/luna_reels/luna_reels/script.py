@@ -233,11 +233,13 @@ def parse_episode(data: dict) -> Episode:
 
 
 def _inset(value, product) -> int:
-    """The beat from which a story keeps the seller's photo in a corner (needs a product)."""
+    """The beat from which a story keeps the seller's photo in a corner (needs a product).
+    0 is the hook itself: the owner's numbers (2026-11-04) lost 7–9 of 10 viewers in
+    the first 3 s, so the product is on screen from the first frame."""
     if value is None or value is False:
         return -1
-    if not product or isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise ScriptError("productInset: the beat (1 = the first line after the hook) from which the seller's photo stays in a corner")
+    if not product or isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ScriptError("productInset: the beat (0 = the hook, 1 = the first line after it) from which the seller's photo stays in a corner")
     return value
 
 

@@ -114,7 +114,7 @@ STORIES = {
         "product": ("כמו העגילים האלה.", "כמו העגילים האלה"),
         # The store title says "round hoops, 5 cm" and nothing about thin or sparkle
         # (checked 2026-11-04), so the line says only that, as the seller's.
-        "hoops_product": ("כמו החישוקים האלה: עגולים וגדולים, חמישה סנטימטרים לפי המוכר.", 'עגולים, 5 ס"מ לפי המוכר'),
+        "hoops_product": ("כמו החישוקים האלה: חמישה סנטימטרים, לפי המוכר.", '5 ס"מ, לפי המוכר'),
         "look": ("ופתאום, אותו בגד פשוט נראה כמו לוק שלם.", "ופתאום זה לוק"),
         "send": "שלחי לחברה שתמיד מתלבשת פשוט",
         "tags": ["#עגילים", "#טיפסטיילינג", "#אופנה"],
@@ -382,7 +382,7 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
              "scene": "cta"},
         ],
         "product": {"id": pid, "at": 4},
-        "productInset": 2,  # the seller's photo stays in a corner from "טריק קטן: …" to the end
+        "productInset": 0,  # the seller's photo in a corner from the first frame to the end (2026-11-04: 7–9 of 10 left in 3 s)
         "cta": {"title": 'כתבי *"רוצה"* בתגובות', "sub": "ואשלח לך את הקישור"},
         "hashtags": st["tags"],
         "send": st["send"],

@@ -435,16 +435,35 @@ class AutoPlan(unittest.TestCase):
         member = next(m for m in self.cast if m["id"] == "shira")
         spec = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member, ending="comment")
         ep = parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira"})
-        self.assertEqual(ep.inset_from, 2)
-        self.assertEqual(ep.lines[ep.inset_from - 1].caption, "טריק קטן: עגילי חישוק")
+        # 2026-11-04: 7–9 of 10 viewers left in the first 3 s, so the product is there from the hook.
+        self.assertEqual(ep.inset_from, 0)
         beats = [compose.Beat(start=float(i * 3), seconds=2.5, end=i * 3 + 2.8, caption="x", clip=None) for i in range(7)]
         spans = compose.inset_spans(beats, ep.inset_from, ep.product["at"], 21.0)
-        self.assertEqual(spans, [(6.0, 12.0), (15.0, 21.0)], "hidden on the product's own full-screen line")
+        self.assertEqual(spans, [(0.0, 12.0), (15.0, 21.0)], "hidden on the product's own full-screen line")
         self.assertEqual(compose.inset_spans(beats, 2, -1, 21.0), [(6.0, 21.0)])
         with self.assertRaises(ScriptError):
-            parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira", "productInset": 0})
+            parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira", "productInset": -1})
         card = compose.product_inset_card(compose.Image.new("RGB", (800, 800), (200, 10, 10)))
         self.assertGreaterEqual(card.width, compose.INSET)
+
+    def test_a_long_line_cuts_closer_about_every_two_and_a_half_seconds(self):
+        self.assertEqual(compose.jump_times(2.4), [])
+        self.assertEqual(compose.jump_times(3.4), [1.7])
+        self.assertEqual(compose.jump_times(5.4), [1.8, 3.6])
+        self.assertEqual(compose.jump_times(5.0), [2.5])
+
+    def test_the_talking_object_never_borrows_her_clip(self):
+        # v13, 2026-11-04: the box's hook played Shira's clip and the box never appeared.
+        import importlib.util  # noqa: PLC0415
+        spec_ = importlib.util.spec_from_file_location("musetalk", HERE.parent / "media" / "talking" / "musetalk.py")
+        m = importlib.util.module_from_spec(spec_)
+        spec_.loader.exec_module(m)
+        member = next(x for x in self.cast if x["id"] == "shira")
+        plan = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member,
+                            master={"face": [0.2, 0.05, 0.9, 0.44]}, engine="gpu", ending="comment")
+        hers = m.her_talking_shots(plan)
+        self.assertNotIn("hook", hers)
+        self.assertIn("cta", hers)
 
     def test_the_story_follows_the_product_kind(self):
         kind = self.ap.kind_of

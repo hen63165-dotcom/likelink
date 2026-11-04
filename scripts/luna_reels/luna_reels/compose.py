@@ -305,7 +305,7 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         if episode.studio:
             # A studio reel cuts like a creator's edit: a hard cut with a short punch-in, no dissolve.
             clip = _punch_in(clip.with_duration(max(0.04, dur - XF if not last else dur)))
-            clip = clip.with_start(beat.start)
+            clip = _jump_cut(clip, clip.duration).with_start(beat.start)
         else:
             clip = clip.with_start(beat.start)
             if i:
@@ -315,6 +315,33 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
 
 
 PUNCH = 0.22  # s: a cut lands 6% closer and settles
+# A long line gets a jump cut, closer and then back, so a new picture lands about
+# every 2.5 s, as in creators' edits (v13, 2026-11-04: one shot per line, 4–5 s each).
+JUMP_EVERY = 2.5
+JUMP_ZOOM = 1.14
+
+
+def jump_times(seconds: float, every: float = JUMP_EVERY) -> list[float]:
+    """When a line of this length cuts closer or wider (pure; tested): in equal parts of at most `every`."""
+    n = math.ceil(seconds / every - 1e-9)
+    return [round(seconds * k / n, 3) for k in range(1, n)] if n >= 2 else []
+
+
+def _jump_cut(clip: VideoClip, seconds: float) -> VideoClip:
+    cuts = jump_times(seconds)
+    if not cuts:
+        return clip
+
+    def frame_at(get_frame, t):
+        frame = get_frame(t)
+        if sum(1 for c in cuts if t >= c) % 2 == 0:
+            return frame
+        frame = frame if frame.dtype == np.uint8 else np.clip(frame, 0, 255).astype(np.uint8)
+        h, w = frame.shape[:2]
+        cw, ch = int(w / JUMP_ZOOM), int(h / JUMP_ZOOM)
+        x0, y0 = (w - cw) // 2, int((h - ch) * 0.3)  # toward the face, above the captions
+        return np.array(Image.fromarray(frame[y0:y0 + ch, x0:x0 + cw]).resize((w, h), Image.BILINEAR))
+    return clip.transform(frame_at)
 
 
 def _punch_in(clip: VideoClip) -> VideoClip:
@@ -671,12 +698,22 @@ def voice_track(beats: list[Beat], total: float, dst: Path) -> Path:
     return dst
 
 
-def render(video: CompositeVideoClip, dst: Path, preview: Path | None = None) -> None:
+LOUDNESS = -14.0  # LUFS: where reels on Instagram and TikTok sit (v13 came out at -21, quiet next to them)
+
+
+def render(video: CompositeVideoClip, dst: Path, preview: Path | None = None, loudness: float | None = None) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     video.write_videofile(
         str(dst), fps=brand.FPS, codec="libx264", audio_codec="aac", audio_fps=48000, preset="medium", threads=4,
         ffmpeg_params=["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-crf", "20"], logger=None,
     )
+    if loudness is not None:
+        import subprocess  # noqa: PLC0415
+        tmp = dst.with_name(dst.stem + ".loud.mp4")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(dst), "-c:v", "copy",
+                        "-af", f"loudnorm=I={loudness}:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
+                        "-movflags", "+faststart", str(tmp)], check=True, timeout=600)
+        tmp.replace(dst)
     if preview is not None:
         # Hook, the middle and the end card, side by side, for a quick look.
         times = [0.6, video.duration * 0.55, video.duration - 1.0]

@@ -51,9 +51,10 @@ app = modal.App("likelink-studio")
 weights = modal.Volume.from_name("likelink-studio-weights", create_if_missing=True)
 budget = modal.Dict.from_name("likelink-studio-budget", create_if_missing=True)
 
-# InfiniteTalk's own environment (its README: torch 2.4.1 + cu121, xformers 0.0.28, flash-attn 2.7.4.post1).
+# InfiniteTalk's own environment (its README: torch 2.4.1 + cu121, xformers 0.0.28, flash-attn 2.7.4.post1),
+# on Python 3.11: Modal's 2026.10 image builder refuses 3.10 (2026-11-04); every pin here has cp311 wheels.
 talk_image = (
-    modal.Image.from_registry("nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04", add_python="3.10")
+    modal.Image.from_registry("nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04", add_python="3.11")
     .apt_install("git", "ffmpeg", "libgl1", "libglib2.0-0", "build-essential")
     .pip_install("torch==2.4.1", "torchvision==0.19.1", "torchaudio==2.4.1", index_url="https://download.pytorch.org/whl/cu121")
     .pip_install("xformers==0.0.28", index_url="https://download.pytorch.org/whl/cu121")
