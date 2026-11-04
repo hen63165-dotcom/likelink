@@ -93,9 +93,13 @@ MASCOT = ("a cute anthropomorphic {obj} mascot {where}, the {name} itself has tw
 STORIES = {
     "earrings": {
         "words": r"עגיל|earring|ear stud|hoop",
-        "object": ("plain white cotton t-shirt", "lying flat on a neatly made bed, top-down view", "t-shirt"),
-        "hook": ("החולצה הלבנה שלי ממש משועממת.", "החולצה הלבנה שלי... משועממת"),
-        "problem": ("כל בוקר אותה חולצה לבנה, ותמיד מרגיש לי שמשהו חסר.", "כל בוקר... ומשהו חסר"),
+        # A jewellery box, closed (nothing drawn inside it): the viewer knows from the
+        # first second the reel is about jewellery. The owner, 2026-11-03, on the
+        # talking T-shirt: "it sells earrings but nobody understands that".
+        "object": ("small closed white keepsake box with a pink satin bow on its lid",
+                   "standing on a white vanity table beside a round mirror", "box"),
+        "hook": ("אני קופסת תכשיטים, ואני ריקה לגמרי.", "קופסת תכשיטים... ריקה לגמרי"),
+        "problem": ("חולצה לבנה, ג'ינס, ותמיד מרגיש לי שמשהו חסר.", "חולצה לבנה... ומשהו חסר"),
         "trick": ("טריק קטן: עגילים.", "טריק קטן: עגילים"),
         "hoops": ("טריק קטן: עגילי חישוק.", "טריק קטן: עגילי חישוק"),
         "tip": ("כשהבגד פשוט, דווקא העגילים עושים את כל ההבדל.", "בגד פשוט? העגילים עושים את ההבדל"),
@@ -143,6 +147,11 @@ STORIES = {
     },
 }
 CTA = ("רוצה את הקישור? כתבי רוצה בתגובות ואשלח לך אותו.", 'כתבי "רוצה" בתגובות')
+# An account where nothing answers comments with a DM (no comment bot): the reel
+# ends on her own line, with no promise and no end card (the owner, 2026-11-03:
+# viewers left during the 4 s card).
+CTA_COMMENT = ("הקישור מחכה לך בתגובה הראשונה.", "הקישור בתגובה הראשונה")
+ENDINGS = ("dm", "comment")
 
 # LikeLink2's own stories (the owner, 2026-11-03: the reels must make people
 # understand what the site gives, so buyers come to buy and creators open a
@@ -332,7 +341,9 @@ def _shots(obj: str, where: str, name: str, member: dict, master: dict | None, e
     return shots, face
 
 
-def plan(product: dict, member: dict, master: dict | None = None, engine: str = "cpu") -> dict:
+def plan(product: dict, member: dict, master: dict | None = None, engine: str = "cpu", ending: str = "dm") -> dict:
+    if ending not in ENDINGS:
+        raise SystemExit(f"ending: one of {', '.join(ENDINGS)}")
     kind = kind_of(product)
     if kind is None:
         raise SystemExit("no story for this kind of product yet (earrings, ring, bracelet, necklace)")
@@ -355,7 +366,8 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
             {"say": st["tip"][0], "caption": st["tip"][1], "scene": "tip"},
             {"say": prod_line[0], "caption": prod_line[1]},
             {"say": st["look"][0], "caption": st["look"][1], "scene": "wow"},
-            {"say": CTA[0], "caption": CTA[1], "scene": "cta"},
+            {"say": (CTA_COMMENT if ending == "comment" else CTA)[0], "caption": (CTA_COMMENT if ending == "comment" else CTA)[1],
+             "scene": "cta"},
         ],
         "product": {"id": pid, "at": 4},
         "cta": {"title": 'כתבי *"רוצה"* בתגובות', "sub": "ואשלח לך את הקישור"},
@@ -364,6 +376,10 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
         "keyword": "רוצה",
         "presenter": member["id"],
     }
+    if ending == "comment":
+        episode.pop("keyword")
+        episode["outro"] = False
+        episode["cta"] = {"title": "הקישור בתגובה הראשונה", "sub": ""}
     return {"series": f"{member['id']}-recommends", "product": pid, "presenter": member["id"], "style": STYLE,
             "character": character(member), "characterTop": character(member, top=True),
             "productSet": "champagne", "takes": TAKES, "shots": shots, "episode": episode,
@@ -430,6 +446,8 @@ def main():
     ap.add_argument("--per", type=int, default=MASTER_TAKES, help="with --masters: candidates per presenter")
     ap.add_argument("--engine", default="cpu", choices=list(ENGINES),
                     help="gpu: the cloud studio, where every scene says its line on camera (scripts/media/gpu)")
+    ap.add_argument("--ending", default="dm", choices=list(ENDINGS),
+                    help="dm: 'write רוצה and I'll send it' (an account with the comment bot); comment: the link in the first comment, no end card")
     ap.add_argument("--out", default=str(HERE / "jobs"))
     a = ap.parse_args()
     cast = json.loads((REPO / "scripts" / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))
@@ -457,7 +475,7 @@ def main():
         catalog = {**load_cloud_catalog(), **catalog}
     if a.product not in catalog:
         raise SystemExit(f"product {a.product} is not listed (approved, with its own store link)")
-    spec = plan(catalog[a.product], presenter_of(cast, a.presenter), master_of(a.presenter), a.engine)
+    spec = plan(catalog[a.product], presenter_of(cast, a.presenter), master_of(a.presenter), a.engine, ending=a.ending)
     name = f"{a.product}-{a.presenter}"[:40]
     check_plan(spec)
     check_truth(parse_episode({**spec["episode"], "look": "story", "studio": name}), catalog)

@@ -396,6 +396,33 @@ class AutoPlan(unittest.TestCase):
             name = f"{pid}-{member['id']}"[:40]
             check_truth(parse_episode({**spec["episode"], "look": "story", "studio": name}), CATALOG)
 
+    def test_earrings_open_on_a_jewellery_box_and_the_comment_ending_promises_nothing(self):
+        # The owner, 2026-11-03: the talking T-shirt hid that the reel sells earrings,
+        # and viewers left during the 4 s end card. The box says what it is in the
+        # first second; it is drawn closed and never named as jewellery to the
+        # image model (the product is shown only in its real photo).
+        member = next(m for m in self.cast if m["id"] == "shira")
+        hoops = {"id": "ae-1", "title": "עגילים · חישוק", "storeTitle": "hoop earrings"}
+        spec = self.ap.plan(hoops, member, ending="comment")
+        self.ap.check_plan(spec)
+        ep = spec["episode"]
+        self.assertIn("קופסת תכשיטים", ep["hook"]["say"])
+        self.assertNotRegex(spec["shots"][0]["prompt"], self.ap.DRAWN_JEWELLERY)
+        self.assertIs(ep["outro"], False)
+        self.assertNotIn("keyword", ep)
+        said = " ".join(l["say"] for l in [ep["hook"], *ep["lines"]])
+        self.assertNotIn("אשלח", said, "nothing answers DMs on such an account")
+        self.assertEqual(ep["lines"][-1]["caption"], "הקישור בתגובה הראשונה")
+        episode = parse_episode({**ep, "look": "story", "studio": "ae-1-shira"})
+        self.assertFalse(episode.outro)
+        self.assertEqual(compose.end_seconds(episode), 0.0)
+        default = self.ap.plan(hoops, member)
+        self.assertEqual(default["episode"]["keyword"], "רוצה", "the default keeps the comment bot's word")
+        self.assertNotIn("outro", default["episode"])
+        self.assertEqual(compose.end_seconds(parse_episode({**default["episode"], "look": "story", "studio": "ae-1-shira"})), compose.END_SECONDS)
+        with self.assertRaises(SystemExit):
+            self.ap.plan(hoops, member, ending="other")
+
     def test_the_story_follows_the_product_kind(self):
         kind = self.ap.kind_of
         self.assertEqual(kind({"title": "עגילי חישוק"}), "earrings")

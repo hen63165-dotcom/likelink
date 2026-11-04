@@ -69,7 +69,12 @@ def timeline(episode: Episode, clips: list[Clip]) -> tuple[list[Beat], float]:
         dur = max(clip.seconds, 0.6)
         beats.append(Beat(start=t, seconds=dur, end=t + dur + PAD, caption=line.caption, clip=clip))
         t += dur + PAD
-    return beats, t + END_SECONDS
+    return beats, t + end_seconds(episode)
+
+
+def end_seconds(episode: Episode) -> float:
+    """The end card's length: none when the episode ends on its own last line."""
+    return END_SECONDS if getattr(episode, "outro", True) else 0.0
 
 
 def _norm(word: str) -> str:
@@ -523,7 +528,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
           voiced: bool, music_src: str | None = None, captions: str = "karaoke", tier: str = "free",
           logo: str | None = None, character: bool = True) -> tuple[CompositeVideoClip, list[Beat], float]:
     beats, total = timeline(episode, clips)
-    end_at = total - END_SECONDS
+    end_at = total - end_seconds(episode)
     free = tier != "pro"
     story = captions == "story"
     bg_clip = story_background(episode, beats, end_at, total, product, work) if visual == "scenes" else background(total, visual, work)
@@ -569,7 +574,13 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
         layers.append(_img_clip(sheet, 0, end_at, (0, 0)))
 
     # Outro: the reel's own last frame, blurred, with the call to action and a pulsing button.
+    # (None when the episode ends on its own last line.)
     cta = episode.cta or {}
+    if not getattr(episode, "outro", True):
+        video = CompositeVideoClip(layers, size=(W, H)).with_duration(total)
+        if episode.studio:
+            return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
+        return video.with_audio(_audio(beats, total, work, music_src)), beats, total
     end, button_y = visuals.outro(Image.fromarray(bg_clip.get_frame(max(0.0, end_at - 0.05))),
                                   slogan=OUTRO_SLOGAN if free else None, branded=free, logo=None if free else logo,
                                   title=cta.get("title") or f"כתבי \"{brand.COMMENT_KEYWORD}\" בתגובות",

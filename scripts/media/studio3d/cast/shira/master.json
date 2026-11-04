@@ -1,13 +1,13 @@
 {
  "presenter": "shira",
- "chosen": "shira-m3",
- "seed": 93539,
- "run": "40686470220",
+ "chosen": "shira-track-m0",
+ "seed": 94000,
+ "run": "41726333685",
  "face": [
-  0.261,
-  0.178,
-  0.859,
-  0.514
+  0.165,
+  0.078,
+  0.874,
+  0.477
  ],
- "checked": "2026-10-28 by eye against her cast look: an adult face, the cast's hair and eyes, plain top, long pants or a long top, no jewellery, hands natural"
+ "checked": "2026-11-04 by eye: the owner chose the satin tracksuit (\"חליפת ספורט סטייל טרנדי\"); an adult face, the cast's hair and eyes, the zipped rose satin track jacket, no jewellery (two other candidates were dropped for drawn earrings), hands natural; head box from YuNet scaled like the earlier keyframe"
 }
