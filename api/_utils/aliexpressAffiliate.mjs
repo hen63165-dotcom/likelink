@@ -409,7 +409,8 @@ export async function syncAffiliateEarnings({ kvGet, kvSet, env = {}, fetchImpl,
   const { ORDER_STATUSES, ORDER_FIELDS, EARNINGS_KEY, pacificTime, ordersOf, summarizeOrders } = await import("../../src/lib/growth/earnings.js");
   if (!aeStatus(env).configured) return { ok: true, outcome: "REQUIRES_CONNECTION" };
   const last = await kvGet(EARNINGS_KEY, null);
-  if (last?.checkedAt && now - Date.parse(last.checkedAt) < 11 * 3_600_000) return { ok: true, outcome: "NOT_DUE", last: last.checkedAt };
+  // A record from before the cents fix (no `amounts: "units"`) is read again now.
+  if (last?.checkedAt && last.amounts === "units" && now - Date.parse(last.checkedAt) < 11 * 3_600_000) return { ok: true, outcome: "NOT_DUE", last: last.checkedAt };
   const window = { start_time: pacificTime(now - days * 86_400_000), end_time: pacificTime(now) };
   const lists = { paid: [], confirmed: [] };
   const errors = [];

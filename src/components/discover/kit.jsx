@@ -741,7 +741,15 @@ export function ShopButton({ product, className = "", children, attribution = nu
       href={href}
       target={inAppBrowser() ? undefined : "_blank"}
       rel="noopener noreferrer sponsored"
-      onClick={() => recordClick(product, attribution)}
+      onClick={(e) => {
+        const write = recordClick(product, attribution);
+        if (!inAppBrowser()) return;
+        // In Instagram/TikTok the store opens in this same view: give the click
+        // a moment to be sent (at most 400 ms) before the page is left.
+        e.preventDefault();
+        const go = () => { window.location.href = href; };
+        Promise.race([write, new Promise((r) => setTimeout(r, 400))]).then(go, go);
+      }}
       className={`lx-btn lx-btn-rose ${className}`}
     >
       {children || (

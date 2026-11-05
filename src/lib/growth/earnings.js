@@ -49,6 +49,19 @@ export function money(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * An order.list amount in currency units. The store sends its amounts as whole
+ * cents ("1199" is 11.99): the first live sync (2026-11-05) stored 8 paid toy
+ * orders as 6100 paid and one squishy toy's commission as 47, i.e. $61.00 and
+ * $0.47. A value written with a decimal point ("10.00", "1.5 USD") is already
+ * in units and is kept as it is.
+ */
+export function storeMoney(v) {
+  const n = money(v);
+  if (n === null) return null;
+  return /\./.test(String(v)) ? n : n / 100;
+}
+
 const add = (a, b) => (b === null ? a : (a ?? 0) + b);
 const round2 = (n) => (n === null ? null : Math.round(n * 100) / 100);
 
@@ -60,7 +73,7 @@ const round2 = (n) => (n === null ? null : Math.round(n * 100) / 100);
 export function summarizeOrders({ paid = [], confirmed = [] } = {}) {
   const seen = new Set();
   const bucket = () => ({ orders: 0, paidAmount: null, estimatedCommission: null, settledCommission: null, currency: null });
-  const out = { paid: bucket(), confirmed: bucket(), items: {} };
+  const out = { amounts: "units", paid: bucket(), confirmed: bucket(), items: {} };
   for (const [name, list] of [["confirmed", confirmed], ["paid", paid]]) {
     for (const o of list) {
       const id = String(o?.sub_order_id || o?.order_id || "");
@@ -68,10 +81,10 @@ export function summarizeOrders({ paid = [], confirmed = [] } = {}) {
       seen.add(id);
       const b = out[name];
       b.orders += 1;
-      b.paidAmount = add(b.paidAmount, money(o.paid_amount));
-      const est = money(name === "confirmed" ? (o.estimated_finished_commission ?? o.estimated_paid_commission) : o.estimated_paid_commission);
+      b.paidAmount = add(b.paidAmount, storeMoney(o.paid_amount));
+      const est = storeMoney(name === "confirmed" ? (o.estimated_finished_commission ?? o.estimated_paid_commission) : o.estimated_paid_commission);
       b.estimatedCommission = add(b.estimatedCommission, est);
-      b.settledCommission = add(b.settledCommission, money(o.settled_commission ?? o.finished_commission));
+      b.settledCommission = add(b.settledCommission, storeMoney(o.settled_commission ?? o.finished_commission));
       b.currency = b.currency || (o.settled_currency ? String(o.settled_currency).slice(0, 8) : null);
       const item = String(o.product_id || "");
       if (item) {
