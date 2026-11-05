@@ -5,7 +5,7 @@
 // store did not send is null, never 0.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { summarizeOrders, ordersOf, money, pacificTime, earningsLines, ORDER_STATUSES, EARNINGS_KEY } from "../src/lib/growth/earnings.js";
+import { summarizeOrders, ordersOf, money, storeMoney, pacificTime, earningsLines, ORDER_STATUSES, EARNINGS_KEY } from "../src/lib/growth/earnings.js";
 import { syncAffiliateEarnings } from "../api/_utils/aliexpressAffiliate.mjs";
 
 const resp = (orders, extra = {}) => ({ aliexpress_affiliate_order_list_response: { resp_result: { resp_code: 200, result: { orders: { order: orders }, total_page_no: 1, ...extra } } } });
@@ -28,6 +28,24 @@ test("paid and confirmed orders stay apart, a confirmed order is not counted aga
   assert.deepEqual(summarizeOrders({}).paid, { orders: 0, paidAmount: null, estimatedCommission: null, settledCommission: null, currency: null });
   assert.equal(money(""), null);
   assert.equal(money("1.5 USD"), 1.5);
+});
+
+test("the store's whole-cent amounts become currency units; a decimal value is kept", () => {
+  // The first live sync (2026-11-05): 8 paid toy orders came back as 6100 paid
+  // and a single squishy toy's commission as 47, i.e. $61.00 and $0.47.
+  assert.equal(storeMoney("6100"), 61);
+  assert.equal(storeMoney(47), 0.47);
+  assert.equal(storeMoney("10.00"), 10);
+  assert.equal(storeMoney("1.5 USD"), 1.5);
+  assert.equal(storeMoney(""), null);
+  const s = summarizeOrders({ paid: [
+    { sub_order_id: "a", product_id: "1", paid_amount: "760", estimated_paid_commission: "47", settled_currency: "USD" },
+    { sub_order_id: "b", product_id: "1", paid_amount: "690", estimated_paid_commission: "44" },
+  ] });
+  assert.equal(s.amounts, "units");
+  assert.equal(s.paid.paidAmount, 14.5);
+  assert.equal(s.paid.estimatedCommission, 0.91);
+  assert.equal(s.items["1"].estimatedCommission, 0.91);
 });
 
 test("the report calls an estimate an estimate and never income", () => {
@@ -71,6 +89,11 @@ test("the sync reads both statuses over the window, writes one server-only recor
   assert.equal(rec.state, "OK");
   const again = await syncAffiliateEarnings({ kvGet, kvSet, env: ENV, fetchImpl, now: now + 3_600_000 });
   assert.equal(again.outcome, "NOT_DUE", "at most every 12 hours");
+  const { amounts, ...beforeFix } = store.get(EARNINGS_KEY);
+  assert.equal(amounts, "units");
+  store.set(EARNINGS_KEY, beforeFix);
+  const reread = await syncAffiliateEarnings({ kvGet, kvSet, env: ENV, fetchImpl, now: now + 3_600_000 });
+  assert.equal(reread.outcome, "OK", "a record from before the cents fix is read again at once");
   const refused = await syncAffiliateEarnings({ kvGet: async () => null, kvSet, env: ENV, now, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ error_response: { code: "InsufficientPermission", msg: "no" } }) }) });
   assert.equal(refused.outcome, "PROVIDER_ERROR");
   assert.equal(store.get(EARNINGS_KEY).state, "PROVIDER_ERROR");

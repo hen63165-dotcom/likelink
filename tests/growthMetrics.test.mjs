@@ -48,12 +48,19 @@ test("no visits is no rate, and no order read is no purchase and no commission",
 });
 
 test("purchases and commission keep paid, confirmed and settled apart; an estimate is never the settled amount", () => {
-  const earnings = { state: "OK", checkedAt: NOW, paid: { orders: 2, estimatedCommission: 0.8, currency: "USD", settledCommission: null }, confirmed: { orders: 1, estimatedCommission: 0.4, settledCommission: null } };
+  const earnings = { state: "OK", checkedAt: NOW, amounts: "units", paid: { orders: 2, estimatedCommission: 0.8, currency: "USD", settledCommission: null }, confirmed: { orders: 1, estimatedCommission: 0.4, settledCommission: null } };
   const m = growthMetrics({ earnings, now: NOW });
   assert.deepEqual(m.purchases, { paid: 2, confirmed: 1, checkedAt: NOW });
   assert.equal(m.commission.estimatedOnPaid, 0.8);
   assert.equal(m.commission.settled, null, "nothing settled is unknown, not the estimate");
   assert.equal(m.commission.currency, "USD");
+});
+
+test("a record stored before the cents fix shows its order counts but no amount", () => {
+  const earnings = { state: "OK", checkedAt: NOW, paid: { orders: 8, estimatedCommission: 347, currency: "USD", settledCommission: null }, confirmed: { orders: 0, estimatedCommission: null, settledCommission: null } };
+  const m = growthMetrics({ earnings, now: NOW });
+  assert.deepEqual(m.purchases, { paid: 8, confirmed: 0, checkedAt: NOW });
+  assert.deepEqual(m.commission, { state: "RECHECK_PENDING" }, "347 was cents: never shown as 347 dollars");
 });
 
 test("the next steps follow the numbers and promise nothing", () => {

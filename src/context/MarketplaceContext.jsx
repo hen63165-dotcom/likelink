@@ -124,8 +124,8 @@ async function getJSON(key, shared, fallback) {
   }
 }
 
-async function setJSON(key, value, shared) {
-  await storage.set(key, JSON.stringify(value), shared);
+async function setJSON(key, value, shared, opts) {
+  await storage.set(key, JSON.stringify(value), shared, opts);
 }
 
 // Safe coercion helpers — never throw "Cannot convert object to primitive value",
@@ -396,7 +396,8 @@ export function MarketplaceProvider({ children }) {
 
   const persistClicks = useCallback(async (next) => {
     setClicks(next);
-    await setJSON(K.clicks, next, true);
+    // keepalive: a tap on "to the store" may leave the page before this answers.
+    await setJSON(K.clicks, next, true, { keepalive: true });
   }, []);
 
   const persistSales = useCallback(async (next) => {

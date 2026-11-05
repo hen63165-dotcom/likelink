@@ -38,3 +38,17 @@ test("automated browsers never record views or clicks (no fake traffic from chec
   assert.ok(click.indexOf("if (isAutomated()) return;") > -1 && click.indexOf("if (isAutomated()) return;") < click.indexOf("persistClicks"));
   assert.ok(view.indexOf("if (isAutomated()) return;") > -1 && view.indexOf("if (isAutomated()) return;") < view.indexOf("persistClicks"));
 });
+
+test("a tap on the store button is still sent when the store opens in the same view (Instagram/TikTok)", () => {
+  // From 2026-10-04 to 2026-11-05 no exit to the store was recorded, while most
+  // visits came from Instagram, whose in-app browser opens the store in this
+  // same view and cancels a write that is still on its way.
+  const persist = ctx.slice(ctx.indexOf("const persistClicks = useCallback("), ctx.indexOf("const persistSales = useCallback("));
+  assert.match(persist, /keepalive: true/);
+  const storage = readFileSync("src/lib/storage.js", "utf8");
+  assert.match(storage, /opts\.keepalive && body\.length < 60_000 \? \{ keepalive: true \}/, "keepalive only under the browsers' 64 KB cap");
+  const kit = readFileSync("src/components/discover/kit.jsx", "utf8");
+  const shop = kit.slice(kit.indexOf("export function ShopButton("), kit.indexOf("export function ShopButton(") + 1800);
+  assert.match(shop, /if \(!inAppBrowser\(\)\) return;\s*\/\/[^\n]*\n[^\n]*\n\s*e\.preventDefault\(\);/);
+  assert.match(shop, /setTimeout\(r, 400\)/, "the shopper waits at most 400 ms");
+});

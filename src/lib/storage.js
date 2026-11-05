@@ -111,6 +111,7 @@ async function serverSet(key, value, opts = {}) {
   if (opts.sig) payload.sig = opts.sig;
   if (opts.sigTs) payload.sigTs = opts.sigTs;
   if (opts.action) payload.action = opts.action;
+  const body = JSON.stringify(payload);
 
   // Admin token when the admin panel is unlocked, else the creator's verified
   // Supabase session. The server merges only what this identity may change
@@ -122,7 +123,11 @@ async function serverSet(key, value, opts = {}) {
   const res = await fetch("/api/store", {
     method: "POST",
     headers,
-    body: JSON.stringify(payload),
+    body,
+    // A write that must outlive the page (a shopper's tap on "to the store"
+    // opens the store in the same view inside Instagram/TikTok): the browser
+    // finishes it after the page is gone. Browsers cap keepalive bodies at 64 KB.
+    ...(opts.keepalive && body.length < 60_000 ? { keepalive: true } : {}),
     signal: AbortSignal.timeout(15000),
   });
   const data = await res.json().catch(() => ({}));
@@ -172,7 +177,7 @@ export const storage = {
     });
   },
 
-  async set(key, value, shared = false) {
+  async set(key, value, shared = false, opts = {}) {
     if (!shared) return localSet(key, value, shared);
 
     // A copy is not the live data: what was read from the snapshot is never
@@ -194,7 +199,7 @@ export const storage = {
     if (breaker.status().state === "restricted") throw new Error("cloud_restricted");
 
     // The secure path: writes go through the server gate.
-    return serverSet(key, value);
+    return serverSet(key, value, { keepalive: Boolean(opts?.keepalive) });
   },
 
   // Internal/advanced: server-only admin write for sensitive keys.

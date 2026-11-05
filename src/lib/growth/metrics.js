@@ -42,8 +42,10 @@ export function growthMetrics({ funnel = [], clicks = [], earnings = null, produ
   for (const e of outbound) outboundBySource.set(e.src || "direct", (outboundBySource.get(e.src || "direct") || 0) + 1);
 
   const ok = earnings && earnings.state === "OK";
+  // Amounts stored before the cents fix were 100× too large: no amount from them.
+  const amountsKnown = ok && earnings.amounts === "units";
   const purchases = ok ? { paid: earnings.paid?.orders ?? 0, confirmed: earnings.confirmed?.orders ?? 0, checkedAt: earnings.checkedAt } : { state: earnings?.state || "NOT_READ_YET" };
-  const commission = ok ? {
+  const commission = ok && !amountsKnown ? { state: "RECHECK_PENDING" } : ok ? {
     currency: earnings.paid?.currency || earnings.confirmed?.currency || null,
     estimatedOnPaid: earnings.paid?.estimatedCommission ?? null,
     estimatedOnConfirmed: earnings.confirmed?.estimatedCommission ?? null,
