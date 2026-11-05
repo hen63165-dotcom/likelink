@@ -32,7 +32,9 @@ def build(episode: Episode, *, product: dict | None, voice_engine: str, visual: 
     lines.append("")
     lines.extend(f"• {b}" for b in body)
     lines.append("")
-    comment_ending = not getattr(episode, "outro", True)  # autoplan --ending comment: no bot answers DMs
+    # autoplan --ending comment: no end card and no keyword (nothing answers DMs);
+    # --ending keyword keeps "רוצה" without the end card.
+    comment_ending = not getattr(episode, "outro", True) and not getattr(episode, "keyword", "")
     if product and comment_ending:
         lines.append("👇 הקישור בתגובה הראשונה")
     elif product:

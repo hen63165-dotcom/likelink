@@ -430,6 +430,22 @@ class AutoPlan(unittest.TestCase):
             self.assertNotIn("ואשלח", meta["caption"])
             self.assertIsNone(meta["commentKeyword"])
 
+    def test_the_keyword_ending_asks_for_the_word_without_an_end_card(self):
+        # The owner, 2026-11-05: "כתבי רוצה" (a comment link cannot be tapped on Instagram).
+        member = next(m for m in self.cast if m["id"] == "shira")
+        spec = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member, ending="keyword")
+        self.ap.check_plan(spec)
+        ep = spec["episode"]
+        self.assertEqual(ep["keyword"], "רוצה")
+        self.assertIs(ep["outro"], False)
+        self.assertIn("רוצה", ep["lines"][-1]["say"])
+        episode = parse_episode({**ep, "look": "story", "studio": "ae-1-shira"})
+        self.assertEqual(compose.end_seconds(episode), 0.0)
+        meta = metadata.build(episode, product={"id": "ae-1", "claim": ""}, voice_engine="edge", visual="scenes",
+                              seconds=24.0, character=True)
+        self.assertIn('כתבי "רוצה" בתגובות', meta["caption"])
+        self.assertEqual(meta["commentKeyword"], "רוצה")
+
     def test_the_sellers_photo_stays_in_a_corner_from_the_line_that_names_it(self):
         # The owner, 2026-11-03: the earrings were on screen for 2 s of 29.
         member = next(m for m in self.cast if m["id"] == "shira")

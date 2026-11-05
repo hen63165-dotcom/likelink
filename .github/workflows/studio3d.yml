@@ -191,7 +191,7 @@ jobs:
           if [ -n "$PRODUCT" ]; then  # one product in: the shot list is written for it
             echo "$PRODUCT" | grep -Eq '^[a-z0-9-]{2,30}$' || { echo "product: an id like ae-1005006861665924"; exit 2; }
             echo "$PRESENTER" | grep -Eq '^[a-z]{2,10}$' || { echo "presenter: a cast id like shira"; exit 2; }
-            echo "${ENDING:-dm}" | grep -Eq '^(dm|comment)$' || { echo "ending: dm or comment"; exit 2; }
+            echo "${ENDING:-dm}" | grep -Eq '^(dm|comment|keyword)$' || { echo "ending: dm, comment or keyword"; exit 2; }
             JOBS=$(python3 scripts/media/studio3d/autoplan.py --product "$PRODUCT" --presenter "$PRESENTER" --engine "$ENGINE" --ending "${ENDING:-dm}")
             { echo "product=$PRODUCT"; echo "presenter=$PRESENTER"; } >> "$GITHUB_OUTPUT"
           fi

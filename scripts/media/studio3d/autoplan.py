@@ -161,7 +161,10 @@ CTA = ("רוצה את הקישור? כתבי רוצה בתגובות ואשלח 
 # ends on her own line, with no promise and no end card (the owner, 2026-11-03:
 # viewers left during the 4 s card).
 CTA_COMMENT = ("רוצה לראות אותם מקרוב? הקישור בתגובה הראשונה.", "הקישור בתגובה הראשונה")
-ENDINGS = ("dm", "comment")
+# keyword: her own line asks for "רוצה" and she (or an AutoDM on the post) answers
+# with the link in a private message; no end card either (the owner, 2026-11-05:
+# a link in a comment cannot be tapped on Instagram, so she chose the DM).
+ENDINGS = ("dm", "comment", "keyword")
 
 # LikeLink2's own stories (the owner, 2026-11-03: the reels must make people
 # understand what the site gives, so buyers come to buy and creators open a
@@ -393,6 +396,8 @@ def plan(product: dict, member: dict, master: dict | None = None, engine: str = 
         episode.pop("keyword")
         episode["outro"] = False
         episode["cta"] = {"title": "הקישור בתגובה הראשונה", "sub": ""}
+    elif ending == "keyword":
+        episode["outro"] = False
     return {"series": f"{member['id']}-recommends", "product": pid, "presenter": member["id"], "style": STYLE,
             "character": character(member), "characterTop": character(member, top=True),
             "productSet": "champagne", "takes": TAKES, "shots": shots, "episode": episode,
