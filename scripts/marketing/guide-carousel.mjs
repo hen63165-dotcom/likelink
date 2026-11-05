@@ -7,7 +7,7 @@
 // No AI picture and no product on the slides; the guide page has affiliate
 // examples, so the closing slide says so (#פרסומת).
 //
-//   [PLAYWRIGHT_MODULE=/path/to/node_modules/playwright] node scripts/marketing/guide-carousel.mjs <out-dir> [1111]
+//   [PLAYWRIGHT_MODULE=/path/to/node_modules/playwright] node scripts/marketing/guide-carousel.mjs <out-dir> [1111 | picks (PHOTOS_DIR=ops/photos checkout) | about (SHOTS_DIR=site screenshots)]
 // Writes slide-01.jpg … slide-10.jpg (1080×1350, Instagram's 4:5) and caption.txt.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -106,6 +106,112 @@ export function saleCaption(guide = GUIDE) {
   ].join("\n");
 }
 
+// The picks edition (the owner, 2026-11-05: "add more products from Ali …
+// the prettiest, the hottest in each topic"). Seven listed products, chosen
+// by AliExpress's own recent order counts (deals:momentum: the most ordered,
+// or rising this week, in their category; a number used to choose only and
+// never shown) and by eye, each on its own slide in the seller's own photo,
+// named as the site names it. A product whose every store photo shows more
+// than its name (a watch set under "earrings") is left out. PHOTOS_DIR is a
+// checkout of the ops/photos branch (scripts/catalog/photos.mjs).
+export const PICKS = Object.freeze([
+  { id: "ae-1005012013972716", name: "עגילים · חישוק", photo: "0" },
+  { id: "ae-1005008660374263", name: "טבעת · זרקון", photo: "1" },
+  { id: "ae-1005007805729113", name: "טבעת · וינטג'", photo: "2" },
+  { id: "ae-1005012221742613", name: "שרשרת · תליון · חרוז", photo: "0" },
+  { id: "ae-1005009695987191", name: "מקל שיער · פרחים", photo: "0" },
+  { id: "ae-1005007171107355", name: "גומיות שיער צבעוניות", photo: "2" },
+  // The store photo prints "13Pcs" across its top: framed lower and a little closer.
+  { id: "ae-1005006782857610", name: "מברשות איפור", photo: "0", frame: "background-size:140%;background-position:0% 55%" },
+]);
+const MATERIAL = /זרקון|נירוסטה|כסף|925|זהב|מואסניט|קריסטל/;
+
+/** A pick's photo file in PHOTOS_DIR (<id>/<n>.<ext>), or null. */
+export function picksPhoto(dir, pick) {
+  if (!dir) return null;
+  for (const ext of ["webp", "jpg", "png"]) {
+    const file = resolve(dir, pick.id, `${pick.photo}.${ext}`);
+    try { readFileSync(file); return { file, label: "תמונת המוכר", type: ext === "jpg" ? "jpeg" : ext }; } catch { /* next */ }
+  }
+  return null;
+}
+
+export function picksSlides(picks = PICKS, dir = process.env.PHOTOS_DIR) {
+  const list = picks.map((p) => ({ ...p, photo: picksPhoto(dir, p) }));
+  const n = list.length;
+  return [
+    { kind: "pickscover", sale: SALE, title: `${n} בחירות לעגלה`, sub: "תכשיטים, שיער ואיפור", ad: AD, picks: list.slice(0, 4) },
+    ...list.map((p, i) => ({ kind: "pick", num: i + 1, of: n, name: p.name, photo: p.photo, frame: p.frame || "", ad: AD,
+      note: MATERIAL.test(p.name) ? "החומרים לפי המוכר" : "" })),
+    { kind: "end", title: "רוצה את הקישורים?", sub: `כתבי "${SALE_KEYWORD}" ואשלח לך את כל ה־${n}`,
+      link: `${SITE}`, ask: "שמרי · שלחי לחברה שעוד מתלבטת",
+      disclosure: "#פרסומת · קישורי שותפים · התמונות של המוכרים" },
+  ];
+}
+
+export function picksCaption(picks = PICKS) {
+  return [
+    AD,
+    "",
+    `${picks.length} בחירות לעגלה של ${SALE} 🛒✨`,
+    ...picks.map((p, i) => `${i + 1}. ${p.name}`),
+    "",
+    `כתבי "${SALE_KEYWORD}" ואשלח לך בהודעה את הקישורים לכל ה־${picks.length} 💌`,
+    "שמרי את הפוסט, ושלחי לחברה שעוד מתלבטת מה לקנות.",
+    "",
+    "התמונות של המוכרים. החומרים והמידות לפי תיאור המוכר.",
+    "אם תקני דרך הקישורים ייתכן שאקבל עמלה, בלי עלות נוספת לך.",
+    "",
+    "#1111 #אליאקספרס #מציאותמאלי #תכשיטים #אביזרישיער",
+  ].join("\n");
+}
+
+// The "what is LikeLink2" edition (the owner, 2026-11-05: "traffic of sellers
+// and buyers … so they understand what the site does … open a studio"). One
+// carousel for both audiences, every line something the site does today
+// (/join, the product page, the share kit's nine networks, the media labels,
+// the size meter and the guide), with two real phone screenshots of the site
+// (SHOTS_DIR: product_crop.png, size_crop.png; no price in the frame, since a
+// store price changes). No income, no user counts, no ratings. LikeLink2 is
+// the owner's own project, and the post says so.
+export const ABOUT_KEYWORD = "רוצה";
+export function aboutSlides(dir = process.env.SHOTS_DIR) {
+  const shot = (name) => (dir ? { file: resolve(dir, name), type: "png" } : null);
+  return [
+    { kind: "aboutcover", title: "ראית מוצר בסרטון ולא מצאת אותו?", sub: "בניתי בשביל זה מקום אחד" },
+    { kind: "phone", tag: "לקונות", title: "רואים בסרטון, קונים בחנות", lines: ["לוחצים על המוצר ועוברים ישר לחנות המקורית", "בלי להירשם ובלי תוספת למחיר"], shot: shot("product_crop.png") },
+    { kind: "list", tag: "לקונות", title: "כל תמונה אומרת מה היא", items: ["תמונת המוכר", "צילום אמיתי", "אנימציה, מסומנת"], foot: "בלי דירוגים מומצאים ובלי מונים מזויפים" },
+    { kind: "phone", tag: "בחינם", title: "מודד מידות מהמסך", lines: ["מידת טבעת וצמיד בלי ללכת לחנות", "ועוד מדריך: 8 בדיקות לפני שקונים באלי"], shot: shot("size_crop.png") },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "הקישור בביו שלך יכול להיות חנות", items: ["דף משלך עם כל מה שאת ממליצה עליו", "לכל מוצר דף עם סרטון וקישור לחנות", "#פרסומת מסומן לבד בכל מוצר"], foot: "" },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "איך זה עובד", items: ["1. מדביקה קישור למוצר שאת ממליצה עליו", "2. מקבלת דף מוצר וקישור עם מעקב", "3. פוסט מוכן ל־9 רשתות, עם גילוי נאות"], foot: "" },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "פותחים סטודיו בחינם", items: ["בלי כרטיס אשראי", "עד 5 מוצרים במסלול החינמי"], foot: "" },
+    { kind: "about-end", title: "אז מי את?", buyer: ["קונה?", "likelink2.vercel.app"], creator: ["יוצרת?", "likelink2.vercel.app/join"],
+      ask: `כתבי "${ABOUT_KEYWORD}" ואשלח לך את הקישור`, disclosure: "LikeLink2 הוא המיזם שלי · באתר יש קישורי שותפים (#פרסומת)" },
+  ];
+}
+
+export function aboutCaption() {
+  return [
+    "ראית מוצר בסרטון ולא מצאת אותו? 🤯",
+    "",
+    "בשביל זה בניתי את LikeLink2:",
+    "🛍️ לקונות: רואים את המוצר בסרטון ולוחצים ישר לחנות המקורית. בלי להירשם ובלי תוספת למחיר.",
+    "🏷️ כל תמונה מסומנת: תמונת המוכר, צילום אמיתי או אנימציה.",
+    "📏 בחינם: מודד מידות מהמסך ו־8 בדיקות לפני שקונים באלי.",
+    "",
+    "✨ ליוצרות ולמוכרות: הקישור בביו שלך יכול להיות חנות קטנה.",
+    "מדביקים קישור למוצר, ומקבלים דף מוצר, קישור עם מעקב ופוסט מוכן ל־9 רשתות, עם גילוי נאות.",
+    "פותחים סטודיו בחינם, בלי כרטיס אשראי.",
+    "",
+    `כתבי "${ABOUT_KEYWORD}" ואשלח לך את הקישור 💌`,
+    "שמרי, ושלחי לחברה שתמיד שואלת \"מאיפה זה?\"",
+    "",
+    "LikeLink2 הוא המיזם שלי. באתר יש קישורי שותפים (#פרסומת): אם תקני דרכם ייתכן שאקבל עמלה, בלי עלות נוספת לך.",
+    "",
+    "#LikeLink2 #קניותחכמות #אליאקספרס #יוצרות #לינקבביו",
+  ].join("\n");
+}
+
 function html(list) {
   const page = (s) => {
     if (s.kind === "cover") return `<section class="s cover"><div class="brand">LikeLink2</div>
@@ -116,6 +222,26 @@ function html(list) {
       <div class="card"><p>${esc(s.body)}</p></div><div class="count">${s.num}/${s.of}</div></section>`;
     const photo = (p, big) => p.photo ? `<figure class="${big ? "pk big" : "pk"}"><img src="data:image/jpeg;base64,${readFileSync(p.photo.file).toString("base64")}">
       <figcaption>${esc(p.photo.label)}</figcaption>${big ? `<div class="nm">${esc(p.name)}</div>` : ""}</figure>` : "";
+    const img = (ph) => `data:image/${ph.type || "jpeg"};base64,${readFileSync(ph.file).toString("base64")}`;
+    if (s.kind === "aboutcover") return `<section class="s acover"><div class="brand">LikeLink2</div>
+      <div class="emoji">🤯</div><h1>${esc(s.title)}</h1><div class="line"></div><div class="note">${esc(s.sub)}</div><div class="swipe">החליקי ←</div></section>`;
+    if (s.kind === "phone") return `<section class="s aphone"><div class="tag">${esc(s.tag)}</div><h2>${esc(s.title)}</h2>
+      ${s.lines.map((l) => `<p class="al">${esc(l)}</p>`).join("")}
+      ${s.shot ? `<div class="frame"><img src="${img(s.shot)}"></div>` : ""}<div class="brand bottom">LikeLink2</div></section>`;
+    if (s.kind === "list") return `<section class="s alist"><div class="tag">${esc(s.tag)}</div><h2>${esc(s.title)}</h2><div class="line"></div>
+      <div class="items">${s.items.map((t) => `<div class="it">${esc(t)}</div>`).join("")}</div>
+      ${s.foot ? `<div class="foot">${esc(s.foot)}</div>` : ""}<div class="brand bottom">LikeLink2</div></section>`;
+    if (s.kind === "about-end") return `<section class="s end aend"><div class="brand">LikeLink2</div><h2>${esc(s.title)}</h2>
+      <div class="pill rtl">${esc(s.buyer[0])} ← <bdi dir="ltr">${esc(s.buyer[1])}</bdi></div><div class="pill alt rtl">${esc(s.creator[0])} ← <bdi dir="ltr">${esc(s.creator[1])}</bdi></div>
+      <div class="ask">${esc(s.ask)}</div><div class="disc">${esc(s.disclosure)}</div></section>`;
+    if (s.kind === "pickscover") return `<section class="s pcover"><div class="ad">${esc(s.ad)}</div>
+      <div class="big1111 small">${esc(s.sale)}</div><h1>${esc(s.title)}</h1><div class="kicker2">${esc(s.sub)}</div>
+      <div class="quad">${s.picks.map((p) => p.photo ? `<div class="q" style="background-image:url('${img(p.photo)}')"></div>` : "").join("")}</div>
+      <div class="qlabel">תמונות המוכרים</div><div class="swipe">החליקי ←</div></section>`;
+    if (s.kind === "pick") return `<section class="s pick"><div class="ph" style="background-image:url('${img(s.photo)}');${s.frame}">
+      <div class="ad">${esc(s.ad)}</div><div class="lbl">${esc(s.photo.label)}</div></div>
+      <div class="info"><div class="num">${s.num}/${s.of}</div><div class="pname">${esc(s.name)}</div>
+      ${s.note ? `<div class="pnote">${esc(s.note)}</div>` : ""}</div></section>`;
     if (s.kind === "salecover") return `<section class="s sale"><div class="ad">${esc(s.ad)}</div>
       <div class="big1111">${esc(s.sale)}</div><h1>${esc(s.title)}</h1><div class="kicker2">${esc(s.sub)}</div>
       <div class="strip">${s.picks.map((p) => photo(p, false)).join("")}</div><div class="swipe">החליקי ←</div></section>`;
@@ -168,13 +294,46 @@ function html(list) {
   .nm{padding:18px 12px 22px;font-weight:800;font-size:34px;line-height:1.25;color:#fff}
   .note2{margin-top:26px;font-weight:500;font-size:32px;color:#9fb3c8}
   .picks .ask{position:absolute;bottom:70px;left:60px;right:60px;margin:0;font-size:50px}
+  .big1111.small{font-size:150px;margin-top:30px}
+  .pcover h1{margin-top:10px;font-size:96px;color:#fff}
+  .quad{position:absolute;left:60px;right:60px;bottom:150px;height:560px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:16px}
+  .q{border-radius:26px;background-size:cover;background-position:center;border:3px solid #2b5277}
+  .qlabel{position:absolute;bottom:112px;font-weight:500;font-size:24px;color:#9fb3c8}
+  .pcover .swipe{bottom:56px}
+  .pick{padding:0}
+  .pick .ph{position:relative;width:1080px;height:1050px;background-size:cover;background-position:center}
+  .pick .ph .ad{position:absolute;top:40px;right:40px}
+  .pick .lbl{position:absolute;left:0;right:0;bottom:0;padding:10px 20px;font-weight:500;font-size:26px;color:#fff;background:rgba(0,0,0,.5);text-align:right}
+  .pick .info{width:100%;height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .pick .num{font-weight:800;font-size:34px;color:#7cc4ff}
+  .pick .pname{font-weight:800;font-size:74px;color:#fff}
+  .pick .pnote{font-weight:500;font-size:28px;color:#9fb3c8}
+  .acover .emoji{margin-top:150px;font-size:150px;line-height:1}
+  .acover h1{margin-top:40px;font-size:98px;color:#fff}
+  .acover .note{font-size:56px;color:#7cc4ff}
+  .tag{font-weight:800;font-size:34px;color:#0f1924;background:#7cc4ff;border-radius:999px;padding:10px 30px}
+  .aphone h2,.alist h2{margin-top:34px;font-size:76px;color:#fff}
+  .al{margin-top:14px;font-weight:500;font-size:40px;color:#c9d6e3}
+  .frame{position:absolute;bottom:-40px;width:560px;height:720px;border-radius:56px;border:14px solid #e9eef4;overflow:hidden;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .frame img{width:100%;display:block}
+  .brand.bottom{position:absolute;bottom:40px;right:60px;font-size:30px;color:#9fb3c8}
+  .aphone .brand.bottom{right:auto;left:60px}
+  .items{width:100%;display:flex;flex-direction:column;gap:30px;margin-top:20px}
+  .it{border:3px solid #2b5277;border-radius:32px;padding:40px 46px;background:rgba(124,196,255,.06);font-weight:800;font-size:50px;text-align:right}
+  .foot{margin-top:50px;font-weight:500;font-size:38px;color:#9fb3c8}
+  .aend h2{margin-top:200px;font-size:110px}
+  .pill.alt{margin-top:30px;background:#7cc4ff}
+  .pill.rtl{direction:rtl}
+  .aend .pill{font-size:44px;padding:26px 46px}
   </style></head><body>${list.map(page).join("")}</body></html>`;
 }
 
 async function main(out, edition = "") {
   mkdirSync(out, { recursive: true });
   const sale = edition === "1111";
-  const list = sale ? saleSlides() : slides();
+  const picks = edition === "picks";
+  const about = edition === "about";
+  const list = about ? aboutSlides() : picks ? picksSlides() : sale ? saleSlides() : slides();
   // The browser as the TikTok kit loads it (PLAYWRIGHT_MODULE), else a globally installed Playwright.
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch();
@@ -189,7 +348,7 @@ async function main(out, edition = "") {
   } finally {
     await browser.close();
   }
-  writeFileSync(resolve(out, "caption.txt"), (sale ? saleCaption() : caption()) + "\n", "utf8");
+  writeFileSync(resolve(out, "caption.txt"), (about ? aboutCaption() : picks ? picksCaption() : sale ? saleCaption() : caption()) + "\n", "utf8");
   console.log(`${list.length} slides → ${out}`);
 }
 

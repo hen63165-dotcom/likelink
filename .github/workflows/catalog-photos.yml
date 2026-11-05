@@ -1,0 +1,47 @@
+# The store photos of every listed product (scripts/catalog/photos.mjs), for
+# choosing pictures by eye for posts. Read-only: the public catalog read and
+# the store's image CDN only. The images go to the ops/photos branch,
+# overwritten on every run.
+name: Catalog photos (for choosing pictures)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/catalog/photos.mjs", ".github/workflows/catalog-photos.yml"]
+
+concurrency:
+  group: catalog-photos
+  cancel-in-progress: false
+
+permissions:
+  # write: the images go to the ops/photos branch
+  contents: write
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download the store photos
+        env:
+          OUT: ${{ runner.temp }}/photos
+          PER: "3"
+        run: node scripts/catalog/photos.mjs
+      - name: Publish to the ops/photos branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd "$RUNNER_TEMP/photos"
+          printf 'Store photos of the listed products, Catalog photos run %s (%s), for choosing pictures by eye. Overwritten on every run.\n' "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
+          git init -q -b ops/photos
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Catalog photos run $GITHUB_RUN_ID"
+          git push -q --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/ops/photos

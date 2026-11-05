@@ -172,6 +172,10 @@
       "destination": "/"
     },
     {
+      "source": "/11-11",
+      "destination": "/"
+    },
+    {
       "source": "/size",
       "destination": "/"
     },

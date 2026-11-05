@@ -20,7 +20,8 @@ import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
 import { buildProductSeo, canonicalProduct } from "../src/lib/discovery/surfaces.js";
 import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
-import { GUIDE_CHECK_PATHS, SECTION_SEO, guideCheckSeo, sectionSeo } from "../src/lib/publicSeo.js";
+import { GUIDE_CHECK_PATHS, SECTION_SEO, guideCheckSeo, saleSeo, sectionSeo } from "../src/lib/publicSeo.js";
+import { SALE_PATHS, SALE_SEASONS } from "../src/lib/saleSeason.js";
 import { GUIDE } from "../src/lib/guide.js";
 import { getCreatorSEO } from "../src/lib/seo.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
@@ -83,7 +84,9 @@ export function sectionPages(origin = PRODUCTION_ORIGIN) {
   // The sections, then one answer page per guide check (/guide/<id>): the
   // question people search, each with its own head.
   return [...Object.keys(SECTION_SEO).map((type) => sectionSeo(type, { origin })),
-    ...GUIDE.checks.map((c) => guideCheckSeo(c.id, { origin }))];
+    ...GUIDE.checks.map((c) => guideCheckSeo(c.id, { origin })),
+    // The sale-season pages (/11-11): what people search that week.
+    ...Object.keys(SALE_SEASONS).map((id) => saleSeo(id, { origin }))];
 }
 
 /** A creator's storefront head (the same getCreatorSEO the app uses). */
@@ -152,7 +155,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);
-  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", ...GUIDE_CHECK_PATHS, "/size", "/join", "/pricing", "/legal",
+  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", ...GUIDE_CHECK_PATHS, ...SALE_PATHS, "/size", "/join", "/pricing", "/legal",
     ...creators.map((c) => `/u/${c.slug}`), ...products.map(({ product }) => `/p/${product.id}`)];
   writeFileSync(join(dist, "sitemap-static.xml"), sitemapXml(origin, paths, today));
   return { pages: products.length, urls: paths.length };
