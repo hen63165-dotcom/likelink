@@ -73,3 +73,42 @@ test("11.11: the caption opens with the disclosure, asks for one keyword and pro
   assert.doesNotMatch(own, /הכי|נמכר|ביקורות|כוכבים|מובטח|ויראלי|רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|₪|\$|%|הנחה|הכנסה|להרוויח/);
   assert.ok(text.length <= 2200);
 });
+
+// The picks edition: seven listed products, each in its own seller photo.
+import { PICKS, picksSlides, picksCaption } from "../scripts/marketing/guide-carousel.mjs";
+
+// The products' names on the site (the live catalog, read 2026-11-05).
+const SITE_TITLES = {
+  "ae-1005012013972716": "עגילים · נירוסטה · חישוק",
+  "ae-1005008660374263": "טבעת · זרקון",
+  "ae-1005007805729113": "טבעת · וינטג'",
+  "ae-1005012221742613": "שרשרת · תליון · חרוז",
+  "ae-1005009695987191": "סגסוגת בסגנון סיני עתיק פרחים אלגנטיים מקל שיער ציצית",
+  "ae-1005007171107355": "גומיות שיער צבעוניות בסיסיות",
+  "ae-1005006782857610": "איפור מברשות להגדיר עין צל בסיס נשים קוסמטיקה מברשת",
+};
+
+test("picks: every name is the site's own words for that product, and a material is the seller's claim", () => {
+  assert.equal(new Set(PICKS.map((p) => p.id)).size, PICKS.length, "no product twice");
+  for (const p of PICKS) {
+    const title = SITE_TITLES[p.id];
+    assert.ok(title, `${p.id} is a listed product`);
+    for (const word of p.name.split(/\s+/).filter((w) => w !== "·")) assert.ok(title.includes(word), `"${word}" is in ${title}`);
+  }
+  const list = picksSlides(PICKS, "");
+  const picks = list.filter((s) => s.kind === "pick");
+  assert.equal(picks.length, PICKS.length);
+  for (const s of picks) {
+    assert.equal(s.ad, "#פרסומת · קישור שותפים");
+    if (/זרקון|נירוסטה|כסף|925|זהב|מואסניט|קריסטל/.test(s.name)) assert.match(s.note, /לפי המוכר/);
+  }
+  assert.ok(list.length <= 10, "Instagram's carousel limit");
+});
+
+test("picks: the caption opens with the disclosure, one keyword, nothing invented", () => {
+  const text = picksCaption();
+  assert.ok(text.startsWith("#פרסומת · קישור שותפים"));
+  assert.equal(text.split('"רוצה"').length - 1, 1);
+  assert.match(text, /לפי תיאור המוכר/);
+  assert.doesNotMatch(text, /הכי|נמכר|להיט|ביקורות|כוכבים|מובטח|ויראלי|רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|₪|\$|%|הנחה|הזמנות/);
+});
