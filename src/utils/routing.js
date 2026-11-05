@@ -14,7 +14,7 @@ export function parsePath(pathname) {
   if (parts[0] === "reels") return { type: "reels" };
   if (parts[0] === "trends") return { type: "trends" };
   if (parts[0] === "deals") return { type: "deals" };
-  if (parts[0] === "guide") return { type: "guide" };
+  if (parts[0] === "guide") return parts[1] ? { type: "guide", check: decodeURIComponent(parts[1]) } : { type: "guide" };
   if (parts[0] === "size") return { type: "size" };
   if (parts[0] === "status") return { type: "status" };
   if (parts[0] === "join") return { type: "join" };

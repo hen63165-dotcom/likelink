@@ -17,54 +17,66 @@ export const GUIDE = Object.freeze({
   checks: Object.freeze([
     {
       id: "silver",
+      q: { he: "איך בודקים אם תכשיט הוא כסף 925?", en: "How do I check that jewelry is 925 silver?" },
       title: { he: "כסף 925: חותמת ומגנט", en: "Silver 925: stamp and magnet" },
       body: { he: "מחפשים חותמת 925 בצד הפנימי. כסף אמיתי לא נמשך למגנט, אז תכשיט שנדבק למגנט הוא לא כסף. ובכל מקרה קוראים בתיאור של המוכר ממה התכשיט עשוי.", en: "Look for a 925 stamp inside. Real silver is not attracted to a magnet. Always read what the seller says it is made of." },
       match: /925|כסף/,
     },
     {
       id: "ring-size",
+      q: { he: "איך יודעים מה מידת הטבעת שלי?", en: "How do I find my ring size?" },
       title: { he: "מידת טבעת בלי לנחש", en: "Ring size without guessing" },
       body: { he: "לוקחים טבעת שיושבת טוב ומודדים את הקוטר הפנימי במילימטרים. משווים לטבלת המידות שבעמוד המוצר. נופלת בין שתי מידות? בוחרים את הגדולה.", en: "Measure the inner diameter of a ring that fits, in millimeters, and compare it with the size table on the product page. Between two sizes? Take the larger." },
       match: /טבעת/,
     },
     {
       id: "wrist",
+      q: { he: "איך מודדים אורך צמיד?", en: "How do I measure bracelet length?" },
       title: { he: "אורך צמיד: פס נייר אחד", en: "Bracelet length: one strip of paper" },
       body: { he: "כורכים פס נייר סביב פרק היד, מסמנים ומודדים בסרגל. בדרך כלל מוסיפים סנטימטר או שניים כדי שיהיה נוח. בשרשרת מתכווננת בודקים בעמוד מה הטווח שלה.", en: "Wrap a strip of paper around your wrist, mark it and measure. Usually add a centimeter or two for comfort. For an adjustable chain, check its range on the page." },
       match: /צמיד|שרשרת יד/,
     },
     {
       id: "moissanite",
+      q: { he: "מה ההבדל בין מואסניט ליהלום?", en: "What is the difference between moissanite and diamond?" },
       title: { he: "מואסניט זה לא יהלום", en: "Moissanite is not diamond" },
       body: { he: "מואסניט היא אבן אחרת, מבריקה מאוד, אבל היא לא יהלום. בודקים שבתיאור כתוב מואסניט, ממה עשוי הבסיס ומה הציפוי, כי ציפוי יכול להישחק עם הזמן.", en: "Moissanite is a different, very sparkly stone, not diamond. Check that the listing says moissanite, what the base is and what the plating is; plating can wear over time." },
       match: /מואסניט/,
     },
     {
       id: "gift",
+      q: { he: "מתי להזמין מתנה מאליאקספרס כדי שתגיע בזמן?", en: "When should I order a gift from AliExpress so it arrives on time?" },
       title: { he: "מתנה? מזמינים עם מרווח", en: "A gift? Order with time to spare" },
       body: { he: "זמן המשלוח המשוער מופיע בעמוד המוצר. מזמינים עם מרווח, ובעגילים בודקים ממה עשוי הנעץ, במיוחד לאוזניים רגישות.", en: "The estimated delivery time is on the product page. Order early, and for earrings check what the post is made of, especially for sensitive ears." },
       match: /עגיל/,
     },
     {
       id: "real-sale",
+      q: { he: "איך יודעים אם מבצע באליאקספרס הוא אמיתי?", en: "How do I know an AliExpress sale is real?" },
       title: { he: "מבצע אמיתי או רק מספרים?", en: "A real sale or just numbers?" },
       body: { he: "מחיר „לפני ואחרי” הוא לא תמיד הנחה אמיתית. שומרים את המוצר בעגלה כמה ימים ורואים אם המחיר זז, ומשווים את המחיר הסופי כולל משלוח. בלייקלינק הנחה מוצגת רק כשיש מחיר קודם אמיתי מהחנות.", en: "A before/after price is not always a real discount. Keep the item in your cart for a few days and compare the final price including shipping. On LikeLink a discount shows only with a real previous store price." },
       match: null,
     },
     {
       id: "link-check",
+      q: { he: "איך בודקים לאן קישור מוביל לפני שקונים?", en: "How do I check where a link goes before buying?" },
       title: { he: "הקישור באמת מוביל למוצר?", en: "Does the link open the product?" },
       body: { he: "לחיצה ארוכה על קישור מראה לאן הוא מוביל. נפתח דף הבית של החנות ולא המוצר עצמו? משהו לא בסדר. ובודקים שהתמונה בעמוד היא אותו מוצר מהסרטון. בלייקלינק לכל מוצר יש קישור משלו.", en: "Long-press a link to see where it goes. If it opens the store's home page instead of the product, something is off. Check the photo matches the video. On LikeLink every product has its own link." },
       match: null,
     },
     {
       id: "protection",
+      q: { he: "מה עושים אם חבילה מאליאקספרס לא הגיעה?", en: "What do I do if an AliExpress parcel did not arrive?" },
       title: { he: "החבילה לא הגיעה? יש תאריך יעד", en: "Parcel didn't arrive? There is a deadline" },
       body: { he: "נכנסים להזמנה ובודקים עד מתי הגנת הקונה. לא הגיעה עד אז? פותחים מחלוקת ומצרפים צילום מסך של מעקב המשלוח. ולא מאשרים קבלה של חבילה שעוד לא הגיעה.", en: "Open the order and check when buyer protection ends. Not here by then? Open a dispute with a screenshot of the tracking. Never confirm receipt of a parcel that has not arrived." },
       match: null,
     },
   ]),
 });
+
+/** Each check's own answer page (/guide/<id>): the question people search, answered by the check. */
+export const guideCheckPath = (id) => `${GUIDE_PATH}/${id}`;
+export const guideCheck = (id) => GUIDE.checks.find((c) => c.id === id) || null;
 
 /** Catalog products a check talks about (by the product's own title/description). */
 export function guideExamples(check, products = [], limit = 4) {

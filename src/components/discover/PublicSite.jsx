@@ -12,6 +12,7 @@ import {
   CreatorsPage,
   DealsPage,
   GuidePage,
+  GuideCheckPage,
   SizePage,
   DiscoverPage,
   HomePage,
@@ -25,7 +26,7 @@ import {
 } from "./pages";
 import { categoryName, findCollection, findCreator } from "../../lib/publicDiscovery.js";
 import { getCreatorSEO, getDefaultSEO, updatePageSEO, PUBLIC_ORIGIN } from "../../lib/seo.js";
-import { sectionSeo } from "../../lib/publicSeo.js";
+import { guideCheckSeo, sectionSeo } from "../../lib/publicSeo.js";
 import { buildProductSeo, canonicalProduct } from "../../lib/discovery/surfaces.js";
 import { publicUrl } from "../../lib/acquisition.js";
 import { INDEX_ROBOTS } from "../../constants/seo.js";
@@ -93,8 +94,11 @@ function pageSEO(route, graph, lang) {
     }
     case "deals":
       return section("deals");
-    case "guide":
-      return section("guide");
+    case "guide": {
+      // An answer page (/guide/<id>): the same head the build writes into guide/<id>.html.
+      const g = route.check ? guideCheckSeo(route.check, { lang: he ? "he" : "en" }) : null;
+      return g ? { ...base, title: g.title, description: g.description, url: g.canonical, robots: INDEX_ROBOTS, jsonLd: g.jsonLd } : section("guide");
+    }
     case "size":
       return section("size");
     case "status":
@@ -165,7 +169,7 @@ export default function PublicSite({ route, navigate }) {
       page = <DealsPage graph={graph} />;
       break;
     case "guide":
-      page = <GuidePage graph={graph} />;
+      page = route.check ? <GuideCheckPage key={route.check} graph={graph} id={route.check} /> : <GuidePage graph={graph} />;
       break;
     case "size":
       page = <SizePage graph={graph} />;
