@@ -406,7 +406,7 @@ class AutoPlan(unittest.TestCase):
         spec = self.ap.plan(hoops, member, ending="comment")
         self.ap.check_plan(spec)
         ep = spec["episode"]
-        self.assertIn("קופסת תכשיטים", ep["hook"]["say"])
+        self.assertIn("קופסת התכשיטים", ep["hook"]["say"])
         self.assertNotRegex(spec["shots"][0]["prompt"], self.ap.DRAWN_JEWELLERY)
         self.assertIs(ep["outro"], False)
         self.assertNotIn("keyword", ep)
@@ -422,6 +422,48 @@ class AutoPlan(unittest.TestCase):
         self.assertEqual(compose.end_seconds(parse_episode({**default["episode"], "look": "story", "studio": "ae-1-shira"})), compose.END_SECONDS)
         with self.assertRaises(SystemExit):
             self.ap.plan(hoops, member, ending="other")
+        # The post says where the link is, never a DM, and names no comment keyword.
+        meta = metadata.build(episode, product={"id": "ae-1", "claim": ""}, voice_engine="edge", visual="scenes",
+                              seconds=24.0, character=True) if hasattr(metadata, "build") else None
+        if meta is not None:
+            self.assertIn("הקישור בתגובה הראשונה", meta["caption"])
+            self.assertNotIn("ואשלח", meta["caption"])
+            self.assertIsNone(meta["commentKeyword"])
+
+    def test_the_sellers_photo_stays_in_a_corner_from_the_line_that_names_it(self):
+        # The owner, 2026-11-03: the earrings were on screen for 2 s of 29.
+        member = next(m for m in self.cast if m["id"] == "shira")
+        spec = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member, ending="comment")
+        ep = parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira"})
+        # 2026-11-04: 7–9 of 10 viewers left in the first 3 s, so the product is there from the hook.
+        self.assertEqual(ep.inset_from, 0)
+        beats = [compose.Beat(start=float(i * 3), seconds=2.5, end=i * 3 + 2.8, caption="x", clip=None) for i in range(7)]
+        spans = compose.inset_spans(beats, ep.inset_from, ep.product["at"], 21.0)
+        self.assertEqual(spans, [(0.0, 12.0), (15.0, 21.0)], "hidden on the product's own full-screen line")
+        self.assertEqual(compose.inset_spans(beats, 2, -1, 21.0), [(6.0, 21.0)])
+        with self.assertRaises(ScriptError):
+            parse_episode({**spec["episode"], "look": "story", "studio": "ae-1-shira", "productInset": -1})
+        card = compose.product_inset_card(compose.Image.new("RGB", (800, 800), (200, 10, 10)))
+        self.assertGreaterEqual(card.width, compose.INSET)
+
+    def test_a_long_line_cuts_closer_about_every_two_and_a_half_seconds(self):
+        self.assertEqual(compose.jump_times(2.4), [])
+        self.assertEqual(compose.jump_times(3.4), [1.7])
+        self.assertEqual(compose.jump_times(5.4), [1.8, 3.6])
+        self.assertEqual(compose.jump_times(5.0), [2.5])
+
+    def test_the_talking_object_never_borrows_her_clip(self):
+        # v13, 2026-11-04: the box's hook played Shira's clip and the box never appeared.
+        import importlib.util  # noqa: PLC0415
+        spec_ = importlib.util.spec_from_file_location("musetalk", HERE.parent / "media" / "talking" / "musetalk.py")
+        m = importlib.util.module_from_spec(spec_)
+        spec_.loader.exec_module(m)
+        member = next(x for x in self.cast if x["id"] == "shira")
+        plan = self.ap.plan({"id": "ae-1", "title": "עגילים · חישוק"}, member,
+                            master={"face": [0.2, 0.05, 0.9, 0.44]}, engine="gpu", ending="comment")
+        hers = m.her_talking_shots(plan)
+        self.assertNotIn("hook", hers)
+        self.assertIn("cta", hers)
 
     def test_the_story_follows_the_product_kind(self):
         kind = self.ap.kind_of
@@ -630,6 +672,19 @@ class CloudStudio(unittest.TestCase):
         return {"beats": [{"beat": i, "scene": b.get("scene", ""), "file": f"ep-{i:02d}.mp3", "seconds": 2.5}
                           for i, b in enumerate(beats)]}
 
+    def test_the_modal_token_is_read_out_of_whatever_was_pasted_and_never_shown(self):
+        # 2026-11-04: Modal answered "Token ID is malformed" for the stored id.
+        tid, sec = "ak-exampleId0001", "as-exampleSecret0001"
+        self.assertEqual(self.cp.modal_tokens(tid, sec), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f" {tid}\n", f"'{sec}'"), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f"modal token set --token-id {tid} --token-secret {sec}", ""), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(f"MODAL_TOKEN_ID={tid}", f"MODAL_TOKEN_SECRET={sec}"), (tid, sec))
+        self.assertEqual(self.cp.modal_tokens(sec, tid), (tid, sec), "swapped fields")
+        self.assertEqual(self.cp.modal_tokens("not a token", ""), ("", ""))
+        shape = self.cp.token_shape(f"modal token set --token-id {tid}")
+        self.assertTrue(shape["hasAk"] and shape["spaceInside"])
+        self.assertNotIn("example", json.dumps(shape), "the shape never carries the value")
+
     def test_on_the_gpu_every_scene_says_its_line_and_nothing_claims(self):
         spec = self.spec()
         self.ap.check_plan(spec)
@@ -720,7 +775,10 @@ class CloudStudio(unittest.TestCase):
 
     def test_the_cloud_runs_only_with_the_owners_token_and_falls_back_to_the_free_studio(self):
         wf = (HERE.parent.parent / ".github" / "workflows" / "studio3d.yml").read_text(encoding="utf-8")
-        self.assertIn("HAS_GPU: ${{ secrets.MODAL_TOKEN_ID != '' && secrets.MODAL_TOKEN_SECRET != '' }}", wf)
+        # Usable, not just present: an id ak-… and a secret as-… (2026-11-04: "Token ID is malformed").
+        self.assertIn("HAS_GPU: ${{ steps.mt.outputs.ok == 'true' }}", wf)
+        self.assertIn("run: python3 scripts/media/gpu/cloudplan.py tokens --check", wf)
+        self.assertIn('cloudplan.py tokens --env-file "$RUNNER_TEMP/modal.env"', wf)
         self.assertIn("if: always() && needs.plan.result == 'success' && needs.plan.outputs.stage == 'all' && needs.gpu.result != 'success'", wf)
         self.assertIn("needs.gpu.result != 'success' && needs.plan.outputs.moving", wf)  # no CPU animation after the cloud
         self.assertNotRegex(wf, r"echo .*MODAL_TOKEN")  # the token is never printed

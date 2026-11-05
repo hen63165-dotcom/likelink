@@ -92,6 +92,7 @@ class Episode:
     studio: str = ""     # a 3D studio shot list (scripts/media/studio3d/shots/<name>/): its pictures are the scenes
     talk: list[str] = field(default_factory=list)  # studio shots where she talks to the camera (lip-synced)
     outro: bool = True   # False: no end card; the reel ends on its last line (and loops)
+    inset_from: int = -1  # story: the seller's photo in a corner from this beat on (-1: only on its own line)
 
     @property
     def beats(self) -> list[Line]:
@@ -227,7 +228,19 @@ def parse_episode(data: dict) -> Episode:
                    voice=str(data.get("voice") or ""), visual=str(data.get("visual") or ""),
                    pexels=screen_text(data.get("pexels") or ""),
                    keyword=_keyword(data.get("keyword")), look=look, send=_send(data.get("send")), presenter=presenter,
-                   studio=studio, talk=talk, outro=data.get("outro", True) is not False)
+                   studio=studio, talk=talk, outro=data.get("outro", True) is not False,
+                   inset_from=_inset(data.get("productInset"), product))
+
+
+def _inset(value, product) -> int:
+    """The beat from which a story keeps the seller's photo in a corner (needs a product).
+    0 is the hook itself: the owner's numbers (2026-11-04) lost 7–9 of 10 viewers in
+    the first 3 s, so the product is on screen from the first frame."""
+    if value is None or value is False:
+        return -1
+    if not product or isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ScriptError("productInset: the beat (0 = the hook, 1 = the first line after it) from which the seller's photo stays in a corner")
+    return value
 
 
 def _send(value) -> str:

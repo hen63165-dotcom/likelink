@@ -146,7 +146,8 @@ def make(episode: Episode, *, voice: str, visual: str, out: Path, music: str | N
                                             voiced=used not in ("none", "file"), music_src=music, captions=captions,
                                             tier=tier, logo=logo, character=character)
         mp4 = out / f"{episode.id}.mp4"
-        compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg")
+        compose.render(video, mp4, preview=out / f"{episode.id}-preview.jpg",
+                       loudness=compose.LOUDNESS if episode.studio else None)
         meta = metadata.build(episode, product=product, voice_engine=used, visual=visual, seconds=total, character=character, real=real)
         # The look in one word, for the site's reels feed (scripts/reels-feed.mjs):
         # story | talking | still | aurora | pexels | video.

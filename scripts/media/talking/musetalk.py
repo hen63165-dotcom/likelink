@@ -122,6 +122,15 @@ def eye_score(gray, face) -> float:
     return sum(vals) / len(vals) if vals else 0.0
 
 
+def her_talking_shots(spec: dict) -> list[str]:
+    """The talking shots of the presenter herself (pure; tested). Only these
+    may lend one another a clip: the talking object is not her (2026-11-04,
+    v13: the jewellery box's hook borrowed Shira's clip, and the box that the
+    line names never appeared)."""
+    return [s["id"] for s in spec.get("shots", [])
+            if s.get("talk") and not s.get("still") and (s.get("character") or s.get("cast"))]
+
+
 def pick_base(profiles: dict, own: str, min_frames: int = MIN_STEADY, eyes_share: float = EYES_SHARE) -> str:
     """Which talking clip says this line: its own, unless its steady part is
     too short or her eyes are clearly less open in it than in the best one
@@ -482,10 +491,10 @@ def main(argv=None) -> int:
         manifest = json.load(open(Path(a.voices) / "voices.json", encoding="utf-8"))
         job = line_for(spec, manifest, a.pictures, a.voices, a.scene)
         phase = 0.0
-        clips = {s["id"]: Path(a.pictures) / f"{s['id']}.mp4" for s in spec.get("shots", [])
-                 if s.get("talk") and not s.get("still")}
+        hers = her_talking_shots(spec)
+        clips = {sid: Path(a.pictures) / f"{sid}.mp4" for sid in hers}
         clips = {sid: p for sid, p in clips.items() if p.exists()}
-        if job["base"].endswith(".mp4") and len(clips) > 1:
+        if a.scene in hers and job["base"].endswith(".mp4") and len(clips) > 1:
             det = _yunet(Path(tempfile.mkdtemp(prefix="det-")))
             profiles = {sid: clip_profile(p, det) for sid, p in clips.items()}
             chosen = pick_base(profiles, a.scene)

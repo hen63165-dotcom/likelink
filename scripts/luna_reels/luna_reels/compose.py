@@ -305,7 +305,7 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         if episode.studio:
             # A studio reel cuts like a creator's edit: a hard cut with a short punch-in, no dissolve.
             clip = _punch_in(clip.with_duration(max(0.04, dur - XF if not last else dur)))
-            clip = clip.with_start(beat.start)
+            clip = _jump_cut(clip, clip.duration).with_start(beat.start)
         else:
             clip = clip.with_start(beat.start)
             if i:
@@ -315,6 +315,33 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
 
 
 PUNCH = 0.22  # s: a cut lands 6% closer and settles
+# A long line gets a jump cut, closer and then back, so a new picture lands about
+# every 2.5 s, as in creators' edits (v13, 2026-11-04: one shot per line, 4–5 s each).
+JUMP_EVERY = 2.5
+JUMP_ZOOM = 1.14
+
+
+def jump_times(seconds: float, every: float = JUMP_EVERY) -> list[float]:
+    """When a line of this length cuts closer or wider (pure; tested): in equal parts of at most `every`."""
+    n = math.ceil(seconds / every - 1e-9)
+    return [round(seconds * k / n, 3) for k in range(1, n)] if n >= 2 else []
+
+
+def _jump_cut(clip: VideoClip, seconds: float) -> VideoClip:
+    cuts = jump_times(seconds)
+    if not cuts:
+        return clip
+
+    def frame_at(get_frame, t):
+        frame = get_frame(t)
+        if sum(1 for c in cuts if t >= c) % 2 == 0:
+            return frame
+        frame = frame if frame.dtype == np.uint8 else np.clip(frame, 0, 255).astype(np.uint8)
+        h, w = frame.shape[:2]
+        cw, ch = int(w / JUMP_ZOOM), int(h / JUMP_ZOOM)
+        x0, y0 = (w - cw) // 2, int((h - ch) * 0.3)  # toward the face, above the captions
+        return np.array(Image.fromarray(frame[y0:y0 + ch, x0:x0 + cw]).resize((w, h), Image.BILINEAR))
+    return clip.transform(frame_at)
 
 
 def _punch_in(clip: VideoClip) -> VideoClip:
@@ -555,6 +582,12 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     layers.extend(_captions(beats, captions))
 
+    # A story may keep the seller's photo in a corner from the line that names
+    # the product to the end (the owner, 2026-11-03: the earrings were on screen
+    # for 2 s of 29). Hidden on the product's own full-screen line.
+    if story and product and product.get("photo") is not None and 0 < getattr(episode, "inset_from", -1) < len(beats):
+        layers.extend(_product_inset(product, beats, episode.inset_from, end_at))
+
     # Product: the store's own photo and the seller's own claim, sliding up
     # (a story shows it full screen as the scene of its line instead).
     if product and not (story and visual == "scenes"):
@@ -599,6 +632,36 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
     return video.with_audio(_audio(beats, total, work, music_src)), beats, total
 
 
+INSET = 300            # px: the seller's photo in the corner
+INSET_POS = (36, 900)  # left, under the name tag, above the captions and clear of Instagram's buttons
+
+
+def product_inset_card(photo: Image.Image) -> Image.Image:
+    """The seller's photo, rounded, with its label under it."""
+    card = visuals.rounded_photo(photo, INSET, radius=28, border=8)
+    tag = text.label(visuals.PHOTO_TAG, 24)
+    out = Image.new("RGBA", (max(card.width, tag.width), card.height + tag.height - 4), (0, 0, 0, 0))
+    out.alpha_composite(card, ((out.width - card.width) // 2, 0))
+    out.alpha_composite(tag, ((out.width - tag.width) // 2, card.height - 4))
+    return out
+
+
+def inset_spans(beats: list[Beat], start_beat: int, product_beat: int, end_at: float) -> list[tuple[float, float]]:
+    """When the corner photo shows: from its beat to the end, except the product's own line."""
+    start = beats[start_beat].start
+    if 0 <= product_beat < len(beats) and beats[product_beat].start >= start:
+        a = beats[product_beat].start
+        b = beats[product_beat + 1].start if product_beat + 1 < len(beats) else end_at
+        return [(t0, t1) for t0, t1 in ((start, a), (b, end_at)) if t1 - t0 > 0.05]
+    return [(start, end_at)] if end_at - start > 0.05 else []
+
+
+def _product_inset(product: dict, beats: list[Beat], start_beat: int, end_at: float) -> list:
+    card = product_inset_card(product["photo"])
+    return [_img_clip(card, a, b - a, INSET_POS).with_effects([vfx.CrossFadeIn(0.2)])
+            for a, b in inset_spans(beats, start_beat, int(product.get("at", -1)), end_at)]
+
+
 def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None, whooshes: list[float] = ()):
     tracks = [AudioFileClip(str(silent_track(total, work / "silence.m4a")))]
     if whooshes:
@@ -635,12 +698,22 @@ def voice_track(beats: list[Beat], total: float, dst: Path) -> Path:
     return dst
 
 
-def render(video: CompositeVideoClip, dst: Path, preview: Path | None = None) -> None:
+LOUDNESS = -14.0  # LUFS: where reels on Instagram and TikTok sit (v13 came out at -21, quiet next to them)
+
+
+def render(video: CompositeVideoClip, dst: Path, preview: Path | None = None, loudness: float | None = None) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     video.write_videofile(
         str(dst), fps=brand.FPS, codec="libx264", audio_codec="aac", audio_fps=48000, preset="medium", threads=4,
         ffmpeg_params=["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-crf", "20"], logger=None,
     )
+    if loudness is not None:
+        import subprocess  # noqa: PLC0415
+        tmp = dst.with_name(dst.stem + ".loud.mp4")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(dst), "-c:v", "copy",
+                        "-af", f"loudnorm=I={loudness}:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
+                        "-movflags", "+faststart", str(tmp)], check=True, timeout=600)
+        tmp.replace(dst)
     if preview is not None:
         # Hook, the middle and the end card, side by side, for a quick look.
         times = [0.6, video.duration * 0.55, video.duration - 1.0]

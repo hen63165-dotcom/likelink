@@ -3,16 +3,18 @@
   "product": "ae-1005006861665924",
   "presenter": "shira",
   "style": "3D animated feature film still, stylized cartoon character design with large expressive eyes, soft cinematic lighting, subsurface scattering, rich warm colors, highly detailed, shallow depth of field, vertical composition",
-  "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt and long sweatpants",
-  "characterTop": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy warm chestnut-brown hair, hazel eyes, wearing a plain dusty rose half-zip sweatshirt",
+  "character": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy jet-black hair, blue eyes, wearing a plain fitted dusty rose athletic tank top with a high neck and long dusty rose track pants",
+  "characterTop": "Shira, a woman in her late twenties with an adult face and adult proportions, long wavy jet-black hair, blue eyes, wearing a plain fitted dusty rose athletic tank top with a high neck",
   "productSet": "champagne",
   "takes": 3,
   "shots": [
     {
       "id": "hook",
       "seed": 93101,
-      "prompt": "a cute anthropomorphic plain white cotton t-shirt mascot lying flat on a neatly made bed, top-down view, the t-shirt itself has two big glossy cartoon eyes and a small pouting mouth, it looks bored and sad up at the camera, soft morning window light",
-      "motion": "the t-shirt mascot slowly blinks its big eyes and sighs, the camera slowly pushes in"
+      "prompt": "a cute anthropomorphic small closed white keepsake box with a pink satin bow on its lid mascot standing on a white vanity table beside a round mirror, the box itself has two big glossy cartoon eyes and a small open mouth, it looks wide-eyed and eager up at the camera, soft morning window light",
+      "motion": "the box mascot blinks its big eyes and bounces a little with excitement, the camera slowly pushes in",
+      "talk": true,
+      "talkPrompt": "the cartoon box mascot talks to the camera with its little mouth, blinking its big glossy eyes, wide-eyed and eager, as if calling out to her, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "problem",
@@ -20,7 +22,9 @@
       "seed": 93102,
       "prompt": "medium shot, she stands at a tall bedroom mirror, head tilted, a puzzled 'something is missing' expression",
       "motion": "she tilts her head with a puzzled 'something is missing' look and shrugs her shoulders, her face toward the camera, the camera slowly pushes in",
-      "cast": "master.png"
+      "cast": "master.png",
+      "talk": true,
+      "talkPrompt": "she talks to the camera with a puzzled look, tilts her head and shrugs her shoulders, natural hand gestures, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "hero",
@@ -30,7 +34,8 @@
       "seed": 93103,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, in a bright cozy bedroom, she looks straight at the camera with a warm confident smile",
       "motion": "she smiles, tilts her head slightly and nods, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png"
+      "cast": "master.png",
+      "talkPrompt": "she talks warmly to the camera with a confident smile, small natural nods and hand gestures, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "tip",
@@ -40,7 +45,8 @@
       "seed": 93104,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she holds up her index finger beside her shoulder as if sharing a little secret, a knowing playful smile straight at the camera, bright cozy bedroom background",
       "motion": "she raises her index finger, nods knowingly and smiles at the camera, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png"
+      "cast": "master.png",
+      "talkPrompt": "she talks to the camera as if sharing a little secret, raises her index finger, a playful smile, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "wow",
@@ -49,7 +55,9 @@
       "seed": 93105,
       "prompt": "medium shot from the waist up, she smiles with delighted surprise, eyebrows raised, one hand resting on her chest, bright bedroom background",
       "motion": "her face lights up with delighted surprise, eyebrows rise, she places one hand on her chest and laughs softly, her hair moves",
-      "cast": "master.png"
+      "cast": "master.png",
+      "talk": true,
+      "talkPrompt": "she talks to the camera, delighted, eyebrows raised, one hand on her chest, laughing softly, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "cta",
@@ -59,7 +67,8 @@
       "seed": 93106,
       "prompt": "close-up portrait from the chest up, her head and shoulders fill the frame, she smiles warmly and points her index finger at the camera, inviting, bright bedroom background",
       "motion": "she looks straight at the camera with a warm inviting smile and a small friendly nod, her eyes stay bright and wide open, she blinks naturally now and then, her hair moves softly, the camera remains completely still, a fixed steady shot",
-      "cast": "master.png"
+      "cast": "master.png",
+      "talkPrompt": "she talks warmly to the camera and points at the viewer, inviting, nodding, 3D animated cartoon character, smooth natural motion, soft cinematic lighting"
     },
     {
       "id": "tag",
@@ -76,8 +85,8 @@
     "goal": "sales",
     "title": "טריק קטן: עגילי חישוק",
     "hook": {
-      "say": "החולצה הלבנה שלי ממש משועממת.",
-      "caption": "החולצה הלבנה שלי... משועממת",
+      "say": "רגע! לפני שאת יוצאת, תפתחי את קופסת התכשיטים.",
+      "caption": "רגע! לפני שאת יוצאת...",
       "scene": "hook"
     },
     "topics": [
@@ -86,8 +95,8 @@
     ],
     "lines": [
       {
-        "say": "כל בוקר אותה חולצה לבנה, ותמיד מרגיש לי שמשהו חסר.",
-        "caption": "כל בוקר... ומשהו חסר",
+        "say": "אני מתלבשת פשוט, ותמיד מרגיש לי שמשהו חסר.",
+        "caption": "לבוש פשוט... ומשהו חסר",
         "scene": "problem"
       },
       {
@@ -101,17 +110,17 @@
         "scene": "tip"
       },
       {
-        "say": "כמו החישוקים האלה.",
-        "caption": "כמו החישוקים האלה"
+        "say": "כמו החישוקים האלה: עגולים וגדולים, חמישה סנטימטרים לפי המוכר.",
+        "caption": "עגולים, 5 ס\"מ לפי המוכר"
       },
       {
-        "say": "ופתאום, אותה חולצה פשוטה נראית כמו לוק שלם.",
+        "say": "ופתאום, אותו בגד פשוט נראה כמו לוק שלם.",
         "caption": "ופתאום זה לוק",
         "scene": "wow"
       },
       {
-        "say": "רוצה את הקישור? כתבי רוצה בתגובות ואשלח לך אותו.",
-        "caption": "כתבי \"רוצה\" בתגובות",
+        "say": "רוצה לראות אותם מקרוב? הקישור בתגובה הראשונה.",
+        "caption": "הקישור בתגובה הראשונה",
         "scene": "cta"
       }
     ],
@@ -119,29 +128,30 @@
       "id": "ae-1005006861665924",
       "at": 4
     },
+    "productInset": 2,
     "cta": {
-      "title": "כתבי *\"רוצה\"* בתגובות",
-      "sub": "ואשלח לך את הקישור"
+      "title": "הקישור בתגובה הראשונה",
+      "sub": ""
     },
     "hashtags": [
       "#עגילים",
       "#טיפסטיילינג",
       "#אופנה"
     ],
-    "send": "שלחי לחברה שתמיד בחולצה לבנה",
-    "keyword": "רוצה",
-    "presenter": "shira"
+    "send": "שלחי לחברה שתמיד מתלבשת פשוט",
+    "presenter": "shira",
+    "outro": false
   },
   "face": {
     "from": "tag",
     "box": [
-      0.261,
-      0.178,
-      0.859,
-      0.514
+      0.21,
+      0.055,
+      0.899,
+      0.443
     ]
   },
-  "engine": "cpu",
+  "engine": "gpu",
   "auto": {
     "kind": "earrings",
     "master": true
