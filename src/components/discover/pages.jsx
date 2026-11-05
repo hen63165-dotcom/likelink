@@ -39,7 +39,7 @@ import {
 } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { GUIDE, GUIDE_PATH, guideCheck, guideCheckPath, guideExamples } from "../../lib/guide.js";
-import { saleChecks, salePath, salePicks, saleSeason } from "../../lib/saleSeason.js";
+import { saleChecks, salePath, salePicks, saleSeason, seasonName } from "../../lib/saleSeason.js";
 import { braceletFromWrist, CARD_MM, CARD_PX, pxPerMm, RING_DIAMETER_MM, ringFromCircumference, ringFromDiameter, SIZE_PAGE, SIZE_PATH, sizeProducts } from "../../lib/sizeTool.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
@@ -1128,8 +1128,8 @@ export function SalePage({ graph, id }) {
       </Section>
       {picks.length ? (
         <Section>
-          <h2 className="text-[22px] font-extrabold">{L(`בחירות של LikeLink2 לקראת ${season.name}`, `LikeLink2 picks for ${season.name}`)}</h2>
-          <p className="lx-mute mt-1 text-[13px]">{L("תמונות המוכרים. החומרים והמידות לפי תיאור המוכר. קישורי שותפים (#פרסומת).", "The sellers' photos. Materials and sizes as the seller states. Affiliate links (#ad).")}</p>
+          <h2 className="text-[22px] font-extrabold">{L(`בחירות של LikeLink2 לקראת ${seasonName(season, "he")}`, `LikeLink2 picks for ${seasonName(season, "en")}`)}</h2>
+          <p className="lx-mute mt-1 text-[13px]">{L("תמונות המוכרים. החומרים והמידות לפי תיאור המוכר. קישורי שותפים (#פרסומת).", "The sellers' photos. Materials and sizes as the seller states. Affiliate links (#ad).")}{season.note ? ` ${t(season.note)}` : ""}</p>
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             {picks.map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}
           </div>

@@ -17,6 +17,7 @@ import { curatedProducts, footageByProduct, shopCircles, spotlight } from "../..
 import { cleanImage, galleryPicks, lookLabel, lookOf } from "../../lib/looks.js";
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
+import { activeSeasons, salePath } from "../../lib/saleSeason.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
 import { CreatorAvatar, Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
 import { STUDIO_SIGNUP } from "./PublicShell";
@@ -420,6 +421,8 @@ function Tools() {
   const tools = [
     { to: SIZE_PATH, icon: Ruler, kicker: L("מודד מידות", "Size meter"), title: L("מה מידת הטבעת שלך?", "What's your ring size?"), line: L("מגלים מהמסך, עם כרטיס וטבעת שיש לך. וגם אורך צמיד לפי פרק היד.", "Find out on your screen with a card and a ring you own. Plus bracelet length from your wrist.") },
     { to: GUIDE_PATH, icon: BookOpen, kicker: L("המדריך החינמי", "The free guide"), title: lang === "he" ? GUIDE.title.he : GUIDE.title.en, line: L("כסף 925, מואסניט, מבצעים אמיתיים והגנת קונה. אפשר לשמור כ־PDF.", "Silver 925, moissanite, real sales and buyer protection. Save it as a PDF.") },
+    // This season's answer page (/11-11, /black-friday, /hanukkah-gifts), while its window is open.
+    ...activeSeasons().map((s) => ({ to: salePath(s.id), icon: BookOpen, kicker: lang === "he" ? s.kicker.he : s.kicker.en, title: lang === "he" ? s.title.he : s.title.en, line: L("הבדיקות מהמדריך, ובחירות מהאתר.", "The guide's checks, and picks from the site.") })),
   ];
   return (
     <section className="lx-wrap lx-luxe-section" aria-labelledby="h-tools">

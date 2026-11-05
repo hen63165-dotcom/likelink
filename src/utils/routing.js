@@ -1,3 +1,5 @@
+import { SALE_SEASONS } from "../lib/saleSeason.js";
+
 export function parsePath(pathname) {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] === "u" && parts[1]) return { type: "creator", slug: decodeURIComponent(parts[1]) };
@@ -14,7 +16,7 @@ export function parsePath(pathname) {
   if (parts[0] === "reels") return { type: "reels" };
   if (parts[0] === "trends") return { type: "trends" };
   if (parts[0] === "deals") return { type: "deals" };
-  if (parts[0] === "11-11") return { type: "sale", id: "11-11" };
+  if (parts.length === 1 && Object.hasOwn(SALE_SEASONS, parts[0])) return { type: "sale", id: parts[0] };
   if (parts[0] === "guide") return parts[1] ? { type: "guide", check: decodeURIComponent(parts[1]) } : { type: "guide" };
   if (parts[0] === "size") return { type: "size" };
   if (parts[0] === "status") return { type: "status" };
