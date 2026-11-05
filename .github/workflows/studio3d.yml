@@ -226,9 +226,11 @@ jobs:
           import json, os
           print('true' if any(s.get('talk') for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots']) else 'false')")
           # Every shot where she says her line (the free lip-sync makes each on its own runner).
+          # Only hers: the free lip-sync needs a human face, and the talking object has none
+          # (v14, 2026-11-05: "hook.mp4: no face found"; it plays its own clip with its voice).
           TALKING=$(JOBS="$JOBS" python3 -c "
           import json, os
-          print(json.dumps([s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots'] if s.get('talk') and not s.get('still')]))")
+          print(json.dumps([s['id'] for s in json.load(open('scripts/media/studio3d/jobs/' + os.environ['JOBS']))['shots'] if s.get('talk') and not s.get('still') and (s.get('character') or s.get('cast'))]))")
           # The cloud studio makes a whole story: a shot list with an episode, every shot.
           GPU=$(JOBS="$JOBS" ENGINE="$ENGINE" STAGE="$STAGE" ONLY="$ONLY" python3 -c "
           import json, os

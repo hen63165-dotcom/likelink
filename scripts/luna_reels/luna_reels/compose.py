@@ -305,7 +305,7 @@ def story_background(episode: Episode, beats: list[Beat], end_at: float, total: 
         if episode.studio:
             # A studio reel cuts like a creator's edit: a hard cut with a short punch-in, no dissolve.
             clip = _punch_in(clip.with_duration(max(0.04, dur - XF if not last else dur)))
-            clip = _jump_cut(clip, clip.duration).with_start(beat.start)
+            clip = (_jump_cut(clip, clip.duration) if jumps(scene) else clip).with_start(beat.start)
         else:
             clip = clip.with_start(beat.start)
             if i:
@@ -325,6 +325,17 @@ def jump_times(seconds: float, every: float = JUMP_EVERY) -> list[float]:
     """When a line of this length cuts closer or wider (pure; tested): in equal parts of at most `every`."""
     n = math.ceil(seconds / every - 1e-9)
     return [round(seconds * k / n, 3) for k in range(1, n)] if n >= 2 else []
+
+
+def jumps(scene: str) -> bool:
+    """Whether a line's shot gets jump cuts (pure; tested). Never the seller's photo:
+    its "תמונת המוכר" label is part of the frame, and a closer crop cut it off (v14)."""
+    return scene != "product"
+
+
+def inset_on(inset_from: int, n_beats: int) -> bool:
+    """Whether the corner photo shows at all (pure; tested): from the hook (0) to the last line."""
+    return 0 <= inset_from < n_beats
 
 
 def _jump_cut(clip: VideoClip, seconds: float) -> VideoClip:
@@ -585,7 +596,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
     # A story may keep the seller's photo in a corner from the line that names
     # the product to the end (the owner, 2026-11-03: the earrings were on screen
     # for 2 s of 29). Hidden on the product's own full-screen line.
-    if story and product and product.get("photo") is not None and 0 < getattr(episode, "inset_from", -1) < len(beats):
+    if story and product and product.get("photo") is not None and inset_on(getattr(episode, "inset_from", -1), len(beats)):
         layers.extend(_product_inset(product, beats, episode.inset_from, end_at))
 
     # Product: the store's own photo and the seller's own claim, sliding up

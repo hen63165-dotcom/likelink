@@ -451,6 +451,16 @@ class AutoPlan(unittest.TestCase):
         self.assertEqual(compose.jump_times(3.4), [1.7])
         self.assertEqual(compose.jump_times(5.4), [1.8, 3.6])
         self.assertEqual(compose.jump_times(5.0), [2.5])
+        # v14: the closer crop cut off the seller photo's own label.
+        self.assertFalse(compose.jumps("product"))
+        self.assertTrue(compose.jumps("hero"))
+
+    def test_the_corner_photo_shows_from_the_hook(self):
+        # v14: productInset 0 was planned, but "0 < inset_from" kept the photo off the whole reel.
+        self.assertTrue(compose.inset_on(0, 7))
+        self.assertTrue(compose.inset_on(2, 7))
+        self.assertFalse(compose.inset_on(-1, 7))
+        self.assertFalse(compose.inset_on(7, 7))
 
     def test_the_talking_object_never_borrows_her_clip(self):
         # v13, 2026-11-04: the box's hook played Shira's clip and the box never appeared.
