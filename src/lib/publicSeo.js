@@ -8,7 +8,7 @@
 // Pure and dependency-light: imported by the browser and by Node scripts.
 import { PRODUCTION_ORIGIN } from "../constants/domain.js";
 import { SIZE_PAGE } from "./sizeTool.js";
-import { GUIDE } from "./guide.js";
+import { GUIDE, guideCheck, guideCheckPath } from "./guide.js";
 import { JOIN_PATH, JOIN_SEO } from "./growth/join.js";
 
 export const SEO_SUFFIX = " | LikeLink2";
@@ -46,3 +46,29 @@ export function sectionSeo(type, { lang = "he", origin = PRODUCTION_ORIGIN } = {
     jsonLd: s.jsonLd ? s.jsonLd(canonical) : null,
   };
 }
+
+/** One guide check's answer page (/guide/<id>): its question is the title, its
+ *  answer the description, and the FAQ JSON-LD is exactly what the page shows. */
+export function guideCheckSeo(id, { lang = "he", origin = PRODUCTION_ORIGIN } = {}) {
+  const c = guideCheck(id);
+  if (!c) return null;
+  const base = String(origin).replace(/\/+$/, "");
+  const path = guideCheckPath(c.id);
+  const canonical = `${base}${path}`;
+  return {
+    path,
+    title: `${lang === "en" ? c.q.en : c.q.he}${SEO_SUFFIX}`,
+    description: c.body.he,
+    canonical,
+    jsonLd: [
+      { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: c.q.he, acceptedAnswer: { "@type": "Answer", text: c.body.he } }] },
+      { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+        { "@type": "ListItem", position: 1, name: SECTION_SEO.guide.he, item: `${base}${SECTION_SEO.guide.path}` },
+        { "@type": "ListItem", position: 2, name: c.q.he, item: canonical },
+      ] },
+    ],
+  };
+}
+
+/** Every guide answer page, for the build and the sitemap. */
+export const GUIDE_CHECK_PATHS = Object.freeze(GUIDE.checks.map((c) => guideCheckPath(c.id)));

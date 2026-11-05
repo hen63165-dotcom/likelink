@@ -38,7 +38,7 @@ import {
   TREND_WINDOW_DAYS,
 } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
-import { GUIDE, GUIDE_PATH, guideExamples } from "../../lib/guide.js";
+import { GUIDE, GUIDE_PATH, guideCheck, guideCheckPath, guideExamples } from "../../lib/guide.js";
 import { braceletFromWrist, CARD_MM, CARD_PX, pxPerMm, RING_DIAMETER_MM, ringFromCircumference, ringFromDiameter, SIZE_PAGE, SIZE_PATH, sizeProducts } from "../../lib/sizeTool.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
@@ -1023,7 +1023,7 @@ export function GuidePage({ graph }) {
               <div className="flex items-start gap-3">
                 <span className="lx-chip shrink-0 font-extrabold" aria-hidden="true">{i + 1}</span>
                 <div className="min-w-0">
-                  <h2 className="text-[19px] font-extrabold leading-7">{t(c.title)}</h2>
+                  <h2 className="text-[19px] font-extrabold leading-7"><Go to={guideCheckPath(c.id)} className="hover:underline">{t(c.title)}</Go></h2>
                   <p className="lx-mute mt-2 text-[15px] leading-7">{t(c.body)}</p>
                 </div>
               </div>
@@ -1049,6 +1049,46 @@ export function GuidePage({ graph }) {
           </div>
           <p className="lx-mute mt-4 text-[12px]">{L("קישורי המוצרים באתר הם קישורי שותפים (#פרסומת): קנייה דרכם יכולה להעניק עמלה, בלי עלות נוספת לך.", "Product links on the site are affiliate links (#ad): buying through them may earn a commission, at no extra cost to you.")}</p>
         </div>
+      </Section>
+    </>
+  );
+}
+
+/** One guide check as its own answer page (/guide/<id>): the question people
+ *  search, the check's answer, catalog products to practice on, the other checks. */
+export function GuideCheckPage({ graph, id }) {
+  const { L, lang } = useL();
+  const t = (x) => (lang === "he" ? x.he : x.en);
+  const c = guideCheck(id);
+  if (!c) return <GuidePage graph={graph} />;
+  const n = GUIDE.checks.indexOf(c) + 1;
+  const examples = guideExamples(c, graph.products, 8);
+  const sizeTool = c.id === "ring-size" || c.id === "wrist";
+  return (
+    <>
+      <PageHero kicker={<><BookOpen size={14} /> {t(GUIDE.kicker)} · {L(`בדיקה ${n} מתוך ${GUIDE.checks.length}`, `Check ${n} of ${GUIDE.checks.length}`)}</>} title={t(c.q)} sub={t(c.body)}>
+        <div className="mt-6 flex flex-wrap gap-2 print:hidden">
+          {sizeTool ? <Go to={SIZE_PATH} className="lx-btn lx-btn-rose">{L("למודד החינמי", "Open the free size meter")}</Go> : null}
+          <Go to={GUIDE_PATH} className="lx-btn lx-btn-ghost">{L(`כל ${GUIDE.checks.length} הבדיקות`, `All ${GUIDE.checks.length} checks`)}</Go>
+          <ShareButton path={guideCheckPath(c.id)} title={`${t(c.q)} | LikeLink2`} variant="button" />
+        </div>
+      </PageHero>
+      {examples.length ? (
+        <Section>
+          <h2 className="text-[22px] font-extrabold">{L("לתרגול, מהקטלוג", "To practice, from the catalog")}</h2>
+          <p className="lx-mute mt-1 text-[13px]">{L("לפי מה שהמוכר מציין בעמוד המוצר. קישורי שותפים (#פרסומת).", "As the seller states on the product page. Affiliate links (#ad).")}</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {examples.map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}
+          </div>
+        </Section>
+      ) : null}
+      <Section className="print:hidden">
+        <h2 className="text-[22px] font-extrabold">{L("עוד שאלות לפני שקונים", "More questions before you buy")}</h2>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {GUIDE.checks.filter((x) => x.id !== c.id).map((x) => (
+            <li key={x.id}><Go to={guideCheckPath(x.id)} className="lx-chip max-w-full truncate">{t(x.q)}</Go></li>
+          ))}
+        </ul>
       </Section>
     </>
   );

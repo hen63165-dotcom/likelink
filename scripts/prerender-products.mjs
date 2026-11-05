@@ -20,7 +20,8 @@ import { buildPublicGraph } from "../src/lib/publicDiscovery.js";
 import { buildProductSeo, canonicalProduct } from "../src/lib/discovery/surfaces.js";
 import { withoutCloudMedia } from "../src/lib/catalogSnapshot.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
-import { SECTION_SEO, sectionSeo } from "../src/lib/publicSeo.js";
+import { GUIDE_CHECK_PATHS, SECTION_SEO, guideCheckSeo, sectionSeo } from "../src/lib/publicSeo.js";
+import { GUIDE } from "../src/lib/guide.js";
 import { getCreatorSEO } from "../src/lib/seo.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
 
@@ -79,7 +80,10 @@ export function pageHead(shell, { title, description, canonical, jsonLd = null, 
 
 /** Section pages a search can land on, each with its own head (publicSeo.js — the same head the app sets). */
 export function sectionPages(origin = PRODUCTION_ORIGIN) {
-  return Object.keys(SECTION_SEO).map((type) => sectionSeo(type, { origin }));
+  // The sections, then one answer page per guide check (/guide/<id>): the
+  // question people search, each with its own head.
+  return [...Object.keys(SECTION_SEO).map((type) => sectionSeo(type, { origin })),
+    ...GUIDE.checks.map((c) => guideCheckSeo(c.id, { origin }))];
 }
 
 /** A creator's storefront head (the same getCreatorSEO the app uses). */
@@ -127,6 +131,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
   }
   for (const page of sectionPages(origin)) {
     const file = `${page.path.slice(1)}.html`;
+    mkdirSync(dirname(join(dist, file)), { recursive: true });
     writeFileSync(join(dist, file), pageHead(shell, page));
     rules.push(`${page.path}  /${file}  200`);
   }
@@ -147,7 +152,7 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
     writeFileSync(redirectsPath, at >= 0 ? text.slice(0, at) + block + text.slice(at) : `${text}\n${block}`);
   }
   const today = now.toISOString().slice(0, 10);
-  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", "/size", "/join", "/pricing", "/legal",
+  const paths = ["/", "/discover", "/products", "/creators", "/reels", "/trends", "/collections", "/deals", "/guide", ...GUIDE_CHECK_PATHS, "/size", "/join", "/pricing", "/legal",
     ...creators.map((c) => `/u/${c.slug}`), ...products.map(({ product }) => `/p/${product.id}`)];
   writeFileSync(join(dist, "sitemap-static.xml"), sitemapXml(origin, paths, today));
   return { pages: products.length, urls: paths.length };
