@@ -9,6 +9,7 @@
 import { PRODUCTION_ORIGIN } from "../constants/domain.js";
 import { SIZE_PAGE } from "./sizeTool.js";
 import { GUIDE, guideCheck, guideCheckPath } from "./guide.js";
+import { saleSeason, salePath, saleChecks } from "./saleSeason.js";
 import { JOIN_PATH, JOIN_SEO } from "./growth/join.js";
 
 export const SEO_SUFFIX = " | LikeLink2";
@@ -71,4 +72,28 @@ export function guideCheckSeo(id, { lang = "he", origin = PRODUCTION_ORIGIN } = 
 }
 
 /** Every guide answer page, for the build and the sitemap. */
+/** A sale-season page (/11-11): its title, the intro as description, and the FAQ
+ *  JSON-LD of exactly the checks the page shows. */
+export function saleSeo(id, { lang = "he", origin = PRODUCTION_ORIGIN } = {}) {
+  const season = saleSeason(id);
+  if (!season) return null;
+  const base = String(origin).replace(/\/+$/, "");
+  const path = salePath(season.id);
+  const canonical = `${base}${path}`;
+  const checks = saleChecks(season);
+  return {
+    path,
+    title: `${lang === "en" ? season.title.en : season.title.he}${SEO_SUFFIX}`,
+    description: lang === "en" ? season.intro.en : season.intro.he,
+    canonical,
+    jsonLd: [
+      { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: checks.map((c) => ({ "@type": "Question", name: c.q.he, acceptedAnswer: { "@type": "Answer", text: c.body.he } })) },
+      { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [
+        { "@type": "ListItem", position: 1, name: "LikeLink2", item: `${base}/` },
+        { "@type": "ListItem", position: 2, name: season.title.he, item: canonical },
+      ] },
+    ],
+  };
+}
+
 export const GUIDE_CHECK_PATHS = Object.freeze(GUIDE.checks.map((c) => guideCheckPath(c.id)));
