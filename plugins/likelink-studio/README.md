@@ -7,6 +7,7 @@ LikeLink2's own skills, one command per job. Built for a Hebrew affiliate-creato
 | `/likelink-studio:today` | the whole day: is the site healthy, what to post on Instagram/TikTok/stories, which story to render, what to log |
 | `/likelink-studio:new-product` | from an affiliate link to the site and the feeds: real store data, studio photo, a character, a story, posts, checks, ship |
 | `/likelink-studio:story` | a story reel in the creator-story look: a character per product, a scene per line, yellow captions, the name tag, the real product photo |
+| `/likelink-studio:motion-ad` | an animated ad rendered from code: a real product from the seller's video to its page to the store, Hebrew words on the beat, synthesized music, 9:16 MP4, no paid tool |
 | `/likelink-studio:studio-photo` | a white or busy seller photo → a studio shot (product untouched, labelled) |
 | `/likelink-studio:cast` | add or change a character: suit, hair, eyes, outfit, product; drawn free on GitHub |
 | `/likelink-studio:master-check` | any reel or post against the 12 rules built on Instagram's own signals |
