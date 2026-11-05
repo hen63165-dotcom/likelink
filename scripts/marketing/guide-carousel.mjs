@@ -7,7 +7,7 @@
 // No AI picture and no product on the slides; the guide page has affiliate
 // examples, so the closing slide says so (#פרסומת).
 //
-//   [PLAYWRIGHT_MODULE=/path/to/node_modules/playwright] node scripts/marketing/guide-carousel.mjs <out-dir> [1111 | picks (PHOTOS_DIR=ops/photos checkout)]
+//   [PLAYWRIGHT_MODULE=/path/to/node_modules/playwright] node scripts/marketing/guide-carousel.mjs <out-dir> [1111 | picks (PHOTOS_DIR=ops/photos checkout) | about (SHOTS_DIR=site screenshots)]
 // Writes slide-01.jpg … slide-10.jpg (1080×1350, Instagram's 4:5) and caption.txt.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -166,6 +166,52 @@ export function picksCaption(picks = PICKS) {
   ].join("\n");
 }
 
+// The "what is LikeLink2" edition (the owner, 2026-11-05: "traffic of sellers
+// and buyers … so they understand what the site does … open a studio"). One
+// carousel for both audiences, every line something the site does today
+// (/join, the product page, the share kit's nine networks, the media labels,
+// the size meter and the guide), with two real phone screenshots of the site
+// (SHOTS_DIR: product_crop.png, size_crop.png; no price in the frame, since a
+// store price changes). No income, no user counts, no ratings. LikeLink2 is
+// the owner's own project, and the post says so.
+export const ABOUT_KEYWORD = "רוצה";
+export function aboutSlides(dir = process.env.SHOTS_DIR) {
+  const shot = (name) => (dir ? { file: resolve(dir, name), type: "png" } : null);
+  return [
+    { kind: "aboutcover", title: "ראית מוצר בסרטון ולא מצאת אותו?", sub: "בניתי בשביל זה מקום אחד" },
+    { kind: "phone", tag: "לקונות", title: "רואים בסרטון, קונים בחנות", lines: ["לוחצים על המוצר ועוברים ישר לחנות המקורית", "בלי להירשם ובלי תוספת למחיר"], shot: shot("product_crop.png") },
+    { kind: "list", tag: "לקונות", title: "כל תמונה אומרת מה היא", items: ["תמונת המוכר", "צילום אמיתי", "אנימציה, מסומנת"], foot: "בלי דירוגים מומצאים ובלי מונים מזויפים" },
+    { kind: "phone", tag: "בחינם", title: "מודד מידות מהמסך", lines: ["מידת טבעת וצמיד בלי ללכת לחנות", "ועוד מדריך: 8 בדיקות לפני שקונים באלי"], shot: shot("size_crop.png") },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "הקישור בביו שלך יכול להיות חנות", items: ["דף משלך עם כל מה שאת ממליצה עליו", "לכל מוצר דף עם סרטון וקישור לחנות", "#פרסומת מסומן לבד בכל מוצר"], foot: "" },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "איך זה עובד", items: ["1. מדביקה קישור למוצר שאת ממליצה עליו", "2. מקבלת דף מוצר וקישור עם מעקב", "3. פוסט מוכן ל־9 רשתות, עם גילוי נאות"], foot: "" },
+    { kind: "list", tag: "ליוצרות ולמוכרות", title: "פותחים סטודיו בחינם", items: ["בלי כרטיס אשראי", "עד 5 מוצרים במסלול החינמי"], foot: "" },
+    { kind: "about-end", title: "אז מי את?", buyer: ["קונה?", "likelink2.vercel.app"], creator: ["יוצרת?", "likelink2.vercel.app/join"],
+      ask: `כתבי "${ABOUT_KEYWORD}" ואשלח לך את הקישור`, disclosure: "LikeLink2 הוא המיזם שלי · באתר יש קישורי שותפים (#פרסומת)" },
+  ];
+}
+
+export function aboutCaption() {
+  return [
+    "ראית מוצר בסרטון ולא מצאת אותו? 🤯",
+    "",
+    "בשביל זה בניתי את LikeLink2:",
+    "🛍️ לקונות: רואים את המוצר בסרטון ולוחצים ישר לחנות המקורית. בלי להירשם ובלי תוספת למחיר.",
+    "🏷️ כל תמונה מסומנת: תמונת המוכר, צילום אמיתי או אנימציה.",
+    "📏 בחינם: מודד מידות מהמסך ו־8 בדיקות לפני שקונים באלי.",
+    "",
+    "✨ ליוצרות ולמוכרות: הקישור בביו שלך יכול להיות חנות קטנה.",
+    "מדביקים קישור למוצר, ומקבלים דף מוצר, קישור עם מעקב ופוסט מוכן ל־9 רשתות, עם גילוי נאות.",
+    "פותחים סטודיו בחינם, בלי כרטיס אשראי.",
+    "",
+    `כתבי "${ABOUT_KEYWORD}" ואשלח לך את הקישור 💌`,
+    "שמרי, ושלחי לחברה שתמיד שואלת \"מאיפה זה?\"",
+    "",
+    "LikeLink2 הוא המיזם שלי. באתר יש קישורי שותפים (#פרסומת): אם תקני דרכם ייתכן שאקבל עמלה, בלי עלות נוספת לך.",
+    "",
+    "#LikeLink2 #קניותחכמות #אליאקספרס #יוצרות #לינקבביו",
+  ].join("\n");
+}
+
 function html(list) {
   const page = (s) => {
     if (s.kind === "cover") return `<section class="s cover"><div class="brand">LikeLink2</div>
@@ -177,6 +223,17 @@ function html(list) {
     const photo = (p, big) => p.photo ? `<figure class="${big ? "pk big" : "pk"}"><img src="data:image/jpeg;base64,${readFileSync(p.photo.file).toString("base64")}">
       <figcaption>${esc(p.photo.label)}</figcaption>${big ? `<div class="nm">${esc(p.name)}</div>` : ""}</figure>` : "";
     const img = (ph) => `data:image/${ph.type || "jpeg"};base64,${readFileSync(ph.file).toString("base64")}`;
+    if (s.kind === "aboutcover") return `<section class="s acover"><div class="brand">LikeLink2</div>
+      <div class="emoji">🤯</div><h1>${esc(s.title)}</h1><div class="line"></div><div class="note">${esc(s.sub)}</div><div class="swipe">החליקי ←</div></section>`;
+    if (s.kind === "phone") return `<section class="s aphone"><div class="tag">${esc(s.tag)}</div><h2>${esc(s.title)}</h2>
+      ${s.lines.map((l) => `<p class="al">${esc(l)}</p>`).join("")}
+      ${s.shot ? `<div class="frame"><img src="${img(s.shot)}"></div>` : ""}<div class="brand bottom">LikeLink2</div></section>`;
+    if (s.kind === "list") return `<section class="s alist"><div class="tag">${esc(s.tag)}</div><h2>${esc(s.title)}</h2><div class="line"></div>
+      <div class="items">${s.items.map((t) => `<div class="it">${esc(t)}</div>`).join("")}</div>
+      ${s.foot ? `<div class="foot">${esc(s.foot)}</div>` : ""}<div class="brand bottom">LikeLink2</div></section>`;
+    if (s.kind === "about-end") return `<section class="s end aend"><div class="brand">LikeLink2</div><h2>${esc(s.title)}</h2>
+      <div class="pill rtl">${esc(s.buyer[0])} ← <bdi dir="ltr">${esc(s.buyer[1])}</bdi></div><div class="pill alt rtl">${esc(s.creator[0])} ← <bdi dir="ltr">${esc(s.creator[1])}</bdi></div>
+      <div class="ask">${esc(s.ask)}</div><div class="disc">${esc(s.disclosure)}</div></section>`;
     if (s.kind === "pickscover") return `<section class="s pcover"><div class="ad">${esc(s.ad)}</div>
       <div class="big1111 small">${esc(s.sale)}</div><h1>${esc(s.title)}</h1><div class="kicker2">${esc(s.sub)}</div>
       <div class="quad">${s.picks.map((p) => p.photo ? `<div class="q" style="background-image:url('${img(p.photo)}')"></div>` : "").join("")}</div>
@@ -251,6 +308,23 @@ function html(list) {
   .pick .num{font-weight:800;font-size:34px;color:#7cc4ff}
   .pick .pname{font-weight:800;font-size:74px;color:#fff}
   .pick .pnote{font-weight:500;font-size:28px;color:#9fb3c8}
+  .acover .emoji{margin-top:150px;font-size:150px;line-height:1}
+  .acover h1{margin-top:40px;font-size:98px;color:#fff}
+  .acover .note{font-size:56px;color:#7cc4ff}
+  .tag{font-weight:800;font-size:34px;color:#0f1924;background:#7cc4ff;border-radius:999px;padding:10px 30px}
+  .aphone h2,.alist h2{margin-top:34px;font-size:76px;color:#fff}
+  .al{margin-top:14px;font-weight:500;font-size:40px;color:#c9d6e3}
+  .frame{position:absolute;bottom:-40px;width:560px;height:720px;border-radius:56px;border:14px solid #e9eef4;overflow:hidden;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .frame img{width:100%;display:block}
+  .brand.bottom{position:absolute;bottom:40px;right:60px;font-size:30px;color:#9fb3c8}
+  .aphone .brand.bottom{right:auto;left:60px}
+  .items{width:100%;display:flex;flex-direction:column;gap:30px;margin-top:20px}
+  .it{border:3px solid #2b5277;border-radius:32px;padding:40px 46px;background:rgba(124,196,255,.06);font-weight:800;font-size:50px;text-align:right}
+  .foot{margin-top:50px;font-weight:500;font-size:38px;color:#9fb3c8}
+  .aend h2{margin-top:200px;font-size:110px}
+  .pill.alt{margin-top:30px;background:#7cc4ff}
+  .pill.rtl{direction:rtl}
+  .aend .pill{font-size:44px;padding:26px 46px}
   </style></head><body>${list.map(page).join("")}</body></html>`;
 }
 
@@ -258,7 +332,8 @@ async function main(out, edition = "") {
   mkdirSync(out, { recursive: true });
   const sale = edition === "1111";
   const picks = edition === "picks";
-  const list = picks ? picksSlides() : sale ? saleSlides() : slides();
+  const about = edition === "about";
+  const list = about ? aboutSlides() : picks ? picksSlides() : sale ? saleSlides() : slides();
   // The browser as the TikTok kit loads it (PLAYWRIGHT_MODULE), else a globally installed Playwright.
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch();
@@ -273,7 +348,7 @@ async function main(out, edition = "") {
   } finally {
     await browser.close();
   }
-  writeFileSync(resolve(out, "caption.txt"), (picks ? picksCaption() : sale ? saleCaption() : caption()) + "\n", "utf8");
+  writeFileSync(resolve(out, "caption.txt"), (about ? aboutCaption() : picks ? picksCaption() : sale ? saleCaption() : caption()) + "\n", "utf8");
   console.log(`${list.length} slides → ${out}`);
 }
 

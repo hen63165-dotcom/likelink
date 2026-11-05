@@ -112,3 +112,20 @@ test("picks: the caption opens with the disclosure, one keyword, nothing invente
   assert.match(text, /לפי תיאור המוכר/);
   assert.doesNotMatch(text, /הכי|נמכר|להיט|ביקורות|כוכבים|מובטח|ויראלי|רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|₪|\$|%|הנחה|הזמנות/);
 });
+
+// The "what is LikeLink2" edition: both audiences, only what the site does today.
+import { aboutSlides, aboutCaption, ABOUT_KEYWORD } from "../scripts/marketing/guide-carousel.mjs";
+import { recruitSafe } from "../src/lib/growth/recruit.js";
+
+test("about: every line passes the recruitment and claim rules, one keyword, it says whose project it is", () => {
+  const list = aboutSlides("");
+  const lines = list.flatMap((s) => [s.title, s.sub, s.foot, ...(s.lines || []), ...(s.items || [])]).filter(Boolean);
+  for (const line of lines) assert.ok(recruitSafe(line), `claim rules: ${line}`);
+  const text = aboutCaption();
+  for (const line of text.split("\n").filter((l) => !l.startsWith("#"))) assert.ok(recruitSafe(line) || /#פרסומת/.test(line), `caption: ${line}`);
+  assert.equal(text.split(`"${ABOUT_KEYWORD}"`).length - 1, 1);
+  assert.match(text, /המיזם שלי/);
+  assert.match(text, /#פרסומת/);
+  assert.doesNotMatch(text, /₪|%|ביקורות|כוכבים|משתמשים|יוצרות כבר/);
+  assert.ok(list.length <= 10);
+});
