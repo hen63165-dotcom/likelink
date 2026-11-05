@@ -129,3 +129,45 @@ test("about: every line passes the recruitment and claim rules, one keyword, it 
   assert.doesNotMatch(text, /₪|%|ביקורות|כוכבים|משתמשים|יוצרות כבר/);
   assert.ok(list.length <= 10);
 });
+
+// The Hanukkah edition: the season page's checks, then gifts for kids and for her.
+import { HANUKKAH_PICKS, HANUKKAH_CHECKS, hanukkahSlides, hanukkahCaption } from "../scripts/marketing/guide-carousel.mjs";
+import { saleSeason } from "../src/lib/saleSeason.js";
+
+// The products' names on the site (the live catalog, read 2026-11-05).
+const HANUKKAH_TITLES = {
+  "ae-1005011587273406": "כדורי לחץ בצורת דבש וגבינה",
+  "ae-1005012013972716": "עגילים · נירוסטה · חישוק",
+  "ae-1005012814888164": "1A – צעצוע רך ונעים למגע בצורת טופו",
+  "p-live-03": "צמיד טניס מואסניט Smyoue מצופה פלטינה",
+  "ae-1005009832709994": "סט אביזרי שיער כהה לנשים",
+  "ae-1005009384325747": "כדור לחיץ להפגת מתחים",
+  "ae-1005013266250549": "גומיות שיער צבעוניות מניילון לנשים וילדות",
+};
+
+test("hanukkah: the season page's checks, names in the site's words, a toy carries its age check", () => {
+  assert.deepEqual([...HANUKKAH_CHECKS], [...saleSeason("hanukkah-gifts").checks], "the same checks as /hanukkah-gifts");
+  assert.equal(new Set(HANUKKAH_PICKS.map((p) => p.id)).size, HANUKKAH_PICKS.length);
+  for (const p of HANUKKAH_PICKS) {
+    const title = HANUKKAH_TITLES[p.id];
+    assert.ok(title, `${p.id} is a listed product`);
+    for (const word of p.name.split(/\s+/).filter((w) => w !== "·")) assert.ok(title.includes(word), `"${word}" is in ${title}`);
+  }
+  const list = hanukkahSlides(HANUKKAH_PICKS, "");
+  assert.ok(list.length <= 10, "Instagram's sweet spot");
+  for (const s of list.filter((x) => x.kind === "pick")) {
+    assert.equal(s.ad, "#פרסומת · קישור שותפים");
+    const pick = HANUKKAH_PICKS.find((p) => p.name === s.name);
+    if (pick.toy) assert.match(s.note, /גיל/);
+    else if (/מואסניט|נירוסטה|זרקון/.test(s.name)) assert.match(s.note, /לפי המוכר/);
+  }
+  assert.ok(list.at(-1).link.endsWith("/hanukkah-gifts"));
+});
+
+test("hanukkah: the caption opens with the disclosure, one keyword, no promise it arrives in time", () => {
+  const text = hanukkahCaption();
+  assert.ok(text.startsWith("#פרסומת · קישור שותפים"));
+  assert.equal(text.split('"רוצה"').length - 1, 1);
+  assert.match(text, /גיל ההתאמה/);
+  assert.doesNotMatch(text, /יגיע בזמן|מובטח|הכי|נמכר|להיט|ביקורות|כוכבים|ויראלי|רק היום|נשאר|אחרונ|מהרו|₪|\$|%|הנחה/);
+});

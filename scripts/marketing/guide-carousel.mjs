@@ -166,6 +166,65 @@ export function picksCaption(picks = PICKS) {
   ].join("\n");
 }
 
+// The Hanukkah edition (the owner, 2026-11-05: "think and do what else brings
+// traffic, sales and clicks"). The affiliate account's paid orders this month
+// were squishy toys, and Hanukkah gifts are ordered from AliExpress weeks
+// ahead because of shipping. So: the season page's five checks as one list
+// (the guide's own titles), then seven listed products for kids and for her,
+// each in its seller's photo and named in the site's own words. A toy carries
+// "check the age range", a material is the seller's claim. No price, no
+// discount, no date, no promise that it arrives in time.
+export const HANUKKAH = "חנוכה";
+export const HANUKKAH_PATH = "/hanukkah-gifts";
+export const HANUKKAH_CHECKS = Object.freeze(["gift", "ring-size", "wrist", "link-check", "protection"]);
+export const HANUKKAH_PICKS = Object.freeze([
+  { id: "ae-1005011587273406", name: "כדורי לחץ · דבש וגבינה", photo: "0", toy: true },
+  { id: "ae-1005012013972716", name: "עגילים · חישוק", photo: "0" },
+  { id: "ae-1005012814888164", name: "צעצוע רך · טופו", photo: "1", toy: true },
+  { id: "p-live-03", name: "צמיד טניס מואסניט", set: true },
+  { id: "ae-1005009832709994", name: "סט אביזרי שיער", photo: "0" },
+  { id: "ae-1005009384325747", name: "כדור לחיץ", photo: "0", toy: true },
+  { id: "ae-1005013266250549", name: "גומיות שיער צבעוניות", photo: "2" },
+]);
+
+export function hanukkahSlides(picks = HANUKKAH_PICKS, dir = process.env.PHOTOS_DIR) {
+  const checks = HANUKKAH_CHECKS.map((id) => guideCheck(id)).filter(Boolean);
+  const list = picks.map((p) => ({ ...p, photo: p.set ? pickPhoto(p.id) : picksPhoto(dir, p) }));
+  const n = list.length;
+  const note = (p) => (p.toy ? "גיל ההתאמה לפי עמוד המוצר" : MATERIAL.test(p.name) ? "החומרים לפי המוכר" : "");
+  return [
+    { kind: "pickscover", compact: true, sale: HANUKKAH, title: "מתנות מאלי לילדים ולה", sub: `${checks.length} בדיקות לפני שמזמינים + ${n} בחירות`, ad: AD,
+      picks: [list[0], list[1], list[3], list[6]] },
+    { kind: "list", tag: "לפני שמזמינים", title: `${checks.length} בדיקות למתנה מאלי`, items: checks.map((c) => c.title.he),
+      foot: "התשובות המלאות באתר, בדף מתנות לחנוכה" },
+    ...list.map((p, i) => ({ kind: "pick", num: i + 1, of: n, name: p.name, photo: p.photo, frame: p.frame || "", ad: AD, note: note(p) })),
+    { kind: "end", title: "רוצה את הקישורים?", sub: `כתבי "${SALE_KEYWORD}" ואשלח לך את כל ה־${n}`,
+      link: `${SITE}${HANUKKAH_PATH}`, ask: "שמרי · שלחי לחברה שעוד מחפשת מתנה",
+      disclosure: "#פרסומת · קישורי שותפים · התמונות של המוכרים" },
+  ];
+}
+
+export function hanukkahCaption(picks = HANUKKAH_PICKS) {
+  const checks = HANUKKAH_CHECKS.map((id) => guideCheck(id)).filter(Boolean);
+  return [
+    AD,
+    "",
+    `מזמינות מתנות לחנוכה מאלי? 🎁 משלוח מחו״ל לוקח זמן, אז הנה ${checks.length} בדיקות לפני שמזמינים:`,
+    ...checks.map((c, i) => `${i + 1}. ${c.title.he}`),
+    "",
+    `ובסוף: ${picks.length} בחירות לילדים ולה ✨`,
+    ...picks.map((p, i) => `${i + 1}. ${p.name}`),
+    "",
+    `כתבי "${SALE_KEYWORD}" ואשלח לך בהודעה את הקישורים 💌`,
+    "שמרי את הפוסט, ושלחי לחברה שעוד מחפשת מתנה.",
+    "",
+    "התמונות של המוכרים. החומרים, המידות וגיל ההתאמה לפי עמוד המוצר.",
+    "אם תקני דרך הקישורים ייתכן שאקבל עמלה, בלי עלות נוספת לך.",
+    "",
+    "#חנוכה #מתנותלחנוכה #אליאקספרס #מציאותמאלי #סקווישי",
+  ].join("\n");
+}
+
 // The "what is LikeLink2" edition (the owner, 2026-11-05: "traffic of sellers
 // and buyers … so they understand what the site does … open a studio"). One
 // carousel for both audiences, every line something the site does today
@@ -234,7 +293,7 @@ function html(list) {
     if (s.kind === "about-end") return `<section class="s end aend"><div class="brand">LikeLink2</div><h2>${esc(s.title)}</h2>
       <div class="pill rtl">${esc(s.buyer[0])} ← <bdi dir="ltr">${esc(s.buyer[1])}</bdi></div><div class="pill alt rtl">${esc(s.creator[0])} ← <bdi dir="ltr">${esc(s.creator[1])}</bdi></div>
       <div class="ask">${esc(s.ask)}</div><div class="disc">${esc(s.disclosure)}</div></section>`;
-    if (s.kind === "pickscover") return `<section class="s pcover"><div class="ad">${esc(s.ad)}</div>
+    if (s.kind === "pickscover") return `<section class="s pcover${s.compact ? " compact" : ""}"><div class="ad">${esc(s.ad)}</div>
       <div class="big1111 small">${esc(s.sale)}</div><h1>${esc(s.title)}</h1><div class="kicker2">${esc(s.sub)}</div>
       <div class="quad">${s.picks.map((p) => p.photo ? `<div class="q" style="background-image:url('${img(p.photo)}')"></div>` : "").join("")}</div>
       <div class="qlabel">תמונות המוכרים</div><div class="swipe">החליקי ←</div></section>`;
@@ -249,7 +308,7 @@ function html(list) {
       <div class="grid">${s.picks.map((p) => photo(p, true)).join("")}</div><div class="note2">${esc(s.note)}</div>
       <div class="ask">${esc(s.ask)}</div></section>`;
     return `<section class="s end"><div class="brand">LikeLink2</div><h2>${esc(s.title)}</h2>
-      <div class="sub">${esc(s.sub)}</div><div class="pill">${esc(s.link)}</div>
+      <div class="sub">${esc(s.sub)}</div><div class="pill${s.link.length > 28 ? " long" : ""}">${esc(s.link)}</div>
       <div class="ask">${esc(s.ask)}</div><div class="disc">${esc(s.disclosure)}</div></section>`;
   };
   return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><style>
@@ -325,6 +384,11 @@ function html(list) {
   .pill.alt{margin-top:30px;background:#7cc4ff}
   .pill.rtl{direction:rtl}
   .aend .pill{font-size:44px;padding:26px 46px}
+  .pcover.compact h1{font-size:76px}
+  .pcover.compact .kicker2{font-size:40px}
+  .pill.long{font-size:38px;padding:28px 44px}
+  .alist .foot{font-size:32px}
+  .alist .brand.bottom{right:auto;left:60px}
   </style></head><body>${list.map(page).join("")}</body></html>`;
 }
 
@@ -333,7 +397,8 @@ async function main(out, edition = "") {
   const sale = edition === "1111";
   const picks = edition === "picks";
   const about = edition === "about";
-  const list = about ? aboutSlides() : picks ? picksSlides() : sale ? saleSlides() : slides();
+  const hanukkah = edition === "hanukkah";
+  const list = hanukkah ? hanukkahSlides() : about ? aboutSlides() : picks ? picksSlides() : sale ? saleSlides() : slides();
   // The browser as the TikTok kit loads it (PLAYWRIGHT_MODULE), else a globally installed Playwright.
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
   const browser = await chromium.launch();
@@ -348,7 +413,7 @@ async function main(out, edition = "") {
   } finally {
     await browser.close();
   }
-  writeFileSync(resolve(out, "caption.txt"), (about ? aboutCaption() : picks ? picksCaption() : sale ? saleCaption() : caption()) + "\n", "utf8");
+  writeFileSync(resolve(out, "caption.txt"), (hanukkah ? hanukkahCaption() : about ? aboutCaption() : picks ? picksCaption() : sale ? saleCaption() : caption()) + "\n", "utf8");
   console.log(`${list.length} slides → ${out}`);
 }
 

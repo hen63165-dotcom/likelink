@@ -176,6 +176,14 @@
       "destination": "/"
     },
     {
+      "source": "/black-friday",
+      "destination": "/"
+    },
+    {
+      "source": "/hanukkah-gifts",
+      "destination": "/"
+    },
+    {
       "source": "/size",
       "destination": "/"
     },
