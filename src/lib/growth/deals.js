@@ -50,6 +50,11 @@ const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\b
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
 const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
 
+/** A brand, character or celebrity name in a store title (on AliExpress: an imitation, or no licence). */
+export const hasBrandName = (title = "") => BRAND_IMITATION.test(String(title || ""));
+/** A kind of item the site never recommends (weapons, smoking, adult items, health or slimming claims). */
+export const isNotListedKind = (title = "") => NOT_LISTED.test(String(title || ""));
+
 /** "97.4%" → 97.4 (null when AliExpress did not answer one). */
 export function positivePct(x = {}) {
   const n = parseFloat(String(x.evaluate_rate ?? "").replace("%", ""));

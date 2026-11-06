@@ -1,7 +1,7 @@
 // LikeLink2 public pages. All data comes from the public graph
 // (src/lib/publicDiscovery.js); every section that lacks real evidence shows
 // an honest state instead of a filler.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpLeft,
   BookOpen,
@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
+import { MAGIC_PATH, firstLink, isStoreLink } from "../../lib/growth/magic.js";
 import {
   collectionsFor,
   findCollection,
@@ -84,6 +85,7 @@ import {
   TrendCard,
   TrustBadge,
   useL,
+  NavCtx,
 } from "./kit";
 
 /* ----------------------------------------------------------------- helpers */
@@ -1382,6 +1384,13 @@ export function SearchPage({ graph }) {
   const { L, lang } = useL();
   const [q, setQParam] = useQueryParam("q");
   const [draft, setDraft] = useState(q);
+  // An AliExpress link pasted into search is a check, not a search: the magic button answers it.
+  const navigate = useContext(NavCtx);
+  useEffect(() => {
+    const link = firstLink(q);
+    if (link && isStoreLink(link)) navigate(`${MAGIC_PATH}?u=${encodeURIComponent(link)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
   useEffect(() => {
     const t = setTimeout(() => {
       if (draft !== q) setQParam(draft.trim());

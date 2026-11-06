@@ -7,6 +7,7 @@
 //   views       marketplace:clicks type "view": a product page seen
 //   outbound    marketplace:clicks without a type / "click" / "outbound_click":
 //               the "לחנות" button, the exit to the store
+//   magic       marketplace:funnel "magic_check" and exits carrying med "magic" (/magic)
 //   purchases   affiliate:earnings (AliExpress order.list): paid / confirmed apart
 //   commission  the store's estimate apart from what was settled
 //   exposure    impressions are not on LikeLink's servers: Search Console and
@@ -61,6 +62,11 @@ export function growthMetrics({ funnel = [], clicks = [], earnings = null, produ
     outbound: { d30: outbound.length, top: count(outbound), bySource: top(outboundBySource) },
     // A share of sessions that went on to the store; null without visits (never 0% of nothing).
     outboundRate: visits.d30 ? Math.round((outbound.length / visits.d30) * 1000) / 10 : null,
+    // "כפתור הקסם" (/magic): checks made, and exits to the store from a check.
+    magic: {
+      checks: (Array.isArray(funnel) ? funnel : []).filter((e) => e?.type === "magic_check").filter(within(30)).length,
+      exits: outbound.filter((e) => e?.med === "magic").length,
+    },
     purchases,
     commission,
     next: nextActions({ visits, outbound: outbound.length, sources: top(sources), purchases }),

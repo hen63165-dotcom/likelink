@@ -11,6 +11,7 @@ import { SIZE_PAGE } from "./sizeTool.js";
 import { GUIDE, guideCheck, guideCheckPath } from "./guide.js";
 import { saleSeason, salePath, saleChecks } from "./saleSeason.js";
 import { JOIN_PATH, JOIN_SEO } from "./growth/join.js";
+import { MAGIC_PATH } from "./growth/magic.js";
 
 export const SEO_SUFFIX = " | LikeLink2";
 
@@ -31,6 +32,7 @@ export const SECTION_SEO = Object.freeze({
   deals: { path: "/deals", he: "ירידות מחיר אמיתיות", en: "Real price drops", description: "ירידות מחיר אמיתיות בלבד: מוצג רק מה שהמחיר הקודם שלו בחנות מתועד." },
   guide: { path: "/guide", he: `המדריך החינמי: ${GUIDE.title.he}`, en: "Free guide: 8 checks before buying on AliExpress", description: "המדריך של לונה: כסף 925, מידת טבעת וצמיד, מואסניט, מתנות, מבצעים אמיתיים, בדיקת קישור והגנת קונה." },
   size: { path: "/size", he: SIZE_PAGE.seoTitle, en: "Ring and bracelet size meter, free, on your screen", description: SIZE_PAGE.seoDescription, jsonLd: sizeJsonLd },
+  magic: { path: MAGIC_PATH, he: "כפתור הקסם: בודקים מוצר מאליאקספרס לפני שקונים", en: "The magic button: check an AliExpress product before you buy", description: "מדביקים קישור מאליאקספרס, מטיקטוק או מאינסטגרם ומקבלים מיד את המחיר בחנות עכשיו, מה לבדוק לפני שקונים ואזהרה כשזה כנראה חיקוי של מותג. בחינם ובלי הרשמה.", jsonLd: (url) => [{ "@context": "https://schema.org", "@type": "WebApplication", name: "כפתור הקסם של LikeLink2", url, applicationCategory: "ShoppingApplication", operatingSystem: "Any", inLanguage: "he", description: "בדיקה של מוצר מאליאקספרס לפני שקונים: המחיר בחנות עכשיו, מה לבדוק, ואזהרה על חיקוי של מותג.", offers: { "@type": "Offer", price: "0", priceCurrency: "ILS" } }] },
   join: { path: JOIN_PATH, he: JOIN_SEO.title, en: "A creator page on LikeLink2: your link in bio, as a small shop", description: JOIN_SEO.description },
 });
 
