@@ -43,7 +43,44 @@ export function signParams(params, secret) {
   return crypto.createHmac("sha256", String(secret)).update(base, "utf8").digest("hex").toUpperCase();
 }
 
-export async function aeCall(method, biz, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now(), timeoutMs = 15_000 } = {}) {
+/**
+ * The store's short frequency ban ("Api access frequency exceeds the limit. this
+ * ban will last 1 seconds"): the seconds it names, or null for any other error.
+ */
+export function aeBanSeconds(err) {
+  const m = /aliexpress_provider_ApiCallLimit\b[^]*?(\d+)\s*sec/i.exec(String(err?.message || ""));
+  if (m) return Number(m[1]);
+  return /aliexpress_provider_ApiCallLimit\b/i.test(String(err?.message || "")) ? 0 : null;
+}
+
+/** A short code for an AliExpress failure, safe to show: never a key, secret or signature. */
+export function aeErrorCode(err) {
+  const m = /aliexpress_provider_([A-Za-z0-9_.-]{1,40})/.exec(String(err?.message || ""));
+  const code = m ? m[1] : "error";
+  return /key|secret|sign|token|session/i.test(code) ? "credentials" : code;
+}
+
+const sleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One call to the store, asked once more after a short frequency ban (≤ 2 s):
+ * several of LikeLink2's jobs share the owner's app, and a shopper's check
+ * should not fail because a job asked a second earlier.
+ */
+export async function aeCall(method, biz, opts = {}) {
+  const { sleep = sleepMs, retries = 1 } = opts;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await aeCallOnce(method, biz, opts);
+    } catch (err) {
+      const ban = aeBanSeconds(err);
+      if (ban === null || ban > 2 || attempt >= retries) throw err;
+      await sleep(Math.max(1, ban) * 1000 + 250);
+    }
+  }
+}
+
+async function aeCallOnce(method, biz, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now(), timeoutMs = 15_000 } = {}) {
   const env = aeEnv(rawEnv);
   const params = { app_key: env.ALIEXPRESS_APP_KEY, method, sign_method: "sha256", timestamp: String(now), format: "json", v: "2.0", ...biz };
   params.sign = signParams(params, env.ALIEXPRESS_APP_SECRET);

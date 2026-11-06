@@ -374,3 +374,64 @@ test("find (live check 2026-11-06): jewellery-making pins and licensed cartoon c
   assert.equal(findCheck({ ...base, product_title: "כיסוי רך מסיליקון עם דוגמת דוב רילאקומה חמוד לאייפון 16" }, { kind: "tech" }), "brand_name");
   assert.equal(findCheck({ ...base, product_title: "צעצועי ברווז סקוושי נגד לחץ לילדים" }), "");
 });
+
+// ── a busy store (2026-11-06: the live check answered "the store didn't return this product"
+//    while AliExpress was refusing calls with ApiCallLimit) ──
+import { aeBanSeconds, aeCall, aeErrorCode } from "../api/_utils/aliexpressAffiliate.mjs";
+
+const banned = (seconds) => ({ ok: true, status: 200, json: async () => ({ error_response: { code: "ApiCallLimit", msg: `Api access frequency exceeds the limit. this ban will last ${seconds} seconds` } }) });
+
+test("store calls: a short frequency ban is waited out once; a long one, or another error, is not", async () => {
+  let n = 0;
+  const waits = [];
+  const fetchImpl = async () => (n++ === 0 ? banned(1) : { ok: true, status: 200, json: async () => ({ fine: true }) });
+  const json = await aeCall("aliexpress.affiliate.productdetail.get", {}, { env: ENV, fetchImpl, sleep: async (ms) => { waits.push(ms); } });
+  assert.deepEqual(json, { fine: true });
+  assert.equal(n, 2);
+  assert.ok(waits.length === 1 && waits[0] >= 1000 && waits[0] <= 2500);
+
+  let m = 0;
+  await assert.rejects(aeCall("x", {}, { env: ENV, fetchImpl: async () => { m += 1; return banned(3600); }, sleep: async () => assert.fail("never waits an hour") }), /ApiCallLimit/);
+  assert.equal(m, 1);
+  let k = 0;
+  const other = async () => { k += 1; return { ok: true, status: 200, json: async () => ({ error_response: { code: "isv.InvalidParameter", msg: "bad" } }) }; };
+  await assert.rejects(aeCall("x", {}, { env: ENV, fetchImpl: other, sleep: async () => assert.fail("no wait for other errors") }), /InvalidParameter/);
+  assert.equal(k, 1);
+
+  assert.equal(aeBanSeconds(new Error("aliexpress_provider_ApiCallLimit:Api access frequency exceeds the limit. this ban will last 1 seconds")), 1);
+  assert.equal(aeBanSeconds(new Error("aliexpress_provider_http_500")), null);
+  assert.equal(aeErrorCode(new Error("aliexpress_provider_ApiCallLimit:x")), "ApiCallLimit");
+  assert.equal(aeErrorCode(new Error("aliexpress_provider_InvalidAppKey:x")), "credentials", "a code naming a key is never shown");
+  assert.equal(aeErrorCode(new Error("boom")), "error");
+});
+
+test("server: a busy store is \"busy, try in a minute\" (with the store's code), never \"no such product\"", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push(new URLSearchParams(String(init.body || "")).get("method"));
+    return banned(1);
+  };
+  const h = createMagicHandler({ env: ENV, fetchImpl, sleep: async () => {} });
+  const res = await call(h, { u: storePage(ID) });
+  assert.equal(res.body.ok, false);
+  assert.equal(res.body.reason, "store_busy");
+  assert.equal(res.body.code, "ApiCallLimit");
+  assert.deepEqual(calls, ["aliexpress.affiliate.productdetail.get", "aliexpress.affiliate.productdetail.get"], "asked once more, then stops");
+  assert.doesNotMatch(JSON.stringify(res.body), /key_77|secret_77|tid_77|app_key/);
+  assert.match(readFileSync("src/components/discover/magic.jsx", "utf8"), /store_busy: \[/, "the page says it in words");
+
+  const find = createMagicHandler({ env: ENV, fetchImpl, sleep: async () => {} });
+  const req = { method: "GET", url: `/api/store?mode=magic&q=${encodeURIComponent("עגילים")}`, headers: { origin: "https://likelink2.vercel.app", "user-agent": "Mozilla/5.0 (iPhone)", "x-forwarded-for": "9.9.9.9" } };
+  const out = { body: null, headers: {}, status() { return this; }, setHeader() {}, json(o) { this.body = o; }, end() {} };
+  await find(req, out);
+  assert.equal(out.body.reason, "store_busy");
+});
+
+test("find: a jewellery search leaves out key rings, watch straps and fishing swivels the store calls \"rings\"", () => {
+  const base = { target_sale_price: "8", target_sale_price_currency: "ILS", evaluate_rate: "97%", lastest_volume: 500, promotion_link: OWN, product_main_image_url: "https://ae-pic-a1.aliexpress-media.com/kf/a.jpg" };
+  for (const t of ["טבעת שעון ניילון כסף שחור אבזם 18 מ\"מ", "טבעת מפתחות מתכתית עם סוגר לובסטר", "10 יחידות מחבר סיבובי למכשירי דיג טבעת חיבור מהירה לדייג", "Metal key ring with lobster clasp"]) {
+    assert.equal(findCheck({ ...base, product_title: t }, { kind: "rings" }), "other_kind", t);
+  }
+  assert.equal(findCheck({ ...base, product_title: "טבעת אינפיניטי לאהבה 925 כסף סטרלינג" }, { kind: "rings" }), "");
+  assert.equal(findCheck({ ...base, product_title: "צמיד שעון חכם לנשים" }, { kind: "bracelets" }), "other_kind");
+});

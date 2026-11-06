@@ -24,6 +24,7 @@ const ERRORS = {
   no_item: ["לא הצלחנו לזהות לאיזה מוצר הקישור מוביל. נסי להעתיק אותו שוב מעמוד המוצר עצמו.", "We couldn't tell which product the link opens. Copy it again from the product page itself."],
   store_not_returned: ["החנות לא החזירה את המוצר הזה. אולי הקישור ישן, או שהמוצר לא נשלח לישראל.", "The store didn't return this product. The link may be old, or it doesn't ship to Israel."],
   rate_limited: ["הרבה בדיקות ברצף. נסי שוב בעוד דקה.", "Many checks in a row. Try again in a minute."],
+  store_busy: ["אליאקספרס עמוסה כרגע ולא ענתה. נסי שוב בעוד דקה, הקישור שלך בסדר.", "AliExpress is busy and didn't answer. Try again in a minute; your link is fine."],
   no_words: ["כתבי מה את מחפשת, למשל „עגילי זהב עד 30 ש״ח”.", "Write what you're looking for, e.g. \"gold earrings up to ₪30\"."],
   unavailable: ["הבדיקה לא זמינה כרגע. נסי שוב בעוד כמה דקות.", "The check isn't available right now. Try again in a few minutes."],
 };
