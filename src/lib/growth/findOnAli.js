@@ -85,7 +85,7 @@ function kindMatches(x, kind) {
 }
 
 // Supplies for making jewellery (hooks, findings, beads), not the item itself.
-const SUPPLIES = /ממצאים|ממצא(?!\p{L})|חרוזים|לעבודת\s*יד|בעבודת\s*יד|לייצור\s*תכשיטים|\b(findings|diy|beads|jewelry\s*making|jewellery\s*making)\b/iu;
+const SUPPLIES = /ממצאים|ממצא(?!\p{L})|חרוזים|לעבודת\s*יד|בעבודת\s*יד|לייצור\s*תכשיטים|ליצירת\s*תכשיטים|ציוד\s*ליצירת|סיכות\s*(?:ראש|עין)|\b(findings|diy|beads|jewelry\s*making|jewellery\s*making)\b/iu;
 
 // Words that carry no item: asked-for, filler, currency.
 const FILLER = new Set(["אני", "מחפשת", "מחפש", "רוצה", "צריכה", "צריך", "לי", "של", "עם", "בלי", "את", "משהו", "יפה", "יפים", "יפות", "זול", "זולה", "זולים", "שח", "ש״ח", "ש\"ח", "שקל", "שקלים", "ב", "על", "גם", "או", "מאלי", "באלי", "אליאקספרס", "מאליאקספרס", "שלי", "שלה", "שלו", "לה", "לו", "בשביל", "למישהי", "למישהו", "ממש", "הכי", "טוב", "טובה", "מתאים", "מתאימה"]);

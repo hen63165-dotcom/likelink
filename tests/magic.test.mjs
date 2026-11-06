@@ -365,3 +365,12 @@ test("find: the asked kind only, no making supplies; a phone case names the phon
   assert.equal(findCheck({ ...base, product_title: "Apple AirPods Pro 2 earphones" }, { kind: "tech" }), "brand_name", "the device itself still is");
   assert.equal(brandTitle("Pandora style charm bracelet"), "Pandora style charm bracelet");
 });
+
+test("find (live check 2026-11-06): jewellery-making pins and licensed cartoon characters are left out", () => {
+  const base = hit();
+  assert.equal(findCheck({ ...base, product_title: "50 יחידות סיכות עין מצופות זהב 18K לתכשיטים, סיכות ראש לעגילים, ציוד ליצירת תכשיטים" }, { kind: "earrings" }), "supplies");
+  assert.equal(findCheck({ ...base, product_title: "20 יחידות סט בלוני נייר כסף בנושא פיקאצ'ו מצויר" }), "brand_name");
+  assert.equal(findCheck({ ...base, product_title: "100 יחידות Kawaii Jiikawa מדבקות מצוירות" }), "brand_name");
+  assert.equal(findCheck({ ...base, product_title: "כיסוי רך מסיליקון עם דוגמת דוב רילאקומה חמוד לאייפון 16" }, { kind: "tech" }), "brand_name");
+  assert.equal(findCheck({ ...base, product_title: "צעצועי ברווז סקוושי נגד לחץ לילדים" }), "");
+});
