@@ -22,6 +22,7 @@ import {
   ProductsPage,
   ReelsPage,
   SavedPage,
+  WishPage,
   SearchPage,
   TrendsPage,
 } from "./pages";
@@ -115,6 +116,9 @@ function pageSEO(route, graph, lang) {
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
       return { ...page("/saved", he ? "שמורים" : "Saved", "המוצרים שנשמרו במכשיר הזה."), robots: "noindex,follow" };
+    case "wish":
+      // A private list someone sent (src/lib/wishlist.js): never a search page.
+      return { ...page("/wish", he ? "רשימת משאלות לחנוכה" : "A Hanukkah wish list", "המתנות שמישהו בחר ושלח לך, כל אחת עם הכפתור לחנות."), robots: "noindex,follow" };
     default:
       return base;
   }
@@ -194,6 +198,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "saved":
       page = <SavedPage graph={graph} />;
+      break;
+    case "wish":
+      page = <WishPage graph={graph} />;
       break;
     default:
       page = <NotFound />;
