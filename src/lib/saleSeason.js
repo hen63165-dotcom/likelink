@@ -57,6 +57,8 @@ export const SALE_SEASONS = Object.freeze({
       "ae-1005012013972716", "p-live-03", "ae-1005009832709994", "ae-1005013266250549",
     ]),
     note: { he: "צעצועים: בודקים בעמוד המוצר לאיזה גיל הם מתאימים.", en: "Toys: check the age range on the product page." },
+    // The gift finder (src/lib/giftFinder.js): who it is for + a budget.
+    finder: true,
     show: Object.freeze({ from: "2026-11-05", to: "2026-12-13" }),
   }),
 });

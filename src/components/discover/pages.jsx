@@ -16,6 +16,7 @@ import {
   Ruler,
   Search,
   Sparkles,
+  Gift,
   Tag,
   TrendingUp,
   Users,
@@ -40,6 +41,7 @@ import {
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { GUIDE, GUIDE_PATH, guideCheck, guideCheckPath, guideExamples } from "../../lib/guide.js";
 import { saleChecks, salePath, salePicks, saleSeason, seasonName } from "../../lib/saleSeason.js";
+import { GIFT_BUDGETS, finderQuery, giftGroups, giftMatches, parseFinder } from "../../lib/giftFinder.js";
 import { braceletFromWrist, CARD_MM, CARD_PX, pxPerMm, RING_DIAMETER_MM, ringFromCircumference, ringFromDiameter, SIZE_PAGE, SIZE_PATH, sizeProducts } from "../../lib/sizeTool.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
@@ -1099,6 +1101,50 @@ export function GuideCheckPage({ graph, id }) {
 
 // /11-11: what to check before filling the cart, in the guide's own words, and
 // a few of the site's listed picks (each card carries its own disclosure).
+/** Who it is for + a budget → the listed products that fit (src/lib/giftFinder.js). The choice stays in the address. */
+function GiftFinder({ graph, path }) {
+  const { L, lang } = useL();
+  const [choice, setChoice] = useState(() => parseFinder(typeof window === "undefined" ? "" : window.location.search));
+  const groups = useMemo(() => giftGroups(graph.products), [graph.products]);
+  const list = useMemo(() => giftMatches(graph.products, choice), [graph.products, choice]);
+  const pick = (next) => {
+    const merged = { ...choice, ...next };
+    setChoice(merged);
+    try { window.history.replaceState(window.history.state, "", `${window.location.pathname}${finderQuery(merged)}${window.location.hash}`); } catch { /* address only */ }
+  };
+  if (!groups.length) return null;
+  const t = (x) => (lang === "he" ? x.he : x.en);
+  return (
+    <Section>
+      <div id="finder" className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+        <h2 className="flex items-center gap-2 text-[22px] font-extrabold"><Gift size={20} aria-hidden="true" /> {L("מצאי מתנה בשנייה", "Find a gift in a second")}</h2>
+        <p className="lx-mute mt-1 text-[13.5px]">{L("בוחרים למי ובאיזה תקציב. המחיר הוא המחיר ההתחלתי בחנות כשנבדק.", "Pick who it is for and a budget. The price is the store's starting price when it was checked.")}</p>
+        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={L("למי המתנה", "Who it is for")}>
+          <button type="button" className="lx-chip" aria-pressed={!choice.forId} onClick={() => pick({ forId: "" })}>{L("לכולם", "Everyone")}</button>
+          {groups.map((g) => (
+            <button key={g.id} type="button" className="lx-chip" aria-pressed={choice.forId === g.id} onClick={() => pick({ forId: g.id })}>{t(g)}</button>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={L("תקציב", "Budget")}>
+          {GIFT_BUDGETS.map((b) => (
+            <button key={b.max} type="button" className="lx-chip" aria-pressed={choice.max === b.max} onClick={() => pick({ max: b.max })}>{t(b)}</button>
+          ))}
+        </div>
+      </div>
+      {list.length ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {list.slice(0, 24).map((p) => <ProductCard key={p.id} product={p} creator={graph.creatorById.get(p.marketerId)} />)}
+        </div>
+      ) : (
+        <p className="lx-mute mt-4 text-[14px]">{L("אין כרגע מוצר שמתאים לבחירה הזאת. נסי תקציב אחר.", "No product fits this choice right now. Try another budget.")}</p>
+      )}
+      <div className="mt-3 print:hidden">
+        <ShareButton path={`${path}${finderQuery(choice)}`} title={L("מצאתי מתנות לחנוכה לפי תקציב | LikeLink2", "Hanukkah gifts by budget | LikeLink2")} variant="button" />
+      </div>
+    </Section>
+  );
+}
+
 export function SalePage({ graph, id }) {
   const { L, lang } = useL();
   const t = (x) => (lang === "he" ? x.he : x.en);
@@ -1115,6 +1161,7 @@ export function SalePage({ graph, id }) {
           <ShareButton path={salePath(season.id)} title={`${t(season.title)} | LikeLink2`} variant="button" />
         </div>
       </PageHero>
+      {season.finder ? <GiftFinder graph={graph} path={salePath(season.id)} /> : null}
       <Section>
         <ol className="grid gap-3 md:grid-cols-2">
           {checks.map((c, i) => (

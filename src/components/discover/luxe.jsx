@@ -441,6 +441,24 @@ function Tools() {
   );
 }
 
+/** One line above the hero for the season whose window is open: the gift finder first (/hanukkah-gifts#finder). */
+function SeasonStrip() {
+  const { L, lang, Forward } = useL();
+  const seasons = activeSeasons();
+  const s = seasons.find((x) => x.finder) || seasons[0];
+  if (!s) return null;
+  return (
+    <div className="lx-wrap" style={{ paddingTop: 12 }}>
+      <Go to={`${salePath(s.id)}${s.finder ? "#finder" : ""}`} className="lx-chip" style={{ display: "flex", width: "100%", justifyContent: "center", gap: 8, minHeight: 44, fontWeight: 700 }}>
+        <span aria-hidden="true">🎁</span>
+        <span>{lang === "he" ? s.kicker.he : s.kicker.en}</span>
+        <span className="opacity-70">{s.finder ? L("· מצאי מתנה לפי תקציב", "· find a gift by budget") : L("· הבדיקות לפני שקונים", "· the checks before you buy")}</span>
+        <Forward size={15} aria-hidden="true" />
+      </Go>
+    </div>
+  );
+}
+
 /** The home page. `extra` sits after the videos (e.g. the engine's own picks). */
 export function LuxeHome({ graph, extra = null }) {
   const footage = useMemo(() => footageByProduct(graph.reels), [graph.reels]);
@@ -449,6 +467,7 @@ export function LuxeHome({ graph, extra = null }) {
   const featuredReel = featured ? footage.get(featured.id) : null;
   return (
     <div className="lx-luxe">
+      <SeasonStrip />
       <Hero items={items} featured={featured} reel={featuredReel} />
       <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Circles products={graph.products} />
