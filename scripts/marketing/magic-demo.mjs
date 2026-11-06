@@ -58,7 +58,8 @@ mkdirSync(FRAMES, { recursive: true });
 // Headless Chrome's screen recording is captured at CSS pixels (432×768), so
 // every frame is a full-resolution screenshot (1080×1920) on a virtual clock:
 // each frame carries how long it is shown, and the video is stitched from them.
-const browser = await chromium.launch();
+// The runner's own Google Chrome (Playwright's browser download has no build for Ubuntu 26.04).
+const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
 const context = await browser.newContext({
   viewport: { width: 432, height: 768 },
   deviceScaleFactor: 2.5,

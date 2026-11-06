@@ -27,7 +27,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-noto-core >/dev/null
           npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
-          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium >/dev/null
           python3 -m pip install --quiet --break-system-packages numpy || python3 -m pip install --quiet numpy
       - name: The soft bed (made from numbers, no licence to clear)
         run: |

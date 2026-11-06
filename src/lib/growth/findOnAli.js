@@ -78,8 +78,14 @@ const KIND_WORDS = Object.freeze({
   hair: /שיער|קליפס|גומי|קשת|\b(hair|clip|scrunchie|headband)\b/i,
   home: /מנורה|נר|כרית|שמיכה|שטיח|וילון|\b(lamp|candle|pillow|blanket|rug|curtain|decor)\b/i,
 });
+// The store also calls a key ring, a watch strap loop or a fishing swivel a "ring":
+// a search for jewellery leaves out an item whose title names one of those.
+const JEWELLERY_KINDS = new Set(["rings", "earrings", "necklaces", "bracelets"]);
+const NOT_JEWELLERY = /מפתחות|מחזיק\s*מפתח|שעון|דיג|דייג|וילון|לרכב|\b(key\s*rings?|keyrings?|keychains?|key\s*chains?|watch|watches|fishing|swivels?|curtains?)\b/iu;
+
 /** Whether a store item is the kind asked for (by the store's own words). */
 function kindMatches(x, kind) {
+  if (JEWELLERY_KINDS.has(kind) && NOT_JEWELLERY.test(String(x?.product_title || ""))) return false;
   if (guessCategory(x)?.key === kind) return true;
   return Boolean(KIND_WORDS[kind]?.test(String(x?.product_title || "")));
 }

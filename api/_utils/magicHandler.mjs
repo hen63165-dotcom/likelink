@@ -19,7 +19,7 @@
 // the owner's API quota for people, not scripts. Credential names never reach the
 // answer.
 import { jsonCors, isApprovedOrigin } from "./cors.js";
-import { aeCall, aeEnv, aeStatus } from "./aliexpressAffiliate.mjs";
+import { aeBanSeconds, aeCall, aeEnv, aeErrorCode, aeStatus } from "./aliexpressAffiliate.mjs";
 import { classifyAgent, clientIp, createRateLimiter } from "./botGuard.mjs";
 import { brandTitle, firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
 import { guessCategory, hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
@@ -33,6 +33,16 @@ const header = (req, name) => {
 const OWN_LINK = /^https:\/\/s\.click\.aliexpress\.com\/\S+$/;
 const CACHE_MS = 30 * 60_000;
 const CACHE_MAX = 400;
+
+/**
+ * Why the store gave nothing, in words the page can say: a frequency ban is
+ * "busy, try in a minute", never "this product does not exist". `code` is the
+ * store's own short code (aeErrorCode: never a key or a signature).
+ */
+function storeFailure(err) {
+  const busy = aeBanSeconds(err) !== null;
+  return { ok: false, reason: busy ? "store_busy" : "store_not_returned", code: aeErrorCode(err) };
+}
 
 /**
  * The store item a pasted link opens, and whether the link is already someone's
@@ -68,11 +78,11 @@ export async function resolveMagicLink(link, { fetchImpl = globalThis.fetch, hop
 }
 
 /** The owner's own tracked link for a store item (link.generate), "" when the store gives none. */
-async function ownLinkFor(itemId, { env, fetchImpl, now }) {
+async function ownLinkFor(itemId, { env, fetchImpl, now, sleep }) {
   try {
     const json = await aeCall("aliexpress.affiliate.link.generate", {
       tracking_id: env.ALIEXPRESS_TRACKING_ID, promotion_link_type: "0", source_values: storePage(itemId),
-    }, { env, fetchImpl, now });
+    }, { env, fetchImpl, now, sleep });
     const links = arr(json?.aliexpress_affiliate_link_generate_response?.resp_result?.result?.promotion_links?.promotion_link);
     const link = String(links[0]?.promotion_link || "");
     return OWN_LINK.test(link) ? link : "";
@@ -81,7 +91,7 @@ async function ownLinkFor(itemId, { env, fetchImpl, now }) {
   }
 }
 
-export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, now = () => Date.now(), limiter = createRateLimiter({ windowMs: 60_000, max: 10 }), cache = new Map() } = {}) {
+export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, now = () => Date.now(), limiter = createRateLimiter({ windowMs: 60_000, max: 10 }), cache = new Map(), sleep } = {}) {
   const readEnv = () => aeEnv(rawEnv || process.env);
   const cached = (key) => {
     const hit = cache.get(key);
@@ -111,6 +121,7 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
     let last = { items: [], left: {} };
     let used = null;
     let failed = 0;
+    let failure = null;
     for (const attempt of attempts) {
       try {
         const answer = await aeCall("aliexpress.affiliate.product.query", {
@@ -118,17 +129,18 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
           ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
           // In the store's smallest unit; every item is checked against the budget again below.
           ...(parsed.maxPrice > 0 ? { max_sale_price: String(parsed.maxPrice * 100) } : {}),
-        }, { env, fetchImpl, now: now() });
+        }, { env, fetchImpl, now: now(), sleep });
         const result = answer?.aliexpress_affiliate_product_query_response?.resp_result;
-        if (Number(result?.resp_code) !== 200) { failed += 1; continue; }
+        if (Number(result?.resp_code) !== 200) { failed += 1; failure = { ok: false, reason: "store_not_returned", code: `resp_${Number(result?.resp_code) || "none"}` }; continue; }
         last = findResults(arr(result?.result?.products?.product), { maxPrice: parsed.maxPrice, kind: parsed.kind, now: now() });
         used = attempt;
         if (last.items.length) break;
-      } catch {
+      } catch (err) {
         failed += 1;
+        failure = storeFailure(err);
       }
     }
-    if (!used && failed) return json({ ok: false, reason: "store_not_returned" });
+    if (!used && failed) return json(failure || { ok: false, reason: "store_not_returned" });
     const body = { query: { text: parsed.text, maxPrice: parsed.maxPrice || null, asked: used?.lang || null, unknown: parsed.unknown }, items: last.items };
     remember(key, body);
     return json({ ok: true, ...body });
@@ -166,12 +178,18 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
       const itemKey = `item|${resolved.itemId}`;
       let store = cached(itemKey);
       if (!store) {
-        const answer = await aeCall("aliexpress.affiliate.productdetail.get", {
-          product_ids: resolved.itemId, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
-        }, { env, fetchImpl, now: now() });
+        let answer;
+        try {
+          answer = await aeCall("aliexpress.affiliate.productdetail.get", {
+            product_ids: resolved.itemId, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
+          }, { env, fetchImpl, now: now(), sleep });
+        } catch (err) {
+          return json(storeFailure(err));
+        }
         const result = answer?.aliexpress_affiliate_productdetail_get_response?.resp_result;
-        const x = Number(result?.resp_code) === 200 ? arr(result?.result?.products?.product).find((p) => String(p?.product_id) === resolved.itemId) : null;
-        if (!x) return json({ ok: false, reason: "store_not_returned" });
+        if (Number(result?.resp_code) !== 200) return json({ ok: false, reason: "store_not_returned", code: `resp_${Number(result?.resp_code) || "none"}` });
+        const x = arr(result?.result?.products?.product).find((p) => String(p?.product_id) === resolved.itemId);
+        if (!x) return json({ ok: false, reason: "store_not_returned", code: "not_in_answer" });
         store = { x, ownLink: OWN_LINK.test(String(x.promotion_link || "")) ? String(x.promotion_link) : "" };
         remember(itemKey, store);
       }
@@ -180,13 +198,13 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
       const notListed = isNotListedKind(title);
       // LikeLink2's own link only when it will be offered (a plain link, nothing to warn about).
       if (!resolved.creator && !brand && !notListed && !store.ownLink) {
-        store = { ...store, ownLink: await ownLinkFor(resolved.itemId, { env, fetchImpl, now: now() }) };
+        store = { ...store, ownLink: await ownLinkFor(resolved.itemId, { env, fetchImpl, now: now(), sleep }) };
         if (store.ownLink) remember(itemKey, store);
       }
       const report = magicReport({ x: store.x, category: guessCategory(store.x), pasted, creator: resolved.creator, ownLink: store.ownLink, brand, notListed, now: now() });
       return json({ ok: true, report });
-    } catch {
-      return json({ ok: false, reason: "store_not_returned" });
+    } catch (err) {
+      return json(storeFailure(err));
     }
   };
 }
