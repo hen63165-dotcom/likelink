@@ -45,10 +45,15 @@ export const dealCategory = (key) => DEAL_CATEGORIES.find((c) => c.key === key) 
 
 // Names that, on AliExpress, mean an imitation of the brand, or a character/celebrity
 // sold without a licence (never the brand itself).
-const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו/i;
+const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו|pikachu|kuromi|cinnamoroll|rilakkuma|chiikawa|jiikawa|my\s*melody|פוקימון|פיקאצ'ו|קורומי|סינמורול|רילאקומה|צ'יקאווה|הלו\s*קיטי|סנריו|סטיץ'|מיקי\s*מאוס|פרוזן|ספיידרמן|spider-?man|frozen\s*elsa|paw\s*patrol|מפרץ\s*ההרפתקאות|peppa|פפה\s*פיג/i;
 // Items the site does not list whatever their numbers: weapons, adult items, and
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
 const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
+
+/** A brand, character or celebrity name in a store title (on AliExpress: an imitation, or no licence). */
+export const hasBrandName = (title = "") => BRAND_IMITATION.test(String(title || ""));
+/** A kind of item the site never recommends (weapons, smoking, adult items, health or slimming claims). */
+export const isNotListedKind = (title = "") => NOT_LISTED.test(String(title || ""));
 
 /** "97.4%" → 97.4 (null when AliExpress did not answer one). */
 export function positivePct(x = {}) {

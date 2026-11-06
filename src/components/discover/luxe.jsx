@@ -10,7 +10,7 @@
 // screens are LikeLink2's own pages drawn with the same real records. No
 // counters. Everything comes from the public graph (src/lib/publicDiscovery.js).
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Compass, Heart, Home, Play, Ruler, Search, Send, ShoppingBag } from "lucide-react";
+import { BookOpen, Compass, Heart, Home, Play, Ruler, Search, Send, ShoppingBag, Sparkles } from "lucide-react";
 import { REEL_STYLE_LABELS } from "../../lib/publicDiscovery.js";
 import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { curatedProducts, footageByProduct, shopCircles, spotlight } from "../../lib/homeShowcase.js";
@@ -18,6 +18,7 @@ import { cleanImage, galleryPicks, lookLabel, lookOf } from "../../lib/looks.js"
 import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { activeSeasons, salePath } from "../../lib/saleSeason.js";
+import { MAGIC_PATH } from "../../lib/growth/magic.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
 import { CreatorAvatar, Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
 import { STUDIO_SIGNUP } from "./PublicShell";
@@ -419,6 +420,7 @@ function Creators() {
 function Tools() {
   const { L, lang, Forward } = useL();
   const tools = [
+    { to: MAGIC_PATH, icon: Sparkles, kicker: L("כפתור הקסם", "The magic button"), title: L("ראית משהו באלי? בדקי לפני שקונים", "Saw it on AliExpress? Check before you buy"), line: L("מדביקים קישור, או כותבים בעברית מה מחפשים. מקבלים את המחיר בחנות עכשיו, מה לבדוק, ואזהרה כשזה כנראה חיקוי.", "Paste a link, or write in Hebrew what you want: the store's price now, what to check, and a warning when it's likely an imitation.") },
     { to: SIZE_PATH, icon: Ruler, kicker: L("מודד מידות", "Size meter"), title: L("מה מידת הטבעת שלך?", "What's your ring size?"), line: L("מגלים מהמסך, עם כרטיס וטבעת שיש לך. וגם אורך צמיד לפי פרק היד.", "Find out on your screen with a card and a ring you own. Plus bracelet length from your wrist.") },
     { to: GUIDE_PATH, icon: BookOpen, kicker: L("המדריך החינמי", "The free guide"), title: lang === "he" ? GUIDE.title.he : GUIDE.title.en, line: L("כסף 925, מואסניט, מבצעים אמיתיים והגנת קונה. אפשר לשמור כ־PDF.", "Silver 925, moissanite, real sales and buyer protection. Save it as a PDF.") },
     // This season's answer page (/11-11, /black-friday, /hanukkah-gifts), while its window is open.
@@ -459,6 +461,21 @@ function SeasonStrip() {
   );
 }
 
+/** The magic button (/magic), right under the season line: paste a link seen on TikTok or Instagram, check it. */
+function MagicStrip() {
+  const { L, Forward } = useL();
+  return (
+    <div className="lx-wrap" style={{ paddingTop: 8 }}>
+      <Go to={MAGIC_PATH} className="lx-btn lx-btn-ink" style={{ display: "flex", width: "100%", justifyContent: "center", gap: 8, minHeight: 48 }}>
+        <Sparkles size={17} aria-hidden="true" />
+        <span>{L("כפתור הקסם", "The magic button")}</span>
+        <span className="opacity-80" style={{ fontWeight: 600 }}>{L("· בדיקת קישור או חיפוש באלי", "· check a link or search AliExpress")}</span>
+        <Forward size={15} aria-hidden="true" />
+      </Go>
+    </div>
+  );
+}
+
 /** The home page. `extra` sits after the videos (e.g. the engine's own picks). */
 export function LuxeHome({ graph, extra = null }) {
   const footage = useMemo(() => footageByProduct(graph.reels), [graph.reels]);
@@ -468,6 +485,7 @@ export function LuxeHome({ graph, extra = null }) {
   return (
     <div className="lx-luxe">
       <SeasonStrip />
+      <MagicStrip />
       <Hero items={items} featured={featured} reel={featuredReel} />
       <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Circles products={graph.products} />

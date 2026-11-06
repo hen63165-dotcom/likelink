@@ -6,6 +6,7 @@ import { NavCtx, useGraph, useL } from "./kit";
 import { PublicShell } from "./PublicShell";
 import { StatusPage } from "./status";
 import { JoinPage } from "./join";
+import { MagicPage } from "./magic";
 import {
   CollectionsPage,
   CreatorPage,
@@ -112,6 +113,8 @@ function pageSEO(route, graph, lang) {
       return { ...page("/status", he ? "מצב האתר ומה כל תווית אומרת" : "Site status and what each label means", "מה נבדק בקטלוג, מתי, ומה עוד חסר: קישורים, מחירים, התאמת תמונות וסרטונים למוצרים."), robots: "noindex,follow" };
     case "join":
       return section("join");
+    case "magic":
+      return section("magic");
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -201,6 +204,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "wish":
       page = <WishPage graph={graph} />;
+      break;
+    case "magic":
+      page = <MagicPage key={route.nav || "magic"} graph={graph} />;
       break;
     default:
       page = <NotFound />;

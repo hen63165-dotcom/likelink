@@ -1,0 +1,43 @@
+# A real screen recording of the live magic button (/magic) for Reels/TikTok
+# (scripts/marketing/magic-demo.mjs). The video goes to the "magic-demo"
+# pre-release for a person to look at; nothing is posted from here.
+name: Magic button demo
+# Run by hand (Actions → "Magic button demo") once /magic is live: the recording
+# must show the real page, so it never runs on a push.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: magic-demo
+  cancel-in-progress: true
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-core >/dev/null
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          /tmp/pw/node_modules/.bin/playwright install --with-deps chromium >/dev/null
+          python3 -m pip install --quiet --break-system-packages numpy || python3 -m pip install --quiet numpy
+      - name: The soft bed (made from numbers, no licence to clear)
+        run: |
+          PYTHONPATH=scripts/luna_reels python3 -c "from pathlib import Path; from luna_reels.music import write_bed; write_bed(40, Path('$RUNNER_TEMP/bed.m4a'), db=-15)"
+      - name: Record the live page
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          MAGIC_BED: ${{ runner.temp }}/bed.m4a
+        run: node scripts/marketing/magic-demo.mjs magic-demo
+      - name: → the "magic-demo" pre-release (not the site)
+        run: |
+          gh release view magic-demo >/dev/null 2>&1 || gh release create magic-demo --prerelease --title "Magic button demo (not on the site)" --notes "A real recording of the live /magic page, for Reels and TikTok. Nothing is posted from here."
+          gh release upload magic-demo magic-demo/magic-demo.mp4 magic-demo/cover.jpg magic-demo/caption.txt magic-demo/run.json magic-demo/frames-*.jpg --clobber

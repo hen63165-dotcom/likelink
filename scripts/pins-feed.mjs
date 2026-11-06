@@ -21,6 +21,7 @@ import { listedFromSnapshot } from "./prerender-products.mjs";
 import { isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
 import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 import { SIZE_PAGE, SIZE_PATH } from "../src/lib/sizeTool.js";
+import { MAGIC_PATH } from "../src/lib/growth/magic.js";
 import { SELLER_MEDIA_LOOKS } from "../src/lib/reelsFeed.js";
 
 export const PINS_FEED_HOME = "https://hen63165-dotcom.github.io/likelink";
@@ -48,7 +49,7 @@ export function pinLink(path, campaign, origin = PRODUCTION_ORIGIN) {
  * @param reels the reels feed entries (scripts/reels-feed.mjs index.json)
  * @param feedBase where the feed and the covers are served
  */
-export function buildPins({ products = [], reels = [], feedBase = PINS_FEED_HOME, origin = PRODUCTION_ORIGIN } = {}) {
+export function buildPins({ products = [], reels = [], feedBase = PINS_FEED_HOME, origin = PRODUCTION_ORIGIN, magicPin = "" } = {}) {
   const pins = [];
   const byId = new Map(products.map(({ product }) => [String(product.id), product]));
   for (const { product } of products) {
@@ -86,6 +87,17 @@ export function buildPins({ products = [], reels = [], feedBase = PINS_FEED_HOME
       link: pinLink(SIZE_PATH, "pins_tool", origin),
       image: `${feedBase}/media/reels/${ringReel.poster}`,
       date: Number(ringReel.createdAt) || 0,
+    });
+  }
+  // The magic button (/magic), with a frame of its real demo (public/promo/magic-pin.jpg) once it exists.
+  if (magicPin) {
+    pins.push({
+      guid: "tool-magic",
+      title: "כפתור הקסם: בודקים מוצר מאליאקספרס לפני שקונים",
+      description: clip("מדביקים קישור מאליאקספרס ורואים את המחיר בחנות עכשיו, מה לבדוק לפני שמזמינים, ואם בשם המוצר יש מותג (כנראה חיקוי). אין קישור? כותבים בעברית מה רוצים. כלי חינמי של LikeLink2, בלי הרשמה. (באתר יש קישורי שותפים, #פרסומת.)", 500),
+      link: pinLink(MAGIC_PATH, "pins_tool", origin),
+      image: `${feedBase}/${magicPin}`,
+      date: Date.parse("2026-11-06T18:00:00Z"),
     });
   }
   return pins;
@@ -129,7 +141,8 @@ export function writePinsFeed({ dist = "dist", feedBase = PINS_FEED_HOME, now = 
   const { products } = listedFromSnapshot(catalog || JSON.parse(readFileSync(snapshot, "utf8")));
   const reelsIndex = join(dist, "media", "reels", "index.json");
   const reels = existsSync(reelsIndex) ? JSON.parse(readFileSync(reelsIndex, "utf8")).reels || [] : [];
-  const pins = buildPins({ products, reels, feedBase });
+  const magicPin = existsSync(join(dist, "promo", "magic-pin.jpg")) ? "promo/magic-pin.jpg" : "";
+  const pins = buildPins({ products, reels, feedBase, magicPin });
   writeFileSync(join(dist, "pins.xml"), pinsRss(pins, { feedBase, now }));
   return { pins: pins.length };
 }

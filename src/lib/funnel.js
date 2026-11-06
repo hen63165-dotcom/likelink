@@ -5,7 +5,7 @@ import { storage } from "./storage.js";
 import { landingAttribution } from "./attribution.js";
 
 export const FUNNEL_KEY = "marketplace:funnel";
-export const FUNNEL_TYPES = Object.freeze(["studio_cta", "signup_completed", "signup_confirm_sent", "login_completed", "landing"]);
+export const FUNNEL_TYPES = Object.freeze(["studio_cta", "signup_completed", "signup_confirm_sent", "login_completed", "landing", "magic_check"]);
 
 // Search crawlers and link-preview bots run pages too; they are not visitors.
 // (Pinterest's, Telegram's and Instagram's in-app browsers are real people:

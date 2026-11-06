@@ -1,7 +1,7 @@
 // LikeLink2 public pages. All data comes from the public graph
 // (src/lib/publicDiscovery.js); every section that lacks real evidence shows
 // an honest state instead of a filler.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpLeft,
   BookOpen,
@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
+import { MAGIC_PATH, firstLink, isStoreLink } from "../../lib/growth/magic.js";
 import {
   collectionsFor,
   findCollection,
@@ -84,6 +85,7 @@ import {
   TrendCard,
   TrustBadge,
   useL,
+  NavCtx,
 } from "./kit";
 
 /* ----------------------------------------------------------------- helpers */
@@ -685,6 +687,11 @@ export function ProductPage({ graph, id, navigate }) {
                 <Ruler size={14} aria-hidden="true" /> {sizeProducts([product], "ring").length ? L("לא בטוחה במידה? מודדים מהמסך תוך דקה", "Not sure of the size? Measure it on your screen") : L("איזה אורך צמיד לבחור? מודדים בדקה", "Which bracelet length? Measure in a minute")}
               </Go>
             ) : null}
+            <p className="mt-3 text-[13px]">
+              <Go to={MAGIC_PATH} className="underline" data-tip={L("מדביקים קישור או כותבים בעברית מה מחפשים", "Paste a link or write in Hebrew what you want")}>
+                ✨ {L("ראית מוצר אחר באלי? בדקי אותו בכפתור הקסם", "Saw something else on AliExpress? Check it with the magic button")}
+              </Go>
+            </p>
 
             <div className="mt-4 flex flex-wrap gap-1.5">
               <TrustBadge kind="approved" />
@@ -1017,6 +1024,7 @@ export function GuidePage({ graph }) {
           <button type="button" className="lx-btn lx-btn-ghost" onClick={() => window.print()} data-tip={L("שמירה כ־PDF או הדפסה, מתפריט ההדפסה של הדפדפן", "Save as PDF or print, from the browser's print menu")}>
             <Printer size={16} aria-hidden="true" /> {L("שמירה כ־PDF", "Save as PDF")}
           </button>
+          <Go to={MAGIC_PATH} className="lx-btn lx-btn-ink">✨ {L("כל 8 הבדיקות על מוצר אחד: כפתור הקסם", "All 8 checks on one product: the magic button")}</Go>
         </div>
       </PageHero>
       <ol className="lx-wrap mt-10 grid gap-4 md:grid-cols-2" aria-label={t(GUIDE.title)}>
@@ -1382,6 +1390,13 @@ export function SearchPage({ graph }) {
   const { L, lang } = useL();
   const [q, setQParam] = useQueryParam("q");
   const [draft, setDraft] = useState(q);
+  // An AliExpress link pasted into search is a check, not a search: the magic button answers it.
+  const navigate = useContext(NavCtx);
+  useEffect(() => {
+    const link = firstLink(q);
+    if (link && isStoreLink(link)) navigate(`${MAGIC_PATH}?u=${encodeURIComponent(link)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
   useEffect(() => {
     const t = setTimeout(() => {
       if (draft !== q) setQParam(draft.trim());
@@ -1495,6 +1510,13 @@ export function SearchPage({ graph }) {
               {res.intent.minPrice != null ? <span className="lx-chip">{L(`מ־₪${res.intent.minPrice}`, `From ₪${res.intent.minPrice}`)}</span> : null}
               {res.intent.text ? <span className="lx-chip">„{res.intent.text}”</span> : null}
             </div>
+          ) : null}
+          {!res.link ? (
+            <p className="mt-3">
+              <Go to={`${MAGIC_PATH}?q=${encodeURIComponent(q)}`} className="lx-chip" data-tip={L("נחפש בחנות לפי הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה, בלי חיקויים", "We'll search the store by our rules: many orders, high satisfaction, no imitations")}>
+                🔎 {L(`לא מצאת? לחפש „${q}” באליאקספרס`, `Not here? Search “${q}” on AliExpress`)}
+              </Go>
+            </p>
           ) : null}
           {!res.total ? (
             <div className="mt-4">

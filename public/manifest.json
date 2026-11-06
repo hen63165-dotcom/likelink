@@ -39,7 +39,7 @@
     }
   ],
   "share_target": {
-    "action": "/",
+    "action": "/magic",
     "method": "GET",
     "enctype": "application/x-www-form-urlencoded",
     "params": {

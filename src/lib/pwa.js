@@ -53,6 +53,9 @@ async function promptInstall() {
 // stash the shared link and notify the app to prefill the studio form.
 
 function handleShareTarget() {
+  // The manifest's share target is the magic button (/magic): that page reads
+  // what was shared (?text= / ?url=) itself, so the address is left as it is.
+  if (/\/magic\/?$/.test(location.pathname)) return;
   const params = new URLSearchParams(location.search);
   const sharedUrl = params.get("url") || extractUrl(params.get("text") || "");
   if (!sharedUrl) return;

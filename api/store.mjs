@@ -980,6 +980,12 @@ export default async function handler(req, res) {
     const { default: marketingEngineHandler } = await import('./_utils/marketingEngineHandler.mjs');
     return marketingEngineHandler(req, res);
   }
+  // "כפתור הקסם" (/magic): a pasted AliExpress link → the store's own facts, what
+  // to check, and the buy link (a creator's link is kept). Read-only, rate-limited.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'magic') {
+    const { default: magicHandler } = await import('./_utils/magicHandler.mjs');
+    return magicHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'discovery') {
     const { default: discoveryHandler } = await import('./_utils/discoveryHandler.mjs');
     return discoveryHandler(req, res);
