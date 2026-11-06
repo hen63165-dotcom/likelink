@@ -633,9 +633,12 @@ function CampaignsPanel({ onNavigate }) {
   );
 }
 
-// Publish outcome → honest Hebrew label. Only PUBLISHED means it is live.
+// Publish outcome → honest Hebrew label. PUBLISHED from this panel is the
+// product's own page on LikeLink2 (provider "likelink2"): it is live on the
+// site, and nothing was sent to Instagram, Facebook or TikTok (the owner,
+// 2026-11-06: "מה זה אומר פורסם ואיפה?"). The networks are in "פרסום לרשתות".
 const PUBLISH_STATUS_HE = {
-  PUBLISHED: "פורסם ✅",
+  PUBLISHED: "מופיע באתר שלך ✅ (עמוד המוצר ב־LikeLink2; לא נשלח לרשתות)",
   ASSISTED: "מוכן לפרסום ידני — העתיקי את התוכן לערוץ",
   PROCESSING: "נשלח לערוצים המחוברים — ממתין לאישור",
   CONNECT_REQUIRED: "צריך לחבר ערוץ חיצוני בהגדרות",
@@ -696,13 +699,16 @@ function PublishingPanel({ onNavigate }) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold" style={{ color: "var(--text)" }}>
-        {lang === "he" ? "פרסום — ערוצים אמיתיים" : "Publishing — real channels"}
+        {lang === "he" ? "הצגה באתר" : "Show on the site"}
       </h3>
       <p className="text-sm" style={{ color: "var(--text-muted)" }}>
         {lang === "he"
-          ? "פרסום חד-פעמי כאן; פרסום מתוזמן מופעל דרך הטייס האוטומטי."
-          : "One-off publishing here; scheduled publishing runs through AutoPilot."}
+          ? "כאן מעלים את עמוד המוצר שלך באתר LikeLink2. זה לא שולח לאינסטגרם, לפייסבוק או לטיקטוק: לשם נכנסים ב„פרסום לרשתות”, שפותח את חלון השיתוף של כל רשת עם טקסט מוכן."
+          : "This puts your product's page live on LikeLink2. It does not post to Instagram, Facebook or TikTok: for that, open \"Share to networks\", which opens each network's own share window with ready text."}
       </p>
+      <Button variant="secondary" onClick={() => onNavigate(VIEW_IDS.SHARE)}>
+        {lang === "he" ? "לפרסום ברשתות ←" : "Share to networks →"}
+      </Button>
       <div className="space-y-3">
         {mine.map((p) => {
           const r = results[p.id];
@@ -713,11 +719,14 @@ function PublishingPanel({ onNavigate }) {
                 {r && (
                   <div className="mt-1 text-xs" style={{ color: r.ok && r.status === "PUBLISHED" ? "var(--success)" : r.ok ? "var(--text-muted)" : "var(--danger)" }}>
                     {publishOutcomeText(r, lang)}
+                    {r.ok && r.status === "PUBLISHED" && /^https:\/\//.test(String(r.publishedUrl || "")) ? (
+                      <> · <a href={r.publishedUrl} target="_blank" rel="noopener noreferrer" className="underline">{lang === "he" ? "לצפייה בעמוד" : "View the page"}</a></>
+                    ) : null}
                   </div>
                 )}
               </div>
               <Button onClick={() => publish(p)} disabled={Boolean(busy[p.id])}>
-                {busy[p.id] ? (lang === "he" ? "מפרסם…" : "Publishing…") : (lang === "he" ? "פרסום עכשיו" : "Publish now")}
+                {busy[p.id] ? (lang === "he" ? "מעלה…" : "Publishing…") : (lang === "he" ? "להציג באתר" : "Show on the site")}
               </Button>
             </div>
           );
