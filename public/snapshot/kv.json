@@ -201,7 +201,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117823273-x70lz9.mp4",
     "createdAt": 1789929013056,
-    "updatedAt": 1793884092540,
+    "updatedAt": 1793969671932,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -230,11 +230,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 10.62,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 16.99,
+    "price": 17.29,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-05T13:08:12.540Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/S400a708e8fcd41159db8cea4a63a37ddN.png",
@@ -243,7 +243,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb09326a7d96b40acbec26c46524e1347w.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/S3f8596cbeb2e4594a38fd74229c870ecV.png"
     ],
-    "originalPrice": 33.98
+    "originalPrice": 34.58
    },
    {
     "id": "p-live-02",
@@ -254,7 +254,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117828322-m60ezx.mp4",
     "createdAt": 1789842613056,
-    "updatedAt": 1793884092540,
+    "updatedAt": 1793969671932,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -284,11 +284,11 @@
     "videoUpdatedAt": 1791494178464,
     "catalogPrice": 378.4,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 377.3,
+    "price": 383.65,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-05T13:08:12.540Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S4fc5661046a1428c99744f3d540588f4L.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S2a1cdc9f68c3446a8844ea1537c1f8f2x.jpg",
@@ -297,7 +297,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb611d344737246f2a78105b012bb1b43Y.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sf29b78c6958a4e2f877c85fc3e2d6e7aC.png"
     ],
-    "originalPrice": 714.07
+    "originalPrice": 726.09
    },
    {
     "id": "p-live-03",
@@ -308,7 +308,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117832579-52wthh.mp4",
     "createdAt": 1789756213056,
-    "updatedAt": 1793884092540,
+    "updatedAt": 1793969671932,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -338,11 +338,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 228.96,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 256.09,
+    "price": 257.54,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-05T13:08:12.540Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S6a13c7593c184263ae9204f295447043t.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S6e562e9451244bdebdf507ff775d424eo.jpg",
@@ -351,11 +351,11 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S9545f81560414e24a97181221f2eaea7k.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Seed4312c17694d8ea2bc39f4e32569a4x.jpg"
     ],
-    "originalPrice": 624.71,
+    "originalPrice": 635.23,
     "sellerVideo": {
      "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/1100098027111.mp4",
      "source": "aliexpress_api",
-     "checkedAt": "2026-11-05T13:08:12.540Z"
+     "checkedAt": "2026-11-06T12:54:31.932Z"
     }
    },
    {
@@ -367,7 +367,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117837130-73u3do.mp4",
     "createdAt": 1789669813056,
-    "updatedAt": 1793884092540,
+    "updatedAt": 1793969671932,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -396,11 +396,11 @@
     "videoUpdatedAt": 1791494178464,
     "catalogPrice": 85.36,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 109.12,
+    "price": 110.96,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-05T13:08:12.540Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc3150d9b93a6452b8608ae1131051a4dV.png",
@@ -409,11 +409,11 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S3129c9709d9042ebb86330098110477dL.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sf0f1258a76d44898a8b6f57eee920b47R.png"
     ],
-    "originalPrice": 265.38,
+    "originalPrice": 269.85,
     "sellerVideo": {
      "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/4000313550757.mp4",
      "source": "aliexpress_api",
-     "checkedAt": "2026-11-05T13:08:12.540Z"
+     "checkedAt": "2026-11-06T12:54:31.932Z"
     }
    },
    {
@@ -438,11 +438,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 47.17,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 52.64,
+    "price": 52.87,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-05T13:08:12.540Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S9777e80bf14445e784a76c2dc1f145d0S.jpg",
@@ -451,8 +451,8 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc6c827037afa4648a61e05b93f62aa16z.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sbb4689a801fe4d8390a9ef16d482e0891.jpg"
     ],
-    "updatedAt": 1793884092540,
-    "originalPrice": 128.4,
+    "updatedAt": 1793969671932,
+    "originalPrice": 130.56,
     "imageSource": {
      "via": "aliexpress_api_gallery",
      "chosenBy": "least_text",
@@ -469,14 +469,14 @@
     "storeTitle": "1 יחידה חדשה נגד לחץ דחיפה בועה ספינר פנים-שינוי צעצוע חושי דחיפה ספינר להקלה מתח צעצועים לילדים",
     "category": "Kids",
     "kind": "kids",
-    "image": "https://ae-pic-a1.aliexpress-media.com/kf/H0426caa80b62450e9ceb572b8ec0c69aN.jpg",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/H57be5d8d47774b8d91b03a3341f10b00x.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CnFHdTgy0niQbmmfASL7HNZRoLb4TgO30QnuTFlD9yRDp6bpM18iwWIE2H6V8GtS0NPkbItHvTdaJawS6Et3aYiLqSmUBZxC6B5TCVsnYwompNDpRMZ9UVpFNj88G8s92Na3Eok7bokf7i5ueaktwvPJJEO7AA6yDsxAGniZeKaAjyuFcBR4djQxcNNHLCitV9WBjnF8RHmIl3tN9mRFTgLIKezS4agkD7Hq0KUkDe33a1coPsu4eHwT8nyXPEl9z2QzWh0MW0XyeFNlLweBIw4Saqp9wnKiQPH0gk4nCr2RwVPKJWfI8pkTNmRGGC328NO64VzGEtI4iZc3t57PpT2wBqQVjxiVEcsjFbhNWOmJb5zhSYfhJlfJiM1LxTfBrnpTRe2BtNdYE2fZ4Yl8OSIqceGEcDgrPm1AdRqLjw1ZRWIoq858sefVuEHRDWpzanhAt7Jiaqdjr7SP2tX1Jlj2nYvBRoEcdtNesEGc58qB24h40M3gpiciA71vKSM5nZSYm3gBaBkPNxspVxcLcg1CbhqEbUybogwBgQIQYwPjzewvvZFjOJKgyHy6KjyfNrekGl9ZPsMlCwirr5mWMwixykV6Lclq6iCSh7vE6yKDt1o85zYBFgCa21ynMnmii2fKc08L4NUvyexDa5tH73wntj5U37nEbKSyoH5m6dIUyu5hxlma9qa3cuAKlY0o4N0z3Qets90Eb3",
     "aliexpressId": "1005003711297938",
     "price": 8.57,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-06T11:59:04.975Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/H0426caa80b62450e9ceb572b8ec0c69aN.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/H57be5d8d47774b8d91b03a3341f10b00x.jpg",
@@ -486,14 +486,16 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Hfe19d28582e94631923a3ba973d9686aj.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1793966344975,
+    "updatedAt": 1793969671932,
     "clicks": 0,
     "imageSource": {
-     "via": "aliexpress_affiliate_api",
+     "via": "aliexpress_api_gallery",
      "itemId": "1005003711297938",
      "itemUrl": "https://he.aliexpress.com/item/1005003711297938.html?pdp_npi=6%40dis%21ILS%219.64%218.57%21%21%2119.59%2117.42%21%402102f1cd17939663466508499e0e92%2112000026895522668%21affd%21%21%21%211%210%21",
      "provenance": "merchant_photo",
-     "resolvedAt": "2026-11-06T11:59:04.975Z"
+     "resolvedAt": "2026-11-06T12:54:31.932Z",
+     "chosenBy": "least_text",
+     "previous": "https://ae-pic-a1.aliexpress-media.com/kf/H0426caa80b62450e9ceb572b8ec0c69aN.jpg"
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 9.64
@@ -513,7 +515,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-06T11:59:04.975Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S65aae23cf83d4e3a8bae2b77a76f8e8dq.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S83479e3dd69f46749aa11be2feec01e99.jpg",
@@ -523,7 +525,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S496bf080693f4c538e970a1edc81280bQ.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1793966344975,
+    "updatedAt": 1793969671932,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -543,14 +545,14 @@
     "storeTitle": "כלי נגינה מונטסורי מוזיקה תינוק 0-12 חודשים צעצועים תוף קסילופון ילדים כלי נגינה עץ מוקדם צעצועים לתינוקות",
     "category": "Kids",
     "kind": "kids",
-    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sfd09e3b7b92e4064b1e8d264a2cc4ff5O.jpg",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S2aab98edb9c64a19ac08f29301c26606H.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3Co7Er0DpFclnxKx4Li1ldqx0YHeq8OnBIS7NMhE6Jm6Eqxm0iOWWTrqjugedvyzJTs2rf1pw7WQ1gxrPG1kHxpJPaGjARvYZXcaFKCavq7IwiE1KieDjqkFP0PxXxKeFJledkyGcMUIh5hCnPpD7z1bkEikJTnjeUU7r5ySY3fFRBbXNLYt1RKvw93oOgbYJC0EKLRoHqowFzZpKm6PSWPTNrAHcf87Pxnw1CUVeobgyC5sHQ4MA735woc8ObiGdpZFIbQuzcNd4GzOFsadw14GvNqM1fBlJHYA4BoU54ulWG2OldlXLI3L6tZ6We4tXiw340qs6qzjsVMmNvPcZ1APSYxEPUacJApnsbaVJCMwSV2knnom0H9jLUoK1ApGqe7gMjQcULRgKt9MKgZ19j9ftfqp32QKlgaB2yz0V1435J0c8BkeWESsRN8acnttRFwKCVShvpxhcAPCy4jz2zf2j1jqqKoBMJmpLzYkJJ1xavL6uzcF6ITyk8q4w4dKirCze9kGuXejUNOrbAsLFDhEGTXFCvUuNeIcjcKHM10FcmfuCiu4ri7zbwHKI56ZvjwctWfTKGReQUPrdPvcKrNPAZlTUtBB40AY7ag0bbco2tBxxoqWq7EYWuYEbClvM5HyhzB4IZBS1mMUJIvo4Nd0AHpJOa1eceSLM9demOZdAKEqf2fQOxDhX08VgeXzAZzIDtNN5WxOJq5",
     "aliexpressId": "1005008181803185",
     "price": 14.33,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-06T11:59:04.975Z",
+    "priceCheckedAt": "2026-11-06T12:54:31.932Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sfd09e3b7b92e4064b1e8d264a2cc4ff5O.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sca51d233cac04ecfafdc882df8248944B.jpg",
@@ -560,14 +562,16 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sed5a5b1428834a2aafb4d04e5c30bed0I.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1793966344975,
+    "updatedAt": 1793969671932,
     "clicks": 0,
     "imageSource": {
-     "via": "aliexpress_affiliate_api",
+     "via": "aliexpress_api_gallery",
      "itemId": "1005008181803185",
      "itemUrl": "https://he.aliexpress.com/item/1005008181803185.html?pdp_npi=6%40dis%21ILS%2117.51%2114.33%21%21%215.34%214.37%21%402102f1cd17939663466508499e0e92%2112000044143026669%21affd%21%21%21%211%210%21",
      "provenance": "merchant_photo",
-     "resolvedAt": "2026-11-06T11:59:04.975Z"
+     "resolvedAt": "2026-11-06T12:54:31.932Z",
+     "chosenBy": "least_text",
+     "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Sfd09e3b7b92e4064b1e8d264a2cc4ff5O.jpg"
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 17.51
