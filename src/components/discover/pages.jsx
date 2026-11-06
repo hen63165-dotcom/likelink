@@ -1505,6 +1505,13 @@ export function SearchPage({ graph }) {
               {res.intent.text ? <span className="lx-chip">„{res.intent.text}”</span> : null}
             </div>
           ) : null}
+          {!res.link ? (
+            <p className="mt-3">
+              <Go to={`${MAGIC_PATH}?q=${encodeURIComponent(q)}`} className="lx-chip" data-tip={L("נחפש בחנות לפי הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה, בלי חיקויים", "We'll search the store by our rules: many orders, high satisfaction, no imitations")}>
+                🔎 {L(`לא מצאת? לחפש „${q}” באליאקספרס`, `Not here? Search “${q}” on AliExpress`)}
+              </Go>
+            </p>
+          ) : null}
           {!res.total ? (
             <div className="mt-4">
               <EmptyState icon={Search} title={L(`לא מצאנו תוצאות עבור „${q}”`, `No results for “${q}”`)} body={L("נסו מילה אחרת, קטגוריה, או שם של יוצר/ת.", "Try another word, a category, or a creator's name.")}>

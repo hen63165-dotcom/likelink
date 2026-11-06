@@ -24,6 +24,7 @@ const ERRORS = {
   no_item: ["לא הצלחנו לזהות לאיזה מוצר הקישור מוביל. נסי להעתיק אותו שוב מעמוד המוצר עצמו.", "We couldn't tell which product the link opens. Copy it again from the product page itself."],
   store_not_returned: ["החנות לא החזירה את המוצר הזה. אולי הקישור ישן, או שהמוצר לא נשלח לישראל.", "The store didn't return this product. The link may be old, or it doesn't ship to Israel."],
   rate_limited: ["הרבה בדיקות ברצף. נסי שוב בעוד דקה.", "Many checks in a row. Try again in a minute."],
+  no_words: ["כתבי מה את מחפשת, למשל „עגילי זהב עד 30 ש״ח”.", "Write what you're looking for, e.g. \"gold earrings up to ₪30\"."],
   unavailable: ["הבדיקה לא זמינה כרגע. נסי שוב בעוד כמה דקות.", "The check isn't available right now. Try again in a few minutes."],
 };
 
@@ -60,9 +61,131 @@ function openedWith() {
   }
 }
 
+const EXAMPLES = ["עגילי זהב עד 30 ש״ח", "מתנה לילדים עד 20", "כיסוי לטלפון ורוד", "שמלה לבנה לחתונה", "חנוכייה"];
+
+const startQuery = () => {
+  try { return String(new URLSearchParams(window.location.search).get("q") || "").slice(0, 80); } catch { return ""; }
+};
+
+/** "מצאי לי באלי": Hebrew words → the store's items that pass the site's rules (src/lib/growth/findOnAli.js). */
+function FindOnAli() {
+  const { L, lang } = useL();
+  const he = lang === "he";
+  const [q, setQ] = useState(startQuery);
+  const [state, setState] = useState({ phase: "idle" });
+  const list = useRef(null);
+
+  async function run(words) {
+    const w = String(words || "").trim();
+    setQ(w);
+    if (!w) { setState({ phase: "error", reason: "no_words" }); return; }
+    setState({ phase: "loading" });
+    try {
+      const res = await fetch(`/api/store?mode=magic&q=${encodeURIComponent(w)}`, { headers: { accept: "application/json" } });
+      const body = await res.json().catch(() => null);
+      if (!body?.ok) { setState({ phase: "error", reason: body?.reason && ERRORS[body.reason] ? body.reason : "unavailable" }); return; }
+      setState({ phase: "done", items: Array.isArray(body.items) ? body.items : [], query: body.query || {} });
+      trackFunnel("magic_check", "find");
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete("u");
+        u.searchParams.set("q", w);
+        window.history.replaceState(window.history.state, "", u.toString());
+      } catch { /* the address stays as it was */ }
+      setTimeout(() => list.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    } catch {
+      setState({ phase: "error", reason: "unavailable" });
+    }
+  }
+
+  useEffect(() => {
+    const first = startQuery();
+    if (first) run(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <div className="mt-6 grid max-w-xl gap-3">
+        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); run(q); }}>
+          <label htmlFor="magic-find" className="sr-only">{L("מה מחפשים באליאקספרס", "What to find on AliExpress")}</label>
+          <input
+            id="magic-find"
+            enterKeyHint="search"
+            autoComplete="off"
+            maxLength={80}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={L("למשל: עגילי זהב עד 30 ש״ח", "e.g. gold earrings up to ₪30")}
+            className="lx-input min-w-0 flex-1"
+            style={{ minHeight: 56, borderRadius: 999, padding: "0 20px", border: "1px solid var(--lx-line)", background: "var(--lx-bg, #fff)", fontSize: 16 }}
+          />
+          <button type="submit" className="lx-btn lx-btn-ink" style={{ minHeight: 56 }} disabled={state.phase === "loading"}>
+            {state.phase === "loading" ? <Spinner /> : <Search size={18} aria-hidden="true" />} {L("מצאי לי", "Find it")}
+          </button>
+        </form>
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLES.map((x) => (
+            <button key={x} type="button" className="lx-chip !min-h-[34px] !text-[13px]" onClick={() => run(x)} disabled={state.phase === "loading"}>{x}</button>
+          ))}
+        </div>
+        {state.phase === "error" ? <p role="alert" className="text-[14.5px] font-bold" style={{ color: "#b42318" }}>{(ERRORS[state.reason] || ERRORS.unavailable)[he ? 0 : 1]}</p> : null}
+      </div>
+      {state.phase === "done" ? (
+        <div ref={list} className="mt-8" style={{ scrollMarginTop: 80 }}>
+          {state.items.length ? (
+            <>
+              <p className="lx-mute max-w-[70ch] text-[13px] leading-6">
+                {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם תקני דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. בחרנו לפי הנתונים של החנות: רק מוצרים עם הרבה הזמנות ושביעות רצון גבוהה, בלי חיקויים של מותגים. המחיר הוא „החל מ־”, נבדק עכשיו.", "#ad · affiliate links: the store buttons are LikeLink2's links, and if you buy through them we get a small commission. Your price does not change. Chosen by the store's own data: only items with many orders and high satisfaction, no brand imitations. Prices are \"from\", checked just now.")}
+              </p>
+              <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {state.items.map((it) => (
+                  <li key={it.id} className="lx-card overflow-hidden" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+                    <div style={{ aspectRatio: "1 / 1", background: "var(--lx-sky-50, #eef6fb)" }}>
+                      <Img src={it.image} alt={it.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[13.5px] font-bold leading-5" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{it.title}</p>
+                      <p className="mt-1 text-[16px] font-extrabold">{L(`מ־₪${shekel(it.price)}`, `from ₪${shekel(it.price)}`)}</p>
+                      <div className="mt-2 grid gap-2">
+                        <a
+                          href={it.buy}
+                          target={inApp() ? undefined : "_blank"}
+                          rel="noopener noreferrer sponsored"
+                          className="lx-btn lx-btn-ink lx-btn-sm"
+                          style={{ justifyContent: "center" }}
+                          onClick={(e) => {
+                            const write = recordExit(it.id, "find");
+                            if (!inApp()) return;
+                            e.preventDefault();
+                            const go = () => { window.location.href = it.buy; };
+                            Promise.race([write, new Promise((r) => setTimeout(r, 400))]).then(go, go);
+                          }}
+                        >
+                          {L("לחנות", "Shop")} <ExternalLink size={14} aria-hidden="true" />
+                        </a>
+                        <Go to={it.check} className="lx-btn lx-btn-ghost lx-btn-sm" style={{ justifyContent: "center" }}>
+                          <Sparkles size={14} aria-hidden="true" /> {L("מה לבדוק", "What to check")}
+                        </Go>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-[15px] font-bold">{L("לא מצאנו בחנות מוצר שעובר את הכללים שלנו לחיפוש הזה. נסי מילה אחרת או תקציב גבוה יותר.", "Nothing in the store passed our rules for this search. Try another word or a higher budget.")}</p>
+          )}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function MagicPage({ graph }) {
   const { L, lang } = useL();
   const he = lang === "he";
+  const [tab, setTab] = useState(() => (startQuery() ? "find" : "link"));
   const [text, setText] = useState("");
   const [state, setState] = useState({ phase: "idle" });
   const [pasteHint, setPasteHint] = useState(false);
@@ -83,7 +206,7 @@ export function MagicPage({ graph }) {
       trackFunnel("magic_check", body.report.buy?.via || "");
       try {
         const u = new URL(window.location.href);
-        if (u.searchParams.get("u") !== link) { u.searchParams.set("u", link); window.history.replaceState(window.history.state, "", u.toString()); }
+        if (u.searchParams.get("u") !== link || u.searchParams.has("q")) { u.searchParams.delete("q"); u.searchParams.set("u", link); window.history.replaceState(window.history.state, "", u.toString()); }
       } catch { /* the address stays as it was */ }
       setTimeout(() => result.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
     } catch {
@@ -117,7 +240,20 @@ export function MagicPage({ graph }) {
         <div className="lx-wrap py-10 md:py-16">
           <p className="lx-kicker mb-3"><Sparkles size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · בחינם, בלי הרשמה", "New on LikeLink2 · free, no sign-up")}</p>
           <h1 className="lx-profile-name">{L("כפתור הקסם ✨", "The magic button ✨")}</h1>
-          <p className="lx-profile-bio" style={{ fontSize: 16, maxWidth: "56ch" }}>
+          <div role="tablist" aria-label={L("מה עושים", "What to do")} className="mt-4 flex flex-wrap gap-2">
+            {[["link", L("🔗 יש לי קישור", "🔗 I have a link")], ["find", L("🔎 מצאי לי באלי", "🔎 Find it on AliExpress")]].map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`lx-btn ${tab === id ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 44 }}>{label}</button>
+            ))}
+          </div>
+          {tab === "find" ? (
+            <>
+              <p className="lx-profile-bio mt-4" style={{ fontSize: 16, maxWidth: "56ch" }}>
+                {L("כתבי בעברית מה את מחפשת, ואפשר גם תקציב. נחפש באליאקספרס ונראה רק מוצרים שעוברים את הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה ובלי חיקויים.", "Write in Hebrew what you're looking for, with a budget if you like. We'll search AliExpress and show only items that pass our rules: many orders, high satisfaction, no imitations.")}
+              </p>
+              <FindOnAli />
+            </>
+          ) : (<>
+          <p className="lx-profile-bio mt-4" style={{ fontSize: 16, maxWidth: "56ch" }}>
             {L("ראית מוצר בטיקטוק, באינסטגרם או באפליקציה של אליאקספרס? הדביקי כאן את הקישור, ותוך שנייה תדעי מה המחיר בחנות עכשיו, מה לבדוק לפני שקונים, ואם זה כנראה חיקוי של מותג.", "Saw something on TikTok, Instagram or in the AliExpress app? Paste the link here and see the store's price now, what to check before buying, and whether it's likely a brand imitation.")}
           </p>
 
@@ -151,10 +287,11 @@ export function MagicPage({ graph }) {
             {pasteHint ? <p className="lx-mute text-[13.5px]">{L("הדפדפן לא נתן לקרוא את ההעתקה. לחיצה ארוכה בתיבה ← „הדבקה”.", "The browser didn't allow reading the clipboard. Long-press the box → Paste.")}</p> : null}
             {state.phase === "error" ? <p role="alert" className="text-[14.5px] font-bold" style={{ color: "#b42318" }}>{(ERRORS[state.reason] || ERRORS.unavailable)[he ? 0 : 1]}</p> : null}
           </div>
+          </>)}
         </div>
       </section>
 
-      {report ? (
+      {tab === "link" && report ? (
         <section ref={result} className="lx-wrap mt-8 md:mt-12" aria-labelledby="magic-result" style={{ scrollMarginTop: 80 }}>
           <div className="lx-card grid gap-5 p-4 md:grid-cols-[minmax(0,300px)_1fr] md:p-6" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
             <div className="overflow-hidden rounded-[20px]" style={{ aspectRatio: "1 / 1", background: "var(--lx-sky-50, #eef6fb)" }}>

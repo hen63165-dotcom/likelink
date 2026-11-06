@@ -153,7 +153,7 @@ const MENU = [
   { to: "/collections", type: "collections", he: "אוספים", en: "Collections" },
   { to: "/trends", type: "trends", he: "טרנדים", en: "Trends" },
   { to: "/deals", type: "deals", he: "דילים", en: "Deals", sale: true },
-  { to: "/magic", type: "magic", he: "✨ כפתור הקסם: בודקים לפני שקונים", en: "✨ Magic button: check before you buy" },
+  { to: "/magic", type: "magic", he: "✨ כפתור הקסם: בדיקה וחיפוש באלי", en: "✨ Magic button: check or search AliExpress" },
   { to: "/size", type: "size", he: "מודד מידת טבעת וצמיד", en: "Ring & bracelet size meter" },
   { to: "/guide", type: "guide", he: "המדריך: 8 בדיקות לפני שקונים", en: "Guide: 8 checks before you buy" },
   { to: "/saved", type: "saved", he: "שמורים", en: "Saved" },

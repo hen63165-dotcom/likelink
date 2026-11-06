@@ -230,3 +230,85 @@ test("/magic is a page: route, rewrite, its own head, the share target, the home
   assert.match(readFileSync("src/components/discover/PublicShell.jsx", "utf8"), /to: "\/magic", type: "magic"/);
   assert.match(readFileSync("api/store.mjs", "utf8"), /mode'\) === 'magic'/);
 });
+
+// ── "מצאי לי באלי": Hebrew words → items that pass the site's rules ──
+import { FIND_RULES, findAttempts, findCheck, findResults, parseFind } from "../src/lib/growth/findOnAli.js";
+
+test("find: Hebrew words → the store's words and the budget, from a fixed dictionary only", () => {
+  const a = parseFind("עגילי זהב עד 30 ש״ח");
+  assert.equal(a.maxPrice, 30);
+  assert.equal(a.en, "earrings gold");
+  assert.equal(a.complete, true);
+  assert.deepEqual(findAttempts(a).map((x) => x.lang), ["en", "he"]);
+  const b = parseFind("משהו לכלב שלי עד ₪40");
+  assert.equal(b.maxPrice, 40);
+  assert.equal(b.en, "dog");
+  const c = parseFind("גרגמל");
+  assert.equal(c.en, "", "an unknown word is never translated by guess");
+  assert.deepEqual(findAttempts(c), [{ keywords: "גרגמל", lang: "he" }]);
+  assert.deepEqual(findAttempts(parseFind("   ")), []);
+  assert.ok(parseFind("x".repeat(500)).text.length <= 80);
+});
+
+const hit = (over = {}) => ({
+  product_id: "1005001111111111", product_title: "Gold hoop earrings women", product_main_image_url: "//ae01.alicdn.com/kf/h.jpg",
+  target_sale_price: "12.5", target_sale_price_currency: "ILS", evaluate_rate: "96.0%", lastest_volume: 800, promotion_link: "https://s.click.aliexpress.com/e/_own1", commission_rate: "9%", ...over,
+});
+
+test("find: an item is left out for a budget, a brand, weak store numbers, no own link or no photo", () => {
+  assert.equal(findCheck(hit()), "");
+  assert.equal(findCheck(hit(), { maxPrice: 10 }), "over_budget");
+  assert.equal(findCheck(hit({ product_title: "Pandora style earrings" })), "brand_name");
+  assert.equal(findCheck(hit({ product_title: "slimming earrings" })), "not_listed_kind");
+  assert.equal(findCheck(hit({ evaluate_rate: "85%" })), "rating_below_rule");
+  assert.equal(findCheck(hit({ lastest_volume: undefined })), "orders_below_rule", "a missing number never passes");
+  assert.equal(findCheck(hit({ promotion_link: "" })), "no_own_link");
+  assert.equal(findCheck(hit({ target_sale_price_currency: "USD" })), "no_ils_price");
+  assert.equal(findCheck(hit({ product_main_image_url: "" })), "no_photo");
+});
+
+test("find: results keep the store's order and facts only — no rating, orders or commission", () => {
+  const items = Array.from({ length: 20 }, (_, i) => hit({ product_id: String(1005001111111100 + i) }));
+  const r = findResults([hit({ product_id: "1005001111111199", evaluate_rate: "50%" }), ...items], { now: 0 });
+  assert.equal(r.items.length, FIND_RULES.max);
+  assert.equal(r.items[0].id, "1005001111111100");
+  assert.equal(r.left.rating_below_rule, 1);
+  assert.equal(r.items[0].image, "https://ae01.alicdn.com/kf/h.jpg");
+  assert.equal(r.items[0].check, `${MAGIC_PATH}?u=${encodeURIComponent(storePage("1005001111111100"))}`);
+  assert.doesNotMatch(JSON.stringify(r.items), /96\.0|800|9%|evaluate|lastest|commission/);
+});
+
+test("server find: English first when every word is known, Hebrew next, cached, no credentials in the answer", async () => {
+  const asked = [];
+  const fetchImpl = async (url, init = {}) => {
+    const body = new URLSearchParams(String(init.body || ""));
+    asked.push({ method: body.get("method"), keywords: body.get("keywords"), max: body.get("max_sale_price") });
+    const products = body.get("keywords") === "earrings gold" ? [] : [hit(), hit({ product_id: "1005002222222222", target_sale_price: "45" })];
+    return { ok: true, status: 200, json: async () => ({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: { products: { product: products } } } } }) };
+  };
+  const h = createMagicHandler({ env: ENV, fetchImpl });
+  const req = (q) => ({ method: "GET", url: `/api/store?mode=magic&q=${encodeURIComponent(q)}`, headers: { origin: "https://likelink2.vercel.app", "user-agent": "Mozilla/5.0", "x-forwarded-for": "9.9.9.9" } });
+  const mk = () => ({ code: 200, headers: {}, body: null, status(c) { this.code = c; return this; }, setHeader(k, v) { this.headers[k] = v; }, json(o) { this.body = o; }, end() {} });
+  const res = mk();
+  await h(req("עגילי זהב עד 30 ש״ח"), res);
+  assert.equal(res.body.ok, true);
+  assert.deepEqual(asked.map((a) => a.keywords), ["earrings gold", "עגילי זהב"], "English found nothing, so Hebrew was asked");
+  assert.ok(asked.every((a) => a.method === "aliexpress.affiliate.product.query" && a.max === "3000"));
+  assert.deepEqual(res.body.items.map((i) => i.id), ["1005001111111111"], "the ₪45 item is over the ₪30 budget");
+  assert.equal(res.body.query.asked, "he");
+  assert.doesNotMatch(JSON.stringify(res.body), /ALIEXPRESS_(APP|TRACKING)|key_77|secret_77|tid_77/);
+  const again = mk();
+  await h(req("עגילי זהב עד 30 ש״ח"), again);
+  assert.equal(asked.length, 2, "the same search is answered from the cache");
+  const empty = mk();
+  await h(req("   "), empty);
+  assert.equal(empty.body.reason, "no_words");
+});
+
+test("site search offers the AliExpress search, and the page has both tabs", () => {
+  const pages = readFileSync("src/components/discover/pages.jsx", "utf8");
+  assert.match(pages, /\$\{MAGIC_PATH\}\?q=\$\{encodeURIComponent\(q\)\}/);
+  const page = readFileSync("src/components/discover/magic.jsx", "utf8");
+  assert.match(page, /מצאי לי באלי/);
+  assert.match(page, /#פרסומת · קישורי שותפים/);
+});

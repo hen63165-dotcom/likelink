@@ -1,4 +1,8 @@
 // /api/store?mode=magic&u=<pasted link or shared text> — "כפתור הקסם" (/magic).
+// /api/store?mode=magic&q=<Hebrew words>                 — "מצאי לי באלי" (src/lib/growth/findOnAli.js):
+//   product.query on the owner's account (ILS, ship to IL, her tracking id), at
+//   most two keyword attempts, only items that pass FIND_RULES, never a number
+//   that chose them.
 // Dispatched from api/store.mjs (12-function limit). Public, GET only, read-only:
 // nothing is written anywhere. The rules live in src/lib/growth/magic.js.
 //
@@ -19,6 +23,7 @@ import { aeCall, aeEnv, aeStatus } from "./aliexpressAffiliate.mjs";
 import { classifyAgent, clientIp, createRateLimiter } from "./botGuard.mjs";
 import { firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
 import { guessCategory, hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
+import { findAttempts, findResults, parseFind } from "../../src/lib/growth/findOnAli.js";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 const header = (req, name) => {
@@ -88,6 +93,47 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
     if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   };
 
+  // "מצאי לי באלי": Hebrew words → the store's items that pass the site's rules.
+  async function find(req, res, url, json) {
+    const parsed = parseFind(url.searchParams.get("q") || "");
+    const attempts = findAttempts(parsed);
+    if (!attempts.length) return json({ ok: false, reason: "no_words" });
+    const env = readEnv();
+    if (!aeStatus(env).configured) return json({ ok: false, reason: "store_connection_required" });
+    const verdict = limiter(`find|${clientIp(req)}`);
+    if (!verdict.allowed) {
+      res.setHeader?.("Retry-After", String(verdict.retryAfter || 60));
+      return json({ ok: false, reason: "rate_limited", retryAfter: verdict.retryAfter }, 429);
+    }
+    const key = `find|${attempts.map((a) => a.keywords).join("|")}|${parsed.maxPrice}`;
+    const hit = cached(key);
+    if (hit) return json({ ok: true, ...hit });
+    let last = { items: [], left: {} };
+    let used = null;
+    let failed = 0;
+    for (const attempt of attempts) {
+      try {
+        const answer = await aeCall("aliexpress.affiliate.product.query", {
+          keywords: attempt.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
+          ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
+          // In the store's smallest unit; every item is checked against the budget again below.
+          ...(parsed.maxPrice > 0 ? { max_sale_price: String(parsed.maxPrice * 100) } : {}),
+        }, { env, fetchImpl, now: now() });
+        const result = answer?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(result?.resp_code) !== 200) { failed += 1; continue; }
+        last = findResults(arr(result?.result?.products?.product), { maxPrice: parsed.maxPrice, now: now() });
+        used = attempt;
+        if (last.items.length) break;
+      } catch {
+        failed += 1;
+      }
+    }
+    if (!used && failed) return json({ ok: false, reason: "store_not_returned" });
+    const body = { query: { text: parsed.text, maxPrice: parsed.maxPrice || null, asked: used?.lang || null, unknown: parsed.unknown }, items: last.items };
+    remember(key, body);
+    return json({ ok: true, ...body });
+  }
+
   return async function magicHandler(req, res) {
     const json = (obj, status = 200) => jsonCors(res, obj, status, req);
     if (req.method === "OPTIONS") return json({ ok: true });
@@ -97,6 +143,7 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
     if (classifyAgent(header(req, "user-agent")) === "scraper") return json({ ok: false, error: "automated_client" }, 403);
 
     const url = new URL(req.url, "https://x");
+    if (url.searchParams.has("q")) return find(req, res, url, json);
     const pasted = firstLink(url.searchParams.get("u") || "");
     if (!pasted) return json({ ok: false, reason: "no_link" });
     if (!isStoreLink(pasted)) return json({ ok: false, reason: "not_aliexpress" });

@@ -206,7 +206,7 @@ export default function PublicSite({ route, navigate }) {
       page = <WishPage graph={graph} />;
       break;
     case "magic":
-      page = <MagicPage graph={graph} />;
+      page = <MagicPage key={route.nav || "magic"} graph={graph} />;
       break;
     default:
       page = <NotFound />;
