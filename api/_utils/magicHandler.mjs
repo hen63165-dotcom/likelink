@@ -21,7 +21,7 @@
 import { jsonCors, isApprovedOrigin } from "./cors.js";
 import { aeCall, aeEnv, aeStatus } from "./aliexpressAffiliate.mjs";
 import { classifyAgent, clientIp, createRateLimiter } from "./botGuard.mjs";
-import { firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
+import { brandTitle, firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
 import { guessCategory, hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { findAttempts, findResults, parseFind } from "../../src/lib/growth/findOnAli.js";
 
@@ -105,7 +105,7 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
       res.setHeader?.("Retry-After", String(verdict.retryAfter || 60));
       return json({ ok: false, reason: "rate_limited", retryAfter: verdict.retryAfter }, 429);
     }
-    const key = `find|${attempts.map((a) => a.keywords).join("|")}|${parsed.maxPrice}`;
+    const key = `find|${attempts.map((a) => a.keywords).join("|")}|${parsed.maxPrice}|${parsed.kind}`;
     const hit = cached(key);
     if (hit) return json({ ok: true, ...hit });
     let last = { items: [], left: {} };
@@ -121,7 +121,7 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
         }, { env, fetchImpl, now: now() });
         const result = answer?.aliexpress_affiliate_product_query_response?.resp_result;
         if (Number(result?.resp_code) !== 200) { failed += 1; continue; }
-        last = findResults(arr(result?.result?.products?.product), { maxPrice: parsed.maxPrice, now: now() });
+        last = findResults(arr(result?.result?.products?.product), { maxPrice: parsed.maxPrice, kind: parsed.kind, now: now() });
         used = attempt;
         if (last.items.length) break;
       } catch {
@@ -176,7 +176,7 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
         remember(itemKey, store);
       }
       const title = String(store.x.product_title || "");
-      const brand = hasBrandName(title);
+      const brand = hasBrandName(brandTitle(title));
       const notListed = isNotListedKind(title);
       // LikeLink2's own link only when it will be offered (a plain link, nothing to warn about).
       if (!resolved.creator && !brand && !notListed && !store.ownLink) {

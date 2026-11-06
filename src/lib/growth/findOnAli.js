@@ -13,7 +13,7 @@
 //   - a brand or character name, or a kind the site does not list, is left out;
 //   - nothing is stored: a search is the address (?q=).
 import { cleanStoreTitle, dealTitle, guessCategory, hasBrandName, isNotListedKind, orderCount, positivePct } from "./deals.js";
-import { MAGIC_PATH, storePage } from "./magic.js";
+import { MAGIC_PATH, brandTitle, storePage } from "./magic.js";
 
 export const FIND_RULES = Object.freeze({ minPositivePct: 90, minOrders: 50, minPrice: 2, max: 12 });
 export const FIND_QUERY_MAX = 80;
@@ -57,6 +57,36 @@ const WORDS = Object.freeze({
   "חמוד": "cute", "חמודה": "cute", "אלגנטי": "elegant", "אלגנטית": "elegant", "וינטג'": "vintage", "מינימליסטי": "minimalist", "עדין": "dainty", "עדינה": "dainty",
   "חורף": "winter", "קיץ": "summer", "חתונה": "wedding", "ערב": "evening", "לב": "heart", "פרח": "flower", "פרחים": "flower", "כוכב": "star", "ירח": "moon", "פרפר": "butterfly", "נחש": "snake",
 });
+// The kind of item a store word names (the deals categories, src/lib/growth/deals.js):
+// a search for earrings shows earrings only, not a ring or a watch set that mentions one.
+const KIND_OF = Object.freeze({
+  earring: "earrings", earrings: "earrings", hoop: "earrings", hoops: "earrings",
+  ring: "rings", rings: "rings", necklace: "necklaces", necklaces: "necklaces", pendant: "necklaces",
+  bracelet: "bracelets", bracelets: "bracelets", "hand chain": "bracelets", watch: "watches", watches: "watches", "smart watch": "tech",
+  bag: "bags", bags: "bags", wallet: "bags", backpack: "bags", "crossbody bag": "bags",
+  makeup: "beauty", lipstick: "beauty", "makeup brushes": "beauty", "nail polish": "beauty", "makeup organizer": "beauty",
+  "hair clip": "hair", scrunchie: "hair", "hair scrunchies": "hair", headband: "hair", comb: "hair",
+  lamp: "home", candle: "home", candles: "home", pillow: "home", blanket: "home", rug: "home", curtain: "home", "wall art": "home",
+  kitchen: "kitchen", cup: "kitchen", cups: "kitchen", mug: "kitchen",
+  toy: "kids", toys: "kids", doll: "kids", dolls: "kids", puzzle: "kids", baby: "kids",
+  "phone case": "tech", earphones: "tech", charger: "tech", cable: "tech", speaker: "tech", "screen protector": "tech",
+  dog: "pets", cat: "pets", collar: "pets", leash: "pets", yoga: "fitness", fitness: "fitness", mat: "fitness",
+});
+// Words that also mark a kind when the store's category words are missing ("כיסוי לאייפון").
+const KIND_WORDS = Object.freeze({
+  tech: /כיסוי|מגן\s*מסך|מטען|כבל|אוזניות|רמקול|\b(case|cover|protector|charger|cable|earphones?|headphones?|speaker)\b/i,
+  hair: /שיער|קליפס|גומי|קשת|\b(hair|clip|scrunchie|headband)\b/i,
+  home: /מנורה|נר|כרית|שמיכה|שטיח|וילון|\b(lamp|candle|pillow|blanket|rug|curtain|decor)\b/i,
+});
+/** Whether a store item is the kind asked for (by the store's own words). */
+function kindMatches(x, kind) {
+  if (guessCategory(x)?.key === kind) return true;
+  return Boolean(KIND_WORDS[kind]?.test(String(x?.product_title || "")));
+}
+
+// Supplies for making jewellery (hooks, findings, beads), not the item itself.
+const SUPPLIES = /ממצאים|ממצא(?!\p{L})|חרוזים|לעבודת\s*יד|בעבודת\s*יד|לייצור\s*תכשיטים|\b(findings|diy|beads|jewelry\s*making|jewellery\s*making)\b/iu;
+
 // Words that carry no item: asked-for, filler, currency.
 const FILLER = new Set(["אני", "מחפשת", "מחפש", "רוצה", "צריכה", "צריך", "לי", "של", "עם", "בלי", "את", "משהו", "יפה", "יפים", "יפות", "זול", "זולה", "זולים", "שח", "ש״ח", "ש\"ח", "שקל", "שקלים", "ב", "על", "גם", "או", "מאלי", "באלי", "אליאקספרס", "מאליאקספרס", "שלי", "שלה", "שלו", "לה", "לו", "בשביל", "למישהי", "למישהו", "ממש", "הכי", "טוב", "טובה", "מתאים", "מתאימה"]);
 const PREFIX = /^[הולבמש]/;
@@ -87,19 +117,22 @@ export function parseFind(raw = "") {
   const en = [];
   const known = [];
   const unknown = [];
+  const kinds = [];
   for (let i = 0; i < tokens.length; i += 1) {
     const two = `${tokens[i]} ${tokens[i + 1] || ""}`;
     const twoNoPrefix = PREFIX.test(tokens[i]) ? `${tokens[i].slice(1)} ${tokens[i + 1] || ""}` : "";
     const phrase = PHRASES[two] || PHRASES[twoNoPrefix];
-    if (phrase) { en.push(phrase); known.push(two); i += 1; continue; }
+    if (phrase) { en.push(phrase); known.push(two); if (KIND_OF[phrase]) kinds.push(KIND_OF[phrase]); i += 1; continue; }
     const t = tokens[i];
     if (FILLER.has(t) || /^\d+$/.test(t)) continue;
-    if (/^[a-z][a-z0-9-]*$/.test(t)) { en.push(t); known.push(t); continue; }
+    if (/^[a-z][a-z0-9-]*$/.test(t)) { en.push(t); known.push(t); if (KIND_OF[t]) kinds.push(KIND_OF[t]); continue; }
     const w = wordFor(t);
-    if (w) { en.push(w); known.push(t); } else unknown.push(t);
+    if (w) { en.push(w); known.push(t); if (KIND_OF[w]) kinds.push(KIND_OF[w]); } else unknown.push(t);
   }
   const words = [...new Set(en.join(" ").split(" "))].join(" ");
-  return { text, maxPrice, en: words, he: tokens.filter((t) => !FILLER.has(t) && !/^\d+$/.test(t)).join(" "), known, unknown, complete: known.length > 0 && unknown.length === 0 };
+  // One kind asked for (the first named): results must be that kind; two different kinds → no filter.
+  const kind = [...new Set(kinds)].length === 1 ? kinds[0] : "";
+  return { text, maxPrice, kind, en: words, he: tokens.filter((t) => !FILLER.has(t) && !/^\d+$/.test(t)).join(" "), known, unknown, complete: known.length > 0 && unknown.length === 0 };
 }
 
 /** The keyword attempts, in order: English when complete, Hebrew, then English from what is known. */
@@ -115,7 +148,7 @@ const https = (u) => String(u || "").trim().replace(/^\/\//, "https://").replace
 const OWN_LINK = /^https:\/\/s\.click\.aliexpress\.com\/\S+$/;
 
 /** Why one store item is left out ("" when it passes). */
-export function findCheck(x = {}, { maxPrice = 0, rules = FIND_RULES } = {}) {
+export function findCheck(x = {}, { maxPrice = 0, kind = "", rules = FIND_RULES } = {}) {
   const price = String(x.target_sale_price_currency || "") === "ILS" ? Number(x.target_sale_price) : NaN;
   if (!(price > 0)) return "no_ils_price";
   if (price < rules.minPrice) return "price_too_low";
@@ -124,15 +157,17 @@ export function findCheck(x = {}, { maxPrice = 0, rules = FIND_RULES } = {}) {
   const orders = orderCount(x);
   if (pos === null || pos < rules.minPositivePct) return "rating_below_rule";
   if (orders === null || orders < rules.minOrders) return "orders_below_rule";
-  if (hasBrandName(x.product_title)) return "brand_name";
+  if (hasBrandName(brandTitle(x.product_title))) return "brand_name";
   if (isNotListedKind(x.product_title)) return "not_listed_kind";
+  if (SUPPLIES.test(String(x.product_title || ""))) return "supplies";
+  if (kind && !kindMatches(x, kind)) return "other_kind";
   if (!OWN_LINK.test(String(x.promotion_link || ""))) return "no_own_link";
   if (!/^https:\/\/\S+$/.test(https(x.product_main_image_url))) return "no_photo";
   return "";
 }
 
 /** The items to show: passing ones in the store's own order, each with only the store's facts. */
-export function findResults(items = [], { maxPrice = 0, rules = FIND_RULES, now = Date.now() } = {}) {
+export function findResults(items = [], { maxPrice = 0, kind = "", rules = FIND_RULES, now = Date.now() } = {}) {
   const seen = new Set();
   const out = [];
   const left = {};
@@ -140,7 +175,7 @@ export function findResults(items = [], { maxPrice = 0, rules = FIND_RULES, now 
     const id = String(x?.product_id || "");
     if (!/^\d{6,20}$/.test(id) || seen.has(id)) continue;
     seen.add(id);
-    const why = findCheck(x, { maxPrice, rules });
+    const why = findCheck(x, { maxPrice, kind, rules });
     if (why) { left[why] = (left[why] || 0) + 1; continue; }
     const category = guessCategory(x);
     const title = String(x.product_title || "").replace(/\s+/g, " ").trim();

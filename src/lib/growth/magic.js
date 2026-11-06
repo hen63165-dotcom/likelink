@@ -135,6 +135,13 @@ export function magicNotes({ title = "", price = null, originalPrice = null, kin
   return notes;
 }
 
+// A phone accessory names the phone it fits ("כיסוי לאייפון 15"): that is compatibility,
+// not an imitation of the brand, so those device names are not read as a brand.
+const ACCESSORY = /כיסוי|כיסויים|מגן\s*מסך|מטען|כבל|רצועה|מעמד|\b(case|cover|protector|charger|cable|strap|stand|holder)\b/i;
+const DEVICES = /\b(apple|iphone|ipad|airpods?|samsung|galaxy|xiaomi|redmi|huawei|pixel)\b|אייפון|אייפד|סמסונג|גלקסי|שיאומי|אפל|איירפודס/gi;
+/** The title the brand rule reads: a phone accessory's device names are left out. */
+export const brandTitle = (title = "") => (ACCESSORY.test(String(title)) ? String(title).replace(DEVICES, " ") : String(title));
+
 /** STOP when the site does not recommend the item, LOOK when there is a warning, else OK. */
 export function magicVerdict(notes = []) {
   if (notes.some((n) => n.tone === "stop")) return "STOP";

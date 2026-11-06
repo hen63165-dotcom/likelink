@@ -350,3 +350,18 @@ test("Pinterest: the magic button pin only once its real demo frame exists", asy
   assert.match(pin.link, /\/magic\?/);
   assert.match(pin.description, /#פרסומת/);
 });
+
+test("find: the asked kind only, no making supplies; a phone case names the phone it fits without being an imitation", async () => {
+  const { brandTitle } = await import("../src/lib/growth/magic.js");
+  assert.equal(parseFind("עגילי זהב עד 30 ש״ח").kind, "earrings");
+  assert.equal(parseFind("כיסוי לטלפון ורוד").kind, "tech");
+  assert.equal(parseFind("טבעת וצמיד").kind, "", "two kinds: no filter");
+  const base = hit();
+  assert.equal(findCheck({ ...base, product_title: "2/6 יחידות טבעת אף מפלדת אל-חלד בצבע זהב עגילי חישוק" }, { kind: "earrings" }), "other_kind");
+  assert.equal(findCheck({ ...base, product_title: "שעון קוורץ נשים זהב טבעת שרשרת עגיל" }, { kind: "earrings" }), "other_kind");
+  assert.equal(findCheck({ ...base, product_title: "30-100pcs נירוסטה עגילי ווים אבזם ממצאים בעבודת יד" }, { kind: "earrings" }), "supplies");
+  assert.equal(findCheck({ ...base, product_title: "עגילי חישוק קטנים ועדינים בצבע זהב" }, { kind: "earrings" }), "");
+  assert.equal(findCheck({ ...base, product_title: "כיסוי סיליקון ורוד לאייפון 15" }, { kind: "tech" }), "", "a case for iPhone is not an imitation");
+  assert.equal(findCheck({ ...base, product_title: "Apple AirPods Pro 2 earphones" }, { kind: "tech" }), "brand_name", "the device itself still is");
+  assert.equal(brandTitle("Pandora style charm bracelet"), "Pandora style charm bracelet");
+});
