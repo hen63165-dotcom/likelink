@@ -687,6 +687,11 @@ export function ProductPage({ graph, id, navigate }) {
                 <Ruler size={14} aria-hidden="true" /> {sizeProducts([product], "ring").length ? L("לא בטוחה במידה? מודדים מהמסך תוך דקה", "Not sure of the size? Measure it on your screen") : L("איזה אורך צמיד לבחור? מודדים בדקה", "Which bracelet length? Measure in a minute")}
               </Go>
             ) : null}
+            <p className="mt-3 text-[13px]">
+              <Go to={MAGIC_PATH} className="underline" data-tip={L("מדביקים קישור או כותבים בעברית מה מחפשים", "Paste a link or write in Hebrew what you want")}>
+                ✨ {L("ראית מוצר אחר באלי? בדקי אותו בכפתור הקסם", "Saw something else on AliExpress? Check it with the magic button")}
+              </Go>
+            </p>
 
             <div className="mt-4 flex flex-wrap gap-1.5">
               <TrustBadge kind="approved" />
@@ -1019,6 +1024,7 @@ export function GuidePage({ graph }) {
           <button type="button" className="lx-btn lx-btn-ghost" onClick={() => window.print()} data-tip={L("שמירה כ־PDF או הדפסה, מתפריט ההדפסה של הדפדפן", "Save as PDF or print, from the browser's print menu")}>
             <Printer size={16} aria-hidden="true" /> {L("שמירה כ־PDF", "Save as PDF")}
           </button>
+          <Go to={MAGIC_PATH} className="lx-btn lx-btn-ink">✨ {L("כל 8 הבדיקות על מוצר אחד: כפתור הקסם", "All 8 checks on one product: the magic button")}</Go>
         </div>
       </PageHero>
       <ol className="lx-wrap mt-10 grid gap-4 md:grid-cols-2" aria-label={t(GUIDE.title)}>

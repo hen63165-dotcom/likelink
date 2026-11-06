@@ -312,3 +312,41 @@ test("site search offers the AliExpress search, and the page has both tabs", () 
   assert.match(page, /מצאי לי באלי/);
   assert.match(page, /#פרסומת · קישורי שותפים/);
 });
+
+// ── people find it, understand it and come back ──
+import { MAGIC_FAQ, RECENT_MAX, addRecent } from "../src/lib/growth/magic.js";
+
+test("the FAQ is on the page and is exactly the FAQ JSON-LD; it promises nothing the button does not do", () => {
+  const ld = sectionSeo("magic").jsonLd.find((x) => x["@type"] === "FAQPage");
+  assert.deepEqual(ld.mainEntity.map((q) => q.name), MAGIC_FAQ.map((f) => f.q));
+  assert.match(readFileSync("src/components/discover/magic.jsx", "utf8"), /MAGIC_FAQ\.map/);
+  const all = MAGIC_FAQ.map((f) => f.a).join(" ");
+  assert.match(all, /#פרסומת/);
+  assert.doesNotMatch(all, /הכי זול|מובטח|100%|ויראלי|מיליון/);
+});
+
+test("recent checks: newest first, unique, capped, https photos only", () => {
+  let list = [];
+  for (let i = 0; i < 9; i += 1) list = addRecent(list, { link: `https://a.aliexpress.com/_${i}`, title: `t${i}`, image: i % 2 ? "https://ae01.alicdn.com/x.jpg" : "javascript:alert(1)" });
+  assert.equal(list.length, RECENT_MAX);
+  assert.equal(list[0].link, "https://a.aliexpress.com/_8");
+  assert.equal(list[0].image, "", "a non-https photo is dropped");
+  list = addRecent(list, { link: "https://a.aliexpress.com/_5", title: "again" });
+  assert.equal(list[0].title, "again");
+  assert.equal(list.filter((x) => x.link === "https://a.aliexpress.com/_5").length, 1);
+});
+
+test("the product pages and the guide lead to the magic button", () => {
+  const pages = readFileSync("src/components/discover/pages.jsx", "utf8");
+  assert.match(pages, /ראית מוצר אחר באלי\? בדקי אותו בכפתור הקסם/);
+  assert.match(pages, /כל 8 הבדיקות על מוצר אחד: כפתור הקסם/);
+});
+
+test("Pinterest: the magic button pin only once its real demo frame exists", async () => {
+  const { buildPins } = await import("../scripts/pins-feed.mjs");
+  assert.equal(buildPins({}).some((p) => p.guid === "tool-magic"), false);
+  const pin = buildPins({ magicPin: "promo/magic-pin.jpg", feedBase: "https://x.github.io/likelink" }).find((p) => p.guid === "tool-magic");
+  assert.equal(pin.image, "https://x.github.io/likelink/promo/magic-pin.jpg");
+  assert.match(pin.link, /\/magic\?/);
+  assert.match(pin.description, /#פרסומת/);
+});

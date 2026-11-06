@@ -209,3 +209,26 @@ export function magicShareUrl({ pasted = "", origin = "", source = "" } = {}) {
   }
   return u.toString();
 }
+
+/**
+ * What people ask about the magic button, answered by what it really does (the
+ * page shows these and its FAQ JSON-LD is exactly them: publicSeo.js).
+ */
+export const MAGIC_FAQ = Object.freeze([
+  { q: "מה זה כפתור הקסם?", a: "כלי חינמי של LikeLink2: מדביקים קישור למוצר מאליאקספרס ומקבלים את המחיר בחנות עכשיו, מה לבדוק לפני שקונים ואזהרה כשבשם המוצר יש מותג. בלי הרשמה." },
+  { q: "איך מחפשים באליאקספרס בעברית?", a: "בלשונית „מצאי לי באלי” כותבים בעברית מה מחפשים, ואפשר גם תקציב („עד 30 ש״ח”). אנחנו מחפשים בחנות ומראים רק מוצרים שעוברים את הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה ובלי חיקויים של מותגים." },
+  { q: "איך יודעים אם מוצר באליאקספרס הוא חיקוי?", a: "כשבשם המוצר מופיע מותג, דמות או מפורסם, באליאקספרס זה כמעט תמיד חיקוי או מוצר בלי רישיון. כפתור הקסם מזהה את זה בשם המוצר ואומר לך." },
+  { q: "ההנחה באליאקספרס אמיתית?", a: "מחיר „לפני הנחה” הוא מה שהמוכר כותב, ולכן אנחנו לא מציגים אותו כהנחה. שומרים את המוצר בעגלה כמה ימים ורואים אם המחיר זז." },
+  { q: "זה עולה כסף? למה יש קישור שותפים?", a: "הכפתור חינמי. כשהכפתור לחנות הוא קישור של LikeLink2, כתוב מתחתיו #פרסומת: אם קונים דרכו, LikeLink2 מקבלת עמלה קטנה מהחנות, והמחיר שלך לא משתנה. קישור שקיבלת מיוצרת נשאר שלה." },
+  { q: "אפשר לשתף מוצר ישר מהאפליקציה של אליאקספרס?", a: "באנדרואיד כן: מוסיפים את LikeLink2 למסך הבית, ואז ב„שיתוף” באפליקציה של אליאקספרס בוחרים LikeLink2. באייפון מעתיקים את הקישור ולוחצים „הדבקה ובדיקה”." },
+]);
+
+/** The checks a person made on this device (per-viewer convenience, newest first). */
+export const RECENT_KEY = "ll_magic_recent";
+export const RECENT_MAX = 6;
+export function addRecent(list = [], entry = {}) {
+  const link = String(entry.link || "").trim();
+  if (!link) return Array.isArray(list) ? list.slice(0, RECENT_MAX) : [];
+  const clean = { link, title: String(entry.title || "").slice(0, 80), image: /^https:\/\//.test(String(entry.image || "")) ? entry.image : "", at: Number(entry.at) || Date.now() };
+  return [clean, ...(Array.isArray(list) ? list : []).filter((x) => x && x.link !== link)].slice(0, RECENT_MAX);
+}
