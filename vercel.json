@@ -184,6 +184,10 @@
       "destination": "/"
     },
     {
+      "source": "/wish",
+      "destination": "/"
+    },
+    {
       "source": "/size",
       "destination": "/"
     },

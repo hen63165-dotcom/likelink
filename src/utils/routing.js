@@ -23,6 +23,7 @@ export function parsePath(pathname) {
   if (parts[0] === "join") return { type: "join" };
   if (parts[0] === "search") return { type: "search" };
   if (parts[0] === "saved") return { type: "saved" };
+  if (parts[0] === "wish") return { type: "wish" };
   if (parts[0] === "products") {
     return { type: "products", category: parts[1] ? decodeURIComponent(parts[1]) : null };
   }

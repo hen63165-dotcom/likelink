@@ -42,6 +42,7 @@ import { creatorPath, productPath } from "../../lib/acquisition.js";
 import { GUIDE, GUIDE_PATH, guideCheck, guideCheckPath, guideExamples } from "../../lib/guide.js";
 import { saleChecks, salePath, salePicks, saleSeason, seasonName } from "../../lib/saleSeason.js";
 import { GIFT_BUDGETS, finderQuery, giftGroups, giftMatches, parseFinder } from "../../lib/giftFinder.js";
+import { NAME_MAX, WISH_MAX, parseWish, whatsappShare, wishMessage, wishUrl } from "../../lib/wishlist.js";
 import { braceletFromWrist, CARD_MM, CARD_PX, pxPerMm, RING_DIAMETER_MM, ringFromCircumference, ringFromDiameter, SIZE_PAGE, SIZE_PATH, sizeProducts } from "../../lib/sizeTool.js";
 import { trackAcquisition, trackSiteEvent } from "../../lib/acquisitionTrack.js";
 import { trackReferralClick } from "../../lib/referral.js";
@@ -1119,6 +1120,7 @@ function GiftFinder({ graph, path }) {
       <div id="finder" className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
         <h2 className="flex items-center gap-2 text-[22px] font-extrabold"><Gift size={20} aria-hidden="true" /> {L("מצאי מתנה בשנייה", "Find a gift in a second")}</h2>
         <p className="lx-mute mt-1 text-[13.5px]">{L("בוחרים למי ובאיזה תקציב. המחיר הוא המחיר ההתחלתי בחנות כשנבדק.", "Pick who it is for and a budget. The price is the store's starting price when it was checked.")}</p>
+        <p className="mt-1 text-[13.5px] font-semibold">{L("אהבת משהו? לחצי ♡ ושלחי את הרשימה למשפחה מ", "Like something? Tap ♡ and send the list to family from ")}<Go to="/saved" className="underline">{L("השמורים", "Saved")}</Go>.</p>
         <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={L("למי המתנה", "Who it is for")}>
           <button type="button" className="lx-chip" aria-pressed={!choice.forId} onClick={() => pick({ forId: "" })}>{L("לכולם", "Everyone")}</button>
           {groups.map((g) => (
@@ -1529,6 +1531,56 @@ export function SearchPage({ graph }) {
 
 /* -------------------------------------------------------------------- saved */
 
+/** The saved products as one link for WhatsApp (src/lib/wishlist.js): nothing is stored on a server. */
+function WishShare({ ids }) {
+  const { L } = useL();
+  const [name, setName] = useState("");
+  const [copied, setCopied] = useState(false);
+  const list = ids.slice(0, WISH_MAX);
+  const url = wishUrl({ ids: list, name, source: "whatsapp" });
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(wishUrl({ ids: list, name, source: "copy" })); setCopied(true); } catch { setCopied(false); }
+  };
+  return (
+    <div className="lx-card mb-6 p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+      <h2 className="flex items-center gap-2 text-[21px] font-extrabold"><Gift size={20} aria-hidden="true" /> {L("רשימת משאלות לחנוכה", "A Hanukkah wish list")}</h2>
+      <p className="lx-mute mt-1 text-[13.5px]">{L("שולחים את מה ששמרת למשפחה או לחברה. מי שתפתח את הקישור תראה את המתנות עם הכפתורים לחנות. שום דבר לא נשמר אצלנו.", "Send what you saved to family or a friend. Whoever opens the link sees the gifts with their store buttons. Nothing is stored on our side.")}</p>
+      {ids.length > WISH_MAX ? <p className="lx-mute mt-1 text-[12.5px]">{L(`הרשימה תכלול את ${WISH_MAX} הראשונים.`, `The list carries the first ${WISH_MAX}.`)}</p> : null}
+      <label className="mt-3 block text-[13.5px] font-semibold">
+        {L("השם שלך (לא חובה)", "Your name (optional)")}
+        <input type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} className="mt-1 block w-full rounded-xl px-3 py-2 text-[16px]" style={{ border: "1px solid var(--lx-line)", background: "var(--lx-bg, #fff)", color: "inherit" }} />
+      </label>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a href={whatsappShare(wishMessage({ name, url }))} target="_blank" rel="noopener noreferrer" className="lx-btn lx-btn-rose">{L("שליחה בוואטסאפ", "Send on WhatsApp")}</a>
+        <button type="button" className="lx-btn lx-btn-ghost" onClick={copy}>{copied ? L("הקישור הועתק", "Link copied") : L("העתקת הקישור", "Copy the link")}</button>
+      </div>
+    </div>
+  );
+}
+
+/** /wish?i=a,b,c&n=name: a wish list someone sent. Only products the site lists are shown. */
+export function WishPage({ graph }) {
+  const { L } = useL();
+  const { ids, name } = parseWish(typeof window === "undefined" ? "" : window.location.search);
+  const items = ids.map((id) => graph.byId.get(id)).filter(Boolean);
+  const title = name ? L(`רשימת המשאלות של ${name}`, `${name}'s wish list`) : L("רשימת משאלות לחנוכה", "A Hanukkah wish list");
+  return (
+    <>
+      <PageHero kicker={<><Gift size={14} /> {L("רשימת משאלות", "Wish list")}</>} title={title} sub={L("המתנות שנבחרו, כל אחת עם הכפתור לחנות. התמונות של המוכרים, והקישורים הם קישורי שותפים (#פרסומת).", "The chosen gifts, each with its store button. The sellers' photos; the links are affiliate links (#ad).")} />
+      <section className="lx-wrap mt-8">
+        {items.length ? <Grid products={items} graph={graph} /> : <EmptyState icon={Gift} title={L("הרשימה ריקה או שהמוצרים כבר לא באתר", "The list is empty, or the products are no longer listed")} body={L("אפשר לבחור מתנות חדשות במחשבון.", "You can pick new gifts in the gift finder.")}><Go to="/hanukkah-gifts#finder" className="lx-btn lx-btn-primary lx-btn-sm">{L("למחשבון המתנות", "Gift finder")}</Go></EmptyState>}
+      </section>
+      <Section>
+        <div className="lx-card p-5 text-center" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+          <p className="text-[18px] font-extrabold">{L("גם את רוצה לשלוח רשימה משלך?", "Want to send a list of your own?")}</p>
+          <p className="lx-mute mt-1 text-[13.5px]">{L("בוחרים מתנות לפי תקציב, לוחצים ♡ ושולחים.", "Pick gifts by budget, tap ♡ and send.")}</p>
+          <div className="mt-3 flex justify-center"><Go to="/hanukkah-gifts#finder" className="lx-btn lx-btn-rose">{L("למחשבון המתנות", "To the gift finder")}</Go></div>
+        </div>
+      </Section>
+    </>
+  );
+}
+
 export function SavedPage({ graph }) {
   const { L } = useL();
   const { favorites, following } = useMarketplace();
@@ -1538,6 +1590,7 @@ export function SavedPage({ graph }) {
     <>
       <PageHero kicker={<><Heart size={14} /> {L("שמורים", "Saved")}</>} title={L("מה ששמרת", "Your saved finds")} sub={L("נשמר במכשיר הזה.", "Saved on this device.")} />
       <section className="lx-wrap mt-8">
+        {saved.length ? <WishShare ids={saved.map((p) => p.id)} /> : null}
         {saved.length ? <Grid products={saved} graph={graph} /> : <EmptyState icon={Heart} title={L("עוד לא שמרת כלום", "Nothing saved yet")} body={L("לחצו על ♡ בכל מוצר כדי לשמור אותו כאן.", "Tap ♡ on any product to keep it here.")}><Go to="/discover" className="lx-btn lx-btn-primary lx-btn-sm">{L("לגילוי", "Discover")}</Go></EmptyState>}
       </section>
       {followed.length ? (
