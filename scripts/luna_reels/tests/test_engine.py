@@ -385,12 +385,22 @@ class AutoPlan(unittest.TestCase):
         cls.cast = json.loads((HERE.parent / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))["characters"]
 
     def plans(self):
+        # The studio tells jewellery stories (earrings, ring, bracelet, necklace); the
+        # catalog also lists other kinds since the deals import (2026-11: kids' toys).
         for pid, product in CATALOG.items():
+            if self.ap.kind_of(product) is None:
+                continue
             for member in self.cast:
                 yield pid, member, self.ap.plan(product, member)
 
     def test_every_listed_product_gets_a_story_that_passes_before_anything_is_drawn(self):
-        self.assertGreaterEqual(len(CATALOG), 5)
+        stories = [pid for pid, p in CATALOG.items() if self.ap.kind_of(p) is not None]
+        self.assertGreaterEqual(len(stories), 5)
+        # A product of another kind is refused before anything is drawn, never told as jewellery.
+        for pid, product in CATALOG.items():
+            if self.ap.kind_of(product) is None:
+                with self.assertRaises(SystemExit):
+                    self.ap.plan(product, self.cast[0])
         for pid, member, spec in self.plans():
             self.ap.check_plan(spec)  # hook, the master's length, scenes, no drawn jewellery, the tag
             name = f"{pid}-{member['id']}"[:40]
