@@ -45,7 +45,9 @@ const OVERLAY = `
     el.innerHTML = '<div style="font:800 44px/1.15 Heebo,Assistant,Arial,sans-serif">כפתור הקסם ✨</div>'
       + '<div style="font:600 21px/1.45 Heebo,Assistant,Arial,sans-serif;opacity:.92">בודקים כל קישור מאלי<br>ומחפשים באלי בעברית</div>'
       + '<div style="font:700 18px/1.4 Heebo,Assistant,Arial,sans-serif;background:#fff;color:#0b0b0f;border-radius:999px;padding:10px 18px;margin-top:8px">likelink2.vercel.app/magic</div>'
-      + '<div style="font:600 15px/1.4 Heebo,Assistant,Arial,sans-serif;opacity:.75">בחינם · בלי הרשמה</div>';
+      + '<div style="font:600 15px/1.4 Heebo,Assistant,Arial,sans-serif;opacity:.75">בחינם · בלי הרשמה</div>'
+      // The disclosure stays on every frame, the end card too.
+      + '<div style="position:absolute;left:0;right:0;bottom:0;font:600 12.5px/1.2 Heebo,Assistant,Arial,sans-serif;padding:7px 10px 9px;background:rgba(255,255,255,.08)">#פרסומת · באתר יש קישורי שותפים</div>';
   };
 })();
 `;
@@ -161,7 +163,7 @@ await shot(1.0);
 // 5. The end card.
 await cap("");
 await page.evaluate(() => window.__end?.());
-await shot(3.4);
+await shot(2.6);
 await context.close();
 await browser.close();
 
@@ -181,7 +183,8 @@ execFileSync("ffmpeg", [
   "-vf", "scale=1080:1920:flags=lanczos,fps=30,format=yuv420p",
   "-af", `afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, length - 1.2).toFixed(2)}:d=1.2`,
   "-map", "0:v:0", "-map", "1:a:0", "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-profile:v", "high",
-  "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-shortest", "-movflags", "+faststart", mp4,
+  // The concat demuxer shows the last picture once more on its own: the film ends at the sum of the shots.
+  "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-t", length.toFixed(3), "-movflags", "+faststart", mp4,
 ], { stdio: "inherit" });
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1.2", "-i", mp4, "-frames:v", "1", "-q:v", "3", join(OUT, "cover.jpg")]);
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", mp4, "-vf", "fps=1,scale=360:-1", "-q:v", "5", join(OUT, "frames-%02d.jpg")]);
