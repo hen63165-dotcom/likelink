@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<title>LikeLink · מעבר לחנות</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f6f6fb; --ink: #0d0c14; --mute: #646173; --cta: #d22f5d; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #070709; --ink: #f4f3fa; --mute: #a7a4b8; --cta: #ff5a8a; } }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Heebo, Arial, sans-serif; }
+  main { max-width: 440px; padding: 24px 16px; text-align: center; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 0 0 14px; color: var(--mute); }
+  a.btn { display: inline-block; min-height: 44px; line-height: 44px; padding: 0 22px; border-radius: 999px; background: var(--cta); color: #fff; font-weight: 700; text-decoration: none; }
+  a.home { color: var(--mute); }
+  a:focus-visible { outline: 3px solid #6d4aff; outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main aria-live="polite">
+  <section data-state="loading">
+    <h1>מעבירים אותך לחנות…</h1>
+    <p>רגע אחד.</p>
+  </section>
+  <section data-state="go" hidden>
+    <h1>מעבירים אותך לחנות…</h1>
+    <p>אם לא עברת אוטומטית:</p>
+    <p><a id="go-link" class="btn" rel="nofollow noopener noreferrer sponsored" href="/likelink/">להמשך לחנות</a></p>
+  </section>
+  <section data-state="confirm" hidden>
+    <h1>הקישור מוביל לאתר חיצוני</h1>
+    <p>הקישור הזה לא שייך למוצר בקטלוג של LikeLink ומוביל אל <strong dir="ltr" id="confirm-host"></strong>.</p>
+    <p><a id="confirm-link" class="btn" rel="nofollow noopener noreferrer" href="/likelink/">להמשיך לאתר החיצוני</a></p>
+  </section>
+  <section data-state="invalid" hidden>
+    <h1>הקישור לא תקין</h1>
+    <p>אפשר לחזור לקטלוג ולבחור מוצר מחדש.</p>
+  </section>
+  <noscript><p>כדי לעבור לחנות צריך להפעיל JavaScript, או לחזור לאתר ולבחור את המוצר שוב.</p></noscript>
+  <p><a class="home" href="./">חזרה ל־LikeLink</a></p>
+</main>
+<script type="module" src="r.js"></script>
+</body>
+</html>

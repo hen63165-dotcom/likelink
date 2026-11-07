@@ -1,0 +1,144 @@
+# ============================================================
+# Likelink — Netlify redirects / SPA fallback
+# ------------------------------------------------------------
+# Static files (robots.txt, sitemap.xml, manifest.json, icons/*, /.well-known/*)
+# take precedence over the SPA fallback on Netlify, so they are always served
+# literally. The rules below are defensive fallbacks only.
+# ============================================================
+
+# Site-verification / security metadata must never be rewritten to the SPA shell.
+/.well-known/*   /.well-known/:splat   200
+
+# The API (Supabase Edge Function "api", which runs the api/*.mjs handlers).
+# Proxied so the site stays first-party: same origin, same /r tracking links.
+/api/*           https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/:splat   200
+# /r is a static, server-free forwarder (public/r.html + r.js): it reads the
+# catalog copy the site ships and forwards only to a catalog product link, so a
+# shared link reaches the store even while the cloud is unavailable.
+/r               /r.html            200
+/google-feed.xml https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/google-feed.xml  200!
+/discover.xml    https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/discover.xml     200!
+
+# The sitemap is written at build time from the catalog copy
+# (scripts/prerender-products.mjs). Netlify only: on Vercel /sitemap.xml is the
+# dynamic feed (vercel.json).
+/sitemap.xml     /sitemap-static.xml    200
+
+# The reels feed lives on GitHub Pages (scripts/reels-feed.mjs). Proxied so the
+# site reads it from its own address: no cross-site request to fail
+# (src/lib/reelsFeed.js tries this first, then GitHub Pages itself).
+/media/reels/*   https://hen63165-dotcom.github.io/likelink/media/reels/:splat   200
+# The creators' Studio videos (scripts/media/product-video/studio-videos.mjs), the same way.
+/media/studio/*  https://hen63165-dotcom.github.io/likelink/media/studio/:splat  200
+/media/studio3d/*  https://hen63165-dotcom.github.io/likelink/media/studio3d/:splat  200
+
+# Classic SPA fallback: every other route returns the app shell (index.html).
+# Product, section and creator pages with their own head (scripts/prerender-products.mjs)
+/p/ae-1005007308197786  /p/ae-1005007308197786.html  200
+/p/ae-1005007613094199  /p/ae-1005007613094199.html  200
+/p/ae-1005008248160242  /p/ae-1005008248160242.html  200
+/p/ae-1005007169737664  /p/ae-1005007169737664.html  200
+/p/ae-1005012262894834  /p/ae-1005012262894834.html  200
+/p/ae-1005010706854356  /p/ae-1005010706854356.html  200
+/p/ae-1005006727228936  /p/ae-1005006727228936.html  200
+/p/ae-1005007010289305  /p/ae-1005007010289305.html  200
+/p/ae-1005007792794242  /p/ae-1005007792794242.html  200
+/p/ae-1005008743699030  /p/ae-1005008743699030.html  200
+/p/ae-1005008084818028  /p/ae-1005008084818028.html  200
+/p/ae-1005011824796224  /p/ae-1005011824796224.html  200
+/p/ae-1005003711297938  /p/ae-1005003711297938.html  200
+/p/ae-1005007382224504  /p/ae-1005007382224504.html  200
+/p/ae-1005008181803185  /p/ae-1005008181803185.html  200
+/p/ae-1005011789107622  /p/ae-1005011789107622.html  200
+/p/ae-1005012475039011  /p/ae-1005012475039011.html  200
+/p/ae-1005010706991166  /p/ae-1005010706991166.html  200
+/p/ae-1005012370681529  /p/ae-1005012370681529.html  200
+/p/ae-1005007551577963  /p/ae-1005007551577963.html  200
+/p/ae-1005008830601930  /p/ae-1005008830601930.html  200
+/p/ae-1005013156971652  /p/ae-1005013156971652.html  200
+/p/ae-1005009806969082  /p/ae-1005009806969082.html  200
+/p/ae-1005008429942445  /p/ae-1005008429942445.html  200
+/p/ae-1005010044052123  /p/ae-1005010044052123.html  200
+/p/ae-1005012013972716  /p/ae-1005012013972716.html  200
+/p/ae-1005009075983767  /p/ae-1005009075983767.html  200
+/p/ae-1005011587273406  /p/ae-1005011587273406.html  200
+/p/ae-1005012814888164  /p/ae-1005012814888164.html  200
+/p/ae-1005010285156637  /p/ae-1005010285156637.html  200
+/p/ae-1005012650031671  /p/ae-1005012650031671.html  200
+/p/ae-1005013266250549  /p/ae-1005013266250549.html  200
+/p/ae-1005009832709994  /p/ae-1005009832709994.html  200
+/p/ae-1005012258577326  /p/ae-1005012258577326.html  200
+/p/ae-1005011692620233  /p/ae-1005011692620233.html  200
+/p/ae-1005006678126295  /p/ae-1005006678126295.html  200
+/p/ae-1005006997185394  /p/ae-1005006997185394.html  200
+/p/ae-1005006860786485  /p/ae-1005006860786485.html  200
+/p/ae-1005006997445066  /p/ae-1005006997445066.html  200
+/p/ae-1005009960233694  /p/ae-1005009960233694.html  200
+/p/ae-1005013255319649  /p/ae-1005013255319649.html  200
+/p/ae-1005010089139584  /p/ae-1005010089139584.html  200
+/p/ae-1005006782857610  /p/ae-1005006782857610.html  200
+/p/ae-1005011865423878  /p/ae-1005011865423878.html  200
+/p/ae-1005006904656240  /p/ae-1005006904656240.html  200
+/p/ae-1005007169897393  /p/ae-1005007169897393.html  200
+/p/ae-1005007038743218  /p/ae-1005007038743218.html  200
+/p/ae-1005007038398770  /p/ae-1005007038398770.html  200
+/p/ae-1005012588687878  /p/ae-1005012588687878.html  200
+/p/ae-1005011654082041  /p/ae-1005011654082041.html  200
+/p/ae-1005010089207274  /p/ae-1005010089207274.html  200
+/p/ae-1005009460421963  /p/ae-1005009460421963.html  200
+/p/ae-1005011865685346  /p/ae-1005011865685346.html  200
+/p/ae-1005012977915625  /p/ae-1005012977915625.html  200
+/p/ae-1005007308218571  /p/ae-1005007308218571.html  200
+/p/ae-1005010323716760  /p/ae-1005010323716760.html  200
+/p/ae-1005009384325747  /p/ae-1005009384325747.html  200
+/p/ae-1005010044157341  /p/ae-1005010044157341.html  200
+/p/ae-1005009351180228  /p/ae-1005009351180228.html  200
+/p/ae-1005012986748239  /p/ae-1005012986748239.html  200
+/p/ae-1005009582598125  /p/ae-1005009582598125.html  200
+/p/ae-1005009695987191  /p/ae-1005009695987191.html  200
+/p/ae-1005007171107355  /p/ae-1005007171107355.html  200
+/p/ae-1005008248188102  /p/ae-1005008248188102.html  200
+/p/ae-1005010553720973  /p/ae-1005010553720973.html  200
+/p/ae-1005006982786695  /p/ae-1005006982786695.html  200
+/p/ae-1005010439353458  /p/ae-1005010439353458.html  200
+/p/ae-1005011587258562  /p/ae-1005011587258562.html  200
+/p/ae-1005008557835849  /p/ae-1005008557835849.html  200
+/p/ae-1005011587404009  /p/ae-1005011587404009.html  200
+/p/ae-1005012013986581  /p/ae-1005012013986581.html  200
+/p/ae-1005007805729113  /p/ae-1005007805729113.html  200
+/p/ae-1005008660374263  /p/ae-1005008660374263.html  200
+/p/ae-1005011942976222  /p/ae-1005011942976222.html  200
+/p/ae-1005006861665924  /p/ae-1005006861665924.html  200
+/p/ae-1005005262183409  /p/ae-1005005262183409.html  200
+/p/ae-1005012221742613  /p/ae-1005012221742613.html  200
+/p/mvcja2f25dk016  /p/mvcja2f25dk016.html  200
+/p/p-live-01  /p/p-live-01.html  200
+/p/p-live-02  /p/p-live-02.html  200
+/p/p-live-03  /p/p-live-03.html  200
+/p/p-live-04  /p/p-live-04.html  200
+/p/p-live-05  /p/p-live-05.html  200
+/discover  /discover.html  200
+/products  /products.html  200
+/creators  /creators.html  200
+/reels  /reels.html  200
+/trends  /trends.html  200
+/collections  /collections.html  200
+/deals  /deals.html  200
+/guide  /guide.html  200
+/size  /size.html  200
+/magic  /magic.html  200
+/join  /join.html  200
+/guide/silver  /guide/silver.html  200
+/guide/ring-size  /guide/ring-size.html  200
+/guide/wrist  /guide/wrist.html  200
+/guide/moissanite  /guide/moissanite.html  200
+/guide/gift  /guide/gift.html  200
+/guide/real-sale  /guide/real-sale.html  200
+/guide/link-check  /guide/link-check.html  200
+/guide/protection  /guide/protection.html  200
+/11-11  /11-11.html  200
+/black-friday  /black-friday.html  200
+/hanukkah-gifts  /hanukkah-gifts.html  200
+/u/alyostyle  /u/alyostyle.html  200
+
+/*               /index.html            200
