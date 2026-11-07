@@ -385,12 +385,22 @@ class AutoPlan(unittest.TestCase):
         cls.cast = json.loads((HERE.parent / "media" / "ai-image" / "cast.json").read_text(encoding="utf-8"))["characters"]
 
     def plans(self):
+        # The studio tells jewellery stories (earrings, ring, bracelet, necklace); the
+        # catalog also lists other kinds since the deals import (2026-11: kids' toys).
         for pid, product in CATALOG.items():
+            if self.ap.kind_of(product) is None:
+                continue
             for member in self.cast:
                 yield pid, member, self.ap.plan(product, member)
 
     def test_every_listed_product_gets_a_story_that_passes_before_anything_is_drawn(self):
-        self.assertGreaterEqual(len(CATALOG), 5)
+        stories = [pid for pid, p in CATALOG.items() if self.ap.kind_of(p) is not None]
+        self.assertGreaterEqual(len(stories), 5)
+        # A product of another kind is refused before anything is drawn, never told as jewellery.
+        for pid, product in CATALOG.items():
+            if self.ap.kind_of(product) is None:
+                with self.assertRaises(SystemExit):
+                    self.ap.plan(product, self.cast[0])
         for pid, member, spec in self.plans():
             self.ap.check_plan(spec)  # hook, the master's length, scenes, no drawn jewellery, the tag
             name = f"{pid}-{member['id']}"[:40]
@@ -634,7 +644,7 @@ class AutoPlan(unittest.TestCase):
         # The owner, 2026-11-03: reels that make buyers and creators understand
         # what LikeLink2 gives. No product, no ad tag, no income or crowd claims.
         promise = re.compile(r"הכנסה|להרוויח|תרוויחי|רווח|כסף קל|משתמשות|משתמשים|אלפי|מקומות אחרונים|רק היום|מובטח|הכי")
-        self.assertEqual(set(self.ap.BRAND_STORIES), {"creators", "buyers"})
+        self.assertEqual(set(self.ap.BRAND_STORIES), {"creators", "buyers", "magic"})
         for story, st in self.ap.BRAND_STORIES.items():
             for engine in ("cpu", "gpu"):
                 for member in self.cast:
@@ -649,7 +659,7 @@ class AutoPlan(unittest.TestCase):
                     self.assertTrue(re.fullmatch(r"[a-z0-9-]{2,30}", spec["product"]))  # the workflow's product input
             words = " ".join(" ".join(v) if isinstance(v, tuple) else str(v) for v in st.values())
             self.assertIsNone(promise.search(words), story)
-            self.assertIn(st["link"], ("/", "/join"))
+            self.assertIn(st["link"], ("/", "/join", "/magic"))
             self.assertIn("בתגובה הראשונה", st["card"]["sub"])  # the posting task puts the link there
         meta = metadata.build(parse_episode({**self.ap.plan_brand("creators", self.cast[0])["episode"], "look": "story"}),
                               product=None, voice_engine="edge", visual="scenes", seconds=22)
@@ -666,6 +676,32 @@ class AutoPlan(unittest.TestCase):
         self.assertIn("without any printing", self.ap.BRAND_STORIES["buyers"]["object"][0])
         with self.assertRaises(SystemExit):
             self.ap.plan_brand("investors", self.cast[0])
+
+    def test_the_magic_button_reel_shows_the_real_page_recorded(self):
+        # The owner, 2026-11-07: a Ravit-level reel that explains the magic button.
+        # Two of its lines play the live page (clean recording), pinned to a commit,
+        # and the files are in this repository; the rest is the series as usual.
+        st = self.ap.BRAND_STORIES["magic"]
+        self.assertEqual(st["link"], "/magic")
+        self.assertIn(st["mood"], self.ap.MOODS)
+        for member in self.cast:
+            spec = self.ap.plan_brand("magic", member)
+            self.ap.check_plan(spec)
+            scenes = {line["caption"]: line.get("scene") for line in spec["episode"]["lines"]}
+            clips = [v for v in scenes.values() if str(v).startswith("video:")]
+            self.assertEqual(len(clips), 2)
+            for clip in clips:
+                m = re.fullmatch(r"video:https://raw\.githubusercontent\.com/hen63165-dotcom/likelink/[0-9a-f]{40}/(marketing/reels/proof/[a-z-]+\.mp4)", clip)
+                self.assertIsNotNone(m, clip)
+                self.assertTrue((HERE.parent.parent / m.group(1)).exists(), m.group(1))
+            ep = parse_episode({**spec["episode"], "look": "story", "studio": f"brand-magic-{member['id']}"})
+            check_truth(ep, {})
+            self.assertIsNone(ep.product)
+        # A drawn shot is still required for every other line: a clip replaces only its own line.
+        bad = self.ap.plan_brand("magic", self.cast[0])
+        bad["episode"]["lines"][0]["scene"] = "nowhere"
+        with self.assertRaises(SystemExit):
+            self.ap.check_plan(bad)
 
     def test_every_caption_on_the_screen_uses_only_characters_the_font_draws(self):
         # 2026-11-03: "מדביקים קישור → חנות" came out as an empty box: the
