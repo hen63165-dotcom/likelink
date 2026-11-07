@@ -331,7 +331,8 @@ export function MagicPage({ graph }) {
                 <div className="flex flex-wrap gap-2">
                   {recent.map((r) => (
                     <button key={r.link} type="button" className="lx-chip !min-h-[36px] !text-[12.5px]" onClick={() => check(r.link)} style={{ maxWidth: "100%" }}>
-                      {r.image ? <Img src={r.image} alt="" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "cover" }} /> : null}
+                      {/* .lx img is always 100% of its box (public.css), so the box sets the size. */}
+                      {r.image ? <span aria-hidden="true" style={{ display: "inline-block", flex: "0 0 22px", width: 22, height: 22, borderRadius: 6, overflow: "hidden" }}><Img src={r.image} alt="" /></span> : null}
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>{r.title || r.link}</span>
                     </button>
                   ))}

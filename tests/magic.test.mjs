@@ -435,3 +435,9 @@ test("find: a jewellery search leaves out key rings, watch straps and fishing sw
   assert.equal(findCheck({ ...base, product_title: "טבעת אינפיניטי לאהבה 925 כסף סטרלינג" }, { kind: "rings" }), "");
   assert.equal(findCheck({ ...base, product_title: "צמיד שעון חכם לנשים" }, { kind: "bracelets" }), "other_kind");
 });
+
+test("page: a recent check's picture sits in a 22 px box (.lx img is always 100% of its box)", () => {
+  const src = readFileSync("src/components/discover/magic.jsx", "utf8");
+  const line = src.split("\n").find((l) => l.includes("r.image ?"));
+  assert.match(line, /<span[^>]*width: 22, height: 22[^>]*overflow: "hidden"[^>]*><Img src=\{r\.image\}/, "the 2026-11-07 recording showed the thumbnail full width");
+});
