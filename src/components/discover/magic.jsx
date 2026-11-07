@@ -295,7 +295,7 @@ export function MagicPage({ graph }) {
             </>
           ) : (<>
           <p className="lx-profile-bio mt-4" style={{ fontSize: 16, maxWidth: "56ch" }}>
-            {L("ראית מוצר בטיקטוק, באינסטגרם או באפליקציה של אליאקספרס? הדביקי כאן את הקישור, ותוך שנייה תדעי מה המחיר בחנות עכשיו, מה לבדוק לפני שקונים, ואם זה כנראה חיקוי של מותג.", "Saw something on TikTok, Instagram or in the AliExpress app? Paste the link here and see the store's price now, what to check before buying, and whether it's likely a brand imitation.")}
+            {L("ראית מוצר בטיקטוק, באינסטגרם או באפליקציה של אליאקספרס? הדביקי כאן את הקישור, ותוך כמה שניות תדעי מה המחיר בחנות עכשיו, מה לבדוק לפני שקונים, ואם זה כנראה חיקוי של מותג.", "Saw something on TikTok, Instagram or in the AliExpress app? Paste the link here and see the store's price now, what to check before buying, and whether it's likely a brand imitation.")}
           </p>
 
           <div className="mt-6 grid max-w-xl gap-3">
