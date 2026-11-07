@@ -6,6 +6,11 @@ name: Magic button demo
 # must show the real page, so it never runs on a push.
 on:
   workflow_dispatch:
+    inputs:
+      clean:
+        description: "The plain page (no captions, no bar, no end card), for a 3D studio reel's proof shots"
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -35,8 +40,13 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           MAGIC_BED: ${{ runner.temp }}/bed.m4a
+          MAGIC_CLEAN: ${{ inputs.clean && '1' || '' }}
         run: node scripts/marketing/magic-demo.mjs magic-demo
       - name: → the "magic-demo" pre-release (not the site)
         run: |
           gh release view magic-demo >/dev/null 2>&1 || gh release create magic-demo --prerelease --title "Magic button demo (not on the site)" --notes "A real recording of the live /magic page, for Reels and TikTok. Nothing is posted from here."
-          gh release upload magic-demo magic-demo/magic-demo.mp4 magic-demo/cover.jpg magic-demo/caption.txt magic-demo/run.json magic-demo/frames-*.jpg --clobber
+          if [ -f magic-demo/run-clean.json ]; then
+            gh release upload magic-demo magic-demo/magic-clean.mp4 magic-demo/run-clean.json --clobber
+          else
+            gh release upload magic-demo magic-demo/magic-demo.mp4 magic-demo/cover.jpg magic-demo/caption.txt magic-demo/run.json magic-demo/frames-*.jpg --clobber
+          fi

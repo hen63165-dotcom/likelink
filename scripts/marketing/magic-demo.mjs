@@ -6,7 +6,7 @@
 //   node scripts/marketing/magic-demo.mjs <out-dir>
 //   env: PLAYWRIGHT_MODULE, MAGIC_SITE, MAGIC_LINK, MAGIC_QUERY, MAGIC_BED (an .m4a bed, optional)
 //
-// Output: <out>/magic-demo.mp4 (1080×1920, H.264, AAC 48 kHz), cover.jpg,
+// Output: <out>/magic-demo.mp4 (magic-clean.mp4 with MAGIC_CLEAN=1; 1080×1920, H.264, AAC 48 kHz), cover.jpg,
 // caption.txt, and frames-*.jpg (one a second, for a person to look at).
 // The caption starts with the disclosure: the page's buy buttons are affiliate links.
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
@@ -19,6 +19,10 @@ const SITE = String(process.env.MAGIC_SITE || "https://likelink2.vercel.app").re
 const LINK = process.env.MAGIC_LINK || "https://www.aliexpress.com/item/1005006861665924.html";
 const QUERY = process.env.MAGIC_QUERY || "עגילי זהב עד 30 ש״ח";
 const OUT = resolve(process.argv[2] || "magic-demo");
+// MAGIC_CLEAN=1: the plain page (no captions, no bar, no end card) for a 3D studio reel
+// to cut its proof shots from; that reel burns in its own labels and disclosure.
+const CLEAN = process.env.MAGIC_CLEAN === "1";
+const NAME = CLEAN ? "magic-clean" : "magic-demo";
 mkdirSync(OUT, { recursive: true });
 
 // The captions, the tap marks and the end card, drawn inside the page (fixed, on top).
@@ -79,7 +83,10 @@ async function shot(seconds) {
   await page.screenshot({ path: file, type: "jpeg", quality: 92 });
   shown.push({ file, seconds });
 }
-const cap = async (title, sub = "") => { await page.evaluate(([t, s]) => window.__cap?.(t, s), [title, sub]); };
+const cap = async (title, sub = "") => { if (!CLEAN) await page.evaluate(([t, s]) => window.__cap?.(t, s), [title, sub]); };
+// When each moment starts in the film (seconds), for cutting proof shots from it.
+const moments = {};
+const mark = (name) => { moments[name] = Math.round(shown.reduce((a, x) => a + x.seconds, 0) * 100) / 100; };
 async function scrollAnim(dy, seconds) {
   const from = await page.evaluate(() => window.scrollY);
   const n = Math.max(1, Math.round(seconds * FPS));
@@ -108,7 +115,7 @@ async function typeAnim(locator, text) {
 }
 
 await page.goto(`${SITE}/magic`, { waitUntil: "networkidle", timeout: 45_000 });
-await page.evaluate(() => { window.__brand?.(); });
+if (!CLEAN) await page.evaluate(() => { window.__brand?.(); });
 await page.waitForSelector("text=הדבקה ובדיקה", { timeout: 20_000 });
 await sleep(400);
 
@@ -121,6 +128,7 @@ await cap("1. מעתיקים את הקישור מאלי", "שיתוף ← העת
 await shot(1.9);
 await cap("2. לוחצים על כפתור הקסם ✨");
 await shot(1.0);
+mark("linkTap");
 await tap(page.getByRole("button", { name: /הדבקה ובדיקה/ }));
 const result = page.locator("#magic-result");
 try {
@@ -134,6 +142,7 @@ try {
 }
 await sleep(1500); // the page brings the answer into view by itself
 // 3. The answer.
+mark("result");
 await cap("המחיר בחנות עכשיו + מה לבדוק", "ואזהרה אם זה חיקוי של מותג");
 await shot(2.0);
 await scrollAnim(480, 3.6);
@@ -144,6 +153,7 @@ await shot(2.0);
 await page.evaluate(() => window.scrollTo(0, 0));
 await cap("אין לך קישור? 🔎", "כותבים בעברית מה רוצים");
 await shot(1.4);
+mark("findTab");
 await tap(page.getByRole("tab", { name: /מצאי לי באלי/ }));
 await sleep(500);
 const box = page.locator("#magic-find");
@@ -155,6 +165,7 @@ await box.press("Enter");
 await shot(0.5);
 await page.locator("ul.grid li").first().waitFor({ timeout: 25_000 });
 await sleep(1500);
+mark("grid");
 const found = await page.locator("ul.grid li").count();
 await cap("רק מוצרים שעברו בדיקה ✅", "הרבה הזמנות, שביעות רצון גבוהה, בלי חיקויים");
 await shot(1.4);
@@ -162,8 +173,10 @@ await scrollAnim(520, 3.6);
 await shot(1.0);
 // 5. The end card.
 await cap("");
-await page.evaluate(() => window.__end?.());
-await shot(2.6);
+if (!CLEAN) {
+  await page.evaluate(() => window.__end?.());
+  await shot(2.6);
+}
 await context.close();
 await browser.close();
 
@@ -176,7 +189,7 @@ const raw = join(OUT, "frames.txt");
 
 // The bed: a soft loop made from numbers (scripts/luna_reels music.py), or silence.
 const bed = process.env.MAGIC_BED && existsSync(process.env.MAGIC_BED) ? process.env.MAGIC_BED : "";
-const mp4 = join(OUT, "magic-demo.mp4");
+const mp4 = join(OUT, `${NAME}.mp4`);
 const audio = bed ? ["-i", bed] : ["-f", "lavfi", "-t", String(length), "-i", "anullsrc=channel_layout=stereo:sample_rate=48000"];
 execFileSync("ffmpeg", [
   "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", raw, ...audio,
@@ -204,5 +217,5 @@ const caption = [
   "#אליאקספרס #קניותברשת #טיפים #עליאקספרס #קניות",
 ].join("\n");
 writeFileSync(join(OUT, "caption.txt"), `${caption}\n`);
-writeFileSync(join(OUT, "run.json"), `${JSON.stringify({ site: SITE, link: LINK, query: QUERY, found, seconds: Number(length.toFixed(2)), at: new Date().toISOString() }, null, 2)}\n`);
+writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: LINK, query: QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
 console.log(`magic demo: ${length.toFixed(1)} s, ${found} search results, ${readdirSync(OUT).filter((f) => f.startsWith("frames-")).length} frames`);
