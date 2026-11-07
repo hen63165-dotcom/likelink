@@ -94,7 +94,10 @@ MASCOT = ("a cute anthropomorphic {obj} mascot {where}, the {name} itself has tw
 # earrings box calls out "wait!", so it is eager, not sad).
 MOODS = {"sad": ("pouting", "bored and sad", "bored and sad", "slowly blinks its big eyes and sighs"),
          "eager": ("open", "wide-eyed and eager", "wide-eyed and eager, as if calling out to her",
-                   "blinks its big eyes and bounces a little with excitement")}
+                   "blinks its big eyes and bounces a little with excitement"),
+         # The magic button's cart before 11.11: full of doubts, not sad.
+         "worried": ("small wobbly", "nervous and worried", "nervous and worried, as if asking her for help",
+                     "glances left and right nervously and trembles a little")}
 STORIES = {
     "earrings": {
         "words": r"עגיל|earring|ear stud|hoop",
@@ -420,8 +423,8 @@ def plan_brand(story: str, member: dict, master: dict | None = None, engine: str
         "lines": [
             {"say": st["problem"][0], "caption": st["problem"][1], "scene": "problem"},
             {"say": st["trick"][0], "caption": st["trick"][1], "scene": "hero"},
-            {"say": st["tip"][0], "caption": st["tip"][1], "scene": "tip"},
-            {"say": st["look"][0], "caption": st["look"][1], "scene": "wow"},
+            {"say": st["tip"][0], "caption": st["tip"][1], "scene": st.get("clips", {}).get("tip", "tip")},
+            {"say": st["look"][0], "caption": st["look"][1], "scene": st.get("clips", {}).get("look", "wow")},
             {"say": st["cta"][0], "caption": st["cta"][1], "scene": "cta"},
         ],
         "cta": dict(st["card"]),
@@ -445,7 +448,7 @@ def check_plan(spec: dict) -> None:
     if not STORY_SECONDS[0] <= seconds <= STORY_SECONDS[1]:
         raise SystemExit(f"story: {seconds:.1f} s by the master's estimate (20–45 s)")
     for line in [ep["hook"], *ep["lines"]]:
-        if line.get("scene") and line["scene"] not in ids:
+        if line.get("scene") and line["scene"] not in ids and not line["scene"].startswith("video:https://"):
             raise SystemExit(f"scene '{line['scene']}' is not a shot")
     for s in spec["shots"]:
         if DRAWN_JEWELLERY.search(f"{s.get('prompt', '')} {s.get('motion', '')} {s.get('talkPrompt', '')}"):
