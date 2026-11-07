@@ -149,7 +149,7 @@ export const AUTOPILOT_INTERVALS = [
 export const TEMPLATE_VARS = ["{name}", "{price}", "{category}", "{description}", "{link}"];
 
 export function defaultTemplate() {
-  return "🔥 {name}\nבמחיר מיוחד: {price} ₪\n{description}\nלרכישה 👉 {link}";
+  return "#פרסומת · קישור שותפים\n🛍️ {name}\nתמונות, מה לבדוק לפני שקונים, והקישור לחנות 👇\n{link}";
 }
 
 
