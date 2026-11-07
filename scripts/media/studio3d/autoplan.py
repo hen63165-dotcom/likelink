@@ -96,7 +96,7 @@ MOODS = {"sad": ("pouting", "bored and sad", "bored and sad", "slowly blinks its
          "eager": ("open", "wide-eyed and eager", "wide-eyed and eager, as if calling out to her",
                    "blinks its big eyes and bounces a little with excitement"),
          # The magic button's cart before 11.11: full of doubts, not sad.
-         "worried": ("small wobbly", "nervous and worried", "nervous and worried, as if asking her for help",
+         "worried": ("wobbly", "nervous and worried", "nervous and worried, as if asking her for help",
                      "glances left and right nervously and trembles a little")}
 STORIES = {
     "earrings": {
@@ -211,6 +211,30 @@ BRAND_STORIES = {
         "card": {"title": "רואים לפני שקונים", "sub": "הקישור בתגובה הראשונה"},
         "send": "שלחי לחברה שתמיד מתאכזבת מחבילות",
         "tags": ["#LikeLink2", "#קניותאונליין", "#קניותחכמות"],
+    },
+    # The magic button (/magic), the owner 2026-11-07: "a reel at Ravit's level that
+    # explains the magic button and leads to the site". The talking cart before
+    # 11.11, the presenter, and two lines over the real page, recorded live
+    # (Actions → "Magic button demo", clean mode), so the reel shows what the
+    # button really answers, not a drawing of it.
+    "magic": {
+        "goal": "trust",
+        "link": "/magic",
+        "object": ("small empty shopping cart without any printing or logos", "standing on a cozy living room rug beside a sofa", "cart"),
+        "mood": "worried",
+        "hook": ("העגלה שלי באלי ממש לחוצה.", "העגלה שלי... לחוצה"),
+        "problem": ("ראיתי מוצר בטיקטוק, ואין לי מושג אם הוא שווה את הכסף.", "ראיתי בטיקטוק... זה שווה?"),
+        "trick": ("טריק קטן: כפתור הקסם של לייק לינק.", "טריק קטן: כפתור הקסם"),
+        "tip": ("מדביקים את הקישור, ורואים את המחיר עכשיו, מה לבדוק, ואם זה כנראה חיקוי.", "מחיר עכשיו, מה לבדוק, חיקוי?"),
+        "look": ("ואין קישור? כותבים בעברית מה מחפשים, ומקבלים רק מוצרים שעברו בדיקה.", "אין קישור? כותבים בעברית"),
+        "cta": ("רוצה לנסות? בחינם ובלי הרשמה, הקישור בתגובה הראשונה.", "בחינם, הקישור בתגובה"),
+        "card": {"title": "כפתור הקסם", "sub": "הקישור בתגובה הראשונה"},
+        "send": "שלחי לחברה שממלאת עגלה ל־11.11",
+        "tags": ["#LikeLink2", "#אליאקספרס", "#1111"],
+        "clips": {
+            "tip": "video:https://raw.githubusercontent.com/hen63165-dotcom/likelink/d4170f8f78886bbc6d4c6969f1100f9556ff551f/marketing/reels/proof/magic-link.mp4",
+            "look": "video:https://raw.githubusercontent.com/hen63165-dotcom/likelink/d4170f8f78886bbc6d4c6969f1100f9556ff551f/marketing/reels/proof/magic-find.mp4",
+        },
     },
 }
 BRAND_PREFIX = "brand-"
