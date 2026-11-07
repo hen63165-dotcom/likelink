@@ -342,11 +342,15 @@ function renderTemplate(tpl, p, link) {
   return out.trim();
 }
 
-const FALLBACK_TEMPLATES_HE = [
-  "🔥 {name}\nבמחיר מיוחד: {price} ₪\nלרכישה 👉 {link}",
-  "✨ הפינוק הבא שלי עבורך: {name}\nרק {price} ₪ — כמות מוגבלת!\n🛍️ {link}",
-  "💥 לא לפספס: {name}\nמומלץ בחום, {price} ₪ בלבד\n👉 {link}",
-];
+// Every creator post about a product says it is an ad with an affiliate link,
+// on its first line, whatever the template or the caption engine wrote (the
+// default template used to promise a special price, with no disclosure at all).
+export const AD_DISCLOSURE_LINE_HE = "#פרסומת · קישור שותפים";
+export function withAdDisclosure(text) {
+  const t = String(text || "").trim();
+  if (!t) return t;
+  return /#פרסומת/.test(t) ? t : `${AD_DISCLOSURE_LINE_HE}\n${t}`;
+}
 
 // ─── smart marketing engine: angles, hashtags, tracking, timing ─────────────
 
@@ -1041,7 +1045,7 @@ export async function runOne(store, marketerId, cfg, origin) {
     // brings the traffic. Links are swapped in AFTER AI polish (the polish
     // prompt forbids touching links, and this keeps them intact anyway).
     const link = trackLink(baseLink, ch.type, product.id);
-    const chText = link === baseLink ? text : text.split(baseLink).join(link);
+    const chText = withAdDisclosure(link === baseLink ? text : text.split(baseLink).join(link));
     try {
       const providerId = await sendToChannel(ch, { text: chText, link, product: publishProduct, mediaProduct: publishProduct, webhook: { product, marketerId, source: "likelink-autopilot" } });
       await markChannelVerified(ch.type);
@@ -1095,7 +1099,7 @@ function priceDropCaption(product, listed, live, pct, link) {
     `${name}`,
     `היה ${listed} ₪ — עכשיו רק ${live} ₪`,
     `ככה זה כשקונים חכם 😌`,
-    `לפני שהמחיר חוזר 👉 ${link}`,
+    `לפרטים ולבדיקה בחנות 👉 ${link}`,
     tags,
     ``,
     `המחיר ירד לבד · הפוסט יצא לבד · נוצר בתוך Likelink 💜`,
@@ -1135,7 +1139,7 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
       continue;
     }
     const link = trackLink(baseLink, ch.type, `drop_${product.id}`);
-    const chText = priceDropCaption(product, listedN, liveN, pct, link);
+    const chText = withAdDisclosure(priceDropCaption(product, listedN, liveN, pct, link));
     try {
       const providerId = await sendToChannel(ch, { text: chText, link, product, webhook: { product, marketerId, source: "likelink-pricedrop", event: "price_drop", listed: listedN, live: liveN, pct } });
       results.push({ channel: ch.type, ok: true, providerId, status: publicationGate("PUBLISHED", providerId) });
@@ -1197,7 +1201,7 @@ async function announceNewProduct(store, marketerId, cfg, product, origin) {
       continue;
     }
     const link = trackLink(baseLink, ch.type, product.id);
-    const chText = link === baseLink ? text : text.split(baseLink).join(link);
+    const chText = withAdDisclosure(link === baseLink ? text : text.split(baseLink).join(link));
     try {
       const providerId = await sendToChannel(ch, { text: chText, link, product, webhook: { product, marketerId, source: "likelink-new-product", event: "new_product" } });
       results.push({ channel: ch.type, ok: true, providerId, status: publicationGate("PUBLISHED", providerId) });
