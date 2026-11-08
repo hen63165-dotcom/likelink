@@ -3157,6 +3157,43 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 425.42
+   },
+   {
+    "id": "ae-1005010487472044",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מייבש בגדים נייד חשמלי עם חיטוי UV",
+    "storeTitle": "מייבש בגדים נייד, מייבש בגדים חשמלי עם חיטוי UV, מייבש כביסה נייד מתקפל עם שלט רחוק",
+    "category": "Home",
+    "kind": "home",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S49b910cf9a4545458fa1cf6f42798e61e.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C4MIeHKnLEkjcbwZE6hCoQ6Jlt8dauM5OSZcakt8f2UZOuw2pjQA15aB2Oa7g8FRshrtM225ZZ6YIjC1KRq5yMLJqgAHma3cdX0hIUP6AotrOehU6UZOR7ewBORu84JcTyOPNAr85sMocgvgbzpksHJuStF5rTJfdtK0YViAS2Ror4ouI4SngLi9JjMaFpwoaQDAZoAJZmO6n8CRMRJ0gAKNYgpYJX75ASFkJFT9UlVSm8TIIbpaaeKiyG8HxMCMViLYa4uRpYSQvyHCBb9MpCqFfGem8zQG9YsXa73LydRxxSWj4x5ZDiddubdsQLmPX9SWgJM0FI2QvdoEfzzH9InsQb8y0LWItr8q9UtHB518TepblNBDSvjrBt7KPUTYWs3ZoC1MbE4CtD4hcYasa8sdQyIAsMySO5DLbo2yAGLVDFoBF10wy4EPo2cMbulwUWLPMUfvkekyCNLb6eZRjG5X0uHC9oLO24GQLIKXL3OZo7LGihMPweqvr59Ml6D4vFVnXFyY4ai26KbNaq1EteS7ydyeDvWKknOYLi5nI7JJkEyy4yyRpGtNKrHKADJkYgqromcaMSqql5pVulfhm4cxaAJaV07aG5RxGC9TdqUDcLFKIQZGqIRoPwmD0JOCDAwdmzIFKRBOLPNBS07IVXYphERL0eebFl43TT6cEdoVuWBWhlL9Si0wesxXhusuoNmcIfe2UyD8Cu",
+    "aliexpressId": "1005010487472044",
+    "price": 130.69,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T19:31:07.168Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S49b910cf9a4545458fa1cf6f42798e61e.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa0919e466707419fbc8aa53ddb2f8e14v.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa95a5c425cd246ae8169c82308a353385.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S8c2a56adbef3440a964f10ceaf88ba9a9.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S2cef37095d8c4cafa47edfd6e3a4a580A.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Safc87d4a59df410eb1e8e232d16a4fbbd.jpg"
+    ],
+    "createdAt": 1794166267168,
+    "updatedAt": 1794166267168,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005010487472044",
+     "itemUrl": "https://he.aliexpress.com/item/1005010487472044.html?pdp_npi=6%40dis%21ILS%21261.38%21130.69%21%21%21531.37%21265.69%21%40212a7b8d17941662684836244e0cd4%2112000052568569779%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T19:31:07.168Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 261.38
    }
   ],
   "marketplace:marketers": [
