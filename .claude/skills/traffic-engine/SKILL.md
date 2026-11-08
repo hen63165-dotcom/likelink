@@ -31,6 +31,11 @@ each DM is a click to the site. Our keywords (one per post, one word):
   `post_url` = the permalink, `trigger_keywords` = [the word], `confirmed: true`). **A new DM text needs her
   explicit approval first** (show the exact text; the auto-mode classifier refuses an unapproved one).
 - Also a first comment with the link (Windsor `create_comment`), for people who don't comment.
+- **Upload-Post's free plan starts at most 2 AutoDM monitors per profile per day** (429 "maximum 2 monitors per
+  profile per day", seen 2026-11-08). Give the day's two monitors to the posts with the most comments (the lead
+  magnets: מדריך, סטודיו, קסם); answer the rest by hand in scheduled comment sweeps: `get_post_comments` →
+  `reply_to_comment` (one private reply per comment, Instagram's 7-day window, the approved text only). A
+  monitor only answers comments made after it started, so the sweep also covers the earlier ones.
 - Product DMs and captions keep "#פרסומת · קישור שותפים" / the affiliate line; tool posts (קסם, מדריך,
   סטודיו) carry "(באתר יש קישורי שותפים…)".
 
