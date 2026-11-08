@@ -57,6 +57,8 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
         for (const x of list) {
           const c = candidate(x);
           if (c.ok && !seen.has(c.item.id)) { seen.set(c.item.id, c); kept += 1; }
+          // Why the others were left out, for the person choosing (the numbers stay in this log).
+          if (!c.ok && c.reason !== "no_id") log.push(`   – ${c.reason}: ${x.product_id} ₪${x.target_sale_price ?? "?"} ${x.target_sale_price_currency ?? ""} · orders ${x.lastest_volume ?? "?"} · ${x.evaluate_rate ?? "?"} · ${String(x.product_title || "").slice(0, 70)}`);
         }
         log.push(`${keywords} [${sort}]: ${list.length} read, ${kept} new candidates`);
       } catch (err) {
@@ -84,6 +86,7 @@ async function sheet(items, file, work) {
     } catch { /* a photo that does not load is left out of the sheet */ }
   }
   if (!tiles.length) return false;
+  if (tiles.length === 1) { execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", tiles[0], "-q:v", "3", file]); return true; }
   const cols = Math.min(4, tiles.length);
   const rows = Math.ceil(tiles.length / cols);
   const layout = tiles.map((_, i) => `${(i % cols) * 360}_${Math.floor(i / cols) * 400}`).join("|");
