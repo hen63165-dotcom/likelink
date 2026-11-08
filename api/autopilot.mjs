@@ -345,6 +345,13 @@ function renderTemplate(tpl, p, link) {
 // Every creator post about a product says it is an ad with an affiliate link,
 // on its first line, whatever the template or the caption engine wrote (the
 // default template used to promise a special price, with no disclosure at all).
+// A channel name copied from Hebrew text can carry invisible direction marks
+// (U+200E/U+200F and friends) or spaces; Telegram then answers "chat not found".
+// 2026-11-08: the owner's first channel was saved as "\u200e@likelink_deals".
+export function cleanChatId(v) {
+  return String(v || "").replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\s]/g, "");
+}
+
 export const AD_DISCLOSURE_LINE_HE = "#פרסומת · קישור שותפים";
 export function withAdDisclosure(text) {
   const t = String(text || "").trim();
@@ -580,7 +587,7 @@ async function sendTelegram(ch, text, product = null) {
       const vr = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendVideo`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: ch.chatId, video, caption: videoCaption(String(text || "").slice(0, 1024 - VIDEO_DISCLOSURE_HE.length - 2)), supports_streaming: true }),
+        body: JSON.stringify({ chat_id: cleanChatId(ch.chatId), video, caption: videoCaption(String(text || "").slice(0, 1024 - VIDEO_DISCLOSURE_HE.length - 2)), supports_streaming: true }),
         signal: AbortSignal.timeout(30000),
       });
       if (vr.ok) {
@@ -592,7 +599,7 @@ async function sendTelegram(ch, text, product = null) {
   const res = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ chat_id: ch.chatId, text, disable_web_page_preview: false }),
+    body: JSON.stringify({ chat_id: cleanChatId(ch.chatId), text, disable_web_page_preview: false }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`telegram_${res.status}`);
@@ -2381,7 +2388,7 @@ function sanitizeConfig(prev, c) {
       return {
         type: String(ch.type || "").slice(0, 20),
         botToken: keep(ch.botToken, prevCh.botToken, 200),
-        chatId: String(ch.chatId || "").slice(0, 100),
+        chatId: (ch.type === "telegram" ? cleanChatId(ch.chatId) : String(ch.chatId || "")).slice(0, 100),
         url: keep(ch.url, prevCh.url, 500),
         pageId: String(ch.pageId || "").slice(0, 100),
         pageToken: keep(ch.pageToken, prevCh.pageToken, 300),

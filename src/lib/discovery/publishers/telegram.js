@@ -21,6 +21,7 @@ const tokenOk = (t) => /^\d{5,12}:[A-Za-z0-9_-]{30,}$/.test(String(t || ""));
  * @returns {Promise<{ok:true, providerPostId:string, chatUsername:string|null, publicUrl:string|null} | {ok:false, error:string}>}
  */
 export async function publishToTelegram({ botToken, chatId, text, photoUrl = "", fetchImpl = fetch }) {
+  chatId = String(chatId || "").replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\s]/g, "");
   if (!tokenOk(botToken) || !chatId) return { ok: false, error: "telegram_not_configured" };
   const caption = String(text || "").trim();
   if (!caption) return { ok: false, error: "empty_post" };
