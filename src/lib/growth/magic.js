@@ -225,7 +225,7 @@ export const MAGIC_FAQ = Object.freeze([
   { q: "מה זה כפתור הקסם?", a: "כלי חינמי של LikeLink2: מדביקים קישור למוצר מאליאקספרס ומקבלים את המחיר בחנות עכשיו, מה לבדוק לפני שקונים ואזהרה כשבשם המוצר יש מותג. בלי הרשמה." },
   { q: "איך מחפשים באליאקספרס בעברית?", a: "בלשונית „מצאי לי באלי” כותבים בעברית מה מחפשים, ואפשר גם תקציב („עד 30 ש״ח”). אנחנו מחפשים בחנות ומראים רק מוצרים שעוברים את הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה ובלי חיקויים של מותגים." },
   { q: "איך יודעים אם מוצר באליאקספרס הוא חיקוי?", a: "כשבשם המוצר מופיע מותג, דמות או מפורסם, באליאקספרס זה כמעט תמיד חיקוי או מוצר בלי רישיון. כפתור הקסם מזהה את זה בשם המוצר ואומר לך." },
-  { q: "ההנחה באליאקספרס אמיתית?", a: "מחיר „לפני הנחה” הוא מה שהמוכר כותב, ולכן אנחנו לא מציגים אותו כהנחה. שומרים את המוצר בעגלה כמה ימים ורואים אם המחיר זז." },
+  { q: "ההנחה באליאקספרס אמיתית?", a: "מחיר „לפני הנחה” הוא מה שהמוכר כותב, ולכן אנחנו לא מציגים אותו כהנחה. כפתור הקסם זוכר בדפדפן שלך את המחיר שראית: בודקים עכשיו, בודקים שוב את אותו מוצר בזמן המבצע, ורואים אם המחיר באמת ירד." },
   { q: "זה עולה כסף? למה יש קישור שותפים?", a: "הכפתור חינמי. כשהכפתור לחנות הוא קישור של LikeLink2, כתוב מתחתיו #פרסומת: אם קונים דרכו, LikeLink2 מקבלת עמלה קטנה מהחנות, והמחיר שלך לא משתנה. קישור שקיבלת מיוצרת נשאר שלה." },
   { q: "אפשר לשתף מוצר ישר מהאפליקציה של אליאקספרס?", a: "באנדרואיד כן: מוסיפים את LikeLink2 למסך הבית, ואז ב„שיתוף” באפליקציה של אליאקספרס בוחרים LikeLink2. באייפון מעתיקים את הקישור ולוחצים „הדבקה ובדיקה”." },
 ]);
@@ -233,9 +233,50 @@ export const MAGIC_FAQ = Object.freeze([
 /** The checks a person made on this device (per-viewer convenience, newest first). */
 export const RECENT_KEY = "ll_magic_recent";
 export const RECENT_MAX = 6;
+export const SEEN_MAX = 5;
+const okPrice = (v) => Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) < 1e6;
 export function addRecent(list = [], entry = {}) {
   const link = String(entry.link || "").trim();
   if (!link) return Array.isArray(list) ? list.slice(0, RECENT_MAX) : [];
-  const clean = { link, title: String(entry.title || "").slice(0, 80), image: /^https:\/\//.test(String(entry.image || "")) ? entry.image : "", at: Number(entry.at) || Date.now() };
-  return [clean, ...(Array.isArray(list) ? list : []).filter((x) => x && x.link !== link)].slice(0, RECENT_MAX);
+  const at = Number(entry.at) || Date.now();
+  const itemId = /^\d{6,20}$/.test(String(entry.itemId || "")) ? String(entry.itemId) : "";
+  const old = Array.isArray(list) ? list : [];
+  // The same store item may come back through another link: its prices travel with it.
+  const before = old.filter((x) => x && (x.link === link || (itemId && x.itemId === itemId)));
+  const seen = [...before.flatMap((x) => (Array.isArray(x.seen) ? x.seen : [])), ...(okPrice(entry.price) ? [{ at, price: Math.round(Number(entry.price) * 100) / 100 }] : [])]
+    .filter((s) => s && okPrice(s.price) && Number(s.at) > 0)
+    .sort((a, b) => a.at - b.at);
+  // The first price she saw is the one that matters; then the latest ones.
+  const kept = seen.length > SEEN_MAX ? [seen[0], ...seen.slice(-(SEEN_MAX - 1))] : seen;
+  const clean = { link, title: String(entry.title || "").slice(0, 80), image: /^https:\/\//.test(String(entry.image || "")) ? entry.image : "", at, ...(itemId ? { itemId } : {}), ...(kept.length ? { seen: kept } : {}) };
+  return [clean, ...old.filter((x) => x && !before.includes(x))].slice(0, RECENT_MAX);
 }
+
+/**
+ * The price memory: what this person saw for the same store item on an earlier
+ * check, on this device only (her own recent checks, never the seller's "before"
+ * price). Both prices are the store's ILS "from" price read by the button. An
+ * earlier check counts only when it is at least an hour older than now.
+ */
+export const MEMORY_MIN_MS = 60 * 60 * 1000;
+export function priceMemory(list = [], item = {}, now = Date.now()) {
+  const id = String(item?.id || "");
+  if (!id || !okPrice(item?.price) || item?.currency !== "ILS") return null;
+  const seen = (Array.isArray(list) ? list : [])
+    .filter((x) => x && x.itemId === id)
+    .flatMap((x) => (Array.isArray(x.seen) ? x.seen : []))
+    .filter((s) => okPrice(s?.price) && Number(s?.at) > 0 && now - Number(s.at) >= MEMORY_MIN_MS)
+    .sort((a, b) => a.at - b.at);
+  if (!seen.length) return null;
+  const first = seen[0];
+  const was = Math.round(Number(first.price) * 100) / 100;
+  const cur = Math.round(Number(item.price) * 100) / 100;
+  const diff = Math.round((cur - was) * 100) / 100;
+  return { was, at: Number(first.at), now: cur, diff: Math.abs(diff), change: diff < 0 ? "down" : diff > 0 ? "up" : "same" };
+}
+
+/** The date of a check, as people write it in Israel ("8.11"). */
+export const shortDate = (ms) => {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" }).formatToParts(new Date(ms));
+  return `${Number(p.find((x) => x.type === "day")?.value)}.${Number(p.find((x) => x.type === "month")?.value)}`;
+};
