@@ -54,3 +54,25 @@ test("the discovery Telegram publisher sends the cleaned channel name", async ()
   await publishToTelegram({ botToken: "123456:" + "a".repeat(35), chatId: "\u200e@likelink_deals", text: "x", fetchImpl });
   assert.equal(sent.chat_id, "@likelink_deals");
 });
+
+// 2026-11-08: the first Telegram post named a ring and linked to the whole
+// store, so Telegram's preview showed the store page's picture.
+test("a post about a product links to that product's page, unless the creator set her own link", async () => {
+  const { productPostLink } = await import("../api/autopilot.mjs");
+  const o = "https://likelink2.vercel.app";
+  assert.equal(productPostLink({}, o, { id: "p-live-01" }, "alyostyle"), `${o}/p/p-live-01`);
+  assert.equal(productPostLink({ storeUrl: " https://example.com/me " }, o, { id: "p-live-01" }, "alyostyle"), "https://example.com/me");
+  assert.equal(productPostLink({}, o, null, "alyostyle"), `${o}/u/alyostyle`);
+  const src = readFileSync(new URL("../api/autopilot.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /const baseLink = cfg\.storeUrl/);
+});
+
+test("Telegram gets the store's own photo of the item, never a stock or generated picture", async () => {
+  const { telegramPhotoUrl } = await import("../api/autopilot.mjs");
+  const store = "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png";
+  assert.equal(telegramPhotoUrl({ image: store }), store);
+  assert.equal(telegramPhotoUrl({ image: "http://ae-pic-a1.aliexpress-media.com/x.jpg" }), "");
+  assert.equal(telegramPhotoUrl({ image: "https://images.unsplash.com/photo-1.jpg" }), "");
+  assert.equal(telegramPhotoUrl({ image: "https://x/ugc.jpg", ugcImage: "https://x/ugc.jpg" }), "");
+  assert.equal(telegramPhotoUrl({}), "");
+});
