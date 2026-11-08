@@ -292,8 +292,8 @@ const EXTRA_WORDS = Object.freeze({
   rings: ["ring", "טבעת"], earrings: ["earring", "עגיל"], necklaces: ["necklace", "pendant", "תליון"], bracelets: ["bracelet", "bangle", "צמיד"],
   watches: ["watch", "שעון"], bags: ["bag", "handbag", "wallet", "תיק", "ארנק"], beauty: ["makeup", "cosmetic", "איפור", "יופי"],
   hair: ["hair", "hairpin", "hairclip", "scrunchie", "שיער"], home: ["home decor", "תפאורה", "קישוט"], kitchen: ["kitchen", "מטבח"], kids: ["toy", "baby", "צעצוע", "תינוק", "ילד"],
-  tech: ["phone", "earphone", "headphone", "charger", "טלפון", "אוזני", "מטען"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
-  men: ["men", "גברים", "לגבר"], clothing: ["sweater", "cardigan", "hoodie", "סוודר", "קרדיגן", "חולצה"], car: ["car", "vehicle", "רכב", "לרכב"],
+  tech: ["phone", "earphone", "headphone", "charger", "microphone", "recorder", "gamepad", "usb", "טלפון", "סמארטפון", "אוזני", "מטען", "מיקרופון", "מקליט", "בקר משחק"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
+  men: ["men", "גברים", "לגבר"], clothing: ["sweater", "cardigan", "hoodie", "sweatshirt", "סוודר", "קרדיגן", "חולצה", "קפוצ'ון", "סווטשירט"], car: ["car", "vehicle", "רכב", "לרכב"],
   squishy: ["squishy", "fidget", "סקווישי"], smartwatch: ["smartwatch", "smart watch", "שעון חכם"], earbuds: ["earbuds", "tws", "אוזניות"],
   mensocks: ["socks", "גרביים"], mentanks: ["tank top", "גופייה", "גופיות"],
 });

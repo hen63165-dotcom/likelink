@@ -221,3 +221,10 @@ test("a brand copy never passes, in English or Hebrew", async () => {
   for (const t of ["Lenovo LP40 Pro earbuds", "HTC NE79 earbuds", "strap for Mi Band 9", "רצועה לשיאומי", "אוזניות של לנובו", "כיסוי לאייפון", "רצועה לפיטביט", "Patek style watch"]) assert.equal(hasBrandName(t), true, t);
   for (const t of ["men cotton socks", "smart watch 1.96 inch", "squishy dumpling toy", "women zip hoodie"]) assert.equal(hasBrandName(t), false, t);
 });
+
+// 2026-11-08: the owner's microphone and voice recorder came back UNKNOWN_CATEGORY from the cloud.
+test("a gadget the owner picks by link finds its category", async () => {
+  const { guessCategory } = await import("../src/lib/growth/deals.js");
+  for (const t of ["מיקרופון דש אלחוטי מקצועי עם חיבור Type-C לסמארטפונים", "מקליט קול מקצועי דיגיטלי 8G/16G + נגן MP3 + כונן פלאש USB", "Wireless lavalier microphone"]) assert.equal(guessCategory({ product_title: t })?.key, "tech", t);
+  assert.equal(guessCategory({ product_title: "סווטשירט קוריאני רחב עם קפוצ'ון" })?.key, "clothing");
+});
