@@ -1532,6 +1532,43 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 155.8
+   },
+   {
+    "id": "ae-1005012872093982",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "סט יוגה לייבוש מהיר לנשים",
+    "storeTitle": "סט יוגה חדש לייבוש מהיר לנשים, טרנינג 2 חלקים, סט ספורט נושם, מכנסי ספורט קצרים, ביגוד ספורט פנאי, ביגוד יוגה",
+    "category": "Fitness",
+    "kind": "fitness",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sa10d25d9c3ae4b9f969c3296da31e38dj.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c2u66hQf",
+    "aliexpressId": "1005012872093982",
+    "price": 108.99,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T12:50:38.422Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa10d25d9c3ae4b9f969c3296da31e38dj.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S166ad85e1b70470c88f4addc93c5a72be.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sb500efa532bc43b2b2e4817986ac25db1.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S57d87c9a1cb94e3da14ea4acc4df9316W.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S199b4a3aa22a44519e6fe990ac473fadF.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Seef52c2a10014646a1a1dc7fb35bf743M.jpg"
+    ],
+    "createdAt": 1794142238422,
+    "updatedAt": 1794142238422,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005012872093982",
+     "itemUrl": "https://he.aliexpress.com/item/1005012872093982.html?pdp_npi=6%40dis%21ILS%21173.00%21108.99%21%21%21351.70%21221.57%21%402102f1cd17941422400031078e0fdc%2112000059622560482%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T12:50:38.422Z"
+    },
+    "importSource": "aliexpress-owner-link",
+    "originalPrice": 173
    }
   ],
   "marketplace:marketers": [
