@@ -196,7 +196,7 @@ test("wiring: the daily import and the trend board use the deals rules; the pick
 // the highest demand. The hot-products list was full of wholesale lots.
 test("men, clothing and the car are deal categories with a shop kind of their own", async () => {
   const { SHOP_CIRCLES } = await import("../src/lib/homeShowcase.js");
-  for (const key of ["men", "clothing", "car"]) {
+  for (const key of ["men", "clothing", "car", "squishy", "smartwatch", "earbuds", "mensocks", "mentanks"]) {
     const c = dealCategory(key);
     assert.ok(c && c.keywords && c.maxPrice > 0, key);
     assert.ok(SHOP_CIRCLES.some((s) => s.en.toLowerCase() === c.kind), `${key} → a shop circle`);
@@ -211,4 +211,11 @@ test("a wholesale lot never passes; two or three in a set still can", async () =
     assert.equal(dealCheck({ ...ok, product_title: t }, dealCategory("hair")).reason, "bulk_pack", t);
   }
   for (const t of ["2 יחידות / מערכת צמיד", "Set of 3 rings", "צמיד 925 6mm", "ring 18k gold 10mm"]) assert.equal(isBulkPack(t), false, t);
+});
+
+// The owner's own examples (2026-11-08) were brand copies sold in deals channels.
+test("a brand copy never passes, in English or Hebrew", async () => {
+  const { hasBrandName } = await import("../src/lib/growth/deals.js");
+  for (const t of ["Lululemon zip hoodie", "LOEWE belt", "Alo Yoga hoodie", "Calvin Klein boxer", "Huawei watch GT", "הקפוצ'ון של לולולמון", "החגורה של לואווה", "קלווין קליין"]) assert.equal(hasBrandName(t), true, t);
+  for (const t of ["men cotton socks", "smart watch 1.96 inch", "squishy dumpling toy", "women zip hoodie"]) assert.equal(hasBrandName(t), false, t);
 });

@@ -37,6 +37,13 @@ export const TREND_CATEGORIES = Object.freeze([
   { key: "men", he: "לגברים", keywords: "men leather wallet", words: ["גברים", "לגבר", "ארנק", "men"] },
   { key: "clothing", he: "בגדים", keywords: "women knit sweater", words: ["סוודר", "חולצה", "בגדים", "sweater"] },
   { key: "car", he: "לרכב", keywords: "car interior accessories", words: ["רכב", "לרכב", "מכונית", "car"] },
+  // The owner, 2026-11-08: what the market wants right now — squishies for kids,
+  // smart watches, earbuds, quality men's socks and tank tops (never a brand copy).
+  { key: "squishy", he: "סקווישי וצעצועי לחץ", keywords: "squishy toy", words: ["סקווישי", "לחץ", "squishy"] },
+  { key: "smartwatch", he: "שעונים חכמים", keywords: "smart watch", words: ["שעון חכם", "שעונים חכמים", "smartwatch"] },
+  { key: "earbuds", he: "אוזניות אלחוטיות", keywords: "wireless earbuds bluetooth", words: ["אוזניות", "earbuds"] },
+  { key: "mensocks", he: "גרביים לגברים", keywords: "men cotton socks", words: ["גרביים", "socks"] },
+  { key: "mentanks", he: "גופיות לגברים", keywords: "men tank top cotton", words: ["גופייה", "גופיות", "tank top"] },
 ]);
 
 const https = (u) => String(u || "").trim().replace(/^http:\/\//, "https://").replace(/^\/\//, "https://");

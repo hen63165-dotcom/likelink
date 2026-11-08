@@ -41,6 +41,11 @@ const CATEGORY_DEALS = Object.freeze({
   men: { maxPrice: 80, kind: "men", category: "Men", noun: "" },
   clothing: { maxPrice: 90, kind: "clothing", category: "Fashion", noun: "" },
   car: { maxPrice: 60, kind: "car", category: "Car", noun: "" },
+  squishy: { maxPrice: 40, kind: "kids", category: "Kids", noun: "" },
+  smartwatch: { maxPrice: 120, kind: "gadgets", category: "Tech", noun: "" },
+  earbuds: { maxPrice: 90, kind: "gadgets", category: "Tech", noun: "" },
+  mensocks: { maxPrice: 50, kind: "men", category: "Men", noun: "" },
+  mentanks: { maxPrice: 60, kind: "men", category: "Men", noun: "" },
 });
 
 export const DEAL_CATEGORIES = Object.freeze(TREND_CATEGORIES.map((c) => Object.freeze({ ...c, ...CATEGORY_DEALS[c.key] })));
@@ -48,7 +53,7 @@ export const dealCategory = (key) => DEAL_CATEGORIES.find((c) => c.key === key) 
 
 // Names that, on AliExpress, mean an imitation of the brand, or a character/celebrity
 // sold without a licence (never the brand itself).
-const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו|pikachu|kuromi|cinnamoroll|rilakkuma|chiikawa|jiikawa|my\s*melody|פוקימון|פיקאצ'ו|קורומי|סינמורול|רילאקומה|צ'יקאווה|הלו\s*קיטי|סנריו|סטיץ'|מיקי\s*מאוס|פרוזן|ספיידרמן|spider-?man|frozen\s*elsa|paw\s*patrol|מפרץ\s*ההרפתקאות|peppa|פפה\s*פיג/i;
+const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|huawei|garmin|fitbit|amazfit|sony|bose|beats|jbl|calvin\s*klein|tommy\s*hilfiger|ralph\s*lauren|under\s*armour|puma|gymshark|lululemon|alo\s*yoga|loewe|dyson|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|לולולמון|לואווה|קלווין\s*קליין|הואווי|גרמין|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו|pikachu|kuromi|cinnamoroll|rilakkuma|chiikawa|jiikawa|my\s*melody|פוקימון|פיקאצ'ו|קורומי|סינמורול|רילאקומה|צ'יקאווה|הלו\s*קיטי|סנריו|סטיץ'|מיקי\s*מאוס|פרוזן|ספיידרמן|spider-?man|frozen\s*elsa|paw\s*patrol|מפרץ\s*ההרפתקאות|peppa|פפה\s*פיג/i;
 // Items the site does not list whatever their numbers: weapons, adult items, and
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
 const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
@@ -289,6 +294,8 @@ const EXTRA_WORDS = Object.freeze({
   hair: ["hair", "hairpin", "hairclip", "scrunchie", "שיער"], home: ["home decor", "תפאורה", "קישוט"], kitchen: ["kitchen", "מטבח"], kids: ["toy", "baby", "צעצוע", "תינוק", "ילד"],
   tech: ["phone", "earphone", "headphone", "charger", "טלפון", "אוזני", "מטען"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
   men: ["men", "גברים", "לגבר"], clothing: ["sweater", "cardigan", "hoodie", "סוודר", "קרדיגן", "חולצה"], car: ["car", "vehicle", "רכב", "לרכב"],
+  squishy: ["squishy", "fidget", "סקווישי"], smartwatch: ["smartwatch", "smart watch", "שעון חכם"], earbuds: ["earbuds", "tws", "אוזניות"],
+  mensocks: ["socks", "גרביים"], mentanks: ["tank top", "גופייה", "גופיות"],
 });
 
 /**
