@@ -1,6 +1,6 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
-import { isPromotable, sharedAffiliateLinks } from "../src/lib/discovery/catalogIntegrity.js";
+import { isPromotable, sharedAffiliateLinks, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
@@ -578,6 +578,28 @@ export function telegramVideoUrl(product) {
   return /^https:\/\//.test(v) ? v : "";
 }
 
+/**
+ * Where a post about one product points: the product's own page, whose preview
+ * is that product's photo and name. 2026-11-08: the first Telegram post named a
+ * ring and linked to the whole store, so Telegram's preview showed the store
+ * page's picture (a wall tapestry). A creator's own storeUrl still wins.
+ */
+export function productPostLink(cfg, origin, product, slug) {
+  const own = String(cfg?.storeUrl || "").trim();
+  if (own) return own;
+  if (product?.id) return `${origin}/p/${encodeURIComponent(product.id)}`;
+  return `${origin}/u/${slug}`;
+}
+
+/** The product's own photo for a Telegram photo post: https, never a stock photo. */
+export function telegramPhotoUrl(product) {
+  const img = String(product?.image || "");
+  // runOne swaps in a generated UGC picture as `image` (kept in `ugcImage`):
+  // that is not the store's photo of the item, so it never goes out as one.
+  if (product?.ugcImage && img === String(product.ugcImage)) return "";
+  return /^https:\/\//.test(img) && isRealProductPhoto(img) ? img : "";
+}
+
 async function sendTelegram(ch, text, product = null) {
   // A product with a verified video goes out as a video (Telegram fetches it from
   // the public media proxy); if Telegram refuses the file, the text post still goes.
@@ -593,6 +615,23 @@ async function sendTelegram(ch, text, product = null) {
       if (vr.ok) {
         const vd = await vr.json().catch(() => null);
         if (vd?.result?.message_id != null) return String(vd.result.message_id);
+      }
+    } catch { /* fall through to the text post */ }
+  }
+  // Otherwise the product's own photo with the post as its caption, so the
+  // picture is the item the post names; if Telegram refuses it, the text goes.
+  const photo = telegramPhotoUrl(product);
+  if (photo && String(text || "").length <= 1024) {
+    try {
+      const pr = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendPhoto`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: cleanChatId(ch.chatId), photo, caption: String(text || "") }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (pr.ok) {
+        const pd = await pr.json().catch(() => null);
+        if (pd?.result?.message_id != null) return String(pd.result.message_id);
       }
     } catch { /* fall through to the text post */ }
   }
@@ -1027,7 +1066,7 @@ export async function runOne(store, marketerId, cfg, origin) {
   }
 
   const slug = marketer?.slug || marketerId;
-  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+  const baseLink = productPostLink(cfg, origin, product, slug);
   const tags = pickTags(product);
 
   // Custom template wins if the creator wrote one; otherwise the smart
@@ -1132,7 +1171,7 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
   }
   const marketer = (Array.isArray(marketersRow) ? marketersRow : []).find((m) => m.id === marketerId);
   const slug = marketer?.slug || marketerId;
-  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+  const baseLink = productPostLink(cfg, origin, product, slug);
 
   const results = [];
   for (const ch of cfg.channels) {
@@ -1188,7 +1227,7 @@ export async function announcePriceDrop(marketerId, product, listed, live, origi
 async function announceNewProduct(store, marketerId, cfg, product, origin) {
   const marketer = (store.__marketers || []).find((m) => m.id === marketerId);
   const slug = marketer?.slug || marketerId;
-  const baseLink = cfg.storeUrl?.trim() || `${origin}/u/${slug}`;
+  const baseLink = productPostLink(cfg, origin, product, slug);
   const tags = pickTags(product);
 
   // Same caption engine as the scheduled run — consistent voice everywhere.
