@@ -1717,6 +1717,43 @@
     },
     "importSource": "aliexpress-owner-link",
     "originalPrice": 314.78
+   },
+   {
+    "id": "ae-1005013327851644",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "סט טרנינג טרנדי לשנת",
+    "storeTitle": "סט טרנינג טרנדי חדש לשנת 2026, הכולל סווטשירט עם קפוצ'ון ומכנסי טרנינג, בעיצוב מונוכרום איכותי, מתאים ללבוש יומיומי.",
+    "category": "Fashion",
+    "kind": "clothing",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S7d932f3e7e9642b1967ff690947d4f28B.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmRAOtfwXY8zPCy9Bx8PtGDHEjx8XoNAHLuVgJB7mbruYxJIWZ1Mmad9L6zDXgzXQzvKajk9EU5rF4WQBAaTs4gQJULuSFLkY8MYlueUGsrlzQgxFZlvNLE4HqkbRkCGgNyWFGny9M35PvG5q3gCuhfCDOItxccP4I7M4gMf1T14fLuYTaon2GgNO0X6g1fH9Kd4dn6EwWeS2lFDGNIfet9fx1UlNqKjZ374jsZEdVglRMDcwRYD0PekB6vrDZWy3xzGmaIx0ObzXNrzcq0aSL5ft5PjRkgqIfmXjeuuY55OWI25JYtkZM4b1WSIq9qomqzQHEymxVIozrQGmgT8XM9C0HRLmpRxNAgEnUQBs4Ue4kXZOwRBIoWvILG2YBOP9ayUDfU7mtvi6RUnZ9tuMHUOvGApkZvwUnOenaVvzXmUPOtULMocKfFAa1iYsbxdIzHlSnAEfgrRtH0TYc8YgwWw6VfMjfZkaqr54LRtv8M2OahmjFp86aBYWj0mkBd8JxrQLVcsyUuuYmvxbqoiYdiwt8qYolFu2XvB4nFpG8SioQTFEvzMMPW4BSR5XR2tiBrRKxZwkgre4CJDizrL9j7cEPaShhPvf3CPwaHZNXSSIyBuXGjqm7zSkZN94eWpxlQztvWdNknCDW6NB77w5y3DFkn0O2iqs4Is8njUV6DFT4p9q2uUFSiK6tid28cGW06UAyWJNJ099W",
+    "aliexpressId": "1005013327851644",
+    "price": 73.95,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T12:55:22.705Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S7d932f3e7e9642b1967ff690947d4f28B.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Se070ed5b86954526874cd7c1fd257a16U.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sdaffabdb0ca74ba9870374a78af7034bc.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S350cfcdb37ef47eb9fb6e55ff0df04c3c.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S25509b65b5ce4fefb1c0894aa8a08758x.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S70fff9cec15d4c7fab24e25a4cfcc2ccV.jpg"
+    ],
+    "createdAt": 1794142522705,
+    "updatedAt": 1794142522705,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005013327851644",
+     "itemUrl": "https://he.aliexpress.com/item/1005013327851644.html?pdp_npi=6%40dis%21ILS%21165.65%2173.95%21%21%21336.75%21150.33%21%402151fca717941425236522786e0e23%2112000060897392830%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T12:55:22.705Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 165.65
    }
   ],
   "marketplace:marketers": [
