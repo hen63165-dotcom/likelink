@@ -1458,6 +1458,80 @@
     },
     "importSource": "aliexpress-owner-link",
     "originalPrice": 38.16
+   },
+   {
+    "id": "ae-1005013299422092",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "סווטשירט קוריאני רחב עם קפוצ'ון",
+    "storeTitle": "סווטשירט קוריאני רחב עם קפוצ'ון, בעיצוב אופנתי, מתאים לגברים ולנשים, שרוולים ארוכים, מתאים לעונת הסתיו, מותג יוקרתי, עם רקמה, סגנון בוטיק.",
+    "category": "Fashion",
+    "kind": "clothing",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S838d0504b0e647f685ea86b630f800b7G.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C4OCFug3oOsdnsY6KYppJY6aGiIM6uGKCyI00oAh8PxkNH58wVyRsR7mvNIJas4Ec0Ox1Zeigoz4zOEt2JFMMM1O72n9aWlApZ6T4YZKwgudmqpV5Hz8dKQVqFEUKbPmKD6ekFKnxEWkruCqEJaKBHrdkIm6W9b8ocK5By7IxeDIe7U4f8cQbgBsYvcJq3o8pVwPGUPHOThVtcn2fMJHkaQpbHuWa3A5leCKakJ1HkeBRYDuovY6g59ED7ASbWqcy5sg7zQIYQWtNJbpQeoScI0lsvLWOELVsBbfHDZB5xBsZjDcCYgXizFGLHkTtrYd0hNKuOhDiLgsX99NND3bM6I1uNUvgcO3BxF2Dudm5wco8Gx6NSezzkmYEuNqIA0UEaRL5SxIdubeGIrYhAUZIT5ZbmRxeGE85c5AkQBrymCBopUbPs9DSRTAJLbfkOaWIMv9HrPQdt3hlxbKdijNX8L4EHXo95FoBEUMzl6ZhX6bZ28Ak7d1HasoANzPoaxOJYJfDQeIoZ40xA06aS8JZJYaQ4S9dEjJ4rivhio6PJe5znkoXgyCnGgaIXpvmCh8jzMK4igjWLzmZlFVkXJX8r8jf1ERamhWJxy1VSQnUYwXkiAMyKQUuiSgpBXIdw8kplZB2J5HJK1RFY1ttWnnbIWpMWhcdlpWj9Nae5Eqk15vfBW78OH2nrTNEnbdfStxsUZFqkPUakxebn",
+    "aliexpressId": "1005013299422092",
+    "price": 42.19,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T12:48:12.697Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S838d0504b0e647f685ea86b630f800b7G.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa9496107f2d3468a814a8a6cfe576bc66.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sc683e930131346d3b2bfb3a7281bd215X.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S327d00739c92462fa29e2a5a4459e663l.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S7578eddc70944913ad3e56189f575fe88.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S726348c2fdd2481e90221b4399eceaa9B.jpg"
+    ],
+    "createdAt": 1794142092697,
+    "updatedAt": 1794142092697,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005013299422092",
+     "itemUrl": "https://he.aliexpress.com/item/1005013299422092.html?pdp_npi=6%40dis%21ILS%2193.42%2142.19%21%21%21189.91%2185.77%21%40212a7b8d17941420953904810e0f05%2112000060741963317%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T12:48:12.697Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 93.42
+   },
+   {
+    "id": "ae-1005010004260060",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מגפי שלג לנשים חורף קשמיר סוליות עבות ללא שיער מכוסה עקב",
+    "storeTitle": "מגפי שלג לנשים 2026 חורף חדש קשמיר חם סוליות עבות ללא שיער מכוסה עקב נעלי כותנה חצי כפכף לנשים",
+    "category": "Fashion",
+    "kind": "clothing",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S24ded3c323d94633b36615753cbfadcd3.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C211rrxhniBpnPw6Mrni4h1C3MQQoT2siKVgMSD2SbaHAsJ3zRwkLEPs2uVt2L6FQrDGnvifxfjAQu4AVZExnc9kH7I10glYtdmpWc3mxVm0EqbWsvzqDSeLVIQC4r7dRjexXcZ9J9IW82UPQcIIkJDzlM73CQOQ3ycDWxA6dM1ZPgbVlaexV9MeuYEB53vb7lCyHSZLRSHQ8xkTr6A6vx0TPVwIEuUH9M6a7lTCXSDzkBx4JM6va8HQd3L6BFxgihBDhkQpBGeXByM17YmnqdndjEebbz4nKOtbUW2uzYTMrLZND638zN56oqAkOKWTHG9xm4pPXsotQph60V87XfaguGZMNvwU8CBRtXtOSfy8ZAPTb6Dkph2apWBWhL0z7EUf7FjXLmdN4E82btve7qTaKDKGDdDqQJPFUL7FLgkg0zLFo3Ng0NIpOwOAYFDIPWOd45jDKKlGZi3ksJqBtOCg3UdGxmekMMZUYV1z2OB8FtMit1xkN36ieoAuWwYPOV11HR5ohCY68YOBggPaLpYMuZJMtKKqITNsDWgEQSoV1Zbr3Je63o27QzLkfzY7CG7OnqHE84drBK9qp5NQrR3YgxZaW3GFY67zcUmffNjdEjUDUlCpmeN37vJB7cwZPTGwsQ0wb6zNNB2xQDaFMmKKIqtULtKbxOsaT7AAtFn1QK5wWm2VzfZvftr1LzSA3Y6YlBNZqTE984",
+    "aliexpressId": "1005010004260060",
+    "price": 77.9,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T12:48:12.697Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S24ded3c323d94633b36615753cbfadcd3.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S6dd9f1bf83a641f29cfc6ec65a816f2d2.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S1ed63608ff6c4f158414132d7bce02afH.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S60b5fc817c1c4a9f9c913d153b60fdbbY.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S89aaf9d6adcc4ff8a9b726ec1b5f91edJ.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sb21472b839c2437a91ec05fb6fc3d237A.jpg"
+    ],
+    "createdAt": 1794142092697,
+    "updatedAt": 1794142092697,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005010004260060",
+     "itemUrl": "https://he.aliexpress.com/item/1005010004260060.html?pdp_npi=6%40dis%21ILS%21155.80%2177.90%21%21%21316.73%21158.36%21%40212a7b8d17941420953904810e0f05%2112000050814692650%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T12:48:12.697Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 155.8
    }
   ],
   "marketplace:marketers": [
