@@ -146,10 +146,10 @@ export const AUTOPILOT_INTERVALS = [
   { minutes: 1440, label: "פעם ביום" },
 ];
 
-export const TEMPLATE_VARS = ["{name}", "{price}", "{category}", "{description}", "{link}"];
+export const TEMPLATE_VARS = ["{name}", "{pitch}", "{price}", "{category}", "{description}", "{link}"];
 
 export function defaultTemplate() {
-  return "#פרסומת · קישור שותפים\n🛍️ {name}\nתמונות, מה לבדוק לפני שקונים, והקישור לחנות 👇\n{link}";
+  return "#פרסומת · קישור שותפים\n🛍️ {name}\n{pitch}\nתמונות, מה לבדוק לפני שקונים, והקישור לחנות 👇\n{link}";
 }
 
 
