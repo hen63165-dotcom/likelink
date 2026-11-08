@@ -1,0 +1,53 @@
+# AliExpress search for a person to choose by eye (scripts/catalog/ali-search.mjs): one
+# kind of item, the store's own numbers decide what is shown (FIND_RULES), the candidates
+# and a numbered photo sheet go to the "search-preview" pre-release. Read-only: nothing is
+# added to the site and the site never reads that release.
+name: AliExpress search
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: "A file in scripts/catalog/searches/"
+        required: true
+        default: scripts/catalog/searches/iron.json
+  push:
+    paths:
+      - scripts/catalog/searches/**
+      - scripts/catalog/ali-search.mjs
+      - .github/workflows/ali-search.yml
+permissions:
+  contents: write
+concurrency:
+  group: ali-search-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+      ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+      ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+      QUERY: ${{ github.event.inputs.query || 'scripts/catalog/searches/iron.json' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install ffmpeg
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-dejavu-core >/dev/null
+      - name: Search
+        run: |
+          set -o pipefail
+          node scripts/catalog/ali-search.mjs "$QUERY" search-out | tee /tmp/report.txt
+          { echo "### AliExpress search"; echo '```'; cat /tmp/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Store on the preview release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(search-out/*.json search-out/*.jpg)
+          [ ${#files[@]} -gt 0 ] || { echo "nothing found"; exit 0; }
+          gh release view search-preview >/dev/null 2>&1 || gh release create search-preview --prerelease --title "AliExpress search (review)" --notes "Candidates from an AliExpress search, for a person to choose by eye. Nothing here is on the site."
+          gh release upload search-preview "${files[@]}" --clobber
