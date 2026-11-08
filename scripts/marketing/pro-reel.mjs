@@ -52,7 +52,7 @@ export function lineProblems(job) {
     if (DROP_FORBIDDEN.test(s)) out.push(`claim rule (drop): ${s}`);
     if (hasBrandName(s)) out.push(`brand name: ${s}`);
   }
-  if (!job.hook || job.hook.split(/\s+/).length > 8) out.push("the hook needs 1–8 words");
+  if (!job.hook || job.hook.trim().split(/\s+/).length > 8) out.push("the hook needs 1–8 words");
   return out;
 }
 
@@ -64,6 +64,8 @@ export function shotPhotos(images, pick) {
 }
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+// A line may carry its own break ("\n"), where the words read best.
+const escBr = (s) => esc(s).replace(/\n/g, "<br>");
 
 function fontFaces(dir = process.env.FONTSOURCE_DIR || "/tmp/pw/node_modules/@fontsource") {
   const faces = [];
@@ -92,10 +94,10 @@ const CSS = `
 export function overlayHtml(job) {
   return {
     labels: `<div class="labels"><span>#פרסומת · קישור שותפים</span><span>${esc(job.credit || "תמונות: המוכר")}</span></div>`,
-    hook: `<div class="cap hook"><b>${esc(job.hook)}</b></div>`,
-    what: `<div class="cap small"><b>${esc(job.what)}</b></div>`,
-    tip: `<div class="cap small"><b>${esc(job.tip)}</b></div>`,
-    end: `<div class="end"><h1>${esc(job.name)}</h1><p>רוצה את הקישור?</p><div class="cta">${esc(job.cta || "תגיבי 'אני'")}</div><small>ואשלח לך בהודעה פרטית</small></div>`,
+    hook: `<div class="cap hook"><b>${escBr(job.hook)}</b></div>`,
+    what: `<div class="cap small"><b>${escBr(job.what)}</b></div>`,
+    tip: `<div class="cap small"><b>${escBr(job.tip)}</b></div>`,
+    end: `<div class="end"><h1>${escBr(job.name)}</h1><p>רוצה את הקישור?</p><div class="cta">${esc(job.cta || "תגיבי 'אני'")}</div><small>ואשלח לך בהודעה פרטית</small></div>`,
   };
 }
 
@@ -215,7 +217,7 @@ export async function renderReel({ page, job, product, work, out }) {
   const cuts = Array.from({ length: SHOTS }, (_, k) => Number(((k + 1) * SHOT - 0.15).toFixed(3)));
   const wIn = n + 1;
   const aParts = cuts.map((c, i) => `[${wIn}:a]adelay=${Math.round(c * 1000)}|${Math.round(c * 1000)}[w${i}]`);
-  const audio = `${aParts.join(";")};[${n}:a]${cuts.map((_, i) => `[w${i}]`).join("")}amix=inputs=${cuts.length + 1}:normalize=0,atrim=0:${TOTAL},afade=t=out:st=${TOTAL - 0.8}:d=0.8[a]`;
+  const audio = `${aParts.join(";")};[${n}:a]${cuts.map((_, i) => `[w${i}]`).join("")}amix=inputs=${cuts.length + 1}:normalize=0,atrim=0:${TOTAL},afade=t=out:st=${TOTAL - 0.8}:d=0.8,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`;
   const mp4 = join(out, `${job.id}.mp4`);
   ff([
     ...segs.flatMap((f) => ["-i", f]),
