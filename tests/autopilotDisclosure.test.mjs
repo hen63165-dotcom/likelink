@@ -31,3 +31,26 @@ test("the default template opens with the disclosure and promises no price", () 
   assert.doesNotMatch(tpl, /מחיר מיוחד|\{price\}/);
   assert.match(tpl, /\{link\}/);
 });
+
+// 2026-11-08: the owner's channel name was saved with an invisible U+200E
+// copied from a Hebrew message, and Telegram would answer "chat not found".
+test("a Telegram channel name loses invisible direction marks and spaces", async () => {
+  const { cleanChatId } = await import("../api/autopilot.mjs");
+  assert.equal(cleanChatId("\u200e@likelink_deals"), "@likelink_deals");
+  assert.equal(cleanChatId(" @likelink_deals\u200f "), "@likelink_deals");
+  assert.equal(cleanChatId("\u2066-1001234567890\u2069"), "-1001234567890");
+  assert.equal(cleanChatId(""), "");
+  const src = readFileSync(new URL("../api/autopilot.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /chat_id: ch\.chatId/);
+});
+
+test("the discovery Telegram publisher sends the cleaned channel name", async () => {
+  const { publishToTelegram } = await import("../src/lib/discovery/publishers/telegram.js");
+  let sent = null;
+  const fetchImpl = async (_url, init) => {
+    sent = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ ok: true, result: { message_id: 7, chat: { username: "likelink_deals" } } }) };
+  };
+  await publishToTelegram({ botToken: "123456:" + "a".repeat(35), chatId: "\u200e@likelink_deals", text: "x", fetchImpl });
+  assert.equal(sent.chat_id, "@likelink_deals");
+});
