@@ -181,6 +181,16 @@ export async function renderReel({ page, job, product, work, out }) {
   const local = [];
   for (let i = 0; i < images.length; i++) local.push(await fetchTo(images[i], join(work, `${job.id}-g${i + 1}.jpg`)));
   gallerySheet(local, join(out, `${job.id}-gallery.jpg`));
+  // crop: per photo number [x, y, w, h] (fractions of the photo), chosen by eye to leave out the store's
+  // printed text and marks; the shot then covers or fits the cropped part.
+  for (const [num, box] of Object.entries(job.crop || {})) {
+    const i = Number(num) - 1;
+    if (!local[i] || !Array.isArray(box) || box.length !== 4 || box.some((v) => !(v >= 0 && v <= 1))) throw new Error(`${job.id}: bad crop for photo ${num}`);
+    const [x, y, w, h] = box;
+    const cropped = join(work, `${job.id}-g${num}c.jpg`);
+    ff(["-i", local[i], "-vf", `crop=iw*${w}:ih*${h}:iw*${x}:ih*${y}`, "-q:v", "2", cropped]);
+    local[i] = cropped;
+  }
   const photos = shotPhotos(local, job.photos);
   const focus = job.focus || {};
   const png = await drawOverlays(page, job, work);
