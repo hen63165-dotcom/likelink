@@ -38,6 +38,9 @@ const CATEGORY_DEALS = Object.freeze({
   tech: { maxPrice: 60, kind: "gadgets", category: "Tech", noun: "" },
   fitness: { maxPrice: 80, kind: "fitness", category: "Fitness", noun: "" },
   pets: { maxPrice: 50, kind: "pets", category: "Pets", noun: "" },
+  men: { maxPrice: 80, kind: "men", category: "Men", noun: "" },
+  clothing: { maxPrice: 90, kind: "clothing", category: "Fashion", noun: "" },
+  car: { maxPrice: 60, kind: "car", category: "Car", noun: "" },
 });
 
 export const DEAL_CATEGORIES = Object.freeze(TREND_CATEGORIES.map((c) => Object.freeze({ ...c, ...CATEGORY_DEALS[c.key] })));
@@ -49,6 +52,13 @@ const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\b
 // Items the site does not list whatever their numbers: weapons, adult items, and
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
 const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
+
+// Wholesale lots ("100 יחידות", "10 pcs", "סיטונאי"): the hot-products list is
+// full of them (2026-11-08: pompoms by the hundred, wholesale chains), and nobody
+// buys a gift by the dozen. Two or three in a set stay.
+const BULK_PACK = /wholesale|סיטונא|\b\d{2,4}\s*(?:pcs|pieces|pc)\b|(?<![\d\p{L}])\d{2,4}\s*(?:יחידות|יח')/iu;
+/** A wholesale lot in a store title (ten or more units, or "wholesale"). */
+export const isBulkPack = (title = "") => BULK_PACK.test(String(title || ""));
 
 /** A brand, character or celebrity name in a store title (on AliExpress: an imitation, or no licence). */
 export const hasBrandName = (title = "") => BRAND_IMITATION.test(String(title || ""));
@@ -86,6 +96,7 @@ export function dealCheck(x = {}, category, rules = DEAL_RULES) {
   if (category?.maxPrice && price > category.maxPrice) return { ok: false, reason: "price_above_cap" };
   if (pos === null || pos < rules.minPositivePct) return { ok: false, reason: "rating_below_rule" };
   if (orders === null || orders < rules.minOrders) return { ok: false, reason: "orders_below_rule" };
+  if (BULK_PACK.test(title)) return { ok: false, reason: "bulk_pack" };
   if (BRAND_IMITATION.test(title)) return { ok: false, reason: "brand_name" };
   if (NOT_LISTED.test(title)) return { ok: false, reason: "not_listed_kind" };
   return { ok: true };
@@ -277,6 +288,7 @@ const EXTRA_WORDS = Object.freeze({
   watches: ["watch", "שעון"], bags: ["bag", "handbag", "wallet", "תיק", "ארנק"], beauty: ["makeup", "cosmetic", "איפור", "יופי"],
   hair: ["hair", "hairpin", "hairclip", "scrunchie", "שיער"], home: ["home decor", "תפאורה", "קישוט"], kitchen: ["kitchen", "מטבח"], kids: ["toy", "baby", "צעצוע", "תינוק", "ילד"],
   tech: ["phone", "earphone", "headphone", "charger", "טלפון", "אוזני", "מטען"], fitness: ["fitness", "sport", "yoga", "כושר", "ספורט", "יוגה"], pets: ["pet", "dog", "cat", "כלב", "חתול", "חיות"],
+  men: ["men", "גברים", "לגבר"], clothing: ["sweater", "cardigan", "hoodie", "סוודר", "קרדיגן", "חולצה"], car: ["car", "vehicle", "רכב", "לרכב"],
 });
 
 /**

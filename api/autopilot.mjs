@@ -1,6 +1,7 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
+import { pitchFor } from "../src/lib/growth/postPitches.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
 
@@ -329,17 +330,27 @@ export function buildSchedulerReport(jobs, persistenceOverride = null) {
 
 // ─── content generation ─────────────────────────────────────────────────────
 
-function renderTemplate(tpl, p, link) {
+export function renderTemplate(tpl, p, link) {
+  // A product with written words (src/lib/growth/postPitches.js) gets its plain
+  // name and its few lines; without them {pitch} is empty and its line goes.
+  const pitch = pitchFor(p);
   const map = {
-    "{name}": p.title || p.name || "",
+    "{name}": pitch?.title || p.title || p.name || "",
+    "{pitch}": pitch?.text || "",
     "{price}": p.price != null ? String(p.price) : "",
     "{category}": p.category || "",
     "{description}": p.description || "",
     "{link}": link,
   };
   let out = String(tpl || "");
+  // A template written before {pitch} existed still gets the words, under the name line.
+  if (pitch && !out.includes("{pitch}")) {
+    out = /\{name\}[^\n]*/.test(out) ? out.replace(/(\{name\}[^\n]*)/, "$1\n{pitch}") : `${out}\n{pitch}`;
+  }
+  // A line that holds only {pitch} goes away when there are no written words.
+  if (!pitch) out = out.replace(/^[ \t]*\{pitch\}[ \t]*(\r?\n|$)/gm, "");
   for (const [k, v] of Object.entries(map)) out = out.split(k).join(v);
-  return out.trim();
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // Every creator post about a product says it is an ad with an affiliate link,
@@ -591,6 +602,26 @@ export function productPostLink(cfg, origin, product, slug) {
   return `${origin}/u/${slug}`;
 }
 
+/**
+ * Up to five of the store's own photos of the item for a Telegram album (the
+ * main photo first), so a post shows the item the way its listing does.
+ * Never a stock photo or a generated UGC picture; fewer than two → no album.
+ */
+export function telegramAlbum(product) {
+  const main = telegramPhotoUrl(product);
+  const ugc = String(product?.ugcImage || "");
+  const seen = new Set();
+  const out = [];
+  for (const u of [main, ...(Array.isArray(product?.images) ? product.images : [])]) {
+    const url = String(u || "").trim();
+    if (!/^https:\/\//.test(url) || !isRealProductPhoto(url) || (ugc && url === ugc) || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= 5) break;
+  }
+  return out.length >= 2 ? out : [];
+}
+
 /** The product's own photo for a Telegram photo post: https, never a stock photo. */
 export function telegramPhotoUrl(product) {
   const img = String(product?.image || "");
@@ -618,8 +649,24 @@ async function sendTelegram(ch, text, product = null) {
       }
     } catch { /* fall through to the text post */ }
   }
-  // Otherwise the product's own photo with the post as its caption, so the
-  // picture is the item the post names; if Telegram refuses it, the text goes.
+  // Otherwise an album of the store's photos with the post as the first one's
+  // caption (one message id stands for the post); then a single photo; then text.
+  const album = telegramAlbum(product);
+  if (album.length && String(text || "").length <= 1024) {
+    try {
+      const ar = await fetch(`https://api.telegram.org/bot${ch.botToken}/sendMediaGroup`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: cleanChatId(ch.chatId), media: album.map((media, i) => (i === 0 ? { type: "photo", media, caption: String(text || "") } : { type: "photo", media })) }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (ar.ok) {
+        const ad = await ar.json().catch(() => null);
+        const first = Array.isArray(ad?.result) ? ad.result[0] : null;
+        if (first?.message_id != null) return String(first.message_id);
+      }
+    } catch { /* fall through to a single photo */ }
+  }
   const photo = telegramPhotoUrl(product);
   if (photo && String(text || "").length <= 1024) {
     try {
@@ -1024,7 +1071,8 @@ function pickProduct(cfg, pool) {
   for (const h of cfg.history || []) {
     if (!lastPost[h.productId] || h.ts > lastPost[h.productId]) lastPost[h.productId] = h.ts;
   }
-  items.sort((a, b) => (lastPost[a.id] || 0) - (lastPost[b.id] || 0));
+  // Among products posted equally long ago, one with written words goes first.
+  items.sort((a, b) => (lastPost[a.id] || 0) - (lastPost[b.id] || 0) || (pitchFor(b) ? 1 : 0) - (pitchFor(a) ? 1 : 0));
   return items[0];
 }
 
