@@ -217,5 +217,7 @@ test("a wholesale lot never passes; two or three in a set still can", async () =
 test("a brand copy never passes, in English or Hebrew", async () => {
   const { hasBrandName } = await import("../src/lib/growth/deals.js");
   for (const t of ["Lululemon zip hoodie", "LOEWE belt", "Alo Yoga hoodie", "Calvin Klein boxer", "Huawei watch GT", "הקפוצ'ון של לולולמון", "החגורה של לואווה", "קלווין קליין"]) assert.equal(hasBrandName(t), true, t);
+  // The probe of 2026-11-08 let these through: Hebrew titles and tech brands that were not on the list.
+  for (const t of ["Lenovo LP40 Pro earbuds", "HTC NE79 earbuds", "strap for Mi Band 9", "רצועה לשיאומי", "אוזניות של לנובו", "כיסוי לאייפון", "רצועה לפיטביט", "Patek style watch"]) assert.equal(hasBrandName(t), true, t);
   for (const t of ["men cotton socks", "smart watch 1.96 inch", "squishy dumpling toy", "women zip hoodie"]) assert.equal(hasBrandName(t), false, t);
 });
