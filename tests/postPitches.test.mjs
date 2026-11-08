@@ -32,7 +32,7 @@ test("the default template uses the written words, and a product without them lo
   const tpl = defaultTemplate();
   assert.match(tpl, /\{pitch\}/);
   const withPitch = renderTemplate(tpl, { id: "ae-1005012613833998", title: "store words" }, "https://x/p/1");
-  assert.match(withPitch, /^#פרסומת · קישור שותפים\n🛍️ מעמד טלפון לרכב\nנתפס בפתח המזגן/);
+  assert.match(withPitch, /^#פרסומת · קישור שותפים\n🛍️ מעמד טלפון לרכב\nהניווט מול העיניים/);
   const plain = renderTemplate(tpl, { id: "p-live-01", title: "טבעת" }, "https://x/p/2");
   assert.doesNotMatch(plain, /\n\n/);
   assert.match(plain, /🛍️ טבעת\nתמונות/);
@@ -49,6 +49,6 @@ test("an album is the store's own photos, main first, at most five, never stock 
 test("a template saved before {pitch} existed still shows the words under the name", () => {
   const old = "#פרסומת · קישור שותפים\n🛍️ {name}\nתמונות, מה לבדוק לפני שקונים, והקישור לחנות 👇\n{link}";
   const out = renderTemplate(old, { id: "ae-1005012986704439" }, "https://x/p/3");
-  assert.match(out, /🛍️ רצועה נשלפת לכלב\nארוכה כשהכלב/);
+  assert.match(out, /🛍️ רצועה נשלפת לכלב\nרצועה נשלפת לכלב 🐶 ארוכה/);
   assert.equal(renderTemplate(old, { id: "p-live-01", title: "טבעת" }, "https://x/p/4"), old.replace("{name}", "טבעת").replace("{link}", "https://x/p/4"));
 });
