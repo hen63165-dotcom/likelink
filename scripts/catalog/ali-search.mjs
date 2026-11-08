@@ -66,6 +66,16 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
       }
     }
   }
+  // Named items (query.ids): read each one's own store page data, to see all its photos.
+  for (const id of query.ids || []) {
+    try {
+      const res = await aeCall("aliexpress.affiliate.productdetail.get", { product_ids: String(id), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
+      const x = res?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product?.[0];
+      const c = x ? candidate(x) : { ok: false, reason: "not_returned" };
+      if (c.ok) { c.choose.orders = Number.MAX_SAFE_INTEGER - (query.ids.indexOf(id)); seen.set(c.item.id, c); }
+      log.push(`id ${id}: ${c.ok ? "ok" : c.reason}`);
+    } catch (err) { log.push(`id ${id}: ${String(err?.message || err).slice(0, 100)}`); }
+  }
   // Recent orders first: the store's own measure of what people really buy.
   const all = [...seen.values()].sort((a, b) => b.choose.orders - a.choose.orders).slice(0, Number(query.max) || 12);
   return { all, log };
@@ -74,6 +84,7 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
 async function sheet(items, file, work) {
   mkdirSync(work, { recursive: true });
   const tiles = [];
+  if (items.full) return fullSheet(items, file, work);
   for (const [i, c] of items.entries()) {
     const src = join(work, `${i}.jpg`);
     try {
@@ -94,6 +105,33 @@ async function sheet(items, file, work) {
   return rows > 0;
 }
 
+/** Every photo of every item, one row per item, numbered "item.photo", for choosing a reel's shots by eye. */
+async function fullSheet(items, file, work) {
+  const rows = [];
+  for (const [i, c] of items.entries()) {
+    const tiles = [];
+    for (const [k, url] of c.item.photos.entries()) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+        if (!res.ok) continue;
+        const src = join(work, `${i}-${k}.jpg`), tile = join(work, `t${i}-${k}.jpg`);
+        writeFileSync(src, Buffer.from(await res.arrayBuffer()));
+        execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", src, "-vf", `scale=360:360:force_original_aspect_ratio=decrease,pad=360:400:(ow-iw)/2:0:white,drawtext=text='${i + 1}.${k + 1}':x=10:y=365:fontsize=28:fontcolor=black`, tile]);
+        tiles.push(tile);
+      } catch { /* left out */ }
+    }
+    if (!tiles.length) continue;
+    const row = join(work, `row${i}.jpg`);
+    if (tiles.length === 1) execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", tiles[0], row]);
+    else execFileSync("ffmpeg", ["-y", "-loglevel", "error", ...tiles.flatMap((t) => ["-i", t]), "-filter_complex", `hstack=inputs=${tiles.length}`, row]);
+    rows.push(row);
+  }
+  if (!rows.length) return false;
+  if (rows.length === 1) execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", rows[0], "-q:v", "3", file]);
+  else execFileSync("ffmpeg", ["-y", "-loglevel", "error", ...rows.flatMap((r) => ["-i", r]), "-filter_complex", `${rows.map((_, i) => `[${i}:v]pad=2160:400:0:0:white[r${i}]`).join(";")};${rows.map((_, i) => `[r${i}]`).join("")}vstack=inputs=${rows.length}`, "-q:v", "3", file]);
+  return true;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [queryFile, out = "search-out"] = process.argv.slice(2);
   const query = JSON.parse(readFileSync(queryFile, "utf8"));
@@ -102,6 +140,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   for (const line of log) console.log(line);
   all.forEach((c, i) => console.log(`${i + 1}. ${c.item.id} ₪${c.item.price} · orders ${c.choose.orders} · ${c.choose.rating}% · video ${c.item.video ? "yes" : "no"} · ${c.item.title.slice(0, 90)}`));
   writeFileSync(join(out, `${query.name}.json`), JSON.stringify(all.map((c, i) => ({ n: i + 1, ...c.item })), null, 2));
-  if (all.length) await sheet(all, join(out, `${query.name}-sheet.jpg`), join(out, "work"));
+  if (all.length) await sheet(Object.assign(all, { full: Boolean(query.full) }), join(out, `${query.name}-sheet.jpg`), join(out, "work"));
   if (!all.length) { console.error("no candidate passed the rules"); process.exit(1); }
 }
