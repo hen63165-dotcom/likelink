@@ -6,7 +6,8 @@
 // and the store button one exit (med "magic") in the owner's numbers.
 import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ClipboardPaste, ExternalLink, Info, Octagon, Search, Smartphone, Sparkles } from "lucide-react";
-import { MAGIC_FAQ, MAGIC_PATH, RECENT_KEY, addRecent, catalogMatch, firstLink, isStoreLink, shekel } from "../../lib/growth/magic.js";
+import { MAGIC_FAQ, MAGIC_PATH, RECENT_KEY, addRecent, catalogMatch, firstLink, isStoreLink, priceMemory, shekel, shortDate } from "../../lib/growth/magic.js";
+import { activeSeasons, seasonName } from "../../lib/saleSeason.js";
 import { trackFunnel, BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
@@ -187,8 +188,43 @@ const readRecent = () => {
   try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; }
 };
 const writeRecent = (list) => {
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch { /* private mode: the list lives for this visit only */ }
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); return true; } catch { /* private mode: the list lives for this visit only */ return false; }
 };
+
+/**
+ * The price memory under the price: what she saw on an earlier check of the same
+ * item, on this device (priceMemory), or, on a first check that was saved, when
+ * to check again. Both are the store's own "from" prices read by the button.
+ */
+function PriceMemory({ memory, saved, price }) {
+  const { L, lang } = useL();
+  if (memory) {
+    const date = shortDate(memory.at);
+    const was = `₪${shekel(memory.was)}`, now = `₪${shekel(memory.now)}`, diff = `₪${shekel(memory.diff)}`;
+    const line = memory.change === "down"
+      ? L(`בבדיקה שלך ב־${date} המחיר היה ${was}. עכשיו ${now}: ירד ב־${diff}.`, `When you checked on ${date} it was ${was}. Now ${now}: down ${diff}.`)
+      : memory.change === "up"
+        ? L(`בבדיקה שלך ב־${date} המחיר היה ${was}. עכשיו ${now}: עלה ב־${diff}.`, `When you checked on ${date} it was ${was}. Now ${now}: up ${diff}.`)
+        : L(`בבדיקה שלך ב־${date} המחיר היה ${was}, וגם עכשיו.`, `When you checked on ${date} it was ${was}, and it still is.`);
+    const tone = memory.change === "down" ? { background: "#dcfae6", color: "#074d31" } : memory.change === "up" ? { background: "#fef0c7", color: "#7a2e0e" } : { background: "var(--lx-sky-50, #eef6fb)", color: "inherit" };
+    return (
+      <div className="mt-3 rounded-[16px] px-4 py-3" style={tone} data-price-memory={memory.change}>
+        <p className="text-[15px] font-extrabold leading-6">{line}</p>
+        <p className="mt-1 text-[12.5px] opacity-80">{L("כפתור הקסם זוכר את הבדיקות שלך בדפדפן הזה בלבד. שני המחירים הם „החל מ־” בחנות.", "The magic button remembers your checks in this browser only. Both are the store's \"from\" prices.")}</p>
+      </div>
+    );
+  }
+  if (!saved || !price) return null;
+  const sale = activeSeasons().find((x) => x.id === "11-11" || x.id === "black-friday");
+  const when = sale ? L(`בזמן ${seasonName(sale, "he")}`, `during ${seasonName(sale, "en")}`) : L("בעוד כמה ימים", "in a few days");
+  return (
+    <p className="mt-3 rounded-[16px] px-4 py-3 text-[14px] leading-6" style={{ background: "var(--lx-sky-50, #eef6fb)" }} data-price-memory="saved">
+      {lang === "he"
+        ? <>💾 <b>שמרנו בדפדפן שלך את המחיר של היום.</b> בדקי שוב את אותו מוצר {when}, ונראה לך אם המחיר באמת ירד.</>
+        : <>💾 <b>We saved today's price in your browser.</b> Check the same item again {when} and we'll show you whether it really dropped.</>}
+    </p>
+  );
+}
 
 /** Keep the button one tap away: install on Android/desktop Chrome, the iPhone's own steps otherwise. */
 function KeepIt() {
@@ -242,8 +278,12 @@ export function MagicPage({ graph }) {
       const res = await fetch(`/api/store?mode=magic&u=${encodeURIComponent(link)}`, { headers: { accept: "application/json" } });
       const body = await res.json().catch(() => null);
       if (!body?.ok || !body.report) { setState({ phase: "error", reason: body?.reason && ERRORS[body.reason] ? body.reason : "unavailable" }); return; }
-      setState({ phase: "done", link, report: body.report });
-      setRecent((list) => { const next = addRecent(list, { link, title: body.report.item?.title, image: body.report.item?.image }); writeRecent(next); return next; });
+      const item = body.report.item || {};
+      const memory = priceMemory(recent, item);
+      const next = addRecent(recent, { link, title: item.title, image: item.image, itemId: item.id, price: item.currency === "ILS" ? item.price : null });
+      const saved = writeRecent(next);
+      setRecent(next);
+      setState({ phase: "done", link, report: body.report, memory, saved });
       trackFunnel("magic_check", body.report.buy?.via || "");
       try {
         const u = new URL(window.location.href);
@@ -359,6 +399,7 @@ export function MagicPage({ graph }) {
               {report.item.price ? (
                 <p className="mt-2 text-[22px] font-extrabold">{L(`מ־₪${shekel(report.item.price)}`, `from ₪${shekel(report.item.price)}`)} <span className="lx-mute text-[13px] font-normal">{L("נבדק עכשיו בחנות", "checked just now")}</span></p>
               ) : <p className="lx-mute mt-2 text-[14px]">{L("המחיר המעודכן בחנות", "See the price in the store")}</p>}
+              <PriceMemory memory={state.memory} saved={state.saved} price={report.item.price} />
 
               {report.verdict === "LOOK" ? <p className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13.5px] font-extrabold" style={{ background: "#fef0c7", color: "#7a2e0e" }}><AlertTriangle size={15} aria-hidden="true" /> {L("כדאי לשים לב", "Worth a closer look")}</p> : null}
               {report.verdict === "STOP" ? <p className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13.5px] font-extrabold" style={{ background: "#fee4e2", color: "#7a271a" }}><Octagon size={15} aria-hidden="true" /> {L("לא ממליצים", "Not recommended")}</p> : null}

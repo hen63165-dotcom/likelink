@@ -24,6 +24,8 @@ export const SALE_SEASONS = Object.freeze({
       "ae-1005012013972716", "ae-1005008660374263", "ae-1005007805729113", "ae-1005012221742613",
       "p-live-03", "p-live-04", "p-live-05", "ae-1005009695987191",
     ]),
+    // The magic button remembers the price a person saw (priceMemory, on her device): check now, check again in the sale.
+    priceMemory: true,
     show: Object.freeze({ from: "2026-10-20", to: "2026-11-11" }),
   }),
   "black-friday": Object.freeze({
@@ -36,6 +38,7 @@ export const SALE_SEASONS = Object.freeze({
       en: "Another big sale season. Before you buy: is the sale real, does the link open the product, what to do if a parcel does not arrive, which size to choose and when to order a gift.",
     },
     checks: Object.freeze(["real-sale", "link-check", "protection", "ring-size", "gift"]),
+    priceMemory: true,
     picks: Object.freeze([
       "ae-1005010089139584", "ae-1005009960233694", "ae-1005011865423878", "ae-1005010044052123",
       "ae-1005007038743218", "ae-1005007171107355", "ae-1005006678126295", "ae-1005009806969082",

@@ -441,3 +441,55 @@ test("page: a recent check's picture sits in a 22 px box (.lx img is always 100%
   const line = src.split("\n").find((l) => l.includes("r.image ?"));
   assert.match(line, /<span[^>]*width: 22, height: 22[^>]*overflow: "hidden"[^>]*><Img src=\{r\.image\}/, "the 2026-11-07 recording showed the thumbnail full width");
 });
+
+// ── the price memory: check now, check again in the sale (the owner, 2026-11-08: "magic nobody has seen") ──
+import { priceMemory, shortDate, MEMORY_MIN_MS, SEEN_MAX } from "../src/lib/growth/magic.js";
+
+test("price memory: an earlier check of the same item on this device, store ILS prices only", () => {
+  const day = 24 * 3600 * 1000, t0 = Date.parse("2026-11-08T18:00:00Z");
+  let list = addRecent([], { link: "https://s.click.aliexpress.com/e/_a", itemId: "1005008429942445", price: 24.9, at: t0, title: "ring" });
+  assert.deepEqual(list[0].seen, [{ at: t0, price: 24.9 }]);
+  const item = (price, currency = "ILS") => ({ id: "1005008429942445", price, currency });
+  // the same check minutes later is not a memory
+  assert.equal(priceMemory(list, item(24.9), t0 + 5 * 60 * 1000), null);
+  // three days later, lower: it dropped by the difference, against the first price she saw
+  assert.deepEqual(priceMemory(list, item(19.9), t0 + 3 * day), { was: 24.9, at: t0, now: 19.9, diff: 5, change: "down" });
+  assert.equal(priceMemory(list, item(26.4), t0 + 3 * day).change, "up");
+  assert.equal(priceMemory(list, item(24.9), t0 + 3 * day).change, "same");
+  // never without a store ILS price, never for another item, never from nothing
+  assert.equal(priceMemory(list, item(19.9, "USD"), t0 + 3 * day), null);
+  assert.equal(priceMemory(list, item(null), t0 + 3 * day), null);
+  assert.equal(priceMemory(list, { id: "1005000000000000", price: 10, currency: "ILS" }, t0 + 3 * day), null);
+  assert.equal(priceMemory([], item(19.9), t0 + 3 * day), null);
+  assert.equal(priceMemory([{ link: "x", itemId: "1005008429942445" }], item(19.9), t0 + 3 * day), null, "an old entry without prices");
+  assert.ok(MEMORY_MIN_MS >= 60 * 60 * 1000);
+});
+
+test("price memory: the same item through another link keeps its prices; the first price is kept", () => {
+  const t0 = Date.parse("2026-11-08T18:00:00Z"), h = 3600 * 1000;
+  let list = addRecent([], { link: "https://s.click.aliexpress.com/e/_a", itemId: "1005008429942445", price: 30, at: t0 });
+  list = addRecent(list, { link: "https://www.aliexpress.com/item/1005008429942445.html", itemId: "1005008429942445", price: 28, at: t0 + 2 * h });
+  assert.equal(list.filter((x) => x.itemId === "1005008429942445").length, 1, "one entry per item");
+  for (let i = 3; i < 12; i += 1) list = addRecent(list, { link: "https://www.aliexpress.com/item/1005008429942445.html", itemId: "1005008429942445", price: 20 + i, at: t0 + i * h });
+  const seen = list[0].seen;
+  assert.equal(seen.length, SEEN_MAX);
+  assert.deepEqual(seen[0], { at: t0, price: 30 }, "the first price she saw stays");
+  assert.equal(seen.at(-1).price, 31);
+  // a bad price or item id is never stored
+  const bad = addRecent([], { link: "https://a.aliexpress.com/_x", itemId: "abc", price: -3 });
+  assert.equal(bad[0].itemId, undefined);
+  assert.equal(bad[0].seen, undefined);
+  assert.equal(shortDate(t0), "8.11");
+});
+
+test("the page shows the memory, saved only when the browser kept it, and the sale pages lead to it", async () => {
+  const page = readFileSync("src/components/discover/magic.jsx", "utf8");
+  assert.match(page, /priceMemory\(recent, item\)/);
+  assert.match(page, /const saved = writeRecent\(next\)/);
+  assert.match(page, /if \(!saved \|\| !price\) return null/, "the 'we saved' line only when localStorage took it");
+  assert.match(page, /שני המחירים הם „החל מ־” בחנות/);
+  const { SALE_SEASONS } = await import("../src/lib/saleSeason.js");
+  assert.equal(SALE_SEASONS["11-11"].priceMemory, true);
+  assert.match(readFileSync("src/components/discover/pages.jsx", "utf8"), /season\.priceMemory \? <Go to=\{MAGIC_PATH\}/);
+  assert.match(MAGIC_FAQ.find((f) => /ההנחה/.test(f.q)).a, /זוכר בדפדפן שלך את המחיר שראית/);
+});

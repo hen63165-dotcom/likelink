@@ -1,0 +1,51 @@
+# Pro reels: the uniform Instagram look (scripts/marketing/pro-reel.mjs) made
+# from each product's own store photos. The runner downloads the photos (the
+# store's CDN), draws the Hebrew captions with its Chrome, and puts every reel,
+# its preview strip, its grid cover and the numbered gallery on the
+# "pro-reels-preview" pre-release for a person to review. Nothing is posted and
+# the site never reads that release.
+name: Pro reels
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/pro-reel.mjs
+      - scripts/marketing/pro-reels/**
+      - .github/workflows/pro-reels.yml
+permissions:
+  contents: write
+concurrency:
+  group: pro-reels-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+      FONTSOURCE_DIR: /tmp/pw/node_modules/@fontsource
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright (the runner's Chrome), ffmpeg, the Hebrew font and numpy
+        run: |
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 @fontsource/heebo@5.3.0 >/dev/null
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
+          python3 -m pip install --quiet numpy
+      - name: Render the reels
+        run: |
+          set -o pipefail
+          node scripts/marketing/pro-reel.mjs scripts/marketing/pro-reels/jobs.json pro-reels-out | tee /tmp/report.txt
+          { echo "### Pro reels"; echo '```json'; cat /tmp/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Store them on the preview release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(pro-reels-out/*.mp4 pro-reels-out/*.jpg pro-reels-out/report.json)
+          [ ${#files[@]} -gt 0 ] || { echo "nothing rendered"; exit 0; }
+          gh release view pro-reels-preview >/dev/null 2>&1 || gh release create pro-reels-preview --prerelease --title "Pro reels (review)" --notes "Instagram reels in the uniform pro look, from each product's own store photos, for review. Nothing here is posted; the site never reads this release."
+          gh release upload pro-reels-preview "${files[@]}" --clobber

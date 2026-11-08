@@ -1174,6 +1174,7 @@ export function SalePage({ graph, id }) {
     <>
       <PageHero kicker={<><BookOpen size={14} /> {t(season.kicker)}</>} title={t(season.title)} sub={t(season.intro)}>
         <div className="mt-6 flex flex-wrap gap-2 print:hidden">
+          {season.priceMemory ? <Go to={MAGIC_PATH} className="lx-btn lx-btn-ink">✨ {L("בודקים מחיר עכשיו, ושוב במבצע: כפתור הקסם", "Check a price now and again in the sale: the magic button")}</Go> : null}
           <Go to={GUIDE_PATH} className="lx-btn lx-btn-rose">{L(`המדריך המלא: ${GUIDE.checks.length} בדיקות`, `The full guide: ${GUIDE.checks.length} checks`)}</Go>
           <Go to={SIZE_PATH} className="lx-btn lx-btn-ghost">{L("מודד מידות חינמי", "Free size meter")}</Go>
           <ShareButton path={salePath(season.id)} title={`${t(season.title)} | LikeLink2`} variant="button" />

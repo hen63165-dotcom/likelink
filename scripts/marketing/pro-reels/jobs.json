@@ -1,0 +1,92 @@
+{
+  "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre.",
+  "jobs": [
+    {
+      "id": "ae-1005012967864709",
+      "hook": "כמה זמן תחזיקי\nבלי ללחוץ?",
+      "what": "כיסון נוצץ ללחיצה, עם קופסה",
+      "tip": "טיפ: לגיל 3 ומעלה, לא לפה",
+      "name": "סקווישי כיסון נוצץ",
+      "photos": [
+        6,
+        5,
+        4,
+        3,
+        6,
+        4
+      ],
+      "fit": [
+        4,
+        3
+      ]
+    },
+    {
+      "id": "ae-1005012736775484",
+      "hook": "כף חתול\nשלוחצים עליה?",
+      "what": "צעצוע לחיצה רך בצבעי פסטל",
+      "tip": "טיפ: בודקים בעמוד את הגודל",
+      "name": "סקווישי כף חתול",
+      "photos": [
+        1,
+        2,
+        6,
+        3,
+        1,
+        2
+      ],
+      "fit": [
+        2,
+        6,
+        3
+      ]
+    },
+    {
+      "id": "ae-1005010228971023",
+      "hook": "ים בתוך קובייה\nללחיצה",
+      "what": "קוביית ג'ל רכה ושקופה",
+      "tip": "טיפ: לא לחתוך ולא לנשוך",
+      "name": "קוביית ג'ל ללחיצה",
+      "photos": [
+        1,
+        6,
+        1,
+        6,
+        1,
+        6
+      ],
+      "fit": [
+        6
+      ]
+    },
+    {
+      "id": "ae-1005013362999177",
+      "hook": "מנגו\nשלוחצים עליו?",
+      "what": "כדור לחץ רך, לפי המוכר משנה צבע",
+      "tip": "טיפ: לגיל 3 ומעלה, לא לפה",
+      "name": "סקווישי מנגו",
+      "photos": [
+        6,
+        5,
+        4,
+        3,
+        6,
+        5
+      ]
+    },
+    {
+      "id": "ae-1005010706854356",
+      "hook": "לחמנייה רכה\nללחיצה",
+      "what": "סקווישי בצורת לחמנייה",
+      "tip": "טיפ: לגיל 3 ומעלה, לא לפה",
+      "name": "סקווישי לחמנייה",
+      "photos": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        3
+      ]
+    }
+  ]
+}
