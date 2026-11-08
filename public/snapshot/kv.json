@@ -1754,6 +1754,42 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 165.65
+   },
+   {
+    "id": "ae-1005013461862167",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "סווטשירט נשים בסגנון סתיו עם קפוצ'ון ורוכסן",
+    "storeTitle": "סווטשירט נשים בסגנון סתיו עם קפוצ'ון ורוכסן, ז'קט קצר, קז'ואל, שרוולים ארוכים, קרדיגן עם תוספת כתפיים, חדש 2026, לבוש חוץ",
+    "category": "Fashion",
+    "kind": "clothing",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sb8fb0241bb604202a15ccd3b3ce11fbc3.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c3HL5e0X",
+    "aliexpressId": "1005013461862167",
+    "price": 156.39,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-08T13:04:35.148Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sb8fb0241bb604202a15ccd3b3ce11fbc3.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S9c8e81eee54045829f7be606fb4bda1fe.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sb2267bac18ab43c9a5e9092d558bedfcC.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S474934471fb24a3abc0783b1e7ca069fA.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S2544ce54b48448b1bda3563b6f3d5eafE.jpg"
+    ],
+    "createdAt": 1794143075148,
+    "updatedAt": 1794143075148,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005013461862167",
+     "itemUrl": "https://he.aliexpress.com/item/1005013461862167.html?pdp_npi=6%40dis%21ILS%21195.49%21156.39%21%21%2159.62%2147.70%21%402140f88817941430772064042e0e10%2112000061152189134%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-08T13:04:35.148Z"
+    },
+    "importSource": "aliexpress-owner-link",
+    "originalPrice": 195.49
    }
   ],
   "marketplace:marketers": [
