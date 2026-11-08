@@ -19,6 +19,7 @@ import { GUIDE, GUIDE_PATH } from "../../lib/guide.js";
 import { SIZE_PATH } from "../../lib/sizeTool.js";
 import { activeSeasons, salePath } from "../../lib/saleSeason.js";
 import { MAGIC_PATH } from "../../lib/growth/magic.js";
+import { telegramChannelUrl } from "../../lib/growth/socialAccounts.js";
 import { saleModelOf } from "../../lib/discovery/surfaces.js";
 import { CreatorAvatar, Go, Img, NavCtx, ReelCard, SaveButton, useL, useReducedMotion } from "./kit";
 import { STUDIO_SIGNUP } from "./PublicShell";
@@ -476,6 +477,23 @@ function MagicStrip() {
   );
 }
 
+/** The deals channel on Telegram, right under the magic button (only once it exists). */
+function TelegramStrip() {
+  const { L, Forward } = useL();
+  const url = telegramChannelUrl();
+  if (!url) return null;
+  return (
+    <div className="lx-wrap" style={{ paddingTop: 8 }}>
+      <a href={url} target="_blank" rel="noopener" className="lx-btn lx-btn-ghost" style={{ display: "flex", width: "100%", justifyContent: "center", gap: 8, minHeight: 44 }}>
+        <Send size={16} aria-hidden="true" />
+        <span>{L("המציאות בטלגרם", "The deals on Telegram")}</span>
+        <span className="opacity-80" style={{ fontWeight: 600 }}>{L("· הצטרפות לערוץ, בחינם", "· join the channel, free")}</span>
+        <Forward size={15} aria-hidden="true" />
+      </a>
+    </div>
+  );
+}
+
 /** The home page. `extra` sits after the videos (e.g. the engine's own picks). */
 export function LuxeHome({ graph, extra = null }) {
   const footage = useMemo(() => footageByProduct(graph.reels), [graph.reels]);
@@ -486,6 +504,7 @@ export function LuxeHome({ graph, extra = null }) {
     <div className="lx-luxe">
       <SeasonStrip />
       <MagicStrip />
+      <TelegramStrip />
       <Hero items={items} featured={featured} reel={featuredReel} />
       <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Circles products={graph.products} />

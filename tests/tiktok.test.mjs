@@ -161,7 +161,7 @@ test("the account kit and the page: the owner opens the account; the bio fits, d
 
 test("the site links to our TikTok only once the account exists, in the footer and Google's sameAs alike", () => {
   assert.deepEqual(socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "" } }), [], "no handle → no link to a page that isn't there");
-  assert.deepEqual(socialProfiles().map((a) => a.url), ["https://www.tiktok.com/@likelink"], "the account the owner opened (2026-10-16)");
+  assert.deepEqual(socialProfiles().map((a) => a.url), ["https://www.tiktok.com/@likelink", "https://t.me/likelink_deals"], "the accounts the owner opened (TikTok 2026-10-16, the Telegram channel 2026-11-08)");
   const withHandle = socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "likelink2" } });
   assert.deepEqual(withHandle.map((a) => a.url), ["https://www.tiktok.com/@likelink2"]);
   assert.deepEqual(socialProfiles({ tiktok: { ...SOCIAL_ACCOUNTS.tiktok, handle: "bad handle/../" } }), []);

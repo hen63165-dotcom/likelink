@@ -5,9 +5,17 @@
 // `sameAs` in index.html (tests/tiktok.test.mjs keeps the two equal).
 // TikTok: @likelink, opened by the owner on 2026-10-16 (a personal account:
 // TikTok's business switch asked for company documents she doesn't have yet).
+// Telegram: the deals channel @likelink_deals, opened by the owner on 2026-11-08
+// (the Studio's AutoPilot posts to it through her bot).
 export const SOCIAL_ACCOUNTS = Object.freeze({
   tiktok: Object.freeze({ handle: "likelink", label: { he: "טיקטוק", en: "TikTok" }, url: (h) => `https://www.tiktok.com/@${h}` }),
+  telegram: Object.freeze({ handle: "likelink_deals", label: { he: "טלגרם", en: "Telegram" }, url: (h) => `https://t.me/${h}` }),
 });
+
+/** The deals channel's public address ("" until it exists). */
+export function telegramChannelUrl(accounts = SOCIAL_ACCOUNTS) {
+  return socialProfiles(accounts).find((a) => a.network === "telegram")?.url || "";
+}
 
 const HANDLE = /^[A-Za-z0-9._]{2,24}$/;
 

@@ -41,5 +41,5 @@ test("no chip opens an empty list, and the finder is on the Hanukkah page", () =
   const pages = readFileSync(new URL("../src/components/discover/pages.jsx", import.meta.url), "utf8");
   assert.match(pages, /season\.finder \? <GiftFinder graph=\{graph\} path=\{salePath\(season\.id\)\} \/> : null/);
   const luxe = readFileSync(new URL("../src/components/discover/luxe.jsx", import.meta.url), "utf8");
-  assert.match(luxe, /<SeasonStrip \/>\s*(<MagicStrip \/>\s*)?<Hero/, "the home page links the season above the hero (the magic button may sit between)");
+  assert.match(luxe, /<SeasonStrip \/>\s*(<MagicStrip \/>\s*)?(<TelegramStrip \/>\s*)?<Hero/, "the home page links the season above the hero (the magic button and the Telegram channel may sit between)");
 });
