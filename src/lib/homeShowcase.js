@@ -110,6 +110,10 @@ export const SHOP_CIRCLES = Object.freeze([
   { q: "גאדג'טים", he: "גאדג'טים", en: "Gadgets", words: ["גאדג", "gadget"] },
   { q: "כושר", he: "ספורט וכושר", en: "Fitness", words: ["כושר", "יוגה", "fitness", "yoga"] },
   { q: "חיות מחמד", he: "חיות מחמד", en: "Pets", words: ["חיות מחמד", "לכלב", "לחתול", " pet "] },
+  // 2026-11-08: men, clothes and the car join the deals import.
+  { q: "לגברים", he: "לגברים", en: "Men", words: ["לגבר", "לגברים", " men "] },
+  { q: "בגדים", he: "בגדים", en: "Clothing", words: ["סוודר", "קרדיגן", "sweater", "cardigan"] },
+  { q: "לרכב", he: "לרכב", en: "Car", words: ["לרכב", " car "] },
 ]);
 export const MIN_CIRCLES = 2;
 

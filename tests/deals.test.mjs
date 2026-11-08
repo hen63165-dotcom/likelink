@@ -104,7 +104,7 @@ test("every category in turn: a few a day, then round again", () => {
   const a = nextCategories(0, 3);
   assert.deepEqual(a.categories.map((c) => c.key), ["rings", "earrings", "necklaces"]);
   const last = nextCategories(DEAL_CATEGORIES.length - 1, 3);
-  assert.deepEqual(last.categories.map((c) => c.key), ["pets", "rings", "earrings"]);
+  assert.deepEqual(last.categories.map((c) => c.key), [DEAL_CATEGORIES.at(-1).key, "rings", "earrings"], "the last category wraps round to the first");
   assert.equal(last.cursor, 2);
 });
 
@@ -190,4 +190,25 @@ test("wiring: the daily import and the trend board use the deals rules; the pick
   assert.match(wf, /push-picks\.mjs/);
   assert.match(wf, /AUTOPILOT_SECRET: \$\{\{ secrets\.AUTOPILOT_SECRET \}\}/);
   assert.match(read("scripts/catalog/push-picks.mjs"), /op=affiliate-choose/);
+});
+
+// 2026-11-08, the owner: "products in every subject, not only jewellery", with
+// the highest demand. The hot-products list was full of wholesale lots.
+test("men, clothing and the car are deal categories with a shop kind of their own", async () => {
+  const { SHOP_CIRCLES } = await import("../src/lib/homeShowcase.js");
+  for (const key of ["men", "clothing", "car"]) {
+    const c = dealCategory(key);
+    assert.ok(c && c.keywords && c.maxPrice > 0, key);
+    assert.ok(SHOP_CIRCLES.some((s) => s.en.toLowerCase() === c.kind), `${key} → a shop circle`);
+  }
+});
+
+test("a wholesale lot never passes; two or three in a set still can", async () => {
+  const { isBulkPack } = await import("../src/lib/growth/deals.js");
+  const ok = { evaluate_rate: "98%", lastest_volume: 5000, target_sale_price: "9.9", target_sale_price_currency: "ILS" };
+  for (const t of ["30-300 יחידות פומ פום רך", "10 יחידות סיטונאיות 925", "100 pcs makeup brush", "Wholesale hair clips"]) {
+    assert.equal(isBulkPack(t), true, t);
+    assert.equal(dealCheck({ ...ok, product_title: t }, dealCategory("hair")).reason, "bulk_pack", t);
+  }
+  for (const t of ["2 יחידות / מערכת צמיד", "Set of 3 rings", "צמיד 925 6mm", "ring 18k gold 10mm"]) assert.equal(isBulkPack(t), false, t);
 });
