@@ -226,4 +226,5 @@ test("a brand copy never passes, in English or Hebrew", async () => {
 test("a gadget the owner picks by link finds its category", async () => {
   const { guessCategory } = await import("../src/lib/growth/deals.js");
   for (const t of ["מיקרופון דש אלחוטי מקצועי עם חיבור Type-C לסמארטפונים", "מקליט קול מקצועי דיגיטלי 8G/16G + נגן MP3 + כונן פלאש USB", "Wireless lavalier microphone"]) assert.equal(guessCategory({ product_title: t })?.key, "tech", t);
+  assert.equal(guessCategory({ product_title: "סווטשירט קוריאני רחב עם קפוצ'ון" })?.key, "clothing");
 });
