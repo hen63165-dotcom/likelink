@@ -129,6 +129,23 @@ export function shotFilter({ seconds, zoom, cx = 0.5, cy = 0.5 }) {
   ].join(",");
 }
 
+/**
+ * A wide product (a pair of hoops, a bag from the side) would lose its ends in a
+ * 9:16 crop: the whole photo moves across the full width, over a blurred,
+ * darker copy of itself that fills the screen.
+ */
+export function fitFilter({ seconds, zoom }) {
+  const n = Math.round(seconds * FPS);
+  const [z0, z1] = zoom;
+  const s2 = W * 2;
+  return [
+    `[0:v]split[a][b]`,
+    `[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=40:2,eq=brightness=-0.12:saturation=0.9[bg]`,
+    `[b]scale=${s2}:${s2}:force_original_aspect_ratio=increase:flags=lanczos,crop=${s2}:${s2},zoompan=z='${z0}+(${(z1 - z0).toFixed(4)})*on/${n - 1}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${n}:s=${W}x${W}:fps=${FPS},eq=contrast=1.05:saturation=1.04,unsharp=5:5:0.4:5:5:0[fg]`,
+    `[bg][fg]overlay=0:${Math.round((H - W) / 2) + 80}:shortest=1,setsar=1[v]`,
+  ].join(";");
+}
+
 async function fetchTo(url, file) {
   if (!/^https:\/\//.test(url)) { writeFileSync(file, readFileSync(url)); return file; }
   const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 LikeLink2 reel renderer" } });
@@ -171,7 +188,10 @@ export async function renderReel({ page, job, product, work, out }) {
     const idx = (job.photos && job.photos[k % job.photos.length]) || (k % images.length) + 1;
     const f = focus[idx] || {};
     const zoom = k % 2 ? [1.12, 1.0] : [1.0, 1.12];
-    ff(["-loop", "1", "-framerate", String(FPS), "-t", String(SHOT), "-i", photos[k], "-vf", shotFilter({ seconds: SHOT, zoom, cx: f.cx ?? 0.5, cy: f.cy ?? 0.5 }), "-t", String(SHOT), "-r", String(FPS), "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "15", "-pix_fmt", "yuv420p", file]);
+    const vf = (job.fit || []).includes(idx)
+      ? ["-filter_complex", fitFilter({ seconds: SHOT, zoom }), "-map", "[v]"]
+      : ["-vf", shotFilter({ seconds: SHOT, zoom, cx: f.cx ?? 0.5, cy: f.cy ?? 0.5 })];
+    ff(["-loop", "1", "-framerate", String(FPS), "-t", String(SHOT), "-i", photos[k], ...vf, "-t", String(SHOT), "-r", String(FPS), "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "15", "-pix_fmt", "yuv420p", file]);
     segs.push(file);
   }
   // The end card: the first chosen photo, held, under the dark card.
