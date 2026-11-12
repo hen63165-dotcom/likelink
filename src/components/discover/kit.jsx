@@ -43,6 +43,7 @@ import { stripBase, withBase } from "../../lib/basePath.js";
 import { loadReelsFeed } from "../../lib/reelsFeed.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
+import { telegramChannelUrl } from "../../lib/growth/socialAccounts.js";
 
 /* ---------------------------------------------------------------- context */
 
@@ -472,6 +473,22 @@ export function HoverTips() {
 }
 
 /* ---------------------------------------------------------------- actions */
+
+/** The deals channel on Telegram as a full-width button (nothing until the channel exists). Telegram
+ * shows a channel to no stranger by itself: people join only from a link someone gives them, so the
+ * site gives it where shoppers already are (the owner, 2026-11-12: "why is nobody in my channel"). */
+export function TelegramJoin({ className = "" }) {
+  const { L } = useL();
+  const url = telegramChannelUrl();
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noopener" className={`lx-btn lx-btn-ghost ${className}`} style={{ display: "flex", width: "100%", justifyContent: "center", gap: 8, minHeight: 46 }}>
+      <Send size={16} aria-hidden="true" />
+      <span>{L("הצטרפי לערוץ המציאות בטלגרם", "Join the deals channel on Telegram")}</span>
+      <span className="opacity-80" style={{ fontWeight: 600 }}>{L("· בחינם", "· free")}</span>
+    </a>
+  );
+}
 
 export function SaveButton({ productId, className = "" }) {
   const { favorites, toggleFavorite, showToast } = useMarketplace();
