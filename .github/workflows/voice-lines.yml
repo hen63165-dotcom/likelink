@@ -1,0 +1,48 @@
+# Voice lines: speaks the Hebrew lines of a reel with the free edge-tts voices (no account, no key)
+# and stores one mp3 per line on the "kling-preview" pre-release, for the edit of a Kling reel.
+# This session's container cannot reach the speech service; a runner can. The voice is AI and
+# every reel that uses it says so on screen. Nothing is posted here.
+name: Voice lines
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/kling/voice.json
+      - .github/workflows/voice-lines.yml
+permissions:
+  contents: write
+concurrency:
+  group: voice-lines-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  speak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install edge-tts
+        run: python3 -m pip install --quiet edge-tts==7.3.1
+      - name: Speak each line
+        run: |
+          set -euo pipefail
+          mkdir -p voice-out
+          python3 - <<'PY'
+          import asyncio, json, re
+          import edge_tts
+          job = json.load(open("scripts/marketing/kling/voice.json", encoding="utf-8"))
+          async def main():
+              for line in job["lines"]:
+                  name = line["name"]
+                  assert re.fullmatch(r"[a-z0-9-]+", name), name
+                  voice = line.get("voice", job.get("voice", "he-IL-HilaNeural"))
+                  c = edge_tts.Communicate(line["text"], voice, rate=line.get("rate", job.get("rate", "+0%")), pitch=line.get("pitch", "+0Hz"))
+                  await c.save(f"voice-out/{job['id']}-{name}.mp3")
+                  print("ok", name, voice)
+          asyncio.run(main())
+          PY
+      - name: Store them on the preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view kling-preview >/dev/null 2>&1 || gh release create kling-preview --prerelease --title "Kling clips (review)" --notes "Clips made with the owner's Kling account, copied here for review before editing. AI-made; nothing here is posted and the site never reads this release."
+          gh release upload kling-preview voice-out/* --clobber

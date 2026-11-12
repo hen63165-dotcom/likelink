@@ -11,7 +11,7 @@ import { activeSeasons, seasonName } from "../../lib/saleSeason.js";
 import { trackFunnel, BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
-import { Go, Img, ProductCard, ShareButton, Spinner, useL } from "./kit";
+import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -454,6 +454,7 @@ export function MagicPage({ graph }) {
                   {L("בדיקה של מוצר אחר", "Check another product")}
                 </button>
               </div>
+              <TelegramJoin className="mt-3" />
             </div>
           </div>
           {listed && listedCreator ? (

@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { MAGIC_PATH, firstLink, isStoreLink } from "../../lib/growth/magic.js";
-import { telegramChannelUrl } from "../../lib/growth/socialAccounts.js";
 import {
   collectionsFor,
   findCollection,
@@ -83,6 +82,7 @@ import {
   ShopButton,
   sized,
   StyleBadge,
+  TelegramJoin,
   TrendCard,
   TrustBadge,
   useL,
@@ -693,13 +693,7 @@ export function ProductPage({ graph, id, navigate }) {
                 ✨ {L("ראית מוצר אחר באלי? בדקי אותו בכפתור הקסם", "Saw something else on AliExpress? Check it with the magic button")}
               </Go>
             </p>
-            {telegramChannelUrl() ? (
-              <p className="mt-2 text-[13px]">
-                <a href={telegramChannelUrl()} target="_blank" rel="noopener" className="underline">
-                  📣 {L("עוד מציאות כאלה בערוץ הטלגרם שלנו", "More finds like this on our Telegram channel")}
-                </a>
-              </p>
-            ) : null}
+            <TelegramJoin className="mt-3" />
 
             <div className="mt-4 flex flex-wrap gap-1.5">
               <TrustBadge kind="approved" />
