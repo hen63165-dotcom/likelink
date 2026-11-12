@@ -1,0 +1,42 @@
+# Kling fetch: copies finished Kling clips (the owner's own Kling account; the links expire after
+# 24 hours) to the "kling-preview" pre-release, with a frame contact sheet of each, for a person to
+# review before any edit. This session's container cannot reach Kling's CDN; a runner can.
+# Nothing is generated or posted here, and the site never reads that release.
+name: Kling fetch
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/kling/fetch.json
+      - .github/workflows/kling-fetch.yml
+permissions:
+  contents: write
+concurrency:
+  group: kling-fetch-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+      - name: Download each clip and cut a contact sheet
+        run: |
+          set -euo pipefail
+          mkdir -p kling-out
+          node -e 'for (const c of JSON.parse(require("fs").readFileSync("scripts/marketing/kling/fetch.json","utf8"))) console.log(c.name + " " + c.url)' > /tmp/list.txt
+          while read -r name url; do
+            [[ "$name" =~ ^[a-z0-9-]+$ ]] || { echo "bad name: $name"; exit 1; }
+            [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling link: $name"; exit 1; }
+            curl -fsSL --max-time 120 -o "kling-out/$name.mp4" "$url"
+            ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact "kling-out/$name.mp4"
+            ffmpeg -y -loglevel error -i "kling-out/$name.mp4" -vf "fps=1.2,scale=270:-1,tile=6x2" -frames:v 1 "kling-out/$name-sheet.jpg"
+          done < /tmp/list.txt
+      - name: Store them on the preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view kling-preview >/dev/null 2>&1 || gh release create kling-preview --prerelease --title "Kling clips (review)" --notes "Clips made with the owner's Kling account, copied here for review before editing. AI-made; nothing here is posted and the site never reads this release."
+          gh release upload kling-preview kling-out/* --clobber
