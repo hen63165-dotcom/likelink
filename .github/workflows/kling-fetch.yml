@@ -1,5 +1,5 @@
 # Kling fetch: copies finished Kling clips (the owner's own Kling account; the links expire after
-# 24 hours) to the "kling-preview" pre-release, with a frame contact sheet of each, for a person to
+# 24 hours), or a clip the owner shares from Google Drive / Dropbox (too big for the chat), to the "kling-preview" pre-release, with a frame contact sheet of each, for a person to
 # review before any edit, plus the seller's store photos an edit ends on (the store's CDN only).
 # This session's container cannot reach either CDN; a runner can.
 # Nothing is generated or posted here, and the site never reads that release.
@@ -31,7 +31,13 @@ jobs:
           while read -r name ext url; do
             [[ "$name" =~ ^[a-z0-9-]+$ ]] || { echo "bad name: $name"; exit 1; }
             case "$ext" in
-              mp4) [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling link: $name"; exit 1; } ;;
+              mp4) if [[ "$url" =~ ^https://drive\.google\.com/file/d/([A-Za-z0-9_-]+) ]]; then
+                     url="https://drive.usercontent.google.com/download?id=${BASH_REMATCH[1]}&export=download&confirm=t"
+                   elif [[ "$url" =~ ^https://www\.dropbox\.com/ ]]; then
+                     url="${url/dl=0/dl=1}"; [[ "$url" == *dl=1* ]] || url="${url}$([[ "$url" == *\?* ]] && echo '&' || echo '?')dl=1"
+                   else
+                     [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling, Drive or Dropbox link: $name"; exit 1; }
+                   fi ;;
               png|jpg) [[ "$url" =~ ^https://ae-pic-a1\.aliexpress-media\.com/kf/ || "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a store photo or Kling picture: $name"; exit 1; } ;;
               *) echo "bad ext: $name"; exit 1 ;;
             esac
