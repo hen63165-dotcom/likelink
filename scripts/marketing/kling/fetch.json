@@ -1,8 +1,16 @@
 [
   {
-    "name": "earbuds-ugc-1",
+    "name": "earbuds-seller-4",
+    "ext": "png",
     "product": "ae-1005012438734147",
-    "made": "2026-11-12, Kling omni-ref kling-video-v4_0, 10 s, 720p, 9:16, 100 credits; references: the seller's photos 4 and 6",
-    "url": "https://v15-kling.klingai.com/bs2/upload-ylab-stunt-sgp/fd86007d-83fd-4239-a9e8-418629ffa41c-8cNIcLGSoiaNDQty0fZFzA-output.mp4?x-kcdn-pid=112372"
+    "made": "the seller's own store photo 4 (a hand opening the case), for the reel's real-product ending",
+    "url": "https://ae-pic-a1.aliexpress-media.com/kf/S4c453d5eb13749e7bc2501803607ca75Q.png"
+  },
+  {
+    "name": "earbuds-seller-6",
+    "ext": "png",
+    "product": "ae-1005012438734147",
+    "made": "the seller's own store photo 6 (the earbuds over the case), for the reel's real-product ending",
+    "url": "https://ae-pic-a1.aliexpress-media.com/kf/Sd51bcbc2e12446318a30faed3bbe364bH.png"
   }
 ]

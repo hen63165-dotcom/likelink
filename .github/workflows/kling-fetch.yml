@@ -1,6 +1,7 @@
 # Kling fetch: copies finished Kling clips (the owner's own Kling account; the links expire after
 # 24 hours) to the "kling-preview" pre-release, with a frame contact sheet of each, for a person to
-# review before any edit. This session's container cannot reach Kling's CDN; a runner can.
+# review before any edit, plus the seller's store photos an edit ends on (the store's CDN only).
+# This session's container cannot reach either CDN; a runner can.
 # Nothing is generated or posted here, and the site never reads that release.
 name: Kling fetch
 on:
@@ -26,13 +27,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p kling-out
-          node -e 'for (const c of JSON.parse(require("fs").readFileSync("scripts/marketing/kling/fetch.json","utf8"))) console.log(c.name + " " + c.url)' > /tmp/list.txt
-          while read -r name url; do
+          node -e 'for (const c of JSON.parse(require("fs").readFileSync("scripts/marketing/kling/fetch.json","utf8"))) console.log(c.name + " " + (c.ext || "mp4") + " " + c.url)' > /tmp/list.txt
+          while read -r name ext url; do
             [[ "$name" =~ ^[a-z0-9-]+$ ]] || { echo "bad name: $name"; exit 1; }
-            [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling link: $name"; exit 1; }
-            curl -fsSL --max-time 120 -o "kling-out/$name.mp4" "$url"
-            ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact "kling-out/$name.mp4"
-            ffmpeg -y -loglevel error -i "kling-out/$name.mp4" -vf "fps=1.2,scale=270:-1,tile=6x2" -frames:v 1 "kling-out/$name-sheet.jpg"
+            case "$ext" in
+              mp4) [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling link: $name"; exit 1; } ;;
+              png|jpg) [[ "$url" =~ ^https://ae-pic-a1\.aliexpress-media\.com/kf/ ]] || { echo "not a store photo: $name"; exit 1; } ;;
+              *) echo "bad ext: $name"; exit 1 ;;
+            esac
+            curl -fsSL --max-time 120 -o "kling-out/$name.$ext" "$url"
+            if [ "$ext" = mp4 ]; then
+              ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height -of compact "kling-out/$name.mp4"
+              ffmpeg -y -loglevel error -i "kling-out/$name.mp4" -vf "fps=1.2,scale=270:-1,tile=6x2" -frames:v 1 "kling-out/$name-sheet.jpg"
+            fi
           done < /tmp/list.txt
       - name: Store them on the preview release
         env:
