@@ -1,9 +1,8 @@
 [
   {
-    "name": "earbuds-hand-key",
-    "ext": "png",
+    "name": "earbuds-hands-clip",
     "product": "ae-1005012438734147",
-    "made": "2026-11-12, gemini-3-pro-image via Kling, 1k, 9:16, 20 credits: a hand holding the earbud exactly like the seller's photo, the case below (references: clean crops of seller photos 3 and 4)",
-    "url": "https://s15-kling.klingai.com/kimg/EMXN1y8qTwoGdXBsb2FkEg55bGFiLXN0dW50LXNncBo1c3RhcmdhdGUvMTEyLzAwZTkyM2QyLTE2YTYtNDcwMy04YjAyLTdjZTA5OTlkZjA2OC5wbmc.origin?x-kcdn-pid=112372"
+    "made": "2026-11-12, Kling image-to-video kling-video-v3_0_turbo, 8 s, 720p, 64 credits, from the checked hand keyframe",
+    "url": "https://v15-kling.klingai.com/bs2/upload-ylab-stunt-sgp/f0acbbbb-338f-4a57-a70a-90ad4fce921f-wuSiclUNVOorc0K-cGcVvA-output.mp4?x-kcdn-pid=112372"
   }
 ]
