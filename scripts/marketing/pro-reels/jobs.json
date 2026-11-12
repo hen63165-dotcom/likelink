@@ -2,33 +2,49 @@
   "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre. crop: per photo number [x, y, w, h] fractions, to leave out printed text and marks; {\"from\": n, \"box\": [...]} makes a new photo number from photo n.",
   "jobs": [
     {
-      "id": "ae-1005010487472044",
-      "hook": "חורף, והכביסה\nלא מתייבשת?",
-      "what": "מייבש בגדים נייד ומתקפל",
-      "tip": "טיפ: בודקים בעמוד את סוג התקע",
-      "name": "מייבש בגדים נייד",
+      "id": "ae-1005012438734147",
+      "hook": "מצאתי אוזניות\nשהן גם תכשיט",
+      "what": "אוזניות בלוטות' עם קליפס\nשנצמד לאוזן מבחוץ",
+      "tip": "טיפ: בוחרים צבע בעמוד המוצר",
+      "name": "אוזניות קליפס",
       "photos": [
-        1,
-        9,
-        1,
-        9,
-        1,
-        9
+        7,
+        4,
+        8,
+        7,
+        4,
+        8
       ],
       "crop": {
-        "9": {
-          "from": 1,
+        "4": [
+          0.0,
+          0.36,
+          1.0,
+          0.64
+        ],
+        "7": {
+          "from": 3,
           "box": [
-            0.0,
-            0.45,
-            0.62,
-            0.55
+            0.27,
+            0.4,
+            0.46,
+            0.38
+          ]
+        },
+        "8": {
+          "from": 6,
+          "box": [
+            0.1,
+            0.4,
+            0.8,
+            0.6
           ]
         }
       },
       "fit": [
-        1,
-        9
+        7,
+        4,
+        8
       ]
     }
   ]
