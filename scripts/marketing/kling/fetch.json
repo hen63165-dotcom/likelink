@@ -1,8 +1,5 @@
 [
-  {
-    "name": "earbuds-ravit-clip2",
-    "product": "ae-1005012438734147",
-    "made": "2026-11-12, Kling omni-ref kling-video-v4_0, 10 s, 720p, 9:16, no audio, 100 credits: street with music notes → ear close-up → cafe wink (references: keyframe 2, seller photos 3 and 6)",
-    "url": "https://v15-kling.klingai.com/bs2/upload-ylab-stunt-sgp/e800b4e2-9ed3-4232-9f37-815bd124fc73-HJSPtuM0kfW8luNlpxhagQ-output.mp4?x-kcdn-pid=112372"
-  }
+  { "name": "earbuds-seller-3", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 3 (close-up of the clip earbud), to make an exact product reference", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S5b41f416869743478b87b2bac27b02568.png" },
+  { "name": "earbuds-seller-1", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 1 (the earbuds and case)", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S4d71b852dc3a4201aa4432e6b91f5244z.png" },
+  { "name": "earbuds-seller-5", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 5 (colours and the earbud)", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S95e1f5268cf94fb3be8a7bbe6c3afd976.png" }
 ]
