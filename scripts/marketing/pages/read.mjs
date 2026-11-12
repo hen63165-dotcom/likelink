@@ -28,8 +28,11 @@ for (const entry of pages) {
     console.log(name, text.length, "chars,", links.length, "links");
     // A page that offers a .zip file (Notion's file block): save it for a person to read before any use.
     if (entry.download) {
+      // Notion lays an empty overlay over the page; close it and click the file block through it.
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
       const file = page.getByText(/\.zip$/).first();
-      const [download] = await Promise.all([page.waitForEvent("download", { timeout: 45_000 }), file.click({ timeout: 10_000 })]);
+      const [download] = await Promise.all([page.waitForEvent("download", { timeout: 45_000 }), file.click({ timeout: 10_000, force: true })]);
       const saved = `page-out/${name}-${download.suggestedFilename().replace(/[^A-Za-z0-9._-]/g, "_")}`;
       await download.saveAs(saved);
       const size = statSync(saved).size;
