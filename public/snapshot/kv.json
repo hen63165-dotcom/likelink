@@ -3224,6 +3224,43 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 261.38
+   },
+   {
+    "id": "ae-1005012438734147",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "אוזניות בלוטות' פתוחות לשנת",
+    "storeTitle": "אוזניות בלוטות' פתוחות חדשות לשנת 2026, הולכת עצם, איכות סאונד גבוהה, חיי סוללה ארוכים, הפחתת רעשים, אוזניות אלחוטיות אמיתיות",
+    "category": "Tech",
+    "kind": "gadgets",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S4d71b852dc3a4201aa4432e6b91f5244z.png",
+    "affiliateUrl": "https://s.click.aliexpress.com/e/_c3BV898f",
+    "aliexpressId": "1005012438734147",
+    "price": 23.09,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-12T07:46:19.867Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S4d71b852dc3a4201aa4432e6b91f5244z.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S0361615507ec4281816b61f706b58509P.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S5b41f416869743478b87b2bac27b02568.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S4c453d5eb13749e7bc2501803607ca75Q.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S95e1f5268cf94fb3be8a7bbe6c3afd976.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sd51bcbc2e12446318a30faed3bbe364bH.png"
+    ],
+    "createdAt": 1794469579867,
+    "updatedAt": 1794469579867,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005012438734147",
+     "itemUrl": "https://he.aliexpress.com/item/1005012438734147.html?pdp_npi=6%40dis%21ILS%2146.18%2123.09%21%21%2194.80%2147.40%21%402151fca717944695819342337e0d9f%2112000058361559426%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-12T07:46:19.867Z"
+    },
+    "importSource": "aliexpress-owner-link",
+    "originalPrice": 46.18
    }
   ],
   "marketplace:marketers": [
