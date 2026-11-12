@@ -1,5 +1,9 @@
 [
-  { "name": "earbuds-seller-3", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 3 (close-up of the clip earbud), to make an exact product reference", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S5b41f416869743478b87b2bac27b02568.png" },
-  { "name": "earbuds-seller-1", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 1 (the earbuds and case)", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S4d71b852dc3a4201aa4432e6b91f5244z.png" },
-  { "name": "earbuds-seller-5", "ext": "png", "product": "ae-1005012438734147", "made": "the seller's store photo 5 (colours and the earbud)", "url": "https://ae-pic-a1.aliexpress-media.com/kf/S95e1f5268cf94fb3be8a7bbe6c3afd976.png" }
+  {
+    "name": "earbuds-fix-walk",
+    "ext": "png",
+    "product": "ae-1005012438734147",
+    "made": "2026-11-12, gemini-3-pro-image via Kling, 1k, 9:16, 20 credits: the walking frame with the earbud redrawn from the seller's photo at true scale",
+    "url": "https://s15-kling.klingai.com/kimg/EMXN1y8qTwoGdXBsb2FkEg55bGFiLXN0dW50LXNncBo1c3RhcmdhdGUvMTEyL2VjZDkwNGM4LTBkZGItNGM1NC1hYzg5LWU3M2Q1OTc1Y2Q1NS5wbmc.origin?x-kcdn-pid=112372"
+  }
 ]
