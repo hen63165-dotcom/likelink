@@ -32,7 +32,7 @@ jobs:
             [[ "$name" =~ ^[a-z0-9-]+$ ]] || { echo "bad name: $name"; exit 1; }
             case "$ext" in
               mp4) [[ "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a Kling link: $name"; exit 1; } ;;
-              png|jpg) [[ "$url" =~ ^https://ae-pic-a1\.aliexpress-media\.com/kf/ ]] || { echo "not a store photo: $name"; exit 1; } ;;
+              png|jpg) [[ "$url" =~ ^https://ae-pic-a1\.aliexpress-media\.com/kf/ || "$url" =~ ^https://[a-z0-9.-]+\.klingai\.com/ ]] || { echo "not a store photo or Kling picture: $name"; exit 1; } ;;
               *) echo "bad ext: $name"; exit 1 ;;
             esac
             curl -fsSL --max-time 120 -o "kling-out/$name.$ext" "$url"
