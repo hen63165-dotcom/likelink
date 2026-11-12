@@ -1,0 +1,15 @@
+{
+  "id": "earbuds-ravit",
+  "why": "Chen asked (2026-11-12) for a Ravit-level animated reel for the open-ear earbuds with a strong hook and \"like jewellery for the ear\". AI voice, labelled on screen.",
+  "voice": "he-IL-HilaNeural",
+  "rate": "+6%",
+  "lines": [
+    { "name": "v1", "text": "זה נראה כמו עגיל..." },
+    { "name": "v2", "text": "אבל אלה אוזניות!" },
+    { "name": "v3", "text": "קליפס קטן שנצמד לאוזן מבחוץ, כמו תכשיט." },
+    { "name": "v4", "text": "בלי שום דבר בתוך האוזן." },
+    { "name": "v5", "text": "ורק את יודעת שזה בכלל אוזניות." },
+    { "name": "v6", "text": "ככה הן נראות באמת, בתמונת המוכר." },
+    { "name": "v7", "text": "רוצה את הקישור? כתבי אני, ואשלח לך בפרטי." }
+  ]
+}
