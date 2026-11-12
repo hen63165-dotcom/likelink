@@ -1,0 +1,34 @@
+# Page read: opens a public Notion page the owner sent (this session's container cannot reach
+# notion.site; a runner can) in the runner's own Chrome, and stores its visible text and a
+# screenshot on the "page-reads" pre-release for review. Public notion.site pages only, with no
+# query string (a shared link's tracking token is never sent or stored). Nothing is installed or posted.
+name: Page read
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/pages/read.json
+      - scripts/marketing/pages/read.mjs
+      - .github/workflows/page-read.yml
+permissions:
+  contents: write
+concurrency:
+  group: page-read-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open each page in Chrome
+        run: |
+          npm i --no-save --silent playwright-core@1.49.1
+          timeout 300 node scripts/marketing/pages/read.mjs
+          ls -la page-out
+      - name: Store them on the review release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view page-reads >/dev/null 2>&1 || gh release create page-reads --prerelease --title "Page reads (review)" --notes "Public pages the owner sent, read on a runner for review. Nothing here is installed or posted, and the site never reads this release."
+          gh release upload page-reads page-out/* --clobber
