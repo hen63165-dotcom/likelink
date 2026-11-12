@@ -19,8 +19,9 @@ import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 const SEARCH = "aliexpress.affiliate.product.query";
 const pct = (v) => Number(String(v ?? "").replace("%", ""));
 
-/** One store item → a candidate, or the reason it is left out (pure). */
-export function candidate(x) {
+/** One store item → a candidate, or the reason it is left out (pure). `allowBrand`: an item the owner
+ * named herself (query.ids) is laid out even with a brand in its name — the sheet is for looking only. */
+export function candidate(x, { allowBrand = false } = {}) {
   const title = String(x?.product_title || "").replace(/\s+/g, " ").trim();
   const id = String(x?.product_id || "");
   const price = String(x?.target_sale_price_currency || "") === "ILS" ? Number(x?.target_sale_price) : NaN;
@@ -28,7 +29,7 @@ export function candidate(x) {
   if (!/^\d{6,20}$/.test(id) || !title) return { ok: false, reason: "no_id" };
   if (!(price >= FIND_RULES.minPrice)) return { ok: false, reason: "no_ils_price" };
   if (!(rating >= FIND_RULES.minPositivePct) || !(orders >= FIND_RULES.minOrders)) return { ok: false, reason: "numbers" };
-  if (hasBrandName(title)) return { ok: false, reason: "brand" };
+  if (!allowBrand && hasBrandName(title)) return { ok: false, reason: "brand" };
   if (isNotListedKind(title)) return { ok: false, reason: "not_listed_kind" };
   const https = (v) => String(v || "").trim().replace(/^\/\//, "https://").replace(/^http:\/\//, "https://");
   const photos = [x.product_main_image_url, ...(Array.isArray(x.product_small_image_urls?.string) ? x.product_small_image_urls.string : [])]
@@ -71,7 +72,7 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
     try {
       const res = await aeCall("aliexpress.affiliate.productdetail.get", { product_ids: String(id), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
       const x = res?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product?.[0];
-      const c = x ? candidate(x) : { ok: false, reason: "not_returned" };
+      const c = x ? candidate(x, { allowBrand: true }) : { ok: false, reason: "not_returned" };
       if (c.ok) { c.choose.orders = Number.MAX_SAFE_INTEGER - (query.ids.indexOf(id)); seen.set(c.item.id, c); }
       log.push(`id ${id}: ${c.ok ? "ok" : c.reason}`);
     } catch (err) { log.push(`id ${id}: ${String(err?.message || err).slice(0, 100)}`); }
