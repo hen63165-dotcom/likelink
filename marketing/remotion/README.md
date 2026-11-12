@@ -15,3 +15,8 @@ ffmpeg -i out/clip-earbuds.mp4 -c:v copy -af loudnorm=I=-14:TP=-1.5:LRA=11 -ar 4
 ```
 
 Nothing here posts anything.
+
+- `StudioSteps`: "open a studio" with one stick figure (skill `stick-figure`), 17.5 s: a question hook,
+  then the real Studio steps (פתיחת סטודיו בחינם → הוספת קישור → the store ready to share) and
+  "כתבי: סטודיו" for the comment funnel (→ `/join`). LikeLink2's own promotion: no affiliate tag,
+  no income, no counts; labelled "אנימציה · LikeLink2". Render: `marketing/reels/pro/studio-steps-stickfigure.mp4`.
