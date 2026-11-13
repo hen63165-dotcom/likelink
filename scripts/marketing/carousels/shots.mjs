@@ -25,6 +25,13 @@ console.log("live catalog:", live.ok ? "read" : live.reason);
 const { doc, added } = mergeCatalog(snapshot, live);
 const keys = doc.keys;
 console.log("added from the cloud:", added);
+// The live site reads the cloud's own rows (the copy is only a fallback), so a slide's price comes
+// from the cloud row: the store price, when it was checked, and the store's own "before" price apart.
+const cloudPrices = (live.ok ? live.keys["marketplace:products"] : []).map((p) => ({
+  id: p.id, price: p.price ?? null, priceCheckedAt: p.priceCheckedAt || "", priceSource: p.priceSource || "",
+  originalPrice: p.originalPrice ?? null, pricePrevious: p.pricePrevious ?? null, status: p.status || "",
+}));
+writeFileSync(`${OUT}/cloud-prices.json`, JSON.stringify(cloudPrices, null, 1));
 const graph = buildPublicGraph({ products: keys["marketplace:products"] || [], marketers: keys["marketplace:marketers"] || [] });
 const listed = graph.products.map((p) => ({
   id: p.id,
