@@ -14,3 +14,4 @@ photos (Actions → "Site shots", `scripts/marketing/carousels/`), never a mock 
 
 Every slide that leads to buying carries "#פרסומת · קישור שותפים". Nothing here is posted without the
 owner's "כן". On Facebook the link goes in the post text (no comment word) and the last slide is left out.
+- `telegram-20261113/`: one image inviting people to the Telegram deals channel (@likelink_deals, QR code). Comment word on Instagram: טלגרם → https://t.me/likelink_deals; on Facebook the link is in the post.
