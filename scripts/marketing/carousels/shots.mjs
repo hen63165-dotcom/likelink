@@ -10,7 +10,7 @@
 // Nothing is posted. Output: shots-out/ → the "carousel-shots" pre-release (review only).
 import { chromium } from "playwright-core";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { loadLiveKeys, mergeCatalog } from "../catalog/live-catalog.mjs";
+import { loadLiveKeys, mergeCatalog } from "../../catalog/live-catalog.mjs";
 import { buildPublicGraph } from "../../../src/lib/publicDiscovery.js";
 
 const ORIGIN = "https://likelink2.vercel.app";
