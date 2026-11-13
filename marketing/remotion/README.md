@@ -27,3 +27,8 @@ Nothing here posts anything.
   נוצרה ב־AI" are on every frame. Render: `marketing/reels/kling/butterfly-gemini-fixed.mp4`. Not posted: the
   product link is unknown and the voice says the earbuds "don't move when dancing or working out", which needs
   the seller's own listing before it can stay (Actions → "Transcribe" wrote the line down).
+
+- `ButterflyUgc`: the owner's second Gemini clip (`public/gemini-butterfly-2.mp4`, no words; the runner heard only
+  noise, so its sound is muted under the music bed): one pro-style caption per shot, the model's fake Instagram
+  comment sheet and back button covered by our own "כתבו: אוזניות" card, the disclosure and the AI label on every
+  frame. Render: `marketing/reels/kling/butterfly-gemini-2-edit.mp4`. Not posted: the product link is not known yet.

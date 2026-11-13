@@ -2,6 +2,7 @@ import { Composition } from "remotion";
 import { ClipEarbuds, TOTAL_SECONDS } from "./ClipEarbuds";
 import { STUDIO_SECONDS, StudioSteps } from "./StudioSteps";
 import { BUTTERFLY_SECONDS, ButterflyFix } from "./ButterflyFix";
+import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -26,6 +27,14 @@ export const RemotionRoot: React.FC = () => {
         id="ButterflyFix"
         component={ButterflyFix}
         durationInFrames={Math.round(BUTTERFLY_SECONDS * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="ButterflyUgc"
+        component={ButterflyUgc}
+        durationInFrames={Math.round(BUTTERFLY_UGC_SECONDS * 30)}
         fps={30}
         width={1080}
         height={1920}
