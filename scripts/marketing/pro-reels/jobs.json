@@ -2,41 +2,6 @@
   "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre. crop: per photo number [x, y, w, h] fractions, to leave out printed text and marks; {\"from\": n, \"box\": [...]} makes a new photo number from photo n.",
   "jobs": [
     {
-      "id": "ae-1005011692763387",
-      "hook": "מה זה הדבר השקוף הזה?",
-      "what": "סקווישי מוצ'י שקוף\nלוחצים ומשחררים",
-      "tip": "טיפ: לגיל 3 ומעלה, לא לפה",
-      "name": "סקווישי מוצ'י",
-      "photos": [
-        1,
-        4,
-        7,
-        8,
-        1,
-        4
-      ],
-      "crop": {
-        "7": {
-          "from": 3,
-          "box": [
-            0,
-            0.22,
-            1,
-            0.78
-          ]
-        },
-        "8": {
-          "from": 5,
-          "box": [
-            0,
-            0.25,
-            1,
-            0.75
-          ]
-        }
-      }
-    },
-    {
       "id": "ae-1005006863869342",
       "hook": "מחפשות משחק בלי מסך?",
       "what": "פאזל עץ\nעם צורות ומספרים",
@@ -72,10 +37,10 @@
         "9": {
           "from": 5,
           "box": [
-            0.12,
-            0.08,
-            0.76,
-            0.62
+            0.2,
+            0.06,
+            0.6,
+            0.5
           ]
         }
       },
