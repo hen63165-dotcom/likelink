@@ -201,7 +201,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117823273-x70lz9.mp4",
     "createdAt": 1789929013056,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -230,11 +230,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 10.62,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 17.09,
+    "price": 17.19,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S13c6f7c7d04c497384e5c77d517c376cF.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/S400a708e8fcd41159db8cea4a63a37ddN.png",
@@ -243,7 +243,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb09326a7d96b40acbec26c46524e1347w.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/S3f8596cbeb2e4594a38fd74229c870ecV.png"
     ],
-    "originalPrice": 34.18
+    "originalPrice": 34.38
    },
    {
     "id": "p-live-02",
@@ -254,7 +254,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117828322-m60ezx.mp4",
     "createdAt": 1789842613056,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -284,11 +284,11 @@
     "videoUpdatedAt": 1791494178464,
     "catalogPrice": 378.4,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 379.93,
+    "price": 382.26,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S4fc5661046a1428c99744f3d540588f4L.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S2a1cdc9f68c3446a8844ea1537c1f8f2x.jpg",
@@ -297,7 +297,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb611d344737246f2a78105b012bb1b43Y.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sf29b78c6958a4e2f877c85fc3e2d6e7aC.png"
     ],
-    "originalPrice": 719.05
+    "originalPrice": 723.46
    },
    {
     "id": "p-live-03",
@@ -308,7 +308,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117832579-52wthh.mp4",
     "createdAt": 1789756213056,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -338,11 +338,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 228.96,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 257.88,
+    "price": 284.9,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S6a13c7593c184263ae9204f295447043t.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S6e562e9451244bdebdf507ff775d424eo.jpg",
@@ -351,11 +351,11 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S9545f81560414e24a97181221f2eaea7k.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Seed4312c17694d8ea2bc39f4e32569a4x.jpg"
     ],
-    "originalPrice": 629.07,
+    "originalPrice": 633.11,
     "sellerVideo": {
      "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/1100098027111.mp4",
      "source": "aliexpress_api",
-     "checkedAt": "2026-11-12T13:44:04.290Z"
+     "checkedAt": "2026-11-13T13:02:53.052Z"
     }
    },
    {
@@ -367,7 +367,7 @@
     "category": "Accessories",
     "videoUrl": "https://likelink2.vercel.app/api/og?mode=media&path=reels/msd6go4kff49s5/1791117837130-73u3do.mp4",
     "createdAt": 1789669813056,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "commission": 8,
     "marketerId": "msd6go4kff49s5",
     "videoStyle": null,
@@ -396,11 +396,11 @@
     "videoUpdatedAt": 1791494178464,
     "catalogPrice": 85.36,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 109.88,
+    "price": 110.56,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S99e75f18d03546ce862870221aa3c311H.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc3150d9b93a6452b8608ae1131051a4dV.png",
@@ -409,11 +409,11 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S3129c9709d9042ebb86330098110477dL.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sf0f1258a76d44898a8b6f57eee920b47R.png"
     ],
-    "originalPrice": 267.23,
+    "originalPrice": 268.87,
     "sellerVideo": {
      "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/251516817/p/1/e/6/t/10301/4000313550757.mp4",
      "source": "aliexpress_api",
-     "checkedAt": "2026-11-12T13:44:04.290Z"
+     "checkedAt": "2026-11-13T13:02:53.052Z"
     }
    },
    {
@@ -438,11 +438,11 @@
     "videoUpdatedAt": 1791494179206,
     "catalogPrice": 47.17,
     "catalogPriceNote": "unverified: shown again once the AliExpress API reads the store price (scripts/catalog/sync-aliexpress.mjs)",
-    "price": 54.37,
+    "price": 54.88,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S64b18d3ceaf04dfbb7b8134ebdcc4faam.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S9777e80bf14445e784a76c2dc1f145d0S.jpg",
@@ -451,8 +451,8 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc6c827037afa4648a61e05b93f62aa16z.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sbb4689a801fe4d8390a9ef16d482e0891.jpg"
     ],
-    "updatedAt": 1794491044290,
-    "originalPrice": 132.64,
+    "updatedAt": 1794574973052,
+    "originalPrice": 133.84,
     "imageSource": {
      "via": "aliexpress_api_gallery",
      "chosenBy": "least_text",
@@ -472,11 +472,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/H57be5d8d47774b8d91b03a3341f10b00x.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CnFHdTgy0niQbmmfASL7HNZRoLb4TgO30QnuTFlD9yRDp6bpM18iwWIE2H6V8GtS0NPkbItHvTdaJawS6Et3aYiLqSmUBZxC6B5TCVsnYwompNDpRMZ9UVpFNj88G8s92Na3Eok7bokf7i5ueaktwvPJJEO7AA6yDsxAGniZeKaAjyuFcBR4djQxcNNHLCitV9WBjnF8RHmIl3tN9mRFTgLIKezS4agkD7Hq0KUkDe33a1coPsu4eHwT8nyXPEl9z2QzWh0MW0XyeFNlLweBIw4Saqp9wnKiQPH0gk4nCr2RwVPKJWfI8pkTNmRGGC328NO64VzGEtI4iZc3t57PpT2wBqQVjxiVEcsjFbhNWOmJb5zhSYfhJlfJiM1LxTfBrnpTRe2BtNdYE2fZ4Yl8OSIqceGEcDgrPm1AdRqLjw1ZRWIoq858sefVuEHRDWpzanhAt7Jiaqdjr7SP2tX1Jlj2nYvBRoEcdtNesEGc58qB24h40M3gpiciA71vKSM5nZSYm3gBaBkPNxspVxcLcg1CbhqEbUybogwBgQIQYwPjzewvvZFjOJKgyHy6KjyfNrekGl9ZPsMlCwirr5mWMwixykV6Lclq6iCSh7vE6yKDt1o85zYBFgCa21ynMnmii2fKc08L4NUvyexDa5tH73wntj5U37nEbKSyoH5m6dIUyu5hxlma9qa3cuAKlY0o4N0z3Qets90Eb3",
     "aliexpressId": "1005003711297938",
-    "price": 8.3,
+    "price": 8.54,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/H0426caa80b62450e9ceb572b8ec0c69aN.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/H57be5d8d47774b8d91b03a3341f10b00x.jpg",
@@ -486,7 +486,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Hfe19d28582e94631923a3ba973d9686aj.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -498,7 +498,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/H0426caa80b62450e9ceb572b8ec0c69aN.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 9.54
+    "originalPrice": 9.6
    },
    {
     "id": "ae-1005007382224504",
@@ -511,11 +511,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S65aae23cf83d4e3a8bae2b77a76f8e8dq.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C4cciq4Eb0obFQJU9Rh4p0YennAveluJQeP9bcuCkFMJhoBWcQb8SlLNgBpvFY06aJVwKJHaQjrPMOKiEW6JiTrrRuhBNjF7T0d1Miweh3vzAmrg6rfPuDR1QvbdZg8J6w1X5NZGY7MMbu2AvRqlDjIaD0UP74AUVvofE1lPLeBwTZIJeLn4JHLOO0AHjnDQApjWFSEPF49oaKSWAR8DRnkrqpXAr8Rk0N2QCs0GjpXn6edhTerk9l4o4kDL3rbC6qAQanDoxG9VbbPYydXR7ZKrj3I1RsmjdOThXj99RWuTTisWDoLrQhGmREUwax02qQ0PMVvj5ry2kYpXknK9yA1jcYfbszxhjXgBLNmpFvxCVLRzykksGpA0db8pcfxUqQgA18ldFSqi8uPZfrUDbIM8usO8OuGAXqB76GqBtQ9CfiuAB74Z38DaCdviYaeYVW1LjhhEnCwb4cr7mOZXpTj6EIIbnuhZkefUyOXV8qOUalCb9FtiDCuxPeUv3FjmLPtjgJmKtKyD3WvGIr5wcDtdzrmd37UuvlxXx1IdyyIt3u7rjN7rPBmTSRYV2HCYhCFmrEGuS6x5UsGGIojteqmWhOdVrfl1JAAGMrisah2F0aVZkyrvInIHPcIBJHUmq5m53uEgayekCzd17fAKkavWF6TgcoYB7NJ26q1uTcZoQQmBwHGdchxrKIUIcSLNaZzohnhO4euh5F",
     "aliexpressId": "1005007382224504",
-    "price": 21.1,
+    "price": 21.7,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S65aae23cf83d4e3a8bae2b77a76f8e8dq.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S83479e3dd69f46749aa11be2feec01e99.jpg",
@@ -525,7 +525,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S496bf080693f4c538e970a1edc81280bQ.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -535,7 +535,7 @@
      "resolvedAt": "2026-11-06T11:59:04.975Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 25.39
+    "originalPrice": 25.55
    },
    {
     "id": "ae-1005008181803185",
@@ -548,11 +548,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S2aab98edb9c64a19ac08f29301c26606H.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3Co7Er0DpFclnxKx4Li1ldqx0YHeq8OnBIS7NMhE6Jm6Eqxm0iOWWTrqjugedvyzJTs2rf1pw7WQ1gxrPG1kHxpJPaGjARvYZXcaFKCavq7IwiE1KieDjqkFP0PxXxKeFJledkyGcMUIh5hCnPpD7z1bkEikJTnjeUU7r5ySY3fFRBbXNLYt1RKvw93oOgbYJC0EKLRoHqowFzZpKm6PSWPTNrAHcf87Pxnw1CUVeobgyC5sHQ4MA735woc8ObiGdpZFIbQuzcNd4GzOFsadw14GvNqM1fBlJHYA4BoU54ulWG2OldlXLI3L6tZ6We4tXiw340qs6qzjsVMmNvPcZ1APSYxEPUacJApnsbaVJCMwSV2knnom0H9jLUoK1ApGqe7gMjQcULRgKt9MKgZ19j9ftfqp32QKlgaB2yz0V1435J0c8BkeWESsRN8acnttRFwKCVShvpxhcAPCy4jz2zf2j1jqqKoBMJmpLzYkJJ1xavL6uzcF6ITyk8q4w4dKirCze9kGuXejUNOrbAsLFDhEGTXFCvUuNeIcjcKHM10FcmfuCiu4ri7zbwHKI56ZvjwctWfTKGReQUPrdPvcKrNPAZlTUtBB40AY7ag0bbco2tBxxoqWq7EYWuYEbClvM5HyhzB4IZBS1mMUJIvo4Nd0AHpJOa1eceSLM9demOZdAKEqf2fQOxDhX08VgeXzAZzIDtNN5WxOJq5",
     "aliexpressId": "1005008181803185",
-    "price": 13.88,
+    "price": 14.28,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sfd09e3b7b92e4064b1e8d264a2cc4ff5O.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sca51d233cac04ecfafdc882df8248944B.jpg",
@@ -562,7 +562,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sed5a5b1428834a2aafb4d04e5c30bed0I.jpg"
     ],
     "createdAt": 1793966344975,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -574,7 +574,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Sfd09e3b7b92e4064b1e8d264a2cc4ff5O.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 17.34
+    "originalPrice": 17.45
    },
    {
     "id": "ae-1005006863850606",
@@ -587,11 +587,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S87b09c8ac85e464c969ed7e728f9af7cN.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c2QUBqax",
     "aliexpressId": "1005006863850606",
-    "price": 64.9,
+    "price": 65.39,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S87b09c8ac85e464c969ed7e728f9af7cN.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S95d112b8442a474ba20024e8b6d4864d1.jpg",
@@ -601,7 +601,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S882d1fe2c9e347929b074301210950b9X.jpg"
     ],
     "createdAt": 1794141625181,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -611,7 +611,7 @@
      "resolvedAt": "2026-11-08T12:40:25.181Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 129.8
+    "originalPrice": 130.78
    },
    {
     "id": "ae-1005008430108216",
@@ -624,11 +624,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sef5adba300144c7ca265c4861d330fdfq.png",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4FOz9HH",
     "aliexpressId": "1005008430108216",
-    "price": 27.29,
+    "price": 27.49,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S6bc2e9e880424057ae4fa8f9d24b2feb3.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S5984d9dfc3e747668f18ec604257a695r.jpg",
@@ -637,7 +637,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sef5adba300144c7ca265c4861d330fdfq.png"
     ],
     "createdAt": 1794141625181,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -649,7 +649,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S6bc2e9e880424057ae4fa8f9d24b2feb3.jpg"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 54.58
+    "originalPrice": 54.98
    },
    {
     "id": "ae-1005009185028607",
@@ -662,11 +662,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S48e3ad3740f8460f9016a1d39b2a0ef6A.png",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4BlmHhd",
     "aliexpressId": "1005009185028607",
-    "price": 10.45,
+    "price": 10.52,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S717e754d137f4320b63bccfca19e0e68l.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S48e3ad3740f8460f9016a1d39b2a0ef6A.png",
@@ -676,7 +676,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S52baab010e4c4666a576c48c81a5b6acZ.jpg"
     ],
     "createdAt": 1794141625181,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -688,20 +688,20 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S717e754d137f4320b63bccfca19e0e68l.jpg"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 22.21
+    "originalPrice": 22.34
    },
    {
     "id": "ae-1005007476887390",
     "marketerId": "msd6go4kff49s5",
     "status": "approved",
     "title": "מקליט קול מקצועי דיגיטלי 8G/16G הקטן בעולם + נגן MP3 + כונן פלאש USB",
-    "price": 38.79,
+    "price": 38.9,
     "currency": "ILS",
     "category": "Other",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S19ebff19883540aebe08dac9f3c20440E.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4EE3FIn",
     "createdAt": 1794141625181,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -715,7 +715,7 @@
     "importSource": "aliexpress-owner-link",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sd30d9abb76c546388a93202be5ec3522z.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/HTB12SdoRXXXXXctapXXq6xXFXXXc.jpg",
@@ -724,7 +724,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S19ebff19883540aebe08dac9f3c20440E.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S587e7a72e6c14ebba9deabf5035dcaf1g.jpg"
     ],
-    "originalPrice": 77.58,
+    "originalPrice": 77.8,
     "aliexpressId": "1005007476887390"
    },
    {
@@ -738,11 +738,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S8f6328a6d24f4938b5a3fb12a21a81efc.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3Co7SPj7eaCMbUeotAtCrf8jrflPJTq3zUxTRR7IOQTxrnHySagWO7pywkoU2LuSPQ1vIGNzDqksnZfB0HfSk3eFQb8ubFYOPb0w1RBY3hyhUb6OOvdBwjkaMYN8FMMSdipFsEKRt6s704SPKpBNiwslU614tIhc60b6zH0Gz3ynnyivorThBlxIobqSfH7roxcjRDrZFFuRzKtbbJIf39Fg8Z9NWwQShP80iH7wphfxTXLkjNkzIM7HTLfxUnQxJi44nis2QQDj7UBKbnZSPb9dIrcKt873T8zWmbSRCs24lHyDN617cwwWCb9634bNr3Dn3tOwWa4ekoBxvrZC2n24nLtxsayVcKf4h3gN6GNuCCGnIi4TWBVuKzhP8AcPMtZ4uhIRKfNzkUIswMu1vqGAVwUQVr1lcCKdctuI7ixZ9vENJ41Dc3yI5cgO6lJvpO6wL2FFFpYi3XInaR0DrD4RYXB0BGkYREZukgX5emhlXUpq3kdrPLvHPpbRMuJxK94xCg0wSKVszjytAobETc7d58F1lweFsPHZTRQsreWFuy3J09CDMj2rtd2fL7AVlnSPMZJzV2k06NCgjFx64Ulyg2wiBKIiInq2d9mSFf98TZWQ2nT6zf4UAe0DvXM239taMcq8u9e9J9CjtFUxLaHy9EVhxU6Spy3OcnpzScrmON0iQayCZmewrWjEzijOtRDCgzakdw4vxbP",
     "aliexpressId": "1005006994477824",
-    "price": 22.09,
+    "price": 22.19,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S8f6328a6d24f4938b5a3fb12a21a81efc.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sa1e3314d6ca141f2ab4ae8fc4cce13d2T.jpg",
@@ -752,7 +752,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S52a60b796ec74d689e155f9a812b34a4T.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -762,7 +762,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 48.02
+    "originalPrice": 48.24
    },
    {
     "id": "ae-1005012011243048",
@@ -775,11 +775,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc72f00287b88422ab93c51613957dcb8E.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoUHMR5731rTN2neP2NgpJwL1tNzegtYoXlGrEDDDqOu3Q8poZK19vaDHLjHPo09V80fbUsDisJtRqyakYs2jZUnbZMQIVyusn69vUZCbmGfAfax4yATKEDDEjqQRuaEC2p52oskpiWHU0wdzeQfFa9MNSE3XQzbdwd2dDgQaNod6CDyFE9eD5FB1sdKnrHsoZg9YUwIrqQfbGv6AgwHJKWbp1ySUEuu0f7Dwf6tib123zwnXt2Jqm6KukquQQIqXdW9HHl117uHR0Dkw97eh84UdzmAHgif13wAlwie00D2iOitnr9vCxGVc8JiLB1ciEDtG3l9KWKbKbeDkvzB18ZvO0OkPZz4IQrW4Tk7MhLEDTsEDyL8KaoZ7QLzUNiRZy2hmAVJFX34nPB7GxCb6HHN5fdcoWEyTPJFe0EFIlBeyru54M9aN0QtWCrwEaYhYnyNVjvvFZGTg74fO9HGF8LGd5LdMUUPv2KbfdaXeboxGJCJ0DbmbbXs6q7I3UnsWhbaPc9MkMXT4olHd0lRtehFqfsihJIwWZlSQuau4msWr63lWf8WTpEU7cMgg4Nt3ejgGmVsTRI8uGE5A797DaqxFWb2EcbD7lm4HHoAzg3dE5VqMSJqO3sxZ0xWH3lcVix9wBWpcLFTiWRRcR6CHJOLuO1lPABwKQcxDt69O5a2YP9RG3fDW9FEASgPadn8BdLfUCsGlVOZu5",
     "aliexpressId": "1005012011243048",
-    "price": 41.59,
+    "price": 41.79,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S6b887ca3fb9345fab186775df1e4b0d2I.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S37bc08d64b4748df9df28a8a7de75bbaO.jpg",
@@ -789,7 +789,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S6d4522daa291481b86aa9a0408690492g.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -801,7 +801,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S6b887ca3fb9345fab186775df1e4b0d2I.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 83.18
+    "originalPrice": 83.58
    },
    {
     "id": "ae-1005008248098577",
@@ -814,11 +814,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sd2a495c0909a41fa9816272b80494942p.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C29ZrHeUFY9x6LHjPmp1hakSsfECCteU0myvjwgMlUHjhuxOD2zKKf6BtZcoPgSakHioxJ3aZzQfhARp5Gaj314POM3vOBLEat2SSFKUiWGcX12oSTksCXEzHHyNZtffgoZErNovn2REXtrXk8lT42bh1YdsO0HwB5ti3bAU3c3poCMsmqp5QbXLj6oUaO3cyg29TgqAD3IrPltvyrxCKSvnkrzRDGZXKP0yuhfCbzVfdYuYRWsp53ctUdwG9P6RLE2TnxjMEwTp676Yl3l1nRkDGRMz2iZ5Gm7HiNfn59S0ARfZshkZzaW47KQAtD8s0MJeAOGF57Ae6bei0QXNWHHEUXXGuH76q47ru8xDBAoopFXX6maBaWMyRVTuUcxqN0DHfXfl6JVYWG3kwPnnat48hH96jzeZJ7bKnXI4tM2U9W3eNa75Ehy18A64vQZwN4WZ9rzAT1Caw5g8gSNMLC3EJgcCR6JrFVz1nB8NSa7t7QOP0kcAvVSrTkTy5kGiECXO3gWg0XUYglrUg7xwcy8QETtxdKuWD0lnO0DbDJ5Gd2HfaooGkE1GUUYCAmAOe8f6h9S3aepegjxkNFQbob8GlXtxZUt3T6EXVC0CeSdh7pdGlRZmcumtE1meYiSVJJ4Fqd4sL6OTw0qSPO6LQ8X0RJhgzrO3QmL2XSdCeC0kpufPJxf2Pm4o2udQdPkooNUtRzbqXBHvOu",
     "aliexpressId": "1005008248098577",
-    "price": 9.46,
+    "price": 9.51,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sd2a495c0909a41fa9816272b80494942p.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S5d2a9c6c04484695a49702ab432a3305F.jpg",
@@ -828,7 +828,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Saad7ffd3d4fa4862a2ee7fb91cc9e911d.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -838,7 +838,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 20.03
+    "originalPrice": 20.15
    },
    {
     "id": "ae-1005008248182129",
@@ -855,7 +855,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S80ea61cca92047dba1aaaaf07aae6b07W.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S9ded06a796c748aebc8739e37c4bc871X.jpg",
@@ -865,7 +865,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S67a95dbc54254e028c9cd4f471503b482.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -888,11 +888,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S1dbae0e55b54468ab21e4bff6dd3a3daQ.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoAu7qEZ7XmXDUv48X1BlWJQS2wzosYrgDpP0tue1vT2u4z9gaQSqTEohN4L9XVS8qE5lMKBb9wHKnBtfCuND7LInqyaLbEeZBD5teaaFx7h3ntmVddmygHCR7itDyBu9R9VCTQK65T8ewg2qecIoBYVFqGTbxH4jquKloRN1WYGWFYhbqvgk2yEf1CgYCt0pgkWo6bcYJuU8HoB8Ss7cW5u8F8Egzw32ti8XtQSpIy2wOexyhAa7IUH4EWsb7kfQW4vYdzxaCGkwuFNjE8TLvbbtfndIwgbWLZ2mFeU7NLZTw86RSKywFPvb7EgbrRO5kVovE5VRb3kkDbTUAvwmKmgIPHZQziYos2PHCRE45hUn2f70n6AdKn2Smw8Pr8ob0cxCzWrYH8hIlB41iiQbCqwY8TcgaOTNkcZinIHL9bfVmyz7bj1i1veiQarPoLlIcmkLtUdBjofuRyV53M2cb8G1Et7gBDxtYSW6d2azIp1QlXj0qh5fnqIhOABomIyFBhrh8GtxJBm6lLBjTGLf5CEgnJhQpqbcbqUQoJFLcn8YBRxjWGCmbksYXUAyYLlovUCf1ppR6JpheeUIGD6BxOpaBO5iOExIrVosAh8mkGlQqEZntAO6UUEBkVWbUzk1QC4ArTFWTcW6wLDnh0rPhTE5kxaAOEw5cwEHj6KqTkggO4JOjA5Yo93FWwFfcNXajjJymoOZJql9m",
     "aliexpressId": "1005007171036530",
-    "price": 8.45,
+    "price": 8.5,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S1dbae0e55b54468ab21e4bff6dd3a3daQ.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S937637dc20364085b56157a67775c92bR.jpg",
@@ -902,7 +902,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S08058f4a4e6b40f2875c7be14099e8act.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -912,7 +912,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 19.93
+    "originalPrice": 20.05
    },
    {
     "id": "ae-1005007345430335",
@@ -925,11 +925,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sba88cb3aba344fb2a19d8aa8ccafd3587.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C2KgEcEp6MBC41kxrI4YTS0YIhM2russRaSQiKeQdHRrbyn5pE5k1oGOtdgYje7J5DFtbA2hHTDorISX83CJXq50qZARzMwftHolIUQ0bCc4mXJB4JTF8JYWZu8VTgBmyiqfUFDDnZrJTlXmcFf39fKVMauE1SMvWURpnXlzrepIoj8pYxJ9LazUq3yJXb6tXU9kCHH7Gpc2o0vE5Z8r6otmFNTiYyPeLA66LyET3w6wtEFDGHQ20UOOdyXEgGTT9HUSdNcb3J15lfvqml3meAZzsVcxv7HaQMsXWcxwBSMpWX0gEcB1PWJTtQowyqcFWDL6UbU6dqNSRBondVeTds44lPVpioic7yuSym2Z6gJDAqMpYbJL4m4Bqiq3GblLXv0p1dDRYcTeMiJhC5ujjudLAHoubaBcLwHxF6U6MggM0wEdVYlgR8WpyCx9JctvDfbZ1zokzF6jozQfTs05d7jK5djGtzhCHu4xzlM89SgY9QT84exBHDL9k8khZz4xdI17i73JnNjWVKsO8qCvZSE37Co2sGPeswdreLsvSBD1uV9LZiHxYbkILIYuQJdBv0fHQ4FBMycJo2GI8v6qz8fvwxXAiXUq3POs29rYvvf5uF1bcN0Ti0zym1RWKYKbMCTProYmLk5VS4bTQqRqMWuLQYW5ZDRMipLziaMM0nxdYEZoraMCiSOpJd63lQy0CggoxNX1Jv9tgh",
     "aliexpressId": "1005007345430335",
-    "price": 17.37,
+    "price": 17.46,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sba88cb3aba344fb2a19d8aa8ccafd3587.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S5772dc1b0a724459a9866a308d709c20I.jpg",
@@ -939,7 +939,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S1d6270fc7c0f4df793a3b1dd5de539e2P.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -949,7 +949,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 39.29
+    "originalPrice": 39.52
    },
    {
     "id": "ae-1005013266260514",
@@ -962,11 +962,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S45ba486587d0439396ad618f69132225Q.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C2TkVEanKGAdr316AHpVtvUe4QDjfUqep1NWcjK1ob5kmP0o4jT7Mb806JDSAjmr2bNbACvvMj3zJRmK8FhLGuRmzcxaUJ1ja90tiY7rcyXRTO0DWoZNZxjeVoIOTE9WnuRl23OFzQSiG2YvxVpccubw2sNXyLpA0rvR27mG9NnCfpJrUtsn5loknL4KTaadZ1kCotTsbYffJQR8wZrjJB5WVUajj1f2CmWGH8RbvGWCmK43uDr0LTI1rAQ0tFL6adTt6RDDQcgwF6vpvM4IhY1OhFOce4KU84N06m0vwSAIh8ocig6pIiN3TRYtNDTMiFkiDMM41F78YVehSqk2w1CrCoTgsOEH6aCkRR1O0fItJgAUtmxmKjAWbl7GVGIt0eg21sAfvN3JiR6PfgCYmrHChG2ccG47F72TD1j88tNGPNuXSHNfRVZCxogkitQdqeGcJC9jMbTuSx3Ag1az36TDFDsHADtfw2YHYVVRVdvgDmXYeoJcAh4ynwuG4HzDsPxo9oYxKMYkRd610zgi1rHhSXTj9tISHmieeFvlrYmDuP09RBjdCYPcSfzVpBUbnSbZ7ZKVr1v6yivJHlDWOa6aB9UyAqSfxeFuVk5CjPd9KTf4FgxAQOWskQlOvYstIzK5lNQkTfd8Cw9FeurGEQL13iFgbeuZMecp7dKFrhsb1HE37MPxyH0R2GhH1ZwzNIV3mr1UkCojdx",
     "aliexpressId": "1005013266260514",
-    "price": 14.99,
+    "price": 15.09,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S45ba486587d0439396ad618f69132225Q.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S492cfe0cd407421782afef2ffaa60afaJ.jpg",
@@ -976,7 +976,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Seb91410a42fd4414af7d791b7bf7b02dR.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -986,7 +986,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 29.96
+    "originalPrice": 30.15
    },
    {
     "id": "ae-1005013266094825",
@@ -999,11 +999,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S99ea0f37904c4675adc4bacae4781648X.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CouDluUfR7h7WcONwuyiblOh40P2YCWUt9xQrUWEXvJ0wZLNWswRwauWGXAm0WLsOILNSQPtomB6DupVY6oKnbEzpvNbUfdGEmy1wE19M6KAj8cOR0v0RBlpD6dC8gWNtXdcI2Ct6IliqU6d6EFFdRTruyE5tZXn7saumvw9QCmjSjvAdgWgWgeATeTQZuQoJGkc15cuI8VgieJjPoqHHOPRhpyrutiSP0WLObF5aQDSMvWxAiofZBkaqVvIdOu9HFTifhNCW6YbCNZDgVmUZQsa3ExGCMzt60vFqBzeohUAKH6s06LjXNmbynbKtv0DvnJQTogvaFV3WkHobkDpLF441lhVStUGnj5Ao7EKnq9XB9l6j1KxELg68rgtFYIOZeJVsl3NvKdbEWnmSG9Ej9RKNELHrK3zpBII0Y1m0muBJ81ECeho138fsL8sj1qRvQys86JYZsni7lZ5MZ3yY5pAxSlGSfY9cUXNpRx6qGDu1NfweXWpcTGn5NHbVJJKOHwUThmFe3CQK5SPw55DDJwzCtmzun8qbhPWvht7PQmPOQHQtDuDArjzLO7hMybJi28tHz5fvnoJ7i9m2BFInRoY6pZTXg45vyIVezYEVoh4rDloQ73WbyVcNsbHm2m8bnIY6dElJMmKJo2gGGKYxpyPcMKLCawEU1hiHIF2l2QofWs4X30wO10ojc6AEY0cKoYXfCdHzCrITb",
     "aliexpressId": "1005013266094825",
-    "price": 19.09,
+    "price": 19.19,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S99ea0f37904c4675adc4bacae4781648X.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S729ee97a8b324c288ffc5a6a6f76f0e2y.jpg",
@@ -1013,7 +1013,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb3da20a7620a4887ba60043e86d00394K.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1023,7 +1023,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 38.18
+    "originalPrice": 38.38
    },
    {
     "id": "ae-1005012613833998",
@@ -1036,11 +1036,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S49b10e10247a4afaa296f4e8e689b709C.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmjT3jzyv3NHNNzfmrrkRqBYyYHzIlibFhyJ0WdHN8d7WOBuDTtAnBQn6KJQPiXcLNYPLHRDV86cNohIDVh1luI22Bh8OhK1a0uG8maVMtGOKA9fCcm1ckW1Kxqm3lF2yr5WoM43MskqYSkCFuwUDKmUoIM75Hr4nHTvMvS1FpRK6N2yy69npZkGjS2SnMxghR5TwgyFTyBDXU0ze4QVgw5oLm9FOnEMGv32np3XJSqWa9ys9sgZkBlQbDJQUBTEUoatcyak9CpNXtbfM9OVVGVoCIpGXwQ9VtOkb9mL24TtGJxnkayqmVJOYnKUa9QUhmjBcrqP9XH46SaCC1w3BMYbteKS29NnTtVybGKce14OzTqYdjyrSauH14DaKfWt7KoM03id3BpxtKW3D8t7nRMKWN2AqIObTD6pSeuv6v79FJtSSs3MHwl523jSJmiUusgFvKUcxZFBiP6KeFsUqIpWPtWxGNyQZsXDpXL2BCW837b97pguo4cLjIOaCv5MvzVvItBtUfkuwG2op6mm4MQ9DgGw7kO91ABqX0SRQTKUffVPhaOUhTqeJpxwN0SpBBNShfm42g2ZVgF8QCs81tE2p9Sq4oFe6MoKgU6qSnztMCHxuCGlu0De2atEFnrqusMvpd5fVMKk4GRBtFa3tDg6rD1FNBtsjluFSnQjUo2eUYJCtnrbRoD5l27SY5xUDPBD2L6e5OeRyZ",
     "aliexpressId": "1005012613833998",
-    "price": 13.59,
+    "price": 13.69,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S49b10e10247a4afaa296f4e8e689b709C.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sfa7c30191d9146afa7fbe940651a5509n.png",
@@ -1050,7 +1050,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Se9a38682dd9b4288bad58da8a02d185ed.png"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1060,7 +1060,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 27.18
+    "originalPrice": 27.38
    },
    {
     "id": "ae-1005012986704439",
@@ -1073,11 +1073,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S9cef3526b4ab486b8b9b5d750d87c572r.png",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C2LYiFHw6JlMZTyOJd1q9XlTLewWUOQjigNVFseG2AWxwwWtWZjWMibUIZ1Mran1t5AXF6kyzRrKbSF6POBVmP9stpRqMM4hPBdUwvl9cJ6KtkjwOcWPmGMFnYKpQl3okCYdOLcz77AfHdT1POO9txdAUZVbt0HrphRNcOYprleUayPSvVqfM2xM7L8jSgY0pYgNlFqLi4qxX7VOo0tU5bnLkCV7UBTGIb0zC0u8TdxpgzZgSZREbDTEhJASC5cWxk2HFxISuZM5kX1XuBGscKAcDDpd4NprJu8Z5OVzLMVT0298ol7rJLJdOGPx456KIVtl2CeJC1mlm73iDUDrHm4ktEB0nb72vvlB50OWH13GC2hEshRrAFgaBXZbagzsc8r9ZR5ergVAFtNu8tX1kNx8MD5XVqlMCz4a4wJSEfquyW5QDKASq4e5z62vECicrgZbnqRhohKTLmz2EfDdAMyJUVVuDXhtzt2GpydYGNAWKgECdJmyr0e0bPhKd8CpAv3OZanxaioXBAC92IKiVh3jY3RAUK597IZNTEjQFbypjXuGbTjShEZbRwMP4gOGjZralmcPdhzPwnhZPZW60ovD4HjOH8NtLpXgyt0nxJ0YYWnBoriUkrVTPn83Fiy7XqwPYyjajna7fqGsRCJfrAnwDAtz5HPnfV5OzUL4yG7zA7BkLJzEUWKIkmrL8NigTfud3rnB9VpMKt",
     "aliexpressId": "1005012986704439",
-    "price": 21.79,
+    "price": 21.99,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S9cef3526b4ab486b8b9b5d750d87c572r.png",
      "https://ae-pic-a1.aliexpress-media.com/kf/S43b5d85e29a64487b48d046d53050cad7.png",
@@ -1087,7 +1087,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S137507ec593645ee9e6a8f4f46af8b89F.jpg"
     ],
     "createdAt": 1794141769715,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1097,7 +1097,7 @@
      "resolvedAt": "2026-11-08T12:42:49.715Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 43.58
+    "originalPrice": 43.98
    },
    {
     "id": "ae-1005012967864709",
@@ -1110,11 +1110,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc80d05edaac7433f80c4ee178d622b4dN.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CnociLl01AnniOLhzlb8m7G7EOqpxtXJk2DpZGA0lgQ2jtkouL2KHTEKzHDrh0rahoHdLZubuGfFfKzzhyhi9tpl4uZnf2jKSNfHFSrKTdPfe9Arl4Nd9rCPNq5otvmNPJlC0vHwyWVX1AN2Q4RyYSaMAGclJqqQxBc1Vbnk7Dshb49vrNxyiBxI5B8TUMiDletkqyN6rxAk48MrLfiwj7VyO9zN6XBqUqJAXg8hjofBM6cNSv1mQmW0NivoA2VryaC7fDCF6fS7zXq9pDsNmH4uJopmYWHrLvgx2Ce8hYrl9WceyGkFgjNTWprLt3ppd5xwZD6QUHsxErWNVojris1rEC4FgmwPEkmqzch2dkwpZTfUoLDDV53i1CzEl0o3k6tRj4Zmhxws2YSovZYWHNyruxosaiiv8Jpv2kynIHKKf2wRG5379K7mbsCd9hpGQ1mqc9JPh22mNcvS0LrumSWZ4x0do4Fi7aXTxB5C5P4jOhmdT4KqlD8P9DEj2z5g7rwNq8NffDmBFJqyUB51o0RfxPBs6A3Ytym2k9mQVHzTPoi1wYMxmQ39lMi0a0NAadoKiqDWx2KbHHeju7Y2rPv73QGFuP4vDERyNFamfoYdqXJ0U6TtLmxrRfp0bG0fNQ0LJS8hgGgnru8rzghhRjkwWddYeJC72Yu7VsHlWEiSIyC7hqVuKBg0kZlMM8wA2ZhTORGBxpjCOk",
     "aliexpressId": "1005012967864709",
-    "price": 8.59,
+    "price": 8.79,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S53c016dc55b246bd82820ad013cc066fk.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S7a8128ea95db4a7aa94da5ef6b25b2070.jpg",
@@ -1124,7 +1124,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc80d05edaac7433f80c4ee178d622b4dN.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1136,7 +1136,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S53c016dc55b246bd82820ad013cc066fk.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 17.2
+    "originalPrice": 17.55
    },
    {
     "id": "ae-1005012736775484",
@@ -1149,11 +1149,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S445cb71965054b1dab186c1849e54986x.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CohwWpbCe5mFuYbznPY6VERH4RtOjqcCGMBJOf8sDchr87E2EjPgq4YoMavjWEmAyFBSs0R7W4ypbkR6Z4ZQ6dsDr7XfPJBz10KBEuRaB8bkgvfR9M4WjDQG4Srvkb16okr9cdJ9eDHZBfVyr6QuRyQ0IQeDKhVoVbBzYBnD4GAZh4qpH97THjRfrtrQiP5hvFVwN3EMxGb2GjSDasECf5KEPCCo8VRjT1yT3yeEBfvMI6MpPZ220IOOEng47Vy3lJWw13nvfvZ66rUeIZokE35otbKnKU7vr6qtMy4xkbgKVzJKpXjnVWuHrsJLJ4sqV29ngKYCIxEoYrskzVY40rK012dgvAj8eOEPqN2rDfCVhxovy0XJQms03QaHj0QYJhyBIEPJC7zKXYtplKEBSwUiMnlXhUkHR9OVfKr8DUz0ZlffMGqyMeQ7mwled3GScSg5LjHaHPQRndc37C5VPCqt82RB9vGnaS8BYV0K5UMaxWlzuTnVImRwcvDmBPAWfFFiEUqDWoaBhbTsn1sZSSyBrb46IOzhBNdvp0VwYMp5KcGug9YMr1ZoQcRmNHBoaPgTOCHFYI1PmNc0xZJjQjh4iRoaGqp9unDOY0u356cyqLKKc0E5BsWCs9HhIpMcL75m4UIAb7aPddxOKpGRtl9Gl7Xm43aw8Bf3MQKzOQ54YYkaNSz36r3rML8KgNxl0ZF5fjJxMypbdb",
     "aliexpressId": "1005012736775484",
-    "price": 11.69,
+    "price": 11.79,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S445cb71965054b1dab186c1849e54986x.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Se2fd5608039646099362f405f093ccbbe.jpg",
@@ -1163,7 +1163,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S0553db48f68d4387b1252d203ec82afbA.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1173,7 +1173,7 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 23.38
+    "originalPrice": 23.58
    },
    {
     "id": "ae-1005010228971023",
@@ -1186,11 +1186,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S31f23a925bbc46b7abfd784922206400o.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C24tH7xtFKOu7rfA4d1YG56f2Rw6Hwt74hYeihxx0D1Uhs7YbSuzLi0UZZnML0tiz2YvEyVrP3qZqcQBiA5EHJcCdKgBInW1guKsGNMy12sDlPWmXo6SDkZEVqijqlnDbemNop8FT7bvnqc7JTjP0Cz4fcrjglNxdPCqFu3LaHz05Qo9BEwuTamecfWwFHcXfOHeBZ8JQ1cCD3bRHnaVvqIpLpfUdBmlNVcjNy9iPQq8Tu88meis3xah6y5GSiviX04XPg5YpQV6kIl0YshsAz2SDDAqU0hCCblqdimQFDuHppA3V1TLMLHlYFyXp9MoRXARm0AdwMPMce1y9HRKL5KgWuWigo5KtuqOdt9qsvybUyr14RibSZoC1AqFUT7f1BIP8PJGIw0WN0UgJN8NUk5rbHjhcmGxYW0L5jKKOGlp5EeUi3J6NkHJblEPj8QxJy4zdqY3v4hxz9EtesGILR06d3l6IfdULu8zmJqjHnl58nuDk9YiZtW4OkmdLZkCOHNhUn6dHa4fEd6bDfXmj7XjHgu5PCnY3wQlrecKLPXVZdLPlqTAIdoQrniZ8TVpjLPfqx1dME7HJVKgqsQ62PBtG25Mk77u4NEtorF0ZSNKx5Y1BmeXW1Nr2cENigSbQE2vduQKL04fQW2z8eRT9vQaTLk3d9lfJ4T8CbVK1yDwm6KmFxlg4KDFhjkfSWuwXA6cBCWevSTasC",
     "aliexpressId": "1005010228971023",
-    "price": 9.39,
+    "price": 9.49,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S31f23a925bbc46b7abfd784922206400o.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Se4fa37665aa843b6be499a44864fcaf0b.jpg",
@@ -1200,7 +1200,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sd8c4d4f54ebb4ad89867987593cd2436E.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1210,7 +1210,7 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 18.78
+    "originalPrice": 18.98
    },
    {
     "id": "ae-1005010155293582",
@@ -1227,7 +1227,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sfe6c100187124679a1d064d343e5f219g.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S646c0a047dea469f9e7bf5ce8b7bca4dq.png",
@@ -1237,7 +1237,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sde27a3e62ca74182a0c0ed40a46865268.png"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1262,11 +1262,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S2015eb2c207e41d683456f1b165b7784g.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoAy49lSNlbDn20KsNOXDqGWZh1BtdWYkhgj00Jh747QESZrXeyiGpXCsIWpxZr0VNMlgpTPkwUgX1ziabyyka2pYUKRWi2byzvPY77KuQq8X0H7A2HGR4euTDLbsg3W82PzDtTWID8iuC4h7DXy0YsXRZLQEofE4kwapDSQMNEWWF8q4ToYq6WUiTeZsicNV0tjr0hEsm0wYvB648TymvGLWeKVRxRMzihzVIfsu3WmVbY5jqYMSmkiI2zMsclB3OC79l1QiX74SUHR0mgUwWmN9dud9magw48HQSTeg50qQ7SIrrViOn6ddEapWpuLnBRHIJUatnhi6amQuLyn0QWWFlEGC8G4mgBPgRLdWhw9ocmNVrx9vx2TGV7rEweV2RWjA6ps7Nqhwo2BHHZN0HWYvsKMMXaC7j3qMJCh0YtWQtbN7SSsk8Y3iR6yT3ZF7iKsHCeDpxuY3iDPsDw7dl3a4ykXUth7JGMxFivNKCny5QESHqImkqVxU0FNizrazowVlXELBqjzJi8k3SD9s8mPh56048EysavrF1yTaBTWYAHECvpay38ysuVkuVMzgnIGPundegbN9dfjs0oWR7uV3nzwR4s20Kyuc3P1NZO6JamGvPqw7CGU0G5Qk1Xiy1qIZ2iBKYEuHDEOzJIeBENxqdIjPPwz1BjKdeWhg7vH9Og1GnKm3EyoJcjaQqTJfCiPgDB8HUCkIt",
     "aliexpressId": "1005007345357544",
-    "price": 13.95,
+    "price": 14.03,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S2015eb2c207e41d683456f1b165b7784g.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S0659043043054254aad461ef347a60f2h.jpg",
@@ -1276,7 +1276,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S9de82dafbb854ea69ed098516579b34cz.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1286,7 +1286,7 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 32.23
+    "originalPrice": 32.42
    },
    {
     "id": "ae-1005006783080409",
@@ -1299,11 +1299,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sc04f6ed578364f63af6d08e19333290fU.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CneAdFSJwOCVHeE1YHLHYAILP4Jw8GeQvQpG2bukJv24eZAXGbIfoS25esmhvYPSv8JVI9fgOupKlIKFcKvSqH1XzRiwoKwOnd07r84FEtaNEuoH5eRY87dOYdkv01VkVVRC94uPxYrLgVjRaAjPoaWI00RrtTQpVODYlNGjckiz3c9PWsYOMX9BlH5ILhDTBNyKKakRAYxQEFFs2lKmkl0vQcyJ8REqhl2OoCWjmDPnA5RrAffiHOKb6AWnUad7zFaGkzC8A7lkRwIdzZPMbVTLAkyb5k6Z29nUO4Si086NJYomqhD9iruxIxLXHh8wjeiGyk5Qt2yv2hLZriVdUo4SMStad2NOiaHF0uH31Qq9ab7PJmceoQha4Hm28BDn6iMlI5zRBOep311mK4TRTGDWyZYYMoW9fb53xCHmP8BgYZZqJCQQUJ9M2iF6ySJ4VFRfj2dyQPRNE4K6gNLf3SF9U3lPCRsbuipDZd09AtFB1knGwqsicYN34IWsn2XY8H7LmkxeZl5ldNmfRJUPS8KrNxIon5E6YvuNksDzHoyupT0d2SH42yjYLE0DBVI53Rqd8Fb4jWJxPJ89IqvpJ6FzxdeXAhPZRJ89DZw4b8z5cUrAge3wJd6kCyEcQLfZ0UYJnPcJtbJm8G7ueFCWbmdDptsAnuIgJDxHMlsH505jNocZPAYk5pH4Yam1nblSuiCEZyBUKK6Mtf",
     "aliexpressId": "1005006783080409",
-    "price": 12.51,
+    "price": 12.58,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc04f6ed578364f63af6d08e19333290fU.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sbe45b907d07b4c93beb11d825769cf64y.jpg",
@@ -1313,7 +1313,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S79e816a8c75a497dac5c237b50860f444.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1323,7 +1323,7 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 26.61
+    "originalPrice": 26.76
    },
    {
     "id": "ae-1005007476663588",
@@ -1336,11 +1336,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S14c2d789310f43498f2e61dea96defb6p.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmQSER2YlP7rEq0wQN18wFD1txhkGVMq65jU64btG4KyEyfkUJLIU084R0meWEBWIUbVg5JYILH4W1xLjOUrCvvfEUxZYjCQjpuH2AUKOUozeWDmjbUuHJt8HQFuzSvfuNdQLQMPpRygR927G2o7jXFKYQNMXEf9wFLYNkSR7kTv6ArsQRXnnqOY1dpyCrcs6B368nqf2DmgwKE3BBnnw0mZfRbJEqaXdsmgXBmjLZWqzF8fbJ16VfyZCPN546KIjajCaC0vxmcbBwgSjqbZirE1zI9xTTvhxuqGxUt6IVqAwyAs31KB80ndZA2odXp4M54vib88LBVZ5wpDyQdOWEdJXzmvWqHqlGcooUT8ShbsOFoQe79djVgvUCU0VAvsT92IDcjgJhvzFGlcKJQj6gT9Wk8TCZw98q2vSJcvfwZratYADAJblI9rItcKQ86iMmENlu2BVIv0vcxydTpmlc89TzIWepU7AcHMnNDm10SL76UUFlCt4VCCTyDiRpMA8Chvi6SMCw4vdn62XVDESZeHgsOQpIM1qfgNfdqRAhraGvJKKJHOY181nICYUIx1d1qrxaALWLSw0vDuUJlE0TWYNuCOrW4ahlGpH25i7DMQayPGeJS8wlQaOFhEyqWn4jSflKwPGVTqyc511aLJcEwBck2Q8hvdlNcliXnNt9MekyTmSLQEdhiH6ozuW5tMJPAZvd8IgFW6ON",
     "aliexpressId": "1005007476663588",
-    "price": 33.99,
+    "price": 34.19,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S14c2d789310f43498f2e61dea96defb6p.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S8f98a54f98d241fba23c3dde2fa0ba1ad.jpg",
@@ -1350,7 +1350,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S2a0d4ac2bff64e8a8943d9aaa784d428Q.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1360,7 +1360,7 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 67.98
+    "originalPrice": 68.38
    },
    {
     "id": "ae-1005011624245510",
@@ -1373,11 +1373,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S73e3dda7425b475a9bc676bc512fab10S.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c3MdlG0P",
     "aliexpressId": "1005011624245510",
-    "price": 155.86,
+    "price": 156.81,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S73e3dda7425b475a9bc676bc512fab10S.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S02c893e6b71f4591a192a8f2a3df85a1p.jpg",
@@ -1387,7 +1387,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S2100a49b558d4154a7b21351de3d5efdc.png"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1397,20 +1397,20 @@
      "resolvedAt": "2026-11-08T12:45:16.694Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 384.57
+    "originalPrice": 386.86
    },
    {
     "id": "ae-1005012323403801",
     "marketerId": "msd6go4kff49s5",
     "status": "approved",
     "title": "מיקרופון דש אלחוטי מקצועי עם חיבור Type-C לסמארטפונים, מחשבים, טאבלטים, Plug and Play",
-    "price": 11.44,
+    "price": 11.51,
     "currency": "ILS",
     "category": "Other",
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S77a9f731c77b4c93870742e1ec681e24c.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4TCZSwF",
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1422,7 +1422,7 @@
     "importSource": "aliexpress-owner-link",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S77a9f731c77b4c93870742e1ec681e24c.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sc1d13a1a8fca43b5b7c8c8bf0e90b707x.jpg",
@@ -1431,7 +1431,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S6712f429f3c3426a8357d392cd3cd0d71.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S1ddd948a8b054307bb6e38be8badd18eV.jpg"
     ],
-    "originalPrice": 28.22,
+    "originalPrice": 28.39,
     "aliexpressId": "1005012323403801"
    },
    {
@@ -1445,11 +1445,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Saf415af65bd94725a80bc7f900059848Q.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c4SeUvV9",
     "aliexpressId": "1005011676523229",
-    "price": 34.92,
+    "price": 35.12,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb67533d70d1c4e8ba8b39c7550bec817u.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Se83e5828fd6a4351856f1783d5e22e908.jpg",
@@ -1459,7 +1459,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S6c5f563aa33f4493950f6b29b407d2f7R.jpg"
     ],
     "createdAt": 1794141916694,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1471,7 +1471,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Sb67533d70d1c4e8ba8b39c7550bec817u.jpg"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 37.79
+    "originalPrice": 38.01
    },
    {
     "id": "ae-1005013299422092",
@@ -1484,11 +1484,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S7578eddc70944913ad3e56189f575fe88.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C4OCFug3oOsdnsY6KYppJY6aGiIM6uGKCyI00oAh8PxkNH58wVyRsR7mvNIJas4Ec0Ox1Zeigoz4zOEt2JFMMM1O72n9aWlApZ6T4YZKwgudmqpV5Hz8dKQVqFEUKbPmKD6ekFKnxEWkruCqEJaKBHrdkIm6W9b8ocK5By7IxeDIe7U4f8cQbgBsYvcJq3o8pVwPGUPHOThVtcn2fMJHkaQpbHuWa3A5leCKakJ1HkeBRYDuovY6g59ED7ASbWqcy5sg7zQIYQWtNJbpQeoScI0lsvLWOELVsBbfHDZB5xBsZjDcCYgXizFGLHkTtrYd0hNKuOhDiLgsX99NND3bM6I1uNUvgcO3BxF2Dudm5wco8Gx6NSezzkmYEuNqIA0UEaRL5SxIdubeGIrYhAUZIT5ZbmRxeGE85c5AkQBrymCBopUbPs9DSRTAJLbfkOaWIMv9HrPQdt3hlxbKdijNX8L4EHXo95FoBEUMzl6ZhX6bZ28Ak7d1HasoANzPoaxOJYJfDQeIoZ40xA06aS8JZJYaQ4S9dEjJ4rivhio6PJe5znkoXgyCnGgaIXpvmCh8jzMK4igjWLzmZlFVkXJX8r8jf1ERamhWJxy1VSQnUYwXkiAMyKQUuiSgpBXIdw8kplZB2J5HJK1RFY1ttWnnbIWpMWhcdlpWj9Nae5Eqk15vfBW78OH2nrTNEnbdfStxsUZFqkPUakxebn",
     "aliexpressId": "1005013299422092",
-    "price": 43.08,
+    "price": 43.33,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S838d0504b0e647f685ea86b630f800b7G.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sa9496107f2d3468a814a8a6cfe576bc66.jpg",
@@ -1498,7 +1498,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S726348c2fdd2481e90221b4399eceaa9B.jpg"
     ],
     "createdAt": 1794142092697,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1510,7 +1510,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S838d0504b0e647f685ea86b630f800b7G.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 92.51
+    "originalPrice": 93.06
    },
    {
     "id": "ae-1005010004260060",
@@ -1523,11 +1523,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sb21472b839c2437a91ec05fb6fc3d237A.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C211rrxhniBpnPw6Mrni4h1C3MQQoT2siKVgMSD2SbaHAsJ3zRwkLEPs2uVt2L6FQrDGnvifxfjAQu4AVZExnc9kH7I10glYtdmpWc3mxVm0EqbWsvzqDSeLVIQC4r7dRjexXcZ9J9IW82UPQcIIkJDzlM73CQOQ3ycDWxA6dM1ZPgbVlaexV9MeuYEB53vb7lCyHSZLRSHQ8xkTr6A6vx0TPVwIEuUH9M6a7lTCXSDzkBx4JM6va8HQd3L6BFxgihBDhkQpBGeXByM17YmnqdndjEebbz4nKOtbUW2uzYTMrLZND638zN56oqAkOKWTHG9xm4pPXsotQph60V87XfaguGZMNvwU8CBRtXtOSfy8ZAPTb6Dkph2apWBWhL0z7EUf7FjXLmdN4E82btve7qTaKDKGDdDqQJPFUL7FLgkg0zLFo3Ng0NIpOwOAYFDIPWOd45jDKKlGZi3ksJqBtOCg3UdGxmekMMZUYV1z2OB8FtMit1xkN36ieoAuWwYPOV11HR5ohCY68YOBggPaLpYMuZJMtKKqITNsDWgEQSoV1Zbr3Je63o27QzLkfzY7CG7OnqHE84drBK9qp5NQrR3YgxZaW3GFY67zcUmffNjdEjUDUlCpmeN37vJB7cwZPTGwsQ0wb6zNNB2xQDaFMmKKIqtULtKbxOsaT7AAtFn1QK5wWm2VzfZvftr1LzSA3Y6YlBNZqTE984",
     "aliexpressId": "1005010004260060",
-    "price": 77.39,
+    "price": 77.69,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S24ded3c323d94633b36615753cbfadcd3.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S6dd9f1bf83a641f29cfc6ec65a816f2d2.jpg",
@@ -1537,7 +1537,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb21472b839c2437a91ec05fb6fc3d237A.jpg"
     ],
     "createdAt": 1794142092697,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1549,7 +1549,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S24ded3c323d94633b36615753cbfadcd3.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 154.78
+    "originalPrice": 155.38
    },
    {
     "id": "ae-1005012872093982",
@@ -1562,11 +1562,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sa10d25d9c3ae4b9f969c3296da31e38dj.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c2u66hQf",
     "aliexpressId": "1005012872093982",
-    "price": 107.9,
+    "price": 108.69,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sa10d25d9c3ae4b9f969c3296da31e38dj.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S166ad85e1b70470c88f4addc93c5a72be.jpg",
@@ -1576,7 +1576,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Seef52c2a10014646a1a1dc7fb35bf743M.jpg"
     ],
     "createdAt": 1794142238422,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1586,7 +1586,7 @@
      "resolvedAt": "2026-11-08T12:50:38.422Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 171.27
+    "originalPrice": 172.52
    },
    {
     "id": "ae-1005012932093776",
@@ -1599,11 +1599,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sec1259a94f7f4d769e216299bc088838n.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c2v1JnC3",
     "aliexpressId": "1005012932093776",
-    "price": 51.79,
+    "price": 51.99,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sec1259a94f7f4d769e216299bc088838n.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Safd66404b34d488a814911cd4ebefc37f.jpg",
@@ -1613,7 +1613,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S01ee1701078a4eaa95e3ec9a76ceded7B.jpg"
     ],
     "createdAt": 1794142382941,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1623,7 +1623,7 @@
      "resolvedAt": "2026-11-08T12:53:02.941Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 117.7
+    "originalPrice": 118.16
    },
    {
     "id": "ae-1005013187022988",
@@ -1673,11 +1673,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Se5a47d8aa15542dfab7af1ee23e261a2u.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c3z9R7HN",
     "aliexpressId": "1005012040321452",
-    "price": 46.39,
+    "price": 46.59,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Se5a47d8aa15542dfab7af1ee23e261a2u.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S21f1ade73cec427b9b405ffe74a52cb2A.jpg",
@@ -1687,7 +1687,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/See9326974dea4fcdaa826ea1e2cca1ca0.jpg"
     ],
     "createdAt": 1794142382941,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1697,7 +1697,7 @@
      "resolvedAt": "2026-11-08T12:53:02.941Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 81.39
+    "originalPrice": 81.74
    },
    {
     "id": "ae-1005013429299062",
@@ -1710,11 +1710,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S9f45ce8a89774812998ab8604ab58171K.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c3igfNY7",
     "aliexpressId": "1005013429299062",
-    "price": 160.39,
+    "price": 161.39,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S185579222d0c40d2bdb147ecaca2c0a9L.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S79255c849624493996f6d8c252f19a6dE.jpg",
@@ -1724,7 +1724,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/Scf66581d21e84351ab8bf2202920569aR.jpg"
     ],
     "createdAt": 1794142382941,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1736,7 +1736,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/S185579222d0c40d2bdb147ecaca2c0a9L.jpg"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 320.78
+    "originalPrice": 322.78
    },
    {
     "id": "ae-1005013327851644",
@@ -1749,11 +1749,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S7d932f3e7e9642b1967ff690947d4f28B.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmRAOtfwXY8zPCy9Bx8PtGDHEjx8XoNAHLuVgJB7mbruYxJIWZ1Mmad9L6zDXgzXQzvKajk9EU5rF4WQBAaTs4gQJULuSFLkY8MYlueUGsrlzQgxFZlvNLE4HqkbRkCGgNyWFGny9M35PvG5q3gCuhfCDOItxccP4I7M4gMf1T14fLuYTaon2GgNO0X6g1fH9Kd4dn6EwWeS2lFDGNIfet9fx1UlNqKjZ374jsZEdVglRMDcwRYD0PekB6vrDZWy3xzGmaIx0ObzXNrzcq0aSL5ft5PjRkgqIfmXjeuuY55OWI25JYtkZM4b1WSIq9qomqzQHEymxVIozrQGmgT8XM9C0HRLmpRxNAgEnUQBs4Ue4kXZOwRBIoWvILG2YBOP9ayUDfU7mtvi6RUnZ9tuMHUOvGApkZvwUnOenaVvzXmUPOtULMocKfFAa1iYsbxdIzHlSnAEfgrRtH0TYc8YgwWw6VfMjfZkaqr54LRtv8M2OahmjFp86aBYWj0mkBd8JxrQLVcsyUuuYmvxbqoiYdiwt8qYolFu2XvB4nFpG8SioQTFEvzMMPW4BSR5XR2tiBrRKxZwkgre4CJDizrL9j7cEPaShhPvf3CPwaHZNXSSIyBuXGjqm7zSkZN94eWpxlQztvWdNknCDW6NB77w5y3DFkn0O2iqs4Is8njUV6DFT4p9q2uUFSiK6tid28cGW06UAyWJNJ099W",
     "aliexpressId": "1005013327851644",
-    "price": 73.23,
+    "price": 77.79,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S7d932f3e7e9642b1967ff690947d4f28B.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Se070ed5b86954526874cd7c1fd257a16U.jpg",
@@ -1763,7 +1763,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S70fff9cec15d4c7fab24e25a4cfcc2ccV.jpg"
     ],
     "createdAt": 1794142522705,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1773,7 +1773,7 @@
      "resolvedAt": "2026-11-08T12:55:22.705Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 164.03
+    "originalPrice": 165.01
    },
    {
     "id": "ae-1005013461862167",
@@ -1786,11 +1786,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sb8fb0241bb604202a15ccd3b3ce11fbc3.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/e/_c3HL5e0X",
     "aliexpressId": "1005013461862167",
-    "price": 177.69,
+    "price": 178.9,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sb8fb0241bb604202a15ccd3b3ce11fbc3.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S9c8e81eee54045829f7be606fb4bda1fe.jpg",
@@ -1799,7 +1799,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S2544ce54b48448b1bda3563b6f3d5eafE.jpg"
     ],
     "createdAt": 1794143075148,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1809,7 +1809,7 @@
      "resolvedAt": "2026-11-08T13:04:35.148Z"
     },
     "importSource": "aliexpress-owner-link",
-    "originalPrice": 222.11
+    "originalPrice": 223.62
    },
    {
     "id": "ae-1005008429942445",
@@ -1822,11 +1822,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S8b0f1c0aa2074a698f056e809d51e819Y.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmQufJ7deUpQ2EgSjXoDjsjLdgKVXik9eVhzKPChLiKggur8ezRW0sCDc0am1xNDNRWRPeOZQIbeBxGGLRn5uHYyMKnZOl5Yr0xzcsM8QW4iKeuh85M6nSGCTnzXRu2GL3bNgvqHuI94aAx0EA79CSmS1VYoinvl9FNfgehhlB7J4zejwVV3afFoKVRVI5frFF5VQHGFShMPpMzJHTXKyyhhNrXln2VXifZTPj7alW2voXKJGGJGNue5Nhe8oYdZrH3wCAuOJ0GiRrxHWCRcILnQbijtQJKdqnly5APM5PToKUJxWShABsvcDUdPGsdUUdaThFvHfqre4UuoYTbxA92vOACM6UGQz3lTBj9mi1vPQpb3El8RHiKpwNT98VlClLGJBCyS4ZZIZ1CT2PpyLPJJN7IO63WQqJWtchhvptDpApM6ggxt2J65vWovDm50YNL74A7TQUaFBob7xbVbEuTHXK8mu9mOiwXM7xftBYfdxAQPgi5SEbNGkrGemBNCRMc9L7QAgwSc0kYs0ebYNifGiY3vYYtDUdgJPbk7qPCORzVBgDFvbcEsb0sPVamKWRKYmNQefEFDF8mNJ1G3BZHtjE4uM8YXkeY7a7vzJJsmLIpxGp4aVnrDai1Y5d71YFo1KTm94jE4H1oebCucVCpjzqX60NryP8ZSiBhKEIfTI3RgIsei2lXOGPw195HCmxVnnbnlLVWXcG",
     "aliexpressId": "1005008429942445",
-    "price": 5.14,
+    "price": 5.16,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Se54851fd506541f9aa58e1e3bb9ed768r.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S8f3c909f5ddd4aa584cf52e48dab5b2cn.jpg",
@@ -1836,7 +1836,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S7b939487e94940eeaab04aa5a0521200p.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -1848,7 +1848,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Se54851fd506541f9aa58e1e3bb9ed768r.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 10.93
+    "originalPrice": 10.99
    },
    {
     "id": "ae-1005010044052123",
@@ -1861,16 +1861,16 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S2ad6f212ef874fc9b0084acb642cd8e30.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C428yWAboSOHfpoTzUiyRp3ASt40HKzDrRyIWeAyn5ucpWzah0f814LGkqdZMxDpBIXIkEh3hCbfbJqWNyeLczR5pQ7hitXWxCNtWMOwvqLpz1ePDgArLLEUARSgvEoyDDN8zEH6xeDv6HC0oLgf7B43EWUsklp1jDB6ZJFVodefkrom0rva7CvhOtjROej3TONhS5RFdcLrTAEgq028gDh5GfFSpxYGe8OQs6glZNjNUGIwtpXOZvOjPZ8qZTuQaKssNtG6VR1G8qy7NOr26EUkxPa75rzhbDE1WoraAabSuFkVSvaRcnMdC68zMrylxcNPWT6hvURa4bCMeb3yDBLlXIDcYDjhrX9eg40OClSEmsrEq9X7rdkrXzyXEmd7SSDh6E9b9phkSa3CcZOuRPCuuLF72vEkpavzOEss0DMrrfmNU2rTanMBqGo1ewqVnTBjJcn1nNVHu7AMVuEReE0S5jdeZWjqYrc3Uc3purLrikU0OaJsx0oQMCJ8HhIhrWxgDYK1WYx6PUK0zVCmbzJVHNEdV1weZThQzIvSmacNDXRK5TQ8bpw2a8189dxoWMIxRCPln1rE4DlwAtr9wxwZsH4ZJcR5b1VyEMFk6cyTSyVqreozrkOEDh0THpYMGjJrPgDXoWEZJQUcWGnXIPc9aD6FMre2JmbfXaC1N7W0NHy1dLDOTzTA42IdEYr8LoxrwgZjMl4OeZ",
     "aliexpressId": "1005010044052123",
-    "price": 4.5,
+    "price": 4.53,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S2ad6f212ef874fc9b0084acb642cd8e30.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1880,7 +1880,7 @@
      "resolvedAt": "2026-11-08T13:11:36.198Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 9.58
+    "originalPrice": 9.64
    },
    {
     "id": "ae-1005011865685346",
@@ -1897,7 +1897,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S752b5bd8a49543669256bf1c937cdf7fQ.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sd9872d8b4e1d4d509cb4f4075cfd9413m.jpg",
@@ -1907,7 +1907,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S83285b9d481440929293b099853c3397q.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1930,11 +1930,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sd4e2d4cad15d4c26981c7948f788fcbag.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoGMzCtbQgJr252QL1yvHios2ofSzC1SJt0BGKb1FnQUkfH0U3PSgWx1hqhcUiCjetHuJsxYBg477JJ9YvwU8YlQV6wd15bpYGRT1x0Pd3oJP4pu6fbL19w7C8R3iRO0v56yeJl14scdjnuq1DJuPdON0LZz1ujv3BHJCeW9U2d0yjijpAEWV4Ta9JVPkLuoy0qUHt8WH9zTuHovNJPYm7nFuypZDvVK6uPikkz9nmJrUwVwglwe4IWGw6KGRPETfmFRULiXFo3VMsqgOtA1FwXml3wwNHqJ8V7rdCNhubw0ZlMp3yNnV5AsboeyLmCNLzeOA4b4wsgoSgzGpJc3puTYPnTcTmShGlOjblMYHWCVi0xOTsqLdzXHFIabo11peQtKhGYJcpeQCbisNfhU9lKWlYjuxJwM9XJAhp4im26iBg7ZppYMeRclGUFQJpA9nZ8wZHtEJAFUQhUWRwLjNRzHM28yCsW98G0WZxHBWH1aKiNdaG9oiebcJzIFn7fPOjYL48N2Bk0qqADVdGmZYTwK9QDvQPqhcPDHPfMLJrabVhc6o8NjZuAYCnhdj9IXmNsUFP7ZRptruI0N48lL4VqYSkWCq3c90rp4Yx8Q2sZm22p8zdQQOlhaMGYkzGhgS2oHJBkPHMwU6skkijwKLOx2HzhBW5Ttc0EsLRy31lJ6mBGzxvWXfbEOkMAkdybxTux3kMDe4kNg9R",
     "aliexpressId": "1005009460421963",
-    "price": 13.19,
+    "price": 13.29,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sd4e2d4cad15d4c26981c7948f788fcbag.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Scef8e23b5a214ed880257e994aef2124v.jpg",
@@ -1944,7 +1944,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S3e433b3a528345be94d081d35638c0d01.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -1954,7 +1954,7 @@
      "resolvedAt": "2026-11-08T13:11:36.198Z"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 29.98
+    "originalPrice": 30.2
    },
    {
     "id": "ae-1005007009989925",
@@ -1971,7 +1971,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S92c182cdf3a84b92b3c394b239692b216.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Se0a49e95132e4bab8c3b7dea8842f6f85.jpg",
@@ -1981,7 +1981,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S324b3f387d024b69aab932f6bcff7c7bP.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -2010,7 +2010,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S3e1701f522dd4810aade14675841c5d7s.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sa06f3e1a79874bbc9714c1d1567e08bal.jpg",
@@ -2019,7 +2019,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S01c7972c7e5443ee8b16482a4663f662w.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_affiliate_api",
@@ -2042,11 +2042,11 @@
     "image": "https://ae-pic-a1.aliexpress-media.com/kf/S5fd98aa1300f48e786b5926ebd11746dL.jpg",
     "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C2goLhLlAMTboDIzOTGogJVdwUgJzbhqt3fe0eNGoBU5xrJP7BiyeadNMiPWIvul70dZJXgpLhEuXMJkMRX3UZyIrGtNvaWgq4PtUHOoMX76d5aOo7tqy7ZrLya549bQBlPvFTGousWL9fkokDvQjDaBbWfqlj3vXgHLg9wG1yzjJplOJJwfJxzLXWoVgYQgnzRfyu0wpG1RRPP2TTXDybYqpO0x3fiqGZBzZBhOuMihnrBWFIF1giwsSzOl5UuOj9rqxwtOIeU0qJ56T25GrrqUm43v3KT22W45xWcMoKrJgisyEecS0uBrm1vDoU1omnxczGfSK5VndQ91BNEHK5VkxhOcfPWyC6RIi19wCxPM0o4lDi2xMdcGF3Eflm3WVH8Yt89vkLJkbh63j5ATU7OfjvYVpVPxygqaI6Uqz1wFzMUDKTc7LNAgGQtXuru5VtIJgAtlU7vD1kw38ODlFTgrtzcWK2BgaV21OAGWzpeXDWkWu3ZxLi2fTUzqRo8Imvfv2aVckY9MLNkdul89knAEthuDwe7JUDWxLHLt3HGzIdpnPYqRFTsaSVqsDVVkv0vzQAHG8RBmn992yTivfN8BWNOZGhdxrvDMCvMA9jpTLpGmZxVkIodm21UmBuPO8NTmKnl9gSYkNzePhBgO5uUl0e5RZJGYrU3fR3LjGMIle1XSJQvSMFvOBVSkkRbd1dr4HLCWoaYMfq",
     "aliexpressId": "1005007822533405",
-    "price": 4.89,
+    "price": 4.92,
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Sdaecf76e91014175a3c8824ec2afd2a8Z.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/Sdb55c978544b4e289ea34a1e566c3a11r.jpg",
@@ -2056,7 +2056,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S7da28675db444b43a77f228c0e767527k.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -2068,11 +2068,11 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Sdaecf76e91014175a3c8824ec2afd2a8Z.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 11.3,
+    "originalPrice": 11.37,
     "sellerVideo": {
      "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/239234800/p/1/e/6/t/10301/1100213059221.mp4",
      "source": "aliexpress_api",
-     "checkedAt": "2026-11-12T13:44:04.290Z"
+     "checkedAt": "2026-11-13T13:02:53.052Z"
     }
    },
    {
@@ -2090,7 +2090,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/Se96f2c6dd68748d5b6e308d841cb9ed2A.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S1666b305d4d64f578723fe43d76ec1aaC.jpg",
@@ -2100,7 +2100,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S69c8709611e2486a86758f49b359ae6bN.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
@@ -2112,7 +2112,7 @@
      "previous": "https://ae-pic-a1.aliexpress-media.com/kf/Se96f2c6dd68748d5b6e308d841cb9ed2A.jpg"
     },
     "importSource": "aliexpress-trend-board",
-    "originalPrice": 13.96
+    "originalPrice": 13.94
    },
    {
     "id": "ae-1005010706991166",
@@ -2129,7 +2129,7 @@
     "currency": "ILS",
     "priceFrom": true,
     "priceSource": "aliexpress_api",
-    "priceCheckedAt": "2026-11-12T13:44:04.290Z",
+    "priceCheckedAt": "2026-11-13T13:02:53.052Z",
     "images": [
      "https://ae-pic-a1.aliexpress-media.com/kf/S5859688913e04109abf1a548923d8d63N.jpg",
      "https://ae-pic-a1.aliexpress-media.com/kf/S6e87a4ac2f724fb19c6d8b36d8aa83689.jpg",
@@ -2139,7 +2139,7 @@
      "https://ae-pic-a1.aliexpress-media.com/kf/S7bfca8a445bf4a49a99729b30db7b6b4U.jpg"
     ],
     "createdAt": 1794143496198,
-    "updatedAt": 1794491044290,
+    "updatedAt": 1794574973052,
     "clicks": 0,
     "imageSource": {
      "via": "aliexpress_api_gallery",
