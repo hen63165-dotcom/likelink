@@ -20,3 +20,10 @@ Nothing here posts anything.
   then the real Studio steps (פתיחת סטודיו בחינם → הוספת קישור → the store ready to share) and
   "כתבי: סטודיו" for the comment funnel (→ `/join`). LikeLink2's own promotion: no affiliate tag,
   no income, no counts; labelled "אנימציה · LikeLink2". Render: `marketing/reels/pro/studio-steps-stickfigure.mp4`.
+
+- `ButterflyFix`: the owner's own Gemini clip (butterfly clip earbuds, `public/gemini-butterfly.mp4`, 2026-11-13)
+  repaired for posting: the Instagram mark the model drew in the top-left corner is covered, the garbled last
+  caption ("בתבזניות", "קיישור") is set again on a white card, and `#פרסומת · קישור שותפים` + "סרטון AI · הדמות
+  נוצרה ב־AI" are on every frame. Render: `marketing/reels/kling/butterfly-gemini-fixed.mp4`. Not posted: the
+  product link is unknown and the voice says the earbuds "don't move when dancing or working out", which needs
+  the seller's own listing before it can stay (Actions → "Transcribe" wrote the line down).
