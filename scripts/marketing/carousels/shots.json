@@ -1,16 +1,12 @@
 {
-  "photos": "all",
-  "photosPerProduct": 4,
+  "photos": [],
   "pages": [
-    { "name": "home", "path": "/", "full": true, "settle": 6000 },
-    { "name": "magic", "path": "/magic", "full": true },
-    { "name": "magic-check", "path": "/magic?u=https%3A%2F%2Fs.click.aliexpress.com%2Fe%2F_c2JrC8fJ", "waitFor": "#magic-result", "settle": 5000, "full": true, "elements": ["section[aria-labelledby=magic-result]"] },
-    { "name": "magic-find", "path": "/magic?q=%D7%A2%D7%92%D7%99%D7%9C%D7%99%D7%9D%20%D7%A2%D7%93%2030%20%D7%A9%D7%B4%D7%97", "waitFor": "#magic-find li", "settle": 6000, "full": true, "elements": ["#magic-find"] },
-    { "name": "studio", "path": "/studio", "full": true, "settle": 6000 },
-    { "name": "join", "path": "/join", "full": true },
-    { "name": "store", "path": "/u/alyostyle", "full": true, "settle": 6000 },
-    { "name": "product", "path": "/p/p-live-01", "full": true, "settle": 6000 },
-    { "name": "guide", "path": "/guide", "full": true },
-    { "name": "products", "path": "/products", "full": true, "settle": 6000 }
+    { "name": "reels", "path": "/reels", "full": true, "settle": 8000 },
+    { "name": "size", "path": "/size", "full": true },
+    { "name": "product-b", "path": "/p/ae-1005012967864709", "full": true, "settle": 6000 },
+    { "name": "product-c", "path": "/p/ae-1005010228971023", "full": true, "settle": 6000 },
+    { "name": "product-d", "path": "/p/ae-1005011692763387", "full": true, "settle": 6000 },
+    { "name": "studio-signup", "path": "/studio?auth=signup", "full": true, "settle": 6000 },
+    { "name": "kids", "path": "/products?kind=kids", "full": true, "settle": 6000 }
   ]
 }
