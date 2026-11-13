@@ -20,8 +20,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Install the model
-        run: python3 -m pip install --quiet faster-whisper==1.1.1
+      - name: Install ffmpeg and the model
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+          python3 -m pip install --quiet faster-whisper==1.1.1
       - name: Write down each clip
         run: |
           set -euo pipefail
