@@ -22,8 +22,9 @@ function fakeNet({ week }) {
   const items = (ids, base, extra = {}) => ({ total_record_count: 1000 + week * 300, products: { product: ids.map((id, i) => ({ product_id: String(id), product_title: `butter stick squishy ${i}`, lastest_volume: Math.round(base * (1 - i * 0.1)), target_sale_price: "9.90", target_sale_price_currency: "ILS", evaluate_rate: "98.0%", promotion_link: `https://s.click.aliexpress.com/e/_x${id}`, product_main_image_url: `https://ae-pic-a1.aliexpress-media.com/kf/${id}.jpg`, ...extra })) } });
   const fetchImpl = async (url, opts = {}) => {
     const u = String(url);
+    const { origin, pathname } = new URL(u);
     requests.push({ url: u, method: opts.method || "GET" });
-    if (u.startsWith("https://api-sg.aliexpress.com")) {
+    if (origin === "https://api-sg.aliexpress.com") {
       const p = new URLSearchParams(opts.body);
       const method = p.get("method");
       const kw = p.get("keywords") || "";
@@ -46,8 +47,8 @@ function fakeNet({ week }) {
     }
     if (u === "https://suggestqueries.google.com/robots.txt") return json("not found", 404);
     if (u === "https://trends.google.com/robots.txt") return json("User-agent: *\nDisallow: /trends/api\n");
-    if (u.startsWith("https://trends.google.com/trending/rss")) return json("<rss><channel><item><title>מכבי תל אביב</title></item></channel></rss>");
-    if (u.startsWith("https://suggestqueries.google.com/complete/search")) {
+    if (origin === "https://trends.google.com" && pathname === "/trending/rss") return json("<rss><channel><item><title>מכבי תל אביב</title></item></channel></rss>");
+    if (origin === "https://suggestqueries.google.com" && pathname === "/complete/search") {
       const q = new URL(u).searchParams.get("q");
       const gl = new URL(u).searchParams.get("gl");
       if (q === "פח לרכב") return json("oops", 500);
@@ -56,7 +57,7 @@ function fakeNet({ week }) {
       if (q === "מרסק שום") return json([q, [SECRET_SUGGESTION]]);
       return json([q, []]);
     }
-    if (u.startsWith("https://vjitiuirqfysexsxdxqx.supabase.co/rest/v1/kv")) {
+    if (origin === "https://vjitiuirqfysexsxdxqx.supabase.co" && pathname === "/rest/v1/kv") {
       requests.at(-1).anon = true;
       if (u.includes("marketplace%3Aproducts")) return json([{ value: JSON.stringify([
         { id: "ae-1005011942976222", status: "approved", title: "עגילים · קריסטלים", aliexpressId: "1005011942976222" },
@@ -83,7 +84,7 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   const r2 = await run(dir, { env: ENV, fetchImpl: two.fetchImpl, now: at("2026-11-21"), politeMs: 0 });
 
   for (const net of [one, two]) {
-    assert.ok(net.requests.every((r) => r.method === "GET" || r.url.startsWith("https://api-sg.aliexpress.com")), "only reads: GETs, and the store's signed query calls");
+    assert.ok(net.requests.every((r) => r.method === "GET" || new URL(r.url).origin === "https://api-sg.aliexpress.com"), "only reads: GETs, and the store's signed query calls");
     const firstGoogle = net.requests.findIndex((r) => r.url.includes("/complete/search"));
     const robots = net.requests.findIndex((r) => r.url === "https://suggestqueries.google.com/robots.txt");
     assert.ok(robots >= 0 && robots < firstGoogle, "robots.txt is read before any autocomplete request");
