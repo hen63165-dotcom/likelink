@@ -48,7 +48,8 @@ test("the gap: two Hebrew search sources must agree; one search alone is never '
   assert.equal(gapOf([day("2026-11-14", { he: [0], world: 7 })]).state, "UNCERTAIN", "one search showing nothing is not enough");
   assert.equal(gapOf([day("2026-11-14", { he: [1, 0], yt: [0], world: 7 })]).state, "ARRIVING");
   assert.equal(gapOf([day("2026-11-14", { he: [4], yt: [2], world: 9 })]).state, "ARRIVED");
-  assert.equal(gapOf([day("2026-11-14", { he: [4], yt: [0], world: 9 })]).state, "ARRIVING", "one source a lot, the other nothing: arriving, not arrived");
+  assert.deepEqual([gapOf([day("2026-11-14", { he: [4], yt: [0], world: 9 })]).state, gapOf([day("2026-11-14", { he: [4], yt: [0], world: 9 })]).confidence], ["ARRIVED", "MEDIUM"], "searched a lot in one source: here, with medium confidence");
+  assert.equal(gapOf([day("2026-11-14", { he: [4], yt: [1], world: 9 })]).confidence, "HIGH", "two sources agree");
   assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 9, trend: true })]).state, "ARRIVED", "a Google Trends Israel hit means it is here");
   assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 9, site: 2 })]).state, "ARRIVING", "LikeLink2's own visitors count as a sign");
   assert.equal(gapOf([day("2026-11-14", { he: [null], world: null })]).state, "UNKNOWN");

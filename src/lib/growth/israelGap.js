@@ -27,7 +27,7 @@
 // search in Israel today.
 //
 // From the daily levels:
-//   ARRIVED   (כבר כאן)        — both Hebrew searches show it, or one shows it a lot, or it trended
+//   ARRIVED   (כבר כאן)        — a Hebrew search shows it a lot (confidence rises when another agrees), or it trended
 //   ARRIVING  (מתחיל להגיע)    — first Hebrew searches in one source
 //   UNCERTAIN (לא ודאי)        — only one Hebrew source answered, and it shows nothing
 //   GAP       (עוד לא הגיע)    — the world orders it (AliExpress), no Hebrew search in Israel yet
@@ -193,8 +193,8 @@ export function addAwareness(history = [], reading, { rules = GAP } = {}) {
 
 /**
  * The consensus of one reading. Independent Hebrew search sources (Google, YouTube) and LikeLink2's
- * own visitors: ARRIVED when both searches show it (or one shows it a lot and the other some), or
- * Google Trends Israel had it; ARRIVING on any first sign; GAP/QUIET only when BOTH searches show
+ * own visitors: ARRIVED when one shows it a lot (confidence HIGH when another agrees), or Google
+ * Trends Israel had it; ARRIVING on a first sign; GAP/QUIET only when BOTH searches show
  * nothing; UNCERTAIN when only one search answered and it shows nothing. Confidence from how many
  * sources agree.
  */
@@ -208,7 +208,8 @@ export function consensusOf(r, { rules = GAP } = {}) {
   const aware = [g, y, s].filter((l) => l === "AWARE").length;
   const world = levelOf(r.world, { rules });
   if (r.trend) return { state: "ARRIVED", confidence: "HIGH", sources: searches.length + 1 };
-  if (aware >= 2 || (aware >= 1 && signs.length >= 2)) return { state: "ARRIVED", confidence: aware >= 2 ? "HIGH" : "MEDIUM", sources: signs.length };
+  // Many Hebrew completions in one source already mean Israelis search it; agreement raises confidence.
+  if (aware >= 1) return { state: "ARRIVED", confidence: aware >= 2 || signs.length >= 2 ? "HIGH" : "MEDIUM", sources: signs.length };
   if (signs.length >= 1) return { state: "ARRIVING", confidence: signs.length >= 2 ? "MEDIUM" : "LOW", sources: signs.length };
   if (searches.length >= 2) return { state: world === "NONE" ? "QUIET" : "GAP", confidence: "MEDIUM", sources: searches.length };
   if (searches.length === 1) return { state: "UNCERTAIN", confidence: "LOW", sources: 1 };
