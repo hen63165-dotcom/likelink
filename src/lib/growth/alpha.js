@@ -234,55 +234,122 @@ export function explain({ alpha, acc, gap, kind = "", price = null, momentumHot 
 }
 
 export const VERDICTS = Object.freeze({
-  KEEP: { he: "נשאר בחנות", hint: "מאיץ, מתהווה או חם עכשיו" },
-  ARCHIVE_PROPOSED: { he: "מוצע לארכיון", hint: "יורד, רווי או יציב בלי תאוצה" },
-  HOLD: { he: "ממתין למדידה", hint: "אין עדיין מספיק היסטוריה כדי לקבוע" },
-  FIX: { he: "חסר נתון חובה", hint: "בלי קישור שותפים, תמונה או מחיר מהחנות" },
+  KEEP: { he: "נשאר בחנות", hint: "עומד בכל התנאים: מאיץ, מתהווה או חם עכשיו" },
+  ARCHIVE_PROPOSED: { he: "לארכיון", hint: "לא עומד בתנאי: יורד, רווי, בלי תאוצה, או נכשל בבדיקת איכות" },
+  HOLD: { he: "ממתין למדידה", hint: "אין עדיין מספיק נתונים כדי לקבוע — לא מעבירים לארכיון בגלל חוסר מידע" },
 });
 
 /**
- * The site's own catalog, product by product, against the hot-only policy (the owner, 2026-11-14:
- * "not ordinary products to fill the shop; not products that lost momentum or are saturated; not
- * only because they sell a lot now"). A PROPOSAL: nothing is archived here.
+ * The 8 criteria of the hot-only policy (the owner's Master Execution Order, item 1), each true,
+ * false or null (not measured — never a fail on its own):
+ *   1 hot now · 2 gaining momentum · 3 rising, not falling · 4 not saturated in Israel ·
+ *   5 real demand (≥ 300 orders in 30 days) · 6 ships to Israel · 7 pays a commission ·
+ *   8 quality (own affiliate link, a store photo, a store-checked price, ≥ 95% satisfaction).
+ * `facts` come from the store's own product answer (booleans only; the rate is never kept).
  */
-export function catalogVerdict(product = {}, { acc = null, gap = null, hot = null } = {}) {
-  const reasons = [];
-  if (!/^https:\/\/s\.click\.aliexpress\.com\//.test(String(product.affiliateUrl || product.link || "")) && !product.ownLink) reasons.push("אין קישור שותפים של החנות");
-  if (!product.image) reasons.push("אין תמונה");
-  if (!(Number(product.price) > 0) || product.priceSource !== "aliexpress_api") reasons.push("אין מחיר מאומת מהחנות");
-  if (reasons.length) return { verdict: "FIX", reasons };
+export function criteriaOf(product = {}, { acc = null, gap = null, hot = null, facts = null } = {}) {
   const c = acc?.cls;
-  if (hot === "HOT" || c === "ACCELERATING" || c === "EMERGING") return { verdict: "KEEP", reasons: [c === "EMERGING" || c === "ACCELERATING" ? ACCEL[c].he : "חם עכשיו"] };
-  if (!c || c === "INSUFFICIENT") return { verdict: "HOLD", reasons: [ACCEL.INSUFFICIENT.hint] };
-  if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", reasons: ["ההזמנות יורדות"] };
-  if (gap?.state === "ARRIVED") return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}, וכבר מחפשים את זה בישראל (רווי)`] };
-  return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}: נמכר, אבל בלי תאוצה`] };
+  const measured = c && c !== "INSUFFICIENT";
+  const link = /^https:\/\/s\.click\.aliexpress\.com\//.test(String(product.affiliateUrl || ""));
+  const quality = !link || !product.image ? false : facts?.satisfied === false ? false : product.priceSource === "aliexpress_api" && facts?.satisfied === true ? true : null;
+  return [
+    { id: "hot", he: "חם עכשיו (ההזמנות של הפריט מאיצות השבוע)", ok: hot === "HOT" ? true : hot && hot !== "UNVERIFIED" ? false : null },
+    { id: "momentum", he: "צובר תאוצה", ok: measured ? c === "ACCELERATING" || c === "EMERGING" : null },
+    { id: "direction", he: "עולה ולא יורד", ok: measured ? c !== "DECLINING" && c !== "DECELERATING" : null },
+    { id: "israel", he: "לא רווי בישראל", ok: gap?.state === "ARRIVED" ? (c === "ACCELERATING" || c === "EMERGING" ? null : false) : gap && ["GAP", "QUIET", "ARRIVING"].includes(gap.state) ? true : null },
+    { id: "demand", he: "ביקוש אמיתי (300 הזמנות ומעלה ב־30 יום)", ok: Number.isFinite(facts?.orders) ? facts.orders >= 300 || c === "EMERGING" : null },
+    { id: "ships", he: "אפשר להזמין לישראל", ok: facts ? facts.ships === true : null },
+    { id: "commission", he: "יש עמלת שותפים", ok: typeof facts?.commission === "boolean" ? facts.commission : null },
+    { id: "quality", he: "איכות ואמינות (קישור שותפים, תמונה, מחיר מהחנות, 95% שביעות רצון)", ok: quality },
+  ];
 }
 
 /**
- * One product's content brief (draft only; nothing is posted): hooks from the truth-checked hook
- * engine (likeloop.js buildHookSet, passed in), a 3-beat script, the caption with the disclosure
- * first, the comment call to action, two variants and the exact tracked link.
+ * One site product against the hot-only policy (the owner, 2026-11-14: "not ordinary products to
+ * fill the shop; not products that lost momentum or are saturated; not only because they sell a
+ * lot now"). KEEP needs momentum AND no failed hard criterion; any failed criterion archives;
+ * missing evidence holds (never archives).
  */
-export function briefOf(product = {}, { hooks = [], origin = "", why = [] } = {}) {
-  const usable = (Array.isArray(hooks) ? hooks : []).filter((h) => h && typeof h.text === "string" && h.text.length <= 70);
-  const [a, b] = usable;
-  if (!a || !product.id) return null;
-  const link = `${String(origin).replace(/\/+$/, "")}/p/${encodeURIComponent(product.id)}?utm_source=instagram&utm_medium=reel&utm_campaign=radar_${encodeURIComponent(product.id)}`;
+export function catalogVerdict(product = {}, { acc = null, gap = null, hot = null, facts = null } = {}) {
+  const criteria = criteriaOf(product, { acc, gap, hot, facts });
+  const failed = criteria.filter((x) => x.ok === false);
+  const hard = failed.filter((x) => ["ships", "commission", "quality", "demand"].includes(x.id));
+  if (hard.length) return { verdict: "ARCHIVE_PROPOSED", reasons: hard.map((x) => `נכשל: ${x.he}`), criteria };
+  const c = acc?.cls;
+  if (hot === "HOT" || c === "ACCELERATING" || c === "EMERGING") {
+    if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", reasons: ["ההזמנות יורדות"], criteria };
+    return { verdict: "KEEP", reasons: [c === "EMERGING" || c === "ACCELERATING" ? ACCEL[c].he : "חם עכשיו"], criteria };
+  }
+  if (!c || c === "INSUFFICIENT") return { verdict: "HOLD", reasons: [ACCEL.INSUFFICIENT.hint], criteria };
+  if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", reasons: ["ההזמנות יורדות"], criteria };
+  if (gap?.state === "ARRIVED") return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}, וכבר מחפשים את זה בישראל (רווי)`], criteria };
+  return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}: נמכר, אבל בלי תאוצה`], criteria };
+}
+
+const STORE_IMG = /^https:\/\/([a-z0-9-]+\.)*(aliexpress-media\.com|alicdn\.com)\/\S+$/i;
+const CHANNELS = Object.freeze([
+  { id: "instagram_reel", he: "רילס באינסטגרם", slot: "12:45", source: "instagram", medium: "reel" },
+  { id: "tiktok", he: "טיקטוק", slot: "20:30", source: "tiktok", medium: "video" },
+  { id: "facebook_page", he: "עמוד פייסבוק", slot: "19:00", source: "facebook", medium: "reel" },
+]);
+export const AUTOPOST = Object.freeze({
+  instagram_reel: "BLOCKED: אין IG_USER_ID ו־IG_ACCESS_TOKEN בשרת (פונקציית Edge), ופרסום רק אחרי אישור שלך",
+  tiktok: "BLOCKED: לטיקטוק אין ממשק פרסום פתוח לחשבון שלך; מעלים ידנית",
+  facebook_page: "BLOCKED: אין טוקן עמוד בשרת; Upload-Post הגיע למכסה החודשית",
+});
+
+/**
+ * One product's promotion kit (Master Execution Order, item 3) — a DRAFT for approval, nothing is
+ * posted. Locked to the product's verified store photos: every storyboard shot names the exact
+ * photo, and the kit HALTS (with the reason) when there are fewer than 2 store photos or no
+ * store-checked price, instead of inventing a look. Hooks come from the truth-checked hook engine
+ * (likeloop.js buildHookSet, passed in). The comment word is ״קישור״ (the comment bot answers it).
+ */
+export function kitOf(product = {}, { hooks = [], origin = "", why = [], now = Date.now() } = {}) {
+  if (!product.id) return null;
+  const photos = (Array.isArray(product.images) ? product.images : []).filter((u) => STORE_IMG.test(String(u))).slice(0, 4);
+  const flags = [];
+  if (photos.length < 2) flags.push(`רק ${photos.length} תמונות מאומתות מהחנות (צריך 2 לפחות)`);
+  if (!(Number(product.price) > 0) || product.priceSource !== "aliexpress_api") flags.push("אין מחיר מאומת מהחנות");
+  const usable = (Array.isArray(hooks) ? hooks : []).filter((h) => h && typeof h.text === "string" && h.text.length <= 70 && h.text.split(/\s+/).length <= 8);
+  if (!usable.length) flags.push("אין Hook שעבר את בדיקת האמת");
+  const base = `${String(origin).replace(/\/+$/, "")}/p/${encodeURIComponent(product.id)}`;
+  // One exact tracked address per channel and variant (the site's own landing tracker reads the utm).
+  const tracked = (v, source = "instagram", medium = "reel") => `${base}?utm_source=${source}&utm_medium=${medium}&utm_campaign=radar_${encodeURIComponent(product.id)}&utm_content=${v}`;
   const title = String(product.title || "").slice(0, 60);
+  if (flags.length) return { productId: product.id, status: "HALTED", flags, link: tracked("a") };
+  const variants = usable.slice(0, 3).map((h, k) => {
+    const v = "abc"[k];
+    return {
+      variant: v,
+      hookType: h.type,
+      hook3s: h.text,
+      title: `${h.text} | ${title}`.slice(0, 90),
+      script: [
+        h.text,
+        `${title}. ככה זה נראה מקרוב, בדיוק כמו בתמונות של המוכר.`,
+        why[0] ? why[0] : "בודקים בעמוד המוצר את המידה והצבע לפני שמזמינים.",
+        "רוצים את הקישור? כתבו ״קישור״ בתגובות ונשלח לכם.",
+      ],
+      caption: `#פרסומת · קישור שותפים\n${h.text}\n${title}\nכתבו ״קישור״ בתגובות ונשלח לכם את הקישור.`,
+      link: tracked(v),
+    };
+  });
   return {
     productId: product.id,
     status: "DRAFT_FOR_APPROVAL",
-    hook: a.text,
-    variants: [a, b].filter(Boolean).map((h) => ({ type: h.type, hook: h.text })),
-    script: [
-      { t: "0–2s", say: a.text },
-      { t: "2–8s", say: `${title}: מראים אותו מקרוב, בשימוש אמיתי.` },
-      { t: "8–12s", say: "רוצה קישור? כתבי ״רוצה״ בתגובות ונשלח לך." },
+    createdAt: new Date(now).toISOString(),
+    cta: "כתבו ״קישור״ ונשלח לכם",
+    storyboard: [
+      { t: "0–3s", shot: "Hook על התמונה הראשונה, קרוב", photo: photos[0] },
+      { t: "3–7s", shot: "פרט מקרוב מהתמונה השנייה", photo: photos[1] },
+      { t: "7–11s", shot: photos[2] ? "המוצר בשימוש / מזווית נוספת" : "חזרה לתמונה הראשונה, תקריב איטי", photo: photos[2] || photos[0] },
+      { t: "11–14s", shot: "שם המוצר + הקריאה לתגובה", photo: photos[3] || photos[1] },
     ],
-    caption: `#פרסומת · קישור שותפים\n${a.text}\n${title}${why[0] ? `\n${why[0]}` : ""}\nכתבי ״רוצה״ בתגובות ונשלח לך את הקישור.`,
-    cta: "כתבי ״רוצה״ בתגובות ונשלח לך קישור",
-    link,
-    video: product.videoUrl ? "יש סרטון באתר" : product.sellerVideo ? "יש סרטון מוכר (לעריכה)" : "אין סרטון: רק מתמונות החנות",
+    lock: "מציגים רק את מה שבתמונות המוכר: אותו דגם, צבע ומבנה. לא מוסיפים תכונה שלא כתובה בחנות.",
+    video: product.videoUrl ? "יש סרטון באתר" : product.sellerVideo ? "יש סרטון מוכר לעריכה" : "סרטון מתמונות החנות בלבד",
+    variants,
+    link: variants[0].link,
+    queue: CHANNELS.map((ch) => ({ channel: ch.id, he: ch.he, slot: ch.slot, status: "READY_FOR_APPROVAL", link: tracked("a", ch.source, ch.medium), autopost: AUTOPOST[ch.id] })),
   };
 }

@@ -1,12 +1,15 @@
 // The Alpha engine (src/lib/growth/alpha.js + radarIntel.js): weights renormalize over measured
 // components only, a missing component is never invented and lowers confidence (not the score),
 // low samples and duplicate or stale events cannot make a high private score, the acceleration
-// shield needs real history, the catalog check is a proposal, briefs are drafts with the disclosure,
+// shield needs real history, the 8 criteria keep only hot products (missing data holds, never
+// archives), the archive touches only the owner's products and keeps every field and its history,
+// promotion kits are drafts locked to the store photos with the disclosure,
 // and the magic button reads the very same object as the radar's card.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ALPHA, accelerationOf, alphaOf, briefOf, catalogVerdict, explain, lifecycleOf, privateSignal } from "../src/lib/growth/alpha.js";
+import { ALPHA, AUTOPOST, accelerationOf, alphaOf, catalogVerdict, criteriaOf, explain, kitOf, lifecycleOf, privateSignal } from "../src/lib/growth/alpha.js";
+import { MAX_CHANGES, applyArchive, syncArchive } from "../src/lib/cloud/catalogArchive.js";
 import { enrich, siteExitRate } from "../src/lib/growth/radarIntel.js";
 import { radarForItem, sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 
@@ -62,22 +65,145 @@ test("private signal: low samples, duplicates and stale events cannot make a hig
   assert.equal(siteExitRate([ev(1, "view")], { now }), null, "no site rate from too few views");
 });
 
-test("lifecycle and the catalog policy (a proposal only)", () => {
+const IMG = (n) => `https://ae-pic-a1.aliexpress-media.com/kf/S${n}.jpg`;
+const OK = { id: "ae-1", itemId: "1", title: "עגילים · קריסטלים", affiliateUrl: "https://s.click.aliexpress.com/e/_a", image: IMG(0), images: [IMG(1), IMG(2), IMG(3)], price: 9, priceSource: "aliexpress_api" };
+const FACTS = { ships: true, commission: true, satisfied: true, orders: 1200 };
+
+test("lifecycle and the 8 criteria of the hot-only policy", () => {
   const acc = (cls) => ({ cls });
   assert.equal(lifecycleOf(acc("ACCELERATING"), { state: "GAP" }), "ACCELERATING");
   assert.equal(lifecycleOf(acc("ACCELERATING"), { state: "ARRIVED" }), "EXPANDING");
   assert.equal(lifecycleOf(acc("STABLE"), { state: "ARRIVED" }), "SATURATED");
   assert.equal(lifecycleOf(acc("DECLINING"), { state: "GAP" }), "DECLINING");
   assert.equal(lifecycleOf(acc("INSUFFICIENT"), null), "UNKNOWN");
-  const ok = { affiliateUrl: "https://s.click.aliexpress.com/e/_a", image: "https://ae-pic-a1.aliexpress-media.com/kf/a.jpg", price: 9, priceSource: "aliexpress_api" };
-  assert.equal(catalogVerdict(ok, { acc: acc("ACCELERATING") }).verdict, "KEEP");
-  assert.equal(catalogVerdict(ok, { acc: acc("STABLE") }).verdict, "ARCHIVE_PROPOSED", "selling a lot without momentum is not enough");
-  assert.equal(catalogVerdict(ok, { acc: acc("INSUFFICIENT") }).verdict, "HOLD", "no history is never a reason to archive");
-  assert.equal(catalogVerdict({ ...ok, image: "" }, { acc: acc("ACCELERATING") }).verdict, "FIX");
-  assert.equal(catalogVerdict(ok, { acc: acc("STABLE"), hot: "HOT" }).verdict, "KEEP");
+  const c = criteriaOf(OK, { acc: acc("ACCELERATING"), gap: GAP, hot: "HOT", facts: FACTS });
+  assert.deepEqual(c.map((x) => x.id), ["hot", "momentum", "direction", "israel", "demand", "ships", "commission", "quality"]);
+  assert.ok(c.every((x) => x.ok === true), "a hot, accelerating, unsaturated, shipped, paying, checked product passes all 8");
+  const blank = criteriaOf(OK, {});
+  assert.ok(blank.every((x) => x.ok === null || x.ok === false));
+  assert.equal(blank.find((x) => x.id === "ships").ok, null, "no store answer: not measured, never a fail");
+  assert.equal(blank.find((x) => x.id === "demand").ok, null);
+  assert.equal(criteriaOf({ ...OK, affiliateUrl: "https://www.aliexpress.com/item/1.html" }, {}).find((x) => x.id === "quality").ok, false, "no own affiliate link fails quality");
+  assert.equal(criteriaOf(OK, { facts: { ...FACTS, satisfied: false } }).find((x) => x.id === "quality").ok, false);
+  assert.equal(criteriaOf(OK, { facts: { ...FACTS, orders: 120 } }).find((x) => x.id === "demand").ok, false);
+  assert.equal(criteriaOf(OK, { acc: acc("EMERGING"), facts: { ...FACTS, orders: 120 } }).find((x) => x.id === "demand").ok, true, "an emerging item is allowed to be small");
+  assert.equal(criteriaOf(OK, { acc: acc("STABLE"), gap: { state: "ARRIVED" } }).find((x) => x.id === "israel").ok, false, "saturated in Israel");
 });
 
-test("explanations come only from the evidence; briefs are drafts with the disclosure first", () => {
+test("catalog verdicts: keep only the hot, archive the cooling and the saturated, never archive for missing data", () => {
+  const acc = (cls) => ({ cls });
+  assert.equal(catalogVerdict(OK, { acc: acc("ACCELERATING"), facts: FACTS }).verdict, "KEEP");
+  assert.equal(catalogVerdict(OK, { acc: acc("STABLE"), hot: "HOT", facts: FACTS }).verdict, "KEEP", "the item itself is hot this week");
+  assert.equal(catalogVerdict(OK, { acc: acc("STABLE"), facts: FACTS }).verdict, "ARCHIVE_PROPOSED", "selling a lot without momentum is not enough");
+  assert.equal(catalogVerdict(OK, { acc: acc("DECELERATING"), facts: FACTS }).verdict, "ARCHIVE_PROPOSED", "losing momentum");
+  assert.equal(catalogVerdict(OK, { acc: acc("DECLINING"), facts: FACTS }).verdict, "ARCHIVE_PROPOSED");
+  assert.equal(catalogVerdict(OK, { acc: acc("STABLE"), gap: { state: "ARRIVED" }, facts: FACTS }).verdict, "ARCHIVE_PROPOSED");
+  assert.equal(catalogVerdict(OK, { acc: acc("INSUFFICIENT"), facts: FACTS }).verdict, "HOLD", "no history is never a reason to archive");
+  assert.equal(catalogVerdict(OK, {}).verdict, "HOLD");
+  const noShip = catalogVerdict(OK, { acc: acc("ACCELERATING"), facts: { ...FACTS, ships: false } });
+  assert.equal(noShip.verdict, "ARCHIVE_PROPOSED", "a hard criterion fails even when hot");
+  assert.match(noShip.reasons[0], /לישראל/);
+  assert.equal(catalogVerdict({ ...OK, image: "" }, { acc: acc("ACCELERATING"), facts: FACTS }).verdict, "ARCHIVE_PROPOSED", "no photo fails quality");
+  assert.equal(catalogVerdict(OK, { acc: acc("ACCELERATING"), facts: { ...FACTS, commission: false } }).verdict, "ARCHIVE_PROPOSED");
+  const v = catalogVerdict(OK, { acc: acc("ACCELERATING"), facts: FACTS });
+  assert.equal(v.criteria.length, 8);
+});
+
+test("promotion kits: locked to the store photos, halted when evidence is missing, drafts with the disclosure", () => {
+  const hooks = [{ type: "question", text: "מחפשת עגיל ליומיום?" }, { type: "gift", text: "מתנה קטנה שנראית יקרה?" }, { type: "curiosity", text: "ראית את זה כבר?" }];
+  const k = kitOf(OK, { hooks, origin: "https://likelink2.vercel.app/", why: ["ההזמנות עולות השבוע"], now: at("2026-11-14") });
+  assert.equal(k.status, "DRAFT_FOR_APPROVAL");
+  assert.equal(k.cta, "כתבו ״קישור״ ונשלח לכם");
+  assert.equal(k.variants.length, 3, "A/B/C variations");
+  for (const v of k.variants) {
+    assert.match(v.caption, /^#פרסומת · קישור שותפים/);
+    assert.ok(v.hook3s.split(/\s+/).length <= 8, "a hook said in 3 seconds");
+    assert.equal(v.script.length, 4);
+    assert.match(v.link, new RegExp(`^https://likelink2\\.vercel\\.app/p/ae-1\\?utm_source=instagram&utm_medium=reel&utm_campaign=radar_ae-1&utm_content=${v.variant}$`));
+  }
+  assert.ok(k.storyboard.every((s) => OK.images.includes(s.photo)), "every shot names one of the product's own store photos");
+  assert.deepEqual(k.queue.map((q) => q.status), ["READY_FOR_APPROVAL", "READY_FOR_APPROVAL", "READY_FOR_APPROVAL"]);
+  assert.match(k.queue.find((q) => q.channel === "tiktok").link, /utm_source=tiktok/);
+  assert.ok(k.queue.every((q) => /^BLOCKED/.test(q.autopost) && q.autopost === AUTOPOST[q.channel]), "external auto-posting is blocked with its reason");
+  const foreign = kitOf({ ...OK, images: ["https://images.unsplash.com/a.jpg", IMG(1)] }, { hooks, origin: "https://x" });
+  assert.equal(foreign.status, "HALTED", "a stock photo is not the product");
+  assert.match(foreign.flags[0], /תמונות מאומתות/);
+  assert.equal(kitOf({ ...OK, priceSource: "manual" }, { hooks, origin: "https://x" }).status, "HALTED");
+  assert.equal(kitOf(OK, { hooks: [{ type: "q", text: "מילה אחת שתיים שלוש ארבע חמש שש שבע שמונה תשע" }], origin: "https://x" }).status, "HALTED", "a hook longer than 8 words is not a 3-second hook");
+  assert.equal(kitOf({}, { hooks }), null);
+});
+
+test("archive: owner's products only, approved only, restore only the radar's, history kept, nothing deleted", () => {
+  const now = at("2026-11-14");
+  const P = (id, extra = {}) => ({ id, marketerId: "owner", status: "approved", title: id, ...extra });
+  const products = [P("a"), P("b"), P("c", { marketerId: "creator2" }), P("d", { status: "archived", archivedBy: "radar", archivedAt: "2026-11-01T00:00:00.000Z", archiveHistory: [{ action: "archive" }] }), P("e", { status: "archived", archivedBy: "owner" }), P("f", { status: "draft" })];
+  const decisions = [
+    { id: "a", action: "archive", reason: "ההזמנות יורדות", evidence: { accel: "DECLINING", weekPct: -8, israel: "ARRIVED", at: "2026-11-14" } },
+    { id: "c", action: "archive" }, { id: "d", action: "restore", reason: "מאיץ" }, { id: "e", action: "restore" },
+    { id: "f", action: "archive" }, { id: "zz", action: "archive" }, { id: "../x", action: "archive" }, { id: "b", action: "delete" },
+  ];
+  const r = applyArchive(products, decisions, { ownerId: "owner", now });
+  assert.equal(r.products.length, products.length, "nothing is deleted");
+  assert.deepEqual(r.applied.map((x) => `${x.id}:${x.action}`), ["a:archive", "d:restore"]);
+  assert.deepEqual(Object.fromEntries(r.refused.map((x) => [x.id, x.error])), { c: "not_owner_product", e: "not_radar_archived", f: "not_approved", zz: "unknown_product", "../x": "bad_id", b: "bad_action" });
+  const a = r.products.find((x) => x.id === "a");
+  assert.equal(a.status, "archived");
+  assert.equal(a.archivedBy, "radar");
+  assert.equal(a.archiveEvidence.accel, "DECLINING");
+  assert.equal(a.archiveHistory.length, 1);
+  assert.equal(a.title, "a", "every other field is kept (links, tracking, history)");
+  const d = r.products.find((x) => x.id === "d");
+  assert.equal(d.status, "approved");
+  assert.equal(d.archivedBy, undefined);
+  assert.equal(d.archiveHistory.length, 2, "restore keeps the history");
+  assert.equal(r.products.find((x) => x.id === "c").status, "approved", "a creator's product is never touched");
+  const many = Array.from({ length: MAX_CHANGES + 5 }, (_, i) => P(`p${i}`));
+  const capped = applyArchive(many, many.map((p) => ({ id: p.id, action: "archive" })), { ownerId: "owner", now });
+  assert.equal(capped.applied.length, MAX_CHANGES);
+  assert.equal(capped.refused.filter((x) => x.error === "over_run_limit").length, 5);
+  assert.equal(applyArchive(products, decisions, { ownerId: "", now }).applied.length, 0, "no owner id, nothing changes");
+});
+
+test("archive on the server: dry run by default; a confirmed run swaps, reads back and logs", async () => {
+  const now = at("2026-11-14");
+  let stored = [{ id: "a", marketerId: "owner", status: "approved" }, { id: "b", marketerId: "owner", status: "approved" }];
+  let version = "v1";
+  let log = [];
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push(`${init.method || "GET"} ${new URL(url).search}`);
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+    if (!init.method || init.method === "GET") {
+      if (url.includes("catalog%3Aarchive%3Alog")) return json([{ value: JSON.stringify(log), updated_at: "l1" }]);
+      return json([{ value: JSON.stringify(stored), updated_at: version }]);
+    }
+    if (init.method === "PATCH") {
+      if (!url.includes(`updated_at=eq.${version}`)) return json([]);
+      stored = JSON.parse(JSON.parse(init.body).value); version = "v2";
+      return json([{ key: "marketplace:products" }]);
+    }
+    log = JSON.parse(JSON.parse(init.body).value);
+    return json([], 201);
+  };
+  const env = { SUPABASE_URL: "https://db.example", SUPABASE_SERVICE_ROLE_KEY: "k", MARKETPLACE_SINGLE_OWNER_ID: "owner" };
+  const body = { decisions: [{ id: "a", action: "archive", reason: "ההזמנות יורדות" }] };
+  const dry = await syncArchive(body, { env, fetchImpl, now });
+  assert.equal(dry.dryRun, true);
+  assert.equal(dry.proof.status, "DRY_RUN");
+  assert.equal(stored[0].status, "approved", "a dry run writes nothing");
+  assert.ok(!calls.some((c) => c.startsWith("PATCH") || c.startsWith("POST")));
+  const real = await syncArchive({ ...body, confirm: "archive" }, { env, fetchImpl, now });
+  assert.equal(real.ok, true);
+  assert.equal(real.proof.status, "VERIFIED");
+  assert.equal(stored.find((x) => x.id === "a").status, "archived");
+  assert.equal(stored.find((x) => x.id === "b").status, "approved");
+  assert.equal(log[0].applied[0].id, "a");
+  const failing = await syncArchive({ ...body, confirm: "archive" }, { env, fetchImpl: async () => new Response("no", { status: 500 }), now });
+  assert.equal(failing.ok, false);
+  assert.equal(failing.error, "kv_read_failed", "a failed read never becomes a write");
+});
+
+test("explanations come only from the evidence", () => {
   const acc = accelerationOf(seed["1005011942976222"]);
   const alpha = alphaOf({ acc, gap: GAP });
   const ex = explain({ alpha, acc, gap: GAP, kind: "earrings", price: 7.5 });
@@ -85,11 +211,6 @@ test("explanations come only from the evidence; briefs are drafts with the discl
   assert.match(ex.now.join(" "), /עוד לא כאן/);
   assert.match(ex.audience.basis, /כלל קבוע/, "the audience is labelled a rule, not a measurement");
   assert.ok(ex.missing.length >= 1);
-  const b = briefOf({ id: "ae-1", title: "עגילים · קריסטלים" }, { hooks: [{ type: "question", text: "מחפשת עגיל ליומיום?" }, { type: "gift", text: "מתנה קטנה?" }], origin: "https://likelink2.vercel.app" });
-  assert.equal(b.status, "DRAFT_FOR_APPROVAL");
-  assert.match(b.caption, /^#פרסומת · קישור שותפים/);
-  assert.match(b.link, /^https:\/\/likelink2\.vercel\.app\/p\/ae-1\?utm_source=instagram/);
-  assert.equal(briefOf({ id: "x" }, { hooks: [] }), null, "no truth-checked hook, no brief");
 });
 
 test("one object: the radar card and the magic button show the same Alpha", () => {
@@ -109,5 +230,6 @@ test("one object: the radar card and the magic button show the same Alpha", () =
   assert.equal(hint.lifecycleHe, card.lifecycleHe);
   assert.equal(out.audit.counts.KEEP, 1);
   assert.equal(out.briefs.briefs.length, 1);
-  assert.match(out.audit.policy, /nothing archived/);
+  assert.match(out.audit.policy, /never deleted/);
+  assert.deepEqual(out.decisions, [], "a kept product is never sent to the archive");
 });

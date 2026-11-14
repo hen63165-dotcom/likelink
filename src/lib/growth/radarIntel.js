@@ -2,7 +2,7 @@
 // the magic button all read (alpha.js): it joins the radar's board (stages, Israel gap, picks) with
 // the item histories (acceleration shield), the site's own events (private signal) and the site's
 // own products (catalog verdicts, content briefs). Pure: the collector passes everything in.
-import { ACCEL, LIFECYCLE, VERDICTS, accelerationOf, alphaOf, briefOf, catalogVerdict, explain, lifecycleOf, privateSignal } from "./alpha.js";
+import { ACCEL, LIFECYCLE, VERDICTS, accelerationOf, alphaOf, catalogVerdict, explain, kitOf, lifecycleOf, privateSignal } from "./alpha.js";
 import { pickMatches } from "./trendRadar.js";
 import { itemMomentum } from "./radarOpportunity.js";
 
@@ -37,7 +37,7 @@ const lean = (acc) => (acc ? { cls: acc.cls, he: ACCEL[acc.cls].he, weekPct: acc
  * board, the catalog audit (every product's verdict with its evidence) and the content briefs
  * (drafts for approval) for the products the policy keeps and the concepts with an open window.
  */
-export function enrich(board, { concepts = [], readings = {}, items = {}, siteProducts = [], events = [], hooksFor = () => [], origin = "", now = Date.now() } = {}) {
+export function enrich(board, { concepts = [], readings = {}, items = {}, facts = {}, siteProducts = [], events = [], hooksFor = () => [], origin = "", now = Date.now() } = {}) {
   const siteRate = siteExitRate(events, { now });
   const rows = (board.concepts || []).map((row) => {
     const series = row.pick?.itemId && (items[row.pick.itemId] || []).length >= 3 ? items[row.pick.itemId] : (readings[row.id] || []).map((r) => [r.d, r.sum]);
@@ -64,15 +64,15 @@ export function enrich(board, { concepts = [], readings = {}, items = {}, sitePr
     const hot = itemMomentum(items[p.itemId] || []).state;
     const priv = privateSignal(events, { productIds: [p.id], now, siteRate });
     const alpha = alphaOf({ acc, gap, priv });
-    const v = catalogVerdict(p, { acc, gap, hot });
+    const v = catalogVerdict(p, { acc, gap, hot, facts: facts[p.itemId] || null });
     const ex = explain({ alpha, acc, gap, kind: p.kind, price: p.price, momentumHot: hot === "HOT" });
-    audit.push({ id: p.id, title: String(p.title || "").slice(0, 60), kind: p.kind || "", itemId: p.itemId, verdict: v.verdict, verdictHe: VERDICTS[v.verdict].he, reasons: v.reasons, accel: lean(acc), hot, concept: concept?.id || null, israel: gap ? { state: gap.state, he: gap.he, confidenceHe: gap.confidenceHe || null } : null, lifecycle: lifecycleOf(acc, gap), alpha: { score: alpha.score, confidence: alpha.confidence, coverage: alpha.coverage, verified: alpha.verified, missing: alpha.missing }, why: ex.why, risks: ex.risks });
+    audit.push({ id: p.id, title: String(p.title || "").slice(0, 60), kind: p.kind || "", itemId: p.itemId, status: p.status || "approved", archivedBy: p.archivedBy || null, verdict: v.verdict, verdictHe: VERDICTS[v.verdict].he, reasons: v.reasons, criteria: v.criteria, accel: lean(acc), hot, concept: concept?.id || null, israel: gap ? { state: gap.state, he: gap.he, confidenceHe: gap.confidenceHe || null } : null, lifecycle: lifecycleOf(acc, gap), alpha: { score: alpha.score, confidence: alpha.confidence, coverage: alpha.coverage, verified: alpha.verified, missing: alpha.missing }, why: ex.why, risks: ex.risks });
     if (v.verdict === "KEEP") {
-      const b = briefOf(p, { hooks: hooksFor(p), origin, why: ex.why });
-      if (b) briefs.push({ ...b, alpha: alpha.score, confidence: alpha.confidence, audience: ex.audience, angle: ex.angle });
+      const k = kitOf(p, { hooks: hooksFor(p), origin, why: ex.why, now });
+      if (k) briefs.push({ ...k, alpha: alpha.score, confidence: alpha.confidence, audience: ex.audience, angle: ex.angle });
     }
   }
-  const order = { KEEP: 0, FIX: 1, HOLD: 2, ARCHIVE_PROPOSED: 3 };
+  const order = { KEEP: 0, HOLD: 1, ARCHIVE_PROPOSED: 2 };
   audit.sort((a, b) => order[a.verdict] - order[b.verdict] || (b.alpha.score ?? -1) - (a.alpha.score ?? -1));
   const counts = audit.reduce((m, r) => ((m[r.verdict] = (m[r.verdict] || 0) + 1), m), {});
   const keep = audit.filter((r) => r.verdict === "KEEP");
@@ -83,7 +83,10 @@ export function enrich(board, { concepts = [], readings = {}, items = {}, sitePr
       concepts: rows,
       site: board.site ? { ...board.site, keep: keep.slice(0, 24).map((r) => ({ id: r.id, title: r.title, accel: r.accel, lifecycle: r.lifecycle, alpha: r.alpha.score, confidence: r.alpha.confidence, israel: r.israel })), catalog: counts } : board.site,
     },
-    audit: { at: new Date(now).toISOString(), policy: "hot-only (proposal; nothing archived)", counts, products: audit },
-    briefs: { at: new Date(now).toISOString(), status: "DRAFTS_FOR_APPROVAL (nothing is posted)", briefs },
+    audit: { at: new Date(now).toISOString(), policy: "hot-only (8 criteria; the archive is applied by catalogArchive.js on the server, owner's products only, never deleted)", counts, products: audit },
+    briefs: { at: new Date(now).toISOString(), status: "PROMOTION KITS: DRAFTS_FOR_APPROVAL (nothing is posted)", ready: briefs.filter((k) => k.status === "DRAFT_FOR_APPROVAL").length, halted: briefs.filter((k) => k.status === "HALTED").length, briefs },
+    // What the server is asked to do (catalogArchive.js decides and refuses what it must).
+    decisions: audit.filter((r) => (r.verdict === "ARCHIVE_PROPOSED" && r.status === "approved") || (r.verdict === "KEEP" && r.status === "archived" && r.archivedBy === "radar"))
+      .map((r) => ({ id: r.id, action: r.verdict === "KEEP" ? "restore" : "archive", reason: r.reasons[0] || "", evidence: { accel: r.accel?.cls || null, weekPct: r.accel?.weekPct ?? null, israel: r.israel?.state || null, at: new Date(now).toISOString().slice(0, 10) } })),
   };
 }
