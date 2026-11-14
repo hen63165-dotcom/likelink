@@ -128,7 +128,7 @@ function AlphaBlock({ c }) {
   return (
     <div className="mt-3 rounded-2xl p-3" style={{ background: "#f8fafc", border: "1px solid var(--lx-line)" }}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-[16px] font-extrabold">{L("מדד אלפא", "Alpha")}: {a.score ?? "—"}<span className="text-[12px] font-bold">/100</span></p>
+        <p className="text-[16px] font-extrabold">{L("מדד אלפא", "Alpha")}: {a.score !== null ? <>{a.score}<span className="text-[12px] font-bold">/100</span></> : <span className="text-[13px]">{L("אין ציון עדיין (חסר מומנטום עולמי נמדד)", "no score yet (no measured global momentum)")}</span>}</p>
         <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: a.verified ? "#dcfce7" : "#fef0c7", color: a.verified ? "#166534" : "#93370d" }}>{a.verified ? L("הזדמנות מאומתת", "Verified") : L("לא מאומת עדיין", "Not verified yet")} · {a.confidenceHe}</span>
         {c.lifecycleHe ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("שלב:", "Stage:")} {c.lifecycleHe}</span> : null}
         {c.accel?.he ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("תאוצה:", "Acceleration:")} {c.accel.he}</span> : null}
@@ -237,8 +237,8 @@ function MarketMap({ list, openId = "" }) {
           <p className="text-[15px] font-extrabold" style={{ color: SIZE[k].color }}>{SIZE[k].he} · {l.length}</p>
           <ul className="mt-2 grid gap-1.5">
             {l.map((c) => (
-              <li key={c.id} id={c.id} style={{ scrollMarginTop: 90 }}>
-                <details open={openId === c.id}>
+              <li key={c.id} id={c.id} className="min-w-0" style={{ scrollMarginTop: 90 }}>
+                <details open={openId === c.id} style={{ minWidth: 0, maxWidth: "100%" }}>
                   <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
