@@ -9,7 +9,8 @@ import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-const BASE = /^https:\/\/[a-z0-9.-]+\.(netlify\.app|vercel\.app)$/.test(process.env.AUDIT_BASE || "") ? process.env.AUDIT_BASE : "https://likelink2.vercel.app";
+// AUDIT_BASE: a hosted build (Netlify/Vercel), or this branch served on the runner (127.0.0.1:4173).
+const BASE = /^(https:\/\/[a-z0-9.-]+\.(netlify\.app|vercel\.app)|http:\/\/127\.0\.0\.1:4173)$/.test(process.env.AUDIT_BASE || "") ? process.env.AUDIT_BASE : "https://likelink2.vercel.app";
 const OUT = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "audit") : "audit-out";
 mkdirSync(OUT, { recursive: true });
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");

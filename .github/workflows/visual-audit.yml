@@ -39,11 +39,20 @@ jobs:
           PAGES: home,product,reels,creator,products,search
           AUDIT_BASE: ${{ github.event.inputs.base }}
         run: node scripts/audit/visual-audit.mjs | tee "$RUNNER_TEMP/audit-log.txt"
+      - name: Build this branch and serve it on the runner (base "local" — when the hosted builds are unavailable)
+        if: github.event.inputs.base == 'local'
+        run: |
+          npm ci --no-audit --no-fund >/dev/null
+          npm run build >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }
+          if grep -q "is not exported by" /tmp/build.log; then grep "is not exported by" /tmp/build.log; exit 1; fi
+          nohup npx vite preview --port 4173 --strictPort --host 127.0.0.1 >/tmp/preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:4173/version.json
       - name: Radar UI (/radar, /radar-pro, /magic · Hebrew + English · phone + desktop · live data, no writes)
         continue-on-error: true
         env:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
-          AUDIT_BASE: ${{ github.event.inputs.base }}
+          AUDIT_BASE: ${{ github.event.inputs.base == 'local' && 'http://127.0.0.1:4173' || github.event.inputs.base }}
         run: |
           set -o pipefail
           node scripts/audit/radar-ui.mjs | tee -a "$RUNNER_TEMP/audit-log.txt"
