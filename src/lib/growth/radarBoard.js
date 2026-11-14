@@ -4,11 +4,13 @@
 // tracked AliExpress links, a picture only over https from AliExpress's own image hosts, the check
 // button only into /magic, text capped — and drops anything else. radarForItem is the magic button's
 // bridge: where a checked item sits on the radar. Tiny and import-light: both pages bundle it.
-import { GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
+import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
+import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
 const LEVELS = new Set(["NONE", "FAINT", "AWARE"]);
+const HOTS = new Set(Object.keys(HOT_STATES));
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ID = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const ITEM = /^\d{6,20}$/;
@@ -35,8 +37,20 @@ function cleanPick(p) {
   if (!buy) return null; // no store button without the owner's own tracked link
   const check = typeof p.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(p.check) ? p.check : null;
   const price = num(p.price);
-  return { title: str(p.title, 140), image: radarImage(p.image), price: price !== null && price > 0 ? price : null, checkedAt: str(p.checkedAt, 30), buy, check };
+  const m = p.momentum && HOTS.has(p.momentum.state) ? { state: p.momentum.state, he: HOT_STATES[p.momentum.state].he, weekPct: num(p.momentum.weekPct), line: str(p.momentum.line, 200) } : null;
+  return { itemId: ITEM.test(String(p.itemId || "")) ? String(p.itemId) : null, title: str(p.title, 140), image: radarImage(p.image), price: price !== null && price > 0 ? price : null, checkedAt: str(p.checkedAt, 30), buy, check, momentum: m };
 }
+
+function cleanOpportunity(o) {
+  if (!o || typeof o !== "object" || !Array.isArray(o.checks)) return null;
+  const checks = o.checks.slice(0, 16).map((c) => ({ id: str(c?.id, 20), he: str(c?.he, 90), ok: c?.ok === true ? true : c?.ok === false ? false : null })).filter((c) => c.id && c.he);
+  const measured = checks.filter((c) => c.ok !== null);
+  return { checks, passed: measured.filter((c) => c.ok).length, measured: measured.length, score: measured.length ? Math.round((measured.filter((c) => c.ok).length / measured.length) * 100) : 0 };
+}
+
+const cleanSiteRow = (r) => (r && /^[\w-]{2,60}$/.test(String(r.id || "")) && HOTS.has(r.state)
+  ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to) }
+  : null);
 
 function cleanRow(c) {
   if (!c || typeof c !== "object" || !ID.test(String(c.id || ""))) return null;
@@ -60,12 +74,16 @@ function cleanRow(c) {
     measured: day(c.measured),
     today,
     size: SIZES.has(c.size) ? c.size : null,
-    gap: { state: gapState, he: str(c.gap?.he, 40) || GAP_STATES[gapState].he, il: LEVELS.has(c.gap?.il) ? c.gap.il : null, world: LEVELS.has(c.gap?.world) ? c.gap.world : null, arrivedOn: day(c.gap?.arrivedOn), evidence: lines(c.gap?.evidence, 5) },
+    gap: { state: gapState, he: str(c.gap?.he, 40) || GAP_STATES[gapState].he, confidence: Object.hasOwn(CONFIDENCE, c.gap?.confidence) ? c.gap.confidence : null, confidenceHe: Object.hasOwn(CONFIDENCE, c.gap?.confidence) ? CONFIDENCE[c.gap.confidence].he : null, il: LEVELS.has(c.gap?.il) ? c.gap.il : null, yt: LEVELS.has(c.gap?.yt) ? c.gap.yt : null, world: LEVELS.has(c.gap?.world) ? c.gap.world : null, arrivedOn: day(c.gap?.arrivedOn), evidence: lines(c.gap?.evidence, 7) },
     window,
     windowHe: window ? WINDOWS[window].he : null,
     items: (Array.isArray(c.items) ? c.items : []).filter((x) => typeof x === "string" && ITEM.test(x)).slice(0, 20),
     match: (Array.isArray(c.match) ? c.match : []).map((m) => str(m, 60)).filter(Boolean).slice(0, 4),
+    hot: Object.fromEntries(Object.entries(c.hot && typeof c.hot === "object" ? c.hot : {}).filter(([id, v]) => ITEM.test(id) && Array.isArray(v) && HOTS.has(v[0])).slice(0, 20).map(([id, v]) => [id, [v[0], num(v[1])]])),
     pick: cleanPick(c.pick),
+    opportunity: cleanOpportunity(c.opportunity),
+    action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,
+    actionHe: Object.hasOwn(ACTIONS, c.action) ? ACTIONS[c.action] : null,
   };
 }
 
@@ -81,6 +99,12 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
+    site: doc.site && typeof doc.site === "object" ? {
+      checked: Math.max(0, num(doc.site.checked) ?? 0),
+      counts: Object.fromEntries(Object.entries(doc.site.counts || {}).filter(([k, v]) => HOTS.has(k) && Number.isFinite(v))),
+      hot: (Array.isArray(doc.site.hot) ? doc.site.hot : []).slice(0, 24).map(cleanSiteRow).filter((r) => r && r.state === "HOT"),
+      cooling: (Array.isArray(doc.site.cooling) ? doc.site.cooling : []).slice(0, 24).map(cleanSiteRow).filter((r) => r && r.state === "COOLING"),
+    } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
   };
 }
@@ -93,7 +117,15 @@ export function sanitizeBoard(doc) {
 export function radarForItem(board, { itemId = "", title = "" } = {}) {
   const rows = Array.isArray(board?.concepts) ? board.concepts : [];
   const id = String(itemId || "").replace(/^ae-/, "");
-  const pick = (c, match) => ({ id: c.id, he: c.he, stage: c.stage, stageHe: c.stageHe, window: c.window || null, windowHe: c.windowHe || null, gap: c.gap?.state || "UNKNOWN", gapHe: c.gap?.he || "", measured: c.measured || null, auto: !!c.auto, match });
+  const pick = (c, match) => ({
+    id: c.id, he: c.he, stage: c.stage, stageHe: c.stageHe, window: c.window || null, windowHe: c.windowHe || null,
+    gap: c.gap?.state || "UNKNOWN", gapHe: c.gap?.he || "", confidenceHe: c.gap?.confidenceHe || null, measured: c.measured || null, auto: !!c.auto, match,
+    action: c.action || null, actionHe: c.actionHe || null,
+    // The checked item's own momentum when it is one of the concept's top items, or its buy pick.
+    item: (match === "item" && c.hot?.[id]) ? { state: c.hot[id][0], he: HOT_STATES[c.hot[id][0]]?.he || "", weekPct: c.hot[id][1] } : null,
+    isPick: Boolean(c.pick?.itemId && c.pick.itemId === id),
+    opportunity: c.pick?.itemId && c.pick.itemId === id ? c.opportunity || null : null,
+  });
   if (ITEM.test(id)) {
     const exact = rows.find((c) => Array.isArray(c.items) && c.items.includes(id));
     if (exact) return pick(exact, "item");
@@ -108,4 +140,11 @@ export function radarForItem(board, { itemId = "", title = "" } = {}) {
     }
   }
   return best ? pick(best.c, "title") : null;
+}
+
+/** The checked item as one of the site's own products (from the board's site check), or null. */
+export function siteHotFor(board, itemId = "") {
+  const id = `ae-${String(itemId || "").replace(/^ae-/, "")}`;
+  const rows = [...(board?.site?.hot || []), ...(board?.site?.cooling || [])];
+  return rows.find((r) => r.id === id) || null;
 }

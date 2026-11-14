@@ -32,6 +32,8 @@ const STAGE_STYLE = {
 };
 
 const dm = (d) => (typeof d === "string" && d.length >= 10 ? `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}` : "");
+/** The first day a direction can be measured: two days after the first reading. */
+const nextDay = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return Number.isFinite(t) ? new Date(t + 2 * 86_400_000).toISOString().slice(0, 10) : ""; };
 
 const automated = () => {
   try { return navigator.webdriver === true || BOT_UA.test(String(navigator.userAgent || "")); } catch { return false; }
@@ -90,6 +92,7 @@ const GAP_STYLE = {
   QUIET: { bg: "#f2f4f7", fg: "#475467", icon: "🇮🇱" },
   ARRIVING: { bg: "#fffaeb", fg: "#b54708", icon: "🇮🇱" },
   ARRIVED: { bg: "#fef3f2", fg: "#b42318", icon: "🇮🇱" },
+  UNCERTAIN: { bg: "#f9fafb", fg: "#475467", icon: "🇮🇱" },
   UNKNOWN: { bg: "#ffffff", fg: "#667085", icon: "🇮🇱" },
 };
 
@@ -100,7 +103,7 @@ function IsraelLine({ gap }) {
   if (!gap || gap.state === "UNKNOWN") return null;
   return (
     <div className="mt-3 rounded-2xl p-3" style={{ background: st.bg, color: st.fg }}>
-      <p className="text-[14px] font-extrabold">{st.icon} {L("בישראל:", "In Israel:")} {gap.he}</p>
+      <p className="text-[14px] font-extrabold">{st.icon} {L("בישראל:", "In Israel:")} {gap.he}{gap.confidenceHe ? <span className="text-[12px] font-bold" style={{ opacity: 0.8 }}> · {gap.confidenceHe}</span> : null}</p>
       {gap.evidence?.length ? (
         <ul className="mt-1 grid gap-0.5 text-[13px] leading-6" style={{ color: "var(--lx-ink, #101828)" }}>
           {gap.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
@@ -139,12 +142,14 @@ function ConceptCard({ c }) {
         {c.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
       </ul>
       <IsraelLine gap={c.gap} />
+      {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
       {c.pick ? (
         <div className="mt-4 flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--lx-sky)" }}>
           {c.pick.image ? <div style={{ width: 64, height: 64, flex: "0 0 64px", borderRadius: 12, overflow: "hidden", background: "#fff" }}><Img src={c.pick.image} alt={c.pick.title} loading="lazy" style={{ width: 64, height: 64, objectFit: "cover" }} /></div> : null}
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14px] font-bold">{c.pick.title}</p>
             {c.pick.price ? <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`מ־₪${c.pick.price} בחנות · נבדק ב־${dm(c.pick.checkedAt)}`, `from ₪${c.pick.price} · checked ${dm(c.pick.checkedAt)}`)}</p> : null}
+            {c.pick.momentum ? <p className="text-[12px] font-bold" style={{ color: c.pick.momentum.state === "HOT" ? "#166534" : "var(--lx-muted)" }}>{c.pick.momentum.state === "HOT" ? "🔥 " : ""}{c.pick.momentum.he}{Number.isFinite(c.pick.momentum.weekPct) ? ` (${c.pick.momentum.weekPct > 0 ? "+" : ""}${c.pick.momentum.weekPct}% בשבוע)` : ""}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <a href={c.pick.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(c.id, c.pick.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 38, padding: "6px 14px", fontSize: 13 }}>
@@ -155,6 +160,15 @@ function ConceptCard({ c }) {
         </div>
       ) : c.stage !== "UNVERIFIED" ? (
         <p className="mt-3 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("עוד אין פריט שעובר את הכללים שלנו (95% שביעות רצון, 300 הזמנות, בלי חיקויים).", "No item passes our rules yet (95% satisfaction, 300 orders, no imitations).")}</p>
+      ) : null}
+      {c.opportunity ? (
+        <details className="mt-3 text-[13px]">
+          <summary className="cursor-pointer font-bold">{L(`בדיקת הזדמנות: ${c.opportunity.passed} מתוך ${c.opportunity.measured} בדיקות שנמדדו עברו`, `Opportunity check: ${c.opportunity.passed} of ${c.opportunity.measured} measured checks passed`)}</summary>
+          <ul className="mt-2 grid gap-1">
+            {c.opportunity.checks.map((x) => <li key={x.id}>{x.ok === true ? "✅" : x.ok === false ? "❌" : "⏳"} {x.he}{x.ok === null ? L(" (עוד לא נמדד)", " (not measured yet)") : ""}</li>)}
+          </ul>
+          {c.pick?.momentum?.line ? <p className="mt-2" style={{ color: "var(--lx-muted)" }}>{c.pick.momentum.line}</p> : null}
+        </details>
       ) : null}
       <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`על הרדאר מ־${dm(c.since)} · נמדד לאחרונה ${dm(c.measured)} · נתוני אליאקספרס`, `On the radar since ${dm(c.since)} · last measured ${dm(c.measured)} · AliExpress data`)}</p>
     </li>
@@ -197,6 +211,28 @@ function MarketMap({ list }) {
       ))}
       <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("״בישראל״: האם בגוגל בישראל מציעים השלמות לחיפוש הזה בעברית (סימן שמחפשים אותו), נמדד היום. ההזמנות: סכום 30 הימים האחרונים של 20 הפריטים המובילים בכל סוג. המודעות: כמה מוצרים תואמים יש באליאקספרס. נתוני אליאקספרס, נמדדו היום.", "\"In Israel\": whether Google in Israel suggests completions for this search in Hebrew (a sign people search it), measured today. Orders: the last 30 days of the top 20 items of each kind. Listings: how many matching products AliExpress has. AliExpress data, measured today.")}</p>
     </>
+  );
+}
+
+/** The site's own products whose AliExpress orders are accelerating this week (board.site). */
+function SiteHot({ site }) {
+  const { L } = useL();
+  if (!site?.checked) return null;
+  return (
+    <div className="lx-card mt-8 p-4 md:p-5" style={{ boxShadow: "none", border: "1px solid #bbf7d0" }}>
+      <h3 className="text-[18px] font-extrabold">{L("🔥 באתר עכשיו: מה באמת חם השבוע", "🔥 On the site now: what is really hot this week")}</h3>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`בדקנו ${site.checked} מוצרים מהאתר מול ההזמנות באליאקספרס, כל יום. חם = ההזמנות של הפריט עלו ב־10% ומעלה בשבוע.`, `We check ${site.checked} of the site's products against AliExpress orders every day. Hot = the item's orders rose 10%+ in a week.`)}</p>
+      {site.hot.length ? (
+        <ul className="mt-3 grid gap-2">
+          {site.hot.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl px-3 py-2 text-[14px]" style={{ background: "#ecfdf3" }}>
+              <Go to={`/p/${r.id}`} className="font-bold underline">{r.title || r.id}</Go>
+              <span className="text-[12px]" style={{ color: "#166534" }}>{L(`+${r.weekPct}% בשבוע · ${n(r.ordersBefore)} ← ${n(r.orders)} הזמנות ב־30 יום (${dm(r.from)}–${dm(r.to)})`, `+${r.weekPct}%/week · ${n(r.ordersBefore)} → ${n(r.orders)} orders in 30 days (${dm(r.from)}–${dm(r.to)})`)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="mt-3 text-[14px]">{L("השבוע אין באתר מוצר שההזמנות שלו מאיצות. זה מידע אמיתי, לא תקלה.", "No product on the site is accelerating this week. That is real information, not a fault.")}</p>}
+    </div>
   );
 }
 
@@ -334,9 +370,10 @@ export function RadarPage() {
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : null}
+            <SiteHot site={board.site} />
             {measuring.length ? <MarketMap list={measuring} /> : null}
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
-              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל (בישראל בעברית, ובארה״ב באנגלית) ובטרנדים היומיים של Google Trends לישראל: זה סימן לחיפושים, לא מספר חיפושים. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's public autocomplete (in Israel in Hebrew, in the US in English) and Google Trends' daily Israel feed: a sign of searches, not a count. The radar shows signs and never promises sales.")}
+              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא בארץ״ נקבע רק כששני מקורות החיפוש מסכימים. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
             </p>
           </>
         ) : null}

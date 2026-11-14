@@ -20,7 +20,7 @@ test("autocomplete: the suggestions of the real Firefox answer, and how many ext
   const body = '["סקווישי",["סקווישי","סקוושי","סקווישי חמאה","סקווישי דמפלינג","סקוושי אושר עד","סקוושים","סקווישי נידו","סקוושי דאמפלינג","סקווישי קרח","סקווישי פופ"],[],{}]';
   const list = parseSuggest(body);
   assert.equal(list.length, 10);
-  assert.equal(extensions("סקווישי", list), 5, "the echo and other spellings are not extensions");
+  assert.equal(extensions("סקווישי", list), 8, "the echo is not an extension; Israelis' other spellings (סקוושי) are");
   assert.equal(extensions("סקווישי חמאה", list), 0);
   assert.equal(parseSuggest("<html>blocked</html>"), null, "an unusable answer is null, never an empty list");
   assert.equal(extensions("x", null), null);
@@ -40,33 +40,39 @@ test("robots.txt decides: a missing file allows, a Disallow for everyone blocks,
   assert.equal(robotsAllows(200, "User-agent: *\nDisallow: /\n", "/trending/rss"), false);
 });
 
-test("the gap: Hebrew searches decide; a failed day is no reading, never a NONE", () => {
+test("the gap: two Hebrew search sources must agree; one search alone is never 'not in Israel'", () => {
   const day = (d, x) => awarenessReading(x, { now: at(d) });
   assert.equal(gapOf([]).state, "UNKNOWN");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 7 })]).state, "GAP");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 0 })]).state, "QUIET");
-  assert.equal(gapOf([day("2026-11-14", { he: [1, 0], world: 7 })]).state, "ARRIVING");
-  assert.equal(gapOf([day("2026-11-14", { he: [4], world: 9 })]).state, "ARRIVED");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 9, trend: true })]).state, "ARRIVED", "a Google Trends Israel hit means it is here");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 7 })]).state, "GAP");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 0 })]).state, "QUIET");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 7 })]).state, "UNCERTAIN", "one search showing nothing is not enough");
+  assert.equal(gapOf([day("2026-11-14", { he: [1, 0], yt: [0], world: 7 })]).state, "ARRIVING");
+  assert.equal(gapOf([day("2026-11-14", { he: [4], yt: [2], world: 9 })]).state, "ARRIVED");
+  assert.equal(gapOf([day("2026-11-14", { he: [4], yt: [0], world: 9 })]).state, "ARRIVING", "one source a lot, the other nothing: arriving, not arrived");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 9, trend: true })]).state, "ARRIVED", "a Google Trends Israel hit means it is here");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], yt: [0], world: 9, site: 2 })]).state, "ARRIVING", "LikeLink2's own visitors count as a sign");
   assert.equal(gapOf([day("2026-11-14", { he: [null], world: null })]).state, "UNKNOWN");
   assert.equal(gapOf([day("2026-11-14", { he: [null], world: 9 })]).state, "UNKNOWN", "no Hebrew answer: Israel is not measured, never NONE");
+  const two = [day("2026-11-13", { he: [0], yt: [0], world: 7 }), day("2026-11-14", { he: [0], yt: [0], world: 7 })];
+  assert.deepEqual([gapOf(two.slice(1)).confidence, gapOf(two).confidence], ["MEDIUM", "HIGH"], "the same state two days running is high confidence");
   const r = day("2026-11-14", { he: [0, 2], hq: ["קליפס כריש", "סיכת כריש"], world: 7 });
   assert.deepEqual([r.il, r.q], [2, "סיכת כריש"], "the best of the spellings, and which one");
-  const lines = gapOf([day("2026-11-14", { he: [0], hq: ["סקווישי קפיברה"], world: 7 })]).evidence.map((e) => e.text).join("\n");
+  const lines = gapOf([day("2026-11-14", { he: [0], yt: [0], hq: ["סקווישי קפיברה"], world: 7 })]).evidence.map((e) => e.text).join("\n");
   assert.match(lines, /14\.11/);
   assert.match(lines, /״סקווישי קפיברה״/, "the phrase checked is shown, so anyone can check it on Google");
+  assert.match(lines, /יוטיוב/);
   assert.doesNotMatch(lines, /\d+ חיפושים/, "never a number of searches");
 });
 
 test("the arrival clock: an arrival date only after the radar saw none", () => {
   let h = [];
-  h = addAwareness(h, awarenessReading({ he: [0], world: 5 }, { now: at("2026-11-14") }));
-  h = addAwareness(h, awarenessReading({ he: [0], world: 6 }, { now: at("2026-11-20") }));
-  h = addAwareness(h, awarenessReading({ he: [2], world: 8 }, { now: at("2026-11-30") }));
+  h = addAwareness(h, awarenessReading({ he: [0], yt: [0], world: 5 }, { now: at("2026-11-14") }));
+  h = addAwareness(h, awarenessReading({ he: [0], yt: [0], world: 6 }, { now: at("2026-11-20") }));
+  h = addAwareness(h, awarenessReading({ he: [2], yt: [0], world: 8 }, { now: at("2026-11-30") }));
   const g = gapOf(h);
   assert.equal(g.state, "ARRIVING");
   assert.equal(g.arrivedOn, "2026-11-30");
-  const already = gapOf([awarenessReading({ he: [5] }, { now: at("2026-11-14") })]);
+  const already = gapOf([awarenessReading({ he: [5], yt: [5] }, { now: at("2026-11-14") })]);
   assert.equal(already.arrivedOn, null, "already searched when measuring began: no arrival date is claimed");
   const one = addAwareness(addAwareness([], awarenessReading({ he: [1] }, { now: at("2026-11-14") })), awarenessReading({ he: [3] }, { now: at("2026-11-14") }));
   assert.equal(one.length, 1, "one reading a day");

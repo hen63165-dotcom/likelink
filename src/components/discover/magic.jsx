@@ -15,7 +15,7 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 import { loadBoard } from "./radar.jsx";
-import { radarForItem } from "../../lib/growth/radarBoard.js";
+import { radarForItem, siteHotFor } from "../../lib/growth/radarBoard.js";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -270,10 +270,24 @@ function RadarHint({ item }) {
     let live = true;
     setHit(undefined);
     boardOnce = boardOnce || loadBoard().catch(() => null);
-    boardOnce.then((b) => { if (live) setHit(b ? radarForItem(b, { itemId: item?.id, title: item?.title }) : null); });
+    boardOnce.then((b) => {
+      if (!live) return;
+      const r = b ? radarForItem(b, { itemId: item?.id, title: item?.title }) : null;
+      const site = b ? siteHotFor(b, item?.id) : null;
+      setHit(r || site ? { ...(r || {}), site } : null);
+    });
     return () => { live = false; };
   }, [item?.id, item?.title]);
   if (!hit) return null;
+  if (!hit.id && hit.site) {
+    return (
+      <div className="mt-4 rounded-[14px] p-3 text-[14px] leading-6" style={{ background: "#ecfdf3" }}>
+        <p className="font-extrabold">📡 {L("ברדאר הטרנדים:", "On the trend radar:")} {hit.site.he}</p>
+        {Number.isFinite(hit.site.weekPct) ? <p>{L(`ההזמנות של הפריט באליאקספרס: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% בשבוע (${hit.site.from ? hit.site.from.slice(8, 10) + "." + Number(hit.site.from.slice(5, 7)) : ""}–${hit.site.to ? hit.site.to.slice(8, 10) + "." + Number(hit.site.to.slice(5, 7)) : ""}).`, `The item's AliExpress orders: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% a week.`)}</p> : null}
+        <Go to="/radar" className="underline font-bold" style={{ color: "inherit" }}>{L("לרדאר הטרנדים", "Open the trend radar")}</Go>
+      </div>
+    );
+  }
   const rising = hit.stage === "EMERGING" || hit.stage === "RISING";
   return (
     <div className="mt-4 rounded-[14px] p-3 text-[14px] leading-6" style={{ background: hit.window === "OPEN" ? "#101828" : "var(--lx-sky-50, #eef6fb)", color: hit.window === "OPEN" ? "#fff" : undefined }}>
@@ -281,9 +295,12 @@ function RadarHint({ item }) {
       <p>
         {hit.match === "item" ? L("המוצר הזה הוא אחד מ־20 המובילים בסוג הזה באליאקספרס. ", "This item is one of the top 20 of its kind on AliExpress. ") : L("נראה שזה מהסוג הזה. ", "Looks like this kind. ")}
         {hit.stage === "UNVERIFIED" ? L("הכיוון עוד נמדד. ", "The direction is still being measured. ") : L(`השלב: ${hit.stageHe}. `, `Stage: ${hit.stageHe}. `)}
-        {hit.gap !== "UNKNOWN" ? L(`בישראל: ${hit.gapHe}.`, `In Israel: ${hit.gapHe}.`) : ""}
+        {hit.gap !== "UNKNOWN" ? L(`בישראל: ${hit.gapHe}${hit.confidenceHe ? ` (${hit.confidenceHe})` : ""}.`, `In Israel: ${hit.gapHe}.`) : ""}
         {rising && hit.window === "OPEN" ? L(" עולה בעולם ועוד לא מחפשים את זה כאן: חלון פתוח.", " Rising abroad and not searched here yet: an open window.") : ""}
       </p>
+      {hit.item || hit.site ? <p className="font-bold">{L("הפריט הזה:", "This item:")} {(hit.item || hit.site).he}{Number.isFinite((hit.item || hit.site).weekPct) ? ` (${(hit.item || hit.site).weekPct > 0 ? "+" : ""}${(hit.item || hit.site).weekPct}% ${L("הזמנות בשבוע", "orders a week")})` : ""}</p> : null}
+      {hit.opportunity ? <p>{L(`בדיקת הזדמנות: ${hit.opportunity.passed} מתוך ${hit.opportunity.measured} בדיקות שנמדדו עברו.`, `Opportunity check: ${hit.opportunity.passed} of ${hit.opportunity.measured} measured checks passed.`)}</p> : null}
+      {hit.actionHe ? <p className="font-extrabold">👉 {hit.actionHe}</p> : null}
       <Go to={`/radar#${hit.id}`} className="underline font-bold" style={{ color: "inherit" }}>{L("לרדאר הטרנדים", "Open the trend radar")}</Go>
     </div>
   );

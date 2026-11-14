@@ -20,6 +20,7 @@ on:
       - src/lib/growth/trendRadar.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/radarDiscovery.js
+      - src/lib/growth/radarOpportunity.js
       - .github/workflows/trend-radar.yml
 permissions:
   contents: write
@@ -54,7 +55,7 @@ jobs:
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the history and the board
         run: |
-          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/discovered.json radar-state/board.json"
+          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/discovered.json radar-state/items.json radar-state/board.json"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), the Israel gap (Google autocomplete levels, never texts), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
             gh release upload radar $files --clobber

@@ -10,7 +10,7 @@ import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../scripts/catalog/trend-radar.mjs";
-import { radarForItem, radarImage, sanitizeBoard } from "../src/lib/growth/radarBoard.js";
+import { radarForItem, radarImage, sanitizeBoard, siteHotFor } from "../src/lib/growth/radarBoard.js";
 
 const ENV = { ALIEXPRESS_APP_KEY: "k", ALIEXPRESS_APP_SECRET: "s", ALIEXPRESS_TRACKING_ID: "t" };
 const at = (d) => Date.parse(`${d}T06:00:00Z`);
@@ -27,6 +27,12 @@ function fakeNet({ week }) {
       const p = new URLSearchParams(opts.body);
       const method = p.get("method");
       const kw = p.get("keywords") || "";
+      if (method === "aliexpress.affiliate.productdetail.get") {
+        const ids = String(p.get("product_ids") || "").split(",");
+        // The site's crystal earrings accelerate between the two runs; the moon bag cools.
+        const vol = { "1005011942976222": week ? 5200 : 4128, "1005006727228936": week ? 2300 : 2774 };
+        return json({ aliexpress_affiliate_productdetail_get_response: { resp_result: { resp_code: 200, result: { products: { product: ids.filter((id) => vol[id]).map((id) => ({ product_id: id, lastest_volume: vol[id] })) } } } } });
+      }
       if (method === "aliexpress.affiliate.hotproduct.query") {
         const hot = kw.includes("home") ? [1, 2, 3].map((i) => ({ product_id: String(2000000 + i), product_title: `Cloud Slides Soft Platform ${i}`, lastest_volume: 900 })) : [];
         return json({ aliexpress_affiliate_hotproduct_query_response: { resp_result: { resp_code: 200, result: { products: { product: hot } } } } });
@@ -46,9 +52,19 @@ function fakeNet({ week }) {
       const gl = new URL(u).searchParams.get("gl");
       if (q === "פח לרכב") return json("oops", 500);
       if (q === "butter stick squishy" && gl === "us") return json([q, [q, `${q} toy`, `${q} near me`, `${q} recall`]]);
-      if (q === "סקווישי חמאה") return json([q, [q]]); // the echo only: nobody types more in Hebrew
+      if (q === "סקווישי חמאה") return json([q, [q]]); // the echo only: nobody types more in Hebrew (Google and YouTube)
       if (q === "מרסק שום") return json([q, [SECRET_SUGGESTION]]);
       return json([q, []]);
+    }
+    if (u.startsWith("https://vjitiuirqfysexsxdxqx.supabase.co/rest/v1/kv")) {
+      requests.at(-1).anon = true;
+      if (u.includes("marketplace%3Aproducts")) return json([{ value: JSON.stringify([
+        { id: "ae-1005011942976222", status: "approved", title: "עגילים · קריסטלים", aliexpressId: "1005011942976222" },
+        { id: "ae-1005006727228936", status: "approved", title: "תיק · ירח", aliexpressId: "1005006727228936" },
+        { id: "p-archived", status: "approved", archivedAt: 1, aliexpressId: "1005000000000001" },
+      ]) }]);
+      if (u.includes("marketplace%3Aclicks")) return json([{ value: JSON.stringify([{ id: "r1", med: "radar", camp: "tofu-squishy", ts: Date.parse("2026-11-20T10:00:00Z") }]) }]);
+      return json([]);
     }
     return json("unexpected", 599);
   };
@@ -80,6 +96,19 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.equal(r2.board.concepts[0].id, "butter-squishy", "an open window comes first");
   assert.deepEqual(butter.items.slice(0, 2), ["1000001", "1000002"]);
 
+  assert.equal(butter.gap.confidence, "HIGH", "both Hebrew searches showed nothing on two days");
+  assert.equal(butter.action, "PUBLISH_NOW");
+  assert.ok(butter.opportunity && butter.opportunity.checks.find((c) => c.id === "link").ok === true);
+  assert.equal(butter.opportunity.checks.find((c) => c.id === "satisfaction").ok, true);
+  assert.ok(!JSON.stringify(butter.opportunity).match(/98|evaluate/), "the rating is a pass/fail, never a number");
+  assert.equal(r2.board.concepts.find((c) => c.id === "tofu-squishy").gap.state, "ARRIVING", "a LikeLink2 visitor's exit is a sign of Israeli interest");
+
+  // Hot now: the site's own products, from the seed and today's reads.
+  assert.equal(r2.sources.siteProducts, "OK");
+  assert.deepEqual(r2.board.site.hot.map((r) => r.id), ["ae-1005011942976222"]);
+  assert.deepEqual(r2.board.site.cooling.map((r) => r.id), ["ae-1005006727228936"]);
+  assert.ok(two.requests.filter((r) => r.anon).every((r) => r.method === "GET"), "the site is only read, with the public key");
+
   const drawer = r2.board.concepts.find((c) => c.id === "drawer-organizer");
   assert.equal(drawer.today, null, "a store error is no reading, never a zero");
   const trash = r2.board.concepts.find((c) => c.id === "car-trash-can");
@@ -101,6 +130,11 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.equal(radarForItem(view, { itemId: "1000002" }).match, "item");
   assert.equal(radarForItem(view, { title: "צמיד טניס זירקון לנשים" })?.id, "tennis-bracelet");
   assert.equal(radarForItem(view, { title: "x" }), null);
+  const viaPick = radarForItem(view, { itemId: "1000001" });
+  assert.equal(viaPick.action, "PUBLISH_NOW");
+  assert.ok(viaPick.isPick && viaPick.opportunity && viaPick.opportunity.measured > 0, "the magic button shows the pick's opportunity check");
+  assert.equal(siteHotFor(view, "1005011942976222").state, "HOT", "a site product checked in the magic button shows it is hot");
+  assert.equal(view.site.hot.length, 1);
 });
 
 test("the sanitizer drops hostile boards and fields", () => {

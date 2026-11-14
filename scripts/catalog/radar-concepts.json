@@ -47,6 +47,7 @@
     { "id": "magnetic-phone-wallet", "he": "ארנק מגנטי לטלפון", "en": "magnetic phone wallet", "kind": "gadgets", "hq": ["ארנק מגנטי לטלפון", "ארנק כרטיסים מגנטי לטלפון"] },
     { "id": "magnetic-car-mount", "he": "מתקן מגנטי לטלפון ברכב", "en": "magnetic car phone mount", "kind": "car", "hq": ["מעמד מגנטי לטלפון לרכב", "מתקן מגנטי לרכב"] },
     { "id": "clip-earbuds", "he": "אוזניות קליפס פתוחות", "en": "open ear clip earbuds", "kind": "gadgets", "hq": ["אוזניות קליפס", "אוזניות אוזן פתוחה"] },
+    { "id": "smart-glasses", "he": "משקפיים חכמים עם מצלמה", "en": "smart glasses camera", "kind": "gadgets", "hq": ["משקפיים חכמים", "משקפי מצלמה"] },
     { "id": "mini-projector", "he": "מקרן קטן", "en": "mini projector portable", "kind": "gadgets", "hq": ["מקרן קטן", "מקרן נייד"] },
     { "id": "kids-smartwatch", "he": "שעון חכם לילדים", "en": "kids smart watch", "kind": "watches", "hq": ["שעון חכם לילדים"] },
     { "id": "photo-keychain", "he": "מחזיק מפתחות עם תמונות", "en": "digital photo keychain", "kind": "gadgets", "hq": ["מחזיק מפתחות עם תמונה"] },
