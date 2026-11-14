@@ -3,6 +3,7 @@ import { ClipEarbuds, TOTAL_SECONDS } from "./ClipEarbuds";
 import { STUDIO_SECONDS, StudioSteps } from "./StudioSteps";
 import { BUTTERFLY_SECONDS, ButterflyFix } from "./ButterflyFix";
 import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
+import { GARLIC, HandsReel, RINGS, totalSeconds } from "./HandsReel";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -35,6 +36,24 @@ export const RemotionRoot: React.FC = () => {
         id="ButterflyUgc"
         component={ButterflyUgc}
         durationInFrames={Math.round(BUTTERFLY_UGC_SECONDS * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="GarlicHands"
+        component={HandsReel}
+        defaultProps={GARLIC}
+        durationInFrames={Math.round(totalSeconds(GARLIC) * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="RingsHands"
+        component={HandsReel}
+        defaultProps={RINGS}
+        durationInFrames={Math.round(totalSeconds(RINGS) * 30)}
         fps={30}
         width={1080}
         height={1920}
