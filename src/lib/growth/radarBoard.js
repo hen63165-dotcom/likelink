@@ -6,6 +6,7 @@
 // bridge: where a checked item sits on the radar. Tiny and import-light: both pages bundle it.
 import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
+import { ACCEL, LIFECYCLE } from "./alpha.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -39,6 +40,26 @@ function cleanPick(p) {
   const price = num(p.price);
   const m = p.momentum && HOTS.has(p.momentum.state) ? { state: p.momentum.state, he: HOT_STATES[p.momentum.state].he, weekPct: num(p.momentum.weekPct), line: str(p.momentum.line, 200) } : null;
   return { itemId: ITEM.test(String(p.itemId || "")) ? String(p.itemId) : null, title: str(p.title, 140), image: radarImage(p.image), price: price !== null && price > 0 ? price : null, checkedAt: str(p.checkedAt, 30), buy, check, momentum: m };
+}
+
+const strs = (list, n = 6, max = 240) => (Array.isArray(list) ? list : []).slice(0, n).map((x) => str(x, max)).filter(Boolean);
+function cleanAccel(a) {
+  if (!a || typeof a !== "object" || !Object.hasOwn(ACCEL, a.cls)) return null;
+  return { cls: a.cls, he: ACCEL[a.cls].he, weekPct: num(a.weekPct), earlierWeek: num(a.earlierWeek), recentWeek: num(a.recentWeek), consistency: num(a.consistency), readings: num(a.readings), from: day(a.from), to: day(a.to), basis: a.basis === "pick" ? "pick" : a.basis === "concept" ? "concept" : null };
+}
+function cleanAlpha(a) {
+  if (!a || typeof a !== "object") return null;
+  const comp = (c) => (c && typeof c === "object" ? (c.missing ? { missing: str(c.missing, 160) } : { score: num(c.score), confidence: num(c.confidence), evidence: str(c.evidence, 240) }) : null);
+  const score = num(a.score);
+  return {
+    version: str(a.version, 20), score: score === null ? null : Math.max(0, Math.min(100, Math.round(score))), confidence: num(a.confidence), confidenceHe: str(a.confidenceHe, 30),
+    coverage: /^[0-3]\/3$/.test(String(a.coverage || "")) ? a.coverage : null, verified: a.verified === true,
+    components: { global: comp(a.components?.global), israel: comp(a.components?.israel), private: comp(a.components?.private) },
+  };
+}
+function cleanExplain(e) {
+  if (!e || typeof e !== "object") return null;
+  return { why: strs(e.why), now: strs(e.now), risks: strs(e.risks), missing: strs(e.missing), angle: str(e.angle, 200), positioning: str(e.positioning, 120), audience: e.audience && typeof e.audience === "object" ? { text: str(e.audience.text, 160), basis: str(e.audience.basis, 80) } : null };
 }
 
 function cleanOpportunity(o) {
@@ -84,6 +105,11 @@ function cleanRow(c) {
     opportunity: cleanOpportunity(c.opportunity),
     action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,
     actionHe: Object.hasOwn(ACTIONS, c.action) ? ACTIONS[c.action] : null,
+    accel: cleanAccel(c.accel),
+    lifecycle: Object.hasOwn(LIFECYCLE, c.lifecycle) ? c.lifecycle : null,
+    lifecycleHe: Object.hasOwn(LIFECYCLE, c.lifecycle) ? LIFECYCLE[c.lifecycle].he : null,
+    alpha: cleanAlpha(c.alpha),
+    explain: cleanExplain(c.explain),
   };
 }
 
@@ -104,6 +130,7 @@ export function sanitizeBoard(doc) {
       counts: Object.fromEntries(Object.entries(doc.site.counts || {}).filter(([k, v]) => HOTS.has(k) && Number.isFinite(v))),
       hot: (Array.isArray(doc.site.hot) ? doc.site.hot : []).slice(0, 24).map(cleanSiteRow).filter((r) => r && r.state === "HOT"),
       cooling: (Array.isArray(doc.site.cooling) ? doc.site.cooling : []).slice(0, 24).map(cleanSiteRow).filter((r) => r && r.state === "COOLING"),
+      keep: (Array.isArray(doc.site.keep) ? doc.site.keep : []).slice(0, 24).filter((r) => r && /^[\w-]{2,60}$/.test(String(r.id || ""))).map((r) => ({ id: r.id, title: str(r.title, 60), accel: cleanAccel(r.accel), lifecycle: Object.hasOwn(LIFECYCLE, r.lifecycle) ? r.lifecycle : null, lifecycleHe: Object.hasOwn(LIFECYCLE, r.lifecycle) ? LIFECYCLE[r.lifecycle].he : null, alpha: num(r.alpha), confidence: num(r.confidence), israelHe: str(r.israel?.he, 40) })),
     } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
   };
@@ -124,6 +151,12 @@ export function radarForItem(board, { itemId = "", title = "" } = {}) {
     // The checked item's own momentum when it is one of the concept's top items, or its buy pick.
     item: (match === "item" && c.hot?.[id]) ? { state: c.hot[id][0], he: HOT_STATES[c.hot[id][0]]?.he || "", weekPct: c.hot[id][1] } : null,
     isPick: Boolean(c.pick?.itemId && c.pick.itemId === id),
+    // The same intelligence object as the radar's card (never recalculated here).
+    alpha: c.alpha ? { score: c.alpha.score, confidence: c.alpha.confidence, confidenceHe: c.alpha.confidenceHe, verified: c.alpha.verified, coverage: c.alpha.coverage } : null,
+    lifecycleHe: c.lifecycleHe || null,
+    accelHe: c.accel?.he || null,
+    why: c.explain?.why?.[0] || null,
+    risk: c.explain?.risks?.[0] || null,
     opportunity: c.pick?.itemId && c.pick.itemId === id ? c.opportunity || null : null,
   });
   if (ITEM.test(id)) {

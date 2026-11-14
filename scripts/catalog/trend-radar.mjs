@@ -29,7 +29,9 @@ import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf,
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
-import { parseTrendsRss } from "../../src/lib/growth/likeloop.js";
+import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
+import { enrich } from "../../src/lib/growth/radarIntel.js";
+import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
@@ -179,7 +181,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const catalog = await publicKey("marketplace:products", { fetchImpl, env });
   const siteProducts = (Array.isArray(catalog) ? catalog : [])
     .filter((p) => p?.status === "approved" && !p.archivedAt)
-    .map((p) => ({ id: String(p.id || ""), title: String(p.title || ""), kind: String(p.kind || ""), itemId: aliItemId(p) }))
+    .map((p) => ({
+      id: String(p.id || ""), title: String(p.title || ""), kind: String(p.kind || ""), category: String(p.category || ""), itemId: aliItemId(p),
+      image: typeof p.image === "string" ? p.image : "", price: Number(p.price) || null, priceSource: String(p.priceSource || ""),
+      affiliateUrl: String(p.affiliateUrl || ""), videoUrl: typeof p.videoUrl === "string" ? p.videoUrl : "", sellerVideo: typeof p.sellerVideo === "string" ? p.sellerVideo : "",
+    }))
     .filter((p) => p.itemId);
   if (catalog === null) sources.siteProducts = "FAILED";
   else if (store) {
@@ -258,17 +264,26 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   for (const id of Object.keys(items)) if (!(items[id] || []).some((r) => r[0] >= keepFrom)) delete items[id];
   const site = sources.siteProducts === "OK" ? siteHotness(siteProducts, items) : null;
   if (site) log.push(`site hotness: ${JSON.stringify(site.counts)} · hot: ${site.rows.filter((r) => r.state === "HOT").map((r) => `${r.id} ${r.weekPct}%`).join(", ") || "none"}`);
-  const board = buildBoard({ concepts, readings, picks, calls, awareness, items, site, now });
+  // The one intelligence object (alpha.js): acceleration shield, Alpha score, lifecycle, the
+  // catalog check of every site product (a proposal) and the content briefs (drafts).
+  const intel = enrich(buildBoard({ concepts, readings, picks, calls, awareness, items, site, now }), {
+    concepts, readings, items, siteProducts: sources.siteProducts === "OK" ? siteProducts : [], events: Array.isArray(clicks) ? clicks : [],
+    hooksFor: (p) => buildHookSet(p, { now }).filter((h) => !/₪/.test(h.text)), origin: PRODUCTION_ORIGIN, now,
+  });
+  const board = intel.board;
   board.sourcesToday = sources;
+  if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · briefs ${intel.briefs.briefs.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "discovered.json"), JSON.stringify(discovered, null, 1));
   writeFileSync(join(dir, "items.json"), JSON.stringify(items));
+  writeFileSync(join(dir, "catalog.json"), JSON.stringify(intel.audit, null, 1));
+  writeFileSync(join(dir, "briefs.json"), JSON.stringify(intel.briefs, null, 1));
   writeFileSync(join(dir, "board.json"), JSON.stringify(board));
   const counts = board.concepts.reduce((m, c) => ((m[c.stage] = (m[c.stage] || 0) + 1), m), {});
   const gapCounts = board.concepts.reduce((m, c) => ((m[c.gap.state] = (m[c.gap.state] || 0) + 1), m), {});
-  return { board, log, counts, gapCounts, sources };
+  return { board, log, counts, gapCounts, sources, audit: intel.audit, briefs: intel.briefs };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
