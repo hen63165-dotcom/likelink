@@ -24,6 +24,15 @@ for (const lang of ["he", "en"]) {
   for (const [vp, w, h] of [["m", 390, 844], ["d", 1440, 900]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: lang === "he" ? "he-IL" : "en-US" });
     await ctx.addInitScript((l) => { try { localStorage.setItem("sch:local:ui:lang", l); } catch { /* */ } }, lang);
+    // A build served on the runner has no host proxy: do what production's public/_redirects does
+    // (/radar/board.json and /media/* → GitHub Pages, same origin) with the live files themselves.
+    if (BASE.startsWith("http://127.0.0.1")) {
+      await ctx.route(/^http:\/\/127\.0\.0\.1:4173\/(radar\/board\.json|media\/(reels|studio|studio3d)\/.*)$/, async (r) => {
+        const rest = new URL(r.request().url()).pathname;
+        const resp = await r.fetch({ url: `https://hen63165-dotcom.github.io/likelink${rest}` }).catch(() => null);
+        return resp ? r.fulfill({ response: resp }) : r.abort();
+      });
+    }
     // No write leaves the audit: events, waitlist, settings.
     await ctx.route("**/api/store**", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
     await ctx.route("**/functions/v1/api/**", (r) => (r.request().method() === "POST" ? r.abort() : r.continue()));
@@ -44,12 +53,14 @@ for (const lang of ["he", "en"]) {
         h1: (document.querySelector("h1")?.textContent || "").trim().slice(0, 80),
         dir: document.documentElement.dir,
         overflowX: document.documentElement.scrollWidth > window.innerWidth + 1,
-        cards: document.querySelectorAll("main li article, li.lx-card, article.lx-card").length,
-        alpha: /Alpha/.test(document.body.innerText),
+        // Radar concept cards only (ConceptCard: <li id=<concept> class="lx-card">), not the tier cards.
+        cards: document.querySelectorAll("li.lx-card[id]").length,
+        alpha: [...document.querySelectorAll("li.lx-card[id]")].some((li) => /Alpha/.test(li.innerText)),
+        noDirection: /No kind has a measured direction yet|אין סוג מוצר עם כיוון מדוד/.test(document.body.innerText),
         text: document.body.innerText.slice(0, 20000),
       })).catch(() => ({}));
       const label = `${lang} ${vp} ${name}`;
-      console.log(`PAGE ${label} ${JSON.stringify({ h1: info.h1, dir: info.dir, overflowX: info.overflowX, cards: info.cards, alpha: info.alpha, errors: errors.length })}`);
+      console.log(`PAGE ${label} ${JSON.stringify({ h1: info.h1, dir: info.dir, overflowX: info.overflowX, cards: info.cards, alpha: info.alpha, noDirection: info.noDirection, errors: errors.length })}`);
       if (!info.h1) fail(`${label}: no heading`);
       if (info.overflowX) fail(`${label}: horizontal overflow`);
       if (errors.length) fail(`${label}: page error ${errors[0]}`);
@@ -57,6 +68,8 @@ for (const lang of ["he", "en"]) {
       if (name === "radar" && !info.cards) fail(`${label}: no live radar card`);
       if (name === "radar-pro") {
         const t = info.text || "";
+        if (!info.cards && !info.noDirection) fail(`${label}: no live example and no "no direction yet" line`);
+        if (!/לראות מה מתחיל לעלות|See what is starting to rise/.test(info.h1)) fail(`${label}: not the landing page (h1 "${info.h1}")`);
         if (!(lang === "he" ? /מחיר: עוד לא נקבע/ : /Price: not set yet/).test(t)) fail(`${label}: the tiers do not say the price is not set`);
         if (/₪\s?\d/.test(t.split(lang === "he" ? "המסלולים" : "The tiers").pop() || "")) fail(`${label}: a shekel price appears on the tiers`);
         if (!(lang === "he" ? /הצטרפות לרשימת ההמתנה/ : /Join the waitlist/).test(t)) fail(`${label}: no waitlist button`);

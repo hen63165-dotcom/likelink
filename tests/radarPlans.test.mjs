@@ -55,6 +55,7 @@ test("the trial: off = open; on = days left; ended = still open while nothing ca
 
 test("/radar-pro: routed, rewritten, its own head, bilingual, no price or promise on the page", () => {
   assert.deepEqual(parsePath("/radar-pro"), { type: "radarPro" });
+  assert.match(readFileSync("src/App.jsx", "utf8"), /PUBLIC_TYPES = new Set\(\[[^\]]*"radarPro"/, "the public site renders it (without this it showed the home page)");
   const vercel = JSON.parse(readFileSync("vercel.json", "utf8"));
   assert.ok((vercel.rewrites || []).some((r) => r.source === "/radar-pro" && r.destination === "/"));
   const seo = sectionSeo("radarPro");
