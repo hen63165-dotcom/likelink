@@ -192,6 +192,10 @@
       "destination": "/"
     },
     {
+      "source": "/radar",
+      "destination": "/"
+    },
+    {
       "source": "/size",
       "destination": "/"
     },

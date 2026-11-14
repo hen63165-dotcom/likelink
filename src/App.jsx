@@ -33,7 +33,7 @@ const PublicSite = lazy(() => import("./components/discover/PublicSite"));
 const PublicFrame = lazy(() => import("./components/discover/PublicSite").then((m) => ({ default: m.PublicFrame })));
 
 // Route types served by the public discovery site.
-const PUBLIC_TYPES = new Set(["landing", "discover", "products", "creators", "creator", "product", "reels", "trends", "collections", "deals", "guide", "sale", "size", "status", "join", "search", "saved", "wish", "magic"]);
+const PUBLIC_TYPES = new Set(["landing", "discover", "products", "creators", "creator", "product", "reels", "trends", "collections", "deals", "guide", "sale", "size", "status", "join", "search", "saved", "wish", "magic", "radar"]);
 
 /**
  * Initial route. Legacy deep links (`/?product=<id>` from the Google Merchant

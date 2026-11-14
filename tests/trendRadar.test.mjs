@@ -114,6 +114,8 @@ test("the board: strongest early stages first, nothing private, the record attac
   };
   const board = buildBoard({ concepts, readings, now: at("2026-11-14") });
   assert.deepEqual(board.concepts.map((c) => c.stage), ["EMERGING", "UNVERIFIED"]);
+  const fresh = board.concepts[1];
+  assert.deepEqual([fresh.today.orders, fresh.size], [300, "SMALL"], "one reading shows today's size, never a direction");
   const json = JSON.stringify(board);
   assert.doesNotMatch(json, /evaluate_rate|rating|seller_id|store_id/);
   assert.ok(board.record && board.record.calls === 0);

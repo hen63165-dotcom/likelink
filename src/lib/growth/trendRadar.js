@@ -184,6 +184,12 @@ export function evidence(s, stage) {
   return out;
 }
 
+/** Today's size alone (never a direction): SMALL below smallOrders, BIG from peakOrders. */
+export function sizeOf(reading, { rules = RADAR } = {}) {
+  if (!reading || !(reading.sum >= 0)) return null;
+  return reading.sum < rules.smallOrders ? "SMALL" : reading.sum >= rules.peakOrders ? "BIG" : "MID";
+}
+
 /** The buy pick: the concept's first item that passes the site's rules (≥95%, ≥300 orders, no brand). */
 export function pickFrom(result = {}, { rules = RADAR, now = Date.now() } = {}) {
   const raw = result?.products?.product;
@@ -255,6 +261,9 @@ export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [
       listings: rs.slice(-21).map((r) => [r.d, r.listings]),
       since: rs[0]?.d || null,
       measured: rs.at(-1)?.d || null,
+      // Today's size (not a direction): AliExpress's 30-day orders of the top items and the listings.
+      today: rs.at(-1) ? { orders: rs.at(-1).sum, listings: rs.at(-1).listings, price: rs.at(-1).price } : null,
+      size: sizeOf(rs.at(-1), { rules }),
       pick: picks[c.id] || null,
     });
   }
