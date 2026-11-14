@@ -5,7 +5,7 @@
 // phrases join the radar as trial concepts: they are measured exactly like the hand-picked ones,
 // labelled "התגלה אוטומטית" with the store's own words (never translated by guess), and dropped
 // after `trialDays` unless the data shows them EMERGING or RISING. A phrase with a brand, a
-// character or a kind the site does not list never joins. Pure: no I/O.
+// character, a car/phone/console name or a kind the site does not list never joins. Pure: no I/O.
 import { hasBrandName, isNotListedKind, orderCount } from "./deals.js";
 
 export const DISCOVERY = Object.freeze({
@@ -35,6 +35,13 @@ black white red blue green pink purple yellow orange brown grey gray beige
 2023 2024 2025 2026 2027 summer winter spring autumn fall christmas halloween new year valentine valentines
 cm mm inch inches ml kg g mah usb type c led
 stress relief anti funny novelty toy toys tool tools gadget gadgets supplies holder home household kitchen`.split(/\s+/));
+
+// Compatibility names in store titles ("for Tesla Model Y", "for iPhone 16"): a brand all the same,
+// so a phrase with one never joins (deals.js hasBrandName covers the fashion and toy brands).
+const DEVICE_WORDS = new Set(`tesla model toyota bmw mercedes benz audi honda hyundai kia ford volkswagen vw nissan mazda
+skoda seat chevrolet jeep lexus volvo peugeot renault byd iphone ipad airpods macbook apple samsung galaxy xiaomi redmi
+huawei pixel oppo vivo realme oneplus nintendo switch playstation ps5 xbox dyson gopro`.split(/\s+/));
+const deviceWord = (phrase) => phrase.split(" ").some((w) => DEVICE_WORDS.has(w));
 
 const wordsOf = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d/.test(w));
 
@@ -81,7 +88,7 @@ export function discover(lists = {}, concepts = [], { rules = DISCOVERY } = {}) 
     }
   }
   return [...found.values()]
-    .filter((f) => f.ids.size >= rules.minItems && f.orders >= rules.minOrders && !covered(f.en, concepts) && !hasBrandName(f.en) && !isNotListedKind(f.en))
+    .filter((f) => f.ids.size >= rules.minItems && f.orders >= rules.minOrders && !covered(f.en, concepts) && !hasBrandName(f.en) && !deviceWord(f.en) && !isNotListedKind(f.en))
     .map((f) => {
       const category = [...f.kinds.entries()].sort((a, b) => b[1] - a[1])[0][0];
       return { en: f.en, items: f.ids.size, orders: f.orders, category, kind: CATEGORY_KIND[category] || "" };

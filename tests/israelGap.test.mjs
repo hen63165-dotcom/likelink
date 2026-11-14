@@ -97,12 +97,15 @@ test("discovery: a phrase several different hot items share, never a brand, unli
   const lists = {
     home: [item(1, "Cloud Slides Women Summer Soft"), item(2, "Thick Cloud Slides Non Slip"), item(3, "Cloud Slides Pillow Platform"), item(4, "Drawer Organizer Box")],
     bags: [item(5, "Labubu Keychain Bag Charm"), item(6, "Labubu Keychain Plush"), item(7, "Labubu Keychain Doll")],
+    // The second real run (2026-11-14) proposed "tesla model" from car accessories: never again.
+    car: [item(8, "For Tesla Model Y Seat Cover"), item(9, "Tesla Model 3 Floor Mats"), item(10, "Tesla Model Y Organizer")],
   };
   const concepts = [{ id: "drawer-organizer", en: "drawer organizer" }];
   const got = discover(lists, concepts);
   assert.equal(got[0].en, "cloud slides");
   assert.equal(got[0].items, 3);
   assert.ok(!got.some((c) => /labubu/.test(c.en)), "a brand never joins");
+  assert.ok(!got.some((c) => /tesla|model/.test(c.en)), "a car or phone name never joins");
   assert.ok(!got.some((c) => c.en === "drawer organizer"), "a covered phrase never joins");
   assert.ok(covered("drawer organizers", concepts));
   assert.ok(!phrasesOf("New 2026 Fashion Women Gold").size, "filler words make no phrase");
