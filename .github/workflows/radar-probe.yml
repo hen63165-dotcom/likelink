@@ -1,0 +1,21 @@
+# One-off: which free Israel-awareness sources a runner can reach and what their robots.txt allows
+# (scripts/catalog/probe/sources.mjs). Prints to the log only; nothing is stored or posted.
+name: Radar sources probe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/catalog/probe/sources.mjs
+      - .github/workflows/radar-probe.yml
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/catalog/probe/sources.mjs
