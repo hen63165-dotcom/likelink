@@ -186,24 +186,30 @@ const n = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("he-IL")
  * Before a second reading: today's size of each concept (never a direction). Small markets first,
  * because that is where a rise would show early.
  */
-function MarketMap({ list }) {
+function MarketMap({ list, openId = "" }) {
   const { L } = useL();
   const groups = ["SMALL", "MID", "BIG"].map((k) => [k, list.filter((c) => c.size === k).sort((a, b) => (a.today?.orders || 0) - (b.today?.orders || 0))]).filter(([, l]) => l.length);
   return (
     <>
       <h3 className="mt-8 text-[18px] font-extrabold">{L("מפת השוק של היום", "Today's market map")}</h3>
-      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("גודל זה לא כיוון: הוא אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading.")}</p>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("גודל זה לא כיוון: הוא אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה. לחיצה על שורה פותחת את כל הבדיקה: בישראל, הפריט לקנייה, בדיקת ההזדמנות וההמלצה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading. Tap a row for the full check.")}</p>
       {groups.map(([k, l]) => (
         <div key={k} className="mt-4">
           <p className="text-[15px] font-extrabold" style={{ color: SIZE[k].color }}>{SIZE[k].he} · {l.length}</p>
           <ul className="mt-2 grid gap-1.5">
             {l.map((c) => (
-              <li key={c.id} id={c.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ scrollMarginTop: 90, background: "var(--lx-sky)" }}>
-                <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
-                <span className="flex flex-wrap items-baseline gap-2">
-                  {c.gap?.state && c.gap.state !== "UNKNOWN" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{L("בישראל:", "Israel:")} {c.gap.he}</span> : null}
-                  <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${n(c.today?.orders)} הזמנות בחודש · ${n(c.today?.listings)} מודעות`, `${n(c.today?.orders)} orders a month · ${n(c.today?.listings)} listings`)}</span>
-                </span>
+              <li key={c.id} id={c.id} style={{ scrollMarginTop: 90 }}>
+                <details open={openId === c.id}>
+                  <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
+                    <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
+                    <span className="flex flex-wrap items-baseline gap-2">
+                      {c.gap?.state && c.gap.state !== "UNKNOWN" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{L("בישראל:", "Israel:")} {c.gap.he}</span> : null}
+                      {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
+                      <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${n(c.today?.orders)} הזמנות בחודש · ${n(c.today?.listings)} מודעות`, `${n(c.today?.orders)} orders a month · ${n(c.today?.listings)} listings`)}</span>
+                    </span>
+                  </summary>
+                  <ul className="mt-2"><ConceptCard c={c} /></ul>
+                </details>
               </li>
             ))}
           </ul>
@@ -241,6 +247,7 @@ export function RadarPage() {
   const [board, setBoard] = useState(undefined);
   const [kind, setKind] = useState("");
   const [shown, setShown] = useState(false);
+  const [hashId, setHashId] = useState("");
   const results = useRef(null);
 
   useEffect(() => {
@@ -252,6 +259,7 @@ export function RadarPage() {
       const id = typeof location !== "undefined" ? decodeURIComponent(location.hash.slice(1)) : "";
       if (b && /^[a-z0-9-]{2,42}$/.test(id) && b.concepts.some((c) => c.id === id)) {
         setShown(true);
+        setHashId(id);
         setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
       }
     });
@@ -371,7 +379,7 @@ export function RadarPage() {
               </>
             ) : null}
             <SiteHot site={board.site} />
-            {measuring.length ? <MarketMap list={measuring} /> : null}
+            {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
               {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא בארץ״ נקבע רק כששני מקורות החיפוש מסכימים. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
             </p>
