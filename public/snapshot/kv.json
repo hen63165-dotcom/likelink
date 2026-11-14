@@ -3261,6 +3261,43 @@
     },
     "importSource": "aliexpress-owner-link",
     "originalPrice": 46.18
+   },
+   {
+    "id": "ae-1005012649969906",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מקל חמאה מדומה רך ללחיצה",
+    "storeTitle": "מקל חמאה מדומה רך ללחיצה, בעל ריבאונד איטי, כלי חושי להפגת מתחים, מתנה לילדים ומבוגרים",
+    "category": "Kids",
+    "kind": "kids",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S12c79930dd79428788189cf769f06343b.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CmQSEWWOGxErxFnsKh39wUfOwLaktokjZS6IM8NgEaf5LHH0XauksaKRMTpIstMIM7tuKRwpoa6t8hCTZDNaolSo1HkL0Lh7Ov9il1dqfO7zIqaju6DBqQhqtx8ibrrewzVjRG3R0vMOXsfmAtibf1Bl47FE8IEaE12dx9geWuXUMLezmBYTJ2cXzBUmY2osBvBQ2YFLFPOnGW26XCehsgfTjOR9G31JgMKLbkMucClmz1kv9sVzbEssDiRq55dfJ2lY91ZBD6c4N4fl3MrnM4iaqVRNc3Rcplb37XAKAAW6JMGRhSYAK6SkoALGNh0rqScZOLJjDdP309Gslxd3p2pWiMWoV6pzgNJhXkUEEi28jaeyXyRQawbWmEU7bI2wfFbydtGugHqoAkBleIa768WNdVOkNGfelC7OCuN7wo7wX6GR6p0HvgpHdTZwxpLk0FngtHqiEYMmP4VEbOAetnqRTAcRoPSEnDuf8OlHEYRcrEM8PJj290JZbX5R8FZNY4evz0Np81AuVygxCRl1GWXp4MN7fp23EWUhK3zZhFZuF7OBRUEiLV3bUozeegX6y53fJGekhTFCmZMOgNaRu1L5mRObpuqXzQ1BEhRcucZ6MXVWZj2fCG9bH1tygB6frqg5d4d8AiPuHMjexLgHFT2YNWohWA1J0Gn7M1HP6NYIQMe8WUbC3PpgNLXVRL0pDkiLOeBD7ShX8k",
+    "aliexpressId": "1005012649969906",
+    "price": 8.09,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-14T12:28:26.878Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S12c79930dd79428788189cf769f06343b.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa600b11f0a0442ebb11b4da0a178ca44c.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S01543114ae554ebbb1639dec5cf0c15cM.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S88db76545ede4f398c7325bca7b3c917W.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S16e274e5b6a545e3b1ed287bb505cdbe6.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S29bb1e40bc13422cbed18e2f4c2d3e17m.jpg"
+    ],
+    "createdAt": 1794659306878,
+    "updatedAt": 1794659306878,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005012649969906",
+     "itemUrl": "https://he.aliexpress.com/item/1005012649969906.html?pdp_npi=6%40dis%21ILS%2116.18%218.09%21%21%2133.02%2116.51%21%4021013cc617946593080927601e0f19%2112000058945725713%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-14T12:28:26.878Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 16.18
    }
   ],
   "marketplace:marketers": [
