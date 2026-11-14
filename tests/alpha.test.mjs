@@ -249,3 +249,13 @@ test("the kits page: escaped, store photos and the site's own tracked links only
   assert.match(html, /נעצר: חסר מידע מאומת/);
   assert.match(kitsPage(null), /אין עדיין מוצר/);
 });
+
+test("the archive waits for the 17.11 scan: before it every run is a dry run, even from main", async () => {
+  const { mayApply, ARCHIVE_NOT_BEFORE } = await import("../scripts/catalog/push-archive.mjs");
+  const main = { RADAR_ARCHIVE: "apply", GITHUB_REF: "refs/heads/main" };
+  assert.equal(ARCHIVE_NOT_BEFORE, "2026-11-17");
+  assert.equal(mayApply(main, at("2026-11-16")), false);
+  assert.equal(mayApply(main, at("2026-11-17")), true);
+  assert.equal(mayApply({ ...main, GITHUB_REF: "refs/heads/claude/x" }, at("2026-11-20")), false, "never from a branch");
+  assert.equal(mayApply({ GITHUB_REF: "refs/heads/main" }, at("2026-11-20")), false, "never without RADAR_ARCHIVE=apply");
+});

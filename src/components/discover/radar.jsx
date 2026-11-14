@@ -13,6 +13,8 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
+import { getSessionToken } from "../../lib/auth.js";
+import { fetchRadarSubscription } from "../../lib/commerce.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
 
@@ -324,6 +326,23 @@ export function RadarPage() {
     return () => { live = false; };
   }, []);
 
+  // After the owner's trial, while billing is on (accessOf.locked), the results are for subscribers;
+  // everyone else gets the upgrade screen. The server decides who is subscribed (sub=radar-get).
+  const { settings } = useMarketplace();
+  const access = accessOf(settings);
+  const [subscribed, setSubscribed] = useState(null);
+  useEffect(() => {
+    if (!access.locked) return undefined;
+    let live = true;
+    (async () => {
+      const token = (await getSessionToken().catch(() => null)) || "";
+      const r = token ? await fetchRadarSubscription(token).catch(() => null) : null;
+      if (live) setSubscribed(Boolean(r?.access));
+    })();
+    return () => { live = false; };
+  }, [access.locked]);
+  const gated = access.locked && subscribed !== true;
+
   const concepts = board?.concepts || [];
   const kinds = useMemo(() => [...new Set(concepts.map((c) => c.kind).filter((k) => KINDS[k]))], [concepts]);
   const list = concepts.filter((c) => !kind || c.kind === kind);
@@ -399,9 +418,16 @@ export function RadarPage() {
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
         <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("מה הרדאר רואה עכשיו", "What the radar sees now")}</h2>
-        {board === undefined ? <div className="mt-6"><Spinner /></div> : null}
-        {board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
-        {board ? (
+        {gated ? (
+          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+            <p className="text-[18px] font-extrabold">{L("תקופת הניסיון הסתיימה", "The trial has ended")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("הלוח המלא של הרדאר זמין עכשיו במנוי Basic או Pro. הבדיקה העצמית הפומבית נשארת פתוחה לכולם.", "The full radar board is now available with Basic or Pro. The public self-grading stays open to everyone.")}</p>
+            <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 48 }}>{L("למסלולים", "See the plans")}</Go>
+          </div>
+        ) : null}
+        {!gated && board === undefined ? <div className="mt-6"><Spinner /></div> : null}
+        {!gated && board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
+        {!gated && board ? (
           <>
             <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`עודכן ${dm(board.at.slice(0, 10))} · ${concepts.length} סוגי מוצרים על הרדאר · מקור: אליאקספרס`, `Updated ${dm(board.at.slice(0, 10))} · ${concepts.length} kinds on the radar · source: AliExpress`)}</p>
             {kinds.length > 1 ? (

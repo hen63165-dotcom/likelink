@@ -8,10 +8,20 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const ENDPOINT = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=media-pipeline&op=catalog-archive";
+// The owner, 2026-11-14: wait for the full second-measurement scan on 17.11 before anything is
+// archived, so a product waiting for its second reading is never removed early. Before this date
+// every run is a dry run, whatever the branch or RADAR_ARCHIVE says.
+export const ARCHIVE_NOT_BEFORE = "2026-11-17";
 
-export async function pushArchive(dir, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+/** Whether this run may apply (main, RADAR_ARCHIVE=apply, and not before ARCHIVE_NOT_BEFORE). */
+export function mayApply(env = {}, now = Date.now()) {
+  const today = new Date(now).toISOString().slice(0, 10);
+  return env.RADAR_ARCHIVE === "apply" && env.GITHUB_REF === "refs/heads/main" && today >= ARCHIVE_NOT_BEFORE;
+}
+
+export async function pushArchive(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
   const decisions = JSON.parse(readFileSync(join(dir, "catalog-decisions.json"), "utf8"));
-  const apply = env.RADAR_ARCHIVE === "apply" && env.GITHUB_REF === "refs/heads/main";
+  const apply = mayApply(env, now);
   if (!env.AUTOPILOT_SECRET) return { ok: false, reason: "REQUIRES_CONNECTION: AUTOPILOT_SECRET", asked: decisions.length };
   const res = await fetchImpl(env.ARCHIVE_ENDPOINT || ENDPOINT, {
     method: "POST",

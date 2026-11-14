@@ -1,13 +1,16 @@
 // /radar-pro — the radar as its own product (Master Execution Order, item 7): what it is, real live
 // examples from today's board (never a made-up one), the public self-grading record, the Basic and
-// Pro tiers with NO price (radarPlans.js: pending the owner's approval, not for sale), the trial
-// state the owner set in the admin panel, and a waitlist for a signed-in account. Bilingual (useL).
+// Pro tiers — with NO price and a waitlist until the owner approves the prices and switches billing
+// on (radarPlans.js billingOf); then the price (monthly / yearly), the trial line and the upgrade
+// button to PayPal (server: sub=radar-checkout). Bilingual (useL).
 // No claim of uniqueness, no promised hit, no promised income.
 import React, { useEffect, useMemo, useState } from "react";
 import { BellRing, Check, Radar, ShieldCheck } from "lucide-react";
+import { useMarketplace } from "../../context/MarketplaceContext";
 import { getSessionToken } from "../../lib/auth.js";
-import { joinWaitlist } from "../../lib/legalConsent.js";
-import { RADAR_FEATURES, RADAR_PLANS } from "../../lib/growth/radarPlans.js";
+import { acceptLegal, joinWaitlist } from "../../lib/legalConsent.js";
+import { fetchRadarSubscription, startRadarCheckout } from "../../lib/commerce.js";
+import { RADAR_FEATURES, RADAR_PLANS, accessOf, billingOf } from "../../lib/growth/radarPlans.js";
 import { ConceptCard, TrialBanner, loadBoard } from "./radar";
 import { STUDIO_SIGNUP } from "./PublicShell";
 import { Go, Spinner, useL } from "./kit";
@@ -36,6 +39,55 @@ function Waitlist({ planId }) {
   );
 }
 
+/** Upgrade (only while the owner's billing switch is on): consent, then PayPal's own approval page. */
+function Upgrade({ planId, period }) {
+  const { L } = useL();
+  const [consent, setConsent] = useState(false);
+  const [state, setState] = useState("idle");
+  async function go() {
+    if (!consent) { setState("consent"); return; }
+    setState("busy");
+    const token = (await getSessionToken().catch(() => null)) || "";
+    if (!token) { setState("signin"); return; }
+    const a = await acceptLegal(token, "checkout").catch(() => ({ ok: false }));
+    if (!a?.ok) { setState("error"); return; }
+    const r = await startRadarCheckout(token, planId, period).catch(() => ({ ok: false }));
+    if (r?.ok && r.approveUrl) { window.location.assign(r.approveUrl); return; }
+    setState(r?.error === "active_subscription_exists" ? "active" : "error");
+  }
+  return (
+    <div className="mt-3">
+      <label className="flex items-start gap-2 text-[13px] leading-5">
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 3 }} />
+        <span>{L("קראתי ואני מסכימה ", "I have read and agree to ")}<a href="/legal" className="underline">{L("לתנאים, לפרטיות ולמדיניות הביטול", "the terms, privacy and cancellation policy")}</a></span>
+      </label>
+      <button type="button" onClick={go} disabled={state === "busy"} className="lx-btn lx-btn-ink mt-2 w-full" style={{ minHeight: 48 }}>{L("שדרוג דרך PayPal", "Upgrade with PayPal")}</button>
+      {state === "consent" ? <p className="mt-2 text-[13px]" role="alert">{L("צריך לסמן את האישור לתנאים.", "Please tick the terms box.")}</p> : null}
+      {state === "signin" ? <p className="mt-2 text-[13px]">{L("צריך חשבון כדי לשדרג. ", "An account is needed to upgrade. ")}<Go to={STUDIO_SIGNUP} className="font-bold underline">{L("פתיחת חשבון חינם", "Open a free account")}</Go></p> : null}
+      {state === "active" ? <p className="mt-2 text-[13px]" role="status">{L("כבר יש לך מנוי פעיל לרדאר.", "You already have an active radar subscription.")}</p> : null}
+      {state === "error" ? <p className="mt-2 text-[13px]" role="alert">{L("לא הצלחנו להתחיל את התשלום. לא בוצע חיוב.", "We couldn't start the payment. Nothing was charged.")}</p> : null}
+    </div>
+  );
+}
+
+/** After PayPal's return: the server asks PayPal for the real status (never the redirect alone). */
+function ReturnStatus() {
+  const { L } = useL();
+  const [msg, setMsg] = useState("");
+  useEffect(() => {
+    if (typeof location === "undefined") return;
+    const q = new URLSearchParams(location.search).get("sub");
+    if (q === "cancel") { setMsg(L("התשלום בוטל ב־PayPal. לא בוצע חיוב.", "The payment was cancelled at PayPal. Nothing was charged.")); return; }
+    if (q !== "return") return;
+    (async () => {
+      const token = (await getSessionToken().catch(() => null)) || "";
+      const r = token ? await fetchRadarSubscription(token).catch(() => null) : null;
+      setMsg(r?.access ? L("המנוי לרדאר פעיל. תודה!", "Your radar subscription is active. Thank you!") : L("PayPal עוד לא אישר את המנוי. נבדוק שוב כשתחזרי לעמוד.", "PayPal hasn't confirmed the subscription yet. We'll check again when you come back."));
+    })();
+  }, []);
+  return msg ? <p className="lx-card mt-4 p-3 text-[14px]" role="status" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>{msg}</p> : null;
+}
+
 export function RadarProPage() {
   const { L, lang } = useL();
   const [board, setBoard] = useState(undefined);
@@ -51,6 +103,10 @@ export function RadarProPage() {
   }, [board]);
   const record = board?.record;
   const hot = board?.site?.hot || [];
+  const { settings } = useMarketplace();
+  const billing = billingOf(settings);
+  const access = accessOf(settings);
+  const [period, setPeriod] = useState("monthly");
 
   return (
     <>
@@ -65,6 +121,7 @@ export function RadarProPage() {
             <a href="#radar-tiers" className="lx-btn lx-btn-ghost" style={{ minHeight: 52 }}>{L("המסלולים", "The tiers")}</a>
           </div>
           <TrialBanner />
+          <ReturnStatus />
         </div>
       </section>
 
@@ -87,17 +144,32 @@ export function RadarProPage() {
 
       <section id="radar-tiers" className="lx-wrap mt-10" aria-labelledby="rp-tiers" style={{ scrollMarginTop: 80 }}>
         <h2 id="rp-tiers" className="lx-display text-[24px] md:text-[30px]">{L("המסלולים", "The tiers")}</h2>
-        <p className="mt-2 text-[14px]">{L("הרדאר פתוח היום לכולם בחינם. המסלולים בהכנה: המחיר עוד לא נקבע ואין עדיין אפשרות לשלם. רשימת ההמתנה לא מחייבת בכלום.", "The radar is free and open to everyone today. The tiers are in preparation: no price is set and nothing can be paid yet. The waitlist commits you to nothing.")}</p>
+        {billing.enabled ? (
+          <>
+            <p className="mt-2 text-[14px]">{access.state === "TRIAL" ? L(`עכשיו תקופת ניסיון חינם (עוד ${access.daysLeft} ימים), בלי כרטיס אשראי ובלי חיוב אוטומטי בסופה. אחריה הרדאר נמשך במנוי.`, `A free trial is on now (${access.daysLeft} days left), no card and no automatic charge when it ends. After it, the radar continues with a subscription.`) : L("המנוי מתחדש כל חודש עד שמבטלים. המנוי השנתי הוא תקופה אחת של 12 חודשים, בלי חידוש אוטומטי. ביטול בכל עת לפי מדיניות הביטול.", "Monthly renews until you cancel. Yearly is one 12-month term with no automatic renewal. Cancel any time under the cancellation policy.")}</p>
+            <div className="mt-3 flex gap-2" role="group" aria-label={L("תקופת חיוב", "Billing period")}>
+              {[["monthly", L("חודשי", "Monthly")], ["yearly", L("שנתי (חודשיים מתנה)", "Yearly (2 months free)")]].map(([k, t]) => (
+                <button key={k} type="button" onClick={() => setPeriod(k)} aria-pressed={period === k} className={`lx-btn ${period === k ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 38, padding: "4px 14px", fontSize: 14 }}>{t}</button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="mt-2 text-[14px]">{L("הרדאר פתוח היום לכולם בחינם. המסלולים בהכנה: המחיר עוד לא נקבע ואין עדיין אפשרות לשלם. רשימת ההמתנה לא מחייבת בכלום.", "The radar is free and open to everyone today. The tiers are in preparation: no price is set and nothing can be paid yet. The waitlist commits you to nothing.")}</p>
+        )}
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {Object.values(RADAR_PLANS).map((p) => (
             <article key={p.id} className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
               <h3 className="text-[20px] font-extrabold">{p.name[lang] || p.name.he}</h3>
               <p className="text-[14px]" style={{ color: "var(--lx-muted)" }}>{p.tagline[lang] || p.tagline.he}</p>
-              <p className="mt-2 font-bold">{L("מחיר: עוד לא נקבע", "Price: not set yet")}</p>
+              {billing.enabled ? (
+                <p className="mt-2 text-[22px] font-extrabold">₪{billing.prices[p.id][period]}<span className="text-[14px] font-normal"> {period === "yearly" ? L("לשנה", "a year") : L("לחודש", "a month")}</span></p>
+              ) : (
+                <p className="mt-2 font-bold">{L("מחיר: עוד לא נקבע", "Price: not set yet")}</p>
+              )}
               <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
                 {p.features.map((f) => <li key={f} className="flex gap-2"><Check size={16} aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 4 }} /> {L(RADAR_FEATURES[f].he, RADAR_FEATURES[f].en)}</li>)}
               </ul>
-              <Waitlist planId={p.id} />
+              {billing.enabled ? <Upgrade planId={p.id} period={period} /> : <Waitlist planId={p.id} />}
             </article>
           ))}
         </div>

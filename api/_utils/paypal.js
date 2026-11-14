@@ -11,6 +11,7 @@
 //     webhook refuses to process anything (503), never trusts the body.
 import { createHash } from "node:crypto";
 import { getProvisionedPlans, getAllPlans } from "../../src/lib/plans.js";
+import { RADAR_PLANS, RADAR_PRICES, RADAR_PERIODS } from "../../src/lib/growth/radarPlans.js";
 
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
@@ -266,7 +267,8 @@ export function planPriceIls(priceIls) {
 }
 
 export function planName(planId, billingPeriod) {
-  const p = planId === "free" ? "Free" : planId.charAt(0).toUpperCase() + planId.slice(1);
+  // "radar_basic" → "Radar Basic" (the site's own ids have no "_" and are unchanged).
+  const p = planId === "free" ? "Free" : String(planId).split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   return `LikeLink ${p} ${billingPeriod === "yearly" ? "Yearly" : "Monthly"} (${PLAN_CURRENCY})`;
 }
 
@@ -458,6 +460,53 @@ export async function verifyBillingPlans(map) {
     const ok = planMatches(full, { name: planName(planId, period), productId: map.productId, price, totalCycles: planTotalCycles(period) });
     return { key, id, ok, status: full?.status || null, price, currency: PLAN_CURRENCY };
   }));
+}
+
+// ── The trend radar's own plans (src/lib/growth/radarPlans.js) ──────────────────
+// Kept apart from the site's plans (their own kv key and keys), so the site's checkout, pricing page
+// and provisioning are unchanged. Created only by the owner's provisioning button AND only while her
+// billing switch is on with the prices she approved (billingOf) — the caller checks that.
+export const RADAR_PLANS_KV_KEY = "marketplace:paypal_plans:radar";
+export const RADAR_PLAN_KEYS = Object.keys(RADAR_PLANS).flatMap((id) => RADAR_PERIODS.map((per) => `${id}:${per}`));
+
+/** Every PayPal plan body the radar would create (Basic + Pro × monthly/yearly), pure. */
+export function plannedRadarBillingPlans(productId = "PROD-LIKELINK") {
+  return RADAR_PLAN_KEYS.map((key) => {
+    const [id, period] = key.split(":");
+    return { key, body: buildPlanBody({ planId: id, billingPeriod: period, priceIls: RADAR_PRICES[id][period], productId }) };
+  });
+}
+
+/** Create/adopt the radar's 4 plans (idempotent, like ensureBillingPlans). Never charges anyone. */
+export async function ensureRadarBillingPlans({ kvGet, kvSet, report = null } = {}) {
+  if (!paypalConfigured()) return {};
+  let cached = null;
+  try { if (kvGet) cached = await kvGet(RADAR_PLANS_KV_KEY, null); } catch { cached = null; }
+  const valid = cached && typeof cached === "object" && cached.currency === PLAN_CURRENCY ? { ...cached } : null;
+  if (valid) for (const k of RADAR_PLAN_KEYS) if (FOREIGN_PLAN_IDS.has(valid[k])) valid[k] = null;
+  const productId = await ensurePayPalProduct({ kvGet, kvSet });
+  if (!productId) { report?.failed.push({ key: "product", error: "paypal_product_failed", detail: lastProductError }); return valid || {}; }
+  const out = { ...(valid || {}), currency: PLAN_CURRENCY, productId };
+  for (const key of RADAR_PLAN_KEYS) {
+    if (out[key]) continue;
+    const [id, period] = key.split(":");
+    const r = await upsertPayPalPlan({ id, billingPeriod: period, priceIls: RADAR_PRICES[id][period], productId });
+    if (r.id) { out[key] = r.id; report?.[r.adopted ? "adopted" : "created"].push({ key, id: r.id, price: planPriceIls(RADAR_PRICES[id][period]), currency: PLAN_CURRENCY }); }
+    else { out[key] = null; report?.failed.push({ key, error: r.error, detail: r.detail || null }); }
+  }
+  if (RADAR_PLAN_KEYS.some((k) => out[k]) && kvSet) {
+    try { await kvSet(RADAR_PLANS_KV_KEY, out); } catch { report?.failed.push({ key: "kv", error: "kv_write_failed" }); }
+  }
+  return out;
+}
+
+/** The stored PayPal plan id of one radar tier + period (read only; never creates). */
+export async function resolveRadarPlanId(planId, billingPeriod, { kvGet } = {}) {
+  const key = `${planId}:${billingPeriod}`;
+  if (!RADAR_PLAN_KEYS.includes(key) || !kvGet) return null;
+  const map = await kvGet(RADAR_PLANS_KV_KEY, null).catch(() => null);
+  const id = map && map.currency === PLAN_CURRENCY ? map[key] : null;
+  return id && !FOREIGN_PLAN_IDS.has(id) ? id : null;
 }
 
 /** Test hook: forget the in-memory caches. */
