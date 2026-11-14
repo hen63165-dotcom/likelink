@@ -262,6 +262,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const [jobsFile = "scripts/marketing/pro-reels/jobs.json", out = "pro-reels-out"] = process.argv.slice(2);
   const jobs = JSON.parse(readFileSync(jobsFile, "utf8")).jobs || [];
   const products = catalogProducts();
+  // A product the owner added in the Studio is only in the live catalog (the browser's own anon read);
+  // the copy's records win for their ids, and a failed read keeps the copy alone.
+  if (process.env.PRO_REELS_LIVE !== "0" && jobs.some((j) => !products.has(String(j.id)))) {
+    const { loadLiveKeys } = await import("../catalog/live-catalog.mjs");
+    const live = await loadLiveKeys();
+    for (const p of live.ok ? live.keys["marketplace:products"] : []) if (p?.id && !products.has(String(p.id))) products.set(String(p.id), p);
+    if (!live.ok) console.error("live catalog not read:", live.reason);
+  }
   const work = join(out, "work");
   mkdirSync(work, { recursive: true });
   const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");

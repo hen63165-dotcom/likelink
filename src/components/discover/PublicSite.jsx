@@ -7,6 +7,7 @@ import { PublicShell } from "./PublicShell";
 import { StatusPage } from "./status";
 import { JoinPage } from "./join";
 import { MagicPage } from "./magic";
+import { RadarPage } from "./radar";
 import {
   CollectionsPage,
   CreatorPage,
@@ -115,6 +116,8 @@ function pageSEO(route, graph, lang) {
       return section("join");
     case "magic":
       return section("magic");
+    case "radar":
+      return section("radar");
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -207,6 +210,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "magic":
       page = <MagicPage key={route.nav || "magic"} graph={graph} />;
+      break;
+    case "radar":
+      page = <RadarPage key={route.nav || "radar"} />;
       break;
     default:
       page = <NotFound />;

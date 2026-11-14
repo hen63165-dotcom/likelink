@@ -103,5 +103,6 @@ that the system filters the noise.
 | Luna: passports, scores, goals, campaign drafts, marketing engine | Live |
 | TikTok engine: two ready posts a day (video, rendered photo-mode carousel, Luna tip, a script to film), learning from the owner's logged results | Built 2026-10-15 (the owner opens the account and posts; no API posting) |
 | Deals by category from AliExpress's own numbers (cheap for the kind, 95%+ positive, 300+ orders) with demand momentum: each item's order count read daily, rising items added first, cooling ones never; numbers used to choose only | Built 2026-10-26 (momentum needs a second reading 2+ days later; coupons: the affiliate API returns none) |
+| Trend radar (/radar): ~60 product concepts read daily from AliExpress (top items' 30-day orders, listings, price); stages EMERGING/RISING/PEAK/COOLING with dated evidence, never from one reading; every call graded HIT/MISS after 14 days in public | Built 2026-11-14 (the first direction needs a second reading two days later; the first grades come 14 days after the first calls) |
 | Conversions measured end-to-end for affiliate links | Not available (store-side data) |
 | Channels: site feed live; Instagram via owner-approved posting; others need connection | Partial |

@@ -1,0 +1,39 @@
+# Site shots: phone-size screenshots of the live site, the listed catalog and the store's own photos
+# of the listed products, for the owner's Instagram carousels (real pages, never a mock). This
+# session's container cannot reach likelink2.vercel.app; a runner can. Read-only: the script aborts
+# every request that is not a GET, so no visit, view or click is recorded. Output goes to the
+# "carousel-shots" pre-release for review; the site never reads it and nothing is posted.
+name: Site shots
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/carousels/shots.json
+      - scripts/marketing/carousels/shots.mjs
+      - .github/workflows/site-shots.yml
+permissions:
+  contents: write
+concurrency:
+  group: site-shots-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Shoot the live pages and save the store photos
+        run: |
+          npm i --no-save --silent playwright-core@1.49.1
+          timeout 600 node scripts/marketing/carousels/shots.mjs
+          (cd shots-out && zip -qr ../shots-out-products.zip products) && rm -rf shots-out/products && mv shots-out-products.zip shots-out/products.zip
+          ls -la shots-out
+      - name: Store them on the review release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view carousel-shots >/dev/null 2>&1 || gh release create carousel-shots --prerelease --title "Carousel shots (review)" --notes "Phone screenshots of the live site and the store's own product photos, for carousel drafts the owner reviews. Nothing here is posted, and the site never reads this release."
+          gh release upload carousel-shots shots-out/* --clobber

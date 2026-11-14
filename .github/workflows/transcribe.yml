@@ -1,0 +1,51 @@
+# Transcribe: writes down what is said in a clip the owner made elsewhere (Gemini, Kling), so a
+# person can check the Hebrew before anything is posted. This session's container cannot reach the
+# model host; a runner can. Open model (faster-whisper small, MIT), no account, no key. The text
+# goes to the job log and to the "kling-preview" pre-release. Nothing is posted.
+name: Transcribe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/transcribe/**
+      - .github/workflows/transcribe.yml
+permissions:
+  contents: write
+concurrency:
+  group: transcribe-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  transcribe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg and the model
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+          python3 -m pip install --quiet faster-whisper==1.1.1
+      - name: Write down each clip
+        run: |
+          set -euo pipefail
+          mkdir -p transcribe-out
+          python3 - <<'PY'
+          import glob, os, subprocess
+          import numpy as np
+          from faster_whisper import WhisperModel
+          def pcm(path):
+              # ffmpeg decodes (the runner's PyAV clashes with faster-whisper's audio reader)
+              raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-ac", "1", "-ar", "16000", "-f", "s16le", "-"], check=True, capture_output=True).stdout
+              return np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0
+          model = WhisperModel("small", device="cpu", compute_type="int8")
+          for path in sorted(glob.glob("scripts/marketing/transcribe/*.mp3")):
+              name = os.path.splitext(os.path.basename(path))[0]
+              segments, info = model.transcribe(pcm(path), language="he", beam_size=5, word_timestamps=False)
+              lines = [f"[{s.start:5.2f}–{s.end:5.2f}] {s.text.strip()}" for s in segments]
+              text = "\n".join(lines) or "(no speech found)"
+              print(f"== {name} (lang {info.language} {info.language_probability:.2f})\n{text}")
+              open(f"transcribe-out/{name}.txt", "w", encoding="utf-8").write(text + "\n")
+          PY
+      - name: Store the text on the preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload kling-preview transcribe-out/* --clobber

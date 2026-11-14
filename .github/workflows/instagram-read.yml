@@ -1,0 +1,63 @@
+# Instagram read: a public Instagram post the owner sent as a style reference, read on a runner (this
+# session's container cannot reach instagram.com). Chrome opens the post's public embed page, keeps a
+# screenshot, the caption and the post's own video, then the frames are sampled and the speech is
+# written down (faster-whisper small, MIT, no account) so a person can study the format. Everything
+# goes to the "page-reads" pre-release for review. The footage is never edited, reposted or used in
+# a LikeLink2 video, and nothing is posted.
+name: Instagram read
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/marketing/pages/instagram.json
+      - scripts/marketing/pages/instagram.mjs
+      - .github/workflows/instagram-read.yml
+permissions:
+  contents: write
+concurrency:
+  group: instagram-read-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open each post in Chrome
+        run: |
+          npm i --no-save --silent playwright-core@1.49.1
+          timeout 300 node scripts/marketing/pages/instagram.mjs
+          ls -la ig-out
+      - name: Sample the frames and write down the speech
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg >/dev/null
+          python3 -m pip install --quiet faster-whisper==1.1.1
+          for v in ig-out/*.mp4; do
+            [ -e "$v" ] || continue
+            n="${v%.mp4}"
+            ffprobe -v error -show_entries format=duration:stream=codec_type,width,height,r_frame_rate -of compact "$v" > "$n-probe.txt"
+            ffmpeg -v error -i "$v" -vf "fps=2,scale=270:-2,tile=6x6" -frames:v 1 "$n-sheet.jpg" -y
+            ffmpeg -v error -i "$v" -vf "fps=1,scale=540:-2" "$n-f%02d.jpg" -y
+            python3 - "$v" "$n-speech.txt" <<'PY'
+          import subprocess, sys
+          import numpy as np
+          from faster_whisper import WhisperModel
+          raw = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-ac", "1", "-ar", "16000", "-f", "s16le", "-"], capture_output=True).stdout
+          audio = np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0
+          lines = []
+          if audio.size:
+              segs, info = WhisperModel("small", device="cpu", compute_type="int8").transcribe(audio, language="he", beam_size=5)
+              lines = [f"[{s.start:5.2f}-{s.end:5.2f}] {s.text.strip()}" for s in segs]
+          text = "\n".join(lines) or "(no speech found)"
+          print(text)
+          open(sys.argv[2], "w", encoding="utf-8").write(text + "\n")
+          PY
+          done
+          ls -la ig-out
+      - name: Store them on the review release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view page-reads >/dev/null 2>&1 || gh release create page-reads --prerelease --title "Page reads (review)" --notes "Public pages the owner sent, read on a runner for review. Nothing here is installed or posted, and the site never reads this release."
+          gh release upload page-reads ig-out/* --clobber

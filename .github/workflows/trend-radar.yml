@@ -1,0 +1,52 @@
+# The trend radar (/radar, src/lib/growth/trendRadar.js): every day, for every concept on the
+# watch list (scripts/catalog/radar-concepts.json), AliExpress's own numbers through the owner's
+# affiliate account (matching listings, the top items' recent orders and prices). The history and
+# the public self-grading calls live on the "radar" pre-release (readings.json, calls.json); the
+# board the page reads (board.json) goes there too and is copied into the site by
+# deploy-frontend.yml. Read-only on the store and the site; nothing is posted.
+name: Trend radar
+on:
+  schedule:
+    - cron: "37 5 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/catalog/radar-concepts.json
+      - scripts/catalog/trend-radar.mjs
+      - src/lib/growth/trendRadar.js
+      - .github/workflows/trend-radar.yml
+permissions:
+  contents: write
+concurrency:
+  group: trend-radar
+  cancel-in-progress: false
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+      ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+      ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The history so far
+        run: |
+          mkdir -p radar-state
+          if gh release view radar >/dev/null 2>&1; then
+            gh release download radar --dir radar-state --pattern '*.json' --clobber || true
+          fi
+          ls -la radar-state
+      - name: Today's reading
+        run: |
+          set -o pipefail
+          timeout 600 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
+          { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the history and the board
+        run: |
+          gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
+          gh release upload radar radar-state/readings.json radar-state/calls.json radar-state/board.json --clobber
