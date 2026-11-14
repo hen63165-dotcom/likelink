@@ -72,24 +72,10 @@ jobs:
             echo "VITE_SUPABASE_ANON_KEY=$key"
           } >> "$GITHUB_ENV"
 
-      - name: Build the main host's copy (root base, published under /site/)
-        # likelink2.vercel.app is a Vercel project route that proxies to a static host. This copy is
-        # built for the root path ("/"), so the main host is served from GitHub Pages for free:
-        # pages → /likelink/site/…, /api/* → the Edge Function, /media/* and /radar/* → GitHub Pages
-        # itself (docs/ops/hosting.md). Built first, then set aside, so the mirror build below starts clean.
-        run: |
-          set -euo pipefail
-          npm run build
-          rm -rf "$RUNNER_TEMP/site-root" && mv dist "$RUNNER_TEMP/site-root"
-          test -f "$RUNNER_TEMP/site-root/index.html"
-
       - name: Build production static bundle
         env:
           VITE_BASE: ${{ steps.base.outputs.path }}
-        run: |
-          npm run build
-          # The main host's copy sits next to the mirror (it never replaces it).
-          cp -r "$RUNNER_TEMP/site-root" dist/site
+        run: npm run build
 
       - name: Add the product reels (luna-reels + reels releases → media/reels)
         # One reel per listed product plus the sellers' own videos, served by
