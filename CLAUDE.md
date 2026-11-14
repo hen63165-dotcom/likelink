@@ -259,8 +259,8 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
 - The many root-level `.bat`/`.ps1`/`.vbs`/`fix_*.js`/`git-*.js` files are ad-hoc helper scripts, not part of the build or deploy.
 - **likelink2.vercel.app is Vercel's own build again** (since 2026-11-14, `docs/ops/hosting.md`). Vercel builds every push to `main` (READY from 2026-11-14; "Account is blocked" before). The project routes (dashboard → Routing) add only what the static build lacks:
   - `/api/*` and `/google-feed.xml`, `/discover.xml` go to the Supabase Edge Function `api`. The Vercel functions under `api/` are not reached for these paths.
-  - `/media/*` and `/radar/board.json` go to the `gh-pages` branch through jsDelivr, while GitHub Pages is switched off. Its branch cache is about 12 h.
-  - `/radar/kits/*` goes to github.io.
+  - `/media/*`, `/radar/board.json` and `/radar/kits/*` go to github.io. While GitHub Pages is off, point them at the `gh-pages` branch through jsDelivr (route version `289d28e0-…`).
+  - The app plays reels from the address that answered the feed (`loadReelsFeed`), so on the main host they come through the route.
   - `/sitemap.xml` goes to `/sitemap-static.xml`.
   - `cleanUrls` serves `/r` (`r.html`), `/p/<id>` and `/u/<slug>` from the prerendered files. A product without a file falls through to `vercel.json`'s rewrite (`api/og`).
   - Production sends no `x-robots-tag`; Vercel adds `noindex` only to preview and alias URLs.
