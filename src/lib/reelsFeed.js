@@ -60,9 +60,9 @@ export function reelsFeedUrl(base = BASE, origin = typeof location !== "undefine
 }
 
 /**
- * Where to read the feed, in order: the site's own address first (Netlify
- * proxies /media/reels/* to GitHub Pages, public/_redirects), so no
- * cross-site request can fail; then GitHub Pages itself.
+ * Where to read the feed, in order: the site's own address first (the main
+ * host's project route, or public/_redirects on Netlify), so no cross-site
+ * request can fail; then GitHub Pages itself.
  */
 export function reelsFeedUrls(base = BASE, origin = typeof location !== "undefined" ? location.origin : "") {
   const own = origin ? `${origin}${base}/media/reels/index.json` : "";
@@ -122,8 +122,10 @@ async function readFeed(url, fetchImpl) {
 let pending = null;
 /**
  * Loads the feed once per page view; an empty list when it cannot be read.
- * Every copy is the same GitHub Pages file, so the media always resolve
- * against GitHub Pages (byte ranges for iOS, no proxy bandwidth).
+ * The media resolve against the address the feed was read from: on the main
+ * host that is its own /media/reels/ (a project route decides where it comes
+ * from, docs/ops/hosting.md), so the videos keep playing when GitHub Pages is
+ * switched off (2026-11-14: every video on likelink2.vercel.app answered 404).
  */
 export function loadReelsFeed(fetchImpl = typeof fetch === "function" ? fetch : null, urls = reelsFeedUrls()) {
   if (!fetchImpl) return Promise.resolve([]);
@@ -131,7 +133,7 @@ export function loadReelsFeed(fetchImpl = typeof fetch === "function" ? fetch : 
     pending = (async () => {
       for (const url of urls) {
         const doc = await readFeed(url, fetchImpl);
-        if (doc) return feedToVideos(doc, REELS_FEED_HOME);
+        if (doc) return feedToVideos(doc, url);
       }
       return [];
     })();
