@@ -263,6 +263,7 @@ function KeepIt() {
 
 /** Where the checked item sits on the trend radar: its kind's stage and the Israel gap. */
 let boardOnce = null;
+const dayMonth = (d) => (typeof d === "string" && d.length >= 10 ? `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}` : "");
 function RadarHint({ item }) {
   const { L } = useL();
   const [hit, setHit] = useState(undefined);
@@ -283,7 +284,7 @@ function RadarHint({ item }) {
     return (
       <div className="mt-4 rounded-[14px] p-3 text-[14px] leading-6" style={{ background: "#ecfdf3" }}>
         <p className="font-extrabold">📡 {L("ברדאר הטרנדים:", "On the trend radar:")} {hit.site.he}</p>
-        {Number.isFinite(hit.site.weekPct) ? <p>{L(`ההזמנות של הפריט באליאקספרס: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% בשבוע (${hit.site.from ? hit.site.from.slice(8, 10) + "." + Number(hit.site.from.slice(5, 7)) : ""}–${hit.site.to ? hit.site.to.slice(8, 10) + "." + Number(hit.site.to.slice(5, 7)) : ""}).`, `The item's AliExpress orders: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% a week.`)}</p> : null}
+        {Number.isFinite(hit.site.weekPct) ? <p>{L(`ההזמנות של הפריט באליאקספרס: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% בשבוע, מ־${dayMonth(hit.site.from)} עד ${dayMonth(hit.site.to)}.`, `The item's AliExpress orders: ${hit.site.weekPct > 0 ? "+" : ""}${hit.site.weekPct}% a week.`)}</p> : null}
         <Go to="/radar" className="underline font-bold" style={{ color: "inherit" }}>{L("לרדאר הטרנדים", "Open the trend radar")}</Go>
       </div>
     );

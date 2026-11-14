@@ -34,7 +34,8 @@ gold silver plated stainless steel metal alloy copper titanium plastic silicone 
 black white red blue green pink purple yellow orange brown grey gray beige
 2023 2024 2025 2026 2027 summer winter spring autumn fall christmas halloween new year valentine valentines
 cm mm inch inches ml kg g mah usb type c led
-stress relief anti funny novelty toy toys tool tools gadget gadgets supplies holder home household kitchen`.split(/\s+/));
+stress relief anti funny novelty toy toys tool tools gadget gadgets supplies holder home household kitchen
+soft fluffy cute lovely pretty beautiful fashionable sweet charming adorable kawaii plush warm`.split(/\s+/));
 
 // Compatibility names in store titles ("for Tesla Model Y", "for iPhone 16"): a brand all the same,
 // so a phrase with one never joins (deals.js hasBrandName covers the fashion and toy brands).
@@ -57,8 +58,9 @@ export function phrasesOf(title = "") {
 export function covered(phrase, concepts = []) {
   const p = phrase.split(" ");
   return concepts.some((c) => {
-    const cw = new Set(String(c?.en || "").toLowerCase().split(/[^a-z0-9']+/).map((x) => x.replace(/s$/, "")));
-    return p.every((x) => cw.has(x.replace(/s$/, "")));
+    const one = (x) => x.replace(/(?:es|s)$/, "");
+    const cw = new Set(String(c?.en || "").toLowerCase().split(/[^a-z0-9']+/).map(one));
+    return p.every((x) => cw.has(one(x)));
   });
 }
 

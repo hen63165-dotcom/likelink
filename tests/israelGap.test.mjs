@@ -115,6 +115,8 @@ test("discovery: a phrase several different hot items share, never a brand, unli
   assert.ok(!got.some((c) => /tesla|model/.test(c.en)), "a car or phone name never joins");
   assert.ok(!got.some((c) => c.en === "drawer organizer"), "a covered phrase never joins");
   assert.ok(covered("drawer organizers", concepts));
+  assert.ok(covered("makeup brushes", [{ en: "makeup brush set" }]), "plural -es is the same word (the live run proposed it, 2026-11-14)");
+  assert.ok(!phrasesOf("Soft Fluffy Cute Plush").size, "adjectives alone make no phrase (\"soft fluffy\", 2026-11-14)");
   assert.ok(!phrasesOf("New 2026 Fashion Women Gold").size, "filler words make no phrase");
 });
 
