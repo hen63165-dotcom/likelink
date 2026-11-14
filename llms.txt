@@ -1,0 +1,15 @@
+# LikeLink
+
+> LikeLink is a Hebrew-first studio for creators: product pages, tracking links and content drafts (hooks, scripts, captions) for products they recommend. It does not promise sales, income or traffic, and it does not post to social networks on a creator's behalf without explicit approval per post.
+
+## Public pages
+
+- [Plans and prices](https://likelink2.vercel.app/pricing): Free, Starter (₪29/month), Professional (₪79/month); Elite is coming soon (waitlist only).
+- [Legal documents](https://likelink2.vercel.app/legal): terms, privacy, cancellations, affiliate disclosure, accessibility.
+- [Affiliate disclosure](https://likelink2.vercel.app/legal/affiliate-disclosure): some links are affiliate links; creators must disclose them.
+- Product pages: https://likelink2.vercel.app/p/{productId}
+- Creator pages: https://likelink2.vercel.app/u/{slug}
+
+## Usage
+
+Quoting short passages with a link back is welcome. Bulk collection, copying the catalog, the scores or the design, and using the content to build a competing service are not permitted — see [Acceptable use](https://likelink2.vercel.app/legal/acceptable-use).

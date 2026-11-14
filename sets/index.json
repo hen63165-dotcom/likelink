@@ -1,0 +1,9 @@
+{
+ "about": "LikeLink2 luxe sets (scripts/media/luxe-set/luxe.py): the seller's own product photo, cut out and set on a studio backdrop. Only the background is ours; the product's pixels are not repainted (a green screen's colour cast is removed: despill). Chosen by eye, 2026-10-23. A set with its own label is not on our backdrop and says what it is instead.",
+ "label": "תמונת המוכר · רקע: LikeLink2",
+ "sets": {
+  "p-live-03": { "file": "p-live-03-closeup.jpg", "style": "closeup", "from": "reels release p-live-03.mp4 at 10.6 s (LikeLink2's premium cut of the seller's video), 4:5 crop without the burned-in labels; replaces the noir set of the flat lay (2026-10-25, the owner: the bracelet picture is not attractive)", "label": "מתוך סרטון המוכר · בעריכת LikeLink2" },
+  "p-live-04": { "file": "p-live-04-noir.jpg", "style": "noir", "from": "public/looks/p-live-04.jpg (a frame of the seller's video)" },
+  "p-live-05": { "file": "p-live-05-champagne.jpg", "style": "champagne", "from": "public/looks/p-live-05.jpg (a frame of the seller's video)" }
+ }
+}

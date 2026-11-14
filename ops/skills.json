@@ -1,0 +1,6797 @@
+{
+ "generatedAt": "2026-11-14T21:33:50.787Z",
+ "snapshotTakenAt": "2026-10-09T10:37:09Z",
+ "build": {
+  "commit": "5c9e2f29f1bac5d7708a501b7c7d67381d7094ce",
+  "branch": "main",
+  "host": "github-actions",
+  "builtAt": "2026-11-14T21:33:50.787Z"
+ },
+ "skills": [
+  {
+   "name": "product-integrity",
+   "version": 1,
+   "purpose": "Each listed product has what the site needs and nothing it cannot prove: an owner, a title, its own store link, a real photo; no rating/review/sales field, no price without an approved source.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "link-health",
+   "version": 1,
+   "purpose": "Every purchase link is a well-formed https store link of its own. Links are not opened: an affiliate link would count a click, and the store may answer with a CAPTCHA, which we never work around.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "price-freshness",
+   "version": 1,
+   "purpose": "Each price has an approved source and a recent check, or is shown as 'the current price is at the store'. Never invents a price.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "media-matching",
+   "version": 1,
+   "purpose": "Every image and video is tied to the product it shows: MATCHED only with evidence (a person's check, an upload for that product), REJECTED when it shows another item, UNCERTAIN otherwise.",
+   "permissions": [
+    "read:catalog",
+    "read:media"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "discovery-ranking",
+   "version": 1,
+   "purpose": "An explainable product order from data quality (own store link, checked video, clean image, checked price) — never popularity, ratings or sales.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  },
+  {
+   "name": "content-production",
+   "version": 1,
+   "purpose": "Claim-free Hebrew hooks, a storyboard and a disclosed caption per publishable product, ready for the existing renderers. It renders nothing itself and never says a video exists.",
+   "permissions": [
+    "read:catalog"
+   ],
+   "timeoutMs": 10000,
+   "retries": 0
+  }
+ ],
+ "workflow": "catalog-health",
+ "status": "warn",
+ "startedAt": "2026-11-14T21:33:50.787Z",
+ "finishedAt": "2026-11-14T21:33:50.787Z",
+ "stages": [
+  {
+   "skill": "product-integrity",
+   "inputKey": "1l870yq-49bx",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 81,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "products": [
+     {
+      "id": "p-live-01",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-02",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-03",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-04",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "p-live-05",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005003711297938",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007382224504",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008181803185",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006863850606",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008430108216",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005009185028607",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007476887390",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006994477824",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012011243048",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008248098577",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008248182129",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007171036530",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007345430335",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013266260514",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013266094825",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012613833998",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012986704439",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012967864709",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012736775484",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010228971023",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010155293582",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007345357544",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006783080409",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007476663588",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005011624245510",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012323403801",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005011676523229",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013299422092",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010004260060",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012872093982",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012932093776",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013187022988",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012040321452",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013429299062",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013327851644",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013461862167",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008429942445",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010044052123",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005011865685346",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005009460421963",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007009989925",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012221742613",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007822533405",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008565961511",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010706991166",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005011939997610",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012099742235",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012977999244",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008084818028",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005009695987191",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012986748239",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007038045592",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013423760715",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005009806942156",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013255319649",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007010314562",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006783027299",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012993913551",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005008430061388",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007805582693",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010323716760",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006997185394",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013255301623",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005009916227563",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012983812567",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012814928010",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013156971652",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005005866435877",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007168657495",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005006863869342",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005013362999177",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010706854356",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005007254611442",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005010487472044",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012438734147",
+      "ok": true,
+      "issues": []
+     },
+     {
+      "id": "ae-1005012649969906",
+      "ok": true,
+      "issues": []
+     }
+    ],
+    "publishable": [
+     "p-live-01",
+     "p-live-02",
+     "p-live-03",
+     "p-live-04",
+     "p-live-05",
+     "ae-1005003711297938",
+     "ae-1005007382224504",
+     "ae-1005008181803185",
+     "ae-1005006863850606",
+     "ae-1005008430108216",
+     "ae-1005009185028607",
+     "ae-1005007476887390",
+     "ae-1005006994477824",
+     "ae-1005012011243048",
+     "ae-1005008248098577",
+     "ae-1005008248182129",
+     "ae-1005007171036530",
+     "ae-1005007345430335",
+     "ae-1005013266260514",
+     "ae-1005013266094825",
+     "ae-1005012613833998",
+     "ae-1005012986704439",
+     "ae-1005012967864709",
+     "ae-1005012736775484",
+     "ae-1005010228971023",
+     "ae-1005010155293582",
+     "ae-1005007345357544",
+     "ae-1005006783080409",
+     "ae-1005007476663588",
+     "ae-1005011624245510",
+     "ae-1005012323403801",
+     "ae-1005011676523229",
+     "ae-1005013299422092",
+     "ae-1005010004260060",
+     "ae-1005012872093982",
+     "ae-1005012932093776",
+     "ae-1005013187022988",
+     "ae-1005012040321452",
+     "ae-1005013429299062",
+     "ae-1005013327851644",
+     "ae-1005013461862167",
+     "ae-1005008429942445",
+     "ae-1005010044052123",
+     "ae-1005011865685346",
+     "ae-1005009460421963",
+     "ae-1005007009989925",
+     "ae-1005012221742613",
+     "ae-1005007822533405",
+     "ae-1005008565961511",
+     "ae-1005010706991166",
+     "ae-1005011939997610",
+     "ae-1005012099742235",
+     "ae-1005012977999244",
+     "ae-1005008084818028",
+     "ae-1005009695987191",
+     "ae-1005012986748239",
+     "ae-1005007038045592",
+     "ae-1005013423760715",
+     "ae-1005009806942156",
+     "ae-1005013255319649",
+     "ae-1005007010314562",
+     "ae-1005006783027299",
+     "ae-1005012993913551",
+     "ae-1005008430061388",
+     "ae-1005007805582693",
+     "ae-1005010323716760",
+     "ae-1005006997185394",
+     "ae-1005013255301623",
+     "ae-1005009916227563",
+     "ae-1005012983812567",
+     "ae-1005012814928010",
+     "ae-1005013156971652",
+     "ae-1005005866435877",
+     "ae-1005007168657495",
+     "ae-1005006863869342",
+     "ae-1005013362999177",
+     "ae-1005010706854356",
+     "ae-1005007254611442",
+     "ae-1005010487472044",
+     "ae-1005012438734147",
+     "ae-1005012649969906"
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  },
+  {
+   "skill": "link-health",
+   "inputKey": "1l870yq-49bx",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 81,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "links": [
+     {
+      "id": "p-live-01",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "p-live-02",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "p-live-03",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "p-live-04",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "p-live-05",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005003711297938",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007382224504",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008181803185",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006863850606",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008430108216",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005009185028607",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007476887390",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006994477824",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012011243048",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008248098577",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008248182129",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007171036530",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007345430335",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013266260514",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013266094825",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012613833998",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012986704439",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012967864709",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012736775484",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010228971023",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010155293582",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007345357544",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006783080409",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007476663588",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005011624245510",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012323403801",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005011676523229",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013299422092",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010004260060",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012872093982",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012932093776",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013187022988",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012040321452",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013429299062",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013327851644",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013461862167",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008429942445",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010044052123",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005011865685346",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005009460421963",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007009989925",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012221742613",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007822533405",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008565961511",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010706991166",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005011939997610",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012099742235",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012977999244",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008084818028",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005009695987191",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012986748239",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007038045592",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013423760715",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005009806942156",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013255319649",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007010314562",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006783027299",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012993913551",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005008430061388",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007805582693",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010323716760",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006997185394",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013255301623",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005009916227563",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012983812567",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012814928010",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013156971652",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005005866435877",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007168657495",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005006863869342",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005013362999177",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010706854356",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005007254611442",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005010487472044",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012438734147",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     },
+     {
+      "id": "ae-1005012649969906",
+      "host": "s.click.aliexpress.com",
+      "state": "FORMAT_OK",
+      "live": "NOT_OPENED",
+      "checkedAt": "2026-11-14T21:33:50.787Z"
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  },
+  {
+   "skill": "price-freshness",
+   "inputKey": "1l870yq-49bx",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 81,
+   "errors": [
+    {
+     "code": "stale_price",
+     "id": "ae-1005013187022988"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005011939997610"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012099742235"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012977999244"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005008084818028"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005009695987191"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012986748239"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005007038045592"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005013423760715"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005009806942156"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005013255319649"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005007010314562"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005006783027299"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012993913551"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005008430061388"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005007805582693"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005010323716760"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005006997185394"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005013255301623"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005009916227563"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012983812567"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012814928010"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005013156971652"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005005866435877"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005007168657495"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005006863869342"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005013362999177"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005010706854356"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005007254611442"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005010487472044"
+    },
+    {
+     "code": "stale_price",
+     "id": "ae-1005012438734147"
+    }
+   ],
+   "status": "warn",
+   "blockedBy": "",
+   "output": {
+    "prices": [
+     {
+      "id": "p-live-01",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-02",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-03",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-04",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "p-live-05",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005003711297938",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007382224504",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008181803185",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005006863850606",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008430108216",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005009185028607",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007476887390",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005006994477824",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012011243048",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008248098577",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008248182129",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007171036530",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007345430335",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013266260514",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013266094825",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012613833998",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012986704439",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012967864709",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012736775484",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005010228971023",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005010155293582",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007345357544",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005006783080409",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007476663588",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005011624245510",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012323403801",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005011676523229",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013299422092",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005010004260060",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012872093982",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012932093776",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013187022988",
+      "state": "STALE",
+      "ageH": 104,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 104 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012040321452",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013429299062",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013327851644",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005013461862167",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008429942445",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005010044052123",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005011865685346",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005009460421963",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007009989925",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005012221742613",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005007822533405",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005008565961511",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005010706991166",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     },
+     {
+      "id": "ae-1005011939997610",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012099742235",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012977999244",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005008084818028",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005009695987191",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012986748239",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005007038045592",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005013423760715",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005009806942156",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005013255319649",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005007010314562",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005006783027299",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012993913551",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005008430061388",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005007805582693",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005010323716760",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005006997185394",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005013255301623",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005009916227563",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012983812567",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012814928010",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005013156971652",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005005866435877",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005007168657495",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005006863869342",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005013362999177",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005010706854356",
+      "state": "STALE",
+      "ageH": 152,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 152 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005007254611442",
+      "state": "STALE",
+      "ageH": 146,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 146 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005010487472044",
+      "state": "STALE",
+      "ageH": 146,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 146 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012438734147",
+      "state": "STALE",
+      "ageH": 62,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 62 שעות — ישן, צריך בדיקה חוזרת"
+     },
+     {
+      "id": "ae-1005012649969906",
+      "state": "FRESH",
+      "ageH": 9,
+      "source": "aliexpress_api",
+      "he": "נבדק לפני 9 שעות (ממשק AliExpress הרשמי)"
+     }
+    ],
+    "fresh": 50
+   },
+   "errorCount": 31,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  },
+  {
+   "skill": "media-matching",
+   "inputKey": "1l870yq-49bx",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 15,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "items": [
+     {
+      "media": "luna-ring-size-a",
+      "productId": "p-live-01",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-wrist-size-a",
+      "productId": "p-live-04",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-story-wedding-wrist-a",
+      "productId": "p-live-03",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-silver-925-a",
+      "productId": "p-live-02",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "luna-story-gift-earrings-a",
+      "productId": "p-live-05",
+      "kind": "luna_animation",
+      "verdict": "LABELLED_SYNTHETIC",
+      "he": "אנימציה של לונה עם תמונת המוצר, מסומנת כ־AI"
+     },
+     {
+      "media": "lookbook-p-live-01",
+      "productId": "p-live-01",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-02",
+      "productId": "p-live-02",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-04",
+      "productId": "p-live-04",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "lookbook-p-live-05",
+      "productId": "p-live-05",
+      "kind": "seller_media_edit",
+      "verdict": "MATCHED",
+      "he": "תמונות המוכר שנבדקו בעין, וסרטון שנבדק אם יש"
+     },
+     {
+      "media": "seller-p-live-03",
+      "productId": "p-live-03",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "seller-p-live-04",
+      "productId": "p-live-04",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "seller-p-live-05",
+      "productId": "p-live-05",
+      "kind": "seller_video",
+      "verdict": "MATCHED",
+      "he": "נבדק בעין ב־2026-10-11: המוצר הוא נושא הסרטון"
+     },
+     {
+      "media": "looks/p-live-03.jpg",
+      "productId": "p-live-03",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     },
+     {
+      "media": "looks/p-live-04.jpg",
+      "productId": "p-live-04",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     },
+     {
+      "media": "looks/p-live-05.jpg",
+      "productId": "p-live-05",
+      "kind": "clean_frame",
+      "verdict": "MATCHED",
+      "he": "פריים מסרטון המוכר שנבדק ב־2026-10-11"
+     }
+    ],
+    "feedChecked": true
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  },
+  {
+   "skill": "discovery-ranking",
+   "inputKey": "1l870yq-49bx",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 81,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "ranked": [
+     {
+      "id": "p-live-03",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-04",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-05",
+      "score": 9,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "תמונה נקייה של המוצר",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-01",
+      "score": 8,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "p-live-02",
+      "score": 8,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "סרטון של המוצר שנבדק",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005003711297938",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007382224504",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008181803185",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005006863850606",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008430108216",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005009185028607",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007476887390",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005006994477824",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012011243048",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008248098577",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008248182129",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007171036530",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007345430335",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013266260514",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013266094825",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012613833998",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012986704439",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012967864709",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012736775484",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005010228971023",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005010155293582",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007345357544",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005006783080409",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007476663588",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005011624245510",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012323403801",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005011676523229",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013299422092",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005010004260060",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012872093982",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012932093776",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012040321452",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013429299062",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013327851644",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013461862167",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008429942445",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005010044052123",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005011865685346",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005009460421963",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007009989925",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012221742613",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005007822533405",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005008565961511",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005010706991166",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005012649969906",
+      "score": 5,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות",
+       "מחיר שנבדק מול החנות"
+      ]
+     },
+     {
+      "id": "ae-1005013187022988",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005011939997610",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012099742235",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012977999244",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005008084818028",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005009695987191",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012986748239",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005007038045592",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005013423760715",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005009806942156",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005013255319649",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005007010314562",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005006783027299",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012993913551",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005008430061388",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005007805582693",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005010323716760",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005006997185394",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005013255301623",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005009916227563",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012983812567",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012814928010",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005013156971652",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005005866435877",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005007168657495",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005006863869342",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005013362999177",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005010706854356",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005007254611442",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005010487472044",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     },
+     {
+      "id": "ae-1005012438734147",
+      "score": 3,
+      "reasons": [
+       "קישור משלו לדף המוצר בחנות"
+      ]
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  },
+  {
+   "skill": "content-production",
+   "inputKey": "sld340-4aoh",
+   "startedAt": "2026-11-14T21:33:50.787Z",
+   "version": 1,
+   "attempts": 1,
+   "processed": 81,
+   "errors": [],
+   "status": "ok",
+   "blockedBy": "",
+   "output": {
+    "packs": [
+     {
+      "id": "p-live-01",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪14.69? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת כסף 925 קלאסית עם זרקון מרקיז"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-02",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪382.26? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צמיד טניס מואסניט ATTAGEMS מצופה זהב לבן"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-03",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪265.44? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צמיד טניס מואסניט Smyoue מצופה פלטינה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-04",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪110.56? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת יד Smyoue מצופה 14K עם תליוני מואסניט"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "p-live-05",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪54.88? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "עגילי Smyoue מואסניט ורודים 0.2-3 קראט"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "FOOTAGE_AVAILABLE",
+       "next": "Actions → Product video reels (עריכת הסרטון הקיים)"
+      }
+     },
+     {
+      "id": "ae-1005003711297938",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪8.54? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "נגד לחץ דחיפה בועה ספינר פנים-שינוי צעצוע חושי להקלה מתח"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007382224504",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪21.70? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צעצועי בד מונטסורי"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008181803185",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪14.28? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "כלי נגינה מונטסורי מוזיקה תינוק 0-12 חודשים צעצועים תוף"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006863850606",
+      "hooks": [
+       "הכבלים והבלגן על השולחן?",
+       "מה מקבלים ב־₪65.39? תראו עד הסוף",
+       "על השולחן ביום עבודה: לפני ואחרי גאדג'ט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "על השולחן ביום עבודה"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הכבלים והבלגן על השולחן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שולחן מסודר יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "משקפי VR אוזניות תלת מימד מכשירי מציאות מדומה קסדה עדשות"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהכבלים והבלגן על השולחן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008430108216",
+      "hooks": [
+       "הכבלים והבלגן על השולחן?",
+       "מה מקבלים ב־₪27.29? תראו עד הסוף",
+       "על השולחן ביום עבודה: לפני ואחרי גאדג'ט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "על השולחן ביום עבודה"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הכבלים והבלגן על השולחן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שולחן מסודר יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "חצובת סלפי לטלפון נייד"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהכבלים והבלגן על השולחן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005009185028607",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪10.50? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מכשירי איתור Airtag Bluetooth עמידים במים בתקן 5 למעקב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007476887390",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪38.79? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מקליט קול מקצועי דיגיטלי 8G/16G הקטן בעולם + נגן MP3 + כונן פלאש USB"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006994477824",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪22.19? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סוודר נשים סרוג בצבע אחיד בסגנון וינטג' לחורף"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012011243048",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪41.79? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סוודר סרוג נשים פולוברים בשרוול ארוך צוואר חתוך שחור"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008248098577",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪9.48? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "תיק"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008248182129",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪9.90? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "תיק"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007171036530",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪8.45? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "דיג צעצועים מונטסורי עץ לילדים מגנטיים חיים ימיים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007345430335",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪17.48? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "משחק קוביית שינוי פנים לילדים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013266260514",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪15.09? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "נירוסטה שמן עמיד רשת בישול נגד התזות מגן מפוצל מטבח"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013266094825",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪19.29? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שקיות אחסון בוואקום ללא משאבה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012613833998",
+      "hooks": [
+       "הכבלים והבלגן על השולחן?",
+       "מה מקבלים ב־₪13.79? תראו עד הסוף",
+       "על השולחן ביום עבודה: לפני ואחרי גאדג'ט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "על השולחן ביום עבודה"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הכבלים והבלגן על השולחן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שולחן מסודר יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מעמד טלפון לרכב אוניברסלי"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהכבלים והבלגן על השולחן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012986704439",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪21.90? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "רצועת כלבים חזקה מניילון באורך 3 מטרים ו-5 לגורי וחתולים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012967864709",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪8.79? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צעצוע לחיץ בצורת כיסון נוצץ עם קופסה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012736775484",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪11.79? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צעצוע לחיצה בצורת כף חתול בצבע מקרון חלומי"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010228971023",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪9.69? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "קוביית ג'ל אוקיינוס רכה ללחיצה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010155293582",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪13.69? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "גרביים לגברים גרבי חורף עבות"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007345357544",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪14? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "גרבי במבוק לגברים קלאסיים עסקיים צווארון גרביים אביב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006783080409",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪12.57? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "ארבע עונות גברים כותנה ג'וקר ווסט לבני נוער Simple Fit"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007476663588",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪34.19? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "חולצות גברים מבד כותנה מוקפאות לקיץ ללא שרוולים לאימון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005011624245510",
+      "hooks": [
+       "הכבלים והבלגן על השולחן?",
+       "מה מקבלים ב־₪156.78? תראו עד הסוף",
+       "על השולחן ביום עבודה: לפני ואחרי גאדג'ט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "על השולחן ביום עבודה"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הכבלים והבלגן על השולחן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שולחן מסודר יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "בקר משחק GameSir G8 Plus עבור נינטנדו סוויץ' 2 1"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהכבלים והבלגן על השולחן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012323403801",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪11.51? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מיקרופון דש אלחוטי מקצועי עם חיבור Type-C לסמארטפונים, מחשבים, טאבלטים, Plug and Play"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005011676523229",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪32.67? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "גרביים קצרות אופנתיות לגברים קיץ לנשימה בדוגמה גיאומטרית"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013299422092",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪42.03? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סווטשירט קוריאני רחב עם קפוצ'ון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010004260060",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪65.66? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מגפי שלג לנשים חורף קשמיר סוליות עבות ללא שיער מכוסה עקב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012872093982",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪108.69? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט יוגה לייבוש מהיר לנשים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012932093776",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪51.99? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סוודר נשים לשנת עם צווארון חצי-גבוה וחצי-רוכסן"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013187022988",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪111.90? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "חליפת יוגה חלקה – מכנסיים קצרים עם שרוולים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012040321452",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪46.59? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "חזיית ספורט לנשים לקיץ"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013429299062",
+      "hooks": [
+       "קשה להתחיל להתאמן?",
+       "מה מקבלים ב־₪161.39? תראו עד הסוף",
+       "לפני האימון: לפני ואחרי ציוד אימון אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "לפני האימון"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "קשה להתחיל להתאמן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "ציוד אחד שמוכן לאימון"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט יוגה 2 חלקים בגדי ספורט לנשים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nקשה להתחיל להתאמן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013327851644",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪80.90? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט טרנינג טרנדי לשנת"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013461862167",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪178.90? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סווטשירט נשים בסגנון סתיו עם קפוצ'ון ורוכסן"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008429942445",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪5.16? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת · זרקון · נירוסטה · גיאומטרי"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010044052123",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪4.53? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת · זרקון · לב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005011865685346",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪4.99? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת · וינטג'"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005009460421963",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪13.29? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "טבעת · זרקון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007009989925",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪5.59? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "עגילים · תליון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012221742613",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪5.39? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת · תליון · חרוז"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007822533405",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪4.92? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת · נירוסטה · לב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008565961511",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪6.69? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת · זרקון · קריסטלים · תליון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010706991166",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪6.99? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "צמיד טניס · זרקון · קריסטלים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005011939997610",
+      "hooks": [
+       "הלוק מוכן, אבל משהו חסר?",
+       "מה מקבלים ב־₪4.99? תראו עד הסוף",
+       "רגע לפני שיוצאים: לפני ואחרי תכשיט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "רגע לפני שיוצאים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הלוק מוכן, אבל משהו חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פרט אחד, והלוק סגור"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "שרשרת · תליון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהלוק מוכן, אבל משהו חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012099742235",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪10.69? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט קליפס שיער כריש בגודל גדול לנשים אחיזה מונעת החלקה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012977999244",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪4.19? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סיכת שיער בצורת בננה בצבע צב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008084818028",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪4.19? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "אביזרי שיער לנשים - סיכות מעוצבות בצורת צב עם צורת U"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005009695987191",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪4.90? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סגסוגת בסגנון סיני עתיק פרחים אלגנטיים מקל שיער ציצית"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012986748239",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪10.79? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט מברשות איפור רכות ופרוותיות מקצועיות למייקאפ"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007038045592",
+      "hooks": [
+       "השגרה עמוסה מדי?",
+       "מה מקבלים ב־₪4.90? תראו עד הסוף",
+       "בשגרת הבוקר: לפני ואחרי מוצר טיפוח אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בשגרת הבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "השגרה עמוסה מדי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "צעד אחד פשוט יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מברשות איפור רכות ורכות סט קאבוקי בלנדינג פודרה סומק"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהשגרה עמוסה מדי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013423760715",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪31.79? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "תיק"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005009806942156",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪12.09? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "תיק · פרח"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013255319649",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪9.99? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "תיק"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007010314562",
+      "hooks": [
+       "שוב אין מה ללבוש?",
+       "מה מקבלים ב־₪25.09? תראו עד הסוף",
+       "מול הארון בבוקר: לפני ואחרי פריט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "מול הארון בבוקר"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "שוב אין מה ללבוש…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פריט אחד שמסדר את הלוק"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סוודרים נשים לסתיו חורף בגזרה רגילה עם שרוולים ארוכים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nשוב אין מה ללבוש?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006783027299",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪6.60? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מתקן אחסון חוטים למטבח"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012993913551",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪10.19? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מתלה מסתובב עם 12 ווים – פתרון חסכוני במקום לארגון ארון"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005008430061388",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪8.29? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "360 ° מתלה מסתובב לחגורות"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007805582693",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪15.09? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "סט של 3 מתלים מתקפלים עם 9 חורים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010323716760",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪15.69? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מתקן לשמן זית בקבוק פלסטיק למטבח אביזרי טיגון אוויר מרסס"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006997185394",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪9.90? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מגרדת מטבח מנירוסטה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013255301623",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪6.69? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "כיסוי ידית סיליקון למחבת"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005009916227563",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪11.39? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מארגן רווח בין מושב הרכב מונע פריטים נופלים כרית המושב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012983812567",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪14.90? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מילוי לרווחים במושב הרכב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012814928010",
+      "hooks": [
+       "משהו קטן חסר?",
+       "מה מקבלים ב־₪19.49? תראו עד הסוף",
+       "ביום רגיל: לפני ואחרי מוצר אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "ביום רגיל"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "משהו קטן חסר…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "פתרון קטן ליום רגיל"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מגירה נשלפת אוניברסלית לרכב"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nמשהו קטן חסר?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013156971652",
+      "hooks": [
+       "החבר על ארבע משתעמם?",
+       "מה מקבלים ב־₪4.99? תראו עד הסוף",
+       "בטיול של הערב: לפני ואחרי פריט לחיית המחמד אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בטיול של הערב"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "החבר על ארבע משתעמם…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו חדש לחבר על ארבע"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "16.5 אינץ' צעצוע לכלב אינטראקטיבי לחתלתולים לחיות מחמד"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהחבר על ארבע משתעמם?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005005866435877",
+      "hooks": [
+       "החבר על ארבע משתעמם?",
+       "מה מקבלים ב־₪9.13? תראו עד הסוף",
+       "בטיול של הערב: לפני ואחרי פריט לחיית המחמד אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בטיול של הערב"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "החבר על ארבע משתעמם…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו חדש לחבר על ארבע"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מברשת הסרת שיער מקצועית לחיות מחמד"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהחבר על ארבע משתעמם?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007168657495",
+      "hooks": [
+       "החבר על ארבע משתעמם?",
+       "מה מקבלים ב־₪18.69? תראו עד הסוף",
+       "בטיול של הערב: לפני ואחרי פריט לחיית המחמד אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בטיול של הערב"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "החבר על ארבע משתעמם…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו חדש לחבר על ארבע"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "350ml 550ml בקבוק מים נייד לכלב חתול כוס שתייה עם שרוך"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהחבר על ארבע משתעמם?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005006863869342",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪14.69? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "פאזל עץ בצורות גיאומטריות ומספרים אלפביתיים לילדים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005013362999177",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪4.79? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "כדור לחץ רך וקריספי בצורת מנגו המשנה צבעים"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010706854356",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪6.99? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "עוגת יוגורט בצורת לחם"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005007254611442",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪140.39? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מייבש בגדים נייד חשמלי עם חיטוי UV מתקפל"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005010487472044",
+      "hooks": [
+       "הפינה הזאת מבקשת שינוי?",
+       "מה מקבלים ב־₪130.69? תראו עד הסוף",
+       "בערב בבית: לפני ואחרי פריט לבית אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בערב בבית"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הפינה הזאת מבקשת שינוי…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שינוי קטן בפינה"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מייבש בגדים נייד חשמלי עם חיטוי UV"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהפינה הזאת מבקשת שינוי?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012438734147",
+      "hooks": [
+       "הכבלים והבלגן על השולחן?",
+       "מה מקבלים ב־₪23.09? תראו עד הסוף",
+       "על השולחן ביום עבודה: לפני ואחרי גאדג'ט אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "על השולחן ביום עבודה"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הכבלים והבלגן על השולחן…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "שולחן מסודר יותר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "אוזניות בלוטות' פתוחות לשנת"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהכבלים והבלגן על השולחן?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     },
+     {
+      "id": "ae-1005012649969906",
+      "hooks": [
+       "הבוקר יוצא משליטה?",
+       "מה מקבלים ב־₪8.09? תראו עד הסוף",
+       "בבוקר עמוס עם הילדים: לפני ואחרי פריט לילדים אחד"
+      ],
+      "storyboard": [
+       {
+        "from": 0,
+        "to": 2,
+        "beat": "hook",
+        "line": null
+       },
+       {
+        "from": 2,
+        "to": 5,
+        "beat": "world",
+        "line": "בבוקר עמוס עם הילדים"
+       },
+       {
+        "from": 5,
+        "to": 9,
+        "beat": "tension",
+        "line": "הבוקר יוצא משליטה…"
+       },
+       {
+        "from": 9,
+        "to": 13,
+        "beat": "change",
+        "line": "משהו אחד שמקל על הבוקר"
+       },
+       {
+        "from": 13,
+        "to": 16,
+        "beat": "hero",
+        "line": "מקל חמאה מדומה רך ללחיצה"
+       },
+       {
+        "from": 16,
+        "to": 20,
+        "beat": "cta",
+        "line": "לפרטים ב־LikeLink ←"
+       }
+      ],
+      "caption": "#פרסומת · קישור שותפים\nהבוקר יוצא משליטה?",
+      "video": {
+       "state": "NOT_RENDERED",
+       "next": "Actions → Luna reels (אנימציה מסומנת) — או צילום אמיתי"
+      }
+     }
+    ]
+   },
+   "errorCount": 0,
+   "finishedAt": "2026-11-14T21:33:50.787Z",
+   "ms": 0
+  }
+ ]
+}
