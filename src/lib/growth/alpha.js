@@ -11,7 +11,8 @@
 //      shrunk toward the site's average so a handful of events cannot make a high score; below
 //      `minEvents` the component is MISSING (reason stated), never guessed.
 //
-// Alpha = Σ wᵢ·sᵢ / Σ wᵢ over the AVAILABLE components (renormalized), 0–100. Confidence = Σ wᵢ·cᵢ
+// Alpha = Σ wᵢ·s′ᵢ / Σ wᵢ over the AVAILABLE components (renormalized), 0–100, where s′ = 0.5 +
+// (s − 0.5)·cᵢ pulls an uncertain component toward neutral; no global momentum → no score. Confidence = Σ wᵢ·cᵢ
 // over all three (a missing component contributes 0), so missing evidence lowers confidence, not
 // the score. "Verified opportunity" needs confidence ≥ `verifiedConfidence` AND two components.
 // Pure: no I/O. Every number it uses carries its source and date in `evidence`.
@@ -21,7 +22,7 @@ export const ALPHA = Object.freeze({
   weights: Object.freeze({ global: 0.35, israel: 0.3, private: 0.35 }),
   minEvents: 20, // first-party events (30 days) before the private component counts
   shrinkViews: 30, // Beta prior strength for the exit rate
-  verifiedConfidence: 0.6,
+  verifiedConfidence: 0.55, // e.g. strong momentum (0.9) + an Israel gap held two days (HIGH): 0.315 + 0.27
   // Acceleration shield
   minReadings: 3,
   minSpanDays: 4,
@@ -158,7 +159,11 @@ export function alphaOf({ acc = null, gap = null, priv = null, rules = ALPHA } =
 
   const avail = Object.entries(comps).filter(([, c]) => !c.missing);
   const wSum = avail.reduce((s, [k]) => s + rules.weights[k], 0);
-  const score = wSum > 0 ? Math.round((avail.reduce((s, [k, c]) => s + rules.weights[k] * c.score, 0) / wSum) * 100) : null;
+  // Each component is pulled toward the neutral 0.5 by its own confidence (an uncertain "100" is not
+  // 100), and without global momentum — the core evidence — there is no score at all: a gap in
+  // Israel alone is not an opportunity (the first real run gave such concepts 100, 2026-11-14).
+  const shrunk = (c) => 0.5 + (c.score - 0.5) * c.confidence;
+  const score = comps.global.missing ? null : wSum > 0 ? Math.round((avail.reduce((s, [k, c]) => s + rules.weights[k] * shrunk(c), 0) / wSum) * 100) : null;
   const confidence = r2(avail.reduce((s, [k, c]) => s + rules.weights[k] * c.confidence, 0));
   const verified = score !== null && avail.length >= 2 && confidence >= rules.verifiedConfidence;
   return {
@@ -171,6 +176,7 @@ export function alphaOf({ acc = null, gap = null, priv = null, rules = ALPHA } =
     verified,
     components: comps,
     missing: Object.entries(comps).filter(([, c]) => c.missing).map(([k, c]) => ({ k, reason: c.missing })),
+    ...(score === null && !comps.global.missing ? {} : score === null ? { noScore: "אין ציון בלי מומנטום עולמי נמדד" } : {}),
   };
 }
 

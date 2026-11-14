@@ -35,6 +35,10 @@ test("alpha: renormalized over measured components; missing lowers confidence, n
   assert.deepEqual([full.coverage, two.coverage, one.coverage, none.coverage], ["3/3", "2/3", "1/3", "0/3"]);
   assert.ok(two.confidence < full.confidence && one.confidence < two.confidence, "less evidence, less confidence");
   assert.equal(none.score, null, "nothing measured: no score, not zero");
+  const israelOnly = alphaOf({ gap: GAP });
+  assert.equal(israelOnly.score, null, "a gap in Israel alone is not an opportunity: no score without global momentum");
+  assert.match(israelOnly.noScore, /מומנטום עולמי/);
+  assert.ok(full.score < 100 && two.score < 100, "uncertain components are pulled toward neutral");
   assert.equal(two.components.private.missing, "רק 3 אירועים");
   assert.equal(two.verified, false, "a high score without enough evidence is not a verified opportunity");
   const w = ALPHA.weights;
