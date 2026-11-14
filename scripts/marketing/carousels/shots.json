@@ -1,1 +1,1 @@
-{ "photos": [], "pages": [] }
+{ "photos": [], "pages": [ { "name": "radar-live", "path": "/radar", "full": true, "settle": 6000 } ] }

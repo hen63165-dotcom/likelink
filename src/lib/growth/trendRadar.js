@@ -22,6 +22,8 @@
 // Pure: no I/O. The collector is scripts/catalog/trend-radar.mjs; the page reads its board.json.
 import { orderCount } from "./deals.js";
 import { FIND_RULES, findResults } from "./findOnAli.js";
+import { CONFIDENCE, GAP_STATES, WINDOWS, gapOf, leadTimes, windowOf } from "./israelGap.js";
+import { ACTIONS, HOT_STATES, actionOf, itemMomentum, momentumLine, opportunityOf } from "./radarOpportunity.js";
 
 export const RADAR = Object.freeze({
   topItems: 20, // the items whose orders make a concept's demand
@@ -195,7 +197,17 @@ export function pickFrom(result = {}, { rules = RADAR, now = Date.now() } = {}) 
   const raw = result?.products?.product;
   const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const [first] = findResults(list, { rules: rules.pickRules, now }).items;
-  return first ? { title: first.title, image: first.image, price: first.price, checkedAt: first.checkedAt, buy: first.buy, check: first.check } : null;
+  if (!first) return null;
+  const x0 = list.find((x) => String(x?.product_id || "") === first.id) || {};
+  const rate = parseFloat(String(x0.commission_rate ?? x0.hot_product_commission_rate ?? "").replace("%", ""));
+  return {
+    itemId: first.id, title: first.title, image: first.image, price: first.price, checkedAt: first.checkedAt, buy: first.buy, check: first.check,
+    // Facts for the opportunity checklist (the rate itself is never kept): the search asked for
+    // delivery to Israel, so a returned item ships there.
+    shipsIL: true,
+    video: /^https:\/\//.test(String(x0.product_video_url || "")) ? true : x0.product_video_url === undefined ? null : false,
+    commission: Number.isFinite(rate) ? rate > 0 : null,
+  };
 }
 
 /**
@@ -240,19 +252,26 @@ export function trackRecord(calls = []) {
 }
 
 /**
- * The public board: every concept with its stage, score, evidence, demand series and buy pick,
- * strongest first; and the radar's own record. Nothing private (no seller ids, no ratings).
+ * The public board: every concept with its stage, score, evidence, demand series, buy pick, the
+ * Israel gap (israelGap.js: is it already searched here?) and the opportunity window; strongest
+ * first, open windows first among the rising; the radar's own record and its arrival clock.
+ * Nothing private (no seller ids, no ratings, no autocomplete texts).
  */
-export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [], now = Date.now(), rules = RADAR } = {}) {
+export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [], awareness = {}, items = {}, site = null, now = Date.now(), rules = RADAR } = {}) {
   const rows = [];
+  const gaps = {};
   for (const c of concepts.filter(validConcept)) {
     const rs = readings[c.id] || [];
     const s = signals(rs, { rules });
     const stage = stageOf(s, { rules });
+    const gap = gapOf(awareness[c.id] || []);
+    gaps[c.id] = gap;
+    const window = windowOf(stage, gap);
     rows.push({
       id: c.id,
       he: c.he,
       kind: c.kind || "",
+      ...(c.auto ? { auto: true, found: c.found || null, why: c.why || null } : {}),
       stage,
       stageHe: STAGES[stage].he,
       score: scoreOf(s, stage, { rules }),
@@ -264,18 +283,47 @@ export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [
       // Today's size (not a direction): AliExpress's 30-day orders of the top items and the listings.
       today: rs.at(-1) ? { orders: rs.at(-1).sum, listings: rs.at(-1).listings, price: rs.at(-1).price } : null,
       size: sizeOf(rs.at(-1), { rules }),
-      pick: picks[c.id] || null,
+      gap: { state: gap.state, he: GAP_STATES[gap.state].he, confidence: gap.confidence, confidenceHe: gap.confidence ? CONFIDENCE[gap.confidence].he : null, il: gap.il, yt: gap.yt, world: gap.world, arrivedOn: gap.arrivedOn, evidence: gap.evidence },
+      window,
+      windowHe: window ? WINDOWS[window].he : null,
+      // The top items' AliExpress ids: the magic button finds a pasted item's concept by them.
+      items: (rs.at(-1)?.top || []).map((x) => x[0]).slice(0, rules.topItems),
+      // …and each one's momentum when it has two readings 3+ days apart: [state, %/week].
+      hot: Object.fromEntries((rs.at(-1)?.top || []).map((x) => [x[0], itemMomentum(items[x[0]] || [])]).filter(([, m]) => m.state !== "UNVERIFIED").map(([id, m]) => [id, [m.state, m.weekPct]])),
+      match: [...new Set([...(Array.isArray(c.hq) ? c.hq : []), ...(c.auto ? [] : [c.he])].filter(Boolean))].slice(0, 4),
+      ...pickView(picks[c.id], { items, gap, stage, window }),
     });
   }
   const order = { EMERGING: 0, RISING: 1, STEADY: 2, PEAK: 3, COOLING: 4, UNVERIFIED: 5 };
-  rows.sort((a, b) => order[a.stage] - order[b.stage] || b.score - a.score || a.he.localeCompare(b.he, "he"));
+  const win = { OPEN: 0, CLOSING: 1, CLOSED: 3 };
+  rows.sort((a, b) => order[a.stage] - order[b.stage] || (win[a.window] ?? 2) - (win[b.window] ?? 2) || b.score - a.score || a.he.localeCompare(b.he, "he"));
   return {
-    v: 1,
+    v: 2,
     at: new Date(now).toISOString(),
     source: "aliexpress_affiliate_api",
+    sources: ["aliexpress_affiliate_api", "google_autocomplete_public", "google_trends_rss_IL"],
     stages: STAGES,
+    gapStates: GAP_STATES,
+    windows: WINDOWS,
+    hotStates: HOT_STATES,
+    actions: ACTIONS,
     concepts: rows,
+    // The site's own products, checked against AliExpress's daily orders (radarOpportunity.js siteHotness).
+    site: site ? { checked: site.checked, counts: site.counts, hot: site.rows.filter((r) => r.state === "HOT").slice(0, 24), cooling: site.rows.filter((r) => r.state === "COOLING").slice(0, 24) } : null,
     record: trackRecord(calls),
+    clock: leadTimes(calls, gaps),
     rules: { emergingPct: rules.emergingPct, risingPct: rules.risingPct, smallOrders: rules.smallOrders, peakOrders: rules.peakOrders, hitPct: rules.hitPct, gradeDays: rules.gradeDays },
+  };
+}
+
+/** A concept's buy pick with its own momentum, the opportunity checklist and the recommendation. */
+function pickView(pick, { items = {}, gap = null, stage = "UNVERIFIED", window = null } = {}) {
+  const momentum = pick?.itemId ? itemMomentum(items[pick.itemId] || []) : null;
+  const action = actionOf({ stage, window, gap, pick, momentum });
+  return {
+    pick: pick ? { ...pick, momentum: momentum ? { state: momentum.state, he: HOT_STATES[momentum.state].he, weekPct: momentum.weekPct, line: momentumLine(momentum) } : null } : null,
+    opportunity: pick ? opportunityOf(pick, { momentum, gap, stage }) : null,
+    action,
+    actionHe: ACTIONS[action],
   };
 }

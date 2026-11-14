@@ -1,9 +1,13 @@
-# The trend radar (/radar, src/lib/growth/trendRadar.js): every day, for every concept on the
-# watch list (scripts/catalog/radar-concepts.json), AliExpress's own numbers through the owner's
-# affiliate account (matching listings, the top items' recent orders and prices). The history and
-# the public self-grading calls live on the "radar" pre-release (readings.json, calls.json); the
-# board the page reads (board.json) goes there too and is copied into the site by
-# deploy-frontend.yml. Read-only on the store and the site; nothing is posted.
+# The trend radar (/radar, src/lib/growth/trendRadar.js + israelGap.js + radarDiscovery.js): every
+# day, for every concept on the watch list (scripts/catalog/radar-concepts.json) and the trial
+# concepts discovery found, AliExpress's own numbers through the owner's affiliate account
+# (matching listings, the top items' recent orders and prices) and the Israel gap (Google's public
+# autocomplete in Israel/Hebrew and in the US, Google Trends' Israel feed; robots.txt read first).
+# The history, the public self-grading calls and the board live on the "radar" pre-release
+# (readings.json, calls.json, awareness.json, discovered.json, board.json); deploy-frontend.yml
+# copies board.json into the site. A run from any branch but main reads that history and writes to
+# "radar-preview" instead, so the live board only changes from main. Read-only on the store, Google
+# and the site; nothing is posted.
 name: Trend radar
 on:
   schedule:
@@ -14,6 +18,9 @@ on:
       - scripts/catalog/radar-concepts.json
       - scripts/catalog/trend-radar.mjs
       - src/lib/growth/trendRadar.js
+      - src/lib/growth/israelGap.js
+      - src/lib/growth/radarDiscovery.js
+      - src/lib/growth/radarOpportunity.js
       - .github/workflows/trend-radar.yml
 permissions:
   contents: write
@@ -23,7 +30,7 @@ concurrency:
 jobs:
   read:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
       ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
@@ -44,9 +51,15 @@ jobs:
       - name: Today's reading
         run: |
           set -o pipefail
-          timeout 600 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
+          timeout 840 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the history and the board
         run: |
-          gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
-          gh release upload radar radar-state/readings.json radar-state/calls.json radar-state/board.json --clobber
+          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/discovered.json radar-state/items.json radar-state/board.json"
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), the Israel gap (Google autocomplete levels, never texts), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
+            gh release upload radar $files --clobber
+          else
+            gh release view radar-preview >/dev/null 2>&1 || gh release create radar-preview --prerelease --title "Trend radar (branch preview)" --notes "A branch run of the trend radar, for review. The site never reads this release; the live board is the radar release, written from main only."
+            gh release upload radar-preview $files --clobber
+          fi

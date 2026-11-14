@@ -13,6 +13,22 @@ or a carousel follows it, and so does the daily routine.
    - high satisfaction (≥ 95% positive);
    - a Google Trends Israel term that really matches it is a bonus.
    Never post something "just because": *"אם תפרסם סתם לא יקנו וחבל"*.
+
+   **The hot-now gate (the owner, 2026-11-14: "every product you upload is not
+   just any product: it is hot and about to become a hit — always remember
+   that").** Before adding or posting a product, check it on the trend radar
+   (`/radar`, or the magic button on its link), which reads AliExpress's own
+   30-day orders for the item every day (`src/lib/growth/radarOpportunity.js`):
+   - **Add or post:** the item is **HOT** (its orders rose ≥ 10% in a week,
+     ≥ 300 orders), or its concept is EMERGING/RISING with an **open window**
+     (not searched in Hebrew in Israel yet, two sources agreeing).
+   - **Only with an angle of our own:** already in Israel and still rising.
+   - **Not now:** COOLING, or PEAK/saturated in Israel.
+   - **Not yet measured** (one reading): wait for the next reading; say so.
+   On 2026-11-14 only 4 of the 79 site products with history were HOT (a
+   watch, a tennis bracelet, crystal earrings, a heart bracelet); 39 sell a lot
+   without accelerating. "Popular" is not "about to be a hit", and the owner is
+   told which is which, never one dressed as the other.
 2. **Every subject, not only jewellery**: kids (squishies, fidget and
    Montessori toys), smart watches, wireless earbuds, men (quality socks, tank
    tops, wallets), clothes, home, kitchen, car, pets, beauty, bags, jewellery.

@@ -1,14 +1,17 @@
 // /radar — the trend radar (src/lib/growth/trendRadar.js): what is starting to rise abroad, read
 // every day from AliExpress's own numbers, each with its evidence, and the radar's public record of
-// its own calls. The board comes from .github/workflows/trend-radar.yml (board.json next to the
-// site). Free during the trial. The store buttons are LikeLink2's tracked links, with the
+// its own calls, plus the Israel gap (src/lib/growth/israelGap.js: is it already searched in
+// Hebrew here?) and the opportunity window. The board comes from .github/workflows/trend-radar.yml
+// (board.json next to the site) and passes radarBoard.js sanitizeBoard before anything renders.
+// Free during the trial. The store buttons are LikeLink2's tracked links, with the
 // disclosure above them; an exit is one click event (med "radar") in the owner's numbers.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Radar, ShieldCheck, Sparkles } from "lucide-react";
+import { Clock, ExternalLink, Radar, ShieldCheck, Sparkles } from "lucide-react";
 import { BASE } from "../../lib/basePath.js";
 import { BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
+import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
@@ -29,6 +32,8 @@ const STAGE_STYLE = {
 };
 
 const dm = (d) => (typeof d === "string" && d.length >= 10 ? `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}` : "");
+/** The first day a direction can be measured: two days after the first reading. */
+const nextDay = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return Number.isFinite(t) ? new Date(t + 2 * 86_400_000).toISOString().slice(0, 10) : ""; };
 
 const automated = () => {
   try { return navigator.webdriver === true || BOT_UA.test(String(navigator.userAgent || "")); } catch { return false; }
@@ -44,18 +49,15 @@ function recordExit(concept, link) {
   storage.set("marketplace:clicks", JSON.stringify([ev]), true, { keepalive: true }).catch(() => {});
 }
 
-function validBoard(doc) {
-  return doc && Array.isArray(doc.concepts) && doc.record && typeof doc.at === "string" ? doc : null;
-}
-
-/** The board: the site's own address first (proxied to GitHub Pages), then GitHub Pages itself. */
-async function loadBoard() {
+/** The board: the site's own address first (proxied to GitHub Pages), then GitHub Pages itself.
+ *  Untrusted input from another host: only what sanitizeBoard keeps is ever rendered. */
+export async function loadBoard() {
   const urls = [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/board.json` : "", RADAR_BOARD_HOME].filter(Boolean))];
   for (const url of urls) {
     try {
       const res = await fetch(url, { cache: "no-cache" });
       if (!res.ok) continue;
-      const doc = validBoard(await res.json());
+      const doc = sanitizeBoard(await res.json());
       if (doc) return doc;
     } catch { /* an SPA fallback page or a network error: try the next address */ }
   }
@@ -85,16 +87,51 @@ function StageBadge({ stage, label }) {
   );
 }
 
+const GAP_STYLE = {
+  GAP: { bg: "#ecfdf3", fg: "#067647", icon: "🇮🇱" },
+  QUIET: { bg: "#f2f4f7", fg: "#475467", icon: "🇮🇱" },
+  ARRIVING: { bg: "#fffaeb", fg: "#b54708", icon: "🇮🇱" },
+  ARRIVED: { bg: "#fef3f2", fg: "#b42318", icon: "🇮🇱" },
+  UNCERTAIN: { bg: "#f9fafb", fg: "#475467", icon: "🇮🇱" },
+  UNKNOWN: { bg: "#ffffff", fg: "#667085", icon: "🇮🇱" },
+};
+
+/** The Israel gap line under a concept: is it already searched in Hebrew here? */
+function IsraelLine({ gap }) {
+  const { L } = useL();
+  const st = GAP_STYLE[gap?.state] || GAP_STYLE.UNKNOWN;
+  if (!gap || gap.state === "UNKNOWN") return null;
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: st.bg, color: st.fg }}>
+      <p className="text-[14px] font-extrabold">{st.icon} {L("בישראל:", "In Israel:")} {gap.he}{gap.confidenceHe ? <span className="text-[12px] font-bold" style={{ opacity: 0.8 }}> · {gap.confidenceHe}</span> : null}</p>
+      {gap.evidence?.length ? (
+        <ul className="mt-1 grid gap-0.5 text-[13px] leading-6" style={{ color: "var(--lx-ink, #101828)" }}>
+          {gap.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function WindowBadge({ window, label }) {
+  if (!window) return null;
+  const s = window === "OPEN" ? { bg: "#101828", fg: "#ffffff" } : window === "CLOSING" ? { bg: "#fef0c7", fg: "#93370d" } : { bg: "#fee4e2", fg: "#912018" };
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, background: s.bg, color: s.fg, fontWeight: 800, fontSize: 13 }}>{window === "OPEN" ? "✨ " : ""}{label}</span>;
+}
+
 function ConceptCard({ c }) {
   const { L } = useL();
   const strong = c.stage === "EMERGING" || c.stage === "RISING";
   return (
-    <li className="lx-card p-4 md:p-5" style={{ boxShadow: "none", border: `1px solid ${strong ? "#bbf7d0" : "var(--lx-line)"}` }}>
+    <li id={c.id} className="lx-card p-4 md:p-5" style={{ scrollMarginTop: 90, boxShadow: "none", border: `1px solid ${strong ? "#bbf7d0" : "var(--lx-line)"}` }}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <StageBadge stage={c.stage} label={c.stageHe} />
-          <h3 className="mt-2 text-[19px] font-extrabold leading-7">{c.he}</h3>
-          {KINDS[c.kind] ? <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{KINDS[c.kind]}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <StageBadge stage={c.stage} label={c.stageHe} />
+            <WindowBadge window={c.window} label={c.windowHe} />
+          </div>
+          <h3 className="mt-2 text-[19px] font-extrabold leading-7" dir={c.auto ? "ltr" : undefined} style={c.auto ? { textAlign: "right" } : undefined}>{c.he}</h3>
+          {KINDS[c.kind] || c.auto ? <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{[KINDS[c.kind], c.auto ? L(`התגלה אוטומטית ב־${dm(c.found)} · המילים של החנות`, `Found automatically ${dm(c.found)} · the store's words`) : ""].filter(Boolean).join(" · ")}</p> : null}
         </div>
         <div className="text-left" style={{ color: STAGE_STYLE[c.stage]?.dot || "#9ca3af" }}>
           <Spark series={c.series} />
@@ -104,12 +141,15 @@ function ConceptCard({ c }) {
       <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
         {c.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
       </ul>
+      <IsraelLine gap={c.gap} />
+      {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
       {c.pick ? (
         <div className="mt-4 flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--lx-sky)" }}>
           {c.pick.image ? <div style={{ width: 64, height: 64, flex: "0 0 64px", borderRadius: 12, overflow: "hidden", background: "#fff" }}><Img src={c.pick.image} alt={c.pick.title} loading="lazy" style={{ width: 64, height: 64, objectFit: "cover" }} /></div> : null}
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14px] font-bold">{c.pick.title}</p>
             {c.pick.price ? <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`מ־₪${c.pick.price} בחנות · נבדק ב־${dm(c.pick.checkedAt)}`, `from ₪${c.pick.price} · checked ${dm(c.pick.checkedAt)}`)}</p> : null}
+            {c.pick.momentum ? <p className="text-[12px] font-bold" style={{ color: c.pick.momentum.state === "HOT" ? "#166534" : "var(--lx-muted)" }}>{c.pick.momentum.state === "HOT" ? "🔥 " : ""}{c.pick.momentum.he}{Number.isFinite(c.pick.momentum.weekPct) ? ` (${c.pick.momentum.weekPct > 0 ? "+" : ""}${c.pick.momentum.weekPct}% בשבוע)` : ""}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <a href={c.pick.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(c.id, c.pick.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 38, padding: "6px 14px", fontSize: 13 }}>
@@ -120,6 +160,15 @@ function ConceptCard({ c }) {
         </div>
       ) : c.stage !== "UNVERIFIED" ? (
         <p className="mt-3 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("עוד אין פריט שעובר את הכללים שלנו (95% שביעות רצון, 300 הזמנות, בלי חיקויים).", "No item passes our rules yet (95% satisfaction, 300 orders, no imitations).")}</p>
+      ) : null}
+      {c.opportunity ? (
+        <details className="mt-3 text-[13px]">
+          <summary className="cursor-pointer font-bold">{L(`בדיקת הזדמנות: ${c.opportunity.passed} מתוך ${c.opportunity.measured} בדיקות שנמדדו עברו`, `Opportunity check: ${c.opportunity.passed} of ${c.opportunity.measured} measured checks passed`)}</summary>
+          <ul className="mt-2 grid gap-1">
+            {c.opportunity.checks.map((x) => <li key={x.id}>{x.ok === true ? "✅" : x.ok === false ? "❌" : "⏳"} {x.he}{x.ok === null ? L(" (עוד לא נמדד)", " (not measured yet)") : ""}</li>)}
+          </ul>
+          {c.pick?.momentum?.line ? <p className="mt-2" style={{ color: "var(--lx-muted)" }}>{c.pick.momentum.line}</p> : null}
+        </details>
       ) : null}
       <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`על הרדאר מ־${dm(c.since)} · נמדד לאחרונה ${dm(c.measured)} · נתוני אליאקספרס`, `On the radar since ${dm(c.since)} · last measured ${dm(c.measured)} · AliExpress data`)}</p>
     </li>
@@ -137,28 +186,59 @@ const n = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("he-IL")
  * Before a second reading: today's size of each concept (never a direction). Small markets first,
  * because that is where a rise would show early.
  */
-function MarketMap({ list }) {
+function MarketMap({ list, openId = "" }) {
   const { L } = useL();
   const groups = ["SMALL", "MID", "BIG"].map((k) => [k, list.filter((c) => c.size === k).sort((a, b) => (a.today?.orders || 0) - (b.today?.orders || 0))]).filter(([, l]) => l.length);
   return (
     <>
       <h3 className="mt-8 text-[18px] font-extrabold">{L("מפת השוק של היום", "Today's market map")}</h3>
-      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("גודל זה לא כיוון: הוא אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading.")}</p>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("גודל זה לא כיוון: הוא אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה. לחיצה על שורה פותחת את כל הבדיקה: בישראל, הפריט לקנייה, בדיקת ההזדמנות וההמלצה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading. Tap a row for the full check.")}</p>
       {groups.map(([k, l]) => (
         <div key={k} className="mt-4">
           <p className="text-[15px] font-extrabold" style={{ color: SIZE[k].color }}>{SIZE[k].he} · {l.length}</p>
           <ul className="mt-2 grid gap-1.5">
             {l.map((c) => (
-              <li key={c.id} className="flex items-baseline justify-between gap-3 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)" }}>
-                <span className="font-bold">{c.he}</span>
-                <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${n(c.today?.orders)} הזמנות בחודש · ${n(c.today?.listings)} מודעות`, `${n(c.today?.orders)} orders a month · ${n(c.today?.listings)} listings`)}</span>
+              <li key={c.id} id={c.id} style={{ scrollMarginTop: 90 }}>
+                <details open={openId === c.id}>
+                  <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
+                    <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
+                    <span className="flex flex-wrap items-baseline gap-2">
+                      {c.gap?.state && c.gap.state !== "UNKNOWN" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{L("בישראל:", "Israel:")} {c.gap.he}</span> : null}
+                      {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
+                      <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${n(c.today?.orders)} הזמנות בחודש · ${n(c.today?.listings)} מודעות`, `${n(c.today?.orders)} orders a month · ${n(c.today?.listings)} listings`)}</span>
+                    </span>
+                  </summary>
+                  <ul className="mt-2"><ConceptCard c={c} /></ul>
+                </details>
               </li>
             ))}
           </ul>
         </div>
       ))}
-      <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("ההזמנות: סכום 30 הימים האחרונים של 20 הפריטים המובילים בכל סוג. המודעות: כמה מוצרים תואמים יש באליאקספרס. נתוני אליאקספרס, נמדדו היום.", "Orders: the last 30 days of the top 20 items of each kind. Listings: how many matching products AliExpress has. AliExpress data, measured today.")}</p>
+      <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("״בישראל״: האם בגוגל בישראל מציעים השלמות לחיפוש הזה בעברית (סימן שמחפשים אותו), נמדד היום. ההזמנות: סכום 30 הימים האחרונים של 20 הפריטים המובילים בכל סוג. המודעות: כמה מוצרים תואמים יש באליאקספרס. נתוני אליאקספרס, נמדדו היום.", "\"In Israel\": whether Google in Israel suggests completions for this search in Hebrew (a sign people search it), measured today. Orders: the last 30 days of the top 20 items of each kind. Listings: how many matching products AliExpress has. AliExpress data, measured today.")}</p>
     </>
+  );
+}
+
+/** The site's own products whose AliExpress orders are accelerating this week (board.site). */
+function SiteHot({ site }) {
+  const { L } = useL();
+  if (!site?.checked) return null;
+  return (
+    <div className="lx-card mt-8 p-4 md:p-5" style={{ boxShadow: "none", border: "1px solid #bbf7d0" }}>
+      <h3 className="text-[18px] font-extrabold">{L("🔥 באתר עכשיו: מה באמת חם השבוע", "🔥 On the site now: what is really hot this week")}</h3>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`בדקנו ${site.checked} מוצרים מהאתר מול ההזמנות באליאקספרס, כל יום. חם = ההזמנות של הפריט עלו ב־10% ומעלה בשבוע.`, `We check ${site.checked} of the site's products against AliExpress orders every day. Hot = the item's orders rose 10%+ in a week.`)}</p>
+      {site.hot.length ? (
+        <ul className="mt-3 grid gap-2">
+          {site.hot.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl px-3 py-2 text-[14px]" style={{ background: "#ecfdf3" }}>
+              <Go to={`/p/${r.id}`} className="font-bold underline">{r.title || r.id}</Go>
+              <span className="text-[12px]" style={{ color: "#166534" }}>{L(`+${r.weekPct}% בשבוע · ${n(r.ordersBefore)} ← ${n(r.orders)} הזמנות ב־30 יום (${dm(r.from)}–${dm(r.to)})`, `+${r.weekPct}%/week · ${n(r.ordersBefore)} → ${n(r.orders)} orders in 30 days (${dm(r.from)}–${dm(r.to)})`)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="mt-3 text-[14px]">{L("השבוע אין באתר מוצר שההזמנות שלו מאיצות. זה מידע אמיתי, לא תקלה.", "No product on the site is accelerating this week. That is real information, not a fault.")}</p>}
+    </div>
   );
 }
 
@@ -167,11 +247,22 @@ export function RadarPage() {
   const [board, setBoard] = useState(undefined);
   const [kind, setKind] = useState("");
   const [shown, setShown] = useState(false);
+  const [hashId, setHashId] = useState("");
   const results = useRef(null);
 
   useEffect(() => {
     let live = true;
-    loadBoard().then((b) => { if (live) setBoard(b); });
+    loadBoard().then((b) => {
+      if (!live) return;
+      setBoard(b);
+      // A link from the magic button (/radar#<concept>) opens on that concept.
+      const id = typeof location !== "undefined" ? decodeURIComponent(location.hash.slice(1)) : "";
+      if (b && /^[a-z0-9-]{2,42}$/.test(id) && b.concepts.some((c) => c.id === id)) {
+        setShown(true);
+        setHashId(id);
+        setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      }
+    });
     return () => { live = false; };
   }, []);
 
@@ -182,6 +273,8 @@ export function RadarPage() {
   const measuring = list.filter((c) => c.stage === "UNVERIFIED");
   const rest = list.filter((c) => !early.includes(c) && !measuring.includes(c));
   const record = board?.record;
+  const clock = board?.clock;
+  const open = list.filter((c) => c.window === "OPEN");
   const firstResults = concepts.length && concepts.every((c) => c.stage === "UNVERIFIED");
 
   const press = () => {
@@ -206,11 +299,12 @@ export function RadarPage() {
       </section>
 
       <section className="lx-wrap mt-8">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
             [L("1. מודדים כל יום", "1. Measured daily"), L("כ־60 סוגי מוצרים באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "About 60 kinds of products on AliExpress: the top 20 items' orders, the number of listings and the price.")],
             [L("2. מהירות, לא גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. פריט ויראלי אחד לא מספיק.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
-            [L("3. הרדאר בודק את עצמו", "3. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],
+            [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ועוד לא מחפשים כאן? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
+            [L("4. הרדאר בודק את עצמו", "4. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],
           ].map(([t, d]) => (
             <div key={t} className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
               <p className="font-extrabold">{t}</p>
@@ -227,6 +321,18 @@ export function RadarPage() {
               <p>{L(`מתוך ${record.graded} סימונים שנבדקו אחרי 14 יום, ${record.hits} באמת עלו ב־${board.rules.hitPct}% או יותר (${record.accuracy}%).`, `Of ${record.graded} calls checked after 14 days, ${record.hits} really rose by ${board.rules.hitPct}% or more (${record.accuracy}%).`)}</p>
             ) : (
               <p>{record?.pending ? L(`${record.pending} סימונים מחכים לבדיקה. הבדיקה הראשונה: ${dm(record.nextDue)}.`, `${record.pending} calls are waiting. The first check: ${dm(record.nextDue)}.`) : L("עוד אין סימונים לבדוק. כשהרדאר יסמן טרנד ראשון, הוא ייבדק אחרי 14 יום והתוצאה תופיע כאן.", "No calls to check yet. When the radar flags its first trend, it is checked 14 days later and the result shows here.")}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="lx-card mt-3 flex items-start gap-3 p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+          <Clock size={22} aria-hidden="true" style={{ flex: "0 0 22px", color: "#2563eb" }} />
+          <div className="text-[14px] leading-6">
+            <p className="font-extrabold">{L("שעון ההגעה לישראל", "The Israel arrival clock")}</p>
+            {clock?.typicalDays !== null && clock?.typicalDays !== undefined ? (
+              <p>{L(`עד היום נצפו ${clock.observed} הגעות: בדרך כלל עוברים ${clock.typicalDays} ימים מהסימון של הרדאר ועד שמתחילים לחפש את זה בעברית.`, `${clock.observed} arrivals observed so far: typically ${clock.typicalDays} days pass between the radar's call and the first Hebrew searches.`)}</p>
+            ) : (
+              <p>{L(`הרדאר מודד כמה ימים עוברים מהרגע שטרנד מתחיל לעלות באליאקספרס ועד שמתחילים לחפש אותו בגוגל בעברית. ${clock?.observed ? `עד היום נצפו ${clock.observed} הגעות;` : "עוד לא נצפתה הגעה;"} המספר יוצג מ־3 הגעות.`, `The radar measures how many days pass from a trend starting to rise on AliExpress to the first Hebrew searches on Google. ${clock?.observed ? `${clock.observed} arrivals observed so far;` : "No arrival observed yet;"} the number shows from 3 arrivals.`)}</p>
             )}
           </div>
         </div>
@@ -251,12 +357,19 @@ export function RadarPage() {
                 {L(`הרדאר התחיל למדוד ב־${dm(concepts[0]?.since)}. כדי לראות כיוון צריך שתי מדידות בהפרש של יומיים לפחות, אז התוצאות הראשונות יופיעו בעוד יומיים. בינתיים: אלה סוגי המוצרים שעל הרדאר.`, `The radar started measuring on ${dm(concepts[0]?.since)}. A direction needs two readings at least two days apart, so the first results come in two days. Meanwhile: the kinds on the radar.`)}
               </p>
             ) : null}
-            {(shown || early.length) && early.length ? (
+            {open.length ? (
               <>
-                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ מתחיל לעלות ובעלייה", "✨ Starting to rise and rising")}</h3>
-                <ul className="mt-3 grid gap-3 md:grid-cols-2">{early.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
+                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ חלון פתוח: עולה בעולם, עוד לא בארץ", "✨ Open window: rising abroad, not here yet")}</h3>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("ההזמנות באליאקספרס מאיצות, ובגוגל בעברית עוד אין חיפושים. זה הזמן שבו מי שמגיע ראשונה מגיעה לפני כולם.", "Orders on AliExpress are speeding up and nobody searches it in Hebrew on Google yet. That's when whoever arrives first is ahead of everyone.")}</p>
+                <ul className="mt-3 grid gap-3 md:grid-cols-2">{open.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
-            ) : shown && !firstResults ? (
+            ) : null}
+            {(shown || early.length) && early.filter((c) => c.window !== "OPEN").length ? (
+              <>
+                <h3 className="mt-6 text-[20px] font-extrabold">{L("מתחיל לעלות ובעלייה", "Starting to rise and rising")}</h3>
+                <ul className="mt-3 grid gap-3 md:grid-cols-2">{early.filter((c) => c.window !== "OPEN").map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
+              </>
+            ) : shown && !firstResults && !open.length ? (
               <p className="mt-6">{L("היום אין סוג מוצר שעובר את הסף של הרדאר. זה גם מידע: אין כרגע טרנד חדש ברור.", "Today no kind passes the radar's threshold. That is information too: no clear new trend right now.")}</p>
             ) : null}
             {rest.length ? (
@@ -265,9 +378,10 @@ export function RadarPage() {
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : null}
-            {measuring.length ? <MarketMap list={measuring} /> : null}
+            <SiteHot site={board.site} />
+            {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
-              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. The radar shows signs and never promises sales.")}
+              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא בארץ״ נקבע רק כששני מקורות החיפוש מסכימים. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
             </p>
           </>
         ) : null}

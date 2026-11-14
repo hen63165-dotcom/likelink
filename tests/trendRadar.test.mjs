@@ -135,7 +135,7 @@ test("the watch list: valid, unique, generic words only (no brand, no unlisted k
 });
 
 test("the radar never promises a hit", () => {
-  const src = readFileSync("src/lib/growth/trendRadar.js", "utf8");
+  const src = ["src/lib/growth/trendRadar.js", "src/lib/growth/israelGap.js", "src/components/discover/radar.jsx"].map((f) => readFileSync(f, "utf8")).join("\n");
   const shown = [...src.matchAll(/"([^"]*[֐-׿][^"]*)"/g)].map((m) => m[1]).join("\n");
   assert.doesNotMatch(shown, /יהיה להיט|בטוח|מובטח|הכי נמכר|תחזית/);
 });
