@@ -233,3 +233,19 @@ test("one object: the radar card and the magic button show the same Alpha", () =
   assert.match(out.audit.policy, /never deleted/);
   assert.deepEqual(out.decisions, [], "a kept product is never sent to the archive");
 });
+
+test("the kits page: escaped, store photos and the site's own tracked links only, noindex", async () => {
+  const { kitsPage } = await import("../scripts/marketing/radar-kits.mjs");
+  const hooks = [{ type: "question", text: "מחפשת עגיל ליומיום?" }];
+  const k = kitOf(OK, { hooks, origin: "https://likelink2.vercel.app", now: at("2026-11-14") });
+  const evil = { ...k, productId: "<script>x</script>", variants: [{ ...k.variants[0], link: "javascript:alert(1)" }], storyboard: [{ t: "0", shot: "x", photo: "https://evil.example/a.jpg" }] };
+  const html = kitsPage({ status: "S", ready: 1, halted: 1, briefs: [k, evil, { productId: "h", status: "HALTED", flags: ["אין מחיר מאומת מהחנות"] }] });
+  assert.match(html, /noindex/);
+  assert.match(html, /#פרסומת · קישור שותפים/);
+  assert.ok(html.includes(`href="${k.variants[0].link.replace(/&/g, "&amp;")}"`));
+  assert.ok(!html.includes("<script>x"), "text is escaped");
+  assert.ok(!html.includes("javascript:"), "only the site's own links");
+  assert.ok(!html.includes("evil.example"), "only store photos");
+  assert.match(html, /נעצר: חסר מידע מאומת/);
+  assert.match(kitsPage(null), /אין עדיין מוצר/);
+});

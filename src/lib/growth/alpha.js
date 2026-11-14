@@ -292,10 +292,11 @@ const CHANNELS = Object.freeze([
   { id: "tiktok", he: "טיקטוק", slot: "20:30", source: "tiktok", medium: "video" },
   { id: "facebook_page", he: "עמוד פייסבוק", slot: "19:00", source: "facebook", medium: "reel" },
 ]);
+// The exact credential names are the publishers' own (likeloop.js CHANNEL_ADAPTERS).
 export const AUTOPOST = Object.freeze({
-  instagram_reel: "BLOCKED: אין IG_USER_ID ו־IG_ACCESS_TOKEN בשרת (פונקציית Edge), ופרסום רק אחרי אישור שלך",
-  tiktok: "BLOCKED: לטיקטוק אין ממשק פרסום פתוח לחשבון שלך; מעלים ידנית",
-  facebook_page: "BLOCKED: אין טוקן עמוד בשרת; Upload-Post הגיע למכסה החודשית",
+  instagram_reel: "BLOCKED: חסרים IG_USER_ID ו־IG_ACCESS_TOKEN בשרת, ופרסום רק אחרי אישור שלך לכל פוסט",
+  tiktok: "BLOCKED: חסר TIKTOK_ACCESS_TOKEN ואין מפרסם לטיקטוק בקוד; מעלים ידנית",
+  facebook_page: "BLOCKED: חסרים FB_PAGE_ID ו־FB_PAGE_TOKEN בשרת ואין מפרסם לפייסבוק בקוד",
 });
 
 /**

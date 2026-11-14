@@ -186,7 +186,11 @@ jobs:
         run: |
           mkdir -p dist/radar
           gh release download radar --pattern board.json --dir dist/radar --clobber || echo "::warning::no radar board yet"
-          ls -la dist/radar
+          # The promotion kits of the products the radar keeps (alpha.js kitOf) → /radar/kits/
+          # (noindex, the owner's worksheet; nothing is posted from it).
+          gh release download radar --pattern briefs.json --dir /tmp/radar-kits --clobber || echo "::warning::no kits yet"
+          node scripts/marketing/radar-kits.mjs /tmp/radar-kits/briefs.json dist/radar/kits || true
+          ls -la dist/radar dist/radar/kits
 
       - name: Publish dist to gh-pages
         env:

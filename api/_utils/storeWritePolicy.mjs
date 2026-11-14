@@ -228,6 +228,24 @@ const policyClicks = appendOnly({
   },
 });
 
+// Per-product engagement (src/lib/engagement.js): a real visitor's play / complete / share / save,
+// server-only read, known fields only. Kept apart from marketplace:clicks, whose readers count every
+// non-view event as an exit to the store.
+const ENGAGEMENT_TYPES = new Set(["play", "complete", "share", "save"]);
+const SHARE_NETS = new Set(["whatsapp", "telegram", "facebook", "pinterest", "x", "email", "copy", "native"]);
+const policyEngagement = appendOnly({
+  cap: 8000,
+  maxNew: 3,
+  accept: (n, ctx) => typeof n.productId === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(n.productId) && ENGAGEMENT_TYPES.has(n.type) && recentTs(n.ts, ctx.now),
+  sanitize: (n) => {
+    const out = { id: String(n.id).slice(0, 80), productId: n.productId, type: n.type, ts: Number(n.ts) };
+    if (n.type === "share" && SHARE_NETS.has(n.net)) out.net = n.net;
+    for (const [k, max] of [["src", 80], ["med", 60], ["camp", 80], ["cnt", 60]]) if (typeof n[k] === "string" && n[k]) out[k] = n[k].slice(0, max);
+    if (typeof n.cid === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(n.cid)) out.cid = n.cid;
+    return out;
+  },
+});
+
 function policyReferralClicks(stored, next, ctx) {
   // Append new clicks; existing ones may only flip converted false → true.
   const { result, created, rejected, rejectedCreates } = mergeOwnedById(stored, next, ctx, {
@@ -269,6 +287,7 @@ export const BROWSER_WRITE_POLICIES = Object.freeze({
   "marketplace:marketers": policyMarketers,
   "marketplace:clicks": policyClicks,
   "marketplace:funnel": policyFunnel,
+  "marketplace:engagement": policyEngagement,
   "marketplace:referral_clicks": policyReferralClicks,
   "marketplace:notifications": policyNotifications,
   "marketplace:charges": policyCharges,

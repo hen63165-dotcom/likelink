@@ -24,6 +24,7 @@ import { planIncluding } from "../../src/lib/discovery/quotas.js";
 import { aeStatus, importHotProducts, importChosenItems, repairSharedLinks, dailyAffiliateImport } from "./aliexpressAffiliate.mjs";
 import { sharedAffiliateLinks } from "../../src/lib/discovery/catalogIntegrity.js";
 import { growthMetrics } from "../../src/lib/growth/metrics.js";
+import { productTelemetry } from "../../src/lib/growth/productTelemetry.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 const CONTROL_OPS = new Set(["enable", "disable", "pause", "resume", "settings"]);
@@ -139,6 +140,20 @@ export function createMarketingEngineHandler({
           kvGet("affiliate:earnings", null), kvGet("marketplace:products", []),
         ]);
         json(res, { ok: true, ...growthMetrics({ funnel, clicks, earnings, products, now: now() }) }, 200, req);
+        return;
+      }
+
+      // Per-product numbers (src/lib/growth/productTelemetry.js): views, visits, exits, video plays and
+      // completions, shares, saves, real orders and the store's estimated commission; what is not on
+      // our servers (likes/comments/views on the networks) is BLOCKED with the missing connection.
+      if (req.method === "GET" && op === "product-metrics") {
+        if (!who || !(who.admin || who.platformOwner)) { json(res, { ok: false, error: who ? "owner_only" : "authentication_required" }, who ? 403 : 401, req); return; }
+        const [clicks, engagement, funnel, earnings, products] = await Promise.all([
+          kvGet("marketplace:clicks", []), kvGet("marketplace:engagement", []), kvGet("marketplace:funnel", []),
+          kvGet("affiliate:earnings", null), kvGet("marketplace:products", []),
+        ]);
+        const days = Math.min(90, Math.max(1, Number(url.searchParams.get("days")) || 30));
+        json(res, { ok: true, ...productTelemetry({ clicks, engagement, funnel, earnings, products, igConfigured: Boolean(env.IG_USER_ID && env.IG_ACCESS_TOKEN), now: now(), days }) }, 200, req);
         return;
       }
 

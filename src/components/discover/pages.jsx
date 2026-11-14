@@ -634,7 +634,7 @@ export function ProductPage({ graph, id, navigate }) {
               reels stay one scroll below, in "בסרטונים". */}
           <div className="md:sticky md:top-24 md:self-start">
             <div className="lx-card" style={heroVideo ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
-              <Media src={look?.src || product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)}>
+              <Media src={look?.src || product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)} engageId={heroVideo ? product.id : ""}>
                 {heroVideo ? null : (
                   <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">
                     {look ? <span className="lx-badge lx-badge-glass">{lookLabel(look.source, lang)}</span> : <MediaBadge state={product.media.state} showImage />}
@@ -838,6 +838,7 @@ export function ReelsPage({ graph }) {
                 controls={kind === "reel"}
                 controlsAt="side"
                 onFirstPlay={() => { if (product && recordProductView) recordProductView(product); }}
+                engageId={kind === "reel" && product ? product.id : ""}
                 onVideoError={kind === "reel" ? () => dropReel(reel.id) : undefined}
               />
               <div className="lx-reel-shade" />
