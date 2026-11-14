@@ -1,24 +1,39 @@
-// The trend radar's daily reading (src/lib/growth/trendRadar.js). For every concept on the watch
-// list (scripts/catalog/radar-concepts.json) it asks AliExpress, through the owner's affiliate
-// account, for the matching listings sorted by recent orders, keeps the reading (listings, the top
-// items' orders and prices), the first item that passes the site's rules (to buy), updates the
-// public self-grading calls, and writes the board the /radar page reads.
+// The trend radar's daily reading (src/lib/growth/trendRadar.js + israelGap.js + radarDiscovery.js).
+//
+//   1. Discovery: AliExpress's hot-products list per category (English titles) → up to 3 new trial
+//      concepts a day that several hot items share and the watch list does not cover yet.
+//   2. For every concept (the watch list scripts/catalog/radar-concepts.json + the trial concepts):
+//      AliExpress, through the owner's affiliate account — the matching listings sorted by recent
+//      orders (listings, the top items' orders and prices) and the first item that passes the
+//      site's rules (to buy).
+//   3. The Israel gap: Google's public autocomplete — in Israel in Hebrew (the concept's `hq`), in
+//      Israel in English, in the US in English — counted as extensions (never stored as text), and
+//      Google Trends' daily Israel feed. robots.txt is read first; a disallowed or failing source is
+//      skipped for the day (no reading, never a zero).
+//   4. The public self-grading calls, the arrival clock, and the board the /radar page reads.
 //
 //   node scripts/catalog/trend-radar.mjs <state-dir>
-//   <state-dir>/readings.json and calls.json are the history (the "radar" release keeps them);
-//   <state-dir>/board.json is the public board.
-// Read-only on the store and the site. A concept the store does not answer keeps its history and
-// gets no reading today (never a zero). env: ALIEXPRESS_APP_KEY / APP_SECRET / TRACKING_ID.
+//   <state-dir>/readings.json, calls.json, awareness.json, discovered.json are the history (the
+//   "radar" release keeps them); <state-dir>/board.json is the public board.
+// Read-only on the store, Google and the site; nothing is posted. env: ALIEXPRESS_APP_KEY /
+// APP_SECRET / TRACKING_ID; RADAR_SUGGEST=0 turns the Google reads off, RADAR_DISCOVER=0 discovery.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
+import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
+import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
+import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
+import { parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
+const HOT = "aliexpress.affiliate.hotproduct.query";
+const UA = "LikeLink2-radar/1.0 (+https://likelink2.vercel.app/radar)";
 const readJson = (file, fallback) => {
   try { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : fallback; } catch { return fallback; }
 };
+const pause = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
 
 /** One concept's answer from the store, or why there is none. */
 export async function readConcept(c, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
@@ -30,18 +45,68 @@ export async function readConcept(c, { env = process.env, fetchImpl = globalThis
   return { ok: true, result: r.result || {} };
 }
 
-export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000 } = {}) {
+/** AliExpress's hot list for one category, in English (discovery reads the store's own words). */
+async function hotList(category, { env, fetchImpl, now }) {
+  const e = aeEnv(env);
+  const biz = { keywords: category.keywords, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" };
+  const res = await aeCall(HOT, biz, { env: e, fetchImpl, now });
+  const r = res?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
+  if (Number(r?.resp_code) !== 200) throw new Error(`resp ${r?.resp_code ?? "none"}`);
+  const raw = r.result?.products?.product;
+  return Array.isArray(raw) ? raw : raw ? [raw] : [];
+}
+
+async function getText(url, fetchImpl) {
+  const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
+  return { status: res.status, text: await res.text() };
+}
+
+/** Counted autocomplete extensions for one phrase (null when the answer is not usable). */
+async function suggestCount(phrase, opts, fetchImpl) {
+  const got = await getText(suggestUrl(phrase, opts), fetchImpl);
+  if (got.status !== 200) return null;
+  return extensions(phrase, parseSuggest(got.text));
+}
+
+export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 300_000, politeMs = 350 } = {}) {
   mkdirSync(dir, { recursive: true });
-  const { concepts: all = [] } = readJson("scripts/catalog/radar-concepts.json", {});
-  const concepts = all.filter(validConcept);
+  const { concepts: listed = [] } = readJson("scripts/catalog/radar-concepts.json", {});
+  const watch = listed.filter(validConcept);
   const readings = readJson(join(dir, "readings.json"), {});
+  const awareness = readJson(join(dir, "awareness.json"), {});
+  let discovered = readJson(join(dir, "discovered.json"), []);
   const prevBoard = readJson(join(dir, "board.json"), {});
   const picks = Object.fromEntries((prevBoard.concepts || []).filter((c) => c.pick).map((c) => [c.id, c.pick]));
+  const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
   let calls = readJson(join(dir, "calls.json"), []);
   const log = [];
-  if (!aeStatus(env).configured) {
+  const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", trendsIL: "OFF" };
+  const store = aeStatus(env).configured;
+
+  // 1. Discovery.
+  if (store && env.RADAR_DISCOVER !== "0") {
+    const lists = {};
+    const started = Date.now();
+    for (const cat of TREND_CATEGORIES.filter((c) => CATEGORY_KIND[c.key])) {
+      if (Date.now() - started > 60_000) { log.push(`discovery: budget over at ${cat.key}`); break; }
+      try { lists[cat.key] = await hotList(cat, { env, fetchImpl, now }); } catch (err) { log.push(`discovery ${cat.key}: ${String(err?.message || err).slice(0, 80)}`); }
+    }
+    const candidates = discover(lists, watch);
+    const before = new Set(discovered.map((c) => c.id));
+    discovered = admitDiscovered(discovered, candidates, { concepts: watch, stages: stagesBefore, now });
+    const added = discovered.filter((c) => !before.has(c.id));
+    sources.discovery = Object.keys(lists).length ? "OK" : "FAILED";
+    log.push(`discovery: ${Object.keys(lists).length} hot lists · ${candidates.length} candidates · added ${added.map((c) => c.en).join(", ") || "none"} · on trial ${discovered.length}`);
+    // Readings of concepts that left the trial are dropped with them.
+    for (const id of Object.keys(readings)) if (id.startsWith("auto-") && !discovered.some((c) => c.id === id)) { delete readings[id]; delete awareness[id]; delete picks[id]; }
+  }
+  const concepts = [...watch, ...discovered.filter(validConcept)];
+
+  // 2. AliExpress readings.
+  if (!store) {
     log.push("AliExpress affiliate account not connected here (REQUIRES_CONNECTION): no reading today");
   } else {
+    sources.aliexpress = "OK";
     const started = Date.now();
     for (const c of concepts) {
       if (Date.now() - started > budgetMs) { log.push(`${c.id}: budget over, not read today`); continue; }
@@ -62,18 +127,67 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
     }
   }
-  const board = buildBoard({ concepts, readings, picks, calls, now });
+
+  // 3. The Israel gap.
+  if (env.RADAR_SUGGEST !== "0") {
+    let trendIds = new Set();
+    try {
+      const robots = await getText(`${new URL(TRENDS_IL_RSS).origin}/robots.txt`, fetchImpl);
+      if (robotsAllows(robots.status, robots.text, "/trending/rss")) {
+        const rss = await getText(TRENDS_IL_RSS, fetchImpl);
+        if (rss.status === 200) {
+          trendIds = trendingInIsrael(concepts, parseTrendsRss(rss.text));
+          sources.trendsIL = "OK";
+        } else sources.trendsIL = `HTTP_${rss.status}`;
+      } else sources.trendsIL = "ROBOTS_DISALLOW";
+    } catch (err) { sources.trendsIL = "FAILED"; log.push(`google trends IL: ${String(err?.message || err).slice(0, 80)}`); }
+    let allowed = false;
+    try {
+      const robots = await getText(`${SUGGEST_HOST}/robots.txt`, fetchImpl);
+      allowed = robotsAllows(robots.status, robots.text, SUGGEST_PATH);
+      sources.suggest = allowed ? "OK" : "ROBOTS_DISALLOW";
+    } catch (err) { sources.suggest = "FAILED"; log.push(`autocomplete robots: ${String(err?.message || err).slice(0, 80)}`); }
+    if (allowed) {
+      const started = Date.now();
+      let failures = 0;
+      for (const c of concepts) {
+        if (Date.now() - started > suggestBudgetMs) { log.push(`${c.id}: search budget over, no Israel reading today`); continue; }
+        if (failures >= 8) { sources.suggest = "FAILING"; log.push("autocomplete: 8 failed answers, stopped for today"); break; }
+        try {
+          const he = [];
+          for (const q of (Array.isArray(c.hq) ? c.hq : []).slice(0, 2)) { he.push(await suggestCount(q, { hl: "he", gl: "il" }, fetchImpl)); await pause(politeMs); }
+          const en = await suggestCount(c.en, { hl: "he", gl: "il" }, fetchImpl); await pause(politeMs);
+          const world = await suggestCount(c.en, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs);
+          const answered = [...he, en, world].filter((n) => n !== null).length;
+          if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
+          const reading = awarenessReading({ he, en, world, trend: trendIds.has(c.id) }, { now });
+          awareness[c.id] = addAwareness(awareness[c.id], reading);
+          log.push(`${c.id}: Israel he=${reading.il ?? "-"} en=${reading.ilEn ?? "-"} · US ${reading.world ?? "-"}${reading.trend ? " · trending in Israel" : ""}`);
+        } catch (err) {
+          failures++;
+          log.push(`${c.id}: autocomplete ${String(err?.message || err).slice(0, 80)}`);
+        }
+      }
+    }
+  }
+
+  const board = buildBoard({ concepts, readings, picks, calls, awareness, now });
+  board.sourcesToday = sources;
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
+  writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
+  writeFileSync(join(dir, "discovered.json"), JSON.stringify(discovered, null, 1));
   writeFileSync(join(dir, "board.json"), JSON.stringify(board));
   const counts = board.concepts.reduce((m, c) => ((m[c.stage] = (m[c.stage] || 0) + 1), m), {});
-  return { board, log, counts };
+  const gapCounts = board.concepts.reduce((m, c) => ((m[c.gap.state] = (m[c.gap.state] || 0) + 1), m), {});
+  return { board, log, counts, gapCounts, sources };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
   const dir = process.argv[2] || "radar-state";
-  const { log, counts, board } = await run(dir);
+  const { log, counts, gapCounts, sources, board } = await run(dir);
   console.log(log.join("\n"));
-  console.log("stages:", JSON.stringify(counts), "· record:", JSON.stringify(board.record));
+  console.log("sources:", JSON.stringify(sources));
+  console.log("stages:", JSON.stringify(counts), "· israel:", JSON.stringify(gapCounts), "· record:", JSON.stringify(board.record), "· clock:", JSON.stringify(board.clock));
   console.log("rules:", JSON.stringify(RADAR.pickRules));
 }

@@ -22,6 +22,7 @@
 // Pure: no I/O. The collector is scripts/catalog/trend-radar.mjs; the page reads its board.json.
 import { orderCount } from "./deals.js";
 import { FIND_RULES, findResults } from "./findOnAli.js";
+import { GAP_STATES, WINDOWS, gapOf, leadTimes, windowOf } from "./israelGap.js";
 
 export const RADAR = Object.freeze({
   topItems: 20, // the items whose orders make a concept's demand
@@ -240,19 +241,26 @@ export function trackRecord(calls = []) {
 }
 
 /**
- * The public board: every concept with its stage, score, evidence, demand series and buy pick,
- * strongest first; and the radar's own record. Nothing private (no seller ids, no ratings).
+ * The public board: every concept with its stage, score, evidence, demand series, buy pick, the
+ * Israel gap (israelGap.js: is it already searched here?) and the opportunity window; strongest
+ * first, open windows first among the rising; the radar's own record and its arrival clock.
+ * Nothing private (no seller ids, no ratings, no autocomplete texts).
  */
-export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [], now = Date.now(), rules = RADAR } = {}) {
+export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [], awareness = {}, now = Date.now(), rules = RADAR } = {}) {
   const rows = [];
+  const gaps = {};
   for (const c of concepts.filter(validConcept)) {
     const rs = readings[c.id] || [];
     const s = signals(rs, { rules });
     const stage = stageOf(s, { rules });
+    const gap = gapOf(awareness[c.id] || []);
+    gaps[c.id] = gap;
+    const window = windowOf(stage, gap);
     rows.push({
       id: c.id,
       he: c.he,
       kind: c.kind || "",
+      ...(c.auto ? { auto: true, found: c.found || null, why: c.why || null } : {}),
       stage,
       stageHe: STAGES[stage].he,
       score: scoreOf(s, stage, { rules }),
@@ -264,18 +272,29 @@ export function buildBoard({ concepts = [], readings = {}, picks = {}, calls = [
       // Today's size (not a direction): AliExpress's 30-day orders of the top items and the listings.
       today: rs.at(-1) ? { orders: rs.at(-1).sum, listings: rs.at(-1).listings, price: rs.at(-1).price } : null,
       size: sizeOf(rs.at(-1), { rules }),
+      gap: { state: gap.state, he: GAP_STATES[gap.state].he, il: gap.il, world: gap.world, arrivedOn: gap.arrivedOn, evidence: gap.evidence },
+      window,
+      windowHe: window ? WINDOWS[window].he : null,
+      // The top items' AliExpress ids: the magic button finds a pasted item's concept by them.
+      items: (rs.at(-1)?.top || []).map((x) => x[0]).slice(0, rules.topItems),
+      match: [...new Set([...(Array.isArray(c.hq) ? c.hq : []), ...(c.auto ? [] : [c.he])].filter(Boolean))].slice(0, 4),
       pick: picks[c.id] || null,
     });
   }
   const order = { EMERGING: 0, RISING: 1, STEADY: 2, PEAK: 3, COOLING: 4, UNVERIFIED: 5 };
-  rows.sort((a, b) => order[a.stage] - order[b.stage] || b.score - a.score || a.he.localeCompare(b.he, "he"));
+  const win = { OPEN: 0, CLOSING: 1, CLOSED: 3 };
+  rows.sort((a, b) => order[a.stage] - order[b.stage] || (win[a.window] ?? 2) - (win[b.window] ?? 2) || b.score - a.score || a.he.localeCompare(b.he, "he"));
   return {
-    v: 1,
+    v: 2,
     at: new Date(now).toISOString(),
     source: "aliexpress_affiliate_api",
+    sources: ["aliexpress_affiliate_api", "google_autocomplete_public", "google_trends_rss_IL"],
     stages: STAGES,
+    gapStates: GAP_STATES,
+    windows: WINDOWS,
     concepts: rows,
     record: trackRecord(calls),
+    clock: leadTimes(calls, gaps),
     rules: { emergingPct: rules.emergingPct, risingPct: rules.risingPct, smallOrders: rules.smallOrders, peakOrders: rules.peakOrders, hitPct: rules.hitPct, gradeDays: rules.gradeDays },
   };
 }
