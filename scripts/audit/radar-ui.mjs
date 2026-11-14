@@ -13,7 +13,7 @@ const BASE = /^https:\/\/[a-z0-9.-]+\.(netlify\.app|vercel\.app)$/.test(process.
 const OUT = process.env.RUNNER_TEMP ? path.join(process.env.RUNNER_TEMP, "audit") : "audit-out";
 mkdirSync(OUT, { recursive: true });
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
 const failures = [];
 const fail = (m) => { failures.push(m); console.log(`FAIL ${m}`); };
 console.log(`BASE ${BASE}`);
