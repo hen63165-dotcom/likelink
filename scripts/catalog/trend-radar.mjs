@@ -163,7 +163,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         if (!reading.top.length) { log.push(`${c.id}: no item with orders`); continue; }
         readings[c.id] = addReading(readings[c.id], reading);
         for (const [id, v] of reading.top) items[id] = addItemReading(items[id], [today, v]);
-        const pick = pickFrom(got.result, { now });
+        const pick = pickFrom(got.result, { now, concept: c });
         if (pick) picks[c.id] = pick; else delete picks[c.id];
         const s = signals(readings[c.id]);
         const stage = stageOf(s);

@@ -22,7 +22,7 @@
 // Pure: no I/O. The collector is scripts/catalog/trend-radar.mjs; the page reads its board.json.
 import { orderCount } from "./deals.js";
 import { FIND_RULES, findResults } from "./findOnAli.js";
-import { CONFIDENCE, GAP_STATES, WINDOWS, gapOf, leadTimes, windowOf } from "./israelGap.js";
+import { CONFIDENCE, GAP_STATES, WINDOWS, gapOf, leadTimes, skeleton, windowOf } from "./israelGap.js";
 import { ACTIONS, HOT_STATES, actionOf, itemMomentum, momentumLine, opportunityOf } from "./radarOpportunity.js";
 
 export const RADAR = Object.freeze({
@@ -192,11 +192,46 @@ export function sizeOf(reading, { rules = RADAR } = {}) {
   return reading.sum < rules.smallOrders ? "SMALL" : reading.sum >= rules.peakOrders ? "BIG" : "MID";
 }
 
-/** The buy pick: the concept's first item that passes the site's rules (≥95%, ≥300 orders, no brand). */
-export function pickFrom(result = {}, { rules = RADAR, now = Date.now() } = {}) {
+// Words that say what KIND of thing it is but not WHICH thing (a "squishy", a "clip", "for the
+// car"): a pick must match one of the concept's other words. Hebrew, compared as skeletons.
+const GENERIC_HE = new Set(["סקווישי", "צעצוע", "צעצועי", "לחיצה", "ילדים", "לילדים", "בית", "לבית", "נייד", "ניידת", "קטן", "קטנה", "מטבח", "למטבח",
+  "שיער", "לשיער", "טלפון", "לטלפון", "רכב", "לרכב", "ברכב", "חתול", "לחתול", "כלב", "לכלב", "חיות", "סט", "של", "עם", "בלי", "בגדים", "לבגדים",
+  "נשים", "לנשים", "תיק", "צמיד", "שרשרת", "טבעת", "טבעות", "עגיל", "עגילים", "מסיר", "קליפס", "סיכת", "סיכה", "מגנטי", "מגנטיים", "מגנטיות", "חשמלי",
+  "תליון", "לידיים", "מתקן", "מעמד", "קופסת", "שקיות", "תבנית", "מברשת", "מסרק", "כובע", "נעלי", "גרבי", "מוט", "לעונדות", "יחד", "לפנים", "לתיק"].map(skeleton));
+const words = (s) => skeleton(s).split(" ").filter((w) => w.length >= 2);
+const stripPrefix = (w) => (w.length > 3 && /^[והבלמכש]/.test(w) ? w.slice(1) : w);
+// Singular and plural / feminine endings (skeletons: "פנינים" → "פננם", "פנינה" → "פננה").
+const stripSuffix = (w) => (w.length > 3 && /[םהתן]$/.test(w) ? w.slice(0, -1) : w);
+const sameWord = (a, b) => {
+  const x = stripSuffix(stripPrefix(a));
+  const y = stripSuffix(stripPrefix(b));
+  return a === b || x === y || (x.length >= 4 && y.length >= 4 && x.slice(0, 4) === y.slice(0, 4));
+};
+
+/** The concept's distinctive Hebrew words (its names minus the generic ones); empty = not checkable. */
+export function conceptWords(concept = {}) {
+  const all = [...(Array.isArray(concept.hq) ? concept.hq : []), concept.auto ? "" : String(concept.he || "")].flatMap(words);
+  return [...new Set(all.filter((w) => !GENERIC_HE.has(w) && !GENERIC_HE.has(stripPrefix(w)) && /[\u05d0-\u05ea]/.test(w)))];
+}
+
+/** Does a store title (Hebrew) name this kind of thing? null when the concept has no word to check. */
+export function pickMatches(title = "", concept = {}) {
+  const want = conceptWords(concept);
+  if (!want.length) return null;
+  const have = words(title);
+  return want.some((w) => have.some((h) => sameWord(h, w)));
+}
+
+/**
+ * The buy pick: the concept's first item that passes the site's rules (≥95%, ≥300 orders, no brand)
+ * AND whose store title names this kind of thing (a "tofu squishy" search sold a pearl-shaped toy
+ * first, 2026-11-14; a cat window perch search, a desk-mounted bed). No matching item → no pick.
+ */
+export function pickFrom(result = {}, { rules = RADAR, now = Date.now(), concept = null } = {}) {
   const raw = result?.products?.product;
   const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const [first] = findResults(list, { rules: rules.pickRules, now }).items;
+  const passing = findResults(list, { rules: { ...rules.pickRules, max: 20 }, now }).items;
+  const first = concept ? passing.find((it) => pickMatches(it.storeTitle || it.title, concept) !== false) : passing[0];
   if (!first) return null;
   const x0 = list.find((x) => String(x?.product_id || "") === first.id) || {};
   const rate = parseFloat(String(x0.commission_rate ?? x0.hot_product_commission_rate ?? "").replace("%", ""));
@@ -207,6 +242,7 @@ export function pickFrom(result = {}, { rules = RADAR, now = Date.now() } = {}) 
     shipsIL: true,
     video: /^https:\/\//.test(String(x0.product_video_url || "")) ? true : x0.product_video_url === undefined ? null : false,
     commission: Number.isFinite(rate) ? rate > 0 : null,
+    matches: concept ? pickMatches(first.storeTitle || first.title, concept) : null,
   };
 }
 

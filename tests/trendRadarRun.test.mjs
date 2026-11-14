@@ -19,7 +19,7 @@ const SECRET_SUGGESTION = "מרסק שום של מותג סודי";
 function fakeNet({ week }) {
   const requests = [];
   const json = (body, status = 200) => ({ ok: status === 200, status, json: async () => body, text: async () => (typeof body === "string" ? body : JSON.stringify(body)) });
-  const items = (ids, base, extra = {}) => ({ total_record_count: 1000 + week * 300, products: { product: ids.map((id, i) => ({ product_id: String(id), product_title: `butter stick squishy ${i}`, lastest_volume: Math.round(base * (1 - i * 0.1)), target_sale_price: "9.90", target_sale_price_currency: "ILS", evaluate_rate: "98.0%", promotion_link: `https://s.click.aliexpress.com/e/_x${id}`, product_main_image_url: `https://ae-pic-a1.aliexpress-media.com/kf/${id}.jpg`, ...extra })) } });
+  const items = (ids, base, extra = {}) => ({ total_record_count: 1000 + week * 300, products: { product: ids.map((id, i) => ({ product_id: String(id), product_title: `סקווישי מקל חמאה ${i}`, lastest_volume: Math.round(base * (1 - i * 0.1)), target_sale_price: "9.90", target_sale_price_currency: "ILS", evaluate_rate: "98.0%", promotion_link: `https://s.click.aliexpress.com/e/_x${id}`, product_main_image_url: `https://ae-pic-a1.aliexpress-media.com/kf/${id}.jpg`, ...extra })) } });
   const fetchImpl = async (url, opts = {}) => {
     const u = String(url);
     const { origin, pathname } = new URL(u);
