@@ -24,12 +24,12 @@ for (const lang of ["he", "en"]) {
   for (const [vp, w, h] of [["m", 390, 844], ["d", 1440, 900]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, locale: lang === "he" ? "he-IL" : "en-US" });
     await ctx.addInitScript((l) => { try { localStorage.setItem("sch:local:ui:lang", l); } catch { /* */ } }, lang);
-    // A build served on the runner has no host proxy: do what production's public/_redirects does
-    // (/radar/board.json and /media/* → GitHub Pages, same origin) with the live files themselves.
+    // A build served on the runner has no host proxy: answer /radar/board.json and /media/* with the
+    // live site's own same-origin files (likelink2.vercel.app's project routes, docs/ops/hosting.md).
     if (BASE.startsWith("http://127.0.0.1")) {
       await ctx.route(/^http:\/\/127\.0\.0\.1:4173\/(radar\/board\.json|media\/(reels|studio|studio3d)\/.*)$/, async (r) => {
         const rest = new URL(r.request().url()).pathname;
-        const resp = await r.fetch({ url: `https://hen63165-dotcom.github.io/likelink${rest}` }).catch(() => null);
+        const resp = await r.fetch({ url: `https://likelink2.vercel.app${rest}` }).catch(() => null);
         return resp ? r.fulfill({ response: resp }) : r.abort();
       });
     }
