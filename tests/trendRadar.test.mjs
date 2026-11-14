@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { RADAR, addReading, buildBoard, evidence, perWeek, pickFrom, readingFrom, scoreOf, signals, stageOf, trackRecord, updateCalls, validConcept } from "../src/lib/growth/trendRadar.js";
+import { RADAR, addReading, buildBoard, evidence, perWeek, pickFrom, pickMatches, readingFrom, scoreOf, signals, stageOf, trackRecord, updateCalls, validConcept } from "../src/lib/growth/trendRadar.js";
 import { hasBrandName, isNotListedKind } from "../src/lib/growth/deals.js";
 
 const DAY = 86_400_000;
@@ -138,4 +138,20 @@ test("the radar never promises a hit", () => {
   const src = ["src/lib/growth/trendRadar.js", "src/lib/growth/israelGap.js", "src/components/discover/radar.jsx"].map((f) => readFileSync(f, "utf8")).join("\n");
   const shown = [...src.matchAll(/"([^"]*[֐-׿][^"]*)"/g)].map((m) => m[1]).join("\n");
   assert.doesNotMatch(shown, /יהיה להיט|בטוח|מובטח|הכי נמכר|תחזית/);
+});
+
+test("the buy pick must be that kind of thing: its store title names it (the real mismatches of 2026-11-14)", () => {
+  const tofu = { id: "tofu-squishy", he: "סקווישי טופו", hq: ["סקווישי טופו", "טופו סקווישי"] };
+  const cat = { id: "cat-window-perch", he: "ערסל חלון לחתול", hq: ["ערסל לחתול לחלון", "ערסל חלון לחתול"] };
+  const claw = { id: "claw-clip", he: "קליפס שיער כריש", hq: ["קליפס כריש", "סיכת כריש"] };
+  assert.equal(pickMatches("צעצוע לחיץ רך בצורת פנינה עם שמן קוקוס", tofu), false);
+  assert.equal(pickMatches("מיטת שולחן לחתול עם עיצוב מתקפל", cat), false);
+  assert.equal(pickMatches("סיכות שיער גדולות בצורת פרפר", claw), false);
+  assert.equal(pickMatches("סקוושי טופו רך", tofu), true, "another spelling still matches");
+  assert.equal(pickMatches("שרשרת פנינה לנשים", { he: "שרשרת פנינים", hq: ["שרשרת פנינים"] }), true, "singular and plural");
+  assert.equal(pickMatches("anything", { he: "storage box", auto: true, hq: [] }), null, "a discovered concept has no Hebrew word to check");
+  const ok = { evaluate_rate: "98.0%", promotion_link: "https://s.click.aliexpress.com/e/_abc", product_main_image_url: "https://ae-pic-a1.aliexpress-media.com/kf/x.jpg" };
+  const both = answer([["1000001", 9000, 8, { ...ok, product_title: "צעצוע לחיץ בצורת פנינה" }], ["1000002", 5000, 9, { ...ok, product_title: "סקווישי טופו לילדים" }]]);
+  assert.equal(pickFrom(both, { concept: tofu }).itemId, "1000002", "the best seller that IS tofu, not the best seller");
+  assert.equal(pickFrom(answer([["1000001", 9000, 8, { ...ok, product_title: "צעצוע לחיץ בצורת פנינה" }]]), { concept: tofu }), null, "no matching item, no pick");
 });

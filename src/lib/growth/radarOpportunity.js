@@ -80,6 +80,7 @@ export function opportunityOf(pick, { momentum = null, gap = null, stage = "UNVE
   const hot = momentum?.state || "UNVERIFIED";
   const checks = [
     { id: "real", he: "מוצר אמיתי מהחנות (מספר פריט ושם)", ok: Boolean(pick.itemId && pick.title) },
+    { id: "match", he: "שם המוצר בחנות תואם לסוג (למשל ״טופו״ בשם)", ok: pick.matches === true ? true : pick.matches === false ? false : null },
     { id: "photo", he: "תמונה אמיתית של המוכר", ok: Boolean(pick.image) },
     { id: "link", he: "קישור שותפים תקין לאליאקספרס", ok: /^https:\/\/s\.click\.aliexpress\.com\//.test(String(pick.buy || "")) },
     { id: "price", he: "מחיר עדכני בשקלים מהחנות", ok: Number(pick.price) > 0 },

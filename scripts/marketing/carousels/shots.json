@@ -1,1 +1,6 @@
-{ "photos": [], "pages": [ { "name": "radar-live", "path": "/radar", "full": true, "settle": 6000 } ] }
+{ "photos": [], "pages": [
+  { "name": "radar-live", "path": "/radar", "full": true, "settle": 6000 },
+  { "name": "radar-capybara", "path": "/radar#capybara-squishy", "settle": 7000 },
+  { "name": "magic-earrings", "path": "/magic?u=https%3A%2F%2Fwww.aliexpress.com%2Fitem%2F1005011942976222.html", "waitFor": "#magic-result", "settle": 6000, "elements": ["text=ברדאר הטרנדים"] },
+  { "name": "magic-capybara", "path": "/magic?u=https%3A%2F%2Fwww.aliexpress.com%2Fitem%2F1005011969924330.html", "waitFor": "#magic-result", "settle": 6000, "elements": ["text=ברדאר הטרנדים"] }
+] }
