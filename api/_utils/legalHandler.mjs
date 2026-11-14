@@ -16,6 +16,7 @@ import { jsonCors, isApprovedOrigin } from "./cors.js";
 import { readBody } from "./readBody.mjs";
 import { LEGAL_VERSION, ACCEPTANCE_DOCS } from "../../src/lib/legal/catalog.js";
 import { getAllPlans } from "../../src/lib/plans.js";
+import { radarWaitlistPlan } from "../../src/lib/growth/radarPlans.js";
 
 export const ACCEPTANCES_KEY = "legal:acceptances";
 export const MARKETING_KEY = "legal:marketing_consent";
@@ -136,7 +137,8 @@ export function createLegalHandler({ kvGet, kvSet, verifyToken, verifyAdminToken
         }
         if (!who.userId) { json(res, { ok: false, error: "user_session_required" }, 400, req); return; }
         const planId = String(body.planId || "").toLowerCase();
-        const plan = getAllPlans().find((p) => p.id === planId);
+        // A coming-soon site plan (Elite) or a radar tier (radarPlans.js: no price, not for sale).
+        const plan = getAllPlans().find((p) => p.id === planId) || radarWaitlistPlan(planId);
         if (!plan?.comingSoon) { json(res, { ok: false, error: "invalid_plan" }, 400, req); return; }
         if (list.some((w) => w && w.userId === who.userId && w.planId === planId)) { json(res, { ok: true, joined: true, existing: true }, 200, req); return; }
         await kvSet(WAITLIST_KEY, [...list, { userId: who.userId, email: who.email, planId, at: new Date(now()).toISOString() }]);

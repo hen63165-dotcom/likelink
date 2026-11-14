@@ -10,6 +10,7 @@ import { buildGoogleFeed, FEED_FILE_NAME } from "../../lib/googleFeed.js";
 import PayoutsSection from "./PayoutsSection";
 import PayPalPlansCard from "./PayPalPlansCard";
 import OwnerQueuesCard from "./OwnerQueuesCard";
+import RadarAccessCard from "./RadarAccessCard";
 import GrowthEnginePanel from "./GrowthEnginePanel";
 import CloudReportSection from "./CloudReportSection";
 import { adminLogin, verifyAdminToken, adminLogout, verifyOwnerSession } from "../../lib/adminAuth.js";
@@ -276,6 +277,7 @@ export default function AdminView() {
           <PayoutsSection />
           <PayPalPlansCard />
           <OwnerQueuesCard />
+          <RadarAccessCard />
         </>
       )}
       {section === "growth" && (

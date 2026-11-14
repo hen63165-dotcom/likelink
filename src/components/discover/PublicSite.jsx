@@ -8,6 +8,7 @@ import { StatusPage } from "./status";
 import { JoinPage } from "./join";
 import { MagicPage } from "./magic";
 import { RadarPage } from "./radar";
+import { RadarProPage } from "./radarPro";
 import {
   CollectionsPage,
   CreatorPage,
@@ -118,6 +119,8 @@ function pageSEO(route, graph, lang) {
       return section("magic");
     case "radar":
       return section("radar");
+    case "radarPro":
+      return section("radarPro");
     case "search":
       return { ...page("/search", he ? "חיפוש" : "Search", "חיפוש מוצרים, יוצרים, אוספים וקטגוריות."), robots: "noindex,follow" };
     case "saved":
@@ -213,6 +216,9 @@ export default function PublicSite({ route, navigate }) {
       break;
     case "radar":
       page = <RadarPage key={route.nav || "radar"} />;
+      break;
+    case "radarPro":
+      page = <RadarProPage />;
       break;
     default:
       page = <NotFound />;

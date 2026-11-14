@@ -12,6 +12,8 @@ import { BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
+import { accessOf } from "../../lib/growth/radarPlans.js";
+import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
@@ -157,7 +159,7 @@ function AlphaBlock({ c }) {
   );
 }
 
-function ConceptCard({ c }) {
+export function ConceptCard({ c }) {
   const { L } = useL();
   const strong = c.stage === "EMERGING" || c.stage === "RISING";
   return (
@@ -282,6 +284,22 @@ function SiteHot({ site }) {
   );
 }
 
+/** The trial line the owner's settings call for (accessOf); nothing when the radar is simply open. */
+export function TrialBanner() {
+  const { L } = useL();
+  const { settings } = useMarketplace();
+  const a = accessOf(settings);
+  if (a.state === "OPEN") return null;
+  return (
+    <p className="lx-card mt-4 p-3 text-[14px] leading-6" role="status" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "var(--lx-sky-soft, var(--lx-sunk))" }}>
+      {a.state === "TRIAL"
+        ? L(`תקופת ניסיון חינם: עוד ${a.daysLeft} ימים (עד ${dm(a.endsAt.slice(0, 10))}). המחירים של Basic ו־Pro עוד לא נקבעו.`, `Free trial: ${a.daysLeft} days left (until ${dm(a.endsAt.slice(0, 10))}). Basic and Pro prices are not set yet.`)
+        : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
+      <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
+    </p>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -335,6 +353,7 @@ export function RadarPage() {
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
           </button>
           <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הרדאר לא מבטיח להיט. הוא מראה סימנים מוקדמים, עם המספרים והתאריכים.", "The radar never promises a hit. It shows early signs, with the numbers and dates.")}</p>
+          <TrialBanner />
         </div>
       </section>
 

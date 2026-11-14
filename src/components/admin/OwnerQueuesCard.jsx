@@ -83,8 +83,8 @@ export default function OwnerQueuesCard() {
       )}
       {waitlist ? (
         <details className="mt-3 text-xs">
-          <summary className="cursor-pointer font-semibold">רשימת המתנה ל-Elite: {waitlist.length}</summary>
-          <ul className="mt-1 space-y-0.5">{waitlist.map((w) => <li key={`${w.userId}-${w.planId}`} dir="ltr">{w.email || w.userId} · {fmt(w.at)}</li>)}</ul>
+          <summary className="cursor-pointer font-semibold">רשימת המתנה (Elite, רדאר Basic/Pro): {waitlist.length}</summary>
+          <ul className="mt-1 space-y-0.5">{waitlist.map((w) => <li key={`${w.userId}-${w.planId}`} dir="ltr">{w.email || w.userId} · {w.planId} · {fmt(w.at)}</li>)}</ul>
         </details>
       ) : null}
       {message ? <p role="status" className="text-xs mt-2">{message}</p> : null}
