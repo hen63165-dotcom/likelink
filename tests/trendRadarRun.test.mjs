@@ -83,7 +83,7 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   const drawer = r2.board.concepts.find((c) => c.id === "drawer-organizer");
   assert.equal(drawer.today, null, "a store error is no reading, never a zero");
   const trash = r2.board.concepts.find((c) => c.id === "car-trash-can");
-  assert.equal(trash.gap.il, "NONE", "a failed Hebrew answer is skipped; the English one still counts");
+  assert.equal(trash.gap.state, "UNKNOWN", "a failed Hebrew answer is no Israel reading, never a NONE");
 
   assert.equal(r2.board.concepts.find((c) => c.id === "garlic-chopper").gap.state, "ARRIVING", "one Hebrew extension was counted");
   // Nothing Google suggested is stored anywhere — only counts.

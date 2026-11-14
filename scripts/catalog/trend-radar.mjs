@@ -6,8 +6,8 @@
 //      AliExpress, through the owner's affiliate account — the matching listings sorted by recent
 //      orders (listings, the top items' orders and prices) and the first item that passes the
 //      site's rules (to buy).
-//   3. The Israel gap: Google's public autocomplete — in Israel in Hebrew (the concept's `hq`), in
-//      Israel in English, in the US in English — counted as extensions (never stored as text), and
+//   3. The Israel gap: Google's public autocomplete — in Israel in Hebrew (the concept's `hq`) and in
+//      the US in English — counted as extensions (never stored as text), and
 //      Google Trends' daily Israel feed. robots.txt is read first; a disallowed or failing source is
 //      skipped for the day (no reading, never a zero).
 //   4. The public self-grading calls, the arrival clock, and the board the /radar page reads.
@@ -91,7 +91,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       if (Date.now() - started > 60_000) { log.push(`discovery: budget over at ${cat.key}`); break; }
       try { lists[cat.key] = await hotList(cat, { env, fetchImpl, now }); } catch (err) { log.push(`discovery ${cat.key}: ${String(err?.message || err).slice(0, 80)}`); }
     }
-    const candidates = discover(lists, watch);
+    // A category's own search words are what its hot list was asked for: never a discovery.
+    const candidates = discover(lists, [...watch, ...TREND_CATEGORIES.map((c) => ({ id: `category-${c.key}`, en: c.keywords }))]);
     const before = new Set(discovered.map((c) => c.id));
     discovered = admitDiscovered(discovered, candidates, { concepts: watch, stages: stagesBefore, now });
     const added = discovered.filter((c) => !before.has(c.id));
@@ -154,15 +155,18 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         if (Date.now() - started > suggestBudgetMs) { log.push(`${c.id}: search budget over, no Israel reading today`); continue; }
         if (failures >= 8) { sources.suggest = "FAILING"; log.push("autocomplete: 8 failed answers, stopped for today"); break; }
         try {
+          const hq = (Array.isArray(c.hq) ? c.hq : []).slice(0, 3);
           const he = [];
-          for (const q of (Array.isArray(c.hq) ? c.hq : []).slice(0, 2)) { he.push(await suggestCount(q, { hl: "he", gl: "il" }, fetchImpl)); await pause(politeMs); }
-          const en = await suggestCount(c.en, { hl: "he", gl: "il" }, fetchImpl); await pause(politeMs);
-          const world = await suggestCount(c.en, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs);
-          const answered = [...he, en, world].filter((n) => n !== null).length;
+          for (const q of hq) { he.push(await suggestCount(q, { hl: "he", gl: "il" }, fetchImpl)); await pause(politeMs); }
+          // The world: the store words; their first two words when the whole phrase is too specific.
+          let world = await suggestCount(c.en, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs);
+          const short = c.en.split(/\s+/).slice(0, 2).join(" ");
+          if (world === 0 && short !== c.en) { world = await suggestCount(short, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs); }
+          const answered = [...he, world].filter((n) => n !== null).length;
           if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
-          const reading = awarenessReading({ he, en, world, trend: trendIds.has(c.id) }, { now });
+          const reading = awarenessReading({ he, hq, world, trend: trendIds.has(c.id) }, { now });
           awareness[c.id] = addAwareness(awareness[c.id], reading);
-          log.push(`${c.id}: Israel he=${reading.il ?? "-"} en=${reading.ilEn ?? "-"} · US ${reading.world ?? "-"}${reading.trend ? " · trending in Israel" : ""}`);
+          log.push(`${c.id}: Israel he=${reading.il ?? "-"}${reading.q ? ` (${reading.q})` : ""} · US ${reading.world ?? "-"}${reading.trend ? " · trending in Israel" : ""}`);
         } catch (err) {
           failures++;
           log.push(`${c.id}: autocomplete ${String(err?.message || err).slice(0, 80)}`);

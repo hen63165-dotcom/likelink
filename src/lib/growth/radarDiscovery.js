@@ -33,7 +33,8 @@ pcs pc piece pieces set sets lot pack 1pc 2pcs 3pcs size sizes large small big m
 gold silver plated stainless steel metal alloy copper titanium plastic silicone cotton leather pu
 black white red blue green pink purple yellow orange brown grey gray beige
 2023 2024 2025 2026 2027 summer winter spring autumn fall christmas halloween new year valentine valentines
-cm mm inch inches ml kg g mah usb type c led`.split(/\s+/));
+cm mm inch inches ml kg g mah usb type c led
+stress relief anti funny novelty toy toys tool tools gadget gadgets supplies holder home household kitchen`.split(/\s+/));
 
 const wordsOf = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d/.test(w));
 

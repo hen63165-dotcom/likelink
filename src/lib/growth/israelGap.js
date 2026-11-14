@@ -5,10 +5,12 @@
 // AliExpress tells the radar what the world is ordering (trendRadar.js). Google tells it what
 // people type. Every day, for every concept, the collector asks Google's public autocomplete
 // (suggestqueries.google.com, no key, no account; its robots.txt is checked on every run and the
-// source is skipped the day it disallows the path) three things:
-//   - in Israel, in Hebrew   (hl=he, gl=il, the concept's `hq` phrases)
-//   - in Israel, in English  (hl=he, gl=il, the concept's store words)
-//   - in the US, in English  (hl=en, gl=us, the same store words) — "the world"
+// source is skipped the day it disallows the path) two things:
+//   - in Israel, in Hebrew   (hl=he, gl=il, the concept's `hq` phrases, up to three spellings)
+//   - in the US, in English  (hl=en, gl=us, the store words; their first two words when the full
+//                             phrase is too specific to be completed) — "the world"
+// (English asked from Israel was measured on the first run, 2026-11-14, and dropped: its answers
+// matched the US ones for nearly every concept, so it says nothing about Israel.)
 // and counts how many suggestions EXTEND the phrase (other people's searches that contain it, not
 // the echo of the phrase itself). Autocomplete only suggests what enough people search, so the
 // count is a sign of search interest, never a volume: it is shown as a level, never as a number of
@@ -105,7 +107,6 @@ export function levelOf(n, { rules = GAP } = {}) {
   if (!Number.isFinite(n)) return null;
   return n >= rules.aware ? "AWARE" : n >= rules.faint ? "FAINT" : "NONE";
 }
-const RANK = { NONE: 0, FAINT: 1, AWARE: 2 };
 
 /**
  * robots.txt says whether a path may be read by any crawler (the group for "*"). A missing file
@@ -144,15 +145,16 @@ export function trendingInIsrael(concepts = [], trendTerms = []) {
 
 /**
  * One day's awareness of one concept from the counted answers:
- *   he: [n per Hebrew phrase] (null = not answered), en: n in Israel (English), world: n in the US.
+ *   he: [n per Hebrew phrase] (null = not answered), world: n in the US, q: the Hebrew phrase that
+ *   answered most (our own words, shown so anyone can check it on Google).
  */
-export function awarenessReading({ he = [], en = null, world = null, trend = false } = {}, { now = Date.now() } = {}) {
-  const heCounts = (Array.isArray(he) ? he : []).filter(Number.isFinite);
-  const il = heCounts.length ? Math.max(...heCounts) : null;
+export function awarenessReading({ he = [], hq = [], world = null, trend = false } = {}, { now = Date.now() } = {}) {
+  const pairs = (Array.isArray(he) ? he : []).map((n, i) => [n, (Array.isArray(hq) ? hq : [])[i]]).filter(([n]) => Number.isFinite(n));
+  const best = pairs.sort((a, b) => b[0] - a[0])[0];
   return {
     d: new Date(now).toISOString().slice(0, 10),
-    il,
-    ilEn: Number.isFinite(en) ? en : null,
+    il: best ? best[0] : null,
+    ...(best && typeof best[1] === "string" ? { q: best[1].slice(0, 60) } : {}),
     world: Number.isFinite(world) ? world : null,
     trend: trend === true,
   };
@@ -164,17 +166,11 @@ export function addAwareness(history = [], reading, { rules = GAP } = {}) {
   return [...prev, reading].sort((a, b) => (a.d < b.d ? -1 : 1)).slice(-rules.keep);
 }
 
-/** The Israel level of one reading: Hebrew first; a Trends hit or English searches in Israel count too. */
+/** The Israel level of one reading: Hebrew searches, or a Google Trends Israel hit. */
 function ilLevel(r, rules) {
   if (!r) return null;
   if (r.trend) return "AWARE";
-  const he = levelOf(r.il, { rules });
-  const en = levelOf(r.ilEn, { rules });
-  if (he === null && en === null) return null;
-  // English searches from Israel say less than Hebrew ones (they mix with the world's): they can
-  // lift NONE to FAINT, never to AWARE.
-  const enCapped = en === "AWARE" ? "FAINT" : en;
-  return RANK[enCapped ?? "NONE"] > RANK[he ?? "NONE"] ? enCapped : he ?? enCapped;
+  return levelOf(r.il, { rules });
 }
 
 /**
@@ -206,11 +202,12 @@ export function gapOf(history = [], { rules = GAP } = {}) {
   const day = dm(now.d);
   if (now.trend) evidence.push({ k: "trend", text: `ב־${day} זה היה חיפוש חם בישראל לפי Google Trends.` });
   if (il !== null) {
+    const q = now.q ? ` (״${now.q}״)` : "";
     evidence.push({ k: "il", text: il === "NONE"
-      ? `בגוגל בישראל, בעברית: אין עדיין השלמות לחיפוש הזה (${day}).`
+      ? `בגוגל בישראל, בעברית${q}: אין עדיין השלמות לחיפוש (${day}).`
       : il === "FAINT"
-        ? `בגוגל בישראל, בעברית: מופיעות השלמות ראשונות לחיפוש (${day}).`
-        : `בגוגל בישראל, בעברית: הרבה השלמות לחיפוש, כלומר מחפשים את זה (${day}).` });
+        ? `בגוגל בישראל, בעברית${q}: מופיעות השלמות ראשונות לחיפוש (${day}).`
+        : `בגוגל בישראל, בעברית${q}: הרבה השלמות לחיפוש, כלומר מחפשים את זה (${day}).` });
   }
   if (world !== null) {
     evidence.push({ k: "world", text: world === "NONE"

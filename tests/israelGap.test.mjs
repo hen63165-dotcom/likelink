@@ -43,15 +43,18 @@ test("robots.txt decides: a missing file allows, a Disallow for everyone blocks,
 test("the gap: Hebrew searches decide; a failed day is no reading, never a NONE", () => {
   const day = (d, x) => awarenessReading(x, { now: at(d) });
   assert.equal(gapOf([]).state, "UNKNOWN");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], en: 0, world: 7 })]).state, "GAP");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], en: 0, world: 0 })]).state, "QUIET");
-  assert.equal(gapOf([day("2026-11-14", { he: [1, 0], en: 0, world: 7 })]).state, "ARRIVING");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 7 })]).state, "GAP");
+  assert.equal(gapOf([day("2026-11-14", { he: [0], world: 0 })]).state, "QUIET");
+  assert.equal(gapOf([day("2026-11-14", { he: [1, 0], world: 7 })]).state, "ARRIVING");
   assert.equal(gapOf([day("2026-11-14", { he: [4], world: 9 })]).state, "ARRIVED");
   assert.equal(gapOf([day("2026-11-14", { he: [0], world: 9, trend: true })]).state, "ARRIVED", "a Google Trends Israel hit means it is here");
-  assert.equal(gapOf([day("2026-11-14", { he: [0], en: 5, world: 9 })]).state, "ARRIVING", "English searches from Israel never make it ARRIVED alone");
-  assert.equal(gapOf([day("2026-11-14", { he: [null], en: null, world: null })]).state, "UNKNOWN");
-  const lines = gapOf([day("2026-11-14", { he: [0], world: 7 })]).evidence.map((e) => e.text).join("\n");
+  assert.equal(gapOf([day("2026-11-14", { he: [null], world: null })]).state, "UNKNOWN");
+  assert.equal(gapOf([day("2026-11-14", { he: [null], world: 9 })]).state, "UNKNOWN", "no Hebrew answer: Israel is not measured, never NONE");
+  const r = day("2026-11-14", { he: [0, 2], hq: ["קליפס כריש", "סיכת כריש"], world: 7 });
+  assert.deepEqual([r.il, r.q], [2, "סיכת כריש"], "the best of the spellings, and which one");
+  const lines = gapOf([day("2026-11-14", { he: [0], hq: ["סקווישי קפיברה"], world: 7 })]).evidence.map((e) => e.text).join("\n");
   assert.match(lines, /14\.11/);
+  assert.match(lines, /״סקווישי קפיברה״/, "the phrase checked is shown, so anyone can check it on Google");
   assert.doesNotMatch(lines, /\d+ חיפושים/, "never a number of searches");
 });
 

@@ -3,7 +3,9 @@
 // get the store's own price now, what to check before buying, a plain warning
 // when the name carries a brand, and the buy button. A link from a creator stays
 // hers. Nothing is stored; a check made here is one funnel step (magic_check)
-// and the store button one exit (med "magic") in the owner's numbers.
+// and the store button one exit (med "magic") in the owner's numbers. After a check, the trend
+// radar's board (radarBoard.js radarForItem) says where the item's kind stands: rising or not, and
+// whether Israelis already search it in Hebrew.
 import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ClipboardPaste, ExternalLink, Info, Octagon, Search, Smartphone, Sparkles } from "lucide-react";
 import { MAGIC_FAQ, MAGIC_PATH, RECENT_KEY, addRecent, catalogMatch, firstLink, isStoreLink, priceMemory, shekel, shortDate } from "../../lib/growth/magic.js";
@@ -12,6 +14,8 @@ import { trackFunnel, BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
+import { loadBoard } from "./radar.jsx";
+import { radarForItem } from "../../lib/growth/radarBoard.js";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -257,6 +261,34 @@ function KeepIt() {
   );
 }
 
+/** Where the checked item sits on the trend radar: its kind's stage and the Israel gap. */
+let boardOnce = null;
+function RadarHint({ item }) {
+  const { L } = useL();
+  const [hit, setHit] = useState(undefined);
+  useEffect(() => {
+    let live = true;
+    setHit(undefined);
+    boardOnce = boardOnce || loadBoard().catch(() => null);
+    boardOnce.then((b) => { if (live) setHit(b ? radarForItem(b, { itemId: item?.id, title: item?.title }) : null); });
+    return () => { live = false; };
+  }, [item?.id, item?.title]);
+  if (!hit) return null;
+  const rising = hit.stage === "EMERGING" || hit.stage === "RISING";
+  return (
+    <div className="mt-4 rounded-[14px] p-3 text-[14px] leading-6" style={{ background: hit.window === "OPEN" ? "#101828" : "var(--lx-sky-50, #eef6fb)", color: hit.window === "OPEN" ? "#fff" : undefined }}>
+      <p className="font-extrabold">📡 {L("ברדאר הטרנדים:", "On the trend radar:")} <span dir={hit.auto ? "ltr" : undefined}>{hit.he}</span></p>
+      <p>
+        {hit.match === "item" ? L("המוצר הזה הוא אחד מ־20 המובילים בסוג הזה באליאקספרס. ", "This item is one of the top 20 of its kind on AliExpress. ") : L("נראה שזה מהסוג הזה. ", "Looks like this kind. ")}
+        {hit.stage === "UNVERIFIED" ? L("הכיוון עוד נמדד. ", "The direction is still being measured. ") : L(`השלב: ${hit.stageHe}. `, `Stage: ${hit.stageHe}. `)}
+        {hit.gap !== "UNKNOWN" ? L(`בישראל: ${hit.gapHe}.`, `In Israel: ${hit.gapHe}.`) : ""}
+        {rising && hit.window === "OPEN" ? L(" עולה בעולם ועוד לא מחפשים את זה כאן: חלון פתוח.", " Rising abroad and not searched here yet: an open window.") : ""}
+      </p>
+      <Go to={`/radar#${hit.id}`} className="underline font-bold" style={{ color: "inherit" }}>{L("לרדאר הטרנדים", "Open the trend radar")}</Go>
+    </div>
+  );
+}
+
 export function MagicPage({ graph }) {
   const { L, lang } = useL();
   const he = lang === "he";
@@ -419,6 +451,8 @@ export function MagicPage({ graph }) {
                   );
                 })}
               </ul>
+
+              <RadarHint item={report.item} />
 
               {listed ? (
                 <p className="mt-4 rounded-[14px] p-3 text-[14px] font-bold" style={{ background: "var(--lx-sky-50, #eef6fb)" }}>
