@@ -2,54 +2,11 @@
   "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre. crop: per photo number [x, y, w, h] fractions, to leave out printed text and marks; {\"from\": n, \"box\": [...]} makes a new photo number from photo n.",
   "jobs": [
     {
-      "id": "ae-1005006863869342",
-      "hook": "מחפשות משחק בלי מסך?",
-      "what": "פאזל עץ\nעם צורות ומספרים",
-      "tip": "טיפ: בודקים בעמוד את גיל ההתאמה",
-      "name": "פאזל עץ",
-      "photos": [
-        1,
-        8,
-        7,
-        6,
-        9,
-        1
-      ],
-      "crop": {
-        "7": {
-          "from": 2,
-          "box": [
-            0.02,
-            0.05,
-            0.86,
-            0.8
-          ]
-        },
-        "8": {
-          "from": 4,
-          "box": [
-            0,
-            0.18,
-            1,
-            0.82
-          ]
-        },
-        "9": {
-          "from": 5,
-          "box": [
-            0.2,
-            0.06,
-            0.6,
-            0.5
-          ]
-        }
-      },
-      "fit": [
-        1,
-        6,
-        7,
-        9
-      ]
+      "id": "ae-1005012649969906",
+      "hook": "חמאה שאפשר ללחוץ עליה?",
+      "what": "סקווישי בצורת\nמקל חמאה",
+      "tip": "טיפ: לגיל 3 ומעלה,\nלא לפה",
+      "name": "מקל חמאה ללחיצה"
     }
   ]
 }
