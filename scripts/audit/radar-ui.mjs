@@ -30,6 +30,10 @@ for (const lang of ["he", "en"]) {
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e?.message || e).slice(0, 160)));
+    // Diagnostics: where the board came from (or why it did not), and console errors.
+    page.on("response", (r) => { if (/board\.json/.test(r.url())) console.log(`BOARD ${r.status()} ${r.headers()["content-type"] || ""} ${r.url()}`); });
+    page.on("requestfailed", (r) => { if (/board\.json/.test(r.url())) console.log(`BOARD_FAILED ${r.failure()?.errorText || ""} ${r.url()}`); });
+    page.on("console", (m) => { if (m.type() === "error" && /board|radar|CORS|blocked/i.test(m.text())) console.log(`CONSOLE ${m.text().slice(0, 200)}`); });
     for (const [name, p] of [["radar", "/radar"], ["radar-pro", "/radar-pro"], ["magic", "/magic"]]) {
       errors.length = 0;
       await page.goto(BASE + p, { waitUntil: "load", timeout: 45000 }).catch((e) => fail(`${lang} ${vp} ${name} load: ${e.message}`));
