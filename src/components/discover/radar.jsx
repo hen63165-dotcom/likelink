@@ -12,6 +12,10 @@ import { BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
+import { accessOf } from "../../lib/growth/radarPlans.js";
+import { getSessionToken } from "../../lib/auth.js";
+import { fetchRadarSubscription } from "../../lib/commerce.js";
+import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
@@ -119,7 +123,45 @@ function WindowBadge({ window, label }) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 999, background: s.bg, color: s.fg, fontWeight: 800, fontSize: 13 }}>{window === "OPEN" ? "✨ " : ""}{label}</span>;
 }
 
-function ConceptCard({ c }) {
+/** The Alpha evidence block: the score, its confidence apart, each component with its evidence or why it is missing, and the explanation written from that evidence. */
+function AlphaBlock({ c }) {
+  const { L } = useL();
+  const a = c.alpha;
+  if (!a) return null;
+  const COMP = [["global", L("מומנטום עולמי", "Global momentum")], ["israel", L("פער ישראל", "Israel gap")], ["private", L("סימן מהאתר", "Site signal")]];
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: "#f8fafc", border: "1px solid var(--lx-line)" }}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="text-[16px] font-extrabold">{L("מדד אלפא", "Alpha")}: {a.score !== null ? <>{a.score}<span className="text-[12px] font-bold">/100</span></> : <span className="text-[13px]">{L("אין ציון עדיין (חסר מומנטום עולמי נמדד)", "no score yet (no measured global momentum)")}</span>}</p>
+        <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: a.verified ? "#dcfce7" : "#fef0c7", color: a.verified ? "#166534" : "#93370d" }}>{a.verified ? L("הזדמנות מאומתת", "Verified") : L("לא מאומת עדיין", "Not verified yet")} · {a.confidenceHe}</span>
+        {c.lifecycleHe ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("שלב:", "Stage:")} {c.lifecycleHe}</span> : null}
+        {c.accel?.he ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("תאוצה:", "Acceleration:")} {c.accel.he}</span> : null}
+      </div>
+      <ul className="mt-2 grid gap-1 text-[13px] leading-6">
+        {COMP.map(([k, label]) => {
+          const x = a.components?.[k];
+          if (!x) return null;
+          return <li key={k}>{x.missing ? "⏳" : "•"} <strong>{label}</strong>{x.missing ? `: ${L("חסר", "missing")} — ${x.missing}` : ` (${Math.round((x.score ?? 0) * 100)}/100): ${x.evidence}`}</li>;
+        })}
+      </ul>
+      {c.explain ? (
+        <details className="mt-2 text-[13px] leading-6">
+          <summary className="cursor-pointer font-bold">{L("למה זה כאן, למה עכשיו, ומה הסיכון", "Why here, why now, and the risks")}</summary>
+          {c.explain.why.length ? <p className="mt-1"><strong>{L("למה נבחר:", "Why selected:")}</strong> {c.explain.why.join(" ")}</p> : null}
+          {c.explain.now.length ? <p><strong>{L("למה עכשיו:", "Why now:")}</strong> {c.explain.now.join(" ")}</p> : null}
+          {c.explain.audience ? <p><strong>{L("למי:", "Audience:")}</strong> {c.explain.audience.text} <span style={{ color: "var(--lx-muted)" }}>({c.explain.audience.basis})</span></p> : null}
+          {c.explain.positioning ? <p><strong>{L("מיצוב:", "Positioning:")}</strong> {c.explain.positioning}</p> : null}
+          {c.explain.angle ? <p><strong>{L("זווית מכירה:", "Sales angle:")}</strong> {c.explain.angle}</p> : null}
+          {c.explain.risks.length ? <p><strong>{L("סיכונים:", "Risks:")}</strong> {c.explain.risks.join(" ")}</p> : null}
+          {c.explain.missing.length ? <p><strong>{L("מה עוד חסר:", "Still missing:")}</strong> {c.explain.missing.join(" · ")}</p> : null}
+          <p style={{ color: "var(--lx-muted)" }}>{L(`חישוב ${a.version}: מומנטום 35% · ישראל 30% · אתר 35%, רק מרכיבים שנמדדו (${a.coverage}); הוודאות נפרדת מהציון.`, `${a.version}: momentum 35% · Israel 30% · site 35%, measured components only (${a.coverage}); confidence is separate from the score.`)}</p>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+export function ConceptCard({ c }) {
   const { L } = useL();
   const strong = c.stage === "EMERGING" || c.stage === "RISING";
   return (
@@ -142,6 +184,7 @@ function ConceptCard({ c }) {
         {c.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
       </ul>
       <IsraelLine gap={c.gap} />
+      <AlphaBlock c={c} />
       {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
       {c.pick ? (
         <div className="mt-4 flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--lx-sky)" }}>
@@ -198,8 +241,8 @@ function MarketMap({ list, openId = "" }) {
           <p className="text-[15px] font-extrabold" style={{ color: SIZE[k].color }}>{SIZE[k].he} · {l.length}</p>
           <ul className="mt-2 grid gap-1.5">
             {l.map((c) => (
-              <li key={c.id} id={c.id} style={{ scrollMarginTop: 90 }}>
-                <details open={openId === c.id}>
+              <li key={c.id} id={c.id} className="min-w-0" style={{ scrollMarginTop: 90 }}>
+                <details open={openId === c.id} style={{ minWidth: 0, maxWidth: "100%" }}>
                   <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
@@ -233,12 +276,29 @@ function SiteHot({ site }) {
           {site.hot.map((r) => (
             <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl px-3 py-2 text-[14px]" style={{ background: "#ecfdf3" }}>
               <Go to={`/p/${r.id}`} className="font-bold underline">{r.title || r.id}</Go>
+              {(() => { const k = (site.keep || []).find((x) => x.id === r.id); return k ? <span className="text-[12px] font-bold">{L(`אלפא ${k.alpha ?? "—"} · ${k.accel?.he || ""}${k.israelHe ? ` · בישראל: ${k.israelHe}` : ""}`, `Alpha ${k.alpha ?? "—"}`)}</span> : null; })()}
               <span className="text-[12px]" style={{ color: "#166534" }}>{L(`+${r.weekPct}% בשבוע · ${n(r.ordersBefore)} ← ${n(r.orders)} הזמנות ב־30 יום (${dm(r.from)}–${dm(r.to)})`, `+${r.weekPct}%/week · ${n(r.ordersBefore)} → ${n(r.orders)} orders in 30 days (${dm(r.from)}–${dm(r.to)})`)}</span>
             </li>
           ))}
         </ul>
       ) : <p className="mt-3 text-[14px]">{L("השבוע אין באתר מוצר שההזמנות שלו מאיצות. זה מידע אמיתי, לא תקלה.", "No product on the site is accelerating this week. That is real information, not a fault.")}</p>}
     </div>
+  );
+}
+
+/** The trial line the owner's settings call for (accessOf); nothing when the radar is simply open. */
+export function TrialBanner() {
+  const { L } = useL();
+  const { settings } = useMarketplace();
+  const a = accessOf(settings);
+  if (a.state === "OPEN") return null;
+  return (
+    <p className="lx-card mt-4 p-3 text-[14px] leading-6" role="status" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "var(--lx-sky-soft, var(--lx-sunk))" }}>
+      {a.state === "TRIAL"
+        ? L(`תקופת ניסיון חינם: עוד ${a.daysLeft} ימים (עד ${dm(a.endsAt.slice(0, 10))}). המחירים של Basic ו־Pro עוד לא נקבעו.`, `Free trial: ${a.daysLeft} days left (until ${dm(a.endsAt.slice(0, 10))}). Basic and Pro prices are not set yet.`)
+        : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
+      <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
+    </p>
   );
 }
 
@@ -265,6 +325,23 @@ export function RadarPage() {
     });
     return () => { live = false; };
   }, []);
+
+  // After the owner's trial, while billing is on (accessOf.locked), the results are for subscribers;
+  // everyone else gets the upgrade screen. The server decides who is subscribed (sub=radar-get).
+  const { settings } = useMarketplace();
+  const access = accessOf(settings);
+  const [subscribed, setSubscribed] = useState(null);
+  useEffect(() => {
+    if (!access.locked) return undefined;
+    let live = true;
+    (async () => {
+      const token = (await getSessionToken().catch(() => null)) || "";
+      const r = token ? await fetchRadarSubscription(token).catch(() => null) : null;
+      if (live) setSubscribed(Boolean(r?.access));
+    })();
+    return () => { live = false; };
+  }, [access.locked]);
+  const gated = access.locked && subscribed !== true;
 
   const concepts = board?.concepts || [];
   const kinds = useMemo(() => [...new Set(concepts.map((c) => c.kind).filter((k) => KINDS[k]))], [concepts]);
@@ -295,6 +372,7 @@ export function RadarPage() {
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
           </button>
           <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הרדאר לא מבטיח להיט. הוא מראה סימנים מוקדמים, עם המספרים והתאריכים.", "The radar never promises a hit. It shows early signs, with the numbers and dates.")}</p>
+          <TrialBanner />
         </div>
       </section>
 
@@ -340,9 +418,16 @@ export function RadarPage() {
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
         <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("מה הרדאר רואה עכשיו", "What the radar sees now")}</h2>
-        {board === undefined ? <div className="mt-6"><Spinner /></div> : null}
-        {board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
-        {board ? (
+        {gated ? (
+          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+            <p className="text-[18px] font-extrabold">{L("תקופת הניסיון הסתיימה", "The trial has ended")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("הלוח המלא של הרדאר זמין עכשיו במנוי Basic או Pro. הבדיקה העצמית הפומבית נשארת פתוחה לכולם.", "The full radar board is now available with Basic or Pro. The public self-grading stays open to everyone.")}</p>
+            <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 48 }}>{L("למסלולים", "See the plans")}</Go>
+          </div>
+        ) : null}
+        {!gated && board === undefined ? <div className="mt-6"><Spinner /></div> : null}
+        {!gated && board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
+        {!gated && board ? (
           <>
             <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`עודכן ${dm(board.at.slice(0, 10))} · ${concepts.length} סוגי מוצרים על הרדאר · מקור: אליאקספרס`, `Updated ${dm(board.at.slice(0, 10))} · ${concepts.length} kinds on the radar · source: AliExpress`)}</p>
             {kinds.length > 1 ? (

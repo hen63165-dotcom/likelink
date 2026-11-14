@@ -43,6 +43,7 @@ import { stripBase, withBase } from "../../lib/basePath.js";
 import { loadReelsFeed } from "../../lib/reelsFeed.js";
 import { trackFunnel } from "../../lib/funnel.js";
 import { trackSiteEvent } from "../../lib/acquisitionTrack.js";
+import { trackEngagement } from "../../lib/engagement.js";
 import { telegramChannelUrl } from "../../lib/growth/socialAccounts.js";
 
 /* ---------------------------------------------------------------- context */
@@ -155,7 +156,7 @@ export function useReducedMotion() {
  * fallback. Never a broken image, never an empty black box, never a fake
  * play button on a photo. Videos play muted only while on screen.
  */
-export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children, controls = false, controlsAt = "bottom", onFirstPlay, onVideoError }) {
+export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 600, eager = false, label = "", className = "", style, children, controls = false, controlsAt = "bottom", onFirstPlay, onVideoError, engageId = "" }) {
   const [failed, setFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -163,6 +164,7 @@ export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 6
   const reduced = useReducedMotion();
   const videoRef = useRef(null);
   const firstPlay = useRef(false);
+  const watched = useRef(false);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -193,8 +195,13 @@ export function Media({ src, video, poster, alt = "", ratio = "4 / 5", width = 6
           aria-label={alt}
           onPlay={() => {
             setPlaying(true);
-            if (!firstPlay.current) { firstPlay.current = true; onFirstPlay?.(); }
+            if (!firstPlay.current) { firstPlay.current = true; onFirstPlay?.(); if (engageId) trackEngagement(engageId, "play"); }
           }}
+          onTimeUpdate={engageId ? (e) => {
+            // Watched to the end once (the clip loops, so "ended" never fires): ≥ 95% of it.
+            const v = e.currentTarget;
+            if (!watched.current && v.duration > 0 && v.currentTime / v.duration >= 0.95) { watched.current = true; trackEngagement(engageId, "complete"); }
+          } : undefined}
           onPause={() => setPlaying(false)}
           onError={onVideoError}
           className="absolute inset-0 h-full w-full object-cover"
@@ -505,6 +512,7 @@ export function SaveButton({ productId, className = "" }) {
         e.preventDefault();
         e.stopPropagation();
         toggleFavorite(productId);
+        if (!saved) trackEngagement(productId, "save");
         showToast(saved ? L("הוסר מהשמורים", "Removed from saved") : L("נשמר — תמצאו אותו בשמורים", "Saved — find it in Saved"));
       }}
     >
@@ -611,6 +619,7 @@ function ShareSheet({ title, image, linkFor, meta, anchor, onClose }) {
       return;
     }
     trackSiteEvent("share_completed", { ...meta, target: "copy" });
+    if (meta?.productId) trackEngagement(meta.productId, "share", { net: "copy" });
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
     showToast(L("הקישור הועתק", "Link copied"));
@@ -622,6 +631,7 @@ function ShareSheet({ title, image, linkFor, meta, anchor, onClose }) {
       await navigator.share({ title, url: linkFor("native") });
       // Resolved == the visitor really completed the device's share dialog.
       trackSiteEvent("share_completed", { ...meta, target: "native" });
+      if (meta?.productId) trackEngagement(meta.productId, "share", { net: "native" });
       closeRef.current();
     } catch {
       /* cancelled */
@@ -664,6 +674,7 @@ function ShareSheet({ title, image, linkFor, meta, anchor, onClose }) {
                 className="lx-share-target"
                 onClick={() => {
                   trackSiteEvent("share_started", { ...meta, target: id });
+                  if (meta?.productId) trackEngagement(meta.productId, "share", { net: id });
                   setTimeout(() => closeRef.current(), 0);
                 }}
               >
@@ -1007,7 +1018,7 @@ export function ReelCard({ reel, graph, showCreator = true, shoppable = false, r
   return (
     <article className="lx-post">
       <Go to={`/reels?r=${encodeURIComponent(reel.id)}`} className="lx-post-media" aria-label={product ? L(`לצפייה: ${product.displayTitle}`, `Watch: ${product.displayTitle}`) : L("לצפייה בסרטון", "Watch the video")}>
-        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400} onVideoError={() => { setBroken(true); onBroken?.(reel.id); }}>
+        <Media video={reel.url} poster={reel.poster} alt={reel.title || product?.displayTitle || L("סרטון", "Reel")} ratio={ratio} width={400} engageId={product?.id || ""} onVideoError={() => { setBroken(true); onBroken?.(reel.id); }}>
           <div className="absolute start-2.5 top-2.5 flex flex-col items-start gap-1"><MediaBadge state={reel.state} style={reel.style} /></div>
         </Media>
       </Go>

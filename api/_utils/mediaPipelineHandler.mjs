@@ -15,6 +15,9 @@
 //        the store page (runner: scripts/catalog/resolve-products.mjs)  (same auth)
 //   POST op=catalog-prices  the daily store-price sync into the cloud copy
 //        (runner: scripts/catalog/push-prices.mjs; src/lib/cloud/catalogPrices.js)  (same auth)
+//   POST op=catalog-archive  the hot-only storefront: archive / restore the owner's products the
+//        trend radar decided (runner: scripts/catalog/push-archive.mjs; src/lib/cloud/catalogArchive.js;
+//        a dry run unless confirm "archive")  (same auth)
 //
 // The renderer (scripts/media/render-reels.mjs) runs on GitHub Actions and is
 // the only caller of plan/ingest. See src/lib/cloud/reelPublisher.js.
@@ -26,6 +29,7 @@ import { isApprovedOrigin } from "./cors.js";
 import { applyResolution, addOwnerLink, catalogCandidates, recordResolveOutcome } from "../../src/lib/cloud/catalogResolver.js";
 import { likeloopRun, likeloopStatus } from "../../src/lib/cloud/likeloopRunner.js";
 import { syncStorePrices } from "../../src/lib/cloud/catalogPrices.js";
+import { syncArchive } from "../../src/lib/cloud/catalogArchive.js";
 
 const norm = (v) => String(v || "").trim().toLowerCase();
 
@@ -158,6 +162,11 @@ export default async function mediaPipelineHandler(req, res) {
     if (op === "catalog-resolve" && req.method === "POST") {
       const body = await readBody(req);
       const { status, ...rest } = await applyResolution(body && typeof body === "object" ? body : {});
+      return send(res, status || 200, rest);
+    }
+    if (op === "catalog-archive" && req.method === "POST") {
+      const body = await readBody(req);
+      const { status, ...rest } = await syncArchive(body && typeof body === "object" ? body : {});
       return send(res, status || 200, rest);
     }
     if (op === "catalog-prices" && req.method === "POST") {

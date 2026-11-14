@@ -21,6 +21,10 @@ on:
       - src/lib/growth/israelGap.js
       - src/lib/growth/radarDiscovery.js
       - src/lib/growth/radarOpportunity.js
+      - src/lib/growth/alpha.js
+      - src/lib/growth/radarIntel.js
+      - src/lib/cloud/catalogArchive.js
+      - scripts/catalog/push-archive.mjs
       - .github/workflows/trend-radar.yml
 permissions:
   contents: write
@@ -53,9 +57,19 @@ jobs:
           set -o pipefail
           timeout 840 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: The hot-only storefront (archive / restore the owner's products the radar decided)
+        # src/lib/cloud/catalogArchive.js on the server decides and refuses; from main it applies
+        # (RADAR_ARCHIVE=apply), from any other branch it is a dry run. Never fails the job.
+        continue-on-error: true
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+          RADAR_ARCHIVE: apply
+        run: |
+          node scripts/catalog/push-archive.mjs radar-state | tee -a /tmp/radar.txt
+          { echo "### Catalog archive"; echo '```'; grep -A40 "catalog archive:" /tmp/radar.txt | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the history and the board
         run: |
-          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/discovered.json radar-state/items.json radar-state/board.json"
+          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/discovered.json radar-state/items.json radar-state/catalog.json radar-state/briefs.json radar-state/catalog-decisions.json radar-state/board.json"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), the Israel gap (Google autocomplete levels, never texts), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
             gh release upload radar $files --clobber

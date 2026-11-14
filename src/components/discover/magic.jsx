@@ -301,6 +301,9 @@ function RadarHint({ item }) {
       </p>
       {hit.item || hit.site ? <p className="font-bold">{L("הפריט הזה:", "This item:")} {(hit.item || hit.site).he}{Number.isFinite((hit.item || hit.site).weekPct) ? ` (${(hit.item || hit.site).weekPct > 0 ? "+" : ""}${(hit.item || hit.site).weekPct}% ${L("הזמנות בשבוע", "orders a week")})` : ""}</p> : null}
       {hit.opportunity ? <p>{L(`בדיקת הזדמנות: ${hit.opportunity.passed} מתוך ${hit.opportunity.measured} בדיקות שנמדדו עברו.`, `Opportunity check: ${hit.opportunity.passed} of ${hit.opportunity.measured} measured checks passed.`)}</p> : null}
+      {hit.alpha ? <p>{L(`מדד אלפא ${hit.alpha.score ?? "—"}/100 · ${hit.alpha.confidenceHe}${hit.alpha.verified ? " · הזדמנות מאומתת" : " · לא מאומת עדיין"}`, `Alpha ${hit.alpha.score ?? "—"}/100`)}{hit.lifecycleHe ? L(` · שלב: ${hit.lifecycleHe}`, "") : ""}{hit.accelHe ? L(` · תאוצה: ${hit.accelHe}`, "") : ""}</p> : null}
+      {hit.why ? <p>{L("למה:", "Why:")} {hit.why}</p> : null}
+      {hit.risk ? <p>{L("סיכון:", "Risk:")} {hit.risk}</p> : null}
       {hit.actionHe ? <p className="font-extrabold">👉 {hit.actionHe}</p> : null}
       <Go to={`/radar#${hit.id}`} className="underline font-bold" style={{ color: "inherit" }}>{L("לרדאר הטרנדים", "Open the trend radar")}</Go>
     </div>

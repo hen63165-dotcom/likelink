@@ -34,6 +34,8 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 // Sensitive keys (money/config) are ONLY writable with an admin token.
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
+import { billingOf, radarCheckoutPlan } from "../src/lib/growth/radarPlans.js";
+import { ensureRadarBillingPlans, resolveRadarPlanId } from "./_utils/paypal.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription, paypalBase, createPlanOrder, capturePlanOrder } from "./_utils/paypal.js";
 import { getPurchasablePlans } from "../src/lib/plans.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
@@ -621,6 +623,15 @@ async function subsHandler(req, res) {
     const outcome = { at: new Date().toISOString(), clientIdPrefix, env: paypalBase().includes("sandbox") ? "sandbox" : "live", ok: report.failed.length === 0 && verified.every((v) => v.ok), productId: plans?.productId || null, created: report.created, adopted: report.adopted, failed: report.failed, verified: verified.map((v) => ({ key: v.key, ok: v.ok, status: v.status || null, reason: v.reason || null })) };
     console.log("[paypal-provision]", JSON.stringify(outcome));
     await kvSet("marketplace:paypal_provision_last", outcome).catch(() => {});
+    // The trend radar's own plans: only while the owner's billing switch is on with the prices she
+    // approved (radarPlans.js billingOf). Otherwise nothing is created for the radar.
+    const radarBilling = billingOf((await kvGet("marketplace:settings", {}).catch(() => ({}))) || {});
+    let radar = { state: radarBilling.enabled ? "PROVISIONED" : "BILLING_OFF", reason: radarBilling.reason };
+    if (radarBilling.enabled) {
+      const rReport = { created: [], adopted: [], failed: [] };
+      const rPlans = await ensureRadarBillingPlans({ kvGet, kvSet, report: rReport });
+      radar = { state: rReport.failed.length ? "PARTIAL" : "PROVISIONED", plans: Object.fromEntries(Object.entries(rPlans || {}).filter(([k]) => k.includes(":"))), ...rReport };
+    }
     return json(res, {
       ok: report.failed.length === 0 && verified.every((v) => v.ok),
       currency: PLAN_CURRENCY,
@@ -628,6 +639,7 @@ async function subsHandler(req, res) {
       plans: planIds,
       ...report,
       verified,
+      radar,
     }, 200, req);
   }
 
@@ -661,6 +673,8 @@ async function subsHandler(req, res) {
 
 // Server-only (not browser-writable, not in the public RLS allowlist).
 const REFUNDS_KEY = "billing:refund_requests";
+// The trend radar's subscriptions (radarPlans.js), apart from marketplace:subscriptions.
+const RADAR_SUBS_KEY = "radar:subscriptions";
 // Prepaid plan orders (server-only): orderId → { userId, planId, period, amount, customId, status }.
 const PREPAID_KEY = "billing:prepaid_orders";
 
@@ -785,6 +799,51 @@ async function subsAuthHandler(req, res, sub, body) {
       record.authEmail = String(authUser.email || "");
       await kvSet(SUBS_KEY, [...superseded, record]);
       return json(res, { ok: true, approveUrl: result.approveUrl, subscriptionId: result.subscriptionId }, 200, req);
+    }
+
+    // ── The trend radar's subscription (Basic / Pro), apart from the site's plans ──
+    // Refused while the owner's billing switch is off or before she approved the prices
+    // (radarPlans.js billingOf); the price comes only from RADAR_PRICES, never from the client.
+    if (sub === "radar-checkout") {
+      if (req.method !== "POST") return json(res, { ok: false, error: "method_not_allowed" }, 405, req);
+      const settings = (await kvGet("marketplace:settings", {})) || {};
+      const billing = billingOf(settings);
+      if (!billing.enabled) return json(res, { ok: false, error: "radar_billing_disabled", reason: billing.reason }, 403, req);
+      const pick = radarCheckoutPlan(body.planId, body.billingPeriod, settings);
+      if (!pick) return json(res, { ok: false, error: "invalid_plan" }, 400, req);
+      if (!paypalConfigured()) return json(res, { ok: false, error: "paypal_not_configured" }, 503, req);
+      const acceptances = (await kvGet(ACCEPTANCES_KEY)) || {};
+      if (!hasAcceptedCurrent(acceptances[authId])) return json(res, { ok: false, error: "legal_acceptance_required", version: LEGAL_VERSION }, 428, req);
+      const all = (await kvGet(RADAR_SUBS_KEY, [])) || [];
+      if (all.some((s) => s && s.userId === authId && s.status === "active")) return json(res, { ok: false, error: "active_subscription_exists" }, 409, req);
+      const paypalPlanId = await resolveRadarPlanId(pick.plan.id, pick.period, { kvGet });
+      if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
+      const origin = getHeader(req, "origin");
+      const base = isApprovedOrigin(origin) ? origin : originFromRequest(req);
+      const result = await createPayPalSubscription({ paypalPlanId, returnUrl: `${base}/radar-pro?sub=return`, cancelUrl: `${base}/radar-pro?sub=cancel`, customId: authId });
+      if (result.error) return json(res, { ok: false, error: result.error }, 502, req);
+      const now = new Date().toISOString();
+      const superseded = all.map((s) => (s && s.userId === authId && s.status === "pending" ? { ...s, status: "cancelled", supersededAt: now } : s));
+      const record = { id: `rs_${Date.now().toString(36)}_${authId.slice(0, 8)}`, product: "radar", planId: pick.plan.id, billingPeriod: pick.period, price: pick.price, currency: pick.currency, userId: authId, authEmail: String(authUser.email || ""), paypalSubscriptionId: result.subscriptionId, status: "pending", createdAt: now };
+      await kvSet(RADAR_SUBS_KEY, [...superseded, record].slice(-2000));
+      return json(res, { ok: true, approveUrl: result.approveUrl, subscriptionId: result.subscriptionId }, 200, req);
+    }
+    if (sub === "radar-get") {
+      const all = (await kvGet(RADAR_SUBS_KEY, [])) || [];
+      const own = all.filter((s) => s && s.userId === authId);
+      let mine = own.filter((s) => s.status === "active").at(-1) || own.filter((s) => s.status === "pending").at(-1) || null;
+      // Activate only what PayPal itself says is ACTIVE, for THIS user and THIS radar plan.
+      if (mine && mine.status === "pending" && mine.paypalSubscriptionId) {
+        const details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        const expected = details?.status === "ACTIVE" ? await resolveRadarPlanId(mine.planId, mine.billingPeriod, { kvGet }).catch(() => null) : null;
+        if (details?.status === "ACTIVE" && details.customId === authId && expected && details.planId === expected) {
+          const next = all.map((s) => (s && s.id === mine.id ? { ...s, status: "active", activatedAt: new Date().toISOString(), verifiedBy: "paypal_status" } : s));
+          await kvSet(RADAR_SUBS_KEY, next);
+          mine = next.find((s) => s && s.id === mine.id);
+        }
+      }
+      const billing = billingOf((await kvGet("marketplace:settings", {})) || {});
+      return json(res, { ok: true, billing: { enabled: billing.enabled }, access: mine?.status === "active", subscription: mine ? { planId: mine.planId, billingPeriod: mine.billingPeriod, status: mine.status, price: mine.price, currency: mine.currency, createdAt: mine.createdAt, activatedAt: mine.activatedAt || null } : null }, 200, req);
     }
 
     // ── Prepaid plan (one-time PayPal order, card or PayPal, no auto-renewal) ──

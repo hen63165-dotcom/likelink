@@ -29,7 +29,9 @@ import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf,
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
-import { parseTrendsRss } from "../../src/lib/growth/likeloop.js";
+import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
+import { enrich } from "../../src/lib/growth/radarIntel.js";
+import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
@@ -88,8 +90,18 @@ async function itemOrders(ids, { env, fetchImpl, now }) {
   const raw = r.result?.products?.product;
   const out = new Map();
   for (const x of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+    const id = String(x?.product_id || "");
+    if (!/^\d{6,20}$/.test(id)) continue;
     const v = Number(x?.lastest_volume);
-    if (/^\d{6,20}$/.test(String(x?.product_id || "")) && x?.lastest_volume !== "" && x?.lastest_volume !== null && Number.isFinite(v)) out.set(String(x.product_id), v);
+    const rate = parseFloat(String(x?.commission_rate ?? "").replace("%", ""));
+    const pos = parseFloat(String(x?.evaluate_rate ?? "").replace("%", ""));
+    out.set(id, {
+      orders: x?.lastest_volume !== "" && x?.lastest_volume !== null && Number.isFinite(v) ? v : null,
+      // Booleans only: the rates choose, they are never kept or shown.
+      ships: true, // asked with country IL: the store returned it for Israel
+      commission: Number.isFinite(rate) ? rate > 0 : null,
+      satisfied: Number.isFinite(pos) ? pos >= 95 : null,
+    });
   }
   return out;
 }
@@ -114,6 +126,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const awareness = readJson(join(dir, "awareness.json"), {});
   let discovered = readJson(join(dir, "discovered.json"), []);
   // Item histories: kept per item per day; seeded once from the server's own readings.
+  const facts = {}; // today's store facts per site item (booleans + orders; not kept between runs)
   let items = readJson(join(dir, "items.json"), null);
   if (!items) {
     items = {};
@@ -177,18 +190,29 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
 
   // 4 (read first). The site's own products and LikeLink2's visitors (public rows, anon read).
   const catalog = await publicKey("marketplace:products", { fetchImpl, env });
+  // Listed products, and the ones the radar archived (so they come back when they qualify again).
   const siteProducts = (Array.isArray(catalog) ? catalog : [])
-    .filter((p) => p?.status === "approved" && !p.archivedAt)
-    .map((p) => ({ id: String(p.id || ""), title: String(p.title || ""), kind: String(p.kind || ""), itemId: aliItemId(p) }))
+    .filter((p) => (p?.status === "approved" && !p.archivedAt) || (p?.status === "archived" && p.archivedBy === "radar"))
+    .map((p) => ({
+      id: String(p.id || ""), title: String(p.title || ""), kind: String(p.kind || ""), category: String(p.category || ""), itemId: aliItemId(p),
+      image: typeof p.image === "string" ? p.image : "", price: Number(p.price) || null, priceSource: String(p.priceSource || ""),
+      affiliateUrl: String(p.affiliateUrl || ""), videoUrl: typeof p.videoUrl === "string" ? p.videoUrl : "", sellerVideo: typeof p.sellerVideo === "string" ? p.sellerVideo : "",
+      images: Array.isArray(p.images) ? p.images.filter((u) => typeof u === "string").slice(0, 8) : [], status: String(p.status || ""), archivedBy: p.archivedBy || null, marketerId: String(p.marketerId || ""),
+    }))
     .filter((p) => p.itemId);
   if (catalog === null) sources.siteProducts = "FAILED";
   else if (store) {
-    const missing = [...new Set(siteProducts.map((p) => p.itemId))].filter((id) => !(items[id] || []).some((r) => r[0] === today));
+    // Every site item, every day: its 30-day orders and the store's facts for the 8 criteria.
+    const ids = [...new Set(siteProducts.map((p) => p.itemId))];
     let read = 0;
-    for (let i = 0; i < missing.length; i += 20) {
+    for (let i = 0; i < ids.length; i += 20) {
       try {
-        const got = await itemOrders(missing.slice(i, i + 20), { env, fetchImpl, now });
-        for (const [id, v] of got) { items[id] = addItemReading(items[id], [today, v]); read++; }
+        const got = await itemOrders(ids.slice(i, i + 20), { env, fetchImpl, now });
+        for (const [id, f] of got) {
+          if (Number.isFinite(f.orders)) items[id] = addItemReading(items[id], [today, f.orders]);
+          facts[id] = { d: today, ...f };
+          read++;
+        }
       } catch (err) { log.push(`site items ${i}: ${String(err?.message || err).slice(0, 80)}`); }
     }
     sources.siteProducts = "OK";
@@ -258,17 +282,27 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   for (const id of Object.keys(items)) if (!(items[id] || []).some((r) => r[0] >= keepFrom)) delete items[id];
   const site = sources.siteProducts === "OK" ? siteHotness(siteProducts, items) : null;
   if (site) log.push(`site hotness: ${JSON.stringify(site.counts)} · hot: ${site.rows.filter((r) => r.state === "HOT").map((r) => `${r.id} ${r.weekPct}%`).join(", ") || "none"}`);
-  const board = buildBoard({ concepts, readings, picks, calls, awareness, items, site, now });
+  // The one intelligence object (alpha.js): acceleration shield, Alpha score, lifecycle, the
+  // catalog check of every site product (a proposal) and the content briefs (drafts).
+  const intel = enrich(buildBoard({ concepts, readings, picks, calls, awareness, items, site, now }), {
+    concepts, readings, items, facts, siteProducts: sources.siteProducts === "OK" ? siteProducts : [], events: Array.isArray(clicks) ? clicks : [],
+    hooksFor: (p) => buildHookSet(p, { now }).filter((h) => !/₪/.test(h.text)), origin: PRODUCTION_ORIGIN, now,
+  });
+  const board = intel.board;
   board.sourcesToday = sources;
+  if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "discovered.json"), JSON.stringify(discovered, null, 1));
   writeFileSync(join(dir, "items.json"), JSON.stringify(items));
+  writeFileSync(join(dir, "catalog.json"), JSON.stringify(intel.audit, null, 1));
+  writeFileSync(join(dir, "briefs.json"), JSON.stringify(intel.briefs, null, 1));
+  writeFileSync(join(dir, "catalog-decisions.json"), JSON.stringify(intel.decisions, null, 1));
   writeFileSync(join(dir, "board.json"), JSON.stringify(board));
   const counts = board.concepts.reduce((m, c) => ((m[c.stage] = (m[c.stage] || 0) + 1), m), {});
   const gapCounts = board.concepts.reduce((m, c) => ((m[c.gap.state] = (m[c.gap.state] || 0) + 1), m), {});
-  return { board, log, counts, gapCounts, sources };
+  return { board, log, counts, gapCounts, sources, audit: intel.audit, briefs: intel.briefs };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {

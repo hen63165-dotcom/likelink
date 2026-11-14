@@ -34,6 +34,25 @@ test("the copy wins for its own ids, the cloud only adds, and a failed read is t
   assert.deepEqual(failed.doc.keys, copy.keys);
 });
 
+test("the radar's archive in the cloud decides over the copy (and its restore); nothing else does", () => {
+  const copy = { keys: { "marketplace:products": [{ id: "a", status: "approved", title: "A", affiliateUrl: "https://s.click.aliexpress.com/e/_a" }, { id: "b", status: "approved", title: "B" }, { id: "c", status: "approved", title: "C" }] } };
+  const cloud = [
+    { id: "a", status: "archived", archivedBy: "radar", archivedAt: "2026-11-15T06:00:00.000Z", archivedReason: "ההזמנות יורדות", title: "changed in the cloud" },
+    { id: "b", status: "archived", archivedBy: "owner" },
+    { id: "c", status: "approved", restoredBy: "radar", restoredAt: "2026-11-16T06:00:00.000Z" },
+  ];
+  const { doc, archived } = mergeCatalog(copy, live(cloud));
+  const [a, b, c] = doc.keys["marketplace:products"];
+  assert.equal(a.status, "archived");
+  assert.equal(a.archivedBy, "radar");
+  assert.equal(a.title, "A", "only the archive fields come from the cloud");
+  assert.equal(a.affiliateUrl, "https://s.click.aliexpress.com/e/_a", "the link is kept");
+  assert.equal(b.status, "approved", "a person's archive in the cloud is not the radar's: the copy stands");
+  assert.equal(c.status, "approved");
+  assert.equal(c.restoredBy, "radar");
+  assert.equal(archived, 1);
+});
+
 test("the live read is the browser's own: anon key, only the allowlisted rows, never throws", async () => {
   const seen = [];
   const fetchImpl = async (url, init) => {

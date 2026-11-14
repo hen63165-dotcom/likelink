@@ -87,6 +87,18 @@ test("the reels feed is read from the site's own address first, then GitHub Page
   assert.equal(list[0].videoUrl, "https://hen63165-dotcom.github.io/likelink/media/reels/seller-p-live-05.mp4");
 });
 
+test("the reels' media come from the address that answered the feed (GitHub Pages can be off)", async () => {
+  const { loadReelsFeed: freshLoad } = await import(`../src/lib/reelsFeed.js?own=${Date.now()}`);
+  const doc = { reels: [{ id: "seller-p-live-05", productId: "p-live-05", video: "seller-p-live-05.mp4", poster: "seller-p-live-05-cover.jpg", look: "seller" }] };
+  const own = "https://likelink2.vercel.app/media/reels/index.json";
+  const asked = [];
+  const list = await freshLoad(async (url) => { asked.push(url); return { ok: true, json: async () => doc }; }, [own, REELS_FEED_HOME]);
+  assert.deepEqual(asked, [own], "the own address answered, so GitHub Pages is not asked");
+  assert.equal(list[0].videoUrl, "https://likelink2.vercel.app/media/reels/seller-p-live-05.mp4");
+  assert.equal(list[0].poster, "https://likelink2.vercel.app/media/reels/seller-p-live-05-cover.jpg");
+  assert.doesNotMatch(read("src/lib/reelsFeed.js"), /feedToVideos\(doc, REELS_FEED_HOME\)/);
+});
+
 test("the home page names whose video and image it is, keeps the disclosure and shows no counters", () => {
   const luxe = read("src/components/discover/luxe.jsx");
   assert.match(luxe, /styleLabel\(reel\.style, lang\)/, "the featured video names whose it is");

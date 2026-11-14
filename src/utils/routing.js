@@ -26,6 +26,7 @@ export function parsePath(pathname) {
   if (parts[0] === "wish") return { type: "wish" };
   if (parts[0] === "magic") return { type: "magic" };
   if (parts[0] === "radar") return { type: "radar" };
+  if (parts[0] === "radar-pro") return { type: "radarPro" };
   if (parts[0] === "products") {
     return { type: "products", category: parts[1] ? decodeURIComponent(parts[1]) : null };
   }

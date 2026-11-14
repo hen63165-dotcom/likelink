@@ -49,25 +49,44 @@ export async function loadLiveKeys({ fetchImpl = globalThis.fetch, cloud = cloud
   }
 }
 
-/** The copy, with the live rows it does not have added (the copy wins for its own ids). */
+// The one thing the cloud decides over the copy: the trend radar's archive (src/lib/cloud/
+// catalogArchive.js, the hot-only storefront). A product the radar archived in the cloud is not
+// listed by the build either (no product page, sitemap entry or pin), and a product it restored
+// is listed again; every other field of the copy's record stays as checked.
+const ARCHIVE_FIELDS = ["status", "archivedAt", "archivedBy", "archivedReason", "restoredAt", "restoredBy"];
+function withRadarStatus(record, cloud) {
+  if (!cloud || (cloud.archivedBy !== "radar" && cloud.restoredBy !== "radar")) return record;
+  const next = { ...record };
+  for (const f of ARCHIVE_FIELDS) { if (cloud[f] === undefined) delete next[f]; else next[f] = cloud[f]; }
+  return next;
+}
+
+/** The copy, with the live rows it does not have added (the copy wins for its own ids, except the radar's archive status). */
 export function mergeCatalog(snapshotDoc, live) {
   const keys = { ...(snapshotDoc?.keys || {}) };
   let added = 0;
+  let archived = 0;
   for (const k of LIVE_KEYS) {
     const fresh = live?.ok ? live.keys?.[k] : null;
     if (!Array.isArray(fresh)) continue;
     const base = Array.isArray(keys[k]) ? keys[k] : [];
     const have = new Set(base.map((x) => x?.id).filter(Boolean));
     const extra = fresh.filter((x) => x && x.id && !have.has(x.id));
-    if (k === "marketplace:products") added = extra.length;
-    keys[k] = [...base, ...extra];
+    let kept = base;
+    if (k === "marketplace:products") {
+      added = extra.length;
+      const byId = new Map(fresh.filter((x) => x && x.id).map((x) => [x.id, x]));
+      kept = base.map((x) => withRadarStatus(x, byId.get(x?.id)));
+      archived = kept.filter((x) => x?.status === "archived" && x.archivedBy === "radar").length;
+    }
+    keys[k] = [...kept, ...extra];
   }
-  return { doc: { ...(snapshotDoc || {}), keys }, added };
+  return { doc: { ...(snapshotDoc || {}), keys }, added, archived };
 }
 
 /** The catalog a build publishes: the copy merged with the live cloud. Never throws. */
 export async function buildCatalog(snapshotDoc, opts = {}) {
   const live = await loadLiveKeys(opts);
-  const { doc, added } = mergeCatalog(snapshotDoc, live);
-  return { doc, added, live: live.ok ? "ok" : live.reason };
+  const { doc, added, archived } = mergeCatalog(snapshotDoc, live);
+  return { doc, added, archived, live: live.ok ? "ok" : live.reason };
 }

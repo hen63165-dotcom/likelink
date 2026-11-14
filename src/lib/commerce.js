@@ -201,6 +201,16 @@ export function capturePrepaid(token, orderId) {
   return subsPost("prepaid-capture", token, { orderId });
 }
 
+/** The trend radar's own subscription (radarPlans.js): refused by the server while billing is off. */
+export function startRadarCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
+  return subsPost("radar-checkout", token, { planId, billingPeriod });
+}
+
+/** The caller's radar subscription; activates a pending one only on PayPal's own ACTIVE. */
+export function fetchRadarSubscription(token) {
+  return subsPost("radar-get", token, {});
+}
+
 /** Create a real PayPal Billing subscription → { approveUrl } for redirect. */
 export function startSubscriptionCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
   return subsPost("checkout", token, { planId, billingPeriod });
