@@ -274,16 +274,20 @@ export function catalogVerdict(product = {}, { acc = null, gap = null, hot = nul
   const criteria = criteriaOf(product, { acc, gap, hot, facts });
   const failed = criteria.filter((x) => x.ok === false);
   const hard = failed.filter((x) => ["ships", "commission", "quality", "demand"].includes(x.id));
-  if (hard.length) return { verdict: "ARCHIVE_PROPOSED", reasons: hard.map((x) => `נכשל: ${x.he}`), criteria };
+  // basis "hard": a fact from the store failed (no shipping to Israel, no commission, under 300
+  // orders, quality); it does not depend on how many readings there are, so it may apply at once.
+  // basis "momentum": a direction call (no acceleration, slowing, saturated), which waits for the
+  // full second-measurement scan (push-archive.mjs ARCHIVE_NOT_BEFORE).
+  if (hard.length) return { verdict: "ARCHIVE_PROPOSED", basis: "hard", reasons: hard.map((x) => `נכשל: ${x.he}`), criteria };
   const c = acc?.cls;
   if (hot === "HOT" || c === "ACCELERATING" || c === "EMERGING") {
-    if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", reasons: ["ההזמנות יורדות"], criteria };
+    if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", basis: "momentum", reasons: ["ההזמנות יורדות"], criteria };
     return { verdict: "KEEP", reasons: [c === "EMERGING" || c === "ACCELERATING" ? ACCEL[c].he : "חם עכשיו"], criteria };
   }
   if (!c || c === "INSUFFICIENT") return { verdict: "HOLD", reasons: [ACCEL.INSUFFICIENT.hint], criteria };
-  if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", reasons: ["ההזמנות יורדות"], criteria };
-  if (gap?.state === "ARRIVED") return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}, וכבר מחפשים את זה בישראל (רווי)`], criteria };
-  return { verdict: "ARCHIVE_PROPOSED", reasons: [`${ACCEL[c].he}: נמכר, אבל בלי תאוצה`], criteria };
+  if (c === "DECLINING") return { verdict: "ARCHIVE_PROPOSED", basis: "momentum", reasons: ["ההזמנות יורדות"], criteria };
+  if (gap?.state === "ARRIVED") return { verdict: "ARCHIVE_PROPOSED", basis: "momentum", reasons: [`${ACCEL[c].he}, וכבר מחפשים את זה בישראל (רווי)`], criteria };
+  return { verdict: "ARCHIVE_PROPOSED", basis: "momentum", reasons: [`${ACCEL[c].he}: נמכר, אבל בלי תאוצה`], criteria };
 }
 
 const STORE_IMG = /^https:\/\/([a-z0-9-]+\.)*(aliexpress-media\.com|alicdn\.com)\/\S+$/i;

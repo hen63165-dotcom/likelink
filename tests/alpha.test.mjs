@@ -250,12 +250,18 @@ test("the kits page: escaped, store photos and the site's own tracked links only
   assert.match(kitsPage(null), /אין עדיין מוצר/);
 });
 
-test("the archive waits for the 17.11 scan: before it every run is a dry run, even from main", async () => {
-  const { mayApply, ARCHIVE_NOT_BEFORE } = await import("../scripts/catalog/push-archive.mjs");
+test("archive timing: store-fact failures apply now; momentum calls wait for the 17.11 scan; restores always", async () => {
+  const { mayApply, applicableNow, ARCHIVE_NOT_BEFORE } = await import("../scripts/catalog/push-archive.mjs");
   const main = { RADAR_ARCHIVE: "apply", GITHUB_REF: "refs/heads/main" };
   assert.equal(ARCHIVE_NOT_BEFORE, "2026-11-17");
-  assert.equal(mayApply(main, at("2026-11-16")), false);
-  assert.equal(mayApply(main, at("2026-11-17")), true);
-  assert.equal(mayApply({ ...main, GITHUB_REF: "refs/heads/claude/x" }, at("2026-11-20")), false, "never from a branch");
-  assert.equal(mayApply({ GITHUB_REF: "refs/heads/main" }, at("2026-11-20")), false, "never without RADAR_ARCHIVE=apply");
+  assert.equal(mayApply(main), true);
+  assert.equal(mayApply({ ...main, GITHUB_REF: "refs/heads/claude/x" }), false, "never from a branch");
+  assert.equal(mayApply({ GITHUB_REF: "refs/heads/main" }), false, "never without RADAR_ARCHIVE=apply");
+  const ds = [{ id: "a", action: "archive", basis: "hard" }, { id: "b", action: "archive", basis: "momentum" }, { id: "c", action: "restore", basis: "restore" }, { id: "d", action: "archive" }];
+  assert.deepEqual(applicableNow(ds, at("2026-11-15")).map((d) => d.id), ["a", "c"]);
+  assert.deepEqual(applicableNow(ds, at("2026-11-17")).map((d) => d.id), ["a", "b", "c", "d"]);
+  const acc = (cls) => ({ cls });
+  assert.equal(catalogVerdict(OK, { acc: acc("ACCELERATING"), facts: { ...FACTS, orders: 50 } }).basis, "hard");
+  assert.equal(catalogVerdict(OK, { acc: acc("STABLE"), facts: FACTS }).basis, "momentum");
+  assert.equal(catalogVerdict(OK, { acc: acc("INSUFFICIENT"), facts: FACTS }).basis, undefined, "a product waiting for readings is never archived");
 });

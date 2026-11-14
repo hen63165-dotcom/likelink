@@ -66,7 +66,7 @@ export function enrich(board, { concepts = [], readings = {}, items = {}, facts 
     const alpha = alphaOf({ acc, gap, priv });
     const v = catalogVerdict(p, { acc, gap, hot, facts: facts[p.itemId] || null });
     const ex = explain({ alpha, acc, gap, kind: p.kind, price: p.price, momentumHot: hot === "HOT" });
-    audit.push({ id: p.id, title: String(p.title || "").slice(0, 60), kind: p.kind || "", itemId: p.itemId, status: p.status || "approved", archivedBy: p.archivedBy || null, verdict: v.verdict, verdictHe: VERDICTS[v.verdict].he, reasons: v.reasons, criteria: v.criteria, accel: lean(acc), hot, concept: concept?.id || null, israel: gap ? { state: gap.state, he: gap.he, confidenceHe: gap.confidenceHe || null } : null, lifecycle: lifecycleOf(acc, gap), alpha: { score: alpha.score, confidence: alpha.confidence, coverage: alpha.coverage, verified: alpha.verified, missing: alpha.missing }, why: ex.why, risks: ex.risks });
+    audit.push({ id: p.id, title: String(p.title || "").slice(0, 60), kind: p.kind || "", itemId: p.itemId, status: p.status || "approved", archivedBy: p.archivedBy || null, verdict: v.verdict, verdictHe: VERDICTS[v.verdict].he, basis: v.basis || null, reasons: v.reasons, criteria: v.criteria, accel: lean(acc), hot, concept: concept?.id || null, israel: gap ? { state: gap.state, he: gap.he, confidenceHe: gap.confidenceHe || null } : null, lifecycle: lifecycleOf(acc, gap), alpha: { score: alpha.score, confidence: alpha.confidence, coverage: alpha.coverage, verified: alpha.verified, missing: alpha.missing }, why: ex.why, risks: ex.risks });
     if (v.verdict === "KEEP") {
       const k = kitOf(p, { hooks: hooksFor(p), origin, why: ex.why, now });
       if (k) briefs.push({ ...k, alpha: alpha.score, confidence: alpha.confidence, audience: ex.audience, angle: ex.angle });
@@ -87,6 +87,6 @@ export function enrich(board, { concepts = [], readings = {}, items = {}, facts 
     briefs: { at: new Date(now).toISOString(), status: "PROMOTION KITS: DRAFTS_FOR_APPROVAL (nothing is posted)", ready: briefs.filter((k) => k.status === "DRAFT_FOR_APPROVAL").length, halted: briefs.filter((k) => k.status === "HALTED").length, briefs },
     // What the server is asked to do (catalogArchive.js decides and refuses what it must).
     decisions: audit.filter((r) => (r.verdict === "ARCHIVE_PROPOSED" && r.status === "approved") || (r.verdict === "KEEP" && r.status === "archived" && r.archivedBy === "radar"))
-      .map((r) => ({ id: r.id, action: r.verdict === "KEEP" ? "restore" : "archive", reason: r.reasons[0] || "", evidence: { accel: r.accel?.cls || null, weekPct: r.accel?.weekPct ?? null, israel: r.israel?.state || null, at: new Date(now).toISOString().slice(0, 10) } })),
+      .map((r) => ({ id: r.id, action: r.verdict === "KEEP" ? "restore" : "archive", basis: r.verdict === "KEEP" ? "restore" : r.basis || "momentum", reason: r.reasons[0] || "", evidence: { accel: r.accel?.cls || null, weekPct: r.accel?.weekPct ?? null, israel: r.israel?.state || null, at: new Date(now).toISOString().slice(0, 10) } })),
   };
 }
