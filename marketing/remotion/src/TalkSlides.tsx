@@ -45,10 +45,10 @@ export const talkSeconds = (p: TalkProps) => timeline(p.lines).total;
 
 /** The words in bubbles of up to three (a new bubble after a sentence ends). */
 const chunks = (words: Word[]) => {
-  const out: { from: number; text: string }[] = [];
+  const out: { from: number; text: string; words: Word[] }[] = [];
   let cur: Word[] = [];
   const flush = () => {
-    if (cur.length) out.push({ from: cur[0][0], text: cur.map((w) => w[2]).join(" ") });
+    if (cur.length) out.push({ from: cur[0][0], text: cur.map((w) => w[2]).join(" "), words: cur });
     cur = [];
   };
   for (const w of words) {
@@ -59,8 +59,8 @@ const chunks = (words: Word[]) => {
   return out;
 };
 
-const SLIDE = { x: 43, y: 170, w: 994, h: 1242 };
-const WIN = { x: 52, y: 1112, w: 360, h: 480 };
+const SLIDE = { x: 96, y: 150, w: 888, h: 1110 };
+const WIN = { x: 40, y: 1010, w: 430, h: 574 };
 
 const Mic: React.FC<{ local: number }> = ({ local }) => {
   const rise = interpolate(local, [0, 9], [90, 0], { ...clamp, easing: Easing.out(Easing.back(1.6)) });
@@ -107,7 +107,6 @@ const Presenter: React.FC<{ line: TalkLine; at: number; dark: boolean }> = ({ li
   const pop = interpolate(local, [0, 6, 11], [0.82, 1.05, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   const tilt = interpolate(local, [0, 6, 12], [-5, 2, 0], clamp);
   const edge = dark ? SUN : INK;
-  const dot = 0.55 + 0.45 * Math.abs(Math.sin(local / 7));
   const vid = Math.max(2, Math.floor(line.seconds * FPS));
   return (
     <>
@@ -137,27 +136,6 @@ const Presenter: React.FC<{ line: TalkLine; at: number; dark: boolean }> = ({ li
             <OffthreadVideo muted src={staticFile(line.video)} style={VIDEO} />
           </Freeze>
         </Sequence>
-        <div
-          style={{
-            position: "absolute",
-            top: 14,
-            right: 14,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 14px",
-            borderRadius: 999,
-            background: RED,
-            color: "#fff",
-            fontFamily: FONT,
-            fontWeight: 900,
-            fontSize: 24,
-            direction: "rtl",
-          }}
-        >
-          <span style={{ width: 12, height: 12, borderRadius: 99, background: "#fff", opacity: dot }} />
-          מסבירה
-        </div>
       </div>
       <Mic local={local} />
       <div
@@ -194,7 +172,7 @@ const Bubble: React.FC<{ line: TalkLine; at: number; dark: boolean }> = ({ line,
   const local = (t - parts[i].from) * FPS;
   const edge = dark ? SUN : INK;
   return (
-    <div style={{ position: "absolute", left: WIN.x + WIN.w + 36, right: 40, top: 1436, display: "flex", justifyContent: "flex-start", direction: "ltr", zIndex: 8 }}>
+    <div style={{ position: "absolute", left: WIN.x + WIN.w + 34, right: 36, top: 1300, display: "flex", justifyContent: "flex-start", direction: "ltr", zIndex: 8 }}>
       <div
         style={{
           direction: "rtl",
@@ -213,7 +191,12 @@ const Bubble: React.FC<{ line: TalkLine; at: number; dark: boolean }> = ({ line,
           transformOrigin: "0% 100%",
         }}
       >
-        {parts[i].text}
+        {parts[i].words.map((w, j) => (
+          <span key={j} style={{ color: t >= w[0] && (j === parts[i].words.length - 1 || t < parts[i].words[j + 1][0]) ? RED : INK }}>
+            {w[2]}
+            {j < parts[i].words.length - 1 ? " " : ""}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -245,9 +228,11 @@ export const TalkSlides: React.FC<TalkProps> = (p) => {
       {p.lines.map((l, j) => (
         <Slide key={l.id} src={l.slide} at={j === 0 ? 0 : starts[j] - 0.05} next={j < p.lines.length - 1 ? starts[j + 1] - 0.05 : undefined} first={j === 0} />
       ))}
-      <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-        <div style={{ direction: "rtl", padding: "10px 28px", borderRadius: 999, background: dark ? SUN : INK, color: dark ? INK : SUN, fontWeight: 900, fontSize: 34 }}>{p.header}</div>
-      </div>
+      {p.header ? (
+        <div style={{ position: "absolute", top: 96, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          <div style={{ direction: "rtl", padding: "10px 28px", borderRadius: 999, background: dark ? SUN : INK, color: dark ? INK : SUN, fontWeight: 900, fontSize: 34 }}>{p.header}</div>
+        </div>
+      ) : null}
       {p.lines.map((l, j) => (
         <Sequence key={l.id} from={Math.round(starts[j] * FPS)} durationInFrames={Math.round(((j < p.lines.length - 1 ? starts[j + 1] : total) - starts[j]) * FPS)}>
           <Presenter line={l} at={0} dark={!!l.dark} />
