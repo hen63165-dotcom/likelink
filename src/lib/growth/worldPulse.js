@@ -14,10 +14,15 @@ export const WORLD_MARKETS = Object.freeze([
   Object.freeze({ id: "gb", gl: "gb", he: "בריטניה" }),
   Object.freeze({ id: "ca", gl: "ca", he: "קנדה" }),
   Object.freeze({ id: "au", gl: "au", he: "אוסטרליה" }),
+  // Where many product trends start: Japan and Korea (cute, beauty, gadgets), and two big European markets.
+  Object.freeze({ id: "jp", gl: "jp", he: "יפן" }),
+  Object.freeze({ id: "kr", gl: "kr", he: "קוריאה" }),
+  Object.freeze({ id: "de", gl: "de", he: "גרמניה" }),
+  Object.freeze({ id: "fr", gl: "fr", he: "צרפת" }),
 ]);
-export const TRENDS_GEOS = Object.freeze(["US", "GB", "CA", "AU"]);
+export const TRENDS_GEOS = Object.freeze(["US", "GB", "CA", "AU", "JP", "KR", "DE", "FR", "BR", "IN"]);
 export const trendsRssUrl = (geo) => `https://trends.google.com/trending/rss?geo=${encodeURIComponent(geo)}`;
-const GEO_HE = { US: "ארה״ב", GB: "בריטניה", CA: "קנדה", AU: "אוסטרליה" };
+const GEO_HE = { US: "ארה״ב", GB: "בריטניה", CA: "קנדה", AU: "אוסטרליה", JP: "יפן", KR: "קוריאה", DE: "גרמניה", FR: "צרפת", BR: "ברזיל", IN: "הודו" };
 
 export const WORLD = Object.freeze({
   keep: 60, // daily readings per concept
@@ -78,7 +83,7 @@ export function worldPulseOf(history = [], { rules = WORLD } = {}) {
   let state;
   if (trends.length) state = "VIRAL_NOW";
   else if (before && today.searched > before.searched) state = "SPREADING";
-  else if (today.aware >= 3) state = "WIDE";
+  else if (today.aware >= 4) state = "WIDE";
   else if (today.searched >= 1) state = "EARLY";
   else state = "NONE";
   const where = WORLD_MARKETS.filter((m) => level(now.by?.[m.id], rules) && level(now.by?.[m.id], rules) !== "NONE").map((m) => m.he);
@@ -86,7 +91,7 @@ export function worldPulseOf(history = [], { rules = WORLD } = {}) {
   const dm = (d) => `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}`;
   const evidence = [];
   if (trends.length) evidence.push(`בחיפושים החמים של גוגל היום ב${trends.map((g) => GEO_HE[g] || g).join(", ")} (${dm(now.d)}).`);
-  evidence.push(where.length ? `מחפשים את זה באנגלית ב: ${where.join(", ")} (${dm(now.d)}).` : `באנגלית עוד אין השלמות לחיפוש בארה״ב, בריטניה, קנדה, אוסטרליה ויוטיוב (${dm(now.d)}).`);
+  evidence.push(where.length ? `מחפשים את זה ב: ${where.join(", ")} (${dm(now.d)}).` : `עוד אין השלמות לחיפוש ב־${WORLD_MARKETS.length} המדינות וביוטיוב (${dm(now.d)}).`);
   if (before && older) evidence.push(`לפני (${dm(older.d)}): ב־${before.searched} מקורות; היום: ב־${today.searched}.`);
   return { state, he: WORLD_STATES[state].he, searched: today.searched, of: today.answered, trends, evidence };
 }
@@ -136,3 +141,32 @@ export function productTrend(term, items = [], { rules = WORLD } = {}) {
   if (orders < rules.minOrders) return { ok: false, reason: "few_orders", items: match.length, orders };
   return { ok: true, items: match.length, orders };
 }
+
+/**
+ * The early call (the owner, 2026-11-15: "every trend it calls must be a bullseye"). No signal alone
+ * calls a trend; independent ones must agree (pure; tested):
+ *   world   — searches spread to more countries than days ago, or a country's trending searches;
+ *   demand  — AliExpress orders accelerate across most top items (stage EMERGING/RISING);
+ *   supply  — sellers rush in: matching listings grew ≥10% between readings ≥2 days apart;
+ *   israel  — not searched in Hebrew yet (the head start).
+ * CALL when three agree (demand among them); WATCH on two. A call is graded publicly after 14 days.
+ */
+export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null } = {}) {
+  const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])));
+  let supply = false;
+  if (rs.length >= 2) {
+    const [d0, n0] = rs[0];
+    const [d1, n1] = rs[rs.length - 1];
+    supply = (Date.parse(d1) - Date.parse(d0)) / 86_400_000 >= 2 && n0 > 0 && (n1 - n0) / n0 >= 0.1;
+  }
+  const signals = {
+    world: world?.state === "SPREADING" || world?.state === "VIRAL_NOW",
+    demand: stage === "EMERGING" || stage === "RISING",
+    supply,
+    israel: gap?.state === "GAP",
+  };
+  const count = Object.values(signals).filter(Boolean).length;
+  const level = count >= 3 && signals.demand ? "CALL" : count >= 2 ? "WATCH" : "NONE";
+  return { level, count, signals };
+}
+
