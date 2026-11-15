@@ -37,6 +37,7 @@ import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, echoOf, finishLinesOf, leadOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
+import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 
@@ -403,7 +404,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // The sealed envelope: today's fingerprint of every early call so far (calls.json is public on the
   // release, so anyone can recompute it and see that a call was made before the trend).
   const sealText = sealOf(calls);
-  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), seal: sealText ? { d: today, sha256: createHash("sha256").update(sealText).digest("hex"), count: calls.filter((x) => x.kind === "early").length } : null };
+  const seal = sealText ? { d: today, sha256: createHash("sha256").update(sealText).digest("hex"), count: calls.filter((x) => x.kind === "early").length, text: sealText.length <= 30_000 ? sealText : null, ots: [] } : null;
+  // Anchored in Bitcoin (radarSeal.js): only the 32-byte hash goes to the public OpenTimestamps
+  // calendars, and only when it changed (an unchanged seal keeps the proofs it already has).
+  const prevSeal = prevBoard.early?.seal;
+  if (seal && prevSeal?.sha256 === seal.sha256 && Array.isArray(prevSeal.ots) && prevSeal.ots.length) seal.ots = prevSeal.ots, seal.d = prevSeal.d || seal.d;
+  else if (seal && env.RADAR_OTS !== "0") {
+    for (const cal of OTS_CALENDARS) {
+      try {
+        const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(seal.sha256), signal: AbortSignal.timeout(20_000) });
+        const proof = res.ok ? otsProof(seal.sha256, new Uint8Array(await res.arrayBuffer())) : null;
+        if (proof) seal.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+        else log.push(`seal: ${new URL(cal).host} answered ${res.status}`);
+      } catch (e) { log.push(`seal: ${new URL(cal).host} ${e?.name || "error"}`); }
+    }
+    log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
+  }
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), seal };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

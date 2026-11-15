@@ -21,6 +21,7 @@ const IMG_HOST = /(^|\.)(aliexpress-media\.com|alicdn\.com|aliexpress\.com)$/i;
 
 const str = (v, max = 200) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : "");
 const FINISH = ["buzz", "israel", "trends", "wide"];
+const OTS_HOSTS = ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"];
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const day = (v) => (typeof v === "string" && DAY.test(v) ? v : null);
 const lines = (list, max = 8) => (Array.isArray(list) ? list : []).slice(0, max).map((e) => ({ k: str(e?.k, 20), text: str(e?.text, 300) })).filter((e) => e.text);
@@ -127,7 +128,7 @@ export function sanitizeBoard(doc) {
   return {
     v: num(doc.v) ?? 1,
     at: str(doc.at, 30),
-    early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 4 ? 4 : 3, record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, lead: doc.early.lead && typeof doc.early.lead === "object" ? Object.fromEntries(FINISH.map((k) => { const l = doc.early.lead[k] || {}; return [k, { met: num(l.met) ?? 0, ahead: num(l.ahead) ?? 0, medianDays: num(l.medianDays), waiting: num(l.waiting) ?? 0 }]; })) : null, seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0 } : null } : null,
+    early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 4 ? 4 : 3, record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, lead: doc.early.lead && typeof doc.early.lead === "object" ? Object.fromEntries(FINISH.map((k) => { const l = doc.early.lead[k] || {}; return [k, { met: num(l.met) ?? 0, ahead: num(l.ahead) ?? 0, medianDays: num(l.medianDays), waiting: num(l.waiting) ?? 0 }]; })) : null, seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0, text: typeof doc.early.seal.text === "string" && doc.early.seal.text.length <= 30_000 && /^[a-z0-9|,\n-]*$/.test(doc.early.seal.text) ? doc.early.seal.text : null, ots: (Array.isArray(doc.early.seal.ots) ? doc.early.seal.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null } : null,
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
