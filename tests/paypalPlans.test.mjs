@@ -46,8 +46,8 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (u.startsWith(SB)) return jsonResponse(200, []);
   if (u === `${PP}/v1/oauth2/token`) return jsonResponse(200, { access_token: "pp-live-token" });
-  if (u.startsWith(`${PP}/v1/catalog/products`) && method === "GET") return jsonResponse(200, { products: paypal.products });
-  if (u === `${PP}/v1/catalog/products` && method === "POST") {
+  if (u.startsWith(`${PP}/v1/catalogs/products`) && method === "GET") return jsonResponse(200, { products: paypal.products });
+  if (u === `${PP}/v1/catalogs/products` && method === "POST") {
     const p = { id: `PROD-${nextId++}`, ...JSON.parse(init.body) };
     paypal.products.push(p);
     return jsonResponse(201, p);
@@ -213,7 +213,7 @@ test("a product list that cannot be read creates no product (no duplicate LikeLi
   const { ensurePayPalProduct, _resetPayPalCaches } = await import("../api/_utils/paypal.js");
   _resetPayPalCaches();
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, init) => (String(url).includes("/v1/catalog/products") && (init?.method || "GET") === "GET" ? new Response("{}", { status: 500 }) : realFetch(url, init));
+  globalThis.fetch = async (url, init) => (String(url).includes("/v1/catalogs/products") && (init?.method || "GET") === "GET" ? new Response("{}", { status: 500 }) : realFetch(url, init));
   const id = await ensurePayPalProduct({});
   globalThis.fetch = realFetch;
   assert.equal(id, null);
@@ -227,8 +227,8 @@ test("a live account with no catalog products yet (list answers 404) gets exactl
   const realFetch = globalThis.fetch;
   const posts = [];
   globalThis.fetch = async (url, init) => {
-    const isList = String(url).includes("/v1/catalog/products") && (init?.method || "GET") === "GET";
-    if (!isList && String(url).endsWith("/v1/catalog/products")) posts.push(init?.headers?.["PayPal-Request-Id"]);
+    const isList = String(url).includes("/v1/catalogs/products") && (init?.method || "GET") === "GET";
+    if (!isList && String(url).endsWith("/v1/catalogs/products")) posts.push(init?.headers?.["PayPal-Request-Id"]);
     return isList && paypal.products.length === 0 ? new Response(JSON.stringify({ name: "RESOURCE_NOT_FOUND" }), { status: 404 }) : realFetch(url, init);
   };
   const id = await ensurePayPalProduct({});
