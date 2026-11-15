@@ -2,42 +2,159 @@
   "name": "talk-slides-20261115",
   "about": "The owner, 2026-11-15: Shira and Noa move and explain every carousel slide from the side, with a microphone, reading it out. Two carousels (5 mistakes, the radar for creators), the presenters taking turns slide by slide as in the carousels. Original animated characters (labelled דמות AI on every frame); only what the slides say, nothing invented.",
   "voices": {
-    "shira": { "voice": "he-IL-HilaNeural", "rate": "+6%", "pitch": "-6Hz" },
-    "noa": { "voice": "he-IL-HilaNeural", "rate": "+10%", "pitch": "+14Hz" }
+    "shira": {
+      "voice": "he-IL-HilaNeural",
+      "rate": "+6%",
+      "pitch": "-6Hz"
+    },
+    "noa": {
+      "voice": "he-IL-HilaNeural",
+      "rate": "+10%",
+      "pitch": "+14Hz"
+    }
   },
   "heads": {
-    "shira": [0.21, 0.055, 0.899, 0.443],
-    "noa": [0.069, 0.063, 0.942, 0.555]
+    "shira": [
+      0.21,
+      0.055,
+      0.899,
+      0.443
+    ],
+    "noa": [
+      0.069,
+      0.063,
+      0.942,
+      0.555
+    ]
   },
   "bases": {
     "shira": [
       "scripts/media/studio3d/shots/ae-1005006861665924-shira/cta.mp4",
-      "scripts/media/studio3d/shots/ae-1005006861665924-shira/problem.mp4",
       "scripts/media/studio3d/shots/ae-1005006861665924-shira/hero.mp4",
       "scripts/media/studio3d/shots/ae-1005006861665924-shira/wow.mp4"
     ],
     "noa": [
       "scripts/media/studio3d/shots/brand-buyers-noa/hero.mp4",
-      "scripts/media/studio3d/shots/brand-buyers-noa/cta.mp4",
-      "scripts/media/studio3d/shots/brand-buyers-noa/problem.mp4"
+      "scripts/media/studio3d/shots/brand-buyers-noa/cta.mp4"
     ]
   },
   "lines": [
-    { "id": "m1", "reel": "mistakes", "slide": 1, "presenter": "shira", "say": "קונה באלי? אל תעשי את חמש הטעויות האלה." },
-    { "id": "m2", "reel": "mistakes", "slide": 2, "presenter": "noa", "say": "טעות אחת: להאמין למחיר של לפני. הנחה אמיתית רואים לאורך כמה ימים." },
-    { "id": "m3", "reel": "mistakes", "slide": 3, "presenter": "shira", "say": "טעות שתיים: לנחש מידת טבעת. בין שתי מידות? בוחרים את הגדולה." },
-    { "id": "m4", "reel": "mistakes", "slide": 4, "presenter": "noa", "say": "טעות שלוש: לחשוב שמואסניט זה יהלום. הוא מבריק, אבל הוא לא יהלום." },
-    { "id": "m5", "reel": "mistakes", "slide": 5, "presenter": "shira", "say": "טעות ארבע: להזמין מתנה ברגע האחרון. משלוח מחוץ לארץ לוקח זמן." },
-    { "id": "m6", "reel": "mistakes", "slide": 6, "presenter": "noa", "say": "טעות חמש: לאשר קבלה לפני שהחבילה הגיעה. קודם חבילה, אחר כך אישור." },
-    { "id": "m7", "reel": "mistakes", "slide": 7, "presenter": "shira", "say": "ובונוס: מדביקים קישור מאלי בכפתור הקסם, ורואים מה לבדוק. בחינם." },
-    { "id": "m8", "reel": "mistakes", "slide": 8, "presenter": "noa", "say": "רוצה את כל שמונה הבדיקות? תגיבי מדריך, ואשלח לך בפרטי." },
-    { "id": "r1", "reel": "radar-creators", "slide": 1, "presenter": "shira", "say": "משפיענית? תראי מה מתחיל לעלות, לפני כולן." },
-    { "id": "r2", "reel": "radar-creators", "slide": 2, "presenter": "noa", "say": "כשכולן כבר מפרסמות את זה, את מאחרת. צריך לדעת מה מתחיל לעלות עכשיו." },
-    { "id": "r3", "reel": "radar-creators", "slide": 3, "presenter": "shira", "say": "הרדאר בודק כל יום כמה מהר קונים באליאקספרס. לא מה פופולרי, מה עולה מהר." },
-    { "id": "r4", "reel": "radar-creators", "slide": 4, "presenter": "noa", "say": "ובודק אם בישראל כבר מחפשים את זה, בגוגל וביוטיוב. עוד לא? החלון פתוח." },
-    { "id": "r5", "reel": "radar-creators", "slide": 5, "presenter": "shira", "say": "דוגמה אמיתית מהרדאר: בארצות הברית כבר מחפשים סקווישי קפיברה. בישראל, עוד לא." },
-    { "id": "r6", "reel": "radar-creators", "slide": 6, "presenter": "noa", "say": "ובלי הבטחות: כל תחזית נבדקת אחרי ארבעה עשר יום. גם כשטעינו, זה כתוב בדף." },
-    { "id": "r7", "reel": "radar-creators", "slide": 7, "presenter": "shira", "say": "ובונוס: סטודיו חינמי. חנות קטנה בעברית, וקישור אחד לביו." },
-    { "id": "r8", "reel": "radar-creators", "slide": 8, "presenter": "noa", "say": "הרדאר חינם בתקופת הניסיון. תגיבי רדאר, ואשלח לך את הקישור בפרטי." }
-  ]
+    {
+      "id": "m1",
+      "reel": "mistakes",
+      "slide": 1,
+      "presenter": "shira",
+      "say": "קונה באלי? אל תעשי את חמש הטעויות האלה."
+    },
+    {
+      "id": "m2",
+      "reel": "mistakes",
+      "slide": 2,
+      "presenter": "noa",
+      "say": "טעות אחת: להאמין למחיר של לפני. הנחה אמיתית רואים לאורך כמה ימים."
+    },
+    {
+      "id": "m3",
+      "reel": "mistakes",
+      "slide": 3,
+      "presenter": "shira",
+      "say": "טעות שתיים: לנחש מידת טבעת. בין שתי מידות? בוחרים את הגדולה."
+    },
+    {
+      "id": "m4",
+      "reel": "mistakes",
+      "slide": 4,
+      "presenter": "noa",
+      "say": "טעות שלוש: לחשוב שמואסניט זה יהלום. הוא מבריק, אבל הוא לא יהלום."
+    },
+    {
+      "id": "m5",
+      "reel": "mistakes",
+      "slide": 5,
+      "presenter": "shira",
+      "say": "טעות ארבע: להזמין מתנה ברגע האחרון. משלוח מחוץ לארץ לוקח זמן."
+    },
+    {
+      "id": "m6",
+      "reel": "mistakes",
+      "slide": 6,
+      "presenter": "noa",
+      "say": "טעות חמש: לאשר קבלה לפני שהחבילה הגיעה. קודם חבילה, אחר כך אישור."
+    },
+    {
+      "id": "m7",
+      "reel": "mistakes",
+      "slide": 7,
+      "presenter": "shira",
+      "say": "ובונוס: מדביקים קישור מאלי בכפתור הקסם, ורואים מה לבדוק. בחינם."
+    },
+    {
+      "id": "m8",
+      "reel": "mistakes",
+      "slide": 8,
+      "presenter": "noa",
+      "say": "רוצה את כל שמונה הבדיקות? תגיבי מדריך, ואשלח לך בפרטי."
+    },
+    {
+      "id": "r1",
+      "reel": "radar-creators",
+      "slide": 1,
+      "presenter": "shira",
+      "say": "משפיענית? תראי מה מתחיל לעלות, לפני כולן."
+    },
+    {
+      "id": "r2",
+      "reel": "radar-creators",
+      "slide": 2,
+      "presenter": "noa",
+      "say": "כשכולן כבר מפרסמות את זה, את מאחרת. צריך לדעת מה מתחיל לעלות עכשיו."
+    },
+    {
+      "id": "r3",
+      "reel": "radar-creators",
+      "slide": 3,
+      "presenter": "shira",
+      "say": "הרדאר בודק כל יום כמה מהר קונים באליאקספרס. לא מה פופולרי, מה עולה מהר."
+    },
+    {
+      "id": "r4",
+      "reel": "radar-creators",
+      "slide": 4,
+      "presenter": "noa",
+      "say": "ובודק אם בישראל כבר מחפשים את זה, בגוגל וביוטיוב. עוד לא? החלון פתוח."
+    },
+    {
+      "id": "r5",
+      "reel": "radar-creators",
+      "slide": 5,
+      "presenter": "shira",
+      "say": "דוגמה אמיתית מהרדאר: בארצות הברית כבר מחפשים סקווישי קפיברה. בישראל, עוד לא."
+    },
+    {
+      "id": "r6",
+      "reel": "radar-creators",
+      "slide": 6,
+      "presenter": "noa",
+      "say": "ובלי הבטחות: כל תחזית נבדקת אחרי ארבעה עשר יום. גם כשטעינו, זה כתוב בדף."
+    },
+    {
+      "id": "r7",
+      "reel": "radar-creators",
+      "slide": 7,
+      "presenter": "shira",
+      "say": "ובונוס: סטודיו חינמי. חנות קטנה בעברית, וקישור אחד לביו."
+    },
+    {
+      "id": "r8",
+      "reel": "radar-creators",
+      "slide": 8,
+      "presenter": "noa",
+      "say": "הרדאר חינם בתקופת הניסיון. תגיבי רדאר, ואשלח לך את הקישור בפרטי."
+    }
+  ],
+  "checkedBases": "2026-11-15 by eye, frame by frame over 3 s: Shira's problem.mp4 turns into another face after ~1.8 s (it was the eye score's pick), so only cta/hero/wow carry her lines; Noa's problem.mp4 left out the same way. Listed bases are used in order, not re-picked by the eye score.",
+  "keep": {
+    "shira": 3.0,
+    "noa": 2.6
+  }
 }

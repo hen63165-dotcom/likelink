@@ -63,6 +63,13 @@ The owner: *"תבדוק איך נראות הקרוסלות הכי חזקות ו�
 - **Colours (the owner, 2026-11-15: "בצבעים יותר מוכרים ותופסים את העין"):** high contrast, one dominant colour + one accent, the same palette on every slide. The house look for tips/mistakes carousels: saturated yellow `#FFD60A` + black text, a red accent `#e11d48`, white cards with a thick black border and a hard black shadow, the CTA slide black with the keyword in yellow. Keep text away from the bottom/right edges (Instagram's buttons cover them).
 Sources: adpicto.com, carouselli.com, posteverywhere.ai, krumzi.com (carousels); heropost.io, postsyncer.com, krumzi.com (captions).
 
+## Talking slides: the characters read the carousel (the owner, 2026-11-15)
+
+The owner: *"תוסיף אותן שהן זזות ומסבירות מהצד כזה עם מיקרופון... על כל שקופית היא מסבירה מקריאה"*. A carousel becomes a Reel: its own slides one after another (a silent swipe, the next slide from the left as in a Hebrew carousel), and beside each slide the presenter whose turn it is (Shira and Noa alternate, as on the carousel), in a framed window with a podcast microphone in front of her, saying that slide. Her words appear in a speech bubble (sound-off viewers). Research (2026-11-15, vendor guides, so hypotheses): the presenter small and to the side, the content gets most of the frame (the "sidebar avatar" / green-screen explainer layout); mixed-media posts outperform image-only; keep faces and text off the bottom ~25% and the button column.
+- Lines: `scripts/media/presenter/<spec>.json` (one short spoken line per slide: only what the slide says; a rate and pitch per presenter so the two do not sound alike). Push `scripts/media/presenter/run.json` → Actions "Talking slides" (`presenter-talk.yml`): edge-tts voices, then MuseTalk redraws her mouth over her own checked animated clip (`scripts/media/studio3d/shots/*`), one line per free runner (~30 min for 6–7 s lines) → the `presenter-preview` pre-release.
+- Edit: `marketing/remotion` → `node talk-data.mjs <unpacked run>` → compositions `TalkMistakes` / `TalkRadar` (`src/TalkSlides.tsx`). Each line is cut at its last word and the voice and lips are sped up together (×1.12) so the Reel stays near 40 s. Labels on every frame: the name tag "<name> · דמות AI", the slide's own ad line.
+- Watch it frame by frame before showing her (mouth over the right face, no frozen gap, no transition noise); nothing is posted without her "כן".
+
 ## No transition noise (the owner, 2026-11-15)
 
 Every video LikeLink2 publishes cuts **silently** over its music bed or voice: no whoosh, swoosh, riser or any other sound effect on the transitions. The owner, in her words: *"מעכשיו תעשה שכל סרטון שאתה מפרסם יהיה בלי הרעש המוזר הזה של המעברים, שים לך תזכורת"*.

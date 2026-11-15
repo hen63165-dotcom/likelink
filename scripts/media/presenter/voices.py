@@ -50,12 +50,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--spec", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--only", default="", help="comma-separated line ids (default: every line)")
     a = ap.parse_args()
+    only = {x for x in a.only.split(",") if x}
     spec = json.load(open(a.spec, encoding="utf-8"))
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     rows = []
     for line in spec["lines"]:
+        if only and line["id"] not in only:
+            continue
         v = spec["voices"][line["presenter"]]
         mp3 = out / f"{line['id']}.mp3"
         words = speak(line["say"], mp3, v["voice"], v.get("rate", "+0%"), v.get("pitch", "+0Hz"))

@@ -25,6 +25,7 @@ jobs:
     outputs:
       spec: ${{ steps.p.outputs.spec }}
       lines: ${{ steps.p.outputs.lines }}
+      only: ${{ steps.p.outputs.only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,8 +34,9 @@ jobs:
         run: |
           spec=$(python3 -c "import json; print(json.load(open('scripts/media/presenter/run.json'))['spec'])")
           case "$spec" in */*|.*|"") echo "bad spec name"; exit 1;; esac
-          lines=$(python3 -c "import json,sys; print(json.dumps([l['id'] for l in json.load(open('scripts/media/presenter/' + sys.argv[1]))['lines']]))" "$spec")
-          { echo "spec=$spec"; echo "lines=$lines"; } >> "$GITHUB_OUTPUT"
+          # run.json "only": just these lines (a redo), else every line of the spec
+          lines=$(python3 -c "import json,sys; o=json.load(open('scripts/media/presenter/run.json')).get('only') or []; print(json.dumps([l['id'] for l in json.load(open('scripts/media/presenter/' + sys.argv[1]))['lines'] if not o or l['id'] in o]))" "$spec")
+          { echo "spec=$spec"; echo "lines=$lines"; echo "only=$(python3 -c "import json; print(','.join(json.load(open('scripts/media/presenter/run.json')).get('only') or []))")"; } >> "$GITHUB_OUTPUT"
           echo "spec $spec · lines $lines"
   voices:
     needs: plan
@@ -54,7 +56,8 @@ jobs:
       - name: Every line spoken once
         env:
           SPEC: ${{ needs.plan.outputs.spec }}
-        run: python3 scripts/media/presenter/voices.py --spec "scripts/media/presenter/$SPEC" --out "$RUNNER_TEMP/voices"
+          ONLY: ${{ needs.plan.outputs.only }}
+        run: python3 scripts/media/presenter/voices.py --spec "scripts/media/presenter/$SPEC" --only "$ONLY" --out "$RUNNER_TEMP/voices"
       - uses: actions/upload-artifact@v4
         with:
           name: presenter-voices
@@ -135,7 +138,7 @@ jobs:
       - name: To the presenter-preview pre-release (the site never reads it)
         run: |
           ls -la out
-          name="${SPEC%.json}"
+          name="${SPEC%.json}-$GITHUB_RUN_ID"
           (cd out && tar czf "../$name.tgz" .)
           gh release view presenter-preview -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create presenter-preview -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \

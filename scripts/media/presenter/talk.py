@@ -11,7 +11,7 @@ lines of hers never open the same way. Output: <id>.talk.mp4, 1080×1920,
 
   python talk.py --spec talk-slides-X.json --line m1 --voices DIR --out DIR
 """
-import argparse, json, sys, tempfile
+import argparse, functools, json, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -46,10 +46,17 @@ def main():
     hers = [x["id"] for x in spec["lines"] if x["presenter"] == who]
     k = hers.index(line["id"])
     det = musetalk._yunet(Path(tempfile.mkdtemp(prefix="det-")))
-    clips = good_clips([str(ROOT / p) for p in spec["bases"][who]], det)
+    listed = [str(ROOT / p) for p in spec["bases"][who]]
+    # bases checked by eye are used as listed (the eye score once preferred a clip whose face
+    # drifted into another woman's after ~1.8 s); otherwise the profiles choose
+    clips = [p for p in listed if Path(p).exists()] if spec.get("checkedBases") else good_clips(listed, det)
+    if not clips:
+        raise SystemExit("no clip of her")
+    keep = float((spec.get("keep") or {}).get(who, musetalk.KEEP))
+    musetalk.base_index = functools.partial(musetalk.base_index, keep=keep)  # only her clean opening is played
     base = clips[k % len(clips)]
     phase = (k // len(clips)) * 0.5 % 1.0
-    print(json.dumps({"talk": "job", "line": line["id"], "presenter": who, "base": Path(base).name, "phase": phase}))
+    print(json.dumps({"talk": "job", "line": line["id"], "presenter": who, "base": Path(base).name, "phase": phase, "keep": keep}))
     out = Path(a.out) / f"{line['id']}.talk.mp4"
     musetalk.make(Path(base), Path(a.voices) / f"{line['id']}.mp3", out, spec["heads"].get(who), k, None, phase)
     return 0
