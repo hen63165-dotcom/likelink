@@ -6,7 +6,12 @@ import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
 import { GARLIC, HandsReel, RINGS, totalSeconds } from "./HandsReel";
 import { GARLIC_SELL, SellReel, sellSeconds } from "./SellReel";
 import { TalkSlides, talkSeconds } from "./TalkSlides";
-import { TALK_MISTAKES, TALK_RADAR } from "./talkData";
+import { TALKS as SLIDES } from "./talk/talk-slides-20261115b";
+import { TALKS as SOAP } from "./talk/talk-soap-20261115";
+
+const TALK_MISTAKES = SLIDES.mistakes;
+const TALK_RADAR = SLIDES["radar-creators"];
+const TALK_SOAP = SOAP.soap;
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -75,6 +80,15 @@ export const RemotionRoot: React.FC = () => {
         component={TalkSlides}
         defaultProps={TALK_MISTAKES}
         durationInFrames={Math.round(talkSeconds(TALK_MISTAKES) * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="TalkSoap"
+        component={TalkSlides}
+        defaultProps={TALK_SOAP}
+        durationInFrames={Math.round(talkSeconds(TALK_SOAP) * 30)}
         fps={30}
         width={1080}
         height={1920}
