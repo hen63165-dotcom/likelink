@@ -107,6 +107,21 @@ export function trendingAbroad(concepts = [], termsByGeo = {}) {
 }
 
 /**
+ * The kinds of things a shopper buys, as words: a trending term must name one to be a product trend
+ * (2026-11-15, the first run admitted "ronaldinho", "gta vi" and "actor": people and games sell
+ * merch on AliExpress, but they are not a product trend, and a celebrity or game is never ours).
+ */
+export const PRODUCT_NOUNS = new Set(("squishy toy toys plush doll fidget ring rings earring earrings necklace bracelet anklet watch charm " +
+  "bag bags wallet purse backpack tote case cover holder stand mount charger cable lamp light lights led projector speaker earbuds " +
+  "headphones mic microphone camera printer fan heater humidifier diffuser bottle cup mug tumbler glass jar box organizer rack shelf " +
+  "hanger hook basket bin dispenser brush comb clip clips scrunchie wig mirror towel blanket pillow cushion sheet slippers socks shoes " +
+  "sneakers boots dress skirt jacket hoodie pajamas swimsuit leggings hat cap scarf gloves sunglasses glasses mat rug curtain sticker " +
+  "stickers puzzle blocks game kit tool tools knife peeler grater chopper blender mixer pan pot spatula sponge cleaner mop broom vacuum " +
+  "trimmer shaver massager roller curler straightener dryer iron collar leash feeder litter scratcher perch bed toyset nail lashes " +
+  "lipstick gloss serum mask patch tape planner pen pencil notebook keychain figure figurine sticker magnet magnets tiles slime putty")
+  .split(/\s+/));
+
+/**
  * Is a trending search term a product people buy? AliExpress's answer for it: at least `minItems`
  * items whose own title holds every word of the term, with `minOrders` orders between them in 30
  * days (pure; tested). Items: [{ title, orders }].
@@ -114,6 +129,7 @@ export function trendingAbroad(concepts = [], termsByGeo = {}) {
 export function productTrend(term, items = [], { rules = WORLD } = {}) {
   const words = norm(term).split(" ").filter((w) => w.length >= 3);
   if (!words.length || words.length > 5) return { ok: false, reason: "words" };
+  if (!words.some((w) => PRODUCT_NOUNS.has(w) || PRODUCT_NOUNS.has(w.replace(/e?s$/, "")))) return { ok: false, reason: "not_a_product_word" };
   const match = (Array.isArray(items) ? items : []).filter((x) => { const t = norm(x?.title); return words.every((w) => t.includes(w)); });
   const orders = match.reduce((s, x) => s + (Number(x?.orders) || 0), 0);
   if (match.length < rules.minItems) return { ok: false, reason: "few_items", items: match.length, orders };

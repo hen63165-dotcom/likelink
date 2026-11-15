@@ -43,3 +43,10 @@ test("a trending term is a product only when AliExpress sells it (items holding 
   assert.equal(productTrend("election results", items).ok, false, "news is not a product");
   assert.equal(productTrend("butter squishy", items.slice(0, 2)).reason, "few_items");
 });
+
+test("people, games and plain words are never a product trend, even when AliExpress sells their merch", () => {
+  const merch = (w) => Array.from({ length: 5 }, (_, i) => ({ title: `${w} poster t-shirt ${i}`, orders: 500 }));
+  for (const term of ["ronaldinho", "gta vi", "actor"]) assert.equal(productTrend(term, merch(term)).reason, "not_a_product_word", term);
+  assert.equal(productTrend("cat window perch", Array.from({ length: 4 }, () => ({ title: "Cat window perch hammock", orders: 120 }))).ok, true);
+});
+
