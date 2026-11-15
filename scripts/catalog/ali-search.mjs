@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 import { aeCall, aeEnv } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { FIND_RULES } from "../../src/lib/growth/findOnAli.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
+import { resolveFromLink } from "./sync-aliexpress.mjs";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const pct = (v) => Number(String(v ?? "").replace("%", ""));
@@ -67,6 +68,15 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
       }
     }
   }
+  // The owner's own tracked links (query.links): each is resolved to the item it opens
+  // (one request, redirects not followed) and then read like a named item.
+  const ids = [...(query.ids || [])];
+  for (const link of query.links || []) {
+    const id = await resolveFromLink(link, fetchImpl);
+    log.push(`link ${link} → ${id || "not resolved"}`);
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  query = { ...query, ids };
   // Named items (query.ids): read each one's own store page data, to see all its photos.
   for (const id of query.ids || []) {
     try {
@@ -74,7 +84,9 @@ export async function search(query, { env = process.env, fetchImpl = globalThis.
       const x = res?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product?.[0];
       const c = x ? candidate(x, { allowBrand: true }) : { ok: false, reason: "not_returned" };
       if (c.ok) { c.choose.orders = Number.MAX_SAFE_INTEGER - (query.ids.indexOf(id)); seen.set(c.item.id, c); }
-      log.push(`id ${id}: ${c.ok ? "ok" : c.reason}`);
+      // For the person choosing: the store's own numbers for this item, in this log only.
+      const facts = x ? ` · ₪${x.target_sale_price ?? "?"} · orders ${x.lastest_volume ?? "?"} · ${x.evaluate_rate ?? "?"} · video ${x.product_video_url ? "yes" : "no"} · ${x.second_level_category_name || x.first_level_category_name || "?"} · ${String(x.product_title || "").slice(0, 80)}` : "";
+      log.push(`id ${id}: ${c.ok ? "ok" : c.reason}${facts}`);
     } catch (err) { log.push(`id ${id}: ${String(err?.message || err).slice(0, 100)}`); }
   }
   // Recent orders first: the store's own measure of what people really buy.
