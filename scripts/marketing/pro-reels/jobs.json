@@ -2,22 +2,18 @@
   "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre. crop: per photo number [x, y, w, h] fractions, to leave out printed text and marks; {\"from\": n, \"box\": [...]} makes a new photo number from photo n.",
   "jobs": [
     {
-      "id": "ae-1005012649969906",
-      "hook": "חמאה שאפשר ללחוץ עליה?",
-      "what": "סקווישי ורוד\nבצורת מקל חמאה",
-      "tip": "טיפ: לגיל 3 ומעלה,\nלא לפה",
-      "name": "מקל חמאה ורוד ללחיצה",
-      "photos": [
-        2,
-        1,
-        3,
-        4,
-        6,
-        2
-      ],
-      "fit": [
-        6
-      ]
+      "id": "ae-1005012588687878",
+      "hook": "שעון וצמיד שמתאימים אחד לשני?",
+      "what": "סט שעון קוורץ\nוצמיד לב",
+      "tip": "טיפ: בודקים בעמוד\nאת צבעי הרצועה",
+      "name": "סט שעון וצמיד לב"
+    },
+    {
+      "id": "ae-1005011942976222",
+      "hook": "מתנה אחת, חמישה תכשיטים?",
+      "what": "שעון, צמיד, שרשרת,\nעגילים וטבעת",
+      "tip": "טיפ: מגיע בלי קופסה,\nמוסיפים שקית מתנה",
+      "name": "סט שעון ותכשיטים"
     }
   ]
 }
