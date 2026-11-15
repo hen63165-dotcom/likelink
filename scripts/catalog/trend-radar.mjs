@@ -35,7 +35,9 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { TRENDS_GEOS, WORLD_MARKETS, addWorld, earlyCall, productTrend, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { TRENDS_GEOS, WORLD_MARKETS, addWorld, earlyCall, productTrend, sealOf, signalsNeeded, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { trackRecord } from "../../src/lib/growth/trendRadar.js";
+import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -346,13 +348,26 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
+  const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
+  const need = signalsNeeded(earlyRecordBefore);
   for (const c of board.concepts || []) {
     c.world = worldPulseOf(worldMap[c.id] || []);
-    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap });
+    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need });
+    // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
+    const latest = (readings[c.id] || []).at(-1);
+    if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && !x.result)) {
+      calls.push({ concept: c.id, kind: "early", stage: c.stage, at: today, base: latest.sum, due: new Date(Date.parse(today) + 14 * 86_400_000).toISOString().slice(0, 10), signals: Object.entries(c.early.signals).filter(([, v]) => v).map(([k]) => k) });
+      log.push(`EARLY CALL ${c.id}: ${c.early.count}/4 signals`);
+    }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
   }
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
+  // The sealed envelope: today's fingerprint of every early call so far (calls.json is public on the
+  // release, so anyone can recompute it and see that a call was made before the trend).
+  const sealText = sealOf(calls);
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), seal: sealText ? { d: today, sha256: createHash("sha256").update(sealText).digest("hex"), count: calls.filter((x) => x.kind === "early").length } : null };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

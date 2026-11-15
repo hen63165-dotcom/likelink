@@ -126,6 +126,7 @@ export function sanitizeBoard(doc) {
   return {
     v: num(doc.v) ?? 1,
     at: str(doc.at, 30),
+    early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 4 ? 4 : 3, record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0 } : null } : null,
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,

@@ -151,7 +151,7 @@ export function productTrend(term, items = [], { rules = WORLD } = {}) {
  *   israel  — not searched in Hebrew yet (the head start).
  * CALL when three agree (demand among them); WATCH on two. A call is graded publicly after 14 days.
  */
-export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null } = {}) {
+export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 3 } = {}) {
   const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])));
   let supply = false;
   if (rs.length >= 2) {
@@ -166,7 +166,22 @@ export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], g
     israel: gap?.state === "GAP",
   };
   const count = Object.values(signals).filter(Boolean).length;
-  const level = count >= 3 && signals.demand ? "CALL" : count >= 2 ? "WATCH" : "NONE";
+  const level = count >= need && signals.demand ? "CALL" : count >= 2 ? "WATCH" : "NONE";
   return { level, count, signals };
+}
+
+/**
+ * Learns from its misses: once at least `minGraded` early calls are graded, a hit rate under
+ * `target`% raises the bar to all four signals (pure; tested). The record stays public either way.
+ */
+export function signalsNeeded(earlyRecord = {}, { minGraded = 10, target = 70 } = {}) {
+  const graded = Number(earlyRecord?.graded) || 0;
+  const acc = Number(earlyRecord?.accuracy);
+  return graded >= minGraded && Number.isFinite(acc) && acc < target ? 4 : 3;
+}
+
+/** The sealed envelope: one fingerprint of every early call opened so far (concept, day, signals). */
+export function sealOf(calls = []) {
+  return (Array.isArray(calls) ? calls : []).filter((c) => c?.kind === "early").map((c) => `${c.concept}|${c.at}|${(c.signals || []).join(",")}`).sort().join("\n");
 }
 
