@@ -230,12 +230,14 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
   // the list cannot be read we cannot know → nothing is created (no duplicate).
   try {
     for (let page = 1; page <= 10; page++) {
-      const listRes = await fetch(`${paypalBase()}/v1/catalog/products?page_size=20&page=${page}&total_required=true`, {
+      const listRes = await fetch(`${paypalBase()}/v1/catalogs/products?page_size=20&page=${page}&total_required=true`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: AbortSignal.timeout(15000),
       });
-      // A live account that has never created a catalog product answers the
-      // list with 404 (nothing to list) — that is "none yet", not a failure.
+      // The path is /v1/catalogs/products (plural). Until 2026-11-15 the code asked
+      // /v1/catalog/products, which PayPal answers 404 for every account; that 404 was
+      // read as "none yet" here and the create then failed with product_create_404.
+      // A 404 on the real path is still treated as "none yet".
       if (listRes.status === 404) break;
       if (!listRes.ok) {
         const e = await listRes.json().catch(() => ({}));
@@ -255,7 +257,7 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
   } catch { lastProductError = "product_list_network"; return null; }
   // First run only: create the platform product once.
   try {
-    const res = await fetch(`${paypalBase()}/v1/catalog/products`, {
+    const res = await fetch(`${paypalBase()}/v1/catalogs/products`, {
       method: "POST",
       // PayPal's idempotency key: a retried request never creates a second product.
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "PayPal-Request-Id": "likelink-catalog-product-v1" },
