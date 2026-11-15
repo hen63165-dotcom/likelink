@@ -28,12 +28,13 @@ for (const l of spec.lines) {
     join("public", "talk", `${l.id}.talk.mp4`)]);
   // the spoken words with the line's own punctuation back on them (the bubble breaks after it)
   const tokens = l.say.split(/\s+/);
-  const bare = (x) => x.replace(/[^\p{L}\p{N}]/gu, "");
+  const bare = (x) => x.replace(/[\u0591-\u05C7]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
   let k = 0;
   const words = raw.map(([a, b, w]) => {
     const j = tokens.findIndex((t, i) => i >= k && bare(t) === bare(w));
     if (j >= 0) k = j + 1;
-    return [+(a / SPEED).toFixed(3), +(b / SPEED).toFixed(3), j >= 0 ? tokens[j] : w];
+    // shown without the vowel marks that were only there to guide the voice
+    return [+(a / SPEED).toFixed(3), +(b / SPEED).toFixed(3), (j >= 0 ? tokens[j] : w).replace(/[\u0591-\u05C7]/g, "")];
   });
   reels[l.reel].push({
     id: l.id,
