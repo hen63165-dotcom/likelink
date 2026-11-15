@@ -15,6 +15,9 @@ Written 15.11.2026 from public sources (roundups and the vendors' own pages, mos
 | Jungle Scout / Helium 10 | Amazon sales estimates | $29–$99/month | estimates; reviewers measure 15–86% accuracy and disagree |
 | Minea / ZIK | Ads spy / fast-growing AliExpress items | — | dropshipping; no Hebrew, no Israel, no sealed record |
 | NeuPortal | Event forecasts sealed with OpenTimestamps, graded publicly | — | events, not products |
+| Ecomhunt | Trending products for dropshippers | — | curated lists, no Hebrew/Israel, no sealed record (2020 coverage) |
+| ZyG (Israeli, Calcalist 2025 list) | Data-driven product publishing for e-commerce brands | — | for brands; no public trend calls or Hebrew-market radar found |
+| Onebeat (Israeli) | Predicts what sells per physical store | — | inventory, not trends |
 
 ## What none of them does (and the radar does)
 
@@ -32,6 +35,10 @@ Written 15.11.2026 from public sources (roundups and the vendors' own pages, mos
 - **"Who spotted it first" (מי זיהתה ראשונה):** subscribers seal their own pick from the radar's list; after 14 days a leaderboard (nickname only) shows who was right first. No tool above has a sealed prediction game for creators. Waits for the owner's "כן לטבלה".
 - **The guarantee goes live:** a missed sniper call in a paid month earns that month back (radarPlans.js, `live: false` until the claims job writes refund requests). No tool above backs its calls with money.
 - **The factory signal at birth:** sellers listing a new kind of product before buyers search (built: "🐣 נולד עכשיו"); next, catching kinds below the hot lists' thresholds.
+
+## Third check (15.11, Israel)
+
+No Israeli or Hebrew-market tool that calls product trends in advance was found (search: Israeli startups predicting viral products; [Calcalist 2025 list](https://www.calcalistech.com/ctechnews/article/923yvb6hw), [JPost on Onebeat](https://www.jpost.com/business-and-innovation/tech-and-start-ups/article-695408), [CTech 2020](https://www.calcalistech.com/ctech/articles/0,7340,L-3812350,00.html)). Nobody's accuracy — ours included — has been verified independently: the radar has no graded call yet, so no claim of hitting better than anyone can be made until it has a sealed, graded record.
 
 ## Wording rules (public)
 
