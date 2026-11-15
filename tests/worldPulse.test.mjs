@@ -59,3 +59,13 @@ test("a trend is called only when independent signals agree, demand among them",
   assert.equal(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).level, "NONE");
   assert.equal(earlyCall({ stage: "RISING", listings: [["2026-11-15", 100], ["2026-11-16", 200]] }).signals.supply, false, "one day apart is not a rush");
 });
+
+test("misses raise the bar: under 70% after ten graded early calls needs all four signals", async () => {
+  const { signalsNeeded, earlyCall, sealOf } = await import("../src/lib/growth/worldPulse.js");
+  assert.equal(signalsNeeded({ graded: 4, accuracy: 25 }), 3, "too few graded to judge");
+  assert.equal(signalsNeeded({ graded: 12, accuracy: 60 }), 4);
+  assert.equal(signalsNeeded({ graded: 12, accuracy: 80 }), 3);
+  const three = { world: { state: "SPREADING" }, stage: "RISING", gap: { state: "GAP" } };
+  assert.equal(earlyCall({ ...three, need: 4 }).level, "WATCH", "three signals are not a call when four are needed");
+  assert.equal(sealOf([{ kind: "early", concept: "a", at: "2026-11-17", signals: ["world", "demand", "israel"] }, { concept: "b", at: "2026-11-17" }]), "a|2026-11-17|world,demand,israel", "only early calls are sealed");
+});

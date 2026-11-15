@@ -552,6 +552,15 @@ export function RadarPage() {
                   <h3 className="text-[20px] font-extrabold">{L("🎯 התראות מוקדמות", "🎯 Early calls")}</h3>
                   <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (10 מדינות + יוטיוב), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד לא מחפשים. פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (10 countries + YouTube), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
                   {calls.length ? <ul className="mt-3 grid gap-3 md:grid-cols-2">{calls.map((c) => <ConceptCard key={c.id} c={c} />)}</ul> : <p className="mt-3 text-[14px] font-bold">{L("היום אין מוצר שעבר את הרף של 3 סימנים מסכימים. הרדאר לא מנחש: הוא מחכה לסימנים.", "No product passed the three-signal bar today. The radar doesn't guess; it waits for the signals.")}</p>}
+                  {board.early ? (
+                    <p className="mt-3 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>
+                      {board.early.record.graded
+                        ? L(`הדיוק של ההתראות המוקדמות: ${board.early.record.hits} פגיעות מתוך ${board.early.record.graded} שנבדקו (${board.early.record.accuracy}%).`, `Early-call accuracy: ${board.early.record.hits} hits of ${board.early.record.graded} graded (${board.early.record.accuracy}%).`)
+                        : L(`התראות שמחכות לבדיקה: ${board.early.record.pending}. כל התראה נבדקת אחרי 14 יום, והתוצאה נכתבת כאן.`, `Calls awaiting their grade: ${board.early.record.pending}. Each is graded after 14 days, here.`)}
+                      {board.early.need === 4 ? L(" הדיוק ירד מתחת ל־70%, אז הרדאר מחמיר: עכשיו הוא דורש את כל 4 הסימנים.", " Accuracy fell under 70%, so the bar is now all four signals.") : ""}
+                      {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}</> : null}
+                    </p>
+                  ) : null}
                   {watch.length ? <p className="mt-3 text-[13px]">{L(`👀 במעקב (2 סימנים): ${watch.map((c) => c.he).join(" · ")}`, `👀 Watching (2 signals): ${watch.map((c) => c.he).join(" · ")}`)}</p> : null}
                 </div>
               );
