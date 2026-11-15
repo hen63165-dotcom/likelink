@@ -1,0 +1,156 @@
+# Talking slides (the owner, 2026-11-15: "Shira and Noa move and explain every
+# slide from the side, with a microphone, reading it out"): every line of a
+# spec under scripts/media/presenter/ is spoken once (edge-tts, free), then the
+# presenter says it on camera — her mouth and jaw redrawn to the voice by
+# MuseTalk 1.5 on a free CPU runner, over her own animated clip (the 3D
+# studio's checked keyframe animated by LTX-Video). One line per runner, side
+# by side. The clips go to the presenter-preview pre-release, which the site
+# never reads: the edit is made from them and a person watches it before
+# anything is posted. No account, no key, no credits; nothing is published.
+# What a push runs: scripts/media/presenter/run.json ({"spec": <file>}).
+name: Talking slides
+on:
+  push:
+    branches: ["claude/likelink2-design-execution-f0ga6q"]
+    paths: ["scripts/media/presenter/run.json", ".github/workflows/presenter-talk.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: presenter-talk-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      spec: ${{ steps.p.outputs.spec }}
+      lines: ${{ steps.p.outputs.lines }}
+      only: ${{ steps.p.outputs.only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: p
+        run: |
+          spec=$(python3 -c "import json; print(json.load(open('scripts/media/presenter/run.json'))['spec'])")
+          case "$spec" in */*|.*|"") echo "bad spec name"; exit 1;; esac
+          # run.json "only": just these lines (a redo), else every line of the spec
+          lines=$(python3 -c "import json,sys; o=json.load(open('scripts/media/presenter/run.json')).get('only') or []; print(json.dumps([l['id'] for l in json.load(open('scripts/media/presenter/' + sys.argv[1]))['lines'] if not o or l['id'] in o]))" "$spec")
+          { echo "spec=$spec"; echo "lines=$lines"; echo "only=$(python3 -c "import json; print(','.join(json.load(open('scripts/media/presenter/run.json')).get('only') or []))")"; } >> "$GITHUB_OUTPUT"
+          echo "spec $spec · lines $lines"
+  voices:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q edge-tts==7.3.1
+      - name: Every line spoken once
+        env:
+          SPEC: ${{ needs.plan.outputs.spec }}
+          ONLY: ${{ needs.plan.outputs.only }}
+        run: python3 scripts/media/presenter/voices.py --spec "scripts/media/presenter/$SPEC" --only "$ONLY" --out "$RUNNER_TEMP/voices"
+      # Every line heard back by a Hebrew speech model (printed for a person to check; never blocks)
+      - name: Read-back (ivrit-ai Hebrew Whisper)
+        continue-on-error: true
+        env:
+          SPEC: ${{ needs.plan.outputs.spec }}
+          HF_HUB_DISABLE_PROGRESS_BARS: "1"
+        run: |
+          pip install -q faster-whisper
+          python3 scripts/media/presenter/readback.py --spec "scripts/media/presenter/$SPEC" --voices "$RUNNER_TEMP/voices"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: presenter-voices
+          path: ${{ runner.temp }}/voices
+          if-no-files-found: error
+  lips:
+    needs: [plan, voices]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        line: ${{ fromJSON(needs.plan.outputs.lines) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: presenter-voices
+          path: ${{ runner.temp }}/voices
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Room for the weights
+        run: sudo mkdir -p /mnt/hf && sudo chown "$USER" /mnt/hf
+      - name: Install (CPU torch, diffusers, Whisper, OpenCV)
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg
+          pip install -q -r scripts/luna_reels/requirements.txt
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -q "diffusers>=0.33" transformers accelerate safetensors huggingface_hub opencv-python-headless
+      - name: She says ${{ matrix.line }}
+        env:
+          HF_HOME: /mnt/hf
+          HF_HUB_DISABLE_PROGRESS_BARS: "1"
+          SPEC: ${{ needs.plan.outputs.spec }}
+          LINE: ${{ matrix.line }}
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/lips
+          python scripts/media/presenter/talk.py --spec "scripts/media/presenter/$SPEC" --line "$LINE" \
+            --voices "$RUNNER_TEMP/voices" --out /tmp/lips 2>&1 | tee /tmp/lips.log
+      - name: Keep the log
+        if: always()
+        env:
+          LINE: ${{ matrix.line }}
+        run: mkdir -p /tmp/lips && (grep '^{' /tmp/lips.log > "/tmp/lips/$LINE.lips.jsonl" || true)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: presenter-lips-${{ matrix.line }}
+          path: /tmp/lips
+          if-no-files-found: ignore
+  publish:
+    needs: [plan, voices, lips]
+    if: always() && needs.voices.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SPEC: ${{ needs.plan.outputs.spec }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: presenter-voices
+          path: out
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: presenter-lips-*
+          merge-multiple: true
+          path: out
+      - name: To the presenter-preview pre-release (the site never reads it)
+        run: |
+          ls -la out
+          name="${SPEC%.json}-$GITHUB_RUN_ID"
+          (cd out && tar czf "../$name.tgz" .)
+          gh release view presenter-preview -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create presenter-preview -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "Talking slides — preview (not published)" \
+              --notes "Presenter lines for review. Original animated characters (AI), free lip-sync. Nothing here is posted."
+          gh release upload presenter-preview "$name.tgz" -R "$GITHUB_REPOSITORY" --clobber

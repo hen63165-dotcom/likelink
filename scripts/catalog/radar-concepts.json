@@ -9,6 +9,9 @@
     { "id": "cheese-squishy", "he": "סקווישי קוביית גבינה", "en": "cheese cube squishy", "kind": "kids", "hq": ["סקווישי גבינה"] },
     { "id": "tofu-squishy", "he": "סקווישי טופו", "en": "tofu squishy", "kind": "kids", "hq": ["סקווישי טופו", "טופו סקווישי"] },
     { "id": "fruit-squishy", "he": "סקווישי פירות", "en": "fruit squishy slow rising", "kind": "kids", "hq": ["סקווישי פירות"] },
+    { "id": "pudding-squishy", "he": "סקווישי פודינג", "en": "pudding squishy crunchy caramel", "kind": "kids", "hq": ["סקווישי פודינג", "סקווישי קרמל"] },
+    { "id": "coconut-oil-squishy", "he": "סקווישי שמן קוקוס", "en": "coconut oil squishy clear mochi", "kind": "kids", "hq": ["סקווישי שמן קוקוס", "סקווישי מוצ'י"] },
+    { "id": "mini-food-squishy-set", "he": "סט סקווישי אוכל מיני", "en": "mini food squishy set", "kind": "kids", "hq": ["סקווישי אוכל"] },
     { "id": "fidget-blind-box", "he": "קופסת הפתעה של צעצועי לחיצה", "en": "fidget toy blind box", "kind": "kids", "hq": ["קופסת הפתעה פידג'ט", "פידג'ט הפתעה"] },
     { "id": "magnetic-fidget-rings", "he": "טבעות מגנטיות לידיים", "en": "magnetic fidget rings", "kind": "kids", "hq": ["טבעות מגנטיות פידג'ט", "טבעות מגנטיות"] },
     { "id": "mini-claw-machine", "he": "מכונת מתקן קטנה", "en": "mini claw machine", "kind": "kids", "hq": ["מכונת מתקן קטנה", "מכונת דובונים קטנה"] },
@@ -63,6 +66,7 @@
     { "id": "puffer-tote", "he": "תיק טוט מרופד", "en": "puffer tote bag", "kind": "bags", "hq": ["תיק פאפר", "תיק טוט מרופד"] },
     { "id": "leg-warmers", "he": "מחממי רגליים", "en": "knit leg warmers", "kind": "clothing", "hq": ["מחממי רגליים"] },
     { "id": "knit-balaclava", "he": "כובע ברדס סרוג", "en": "knitted balaclava", "kind": "clothing", "hq": ["בלקלווה סרוגה", "כובע ברדס סרוג", "בלקלווה"] },
-    { "id": "mesh-ballet-flats", "he": "נעלי בובה רשת", "en": "mesh ballet flats", "kind": "clothing", "hq": ["נעלי בובה רשת"] }
+    { "id": "mesh-ballet-flats", "he": "נעלי בובה רשת", "en": "mesh ballet flats", "kind": "clothing", "hq": ["נעלי בובה רשת"] },
+    { "id": "foam-soap-dispenser", "he": "מתקן סבון קצף אוטומטי", "en": "automatic foam soap dispenser", "kind": "home", "hq": ["מתקן סבון קצף", "מתקן סבון אוטומטי"] }
   ]
 }

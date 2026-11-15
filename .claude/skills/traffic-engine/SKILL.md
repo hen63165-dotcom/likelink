@@ -39,6 +39,47 @@ each DM is a click to the site. Our keywords (one per post, one word):
 - Product DMs and captions keep "#פרסומת · קישור שותפים" / the affiliate line; tool posts (קסם, מדריך,
   סטודיו) carry "(באתר יש קישורי שותפים…)".
 
+## The selling format: real hands, a real product (the owner, 2026-11-15)
+
+The owner, after the photo slideshows: *"זה לא מוכר בכלל הסרטונים האלה... תעשה סרטונים שווים ומוכרים, תשקיע כמשפיען ועורך סרטונים"*, then *"תעשה את כל הסרטונים ככה"*. Every product video is now hands-on footage, never a photo slideshow:
+1. **Real footage only.** The owner's own clip of a package she really received (the strongest: label "צילום אמיתי", REAL_UGC), or the store's own video of hands opening and using the product (label "סרטון המוכר", Actions → "Store videos"). Never "we got a package" over footage we did not film: that is a fake testimonial.
+2. **The product on screen in the first second**, with a short hook on screen whose payoff the video really delivers (a question or a problem, ≤ 8 words).
+3. **Show it working**, no feature list: open → take out → use → detail → size next to something familiar.
+4. **9–20 s, a new picture every 1–2 s**: each cut must give something new, the best moment early.
+5. **Big captions** (3–5 words a line), the energetic own beat (`luna_reels/popbeat.py`, 122 BPM, no samples, no licence), **no whoosh on the cuts**.
+6. **End card**: the comment word ("אני") → the link in a DM; `#פרסומת · קישור שותפים` and who filmed it on every frame.
+7. **Only products HOT on the radar** (the hot-now gate in `docs/marketing/product-rules.md`).
+Research behind it (2026-11-15, vendor blogs, treated as hypotheses to test on her numbers): the product in the first 3 s, problem → solution, showing beats telling, unpolished phone footage often beats polished work, every cut must add something.
+Sources: pulse-advertising.com (anatomy of a shoppable TikTok video), optimizon.co.uk (TikTok Shop best practices), async.com (editing Reels for retention), socialmediaexaminer.com (why unpolished Reels win), digistore24.com (affiliate Reels).
+
+## Carousels and captions that get saved and shared (research, 2026-11-15)
+
+The owner: *"תבדוק איך נראות הקרוסלות הכי חזקות ומה הכי חזק מבחינת הכיתוב... תעשה ממש בדיקה מקיפה"*. What the sources agree on (vendor blogs; hypotheses to test on her numbers):
+- **Slide 1 does most of the work:** hint at a result, a mistake or a surprise without giving it away (e.g. "אל תעשי את 5 הטעויות האלה" with the five blurred). Slide 2 matters too (Instagram may show it to people who did not swipe).
+- **6–10 slides, one idea per slide**, 1080×1350 (4:5; the grid crops slide 1 to 3:4). Formats that get saved: numbered lists, mistakes/myth-vs-fact, step by step, before/after.
+- **The last slide: one ask** ("שמרי ושלחי לחברה" + one comment word). Saves and sends count more than likes.
+- **Caption:** the hook inside the first ~125 characters (after the disclosure), 3–6 short lines of value, ONE specific call to action (a comment word that gets the link in a DM). Comment goal → a question; DM goal → the keyword.
+- Reels reach people who do not follow yet; carousels build saves and trust. Use both.
+- **Colours (the owner, 2026-11-15: "בצבעים יותר מוכרים ותופסים את העין"):** high contrast, one dominant colour + one accent, the same palette on every slide. The house look for tips/mistakes carousels: saturated yellow `#FFD60A` + black text, a red accent `#e11d48`, white cards with a thick black border and a hard black shadow, the CTA slide black with the keyword in yellow. Keep text away from the bottom/right edges (Instagram's buttons cover them).
+Sources: adpicto.com, carouselli.com, posteverywhere.ai, krumzi.com (carousels); heropost.io, postsyncer.com, krumzi.com (captions).
+
+## Talking slides: the characters read the carousel (the owner, 2026-11-15)
+
+The owner: *"תוסיף אותן שהן זזות ומסבירות מהצד כזה עם מיקרופון... על כל שקופית היא מסבירה מקריאה"*. A carousel becomes a Reel: its own slides one after another (a silent swipe, the next slide from the left as in a Hebrew carousel), and beside each slide the presenter whose turn it is (Shira and Noa alternate, as on the carousel), in a framed window with a podcast microphone in front of her, saying that slide. Her words appear in a speech bubble (sound-off viewers). Research (2026-11-15, vendor guides, so hypotheses): the presenter small and to the side, the content gets most of the frame (the "sidebar avatar" / green-screen explainer layout); mixed-media posts outperform image-only; keep faces and text off the bottom ~25% and the button column.
+- Lines: `scripts/media/presenter/<spec>.json` (one short spoken line per slide: only what the slide says; a rate and pitch per presenter so the two do not sound alike). Push `scripts/media/presenter/run.json` → Actions "Talking slides" (`presenter-talk.yml`): edge-tts voices, then MuseTalk redraws her mouth over her own checked animated clip (`scripts/media/studio3d/shots/*`), one line per free runner (~30 min for 6–7 s lines) → the `presenter-preview` pre-release.
+- Edit: `marketing/remotion` → `node talk-data.mjs <unpacked run>` → compositions `TalkMistakes` / `TalkRadar` (`src/TalkSlides.tsx`). Each line is cut at its last word and the voice and lips are sped up together (×1.17) so the Reel stays near 40 s. Labels on every frame: the name tag "<name> · דמות AI", the slide's own ad line.
+- Round 2 (the owner, same day): **Shira (the tank top) stars alone**, no "מסבירה" label (she explains, so it is seen), **short** (~25 s; research 2026: 7–15 s wins completion and reach, 30–60 s wins saves; a hook in the first 2 s; word-by-word captions with the spoken word highlighted). One line per slide, only the headline; drop slides that do not carry the story.
+- **Correct Hebrew:** the natural Hila voice (a pitch shift made the "second host" sound wrong); vowel marks only on foreign or ambiguous words; every line is read back by ivrit-ai's Hebrew Whisper (`readback.py`) before the lips are made. It caught "קונה בְּאָלִי" heard as "קונה בעלי" and "של לפני" merged; "באלי אקספרס" and "שלפני ההנחה" were heard right. Captions drop the vowel marks.
+- Never claim a product "has not reached Israel": the radar measures Hebrew searches only (capybara squishies were on Israeli shelves while both searches were empty).
+- Watch it frame by frame before showing her (mouth over the right face, the same woman all through: a clip whose face drifts is left out, no frozen gap, no transition noise); nothing is posted without her "כן".
+
+## No transition noise (the owner, 2026-11-15)
+
+Every video LikeLink2 publishes cuts **silently** over its music bed or voice: no whoosh, swoosh, riser or any other sound effect on the transitions. The owner, in her words: *"מעכשיו תעשה שכל סרטון שאתה מפרסם יהיה בלי הרעש המוזר הזה של המעברים, שים לך תזכורת"*.
+- `scripts/marketing/pro-reel.mjs` and `scripts/luna_reels` (compose) no longer add one.
+- A film from `marketing/films/*` (its `mix.py` / `film.js` sound events) drops every `whoosh`/`rise` before it is shown to her for posting.
+- Before showing any video for approval, listen to it once for transition noise.
+
 ## The three formats (all free, all real)
 1. **Pro product reel** — `scripts/marketing/pro-reel.mjs`, Actions → "Pro reels" (jobs in
    `scripts/marketing/pro-reels/jobs.json`). The store's own photos full screen, one caption style, hook →

@@ -1,2 +1,5 @@
 node_modules/
 out/
+
+# talking-slides clips and slides: rebuilt from the presenter-preview release (talk-data.mjs)
+public/talk/

@@ -208,7 +208,9 @@ test("explanations come only from the evidence", () => {
   const alpha = alphaOf({ acc, gap: GAP });
   const ex = explain({ alpha, acc, gap: GAP, kind: "earrings", price: 7.5 });
   assert.match(ex.why.join(" "), /6\.11–13\.11/);
-  assert.match(ex.now.join(" "), /עוד לא כאן/);
+  assert.match(ex.now.join(" "), /בעברית עוד לא מחפשים/);
+  // only searches were measured: never "not here yet" (2026-11-15, capybara squishies were in Israeli shops)
+  assert.doesNotMatch(ex.now.join(" "), /עוד לא כאן|לא הגיע לארץ/);
   assert.match(ex.audience.basis, /כלל קבוע/, "the audience is labelled a rule, not a measurement");
   assert.ok(ex.missing.length >= 1);
 });

@@ -11,7 +11,9 @@
 //   the name and "תגיבי 'אני'" (the AutoDM sends the link).
 // - "#פרסומת · קישור שותפים" and "תמונות: המוכר" on every frame.
 // - A music bed made here from numbers (luna_reels/music.py, no licence to
-//   clear) and a soft whoosh on every cut. Instagram's Reels API needs audio.
+//   clear). Instagram's Reels API needs audio. No whoosh or any other sound on
+//   the cuts: the owner, 2026-11-15, "every video you publish without that weird
+//   noise in the transitions".
 // Every line passes the site's claim rules (HOOK_FORBIDDEN, DROP_FORBIDDEN,
 // no brand names) or the reel is refused. Nothing is posted from here.
 //
@@ -167,10 +169,9 @@ function gallerySheet(files, out) {
 
 function music(seconds, dir) {
   const bed = join(dir, "bed.m4a");
-  const whoosh = join(dir, "whoosh.m4a");
-  const py = `import sys; sys.path.insert(0, "scripts/luna_reels"); from pathlib import Path; from luna_reels.music import write_bed, write_whoosh; write_bed(${seconds}, Path("${bed}"), db=-14.0); write_whoosh(Path("${whoosh}"))`;
+  const py = `import sys; sys.path.insert(0, "scripts/luna_reels"); from pathlib import Path; from luna_reels.music import write_bed; write_bed(${seconds}, Path("${bed}"), db=-14.0)`;
   execFileSync("python3", ["-c", py], { stdio: ["ignore", "ignore", "inherit"] });
-  return { bed, whoosh };
+  return { bed };
 }
 
 export async function renderReel({ page, job, product, work, out }) {
@@ -215,11 +216,11 @@ export async function renderReel({ page, job, product, work, out }) {
   const endFile = join(work, `${job.id}-end.mp4`);
   ff(["-loop", "1", "-framerate", String(FPS), "-t", String(END), "-i", photos[0], "-vf", shotFilter({ seconds: END, zoom: [1.06, 1.0] }), "-t", String(END), "-r", String(FPS), "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "15", "-pix_fmt", "yuv420p", endFile]);
   segs.push(endFile);
-  const { bed, whoosh } = music(TOTAL, work);
+  const { bed } = music(TOTAL, work);
   const n = segs.length;
   const concat = `${segs.map((_, i) => `[${i}:v]settb=AVTB,fps=${FPS},format=yuv420p,setsar=1[v${i}]`).join(";")};${segs.map((_, i) => `[v${i}]`).join("")}concat=n=${n}:v=1:a=0[cut]`;
   const parts = ["labels", ...timeline().map((t) => t.part)];
-  const pIdx = (part) => n + 2 + parts.indexOf(part);
+  const pIdx = (part) => n + 1 + parts.indexOf(part);
   let chain = `${concat};[cut][${pIdx("labels")}:v]overlay=0:0[l0]`;
   let last = "[l0]";
   timeline().forEach((t, i) => {
@@ -228,15 +229,12 @@ export async function renderReel({ page, job, product, work, out }) {
     chain += `;[${pIdx(t.part)}:v]format=rgba${fade}[o${i}];${last}[o${i}]overlay=0:0:enable='between(t,${t.from},${t.to - 0.001})'${lab}`;
     last = lab;
   });
-  // Audio: the bed, a whoosh on every cut (each delayed to its cut).
-  const cuts = Array.from({ length: SHOTS }, (_, k) => Number(((k + 1) * SHOT - 0.15).toFixed(3)));
-  const wIn = n + 1;
-  const aParts = cuts.map((c, i) => `[${wIn}:a]adelay=${Math.round(c * 1000)}|${Math.round(c * 1000)}[w${i}]`);
-  const audio = `${aParts.join(";")};[${n}:a]${cuts.map((_, i) => `[w${i}]`).join("")}amix=inputs=${cuts.length + 1}:normalize=0,atrim=0:${TOTAL},afade=t=out:st=${TOTAL - 0.8}:d=0.8,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`;
+  // Audio: the music bed only. No sound effect on the cuts (the owner's rule, 2026-11-15).
+  const audio = `[${n}:a]atrim=0:${TOTAL},afade=t=out:st=${TOTAL - 0.8}:d=0.8,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`;
   const mp4 = join(out, `${job.id}.mp4`);
   ff([
     ...segs.flatMap((f) => ["-i", f]),
-    "-i", bed, "-i", whoosh,
+    "-i", bed,
     ...parts.flatMap((p) => ["-loop", "1", "-framerate", String(FPS), "-t", String(TOTAL), "-i", png[p]]),
     "-filter_complex", `${chain};${last}format=yuv420p[v];${audio}`,
     "-map", "[v]", "-map", "[a]", "-t", String(TOTAL), "-r", String(FPS),

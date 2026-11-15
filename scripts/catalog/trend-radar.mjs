@@ -35,6 +35,8 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
+import { TRENDS_GEOS, WORLD_MARKETS, addWorld, productTrend, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -118,12 +120,13 @@ async function suggestCount(phrase, opts, fetchImpl) {
   return extensions(phrase, parseSuggest(got.text));
 }
 
-export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 300_000, politeMs = 350 } = {}) {
+export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 720_000, politeMs = 350 } = {}) {
   mkdirSync(dir, { recursive: true });
   const { concepts: listed = [] } = readJson("scripts/catalog/radar-concepts.json", {});
   const watch = listed.filter(validConcept);
   const readings = readJson(join(dir, "readings.json"), {});
   const awareness = readJson(join(dir, "awareness.json"), {});
+  const worldMap = readJson(join(dir, "world.json"), {});
   let discovered = readJson(join(dir, "discovered.json"), []);
   // Item histories: kept per item per day; seeded once from the server's own readings.
   const facts = {}; // today's store facts per site item (booleans + orders; not kept between runs)
@@ -138,8 +141,28 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
   let calls = readJson(join(dir, "calls.json"), []);
   const log = [];
-  const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", youtube: "OFF", trendsIL: "OFF", siteVisitors: "OFF", siteProducts: "OFF" };
+  const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", youtube: "OFF", trendsIL: "OFF", trendsWorld: "OFF", worldSearch: "OFF", trendsDiscovery: "OFF", siteVisitors: "OFF", siteProducts: "OFF" };
   const store = aeStatus(env).configured;
+
+  // 0. The world first: Google Trends' daily trending searches in four English-speaking countries
+  // (read once each, only while trends.google.com's robots.txt allows it).
+  const abroadTerms = {};
+  if (env.RADAR_SUGGEST !== "0") {
+    try {
+      const robots = await getText("https://trends.google.com/robots.txt", fetchImpl);
+      if (robotsAllows(robots.status, robots.text, "/trending/rss")) {
+        for (const geo of TRENDS_GEOS) {
+          try {
+            const rss = await getText(trendsRssUrl(geo), fetchImpl);
+            if (rss.status === 200) abroadTerms[geo] = parseTrendsRss(rss.text).map((t) => (typeof t === "string" ? t : t?.term)).filter(Boolean).slice(0, 40);
+          } catch (err) { log.push(`google trends ${geo}: ${String(err?.message || err).slice(0, 60)}`); }
+          await pause(politeMs);
+        }
+        sources.trendsWorld = Object.keys(abroadTerms).length ? "OK" : "FAILED";
+      } else sources.trendsWorld = "ROBOTS_DISALLOW";
+    } catch (err) { sources.trendsWorld = "FAILED"; log.push(`google trends robots: ${String(err?.message || err).slice(0, 60)}`); }
+    log.push(`google trends abroad: ${Object.entries(abroadTerms).map(([g, t]) => `${g} ${t.length}`).join(", ") || "none"}`);
+  }
 
   // 1. Discovery.
   if (store && env.RADAR_DISCOVER !== "0") {
@@ -156,6 +179,32 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const added = discovered.filter((c) => !before.has(c.id));
     sources.discovery = Object.keys(lists).length ? "OK" : "FAILED";
     log.push(`discovery: ${Object.keys(lists).length} hot lists · ${candidates.length} candidates · added ${added.map((c) => c.en).join(", ") || "none"} · on trial ${discovered.length}`);
+    // Found in the world first, then on AliExpress: a term trending today in a country's Google
+    // searches joins the radar when AliExpress sells it (productTrend: matching items and orders).
+    const terms = [...new Map(Object.entries(abroadTerms).flatMap(([geo, ts]) => ts.map((t) => [String(t).toLowerCase().trim(), geo]))).entries()]
+      .filter(([t]) => t.length >= 4 && !hasBrandName(t) && !isNotListedKind(t)).slice(0, 60);
+    if (terms.length) {
+      const e = aeEnv(env);
+      const tCands = [];
+      const tStarted = Date.now();
+      for (const [term, geo] of terms) {
+        if (Date.now() - tStarted > 90_000) { log.push("trends discovery: budget over"); break; }
+        try {
+          const res = await aeCall(SEARCH, { keywords: term, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+          const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(r?.resp_code) !== 200) continue;
+          const raw = r.result?.products?.product;
+          const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
+          const verdict = productTrend(term, list);
+          if (verdict.ok) tCands.push({ en: term, kind: "", items: verdict.items, orders: verdict.orders, category: `google-trends-${geo}` });
+        } catch (err) { log.push(`trends discovery ${term}: ${String(err?.message || err).slice(0, 60)}`); }
+      }
+      const tBefore = new Set(discovered.map((c) => c.id));
+      discovered = admitDiscovered(discovered, tCands, { concepts: watch, stages: stagesBefore, now });
+      const tAdded = discovered.filter((c) => !tBefore.has(c.id));
+      sources.trendsDiscovery = "OK";
+      log.push(`trends discovery: ${terms.length} trending terms abroad · ${tCands.length} sell on AliExpress · added ${tAdded.map((c) => c.en).join(", ") || "none"}`);
+    }
     // Readings of concepts that left the trial are dropped with them.
     for (const id of Object.keys(readings)) if (id.startsWith("auto-") && !discovered.some((c) => c.id === id)) { delete readings[id]; delete awareness[id]; delete picks[id]; }
   }
@@ -246,7 +295,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.suggest = allowed ? "OK" : "ROBOTS_DISALLOW";
       sources.youtube = sources.suggest;
     } catch (err) { sources.suggest = "FAILED"; log.push(`autocomplete robots: ${String(err?.message || err).slice(0, 80)}`); }
+    const abroadIds = trendingAbroad(concepts, abroadTerms);
     if (allowed) {
+      sources.worldSearch = "OK";
       const started = Date.now();
       let failures = 0;
       for (const c of concepts) {
@@ -264,6 +315,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           let world = await suggestCount(c.en, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs);
           const short = c.en.split(/\s+/).slice(0, 2).join(" ");
           if (world === 0 && short !== c.en) { world = await suggestCount(short, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs); }
+          // The world pulse: the same English phrase in three more markets and on YouTube (US).
+          const by = { us: world };
+          for (const m of WORLD_MARKETS.filter((x) => x.id !== "us")) { by[m.id] = await suggestCount(c.en, { hl: "en", gl: m.gl }, fetchImpl); await pause(politeMs); }
+          const ytWorld = await suggestCount(c.en, { hl: "en", gl: "us", ds: "yt" }, fetchImpl); await pause(politeMs);
+          worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [] }, { now }));
           const answered = [...he, ...yt, world].filter((n) => n !== null).length;
           if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
           const reading = awarenessReading({ he, yt, hq, world, trend: trendIds.has(c.id), site: sources.siteVisitors === "OK" ? exits[c.id] || 0 : null }, { now });
@@ -290,10 +346,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  for (const c of board.concepts || []) c.world = worldPulseOf(worldMap[c.id] || []);
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
+  writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));
   writeFileSync(join(dir, "discovered.json"), JSON.stringify(discovered, null, 1));
   writeFileSync(join(dir, "items.json"), JSON.stringify(items));
   writeFileSync(join(dir, "catalog.json"), JSON.stringify(intel.audit, null, 1));

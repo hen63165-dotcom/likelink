@@ -210,7 +210,7 @@ export function explain({ alpha, acc, gap, kind = "", price = null, momentumHot 
   const risks = [];
   if (acc && acc.cls !== "INSUFFICIENT") why.push(`${ACCEL[acc.cls].he} באליאקספרס: ${acc.weekPct > 0 ? "+" : ""}${acc.weekPct}% בשבוע (${dm(acc.from)}–${dm(acc.to)}).`);
   if (momentumHot) why.push("הפריט עצמו מאיץ השבוע.");
-  if (gap?.state === "GAP") { why.push("בישראל עוד לא מחפשים את זה בעברית (גוגל ויוטיוב)."); now.push("עולה בעולם ועוד לא כאן: מי שמגיעה ראשונה מגיעה לפני כולם."); }
+  if (gap?.state === "GAP") { why.push("בישראל עוד לא מחפשים את זה בעברית (גוגל ויוטיוב)."); now.push("בעולם מזמינים ובעברית עוד לא מחפשים: כדאי לבדוק גם אם כבר מוכרים את זה בחנויות בארץ."); }
   if (gap?.state === "ARRIVING") now.push("בישראל מתחילים לחפש את זה: החלון נסגר בקרוב.");
   if (acc?.cls === "ACCELERATING" || acc?.cls === "EMERGING") now.push(`הקצב עלה מ־${acc.earlierWeek}% ל־${acc.recentWeek}% בשבוע בין חצי המדידות הראשון לשני.`);
   if (gap?.state === "ARRIVED") risks.push("כבר מחפשים את זה בישראל: תחרות של מוכרים ותוכן.");
@@ -219,7 +219,7 @@ export function explain({ alpha, acc, gap, kind = "", price = null, momentumHot 
   if (acc?.cls === "DECLINING") risks.push("ההזמנות יורדות.");
   if (acc && acc.consistency !== undefined && acc.consistency < 0.6 && acc.cls !== "INSUFFICIENT") risks.push(`עלייה לא עקבית (${Math.round(acc.consistency * 100)}% מהימים עלו).`);
   if (alpha && !alpha.verified) risks.push("עוד לא הזדמנות מאומתת: חסרות ראיות (ראו למטה).");
-  const angle = gap?.state === "GAP" ? "״לפני שזה מגיע לארץ״: להראות את המוצר בשימוש אמיתי ולהסביר מה הוא פותר"
+  const angle = gap?.state === "GAP" ? "״עוד לא ראיתן את זה בפיד?״: להראות את המוצר בשימוש אמיתי ולהסביר מה הוא פותר"
     : gap?.state === "ARRIVED" ? "זווית משלך: השוואה, טיפ שימוש או התאמה אישית — לא עוד ״תראו מה הגיע״"
       : "להראות את המוצר בשימוש ביום־יום, עם הקישור בתגובה";
   return {

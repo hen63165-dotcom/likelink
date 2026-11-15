@@ -34,6 +34,26 @@ first · AI character labelled on screen and with Instagram's AI label · true
 only (no scarcity, sales counts, invented prices, "קניתי") · our own content
 only (no other creator's video, no other brand's logo or name).
 
+## The selling format: real hands, a real product (the owner, 2026-11-15)
+
+The owner, after the photo slideshows: *"זה לא מוכר בכלל הסרטונים האלה... תעשה סרטונים שווים ומוכרים, תשקיע כמשפיען ועורך סרטונים"*, then *"תעשה את כל הסרטונים ככה"*. Every product video is now hands-on footage, never a photo slideshow:
+1. **Real footage only.** The owner's own clip of a package she really received (the strongest: label "צילום אמיתי", REAL_UGC), or the store's own video of hands opening and using the product (label "סרטון המוכר", Actions → "Store videos"). Never "we got a package" over footage we did not film: that is a fake testimonial.
+2. **The product on screen in the first second**, with a short hook on screen whose payoff the video really delivers (a question or a problem, ≤ 8 words).
+3. **Show it working**, no feature list: open → take out → use → detail → size next to something familiar.
+4. **9–20 s, a new picture every 1–2 s**: each cut must give something new, the best moment early.
+5. **Big captions** (3–5 words a line), the energetic own beat (`luna_reels/popbeat.py`, 122 BPM, no samples, no licence), **no whoosh on the cuts**.
+6. **End card**: the comment word ("אני") → the link in a DM; `#פרסומת · קישור שותפים` and who filmed it on every frame.
+7. **Only products HOT on the radar** (the hot-now gate in `docs/marketing/product-rules.md`).
+Research behind it (2026-11-15, vendor blogs, treated as hypotheses to test on her numbers): the product in the first 3 s, problem → solution, showing beats telling, unpolished phone footage often beats polished work, every cut must add something.
+Sources: pulse-advertising.com (anatomy of a shoppable TikTok video), optimizon.co.uk (TikTok Shop best practices), async.com (editing Reels for retention), socialmediaexaminer.com (why unpolished Reels win), digistore24.com (affiliate Reels).
+
+## No transition noise (the owner, 2026-11-15)
+
+Every video LikeLink2 publishes cuts **silently** over its music bed or voice: no whoosh, swoosh, riser or any other sound effect on the transitions. The owner, in her words: *"מעכשיו תעשה שכל סרטון שאתה מפרסם יהיה בלי הרעש המוזר הזה של המעברים, שים לך תזכורת"*.
+- `scripts/marketing/pro-reel.mjs` and `scripts/luna_reels` (compose) no longer add one.
+- A film from `marketing/films/*` (its `mix.py` / `film.js` sound events) drops every `whoosh`/`rise` before it is shown to her for posting.
+- Before showing any video for approval, listen to it once for transition noise.
+
 ## The formats that carry them
 | Format | Where it is made | Notes |
 |---|---|---|

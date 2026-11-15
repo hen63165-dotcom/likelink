@@ -2,21 +2,41 @@
   "note": "The pro reels to render (scripts/marketing/pro-reel.mjs). photos: gallery numbers in shot order (1-based, from <id>-gallery.jpg; never a photo with printed text, sizes or a brand); without it the gallery in order. fit: photo numbers shown whole over a blurred copy (wide products). focus: per photo number {cx, cy} (0..1) when the product is off-centre. crop: per photo number [x, y, w, h] fractions, to leave out printed text and marks; {\"from\": n, \"box\": [...]} makes a new photo number from photo n.",
   "jobs": [
     {
-      "id": "ae-1005012649969906",
-      "hook": "חמאה שאפשר ללחוץ עליה?",
-      "what": "סקווישי ורוד\nבצורת מקל חמאה",
-      "tip": "טיפ: לגיל 3 ומעלה,\nלא לפה",
-      "name": "מקל חמאה ורוד ללחיצה",
+      "id": "ae-1005007171162290",
+      "hook": "קר בצוואר בבוקר?",
+      "what": "מחמם צוואר רך\nלנשים ולגברים",
+      "tip": "טיפ: בודקים בעמוד\nאת הצבע והמידה",
+      "name": "מחמם צוואר",
+      "crop": {
+        "7": {
+          "from": 1,
+          "box": [
+            0,
+            0.5,
+            0.5,
+            0.5
+          ]
+        },
+        "8": {
+          "from": 1,
+          "box": [
+            0.5,
+            0.5,
+            0.5,
+            0.5
+          ]
+        }
+      },
       "photos": [
-        2,
-        1,
+        7,
         3,
+        8,
         4,
         6,
-        2
+        7
       ],
       "fit": [
-        6
+        3
       ]
     }
   ]

@@ -1,0 +1,125 @@
+{
+  "name": "talk-slides-20261115b",
+  "about": "The owner, 2026-11-15 (second round): Shira (the tank top) stars alone, no 'מסבירה' label, short (Reels for reach: ~18-20 s), correct Hebrew. One short line per slide, only what the slide says; the capybara slide is left out (Israeli shops already sell capybara squishies) and so is the bonus slide. Natural Hila voice (no pitch shift); vowel marks only on foreign or ambiguous words; every line is read back by a Hebrew speech model before the lips are made.",
+  "editSpeed": 1.06,
+  "voices": {
+    "shira": {
+      "voice": "he-IL-HilaNeural",
+      "rate": "+4%",
+      "pitch": "+0Hz"
+    }
+  },
+  "heads": {
+    "shira": [
+      0.21,
+      0.055,
+      0.899,
+      0.443
+    ]
+  },
+  "bases": {
+    "shira": [
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/cta.mp4",
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/hero.mp4",
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/wow.mp4"
+    ]
+  },
+  "checkedBases": "2026-11-15 by eye, frame by frame over 3 s: Shira's problem.mp4 turns into another face after ~1.8 s (it was the eye score's pick), so only cta/hero/wow carry her lines; Noa's problem.mp4 left out the same way. Listed bases are used in order, not re-picked by the eye score.",
+  "keep": {
+    "shira": 3.0
+  },
+  "lines": [
+    {
+      "id": "a1",
+      "reel": "mistakes",
+      "slide": 1,
+      "presenter": "shira",
+      "say": "קונה בְּאָלִי אֶקְסְפְּרֵס? חמש טעויות שעולות לך כסף."
+    },
+    {
+      "id": "a2",
+      "reel": "mistakes",
+      "slide": 2,
+      "presenter": "shira",
+      "say": "אחת: להאמין למחיר שלפני ההנחה."
+    },
+    {
+      "id": "a3",
+      "reel": "mistakes",
+      "slide": 3,
+      "presenter": "shira",
+      "say": "שתיים: לנחש מידת טבעת."
+    },
+    {
+      "id": "a4",
+      "reel": "mistakes",
+      "slide": 4,
+      "presenter": "shira",
+      "say": "שלוש: לחשוב שמוֹאָסָנִיט זה יהלום."
+    },
+    {
+      "id": "a5",
+      "reel": "mistakes",
+      "slide": 5,
+      "presenter": "shira",
+      "say": "ארבע: להזמין מתנה ברגע האחרון."
+    },
+    {
+      "id": "a6",
+      "reel": "mistakes",
+      "slide": 6,
+      "presenter": "shira",
+      "say": "חמש: לאשר קבלה לפני שהחבילה הגיעה."
+    },
+    {
+      "id": "a7",
+      "reel": "mistakes",
+      "slide": 8,
+      "presenter": "shira",
+      "say": "רוצה את כל שמונה הבדיקות? תכתבי מדריך בתגובות."
+    },
+    {
+      "id": "b1",
+      "reel": "radar-creators",
+      "slide": 1,
+      "presenter": "shira",
+      "say": "משפיענית? ככה רואים מה מתחיל לעלות, לפני כולן."
+    },
+    {
+      "id": "b2",
+      "reel": "radar-creators",
+      "slide": 2,
+      "presenter": "shira",
+      "say": "כשכולן כבר מפרסמות, את מאחרת."
+    },
+    {
+      "id": "b3",
+      "reel": "radar-creators",
+      "slide": 3,
+      "presenter": "shira",
+      "say": "הרדאר בודק כל יום כמה מהר קונים באָלִי אֶקְסְפְּרֵס."
+    },
+    {
+      "id": "b4",
+      "reel": "radar-creators",
+      "slide": 4,
+      "presenter": "shira",
+      "say": "ואם בישראל כבר מחפשים את זה בעברית."
+    },
+    {
+      "id": "b5",
+      "reel": "radar-creators",
+      "slide": 5,
+      "presenter": "shira",
+      "say": "בלי הבטחות: כל תחזית נבדקת אחרי שבועיים, בפומבי."
+    },
+    {
+      "id": "b6",
+      "reel": "radar-creators",
+      "slide": 7,
+      "presenter": "shira",
+      "say": "חינם בתקופת הניסיון. תכתבי רדאר בתגובות, ואשלח לך קישור."
+    }
+  ],
+  "readback": "2026-11-15, first read-back: 'קונה בְּאָלִי' was heard as 'קונה בעלי' (my husband) and 'של לפני' as one word; both lines rewritten ('באלי אקספרס' was heard right in b3)."
+}
