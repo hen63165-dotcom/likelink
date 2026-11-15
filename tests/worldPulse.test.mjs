@@ -170,3 +170,15 @@ test("calibration grades the sniper calls apart from the ordinary signals", asyn
   assert.deepEqual(cal.signal, { graded: 3, hits: 1, accuracy: 33, pending: 1 });
   assert.deepEqual(cal.sniper, { graded: 1, hits: 1, accuracy: 100, pending: 1 });
 });
+
+test("an open call is measured every day against its sealed base (the live scoreboard)", async () => {
+  const { ledgerOf } = await import("../src/lib/growth/worldPulse.js");
+  const calls = [
+    { concept: "tofu-squishy", kind: "early", at: "2026-11-10", due: "2026-11-24", base: 1000 },
+    { concept: "cat-perch", kind: "early", at: "2026-11-01", due: "2026-11-15", base: 500, result: "HIT", growth: 22 },
+  ];
+  const [open, graded] = ledgerOf(calls, { latest: { "tofu-squishy": 1090, "cat-perch": 700 }, today: "2026-11-15" });
+  assert.deepEqual([open.progress, open.dayN], [9, 5], "day 5 of 14, +9% since the seal");
+  assert.deepEqual([graded.progress, graded.growth], [null, 22], "a graded call keeps its final grade only");
+  assert.equal(ledgerOf(calls)[0].progress, null, "no reading, no number");
+});

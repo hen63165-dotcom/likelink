@@ -422,7 +422,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
   }
-  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls), calibration: calibrationOf(calls, trackRecord), seal };
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls, { latest: Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum])), today }), calibration: calibrationOf(calls, trackRecord), seal };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

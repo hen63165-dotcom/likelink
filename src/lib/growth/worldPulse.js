@@ -295,15 +295,27 @@ export function sealOf(calls = []) {
 
 
 /**
+ * The live scoreboard of an open call (the owner, 2026-11-15: "why only after 14 days?"): measured
+ * every day against its sealed base, the same way the final grade is (orders now / base − 1), so
+ * anyone watches it move toward the +15% a hit needs. Graded calls carry their final growth instead.
+ */
+function liveOf(c, latest = {}, today = null) {
+  const now = Number(latest?.[c.concept]);
+  const progress = !c.result && Number(c.base) > 0 && Number.isFinite(now) ? Math.round((now / c.base - 1) * 1000) / 10 : null;
+  const dayN = !c.result && today ? Math.max(0, Math.round((Date.parse(today) - Date.parse(c.at)) / 86_400_000)) : null;
+  return { progress, dayN: Number.isFinite(dayN) ? dayN : null };
+}
+
+/**
  * The public ledger ("ספר הקביעות"): every early call, newest first, with its sealed day, its grade
  * day, the grade once it exists (HIT/MISS, never edited) and the day each finish line was crossed.
  */
-export function ledgerOf(calls = [], { max = 40 } = {}) {
+export function ledgerOf(calls = [], { max = 40, latest = {}, today = null } = {}) {
   return (Array.isArray(calls) ? calls : [])
     .filter((c) => c?.kind === "early" && c.concept && c.at)
     .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.concept).localeCompare(String(b.concept)))
     .slice(0, max)
-    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
+    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, ...liveOf(c, latest, today), firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
 }
 
 /**

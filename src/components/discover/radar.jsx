@@ -416,16 +416,16 @@ function Verdict({ board }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, היום ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז הקביעה` : ""}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since the call today` : ""}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
         )}
         {board.early.calibration ? (
           <div className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
-            <p className="font-extrabold">{L("📏 כמה הרדאר בטוח, וכמה זה התקיים", "📏 How sure the radar is, and how often it held")}</p>
+            <p className="font-extrabold">{L("📏 כמה פעמים כל סוג קביעה פגע", "📏 How often each kind of call hit")}</p>
             {[["sniper", L("🎯 קביעת צלף (כל 4 הסימנים)", "🎯 Sniper call (all four signals)")], ["signal", L("📈 סימון רגיל (ביקוש בלבד)", "📈 Ordinary signal (demand only)")]].map(([k, label]) => {
               const r = board.early.calibration[k];
               return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`עוד אין ציונים${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
             })}
-            <p style={{ color: "var(--lx-muted)" }}>{L("כמו תחזית מזג אוויר: הרדאר אומר כמה הוא בטוח, וכאן רואים כמה פעמים זה באמת קרה. הכול נבדק אחרי 14 יום ונשאר גלוי.", "Like a weather forecast: the radar says how sure it is, and here you see how often it really happened. Graded after 14 days, kept public.")}</p>
+            <p style={{ color: "var(--lx-muted)" }}>{L("הרדאר מבדיל בין סימון רגיל לקביעת צלף, וכאן רואים כמה פעמים כל אחד מהם באמת פגע. כל קביעה נמדדת כל יום, והציון הסופי נכתב אחרי 14 יום ונשאר גלוי.", "The radar tells an ordinary signal from a sniper call, and here you see how often each really hit. Every call is measured daily; the final grade is written after 14 days and stays public.")}</p>
           </div>
         ) : null}
         {ledger.length ? (
@@ -438,7 +438,7 @@ function Verdict({ board }) {
                   <li key={`${e.concept}-${e.at}`} className="flex flex-wrap gap-x-3">
                     <span className="font-bold">{dm(e.at)}</span>
                     <span>{name(e.concept)}</span>
-                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
+                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : e.progress !== null ? L(`⏳ יום ${e.dayN} מתוך 14 · ${e.progress > 0 ? "+" : ""}${e.progress}% מאז הקביעה (פגיעה = +15%)`, `⏳ day ${e.dayN} of 14 · ${e.progress > 0 ? "+" : ""}${e.progress}% since the call (hit = +15%)`) : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
                     {ahead.length ? <span>{L(`🚀 הקדים: ${ahead.map(([k, n]) => `${FINISH_HE[k]} ב־${n} ימים`).join(", ")}`, `🚀 ahead: ${ahead.map(([k, n]) => `${k} by ${n} days`).join(", ")}`)}</span> : null}
                   </li>
                 );
