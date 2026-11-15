@@ -623,7 +623,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
     if not getattr(episode, "outro", True):
         video = CompositeVideoClip(layers, size=(W, H)).with_duration(total)
         if episode.studio:
-            return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
+            return video.with_audio(_audio(beats, total, work, music_src or "beat")), beats, total
         return video.with_audio(_audio(beats, total, work, music_src)), beats, total
     end, button_y = visuals.outro(Image.fromarray(bg_clip.get_frame(max(0.0, end_at - 0.05))),
                                   slogan=OUTRO_SLOGAN if free else None, branded=free, logo=None if free else logo,
@@ -639,7 +639,7 @@ def build(episode: Episode, clips: list[Clip], *, visual: str, product: dict | N
 
     video = CompositeVideoClip(layers, size=(W, H)).with_duration(total)
     if episode.studio:
-        return video.with_audio(_audio(beats, total, work, music_src or "beat", whooshes=[b.start for b in beats[1:]])), beats, total
+        return video.with_audio(_audio(beats, total, work, music_src or "beat")), beats, total
     return video.with_audio(_audio(beats, total, work, music_src)), beats, total
 
 
@@ -674,6 +674,7 @@ def _product_inset(product: dict, beats: list[Beat], start_beat: int, end_at: fl
 
 
 def _audio(beats: list[Beat], total: float, work: Path, music_src: str | None, whooshes: list[float] = ()):
+    # No whoosh on the cuts by default (the owner, 2026-11-15: no transition noise in any published video).
     tracks = [AudioFileClip(str(silent_track(total, work / "silence.m4a")))]
     if whooshes:
         swish = AudioFileClip(str(music.write_whoosh(work / "whoosh.wav")))

@@ -39,6 +39,13 @@ each DM is a click to the site. Our keywords (one per post, one word):
 - Product DMs and captions keep "#פרסומת · קישור שותפים" / the affiliate line; tool posts (קסם, מדריך,
   סטודיו) carry "(באתר יש קישורי שותפים…)".
 
+## No transition noise (the owner, 2026-11-15)
+
+Every video LikeLink2 publishes cuts **silently** over its music bed or voice: no whoosh, swoosh, riser or any other sound effect on the transitions. The owner, in her words: *"מעכשיו תעשה שכל סרטון שאתה מפרסם יהיה בלי הרעש המוזר הזה של המעברים, שים לך תזכורת"*.
+- `scripts/marketing/pro-reel.mjs` and `scripts/luna_reels` (compose) no longer add one.
+- A film from `marketing/films/*` (its `mix.py` / `film.js` sound events) drops every `whoosh`/`rise` before it is shown to her for posting.
+- Before showing any video for approval, listen to it once for transition noise.
+
 ## The three formats (all free, all real)
 1. **Pro product reel** — `scripts/marketing/pro-reel.mjs`, Actions → "Pro reels" (jobs in
    `scripts/marketing/pro-reels/jobs.json`). The store's own photos full screen, one caption style, hook →
