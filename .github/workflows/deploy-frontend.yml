@@ -185,11 +185,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dist/radar
-          gh release download radar --pattern board.json --dir dist/radar --clobber || echo "::warning::no radar board yet"
-          # The promotion kits of the products the radar keeps (alpha.js kitOf) → /radar/kits/
-          # (noindex, the owner's worksheet; nothing is posted from it).
-          gh release download radar --pattern briefs.json --dir /tmp/radar-kits --clobber || echo "::warning::no kits yet"
-          node scripts/marketing/radar-kits.mjs /tmp/radar-kits/briefs.json dist/radar/kits || true
+          # Only the public board (scripts/catalog/radar-state.mjs): the full one while the trial is
+          # open, else the teaser; the live board is served by /api/store?mode=radar-board.
+          gh release download radar --pattern board-public.json --dir /tmp/radar-pub --clobber && cp /tmp/radar-pub/board-public.json dist/radar/board.json || echo "::warning::no public radar board yet"
+          # The promotion kits (alpha.js kitOf) → /radar/kits/, only while the trial is open.
+          rm -rf /tmp/radar-kits && mkdir -p /tmp/radar-kits
+          if gh release download radar --pattern briefs-public.json --dir /tmp/radar-kits --clobber; then
+            node scripts/marketing/radar-kits.mjs /tmp/radar-kits/briefs-public.json dist/radar/kits || true
+          else echo "::notice::no public kits (the radar is for subscribers)"; fi
           ls -la dist/radar dist/radar/kits
 
       - name: Publish dist to gh-pages
