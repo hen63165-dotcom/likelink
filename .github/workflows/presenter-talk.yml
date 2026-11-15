@@ -41,7 +41,7 @@ jobs:
   voices:
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +58,15 @@ jobs:
           SPEC: ${{ needs.plan.outputs.spec }}
           ONLY: ${{ needs.plan.outputs.only }}
         run: python3 scripts/media/presenter/voices.py --spec "scripts/media/presenter/$SPEC" --only "$ONLY" --out "$RUNNER_TEMP/voices"
+      # Every line heard back by a Hebrew speech model (printed for a person to check; never blocks)
+      - name: Read-back (ivrit-ai Hebrew Whisper)
+        continue-on-error: true
+        env:
+          SPEC: ${{ needs.plan.outputs.spec }}
+          HF_HUB_DISABLE_PROGRESS_BARS: "1"
+        run: |
+          pip install -q faster-whisper
+          python3 scripts/media/presenter/readback.py --spec "scripts/media/presenter/$SPEC" --voices "$RUNNER_TEMP/voices"
       - uses: actions/upload-artifact@v4
         with:
           name: presenter-voices
