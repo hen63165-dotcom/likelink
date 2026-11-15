@@ -4,6 +4,7 @@ import { STUDIO_SECONDS, StudioSteps } from "./StudioSteps";
 import { BUTTERFLY_SECONDS, ButterflyFix } from "./ButterflyFix";
 import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
 import { GARLIC, HandsReel, RINGS, totalSeconds } from "./HandsReel";
+import { GARLIC_SELL, SellReel, sellSeconds } from "./SellReel";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -36,6 +37,15 @@ export const RemotionRoot: React.FC = () => {
         id="ButterflyUgc"
         component={ButterflyUgc}
         durationInFrames={Math.round(BUTTERFLY_UGC_SECONDS * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="GarlicSell"
+        component={SellReel}
+        defaultProps={GARLIC_SELL}
+        durationInFrames={Math.round(sellSeconds(GARLIC_SELL) * 30)}
         fps={30}
         width={1080}
         height={1920}
