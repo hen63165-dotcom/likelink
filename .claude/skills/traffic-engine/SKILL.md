@@ -52,6 +52,16 @@ The owner, after the photo slideshows: *"זה לא מוכר בכלל הסרטו�
 Research behind it (2026-11-15, vendor blogs, treated as hypotheses to test on her numbers): the product in the first 3 s, problem → solution, showing beats telling, unpolished phone footage often beats polished work, every cut must add something.
 Sources: pulse-advertising.com (anatomy of a shoppable TikTok video), optimizon.co.uk (TikTok Shop best practices), async.com (editing Reels for retention), socialmediaexaminer.com (why unpolished Reels win), digistore24.com (affiliate Reels).
 
+## Carousels and captions that get saved and shared (research, 2026-11-15)
+
+The owner: *"תבדוק איך נראות הקרוסלות הכי חזקות ומה הכי חזק מבחינת הכיתוב... תעשה ממש בדיקה מקיפה"*. What the sources agree on (vendor blogs; hypotheses to test on her numbers):
+- **Slide 1 does most of the work:** hint at a result, a mistake or a surprise without giving it away (e.g. "אל תעשי את 5 הטעויות האלה" with the five blurred). Slide 2 matters too (Instagram may show it to people who did not swipe).
+- **6–10 slides, one idea per slide**, 1080×1350 (4:5; the grid crops slide 1 to 3:4). Formats that get saved: numbered lists, mistakes/myth-vs-fact, step by step, before/after.
+- **The last slide: one ask** ("שמרי ושלחי לחברה" + one comment word). Saves and sends count more than likes.
+- **Caption:** the hook inside the first ~125 characters (after the disclosure), 3–6 short lines of value, ONE specific call to action (a comment word that gets the link in a DM). Comment goal → a question; DM goal → the keyword.
+- Reels reach people who do not follow yet; carousels build saves and trust. Use both.
+Sources: adpicto.com, carouselli.com, posteverywhere.ai, krumzi.com (carousels); heropost.io, postsyncer.com, krumzi.com (captions).
+
 ## No transition noise (the owner, 2026-11-15)
 
 Every video LikeLink2 publishes cuts **silently** over its music bed or voice: no whoosh, swoosh, riser or any other sound effect on the transitions. The owner, in her words: *"מעכשיו תעשה שכל סרטון שאתה מפרסם יהיה בלי הרעש המוזר הזה של המעברים, שים לך תזכורת"*.
