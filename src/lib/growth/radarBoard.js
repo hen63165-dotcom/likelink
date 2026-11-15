@@ -4,6 +4,7 @@
 // tracked AliExpress links, a picture only over https from AliExpress's own image hosts, the check
 // button only into /magic, text capped — and drops anything else. radarForItem is the magic button's
 // bridge: where a checked item sits on the radar. Tiny and import-light: both pages bundle it.
+import { WORLD_STATES } from "./worldPulse.js";
 import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
@@ -101,6 +102,7 @@ function cleanRow(c) {
     items: (Array.isArray(c.items) ? c.items : []).filter((x) => typeof x === "string" && ITEM.test(x)).slice(0, 20),
     match: (Array.isArray(c.match) ? c.match : []).map((m) => str(m, 60)).filter(Boolean).slice(0, 4),
     hot: Object.fromEntries(Object.entries(c.hot && typeof c.hot === "object" ? c.hot : {}).filter(([id, v]) => ITEM.test(id) && Array.isArray(v) && HOTS.has(v[0])).slice(0, 20).map(([id, v]) => [id, [v[0], num(v[1])]])),
+    world: c.world && Object.hasOwn(WORLD_STATES, c.world.state) ? { state: c.world.state, he: WORLD_STATES[c.world.state].he, searched: num(c.world.searched), of: num(c.world.of), trends: (Array.isArray(c.world.trends) ? c.world.trends : []).filter((g) => /^[A-Z]{2}$/.test(g)).slice(0, 4), evidence: (Array.isArray(c.world.evidence) ? c.world.evidence : []).map((x) => str(x, 160)).filter(Boolean).slice(0, 4) } : null,
     pick: cleanPick(c.pick),
     opportunity: cleanOpportunity(c.opportunity),
     action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,
