@@ -35,7 +35,7 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { TRENDS_GEOS, WORLD_MARKETS, addWorld, earlyCall, productTrend, sealOf, signalsNeeded, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, parseEngine, productTrend, sealOf, signalsNeeded, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
@@ -298,6 +298,16 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.youtube = sources.suggest;
     } catch (err) { sources.suggest = "FAILED"; log.push(`autocomplete robots: ${String(err?.message || err).slice(0, 80)}`); }
     const abroadIds = trendingAbroad(concepts, abroadTerms);
+    // Each engine's own rules first: a disallow (or no answer) leaves that country out today.
+    const engineOk = {};
+    for (const [name, e] of Object.entries(ENGINES)) {
+      try {
+        const robots = await getText(`${e.host}/robots.txt`, fetchImpl);
+        engineOk[name] = robotsAllows(robots.status, robots.text, e.path);
+      } catch { engineOk[name] = false; }
+      sources[`engine_${name}`] = engineOk[name] ? "OK" : "ROBOTS_DISALLOW_OR_FAILED";
+    }
+    log.push(`engines: ${JSON.stringify(engineOk)}`);
     if (allowed) {
       sources.worldSearch = "OK";
       const started = Date.now();
@@ -319,7 +329,17 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           if (world === 0 && short !== c.en) { world = await suggestCount(short, { hl: "en", gl: "us" }, fetchImpl); await pause(politeMs); }
           // The world pulse: the same English phrase in three more markets and on YouTube (US).
           const by = { us: world };
-          for (const m of WORLD_MARKETS.filter((x) => x.id !== "us")) { by[m.id] = await suggestCount(c.en, { hl: "en", gl: m.gl }, fetchImpl); await pause(politeMs); }
+          for (const m of WORLD_MARKETS.filter((x) => x.id !== "us" && !x.engine)) { by[m.id] = await suggestCount(c.en, { hl: "en", gl: m.gl }, fetchImpl); await pause(politeMs); }
+          // China (Baidu) and Korea (Naver), in their own language, only where their robots.txt allows.
+          for (const m of WORLD_MARKETS.filter((x) => x.engine && engineOk[x.engine])) {
+            const q = m.engine === "baidu" ? c.zh : c.ko;
+            if (!q) continue;
+            try {
+              const got = await getText(ENGINES[m.engine].url(q), fetchImpl);
+              by[m.id] = got.status === 200 ? cjkExtensions(q, parseEngine(m.engine, got.text)) : null;
+            } catch { by[m.id] = null; }
+            await pause(politeMs);
+          }
           const ytWorld = await suggestCount(c.en, { hl: "en", gl: "us", ds: "yt" }, fetchImpl); await pause(politeMs);
           worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [] }, { now }));
           const answered = [...he, ...yt, world].filter((n) => n !== null).length;

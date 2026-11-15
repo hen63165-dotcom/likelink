@@ -19,7 +19,34 @@ export const WORLD_MARKETS = Object.freeze([
   Object.freeze({ id: "kr", gl: "kr", he: "קוריאה" }),
   Object.freeze({ id: "de", gl: "de", he: "גרמניה" }),
   Object.freeze({ id: "fr", gl: "fr", he: "צרפת" }),
+  // China and Korea through their own search engines, in their own language (concept.zh / .ko),
+  // read only while each engine's robots.txt allows its suggestion path.
+  Object.freeze({ id: "cn", engine: "baidu", he: "סין (באידו)" }),
+  Object.freeze({ id: "krn", engine: "naver", he: "קוריאה (נייבר)" }),
 ]);
+
+export const ENGINES = Object.freeze({
+  baidu: Object.freeze({ host: "https://suggestion.baidu.com", path: "/su", url: (q) => `https://suggestion.baidu.com/su?wd=${encodeURIComponent(q)}&action=opensearch&ie=utf-8` }),
+  naver: Object.freeze({ host: "https://ac.search.naver.com", path: "/nx/ac", url: (q) => `https://ac.search.naver.com/nx/ac?q=${encodeURIComponent(q)}&q_enc=UTF-8&st=100&r_format=json&r_enc=UTF-8&frm=nv&ans=0` }),
+});
+
+/** The suggestions in an engine's answer (pure; tested): Baidu's opensearch [q, [..]], Naver's {items: [[[text], ..]]}. Null when not an answer. */
+export function parseEngine(engine, text) {
+  try {
+    const j = JSON.parse(String(text || ""));
+    if (engine === "baidu") return Array.isArray(j) && Array.isArray(j[1]) ? j[1].map(String) : null;
+    if (engine === "naver") return Array.isArray(j?.items) ? j.items.flat().map((x) => String(Array.isArray(x) ? x[0] : x)) : null;
+  } catch { /* not JSON */ }
+  return null;
+}
+
+/** Suggestions that extend the phrase (spaces ignored; CJK-safe), never the echo itself. */
+export function cjkExtensions(phrase, suggestions) {
+  if (!Array.isArray(suggestions)) return null;
+  const q = String(phrase || "").replace(/\s+/g, "");
+  if (!q) return null;
+  return new Set(suggestions.map((x) => String(x).replace(/\s+/g, "")).filter((x) => x !== q && x.includes(q))).size;
+}
 export const TRENDS_GEOS = Object.freeze(["US", "GB", "CA", "AU", "JP", "KR", "DE", "FR", "BR", "IN"]);
 export const trendsRssUrl = (geo) => `https://trends.google.com/trending/rss?geo=${encodeURIComponent(geo)}`;
 const GEO_HE = { US: "ארה״ב", GB: "בריטניה", CA: "קנדה", AU: "אוסטרליה", JP: "יפן", KR: "קוריאה", DE: "גרמניה", FR: "צרפת", BR: "ברזיל", IN: "הודו" };

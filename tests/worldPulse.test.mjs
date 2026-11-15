@@ -69,3 +69,12 @@ test("misses raise the bar: under 70% after ten graded early calls needs all fou
   assert.equal(earlyCall({ ...three, need: 4 }).level, "WATCH", "three signals are not a call when four are needed");
   assert.equal(sealOf([{ kind: "early", concept: "a", at: "2026-11-17", signals: ["world", "demand", "israel"] }, { concept: "b", at: "2026-11-17" }]), "a|2026-11-17|world,demand,israel", "only early calls are sealed");
 });
+
+test("China and Korea through their own engines: answers parsed, the echo never counted", async () => {
+  const { parseEngine, cjkExtensions } = await import("../src/lib/growth/worldPulse.js");
+  const baidu = parseEngine("baidu", JSON.stringify(["黄油捏捏乐", ["黄油捏捏乐", "黄油捏捏乐 慢回弹", "黄油捏捏乐 大号"]]));
+  assert.equal(cjkExtensions("黄油捏捏乐", baidu), 2);
+  const naver = parseEngine("naver", JSON.stringify({ items: [[["버터 말랑이"], ["버터 말랑이 만들기"]]] }));
+  assert.equal(cjkExtensions("버터 말랑이", naver), 1);
+  assert.equal(parseEngine("baidu", "<html>blocked</html>"), null, "a page that is not an answer is no reading");
+});
