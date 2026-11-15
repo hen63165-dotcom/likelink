@@ -62,6 +62,16 @@ function recordExit(concept, link) {
 /** The board: the site's own address first (proxied to GitHub Pages), then GitHub Pages itself.
  *  Untrusted input from another host: only what sanitizeBoard keeps is ever rendered. */
 export async function loadBoard() {
+  // The server first (radarGate.js): the full board while the trial is open or for a subscriber;
+  // a 402 or any failure falls back to the public file below.
+  try {
+    const token = await getSessionToken().catch(() => null);
+    const res = await fetch("/api/store?mode=radar-board", { cache: "no-store", headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) {
+      const doc = sanitizeBoard((await res.json())?.board);
+      if (doc) return doc;
+    }
+  } catch { /* no server answer: the public file */ }
   const urls = [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/board.json` : "", RADAR_BOARD_HOME].filter(Boolean))];
   for (const url of urls) {
     try {
