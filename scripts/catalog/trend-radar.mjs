@@ -35,7 +35,7 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, echoOf, finishLinesOf, leadOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, echoOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
@@ -420,7 +420,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
   }
-  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), seal };
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls), seal };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

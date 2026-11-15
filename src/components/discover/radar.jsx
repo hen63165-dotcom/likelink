@@ -13,12 +13,12 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
-import { WORLD_STATES } from "../../lib/growth/worldPulse.js";
+import { WORLD_STATES, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
 import { fetchRadarSubscription } from "../../lib/commerce.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
+import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
 
@@ -382,6 +382,65 @@ export function TrialBanner() {
   );
 }
 
+/**
+ * "מה הרדאר קבע היום" — the one place to check every morning: the calls sealed today, or the honest
+ * line that there is none (no call without its signals), and the public ledger of every call with its
+ * grade and the days it was ahead. Shareable as text that only states what was sealed (never a promise).
+ */
+const RESULT_HE = { HIT: "✅ פגע", MISS: "❌ לא פגע" };
+function Verdict({ board }) {
+  const { L } = useL();
+  if (!board?.early) return null;
+  const day = String(board.at || "").slice(0, 10);
+  const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
+  const ledger = board.early.ledger || [];
+  const name = (id) => (board.concepts || []).find((c) => c.id === id)?.he || id;
+  const shareTitle = (e) => L(`הרדאר של LikeLink2 קבע ב־${dm(e.at)}: ${e.concept.he} מתחיל לעלות. הקביעה חתומה מראש בביטקוין, והציון יתפרסם ב־${dm(e.due)}, גם אם לא פגע.`, `LikeLink2's radar called it on ${dm(e.at)}: ${e.concept.he} is starting to rise. Sealed in advance in Bitcoin; graded in public on ${dm(e.due)}, hit or miss.`);
+  return (
+    <section className="lx-wrap mt-8" id="verdict">
+      <div className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
+        <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+        {v.calls.length ? (
+          <ul className="mt-3 grid gap-3">
+            {v.calls.map((e) => (
+              <li key={e.concept.id} className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[22px] font-extrabold leading-8">🎯 {e.concept.he}</p>
+                  <p className="text-[13px]">{L(`${e.concept.early?.count || 3} סימנים מסכימים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 3} signals agree · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink">{L("לפרטים", "Details")}</Go>
+                  <ShareButton path="/radar" title={shareTitle(e)} variant="button" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. הרדאר קובע רק כשלפחות 3 סימנים מסכימים, ושני סימנים כבר הופיעו גם בבדיקה הקודמת.", "No new call today. The radar calls only when at least 3 signals agree and two of them already showed in the previous reading.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+        )}
+        {ledger.length ? (
+          <details className="mt-4">
+            <summary className="cursor-pointer text-[14px] font-extrabold">{L(`📖 ספר הקביעות: כל ${ledger.length} הקביעות, עם הציון`, `📖 The ledger: all ${ledger.length} calls, with their grade`)}</summary>
+            <ul className="mt-2 grid gap-1 text-[13px]">
+              {ledger.map((e) => {
+                const ahead = Object.entries(e.firsts || {}).map(([k, d]) => [k, Math.round((Date.parse(d) - Date.parse(e.at)) / 86_400_000)]).filter(([, n]) => n > 0);
+                return (
+                  <li key={`${e.concept}-${e.at}`} className="flex flex-wrap gap-x-3">
+                    <span className="font-bold">{dm(e.at)}</span>
+                    <span>{name(e.concept)}</span>
+                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
+                    {ahead.length ? <span>{L(`🚀 הקדים: ${ahead.map(([k, n]) => `${FINISH_HE[k]} ב־${n} ימים`).join(", ")}`, `🚀 ahead: ${ahead.map(([k, n]) => `${k} by ${n} days`).join(", ")}`)}</span> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -458,6 +517,8 @@ export function RadarPage() {
           <TrialBanner />
         </div>
       </section>
+
+      <Verdict board={board} />
 
       <section className="lx-wrap mt-8">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">

@@ -131,3 +131,25 @@ test("the board keeps only known finish lines on its way to the page", async () 
   assert.deepEqual(Object.keys(b.early.lead), ["buzz", "israel", "trends", "wide"]);
   assert.equal(b.early.lead.buzz.medianDays, 6);
 });
+
+test("the ledger and today's verdict: sealed calls only, graded honestly, and a plain 'no call today'", async () => {
+  const { ledgerOf, verdictOf } = await import("../src/lib/growth/worldPulse.js");
+  const calls = [
+    { concept: "pudding-squishy", kind: "early", at: "2026-11-01", due: "2026-11-15", result: "HIT", growth: 31, firsts: { buzz: "2026-11-09", junk: "x" } },
+    { concept: "cloud-slides", kind: "early", at: "2026-11-15", due: "2026-11-29" },
+    { concept: "tofu-squishy", kind: "early", at: "2026-11-15", due: "2026-11-29" },
+    { concept: "old-stage", kind: "stage", at: "2026-11-15" },
+    { concept: "cat-perch", kind: "early", at: "2026-11-10", due: "2026-11-24", result: "EDITED" },
+  ];
+  const ledger = ledgerOf(calls);
+  assert.deepEqual(ledger.map((e) => e.concept), ["cloud-slides", "tofu-squishy", "cat-perch", "pudding-squishy"], "newest first, early calls only");
+  assert.equal(ledger.find((e) => e.concept === "cat-perch").result, null, "only HIT/MISS are grades");
+  assert.deepEqual(ledger.find((e) => e.concept === "pudding-squishy").firsts, { buzz: "2026-11-09" });
+  const concepts = [{ id: "cloud-slides", he: "כפכפי ענן", early: { count: 3 } }, { id: "tofu-squishy", he: "סקווישי טופו", early: { count: 4 } }, { id: "cat-perch", he: "ערסל לחתול" }];
+  const today = verdictOf({ ledger, concepts, day: "2026-11-15" });
+  assert.deepEqual(today.calls.map((e) => e.concept.id), ["tofu-squishy", "cloud-slides"], "strongest first");
+  const quiet = verdictOf({ ledger, concepts, day: "2026-11-16" });
+  assert.equal(quiet.calls.length, 0, "a day without a sealed call says so");
+  assert.equal(quiet.latestOpen.concept.id, "cloud-slides");
+  assert.deepEqual(verdictOf({}), { day: null, calls: [], latestOpen: null });
+});

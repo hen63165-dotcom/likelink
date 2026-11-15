@@ -289,3 +289,28 @@ export function sealOf(calls = []) {
   return (Array.isArray(calls) ? calls : []).filter((c) => c?.kind === "early").map((c) => `${c.concept}|${c.at}|${(c.signals || []).join(",")}`).sort().join("\n");
 }
 
+
+/**
+ * The public ledger ("ספר הקביעות"): every early call, newest first, with its sealed day, its grade
+ * day, the grade once it exists (HIT/MISS, never edited) and the day each finish line was crossed.
+ */
+export function ledgerOf(calls = [], { max = 40 } = {}) {
+  return (Array.isArray(calls) ? calls : [])
+    .filter((c) => c?.kind === "early" && c.concept && c.at)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.concept).localeCompare(String(b.concept)))
+    .slice(0, max)
+    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
+}
+
+/**
+ * Today's verdict ("מה הרדאר קבע היום"): the calls sealed on the board's day, strongest first; on a
+ * day with none, says so (the radar never calls without its signals) and points at the newest open call.
+ */
+export function verdictOf({ ledger = [], concepts = [], day = null } = {}) {
+  const byId = new Map((Array.isArray(concepts) ? concepts : []).map((c) => [c.id, c]));
+  const today = (Array.isArray(ledger) ? ledger : []).filter((e) => e.at === day && byId.has(e.concept));
+  const strength = (e) => byId.get(e.concept)?.early?.count || 0;
+  today.sort((a, b) => strength(b) - strength(a));
+  const open = (Array.isArray(ledger) ? ledger : []).find((e) => !e.result && e.at !== day && byId.has(e.concept)) || null;
+  return { day, calls: today.map((e) => ({ ...e, concept: byId.get(e.concept) })), latestOpen: open ? { ...open, concept: byId.get(open.concept) } : null };
+}
