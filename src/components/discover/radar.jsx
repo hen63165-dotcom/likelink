@@ -6,12 +6,13 @@
 // Free during the trial. The store buttons are LikeLink2's tracked links, with the
 // disclosure above them; an exit is one click event (med "radar") in the owner's numbers.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Clock, ExternalLink, Radar, ShieldCheck, Sparkles } from "lucide-react";
+import { Clock, ExternalLink, Radar, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { BASE } from "../../lib/basePath.js";
 import { BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
+import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
 import { fetchRadarSubscription } from "../../lib/commerce.js";
@@ -35,6 +36,10 @@ const STAGE_STYLE = {
   UNVERIFIED: { bg: "#ffffff", fg: "#6b7280", dot: "#d1d5db" },
 };
 
+/** The Israel label by state, from the code: a board written before a wording fix keeps its old text. */
+const gapHe = (gap) => GAP_STATES[gap?.state]?.he || gap?.he || "";
+/** Opportunities first: not searched in Hebrew yet, then first signs, then the rest. */
+const GAP_ORDER = { GAP: 0, QUIET: 1, ARRIVING: 2, UNCERTAIN: 3, UNKNOWN: 4, ARRIVED: 5 };
 const dm = (d) => (typeof d === "string" && d.length >= 10 ? `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}` : "");
 /** The first day a direction can be measured: two days after the first reading. */
 const nextDay = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return Number.isFinite(t) ? new Date(t + 2 * 86_400_000).toISOString().slice(0, 10) : ""; };
@@ -107,7 +112,7 @@ function IsraelLine({ gap }) {
   if (!gap || gap.state === "UNKNOWN") return null;
   return (
     <div className="mt-3 rounded-2xl p-3" style={{ background: st.bg, color: st.fg }}>
-      <p className="text-[14px] font-extrabold">{st.icon} {L("בישראל:", "In Israel:")} {gap.he}{gap.confidenceHe ? <span className="text-[12px] font-bold" style={{ opacity: 0.8 }}> · {gap.confidenceHe}</span> : null}</p>
+      <p className="text-[14px] font-extrabold">{st.icon} {L("בישראל:", "In Israel:")} {gapHe(gap)}{gap.confidenceHe ? <span className="text-[12px] font-bold" style={{ opacity: 0.8 }}> · {gap.confidenceHe}</span> : null}</p>
       {gap.evidence?.length ? (
         <ul className="mt-1 grid gap-0.5 text-[13px] leading-6" style={{ color: "var(--lx-ink, #101828)" }}>
           {gap.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
@@ -231,7 +236,7 @@ const n = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString("he-IL")
  */
 function MarketMap({ list, openId = "" }) {
   const { L } = useL();
-  const groups = ["SMALL", "MID", "BIG"].map((k) => [k, list.filter((c) => c.size === k).sort((a, b) => (a.today?.orders || 0) - (b.today?.orders || 0))]).filter(([, l]) => l.length);
+  const groups = ["SMALL", "MID", "BIG"].map((k) => [k, list.filter((c) => c.size === k).sort((a, b) => (GAP_ORDER[a.gap?.state] ?? 4) - (GAP_ORDER[b.gap?.state] ?? 4) || (a.today?.orders || 0) - (b.today?.orders || 0))]).filter(([, l]) => l.length);
   return (
     <>
       <h3 className="mt-8 text-[18px] font-extrabold">{L("מפת השוק של היום", "Today's market map")}</h3>
@@ -246,7 +251,7 @@ function MarketMap({ list, openId = "" }) {
                   <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
-                      {c.gap?.state && c.gap.state !== "UNKNOWN" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{L("בישראל:", "Israel:")} {c.gap.he}</span> : null}
+                      {["GAP", "QUIET", "ARRIVING"].includes(c.gap?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{c.gap.state === "GAP" ? "🔓 " : ""}{gapHe(c.gap)}</span> : null}
                       {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
                       <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${n(c.today?.orders)} הזמנות בחודש · ${n(c.today?.listings)} מודעות`, `${n(c.today?.orders)} orders a month · ${n(c.today?.listings)} listings`)}</span>
                     </span>
@@ -306,6 +311,7 @@ export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
   const [kind, setKind] = useState("");
+  const [q, setQ] = useState("");
   const [shown, setShown] = useState(false);
   const [hashId, setHashId] = useState("");
   const results = useRef(null);
@@ -345,7 +351,9 @@ export function RadarPage() {
 
   const concepts = board?.concepts || [];
   const kinds = useMemo(() => [...new Set(concepts.map((c) => c.kind).filter((k) => KINDS[k]))], [concepts]);
-  const list = concepts.filter((c) => !kind || c.kind === kind);
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const hay = (c) => [c.he, c.en, KINDS[c.kind], ...(c.match || [])].join(" ").toLowerCase();
+  const list = concepts.filter((c) => (!kind || c.kind === kind) && words.every((w) => hay(c).includes(w)));
   const early = list.filter((c) => c.stage === "EMERGING" || c.stage === "RISING");
   const measuring = list.filter((c) => c.stage === "UNVERIFIED");
   const rest = list.filter((c) => !early.includes(c) && !measuring.includes(c));
@@ -430,13 +438,18 @@ export function RadarPage() {
         {!gated && board ? (
           <>
             <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`עודכן ${dm(board.at.slice(0, 10))} · ${concepts.length} סוגי מוצרים על הרדאר · מקור: אליאקספרס`, `Updated ${dm(board.at.slice(0, 10))} · ${concepts.length} kinds on the radar · source: AliExpress`)}</p>
+            <label className="mt-4 flex items-center gap-2 rounded-full px-4" style={{ border: "2px solid var(--lx-ink, #0d0d0f)", background: "#fff", minHeight: 50 }}>
+              <Search size={18} aria-hidden="true" />
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L("חיפוש ברדאר: למשל סקווישי, מטבח, שיער", "Search the radar: e.g. squishy, kitchen, hair")} aria-label={L("חיפוש ברדאר", "Search the radar")} className="w-full bg-transparent text-[16px] outline-none" style={{ minHeight: 46 }} />
+            </label>
             {kinds.length > 1 ? (
-              <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label={L("סינון לפי סוג", "Filter by kind")}>
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label={L("סינון לפי סוג", "Filter by kind")} style={{ scrollbarWidth: "none" }}>
                 {[["", L("הכול", "All")], ...kinds.map((k) => [k, KINDS[k]])].map(([k, label]) => (
-                  <button key={k || "all"} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} className={`lx-btn ${kind === k ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 38, padding: "4px 14px", fontSize: 14 }}>{label}</button>
+                  <button key={k || "all"} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} className={`lx-btn ${kind === k ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 38, padding: "4px 14px", fontSize: 14, flex: "0 0 auto", whiteSpace: "nowrap" }}>{label}</button>
                 ))}
               </div>
             ) : null}
+            <p className="mt-3 text-[14px] font-bold" role="status">{list.length ? L(`מוצגים ${list.length} מתוך ${concepts.length} סוגי מוצרים${kind ? ` · ${KINDS[kind]}` : ""}`, `Showing ${list.length} of ${concepts.length}`) : L("לא נמצא סוג מוצר כזה ברדאר. נסי מילה אחרת או ״הכול״.", "Nothing like that on the radar. Try another word or All.")}</p>
             {firstResults ? (
               <p className="lx-card mt-4 p-4 text-[14px] leading-6" style={{ boxShadow: "none", border: "1px dashed var(--lx-line)" }}>
                 {L(`הרדאר התחיל למדוד ב־${dm(concepts[0]?.since)}. כדי לראות כיוון צריך שתי מדידות בהפרש של יומיים לפחות, אז התוצאות הראשונות יופיעו בעוד יומיים. בינתיים: אלה סוגי המוצרים שעל הרדאר.`, `The radar started measuring on ${dm(concepts[0]?.since)}. A direction needs two readings at least two days apart, so the first results come in two days. Meanwhile: the kinds on the radar.`)}
@@ -444,7 +457,7 @@ export function RadarPage() {
             ) : null}
             {open.length ? (
               <>
-                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ חלון פתוח: עולה בעולם, עוד לא בארץ", "✨ Open window: rising abroad, not here yet")}</h3>
+                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ חלון פתוח: עולה בעולם, ובעברית עוד לא מחפשים", "✨ Open window: rising abroad, not searched in Hebrew yet")}</h3>
                 <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("ההזמנות באליאקספרס מאיצות, ובגוגל בעברית עוד אין חיפושים. זה הזמן שבו מי שמגיע ראשונה מגיעה לפני כולם.", "Orders on AliExpress are speeding up and nobody searches it in Hebrew on Google yet. That's when whoever arrives first is ahead of everyone.")}</p>
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{open.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
@@ -463,10 +476,10 @@ export function RadarPage() {
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : null}
-            <SiteHot site={board.site} />
             {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
+            <SiteHot site={board.site} />
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
-              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא בארץ״ נקבע רק כששני מקורות החיפוש מסכימים. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
+              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא מחפשים בעברית״ נקבע רק כששני מקורות החיפוש מסכימים, וזה לא אומר שאין את זה בחנויות בארץ. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
             </p>
           </>
         ) : null}
