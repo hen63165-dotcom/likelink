@@ -34,14 +34,14 @@
       "reel": "mistakes",
       "slide": 1,
       "presenter": "shira",
-      "say": "קונה בְּאָלִי? חמש טעויות שעולות לך כסף."
+      "say": "קונה בְּאָלִי אֶקְסְפְּרֵס? חמש טעויות שעולות לך כסף."
     },
     {
       "id": "a2",
       "reel": "mistakes",
       "slide": 2,
       "presenter": "shira",
-      "say": "אחת: להאמין למחיר של לפני."
+      "say": "אחת: להאמין למחיר שלפני ההנחה."
     },
     {
       "id": "a3",
@@ -120,5 +120,6 @@
       "presenter": "shira",
       "say": "חינם בתקופת הניסיון. תכתבי רדאר בתגובות, ואשלח לך קישור."
     }
-  ]
+  ],
+  "readback": "2026-11-15, first read-back: 'קונה בְּאָלִי' was heard as 'קונה בעלי' (my husband) and 'של לפני' as one word; both lines rewritten ('באלי אקספרס' was heard right in b3)."
 }
