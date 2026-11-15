@@ -27,10 +27,18 @@ on:
       - src/lib/cloud/catalogArchive.js
       - scripts/catalog/push-archive.mjs
       - .github/workflows/trend-radar.yml
+      - scripts/catalog/radar-state.mjs
+      - scripts/catalog/push-board.mjs
+      - scripts/catalog/radar-alert.mjs
+      - src/lib/growth/radarGate.js
+      - src/lib/growth/radarBoard.js
 permissions:
   contents: write
 concurrency:
-  group: trend-radar
+  # One run at a time per branch: a branch push must never cancel main's pending run (15.11: the
+  # run for #182's merge was cancelled by a branch run queued behind it, so the board never reached
+  # the cloud that evening).
+  group: trend-radar-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   read:
