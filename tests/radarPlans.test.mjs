@@ -1,23 +1,29 @@
-// The radar's tiers and trial (Master Execution Order, items 5–7): Basic and Pro carry no price
-// and are not for sale until the owner approves the price, the provider and the terms; they never
-// reach the checkout allow-list or PayPal provisioning; every feature they list is live code; the
-// waitlist accepts them; the trial never locks a page while nothing can be bought; the landing page
-// is bilingual, wired like every public section, and makes no promise.
+// The radar's tiers and trial (Master Execution Order, items 5–7): one tier (Basic) is priced at
+// launch and sold only after the owner approves that exact price and switches billing on; Pro has no
+// price and is waitlist only; neither reaches the site's checkout allow-list or provisioning; every
+// feature they list is live code; the waitlist accepts them; the trial never locks a page while
+// nothing can be bought; the landing page is bilingual, wired like every public section, and makes
+// no promise. A subscriber can cancel from the page (PayPal first, the site's cancellation terms).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { RADAR_FEATURES, RADAR_PLANS, RADAR_PRICES, accessOf, billingOf, cleanRadarAccess, radarCheckoutPlan, radarWaitlistPlan } from "../src/lib/growth/radarPlans.js";
-import { RADAR_PLAN_KEYS, planName, plannedRadarBillingPlans, plannedBillingPlans, PLAN_KEYS } from "../api/_utils/paypal.js";
+import { RADAR_FEATURES, RADAR_ON_SALE, RADAR_PLANS, RADAR_PRICES, accessOf, billingOf, cleanRadarAccess, radarCheckoutPlan, radarWaitlistPlan } from "../src/lib/growth/radarPlans.js";
+import { RADAR_PLAN_KEYS, planName, plannedRadarBillingPlans, plannedBillingPlans, PLAN_KEYS, paypalEnvName, sameEnv, resolveRadarPlanId } from "../api/_utils/paypal.js";
+import { ownRadarSubs, currentRadarSub, cancellableRadarSub, radarSubAccess, publicRadarSub } from "../src/lib/growth/radarSubs.js";
+import { cancellationTerms } from "../src/lib/billing/cancellation.js";
 import { getPurchasablePlans, getProvisionedPlans, getAllPlans } from "../src/lib/plans.js";
 import { sectionSeo } from "../src/lib/publicSeo.js";
 import { parsePath } from "../src/utils/routing.js";
 
 const NOW = Date.parse("2026-11-14T12:00:00Z");
 
-test("Basic and Pro: no price, not purchasable, never provisioned, features are live code", () => {
+test("Basic and Pro: no price on the plan itself, not purchasable, never provisioned, features are live code", () => {
+  assert.deepEqual(RADAR_ON_SALE, ["radar_basic"], "one tier at launch");
+  assert.equal(RADAR_PRICES.radar_pro, undefined, "Pro has no price: waitlist only");
+  assert.equal(RADAR_PLANS.radar_pro.priceStatus, "NOT_ON_SALE");
   for (const p of Object.values(RADAR_PLANS)) {
-    assert.equal(p.price, null, `${p.id} has no price before the owner approves one`);
-    assert.equal(p.priceStatus, "PENDING_OWNER_APPROVAL");
+    assert.equal(p.price, null, `${p.id} carries no price of its own (only RADAR_PRICES, after approval)`);
+    assert.ok(["PENDING_OWNER_APPROVAL", "NOT_ON_SALE"].includes(p.priceStatus));
     assert.equal(p.purchasable, false);
     assert.equal(p.provision, false);
     assert.equal(p.comingSoon, true);
@@ -67,9 +73,12 @@ test("/radar-pro: routed, rewritten, its own head, bilingual, no price or promis
   for (const he of ["מחיר: עוד לא נקבע", "לא מבטיח להיט", "רשימת ההמתנה"]) assert.ok(page.includes(he));
   for (const en of ["Price: not set yet", "never promises a hit", "Join the waitlist"]) assert.ok(page.includes(en));
   assert.doesNotMatch(page, /\$\d|היחיד בעולם|only one in the world|guarantee/i);
-  // The only shekel sign on the page sits inside the billing.enabled branch (prices from billingOf).
-  const shekel = page.indexOf("₪");
-  assert.ok(shekel > 0 && page.lastIndexOf("billing.enabled ?", shekel) > 0 && page.indexOf("₪", shekel + 1) === -1);
+  // Shekel signs appear only in the subscriber's own record (MySubscription: a subscription exists only
+  // after billing was on) and in the billing.enabled branch (prices from billingOf).
+  const mine = page.slice(page.indexOf("function MySubscription()"), page.indexOf("export function RadarProPage()"));
+  const rest = page.replace(mine, "");
+  const shekel = rest.indexOf("₪");
+  assert.ok(shekel > 0 && rest.lastIndexOf("billing.enabled && RADAR_PRICES[p.id] ?", shekel) > 0 && rest.indexOf("₪", shekel + 1) === -1);
   assert.doesNotMatch(seo.description, /₪\d|מבטיח|היחיד/);
 });
 
@@ -79,17 +88,19 @@ test("billing: off until the owner approves today's exact prices and switches it
   assert.equal(billingOf({}).reason, "prices_not_approved");
   assert.equal(billingOf({ radarBilling: { ...approved.radarBilling, enabled: false } }).reason, "billing_switched_off");
   assert.equal(billingOf(approved).enabled, true);
-  assert.equal(billingOf({ radarBilling: { ...approved.radarBilling, approvedPrices: { ...RADAR_PRICES, radar_pro: { monthly: 79, yearly: 890 } } } }).enabled, false, "a price she did not approve never bills");
+  assert.equal(billingOf({ radarBilling: { ...approved.radarBilling, approvedPrices: { radar_basic: { monthly: 39, yearly: 390 } } } }).enabled, false, "an earlier proposal she approved is not today's price: no billing");
   assert.equal(billingOf({ radarBilling: { ...approved.radarBilling, approvedAt: null } }).enabled, false);
-  assert.equal(radarCheckoutPlan("radar_pro", "yearly", {}), null, "no checkout while off");
-  assert.deepEqual(radarCheckoutPlan("radar_pro", "yearly", approved), { plan: RADAR_PLANS.radar_pro, period: "yearly", price: 890, currency: "ILS" });
+  assert.equal(radarCheckoutPlan("radar_basic", "yearly", {}), null, "no checkout while off");
+  assert.deepEqual(radarCheckoutPlan("radar_basic", "yearly", approved), { plan: RADAR_PLANS.radar_basic, period: "yearly", price: 290, currency: "ILS" });
+  assert.deepEqual(radarCheckoutPlan("radar_basic", "monthly", approved), { plan: RADAR_PLANS.radar_basic, period: "monthly", price: 29, currency: "ILS" });
+  assert.equal(radarCheckoutPlan("radar_pro", "monthly", approved), null, "Pro is not sold, even with billing on");
   assert.equal(radarCheckoutPlan("starter", "monthly", approved), null, "only radar tiers");
   assert.equal(radarCheckoutPlan("radar_basic", "weekly", approved), null);
   for (const id of Object.keys(RADAR_PRICES)) assert.equal(RADAR_PRICES[id].yearly, RADAR_PRICES[id].monthly * 10, "annual = 10 months for 12");
 });
 
-test("PayPal: the radar's 4 plans are their own (ILS, yearly one term), the site's plans unchanged", () => {
-  assert.deepEqual(RADAR_PLAN_KEYS, ["radar_basic:monthly", "radar_basic:yearly", "radar_pro:monthly", "radar_pro:yearly"]);
+test("PayPal: the radar's plans are their own (ILS, yearly one term), only for the tier on sale; the site's plans unchanged", () => {
+  assert.deepEqual(RADAR_PLAN_KEYS, ["radar_basic:monthly", "radar_basic:yearly"]);
   const bodies = plannedRadarBillingPlans("PROD-T");
   for (const { key, body } of bodies) {
     const [id, per] = key.split(":");
@@ -116,4 +127,68 @@ test("server: radar checkout refused while billing is off, never trusts a client
   assert.match(get, /details\?\.status === "ACTIVE" && details\.customId === authId && expected && details\.planId === expected/, "activated only on PayPal's own ACTIVE for this user and plan");
   const prov = store.slice(store.indexOf('if (sub === "provision-plans")'), store.indexOf('if (sub === "refunds")'));
   assert.match(prov, /if \(radarBilling\.enabled\)/, "radar plans are created only while billing is on");
+});
+
+test("PayPal ids belong to one environment: a Sandbox plan never reaches a Live checkout", async () => {
+  const before = process.env.PAYPAL_ENV;
+  try {
+    process.env.PAYPAL_ENV = "sandbox";
+    assert.equal(paypalEnvName(), "sandbox");
+    assert.equal(sameEnv({ env: "sandbox" }), true);
+    assert.equal(sameEnv({}), false, "a map saved before the field is live");
+    const map = (env) => ({ currency: "ILS", ...(env ? { env } : {}), "radar_basic:monthly": "P-TEST-1" });
+    const kv = (m) => ({ kvGet: async () => m });
+    assert.equal(await resolveRadarPlanId("radar_basic", "monthly", kv(map("sandbox"))), "P-TEST-1");
+    assert.equal(await resolveRadarPlanId("radar_basic", "monthly", kv(map("live"))), null, "a Live plan is not used in Sandbox");
+    process.env.PAYPAL_ENV = "live";
+    assert.equal(await resolveRadarPlanId("radar_basic", "monthly", kv(map("sandbox"))), null, "a Sandbox plan is not used in Live");
+    assert.equal(await resolveRadarPlanId("radar_basic", "monthly", kv(map(null))), "P-TEST-1", "older maps (no env) were live");
+    assert.equal(await resolveRadarPlanId("radar_pro", "monthly", kv({ ...map("live"), "radar_pro:monthly": "P-X" })), null, "a tier not on sale has no plan");
+  } finally {
+    if (before === undefined) delete process.env.PAYPAL_ENV; else process.env.PAYPAL_ENV = before;
+  }
+  const pp = readFileSync("api/_utils/paypal.js", "utf8");
+  assert.match(pp, /currency: PLAN_CURRENCY, env: paypalEnvName\(\), productId/, "every stored plan map records its environment");
+  assert.match(pp, /`\$\{PRODUCT_KV_KEY\}:sandbox`/, "the Sandbox catalog product is stored apart");
+});
+
+test("radar subscriptions: one environment, access only when PayPal said ACTIVE or paid time is left", () => {
+  const now = Date.parse("2026-11-20T10:00:00Z");
+  const all = [
+    { id: "a", userId: "u1", env: "sandbox", status: "active" },
+    { id: "b", userId: "u1", status: "pending" },
+    { id: "c", userId: "u2", env: "live", status: "active" },
+    { id: "d", userId: "u1", env: "live", status: "cancelled", expiresAt: "2026-11-30T00:00:00Z" },
+  ];
+  assert.deepEqual(ownRadarSubs(all, "u1", "live").map((s) => s.id), ["b", "d"], "a Sandbox test never counts in Live");
+  assert.equal(currentRadarSub(ownRadarSubs(all, "u1", "live"), now).id, "d", "cancelled with paid time left beats pending");
+  assert.equal(radarSubAccess(all[3], now), true);
+  assert.equal(radarSubAccess(all[3], Date.parse("2026-12-01T00:00:00Z")), false);
+  assert.equal(radarSubAccess({ status: "pending" }, now), false, "pending (not approved at PayPal) never opens the radar");
+  assert.equal(cancellableRadarSub(ownRadarSubs(all, "u1", "live")).id, "b");
+  const pub = publicRadarSub({ ...all[0], paypalSubscriptionId: "I-SECRET", authEmail: "x@y.z", planId: "radar_basic", price: 29 });
+  assert.ok(!("paypalSubscriptionId" in pub) && !("authEmail" in pub), "no PayPal id or e-mail reaches the browser");
+});
+
+test("cancelling the radar: the site's lawful terms on the radar's own price", () => {
+  const started = "2026-11-15T10:00:00Z";
+  const within = cancellationTerms({ sub: { planId: "radar_basic", billingPeriod: "monthly", status: "active", startedAt: started }, now: Date.parse("2026-11-20T10:00:00Z"), price: 29 });
+  assert.equal(within.withinCoolingOff, true);
+  assert.deepEqual(within.refund, { amount: 27.55, fee: 1.45, reason: "cooling_off_14d", currency: "ILS" }, "14 days: refund minus 5% (capped at ₪100)");
+  const later = cancellationTerms({ sub: { planId: "radar_basic", billingPeriod: "monthly", status: "active", startedAt: started }, now: Date.parse("2026-12-05T10:00:00Z"), paidThrough: "2026-12-15T10:00:00Z", price: 29 });
+  assert.equal(later.refund, null);
+  assert.equal(later.accessUntil, "2026-12-15T10:00:00.000Z", "monthly after 14 days: access to the end of the paid month");
+  assert.equal(cancellationTerms({ sub: { planId: "radar_basic", billingPeriod: "monthly", status: "pending" }, now: Date.parse(started), price: 29 }).refund, null, "never billed: nothing to refund");
+  const store = readFileSync("api/store.mjs", "utf8");
+  const cancel = store.slice(store.indexOf('if (sub === "radar-cancel")'), store.indexOf("// ── Prepaid plan"));
+  assert.ok(cancel.indexOf("cancelPayPalSubscription(") > 0 && cancel.indexOf("cancelPayPalSubscription(") < cancel.indexOf("kvSet(RADAR_SUBS_KEY"), "PayPal is cancelled before the record changes");
+  assert.match(cancel, /paypal_cancel_failed[\s\S]*502/, "if PayPal fails, nothing changes");
+  assert.match(cancel, /price: mine\.price/, "the terms use the price the customer was charged");
+  assert.match(cancel, /product: "radar"/, "a refund request names the radar for the owner");
+  const get = store.slice(store.indexOf('if (sub === "radar-get")'), store.indexOf('if (sub === "radar-cancel")'));
+  assert.match(get, /needsReconcile\(mine, nowMs\)/, "an active subscription is re-checked at PayPal (every 12 h)");
+  assert.match(get, /ownRadarSubs\(all, authId, env\)/);
+  const page = readFileSync("src/components/discover/radarPro.jsx", "utf8");
+  assert.match(page, /cancelRadarSubscription\(token\)/, "the radar page has the cancel button");
+  assert.match(page, /ביטול המנוי/);
 });

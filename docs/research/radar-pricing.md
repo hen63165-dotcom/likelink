@@ -1,4 +1,22 @@
-# The trend radar's pricing (proposal, 2026-11-14)
+# The trend radar's pricing
+
+## Decision, 2026-11-15
+
+The owner said "your call, make me start earning" ("לשיקולך, תעשה שאתחיל להרוויח"):
+
+- **One tier at launch:** Radar Basic at ₪29 a month or ₪290 a year (10 months for 12), which is the site's own Starter price.
+  - A creator decides on it in a second.
+  - It includes everything the radar page shows today.
+- **Radar Pro:** no price. It stays on the waitlist until the promotion kits show results in numbers.
+- **Trial:** the site's free trial (default 14 days, no card), set in the admin panel.
+- **Before any real charge:**
+  - the owner opens a business file (עוסק פטור: free, online, no VAT added, a receipt for every payment);
+  - the payment flow passes a full PayPal Sandbox test;
+  - she switches to the Live keys.
+
+The proposal below (₪39 and ₪89) was the first analysis. It is kept for the record.
+
+## The first proposal (2026-11-14)
 
 **Status:** PROPOSED. Nothing is charged and no price is shown on the site until the owner approves these exact numbers and switches billing on in the admin panel ("רדאר הטרנדים: תקופת ניסיון ומסלולים"). Code: `src/lib/growth/radarPlans.js` (`RADAR_PRICES`, `billingOf`).
 

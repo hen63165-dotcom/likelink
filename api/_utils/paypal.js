@@ -11,7 +11,7 @@
 //     webhook refuses to process anything (503), never trusts the body.
 import { createHash } from "node:crypto";
 import { getProvisionedPlans, getAllPlans } from "../../src/lib/plans.js";
-import { RADAR_PLANS, RADAR_PRICES, RADAR_PERIODS } from "../../src/lib/growth/radarPlans.js";
+import { RADAR_PRICES, RADAR_PERIODS } from "../../src/lib/growth/radarPlans.js";
 
 const PAYPAL_API = "https://api-m.paypal.com";
 const SANDBOX_API = "https://api-m.sandbox.paypal.com";
@@ -25,6 +25,20 @@ export function paypalBase() {
   if (env === "live") return PAYPAL_API;
   const secret = process.env.PAYPAL_CLIENT_SECRET || "";
   return secret.toLowerCase().includes("sandbox") ? SANDBOX_API : PAYPAL_API;
+}
+
+/**
+ * "sandbox" or "live": the PayPal environment this server talks to now. Every stored PayPal id
+ * (catalog product, billing plans, subscriptions) belongs to ONE environment, so it is stored with
+ * this name and never used in the other (2026-11-14: the owner tests with Sandbox keys first, then
+ * switches to Live — a Sandbox plan id must never reach a Live checkout).
+ */
+export function paypalEnvName() {
+  return paypalBase() === SANDBOX_API ? "sandbox" : "live";
+}
+/** A stored map/record belongs to the current environment (maps saved before this field = live). */
+export function sameEnv(x) {
+  return Boolean(x) && String(x.env || "live") === paypalEnvName();
 }
 
 export function paypalConfigured() {
@@ -165,6 +179,8 @@ export async function getPayPalSubscriptionStatus(paypalSubscriptionId) {
 // creates subscriptions, never charges anyone. Creation is safe and reversible.
 const PLANS_KV_KEY = "marketplace:paypal_plans";
 const PRODUCT_KV_KEY = "marketplace:paypal_product";
+// The live product keeps the original key; a Sandbox product id lives apart.
+const productKvKey = () => (paypalEnvName() === "sandbox" ? `${PRODUCT_KV_KEY}:sandbox` : PRODUCT_KV_KEY);
 const PRODUCT_NAME = "LikeLink Cloud";
 export const PLAN_CURRENCY = "ILS"; // the site's prices — the customer is billed what the site shows
 // Plans in the owner's PayPal account that are NOT LikeLink's (other
@@ -196,14 +212,14 @@ export const productFailure = () => lastProductError;
 
 export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
   lastProductError = null;
-  if (productCache) return productCache;
+  if (productCache && productCache.env === paypalEnvName()) return productCache.id;
   if (!paypalConfigured()) return null;
+  const remember = (id) => { productCache = { id, env: paypalEnvName() }; return id; };
   try {
     if (kvGet) {
-      const cached = await kvGet(PRODUCT_KV_KEY, null);
+      const cached = await kvGet(productKvKey(), null);
       if (cached && typeof cached === "string" && cached.length > 0 && cached.length < 64) {
-        productCache = cached;
-        return cached;
+        return remember(cached);
       }
     }
   } catch { /* ignore — fall through to API */ }
@@ -230,8 +246,8 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
       if (!listData) { lastProductError = "product_list_bad_json"; return null; }
       const found = (listData.products || []).find((p) => p.name === PRODUCT_NAME);
       if (found?.id) {
-        productCache = found.id;
-        if (kvSet) { try { await kvSet(PRODUCT_KV_KEY, found.id); } catch { /* best-effort */ } }
+        remember(found.id);
+        if (kvSet) { try { await kvSet(productKvKey(), found.id); } catch { /* best-effort */ } }
         return found.id;
       }
       if (!(Number(listData.total_pages) > page)) break;
@@ -252,8 +268,8 @@ export async function ensurePayPalProduct({ kvGet, kvSet } = {}) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.id) {
-      productCache = data.id;
-      if (kvSet) { try { await kvSet(PRODUCT_KV_KEY, data.id); } catch { /* best-effort */ } }
+      remember(data.id);
+      if (kvSet) { try { await kvSet(productKvKey(), data.id); } catch { /* best-effort */ } }
       return data.id;
     }
     lastProductError = `product_create_${res.status}${data?.name ? `:${String(data.name).slice(0, 40)}` : ""}${data?.details?.[0]?.issue ? `:${String(data.details[0].issue).slice(0, 40)}` : ""}`;
@@ -409,12 +425,12 @@ const plansComplete = (map) => PLAN_KEYS.every((k) => Boolean(map?.[k]));
  * collects { created, adopted, failed }.
  */
 export async function ensureBillingPlans({ kvGet, kvSet, report = null } = {}) {
-  if (plansCache && plansComplete(plansCache)) return plansCache;
+  if (plansCache && sameEnv(plansCache) && plansComplete(plansCache)) return plansCache;
   if (!paypalConfigured()) return {};
   let cached = null;
   try { if (kvGet) cached = await kvGet(PLANS_KV_KEY, null); } catch { cached = null; }
-  // A cache from another currency (the earlier USD design) is never reused.
-  const valid = cached && typeof cached === "object" && cached.currency === PLAN_CURRENCY ? { ...cached } : null;
+  // A cache from another currency (the earlier USD design) or another PayPal environment is never reused.
+  const valid = cached && typeof cached === "object" && cached.currency === PLAN_CURRENCY && sameEnv(cached) ? { ...cached } : null;
   // A plan that is not LikeLink's is never kept, even if it reached kv.
   if (valid) for (const k of PLAN_KEYS) if (FOREIGN_PLAN_IDS.has(valid[k])) valid[k] = null;
   if (valid && plansComplete(valid)) { plansCache = valid; return valid; }
@@ -423,7 +439,7 @@ export async function ensureBillingPlans({ kvGet, kvSet, report = null } = {}) {
   if (!productId) { report?.failed.push({ key: "product", error: "paypal_product_failed", detail: lastProductError }); return valid || {}; }
 
   const defs = getProvisionedPlans();
-  const out = { ...(valid || {}), currency: PLAN_CURRENCY, productId };
+  const out = { ...(valid || {}), currency: PLAN_CURRENCY, env: paypalEnvName(), productId };
   for (const p of defs) {
     for (const period of ["monthly", "yearly"]) {
       const key = `${p.id}:${period}`;
@@ -467,9 +483,10 @@ export async function verifyBillingPlans(map) {
 // and provisioning are unchanged. Created only by the owner's provisioning button AND only while her
 // billing switch is on with the prices she approved (billingOf) — the caller checks that.
 export const RADAR_PLANS_KV_KEY = "marketplace:paypal_plans:radar";
-export const RADAR_PLAN_KEYS = Object.keys(RADAR_PLANS).flatMap((id) => RADAR_PERIODS.map((per) => `${id}:${per}`));
+// Only the tiers on sale get PayPal plans (a tier without a price is waitlist only).
+export const RADAR_PLAN_KEYS = Object.keys(RADAR_PRICES).flatMap((id) => RADAR_PERIODS.map((per) => `${id}:${per}`));
 
-/** Every PayPal plan body the radar would create (Basic + Pro × monthly/yearly), pure. */
+/** Every PayPal plan body the radar would create (the tiers on sale × monthly/yearly), pure. */
 export function plannedRadarBillingPlans(productId = "PROD-LIKELINK") {
   return RADAR_PLAN_KEYS.map((key) => {
     const [id, period] = key.split(":");
@@ -477,16 +494,16 @@ export function plannedRadarBillingPlans(productId = "PROD-LIKELINK") {
   });
 }
 
-/** Create/adopt the radar's 4 plans (idempotent, like ensureBillingPlans). Never charges anyone. */
+/** Create/adopt the radar's plans (idempotent, like ensureBillingPlans). Never charges anyone. */
 export async function ensureRadarBillingPlans({ kvGet, kvSet, report = null } = {}) {
   if (!paypalConfigured()) return {};
   let cached = null;
   try { if (kvGet) cached = await kvGet(RADAR_PLANS_KV_KEY, null); } catch { cached = null; }
-  const valid = cached && typeof cached === "object" && cached.currency === PLAN_CURRENCY ? { ...cached } : null;
+  const valid = cached && typeof cached === "object" && cached.currency === PLAN_CURRENCY && sameEnv(cached) ? { ...cached } : null;
   if (valid) for (const k of RADAR_PLAN_KEYS) if (FOREIGN_PLAN_IDS.has(valid[k])) valid[k] = null;
   const productId = await ensurePayPalProduct({ kvGet, kvSet });
   if (!productId) { report?.failed.push({ key: "product", error: "paypal_product_failed", detail: lastProductError }); return valid || {}; }
-  const out = { ...(valid || {}), currency: PLAN_CURRENCY, productId };
+  const out = { ...(valid || {}), currency: PLAN_CURRENCY, env: paypalEnvName(), productId };
   for (const key of RADAR_PLAN_KEYS) {
     if (out[key]) continue;
     const [id, period] = key.split(":");
@@ -505,7 +522,7 @@ export async function resolveRadarPlanId(planId, billingPeriod, { kvGet } = {}) 
   const key = `${planId}:${billingPeriod}`;
   if (!RADAR_PLAN_KEYS.includes(key) || !kvGet) return null;
   const map = await kvGet(RADAR_PLANS_KV_KEY, null).catch(() => null);
-  const id = map && map.currency === PLAN_CURRENCY ? map[key] : null;
+  const id = map && map.currency === PLAN_CURRENCY && sameEnv(map) ? map[key] : null;
   return id && !FOREIGN_PLAN_IDS.has(id) ? id : null;
 }
 
@@ -522,9 +539,9 @@ export async function resolvePayPalPlanId(planId, billingPeriod, { kvGet, kvSet 
   if (envKey && process.env[envKey] && !FOREIGN_PLAN_IDS.has(process.env[envKey])) return process.env[envKey];
   // Plans are created ONLY by the owner's button (sub=provision-plans). A
   // customer's checkout reads what exists and never creates anything at PayPal.
-  let map = plansCache;
+  let map = plansCache && sameEnv(plansCache) ? plansCache : null;
   if (!map && kvGet) { try { map = await kvGet(PLANS_KV_KEY, null); } catch { map = null; } }
-  const id = map && typeof map === "object" && map.currency === PLAN_CURRENCY ? map[`${planId}:${billingPeriod}`] || null : null;
+  const id = map && typeof map === "object" && map.currency === PLAN_CURRENCY && sameEnv(map) ? map[`${planId}:${billingPeriod}`] || null : null;
   return id && !FOREIGN_PLAN_IDS.has(id) ? id : null;
 }
 // Create a real PayPal Billing Subscription and return its approval link.

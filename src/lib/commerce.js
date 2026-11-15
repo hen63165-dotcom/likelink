@@ -211,6 +211,11 @@ export function fetchRadarSubscription(token) {
   return subsPost("radar-get", token, {});
 }
 
+/** Cancel the radar subscription: PayPal first, then the record (terms from cancellation.js). */
+export function cancelRadarSubscription(token) {
+  return subsPost("radar-cancel", token, {});
+}
+
 /** Create a real PayPal Billing subscription → { approveUrl } for redirect. */
 export function startSubscriptionCheckout(token, planId, billingPeriod = BILLING.MONTHLY) {
   return subsPost("checkout", token, { planId, billingPeriod });

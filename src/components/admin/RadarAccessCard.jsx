@@ -50,11 +50,11 @@ export default function RadarAccessCard() {
       <div className="mt-4 text-sm">
         <p className="font-semibold">מחירים מוצעים (ש״ח, כולל הכל, חיוב דרך PayPal)</p>
         <ul className="mt-1 text-xs leading-relaxed">
-          {Object.values(RADAR_PLANS).map((p) => <li key={p.id}>{p.name.he}: ₪{RADAR_PRICES[p.id].monthly} לחודש · ₪{RADAR_PRICES[p.id].yearly} לשנה (12 חודשים, בלי חידוש אוטומטי)</li>)}
+          {Object.values(RADAR_PLANS).map((p) => <li key={p.id}>{p.name.he}: {RADAR_PRICES[p.id] ? `₪${RADAR_PRICES[p.id].monthly} לחודש · ₪${RADAR_PRICES[p.id].yearly} לשנה (12 חודשים, בלי חידוש אוטומטי)` : "לא במכירה בהשקה (רשימת המתנה בלבד)"}</li>)}
         </ul>
         <label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={approve} onChange={(e) => { setApprove(e.target.checked); if (!e.target.checked) setEnabled(false); }} /> אני מאשרת את המחירים האלה</label>
         <label className="mt-1 flex items-center gap-2"><input type="checkbox" checked={enabled} disabled={!approve} onChange={(e) => setEnabled(e.target.checked)} /> חיוב פעיל (מציג מחירים וכפתור שדרוג)</label>
-        <p className="mt-1 text-xs text-muted">אחרי ההפעלה צריך ללחוץ פעם אחת על "הקמת המסלולים ב־PayPal" למעלה, כדי ליצור את 4 המסלולים של הרדאר. בלי ההפעלה שום דבר לא נוצר ב־PayPal ואף אחד לא מחויב.</p>
+        <p className="mt-1 text-xs text-muted">אחרי ההפעלה צריך ללחוץ פעם אחת על "הקמת המסלולים ב־PayPal" למעלה, כדי ליצור את המסלולים של הרדאר (חודשי ושנתי). בלי ההפעלה שום דבר לא נוצר ב־PayPal ואף אחד לא מחויב.</p>
       </div>
       <p className="mt-3 text-xs text-muted leading-relaxed">
         מה יוצג: {view.state === "OPEN" ? "הרדאר פתוח לכולם, בלי באנר" : view.state === "TRIAL" ? `באנר ניסיון: עוד ${view.daysLeft} ימים` : view.locked ? "תקופת הניסיון הסתיימה: הרדאר פתוח רק למנויים, ולאחרים מוצג מסך שדרוג" : "באנר: תקופת הניסיון הסתיימה, הרדאר נשאר פתוח ורשימת ההמתנה מוצעת"}.

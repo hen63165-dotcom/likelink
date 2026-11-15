@@ -23,14 +23,17 @@ export const RADAR_PLANS = Object.freeze({
     purchasable: false,
     comingSoon: true,
     provision: false,
-    features: Object.freeze(["daily_board", "israel_gap", "self_grading", "magic_bridge"]),
+    // Everything the radar page shows today (the owner, 2026-11-15: "your call, make me start earning":
+    // one plan at launch, everything that is live).
+    features: Object.freeze(["daily_board", "israel_gap", "self_grading", "magic_bridge", "alpha_score", "acceleration", "opportunity_check"]),
   }),
   radar_pro: Object.freeze({
     id: "radar_pro",
     name: { he: "רדאר Pro", en: "Radar Pro" },
-    tagline: { he: "לחנויות ויוצרות שמוכרות", en: "For shops and creators who sell" },
+    tagline: { he: "לחנויות ויוצרות שמוכרות · בקרוב", en: "For shops and creators who sell · coming later" },
     price: null,
-    priceStatus: "PENDING_OWNER_APPROVAL",
+    // Not sold at launch: it opens when the kits show results in numbers (docs/research/radar-pricing.md).
+    priceStatus: "NOT_ON_SALE",
     purchasable: false,
     comingSoon: true,
     provision: false,
@@ -63,9 +66,12 @@ export const RADAR_TRIAL = Object.freeze({ defaultDays: 14, minDays: 7, maxDays:
  * Annual = 10 months for 12 (≈17% off), one 12-month term with no automatic renewal (paypal.js).
  */
 export const RADAR_PRICES = Object.freeze({
-  radar_basic: Object.freeze({ monthly: 39, yearly: 390 }),
-  radar_pro: Object.freeze({ monthly: 89, yearly: 890 }),
+  // The owner, 2026-11-15 ("לשיקולך — תעשה שאתחיל להרוויח"): one plan at launch, at the site's own
+  // Starter price, so a creator decides in a second. Radar Pro has no price: it is not sold yet.
+  radar_basic: Object.freeze({ monthly: 29, yearly: 290 }),
 });
+/** The tiers that can be bought once billing is on (a tier without a price is waitlist only). */
+export const RADAR_ON_SALE = Object.freeze(Object.keys(RADAR_PRICES));
 export const RADAR_CURRENCY = "ILS";
 export const RADAR_PERIODS = Object.freeze(["monthly", "yearly"]);
 
@@ -86,7 +92,7 @@ export function billingOf(settings = {}) {
 export function radarCheckoutPlan(planId, period, settings = {}) {
   const id = String(planId || "").toLowerCase();
   const per = period === "yearly" ? "yearly" : period === "monthly" ? "monthly" : null;
-  if (!RADAR_PLANS[id] || !per || !billingOf(settings).enabled) return null;
+  if (!RADAR_PLANS[id] || !RADAR_PRICES[id] || !per || !billingOf(settings).enabled) return null;
   return { plan: RADAR_PLANS[id], period: per, price: RADAR_PRICES[id][per], currency: RADAR_CURRENCY };
 }
 

@@ -35,7 +35,8 @@ import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
 
 import { jsonCors, isApprovedOrigin } from "./_utils/cors.js";
 import { billingOf, radarCheckoutPlan } from "../src/lib/growth/radarPlans.js";
-import { ensureRadarBillingPlans, resolveRadarPlanId } from "./_utils/paypal.js";
+import { ensureRadarBillingPlans, resolveRadarPlanId, paypalEnvName } from "./_utils/paypal.js";
+import { ownRadarSubs, currentRadarSub, cancellableRadarSub, radarSubAccess, publicRadarSub } from "../src/lib/growth/radarSubs.js";
 import { paypalConfigured, createPayPalSubscription, verifyPayPalWebhook, resolvePayPalPlanId, ensureBillingPlans, verifyBillingPlans, PLAN_CURRENCY, getPayPalSubscriptionStatus, getPayPalSubscriptionDetails, cancelPayPalSubscription, paypalBase, createPlanOrder, capturePlanOrder } from "./_utils/paypal.js";
 import { getPurchasablePlans } from "../src/lib/plans.js";
 import { cancellationTerms } from "../src/lib/billing/cancellation.js";
@@ -815,7 +816,8 @@ async function subsAuthHandler(req, res, sub, body) {
       const acceptances = (await kvGet(ACCEPTANCES_KEY)) || {};
       if (!hasAcceptedCurrent(acceptances[authId])) return json(res, { ok: false, error: "legal_acceptance_required", version: LEGAL_VERSION }, 428, req);
       const all = (await kvGet(RADAR_SUBS_KEY, [])) || [];
-      if (all.some((s) => s && s.userId === authId && s.status === "active")) return json(res, { ok: false, error: "active_subscription_exists" }, 409, req);
+      const env = paypalEnvName();
+      if (ownRadarSubs(all, authId, env).some((s) => s.status === "active")) return json(res, { ok: false, error: "active_subscription_exists" }, 409, req);
       const paypalPlanId = await resolveRadarPlanId(pick.plan.id, pick.period, { kvGet });
       if (!paypalPlanId) return json(res, { ok: false, error: "plan_not_configured", configRequired: true }, 503, req);
       const origin = getHeader(req, "origin");
@@ -823,27 +825,78 @@ async function subsAuthHandler(req, res, sub, body) {
       const result = await createPayPalSubscription({ paypalPlanId, returnUrl: `${base}/radar-pro?sub=return`, cancelUrl: `${base}/radar-pro?sub=cancel`, customId: authId });
       if (result.error) return json(res, { ok: false, error: result.error }, 502, req);
       const now = new Date().toISOString();
-      const superseded = all.map((s) => (s && s.userId === authId && s.status === "pending" ? { ...s, status: "cancelled", supersededAt: now } : s));
-      const record = { id: `rs_${Date.now().toString(36)}_${authId.slice(0, 8)}`, product: "radar", planId: pick.plan.id, billingPeriod: pick.period, price: pick.price, currency: pick.currency, userId: authId, authEmail: String(authUser.email || ""), paypalSubscriptionId: result.subscriptionId, status: "pending", createdAt: now };
+      // An unapproved attempt in this environment is superseded (it was never billed: no expiresAt, no access).
+      const superseded = all.map((s) => (s && s.userId === authId && s.status === "pending" && String(s.env || "live") === env ? { ...s, status: "superseded", supersededAt: now } : s));
+      const record = { id: `rs_${Date.now().toString(36)}_${authId.slice(0, 8)}`, product: "radar", env, planId: pick.plan.id, billingPeriod: pick.period, price: pick.price, currency: pick.currency, userId: authId, authEmail: String(authUser.email || ""), paypalSubscriptionId: result.subscriptionId, status: "pending", createdAt: now };
       await kvSet(RADAR_SUBS_KEY, [...superseded, record].slice(-2000));
       return json(res, { ok: true, approveUrl: result.approveUrl, subscriptionId: result.subscriptionId }, 200, req);
     }
     if (sub === "radar-get") {
       const all = (await kvGet(RADAR_SUBS_KEY, [])) || [];
-      const own = all.filter((s) => s && s.userId === authId);
-      let mine = own.filter((s) => s.status === "active").at(-1) || own.filter((s) => s.status === "pending").at(-1) || null;
+      const env = paypalEnvName();
+      const nowMs = Date.now();
+      let mine = currentRadarSub(ownRadarSubs(all, authId, env), nowMs);
+      const save = async (next) => {
+        const fresh = (await kvGet(RADAR_SUBS_KEY, [])) || [];
+        await kvSet(RADAR_SUBS_KEY, fresh.map((s) => (s && s.id === next.id ? next : s)));
+        return next;
+      };
       // Activate only what PayPal itself says is ACTIVE, for THIS user and THIS radar plan.
       if (mine && mine.status === "pending" && mine.paypalSubscriptionId) {
         const details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
         const expected = details?.status === "ACTIVE" ? await resolveRadarPlanId(mine.planId, mine.billingPeriod, { kvGet }).catch(() => null) : null;
         if (details?.status === "ACTIVE" && details.customId === authId && expected && details.planId === expected) {
-          const next = all.map((s) => (s && s.id === mine.id ? { ...s, status: "active", activatedAt: new Date().toISOString(), verifiedBy: "paypal_status" } : s));
-          await kvSet(RADAR_SUBS_KEY, next);
-          mine = next.find((s) => s && s.id === mine.id);
+          const at = new Date(nowMs).toISOString();
+          mine = await save({ ...mine, status: "active", activatedAt: at, startedAt: at, lastReconciledAt: nowMs, ...(details.nextBillingTime ? { paidThrough: details.nextBillingTime } : {}), verifiedBy: "paypal_status" });
         }
+      } else if (needsReconcile(mine, nowMs)) {
+        // At most every 12 h: a renewal, or a cancellation made at PayPal itself, reaches the record.
+        // Only an explicit PayPal state changes it; a failed lookup never takes access away.
+        const details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        if (details?.status) mine = await save(reconcileActiveSubscription(mine, details, nowMs));
       }
       const billing = billingOf((await kvGet("marketplace:settings", {})) || {});
-      return json(res, { ok: true, billing: { enabled: billing.enabled }, access: mine?.status === "active", subscription: mine ? { planId: mine.planId, billingPeriod: mine.billingPeriod, status: mine.status, price: mine.price, currency: mine.currency, createdAt: mine.createdAt, activatedAt: mine.activatedAt || null } : null }, 200, req);
+      return json(res, { ok: true, billing: { enabled: billing.enabled }, access: radarSubAccess(mine, nowMs), subscription: publicRadarSub(mine) }, 200, req);
+    }
+    // Cancel the radar subscription from the radar page: PayPal first (if PayPal fails, nothing
+    // changes — never a fake "cancelled"), then the record, with the site's own cancellation terms
+    // (src/lib/billing/cancellation.js: 14 days → refund minus the lawful fee; monthly → access to the
+    // end of the paid month; yearly → unused months refunded). Refunds are recorded for the owner.
+    if (sub === "radar-cancel") {
+      if (req.method !== "POST") return json(res, { ok: false, error: "method_not_allowed" }, 405, req);
+      const all = (await kvGet(RADAR_SUBS_KEY, [])) || [];
+      const mine = cancellableRadarSub(ownRadarSubs(all, authId, paypalEnvName()));
+      if (!mine) return json(res, { ok: false, error: "no_active_subscription" }, 404, req);
+      let details = null;
+      let providerCancelled = false;
+      if (mine.paypalSubscriptionId) {
+        details = await getPayPalSubscriptionDetails(mine.paypalSubscriptionId);
+        if (!details?.status) return json(res, { ok: false, error: "paypal_unreachable" }, 502, req);
+        const live = String(details.status).toUpperCase();
+        if (["ACTIVE", "SUSPENDED", "APPROVED"].includes(live)) {
+          const r = await cancelPayPalSubscription(mine.paypalSubscriptionId, "Cancelled by the customer from the LikeLink2 radar page");
+          if (!r.ok) return json(res, { ok: false, error: "paypal_cancel_failed" }, 502, req);
+          providerCancelled = true;
+        }
+      }
+      const nowMs = Date.now();
+      const wasBilled = mine.status === "active" || mine.status === "suspended" || String(details?.status || "").toUpperCase() === "ACTIVE";
+      const terms = cancellationTerms({ sub: { ...mine, status: wasBilled ? "active" : "pending" }, now: nowMs, paidThrough: details?.nextBillingTime || null, price: mine.price });
+      const cancelled = { ...mine, status: "cancelled", cancelledAt: new Date(nowMs).toISOString(), expiresAt: terms.accessUntil, cancelSource: "radar_page", providerCancelConfirmed: providerCancelled, refund: terms.refund };
+      const fresh = (await kvGet(RADAR_SUBS_KEY, [])) || [];
+      await kvSet(RADAR_SUBS_KEY, fresh.map((s) => (s && s.id === mine.id ? cancelled : s)));
+      if (terms.refund?.amount > 0) {
+        const refunds = (await kvGet(REFUNDS_KEY)) || [];
+        if (!refunds.some((r) => r.subscriptionId === mine.id)) {
+          await kvSet(REFUNDS_KEY, [...refunds, {
+            id: `rf_${nowMs}_${Math.random().toString(36).slice(2, 8)}`,
+            product: "radar", subscriptionId: mine.id, userId: authId, paypalSubscriptionId: mine.paypalSubscriptionId || null,
+            planId: mine.planId, billingPeriod: mine.billingPeriod, env: mine.env || "live", ...terms.refund,
+            requestedAt: new Date(nowMs).toISOString(), status: "pending_owner",
+          }]);
+        }
+      }
+      return json(res, { ok: true, subscription: publicRadarSub(cancelled), terms }, 200, req);
     }
 
     // ── Prepaid plan (one-time PayPal order, card or PayPal, no auto-renewal) ──

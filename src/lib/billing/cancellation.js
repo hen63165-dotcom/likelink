@@ -50,13 +50,15 @@ export function periodPrice(planId, billingPeriod) {
  * @param {object} sub          the subscription record (planId, billingPeriod, startedAt, lastBillingAt, expiresAt)
  * @param {number} now
  * @param {string} paidThrough  PayPal billing_info.next_billing_time, when known
+ * @param {number} price        the price the customer was charged for this period, when it is not a
+ *                              site plan (the trend radar's own subscription stores its price)
  * @returns {{ accessUntil:string, refund:{amount,fee,reason,currency}|null, withinCoolingOff:boolean }}
  */
-export function cancellationTerms({ sub, now = Date.now(), paidThrough = null } = {}) {
+export function cancellationTerms({ sub, now = Date.now(), paidThrough = null, price: chargedPrice = null } = {}) {
   const at = Number(now);
   const yearly = sub?.billingPeriod === "yearly";
-  const price = periodPrice(sub?.planId, sub?.billingPeriod);
-  const started = Date.parse(sub?.startedAt || sub?.lastBillingAt || "");
+  const price = chargedPrice != null && Number.isFinite(Number(chargedPrice)) ? Number(chargedPrice) : periodPrice(sub?.planId, sub?.billingPeriod);
+  const started = Date.parse(sub?.startedAt || sub?.lastBillingAt || sub?.activatedAt || "");
   const paid = Boolean(price > 0 && Number.isFinite(started) && sub?.status !== "pending");
   const noRefund = (until) => ({ accessUntil: new Date(until).toISOString(), refund: null, withinCoolingOff: false });
   if (!paid) return noRefund(at); // nothing was charged
