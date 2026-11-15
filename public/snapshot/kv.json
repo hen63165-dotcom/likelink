@@ -3332,6 +3332,80 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 27.18
+   },
+   {
+    "id": "ae-1005008742678061",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מתקן אוטומטי לסבון נוזלי קצף",
+    "storeTitle": "מתקן אוטומטי לסבון נוזלי/קצף, מתקן חשמלי ללא מגע, נטען ב-USB עם חיישן אינפרא אדום לחדר אמבטיה, מטבח",
+    "category": "Home",
+    "kind": "home",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/S7e1c97030abd4c8dacdc64eab1fe5273J.png",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C2TTQ35EQTy8bKAuwbPbRQKNWiKpk9PvicA3o1PtOyaL7Eo6my1ksz6zJm6AibqFap6wp74wLKhjHZzr9O4mGi0hA4wZCM7TC081zK9cNZqRjtvwsNTW15cNeJCOKZq1mwSAWYk5NMgHAV6UKfd5k1NhCBYpMSb8D62Ly2j4MONfllk8AMAElFC85MUOfSg9W4hbmWMEQhitPfKQJadBsi5cYKMZ489cmxDRXC7KBm5OJ80n8IRIxGtTy1CUiQsJZScS0N6O8yMGKHV1w2R5vhnIzXxiJuvOajR6Z3xRmy1NhBWJbZr7Okpiep2JPuBaBIgNDFyjMegwdI3ld5NMkaxXedeeo4UDH8v8YicKs49nNY4fpa9o1N3I2WxQGEa0byMUH1ljFUk01AnwSOmKfQn8UMTkkHwHp1bKJjVLhbGlZD3xSrrBikDm2O3phBGBb3SN7V32LY2M8M7HDmwLsxvq8CauKpvSNLd8lWUmHihWmy1RCgGSaBFMB8ayEvYfNazh3pUQ1ydDHC2VFyCI5XLXdPJS5bGb4BGLyjI7omA0mXDF2yDR8fBIP0EhyVG2qdzoR4akjlMfPcl5WPAORTNJyG7gg3rHu8oD1oG9q4l2GqfuS25GEFM21sXlJHz0HwFi3NwWWQxVqNPS33kYUDjXTSgEQV4RS20I7Y3fJBDTqmluii2zB4mJm0TWaa5mWMAXmPvdRl2IQl",
+    "aliexpressId": "1005008742678061",
+    "price": 43.94,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-15T12:58:26.420Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/S7e1c97030abd4c8dacdc64eab1fe5273J.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S589daf2f62354f3189401a8bb1ff9e66Y.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S1395ee5231724b1a9ed8ef7edaa02026j.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa66b7f87619242caa80eb54b4d5baa57E.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S521691d363f84f40af777345c028e966M.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S3513e862b8634d35a3d9b6305d675b0aS.png"
+    ],
+    "createdAt": 1794747506420,
+    "updatedAt": 1794747506420,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005008742678061",
+     "itemUrl": "https://he.aliexpress.com/item/1005008742678061.html?pdp_npi=6%40dis%21ILS%2191.55%2143.94%21%21%21186.84%2189.68%21%40214114e317947475081991115e0fc9%2112000046481392383%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-15T12:58:26.420Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 91.55
+   },
+   {
+    "id": "ae-1005012061688172",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מתקן סבון אוטומטי לקיר",
+    "storeTitle": "מתקן סבון אוטומטי לקיר, מסוג C, נטען, ללא מגע, משאבת קצף חשמלית, מתאים לשימוש במגוון מקומות.",
+    "category": "Home",
+    "kind": "home",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sac59de64a3e14fb3ade2d80c0816f9c9W.png",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3C4FkvKcOPwNUwUD6zhB9vdUqBCZtiGZfKCYwIdVIpcddtbHHzsOUSnl1vEt559BmGrnLCfpCFAEcKAS3eNp0TxMJ2goaUJoQpnVEgCgabFldRbDxS5qT6Jz080tGLH0UGHZeQ0svGe3OtEkiIvZHbkXmPg8BEtccA4iIFALxbg8AuMw1sEmDrbcugoMSNxM4sJaEjjJFXyM5weD6QvZqjQM93qslTOmtZJniN92E3AKFcGjWZrXexLChOCzWY25uHjX3FIbM2xGHmA3ES9wJKPe2VReFaks9N8rDcvMVohjiIl3paMeNyd303j8lwn0CuMPLPE2hZkvuaQiDpLE3WYghEavaf6DyZGJqIsFeidxQzTE6KgkoiYY1aX3GEPHBM0SCyK34nL1dpiM4mx0clWwBmLmc4t6VyJbP6SPBpwSP3PnP0rFj8URo1PHwGV7Y6XPqbYw3PF141u1NMPOrKg0VLxR6bVvOWpjjBo81n0KygLkTnDzxQ8ZahZBCWmL41IGBe8kSt2kem9F22zBWfWyuBa4yYSREauqfF84mae6aeGw5tPLU6Hqf29lglN2Z3XWscb735GlfUKelUss2L10679ETqBJ1kUHZJmtkOPhzBUMCjhgOAMIsI430BAvjHsRRwUXmybbu2dLFgkj5qrPPdub8mMLjQqVGLr7snptOe38f8MzAU9OItxXDlETQDXVpXYHTOubaId",
+    "aliexpressId": "1005012061688172",
+    "price": 43.99,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-15T12:58:26.420Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sac59de64a3e14fb3ade2d80c0816f9c9W.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Saebd706ff3064e05bcc883e00068ded6Y.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S07e7426b33d54522856e7cc4d0bab506V.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S3eb14989ab6b4ae191019e5d6be456cdg.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S19a0759a209447749b708fc512340244Q.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S9e304747b256488187900b719d368429n.png"
+    ],
+    "createdAt": 1794747506420,
+    "updatedAt": 1794747506420,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005012061688172",
+     "itemUrl": "https://he.aliexpress.com/item/1005012061688172.html?pdp_npi=6%40dis%21ILS%2187.98%2143.99%21%21%21179.55%2189.77%21%40214114e317947475081991115e0fc9%2112000057416022547%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-15T12:58:26.420Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 87.98
    }
   ],
   "marketplace:marketers": [
