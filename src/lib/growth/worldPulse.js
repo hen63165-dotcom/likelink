@@ -176,9 +176,10 @@ export function productTrend(term, items = [], { rules = WORLD } = {}) {
  *   demand  — AliExpress orders accelerate across most top items (stage EMERGING/RISING);
  *   supply  — sellers rush in: matching listings grew ≥10% between readings ≥2 days apart;
  *   israel  — not searched in Hebrew yet (the head start).
- * CALL when three agree (demand among them); WATCH on two. A call is graded publicly after 14 days.
+ * CALL when three agree (demand among them) and the previous reading already showed two (it held);
+ * WATCH otherwise on two. A call is graded publicly after 14 days.
  */
-export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 3 } = {}) {
+export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 3, before = null } = {}) {
   const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])));
   let supply = false;
   if (rs.length >= 2) {
@@ -193,8 +194,11 @@ export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], g
     israel: gap?.state === "GAP",
   };
   const count = Object.values(signals).filter(Boolean).length;
-  const level = count >= need && signals.demand ? "CALL" : count >= 2 ? "WATCH" : "NONE";
-  return { level, count, signals };
+  // Persistence (a fad flashes once; a trend holds): a CALL also needs the previous reading to have
+  // shown at least two agreeing signals. Without it, today's three signals are WATCH.
+  const held = Number(before?.count) >= 2;
+  const level = count >= need && signals.demand && held ? "CALL" : count >= 2 ? "WATCH" : "NONE";
+  return { level, count, signals, held };
 }
 
 /**
