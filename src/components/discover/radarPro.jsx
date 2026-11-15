@@ -9,8 +9,8 @@ import { BellRing, Check, Radar, ShieldCheck } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { getSessionToken } from "../../lib/auth.js";
 import { acceptLegal, joinWaitlist } from "../../lib/legalConsent.js";
-import { fetchRadarSubscription, startRadarCheckout } from "../../lib/commerce.js";
-import { RADAR_FEATURES, RADAR_PLANS, accessOf, billingOf } from "../../lib/growth/radarPlans.js";
+import { cancelRadarSubscription, fetchRadarSubscription, startRadarCheckout } from "../../lib/commerce.js";
+import { RADAR_FEATURES, RADAR_PLANS, RADAR_PRICES, accessOf, billingOf } from "../../lib/growth/radarPlans.js";
 import { ConceptCard, TrialBanner, loadBoard } from "./radar";
 import { STUDIO_SIGNUP } from "./PublicShell";
 import { Go, Spinner, useL } from "./kit";
@@ -88,6 +88,61 @@ function ReturnStatus() {
   return msg ? <p className="lx-card mt-4 p-3 text-[14px]" role="status" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>{msg}</p> : null;
 }
 
+/**
+ * The signed-in visitor's own radar subscription, with the cancel button (Consumer Protection Law:
+ * cancelling is as easy as subscribing). The server cancels at PayPal first and applies the site's
+ * cancellation terms; nothing here decides a date or an amount.
+ */
+function MySubscription() {
+  const { L } = useL();
+  const [sub, setSub] = useState(null);
+  const [state, setState] = useState("idle");
+  const [result, setResult] = useState(null);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const token = (await getSessionToken().catch(() => null)) || "";
+      if (!token) return;
+      const r = await fetchRadarSubscription(token).catch(() => null);
+      if (live && r?.ok && r.subscription && ["active", "pending", "cancelled"].includes(r.subscription.status)) setSub({ ...r.subscription, access: r.access });
+    })();
+    return () => { live = false; };
+  }, []);
+  if (!sub) return null;
+  const plan = RADAR_PLANS[sub.planId];
+  const name = plan ? L(plan.name.he, plan.name.en) : sub.planId;
+  async function cancel() {
+    const ok = typeof window === "undefined" ? false : window.confirm(L(
+      "לבטל את המנוי לרדאר? החיוב הבא לא יתבצע. בתוך 14 יום מהתשלום הראשון מקבלים החזר (פחות דמי ביטול של 5%, עד ₪100). במנוי חודשי אחרי 14 יום, הגישה נשארת עד סוף החודש ששולם.",
+      "Cancel the radar subscription? No further charge will be made. Within 14 days of the first payment you get a refund (minus a 5% fee, up to ₪100). On a monthly plan after 14 days, access stays until the end of the paid month.",
+    ));
+    if (!ok) return;
+    setState("busy");
+    const token = (await getSessionToken().catch(() => null)) || "";
+    const r = token ? await cancelRadarSubscription(token).catch(() => ({ ok: false })) : { ok: false };
+    if (r?.ok) { setSub({ ...r.subscription, access: Date.parse(r.subscription?.expiresAt || "") > Date.now() }); setResult(r.terms || null); setState("done"); }
+    else setState(r?.error === "paypal_unreachable" || r?.error === "paypal_cancel_failed" ? "paypal" : "error");
+  }
+  return (
+    <div className="lx-card mt-4 p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }} aria-live="polite">
+      <h2 className="text-[17px] font-extrabold">{L("המנוי שלי", "My subscription")}</h2>
+      <p className="mt-1 text-[14px]">
+        {name} · ₪{sub.price} {sub.billingPeriod === "yearly" ? L("לשנה", "a year") : L("לחודש", "a month")} · {
+          sub.status === "active" ? L("פעיל", "active")
+            : sub.status === "pending" ? L("מחכה לאישור של PayPal", "waiting for PayPal's approval")
+              : sub.access ? L(`בוטל · הגישה עד ${dm(sub.expiresAt)}`, `cancelled · access until ${dm(sub.expiresAt)}`) : L("בוטל", "cancelled")
+        }
+      </p>
+      {result?.refund?.amount > 0 ? <p className="mt-1 text-[13px]">{L(`נרשמה בקשת החזר של ₪${result.refund.amount}. ההחזר יבוצע דרך PayPal.`, `A refund request of ₪${result.refund.amount} was recorded. The refund is made through PayPal.`)}</p> : null}
+      {sub.status === "active" || sub.status === "pending" ? (
+        <button type="button" onClick={cancel} disabled={state === "busy"} className="lx-btn lx-btn-ghost mt-3" style={{ minHeight: 44 }}>{L("ביטול המנוי", "Cancel subscription")}</button>
+      ) : null}
+      {state === "paypal" ? <p className="mt-2 text-[13px]" role="alert">{L("PayPal לא ענה, ולכן לא בוטל כלום. אפשר לנסות שוב בעוד כמה דקות.", "PayPal didn't answer, so nothing was cancelled. Try again in a few minutes.")}</p> : null}
+      {state === "error" ? <p className="mt-2 text-[13px]" role="alert">{L("הביטול לא הצליח ולא שונה כלום. אפשר לנסות שוב.", "The cancellation didn't go through and nothing changed. Please try again.")}</p> : null}
+    </div>
+  );
+}
+
 export function RadarProPage() {
   const { L, lang } = useL();
   const [board, setBoard] = useState(undefined);
@@ -122,6 +177,7 @@ export function RadarProPage() {
           </div>
           <TrialBanner />
           <ReturnStatus />
+          <MySubscription />
         </div>
       </section>
 
@@ -161,15 +217,15 @@ export function RadarProPage() {
             <article key={p.id} className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
               <h3 className="text-[20px] font-extrabold">{p.name[lang] || p.name.he}</h3>
               <p className="text-[14px]" style={{ color: "var(--lx-muted)" }}>{p.tagline[lang] || p.tagline.he}</p>
-              {billing.enabled ? (
+              {billing.enabled && RADAR_PRICES[p.id] ? (
                 <p className="mt-2 text-[22px] font-extrabold">₪{billing.prices[p.id][period]}<span className="text-[14px] font-normal"> {period === "yearly" ? L("לשנה", "a year") : L("לחודש", "a month")}</span></p>
               ) : (
-                <p className="mt-2 font-bold">{L("מחיר: עוד לא נקבע", "Price: not set yet")}</p>
+                <p className="mt-2 font-bold">{RADAR_PRICES[p.id] ? L("מחיר: עוד לא נקבע", "Price: not set yet") : L("בקרוב · רשימת המתנה", "Coming later · waitlist")}</p>
               )}
               <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
                 {p.features.map((f) => <li key={f} className="flex gap-2"><Check size={16} aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 4 }} /> {L(RADAR_FEATURES[f].he, RADAR_FEATURES[f].en)}</li>)}
               </ul>
-              {billing.enabled ? <Upgrade planId={p.id} period={period} /> : <Waitlist planId={p.id} />}
+              {billing.enabled && RADAR_PRICES[p.id] ? <Upgrade planId={p.id} period={period} /> : <Waitlist planId={p.id} />}
             </article>
           ))}
         </div>

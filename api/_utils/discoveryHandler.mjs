@@ -33,7 +33,7 @@ import { resolveEntitlement, pickSubscription } from "../../src/lib/discovery/en
 import { evaluateSystem, classifyRlsProbe, publicPiiCounts } from "../../src/lib/discovery/systemCheck.js";
 import { parseValue } from "../../src/lib/cloud/marketerPrivacy.js";
 import { MEDIA_BUCKET } from "../../src/lib/cloud/mediaStore.js";
-import { getPayPalToken, getPayPalTokenStatus, paypalBase, FOREIGN_PLAN_IDS } from "./paypal.js";
+import { getPayPalToken, getPayPalTokenStatus, paypalBase, sameEnv, FOREIGN_PLAN_IDS } from "./paypal.js";
 import { getProvisionedPlans } from "../../src/lib/plans.js";
 import { checkQuota, quotaStoreKey, monthKey, QUOTA_ERROR } from "../../src/lib/discovery/quotas.js";
 import { LAWS } from "../../src/lib/discovery/laws.js";
@@ -195,7 +195,8 @@ export function createDiscoveryHandler({
       out.paypalEnvSource = st.envSource;
       const token = st.ok ? await getPayPalToken() : null;
       const cached = await kvGet("marketplace:paypal_plans", null);
-      const ids = getProvisionedPlans().map((p) => (cached && typeof cached === "object" ? cached[`${p.id}:monthly`] : null)).filter((id) => id && !FOREIGN_PLAN_IDS.has(id));
+      // Plans made in the other PayPal environment (Sandbox vs Live) do not count here.
+      const ids = getProvisionedPlans().map((p) => (cached && typeof cached === "object" && sameEnv(cached) ? cached[`${p.id}:monthly`] : null)).filter((id) => id && !FOREIGN_PLAN_IDS.has(id));
       out.provisioned = ids.length;
       if (token && ids.length) {
         const states = await Promise.all(ids.map(async (id) => {
