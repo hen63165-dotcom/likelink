@@ -3298,6 +3298,40 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 16.18
+   },
+   {
+    "id": "ae-1005010089173390",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "מתלה רב-תכליתי מעץ לאחסון כובעים",
+    "storeTitle": "מתלה רב-תכליתי מעץ לאחסון כובעים, עם ווים, לאחסון כובעים, חגורות ועניבות – חוסך מקום, מתאים לשימוש ביתי, לתצוגה בחנויות ולבית מלאכה.",
+    "category": "Home",
+    "kind": "home",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sf315f89151c64cc5b5227de20286c77fP.png",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3Coy5tR8XnuQhAmxY99KxfODB8Eoow3ZTfBxp6KQg3NoDihTppx1UXh1j2drPi42u9kbLBAZVVZbvi9rGbbYXlbK0OHijs9vELP1ftSlCJuA9bu3us89hw47QXTHFRnpNHZslEOOeieitbWiQaBlqXtbdRShM8yGlKKbm3NJofhvhkDi0DbJvgQgaMgGK3nI1vzfXXU5i5Hg0nIT1Tz1tw0OpIIUqtSUfTyndrXkzcqybPt6s9aJDI65aFDZRN9qQk1tteLBd7slLQQQzgQTOf0XWm7mszObgeAh0zh8dLF3IKBlVOxxgPM10YKmtdnVH3US0I0NagrKwOfMPB7SxtEnOhyDRbpvvg4APR64eUrRRC1Yxtt7NCADirOCBJlnL7dR20ZQ0eqXaIyaMa4K8X5OsoIIUvamBEhppDAGzcJsCtf7A5gNhjHfj4RbwNTUgzH0vV28SmI6qJX0fiK8XVpyB2XlqnTC09clnr84n4Win2t0YyUvx3thWvcZzSp0ix1vuXxXzjpdviV7JcY2PSvRmCSLJfqAuH37bAM3BCRiS3brtUFUfiFcPmkaPhP294JDGyQwCQXP2DFVo1QvUGUUjKWLKVEyiNg2VLqjwlq24oZfwH4Ji3KMvfgPTrrmaNMEdir5W3nKvDyYWjepCtMEzUJZYgNu8R8ZsFVISUhTG6FmxP5dqN0R5FvOQSPeMwrbOvbkJYvtpjr",
+    "aliexpressId": "1005010089173390",
+    "price": 13.59,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-15T11:57:38.975Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sf315f89151c64cc5b5227de20286c77fP.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sac34a93a45434c799731a358a4aa0a44q.png",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S05443a4aca08494b97ed1383105adec0b.png"
+    ],
+    "createdAt": 1794743858975,
+    "updatedAt": 1794743858975,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005010089173390",
+     "itemUrl": "https://he.aliexpress.com/item/1005010089173390.html?pdp_npi=6%40dis%21ILS%2127.18%2113.59%21%21%2155.47%2127.73%21%402140da8b17947438602042581e0f61%2112000051099261587%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-15T11:57:38.975Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 27.18
    }
   ],
   "marketplace:marketers": [
