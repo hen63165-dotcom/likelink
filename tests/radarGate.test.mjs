@@ -82,3 +82,23 @@ test("only the radar run may store the board", async () => {
   assert.equal(ok.code, 200);
   assert.equal(data[RADAR_BOARD_KEY].concepts[0].id, "tofu-squishy");
 });
+
+test("who spotted it first: only a user with access picks; the table is public and nickname-only", async () => {
+  const b2 = JSON.parse(JSON.stringify(board));
+  b2.concepts[0].today = { orders: 1000 };
+  const data = { [RADAR_BOARD_KEY]: b2, "marketplace:settings": trialOver, "radar:subscriptions": [{ id: "r1", userId: "u-paid", status: "active", env: "live" }], "radar:trials": { "u-old": { startedAt: "2026-11-01T00:00:00Z" } } };
+  const h = createRadarBoardHandler({ kv: kvOf(data), verify: async (t) => ({ good: { id: "u-paid" }, old: { id: "u-old" } })[t] || null, now: () => NOW });
+  const call = async (method, op, token, body) => { const res = fakeRes(); await h({ method, url: `/api/store?mode=radar-board&op=${op}`, headers: { origin: "https://likelink2.vercel.app", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body }, res); return res; };
+  assert.equal((await call("POST", "pick", null, { concept: "tofu-squishy" })).code, 401);
+  assert.equal((await call("POST", "pick", "old", { concept: "tofu-squishy" })).code, 402, "a used-up trial cannot pick");
+  const ok = await call("POST", "pick", "good", { concept: "tofu-squishy", nick: "מאיה", show: true });
+  assert.equal(ok.code, 200);
+  assert.equal(data["radar:picks"][0].base, 1000, "sealed with that day's orders");
+  assert.equal((await call("POST", "pick", "good", { concept: "not-on-the-radar", nick: "מאיה", show: true })).code, 400);
+  const table = await call("GET", "leaderboard");
+  assert.deepEqual(table.body.table.map((r) => r.nick), ["מאיה"]);
+  assert.doesNotMatch(JSON.stringify(table.body), /u-paid/);
+  const mine = await call("GET", "mine", "good");
+  assert.equal(mine.body.picks[0].concept, "tofu-squishy");
+  assert.equal(mine.body.picks[0].userId, undefined);
+});

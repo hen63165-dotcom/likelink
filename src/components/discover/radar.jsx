@@ -440,6 +440,73 @@ function AccessCard({ acc }) {
   );
 }
 
+/** "מי זיהתה ראשונה" (radarPicks.js): pick a concept, sealed with the day, graded after 14 days. */
+const PICK_ERR = { invalid_nickname: "כינוי של 2–20 אותיות או מספרים", already_picked: "כבר בחרת את זה", too_many_open: "אפשר עד 3 בחירות פתוחות", concept_not_measured: "עוד אין מדידה למוצר הזה", subscription_required: "הבחירה פתוחה בניסיון או במנוי", unauthenticated: "צריך להתחבר" };
+function PicksBox({ board }) {
+  const { L } = useL();
+  const [table, setTable] = useState([]);
+  const [mine, setMine] = useState(null);
+  const [token, setToken] = useState(null);
+  const [concept, setConcept] = useState("");
+  const [nick, setNick] = useState("");
+  const [show, setShow] = useState(true);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = async (t) => {
+    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : [])).catch(() => {});
+    if (t) fetch("/api/store?mode=radar-board&op=mine", { headers: { Authorization: `Bearer ${t}` } }).then((r) => r.json()).then((b) => setMine(Array.isArray(b?.picks) ? b.picks : [])).catch(() => {});
+  };
+  useEffect(() => {
+    let live = true;
+    getSessionToken().catch(() => null).then((t) => { if (!live) return; setToken(t || null); load(t); });
+    return () => { live = false; };
+  }, []);
+  const options = (board?.concepts || []).filter((c) => Number(c.today?.orders) > 0).sort((a, b) => (b.early?.count || 0) - (a.early?.count || 0)).slice(0, 80);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!concept || busy) return;
+    setBusy(true); setMsg("");
+    try {
+      const res = await fetch("/api/store?mode=radar-board&op=pick", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ concept, nick, show }) });
+      const b = await res.json().catch(() => ({}));
+      if (b?.ok) { setMsg(L("🏆 נחתם! הציון ב־" + dm(b.pick?.due), "🏆 Sealed! Graded " + dm(b.pick?.due))); setConcept(""); load(token); }
+      else setMsg(L(PICK_ERR[b?.error] || "לא נשמר, נסי שוב", "Not saved, try again"));
+    } catch { setMsg(L("לא נשמר, נסי שוב", "Not saved, try again")); }
+    setBusy(false);
+  };
+  return (
+    <details className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+      <summary className="cursor-pointer text-[15px] font-extrabold">{L("🏆 מי זיהתה ראשונה? תבחרי ותראי אם צדקת", "🏆 Who spotted it first? Pick, and see if you were right")}</summary>
+      {token ? (
+        <form onSubmit={submit} className="mt-3 grid gap-2 text-[14px]">
+          <select value={concept} onChange={(e) => setConcept(e.target.value)} className="rounded-xl p-2" style={{ border: "1px solid var(--lx-line)", minHeight: 44 }} aria-label={L("מוצר", "Product")}>
+            <option value="">{L("בחרי מוצר שלדעתך יעלה", "Pick a product you think will rise")}</option>
+            {options.map((c) => <option key={c.id} value={c.id}>{c.he}</option>)}
+          </select>
+          <input value={nick} onChange={(e) => setNick(e.target.value)} placeholder={L("הכינוי שלך בטבלה", "Your nickname on the board")} maxLength={20} className="rounded-xl p-2" style={{ border: "1px solid var(--lx-line)", minHeight: 44 }} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> {L("להופיע בטבלה בכינוי הזה", "Show me on the board by this nickname")}</label>
+          <button type="submit" disabled={!concept || busy} className="lx-btn lx-btn-ink" style={{ minHeight: 48 }}>{L("🏆 אני בוחרת", "🏆 I pick this")}</button>
+          {msg ? <p className="font-bold">{msg}</p> : null}
+          <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הבחירה נשמרת עם התאריך, ונבדקת אחרי 14 יום כמו הקביעות של הרדאר (פגיעה = +15% הזמנות). עד 3 בחירות פתוחות.", "Saved with the day and graded after 14 days like the radar's calls (hit = +15% orders). Up to 3 open picks.")}</p>
+        </form>
+      ) : (
+        <p className="mt-2 text-[14px]"><Go to={STUDIO_LOGIN} className="font-bold underline">{L("התחברי", "Sign in")}</Go>{L(" כדי לבחור ולהיכנס לטבלה.", " to pick and join the board.")}</p>
+      )}
+      {mine?.length ? (
+        <ul className="mt-3 grid gap-1 text-[13px]">
+          {mine.map((p) => <li key={p.id}>{(board?.concepts || []).find((c) => c.id === p.concept)?.he || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}</li>)}
+        </ul>
+      ) : null}
+      <p className="mt-3 text-[14px] font-extrabold">{L("הטבלה", "The board")}</p>
+      {table.length ? (
+        <ol className="mt-1 grid gap-1 text-[13px]">
+          {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
+        </ol>
+      ) : <p className="mt-1 text-[13px]">{L("עוד אין אף אחת בטבלה. הראשונה שתבחר תופיע כאן.", "Nobody on the board yet. The first to pick shows here.")}</p>}
+    </details>
+  );
+}
+
 function Verdict({ board, gated = false }) {
   const { L } = useL();
   if (!board?.early) return null;
@@ -512,6 +579,7 @@ function Verdict({ board, gated = false }) {
             <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מפעלים ומוכרים מעלים מוצר חדש לפני שמחפשים אותו. זה הסימן הכי מוקדם שהרדאר מודד.", "Factories and sellers list a new product before people search for it: the earliest sign the radar measures.")}</p>
           </div>
         ) : null}
+        <PicksBox board={board} />
         {board.early.calibration ? (
           <details className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
             <summary className="cursor-pointer font-extrabold">{L("📏 ההוכחה: כמה פעמים הרדאר פגע", "📏 The proof: how often the radar hit")}</summary>
