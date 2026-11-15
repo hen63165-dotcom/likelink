@@ -182,3 +182,9 @@ test("an open call is measured every day against its sealed base (the live score
   assert.deepEqual([graded.progress, graded.growth], [null, 22], "a graded call keeps its final grade only");
   assert.equal(ledgerOf(calls)[0].progress, null, "no reading, no number");
 });
+
+test("the countdown points at the next 05:37 UTC reading", async () => {
+  const { nextReadingAt } = await import("../src/lib/growth/worldPulse.js");
+  assert.equal(new Date(nextReadingAt(Date.parse("2026-11-15T18:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
+  assert.equal(new Date(nextReadingAt(Date.parse("2026-11-16T05:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
+});

@@ -342,3 +342,10 @@ export function calibrationOf(calls = [], record) {
   const pick = (r) => ({ graded: r.graded, hits: r.hits, accuracy: r.accuracy, pending: r.pending });
   return { signal: pick(record(list.filter((c) => c?.kind !== "early"))), sniper: pick(record(list.filter((c) => c?.kind === "early"))) };
 }
+
+/** The next daily reading (the page's countdown): the radar runs at 05:37 UTC (Actions → "Trend radar"). */
+export function nextReadingAt(now = Date.now()) {
+  const d = new Date(now);
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 5, 37);
+  return t > now ? t : t + 86_400_000;
+}

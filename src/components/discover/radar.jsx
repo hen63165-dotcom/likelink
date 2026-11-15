@@ -13,7 +13,7 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
-import { WORLD_STATES, verdictOf } from "../../lib/growth/worldPulse.js";
+import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
 import { fetchRadarSubscription } from "../../lib/commerce.js";
@@ -388,9 +388,25 @@ export function TrialBanner() {
  * grade and the days it was ahead. Shareable as text that only states what was sealed (never a promise).
  */
 const RESULT_HE = { HIT: "✅ פגע", MISS: "❌ לא פגע" };
+function Countdown() {
+  const { L } = useL();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, nextReadingAt(now) - now);
+  const hh = String(Math.floor(left / 3_600_000)).padStart(2, "0");
+  const mm = String(Math.floor((left % 3_600_000) / 60_000)).padStart(2, "0");
+  const ss = String(Math.floor((left % 60_000) / 1000)).padStart(2, "0");
+  return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הבדיקה הבאה של הרדאר בעוד ", "⏰ The radar's next reading in ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
+}
+
 function Verdict({ board }) {
   const { L } = useL();
   if (!board?.early) return null;
+  // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
+  const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
   const day = String(board.at || "").slice(0, 10);
   const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
   const ledger = board.early.ledger || [];
@@ -399,7 +415,10 @@ function Verdict({ board }) {
   return (
     <section className="lx-wrap mt-8" id="verdict">
       <div className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
-        <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+          <Countdown />
+        </div>
         {v.calls.length ? (
           <ul className="mt-3 grid gap-3">
             {v.calls.map((e) => (
@@ -418,6 +437,17 @@ function Verdict({ board }) {
         ) : (
           <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, היום ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז הקביעה` : ""}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since the call today` : ""}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
         )}
+        {brink.length ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-extrabold">{L("🔥 על סף קביעה: 3 מתוך 4 סימנים", "🔥 On the brink: 3 of 4 signals")}</p>
+            <ul className="mt-1 grid gap-1 text-[13px]">
+              {brink.map((c) => {
+                const missing = Object.entries(c.early.signals || {}).filter(([, v]) => !v).map(([k]) => SIGNAL_HE[k]).join(", ");
+                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}. הבדיקה של מחר תגיד אם זה הופך לקביעה.`, ` · missing: ${missing}. Tomorrow's reading decides.`)}</li>;
+              })}
+            </ul>
+          </div>
+        ) : null}
         {board.early.calibration ? (
           <div className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
             <p className="font-extrabold">{L("📏 כמה פעמים כל סוג קביעה פגע", "📏 How often each kind of call hit")}</p>
