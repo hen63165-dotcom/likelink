@@ -1094,6 +1094,12 @@ export default async function handler(req, res) {
   }
   // "כפתור הקסם" (/magic): a pasted AliExpress link → the store's own facts, what
   // to check, and the buy link (a creator's link is kept). Read-only, rate-limited.
+  // The trend radar's full board, behind the trial or an active radar subscription
+  // (src/lib/growth/radarGate.js); the radar run stores it with POST op=put.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'radar-board') {
+    const { default: radarBoardHandler } = await import('./_utils/radarBoardHandler.mjs');
+    return radarBoardHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'magic') {
     const { default: magicHandler } = await import('./_utils/magicHandler.mjs');
     return magicHandler(req, res);
