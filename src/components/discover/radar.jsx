@@ -434,35 +434,39 @@ function Verdict({ board }) {
         {v.calls.length ? (
           <ul className="mt-3 grid gap-3">
             {v.calls.map((e) => (
-              <li key={e.concept.id} className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[22px] font-extrabold leading-8">🎯 {e.concept.he}</p>
-                  <p className="text-[13px]">{L(`${e.concept.early?.count || 4} מתוך 4 סימנים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 4} of 4 signals · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink">{L("לפרטים", "Details")}</Go>
+              <li key={e.concept.id}>
+                <p className="text-[16px] font-extrabold">{L("🟢 היום הרדאר קבע:", "🟢 Today the radar called:")}</p>
+                <p className="mt-1 text-[30px] font-black leading-9">{e.concept.he}</p>
+                <p className="mt-1 text-[16px] leading-7">{L("מתחיל לעלות בעולם, ובעברית עוד כמעט לא מחפשים.", "Rising worldwide, barely searched in Hebrew yet.")}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 מה לעשות עכשיו", "👉 What to do now")}</Go>
                   <ShareButton path="/radar" title={shareTitle(e)} variant="button" />
                 </div>
+                <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${e.concept.early?.count || 4} מתוך 4 סימנים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 4} of 4 signals · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, היום ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז הקביעה` : ""}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since the call today` : ""}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+          <div className="mt-2">
+            <p className="text-[22px] font-black leading-8">{L("⚪ היום אין קביעה חדשה", "⚪ No new call today")}</p>
+            <p className="mt-1 text-[15px] leading-7">{L("הרדאר קובע רק כשכל 4 הסימנים מסכימים. בודקים שוב מחר בבוקר.", "The radar calls only when all four signals agree. Check again tomorrow morning.")}</p>
+            {v.latestOpen ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הקביעה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז` : ""}).`, `Latest call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since` : ""}).`)}</p> : null}
+          </div>
         )}
         {brink.length ? (
           <div className="mt-4">
-            <p className="text-[14px] font-extrabold">{L("🔥 על סף קביעה: 3 מתוך 4 סימנים", "🔥 On the brink: 3 of 4 signals")}</p>
+            <p className="text-[14px] font-extrabold">{L("🟡 אולי מחר: חסר רק סימן אחד", "🟡 Maybe tomorrow: one signal missing")}</p>
             <ul className="mt-1 grid gap-1 text-[13px]">
               {brink.map((c) => {
                 const missing = Object.entries(c.early.signals || {}).filter(([, v]) => !v).map(([k]) => SIGNAL_HE[k]).join(", ");
-                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}. הבדיקה של מחר תגיד אם זה הופך לקביעה.`, ` · missing: ${missing}. Tomorrow's reading decides.`)}</li>;
+                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}`, ` · missing: ${missing}`)}</li>;
               })}
             </ul>
           </div>
         ) : null}
         {born.length ? (
           <div className="mt-4">
-            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
+            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים כבר ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
             <ul className="mt-1 grid gap-1 text-[13px]">
               {born.map((c) => <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% מודעות בשבוע (${c.factory.from.toLocaleString("he-IL")} → ${c.factory.to.toLocaleString("he-IL")} ב־${c.factory.days} ימים)`, ` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% listings a week (${c.factory.from} → ${c.factory.to} in ${c.factory.days} days)`)}</li>)}
             </ul>
