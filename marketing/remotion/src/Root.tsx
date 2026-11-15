@@ -5,6 +5,8 @@ import { BUTTERFLY_SECONDS, ButterflyFix } from "./ButterflyFix";
 import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
 import { GARLIC, HandsReel, RINGS, totalSeconds } from "./HandsReel";
 import { GARLIC_SELL, SellReel, sellSeconds } from "./SellReel";
+import { TalkSlides, talkSeconds } from "./TalkSlides";
+import { TALK_MISTAKES, TALK_RADAR } from "./talkData";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -64,6 +66,24 @@ export const RemotionRoot: React.FC = () => {
         component={HandsReel}
         defaultProps={RINGS}
         durationInFrames={Math.round(totalSeconds(RINGS) * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="TalkMistakes"
+        component={TalkSlides}
+        defaultProps={TALK_MISTAKES}
+        durationInFrames={Math.round(talkSeconds(TALK_MISTAKES) * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="TalkRadar"
+        component={TalkSlides}
+        defaultProps={TALK_RADAR}
+        durationInFrames={Math.round(talkSeconds(TALK_RADAR) * 30)}
         fps={30}
         width={1080}
         height={1920}
