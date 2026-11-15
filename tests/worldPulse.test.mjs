@@ -54,7 +54,9 @@ test("people, games and plain words are never a product trend, even when AliExpr
 test("a trend is called only when independent signals agree, demand among them", async () => {
   const { earlyCall } = await import("../src/lib/growth/worldPulse.js");
   const listings = [["2026-11-15", 100], ["2026-11-18", 125]];
-  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" } }).level, "CALL");
+  const held = { count: 2 };
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" }, before: held }).level, "CALL");
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" } }).level, "WATCH", "a first flash is not a call: it must hold");
   assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "STEADY", listings, gap: { state: "GAP" } }).level, "WATCH", "no call without demand");
   assert.equal(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).level, "NONE");
   assert.equal(earlyCall({ stage: "RISING", listings: [["2026-11-15", 100], ["2026-11-16", 200]] }).signals.supply, false, "one day apart is not a rush");
@@ -66,7 +68,7 @@ test("misses raise the bar: under 70% after ten graded early calls needs all fou
   assert.equal(signalsNeeded({ graded: 12, accuracy: 60 }), 4);
   assert.equal(signalsNeeded({ graded: 12, accuracy: 80 }), 3);
   const three = { world: { state: "SPREADING" }, stage: "RISING", gap: { state: "GAP" } };
-  assert.equal(earlyCall({ ...three, need: 4 }).level, "WATCH", "three signals are not a call when four are needed");
+  assert.equal(earlyCall({ ...three, need: 4, before: { count: 3 } }).level, "WATCH", "three signals are not a call when four are needed");
   assert.equal(sealOf([{ kind: "early", concept: "a", at: "2026-11-17", signals: ["world", "demand", "israel"] }, { concept: "b", at: "2026-11-17" }]), "a|2026-11-17|world,demand,israel", "only early calls are sealed");
 });
 

@@ -373,7 +373,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const need = signalsNeeded(earlyRecordBefore);
   for (const c of board.concepts || []) {
     c.world = worldPulseOf(worldMap[c.id] || []);
-    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need });
+    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early });
     // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
     const latest = (readings[c.id] || []).at(-1);
     if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && !x.result)) {
