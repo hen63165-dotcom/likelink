@@ -60,6 +60,7 @@ The owner: *"תבדוק איך נראות הקרוסלות הכי חזקות ו�
 - **The last slide: one ask** ("שמרי ושלחי לחברה" + one comment word). Saves and sends count more than likes.
 - **Caption:** the hook inside the first ~125 characters (after the disclosure), 3–6 short lines of value, ONE specific call to action (a comment word that gets the link in a DM). Comment goal → a question; DM goal → the keyword.
 - Reels reach people who do not follow yet; carousels build saves and trust. Use both.
+- **Colours (the owner, 2026-11-15: "בצבעים יותר מוכרים ותופסים את העין"):** high contrast, one dominant colour + one accent, the same palette on every slide. The house look for tips/mistakes carousels: saturated yellow `#FFD60A` + black text, a red accent `#e11d48`, white cards with a thick black border and a hard black shadow, the CTA slide black with the keyword in yellow. Keep text away from the bottom/right edges (Instagram's buttons cover them).
 Sources: adpicto.com, carouselli.com, posteverywhere.ai, krumzi.com (carousels); heropost.io, postsyncer.com, krumzi.com (captions).
 
 ## No transition noise (the owner, 2026-11-15)
