@@ -127,3 +127,46 @@ export function radarWaitlistPlan(planId) {
   const p = RADAR_PLANS[String(planId || "").toLowerCase()];
   return p && p.comingSoon && !p.purchasable ? p : null;
 }
+
+/**
+ * The radar's guarantee (the owner, 2026-11-15: "כן לערבות"). A sniper call (an early call: all
+ * four signals, sealed in Bitcoin) made during a subscriber's paid month and graded MISS gives that
+ * subscriber the next month free, paid back as one month's price. At most one month per paid month.
+ * Never automatic (CLAUDE.md: refunds go to billing:refund_requests and the owner pays them in
+ * PayPal). `live` stays false until the job that writes those requests exists, so the promise is
+ * shown only once it can be kept: /radar-pro gets its block (and tests/radarPlans.test.mjs its
+ * wording rule) in the same change that wires the claims job.
+ */
+export const RADAR_GUARANTEE = Object.freeze({
+  live: false,
+  he: "קביעת צלף שלא פגעה? החודש הבא עלינו.",
+  en: "A sniper call that missed? Next month is on us.",
+  termsHe: "אם קביעת צלף של הרדאר שנחתמה בחודש מנוי ששילמת עליו מקבלת ❌ בציון של אחרי 14 יום, מחיר חודש אחד חוזר אלייך. לכל היותר חודש אחד לכל חודש ששולם. ההחזר נשלח ב־PayPal תוך 14 יום מהציון.",
+});
+
+const addMonths = (t, n) => { const d = new Date(t); d.setUTCMonth(d.getUTCMonth() + n); return d.getTime(); };
+
+/**
+ * Which paid months earned the guarantee (pure): for each active or cancelled-after-paying radar
+ * subscription, its monthly windows from activation; a window with at least one sniper call graded
+ * MISS earns one month's price (yearly: a twelfth of the year). Returns one claim per window.
+ */
+export function guaranteeCredits({ subs = [], calls = [], now = Date.now() } = {}) {
+  const misses = (Array.isArray(calls) ? calls : []).filter((c) => c?.kind === "early" && c.result === "MISS" && Number.isFinite(Date.parse(c.at)));
+  const out = [];
+  for (const s of Array.isArray(subs) ? subs : []) {
+    const start = Date.parse(s?.activatedAt || "");
+    const price = Number(s?.price);
+    if (!Number.isFinite(start) || !(price > 0) || !["active", "cancelled"].includes(String(s.status))) continue;
+    const months = s.billingPeriod === "yearly" ? 12 : Math.max(1, Math.ceil((Math.min(now, s.paidUntil ? Date.parse(s.paidUntil) : now) - start) / (30 * 86_400_000)));
+    const monthly = s.billingPeriod === "yearly" ? Math.round((price / 12) * 100) / 100 : price;
+    for (let k = 0; k < months; k++) {
+      const from = addMonths(start, k);
+      const to = addMonths(start, k + 1);
+      if (from > now) break;
+      const miss = misses.find((c) => Date.parse(c.at) >= from && Date.parse(c.at) < to);
+      if (miss) out.push({ subscriptionId: s.id || s.paypalSubscriptionId || null, month: k + 1, call: { concept: miss.concept, at: miss.at, gradedAt: miss.gradedAt || null }, amount: monthly, currency: s.currency || RADAR_CURRENCY });
+    }
+  }
+  return out;
+}

@@ -192,3 +192,21 @@ test("cancelling the radar: the site's lawful terms on the radar's own price", (
   assert.match(page, /cancelRadarSubscription\(token\)/, "the radar page has the cancel button");
   assert.match(page, /ביטול המנוי/);
 });
+
+test("the guarantee: a missed sniper call in a paid month earns that month back, never shown before it can be kept", async () => {
+  const { RADAR_GUARANTEE, guaranteeCredits } = await import("../src/lib/growth/radarPlans.js");
+  assert.equal(RADAR_GUARANTEE.live, false, "not shown until the claims job writes refund requests");
+  assert.doesNotMatch(RADAR_GUARANTEE.he + RADAR_GUARANTEE.termsHe, /מבטיח להיט|תמיד פוגע|100%/);
+  const subs = [{ id: "s1", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 29, billingPeriod: "monthly" }, { id: "s2", status: "pending", activatedAt: "2026-12-01T00:00:00Z", price: 29 }];
+  const calls = [
+    { concept: "a", kind: "early", at: "2026-12-05", result: "MISS", gradedAt: "2026-12-19" },
+    { concept: "b", kind: "early", at: "2026-12-10", result: "MISS" },
+    { concept: "c", kind: "early", at: "2027-01-03", result: "HIT" },
+    { concept: "d", at: "2027-01-04", result: "MISS" },
+  ];
+  const claims = guaranteeCredits({ subs, calls, now: Date.parse("2027-02-15T00:00:00Z") });
+  assert.equal(claims.length, 1, "one month per paid month, a stage call never counts, a pending sub never claims");
+  assert.deepEqual([claims[0].subscriptionId, claims[0].month, claims[0].amount, claims[0].call.concept], ["s1", 1, 29, "a"]);
+  const yearly = guaranteeCredits({ subs: [{ id: "y", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 290, billingPeriod: "yearly" }], calls, now: Date.parse("2027-02-15T00:00:00Z") });
+  assert.equal(yearly[0].amount, 24.17, "a yearly plan gets a twelfth back");
+});
