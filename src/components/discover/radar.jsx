@@ -16,9 +16,9 @@ import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
-import { fetchRadarSubscription } from "../../lib/commerce.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
+import { STUDIO_LOGIN, STUDIO_SIGNUP } from "./PublicShell";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
 
@@ -61,14 +61,18 @@ function recordExit(concept, link) {
 
 /** The board: the site's own address first (proxied to GitHub Pages), then GitHub Pages itself.
  *  Untrusted input from another host: only what sanitizeBoard keeps is ever rendered. */
+/** The server's last answer about this visitor's access (radarGate.boardAccess), for the page. */
+export let radarAccess = null;
 export async function loadBoard() {
-  // The server first (radarGate.js): the full board while the trial is open or for a subscriber;
-  // a 402 or any failure falls back to the public file below.
+  // The server first (radarGate.js): the full board during the launch trial, her own trial or her
+  // subscription; a 402 brings the teaser and why (sign in for a trial / subscribe).
   try {
     const token = await getSessionToken().catch(() => null);
     const res = await fetch("/api/store?mode=radar-board", { cache: "no-store", headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (res.ok) {
-      const doc = sanitizeBoard((await res.json())?.board);
+    if (res.ok || res.status === 402) {
+      const body = await res.json();
+      radarAccess = res.ok ? { reason: body?.access || "open", daysLeft: Number.isFinite(body?.daysLeft) ? body.daysLeft : null } : { reason: body?.error === "subscription_required" ? "subscription_required" : "sign_in_for_trial", trialDays: Number(body?.trialDays) || 7 };
+      const doc = sanitizeBoard(res.ok ? body?.board : body?.teaser);
       if (doc) return doc;
     }
   } catch { /* no server answer: the public file */ }
@@ -412,9 +416,44 @@ function Countdown() {
   return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הבדיקה הבאה של הרדאר בעוד ", "⏰ The radar's next reading in ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
 }
 
-function Verdict({ board }) {
+/** The card for a visitor without access: sign in for her own free trial, or subscribe. */
+function AccessCard({ acc }) {
+  const { L } = useL();
+  if (acc?.reason === "subscription_required") {
+    return (
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
+        <p className="text-[22px] font-black">{L("⏳ תקופת הניסיון שלך הסתיימה", "⏳ Your trial has ended")}</p>
+        <p className="mt-1 text-[15px] leading-7">{L("הקביעות החיות, \"אולי מחר\" ו\"נולד עכשיו\" פתוחים למנויות. ההוכחה וספר הקביעות נשארים פתוחים לכולם.", "Live calls, 'maybe tomorrow' and 'born now' are for subscribers. The proof and the ledger stay open to everyone.")}</p>
+        <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 למנוי", "👉 Subscribe")}</Go>
+      </div>
+    );
+  }
+  return (
+    <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
+      <p className="text-[22px] font-black">{L(`🎁 ${acc?.trialDays || 7} ימים חינם`, `🎁 ${acc?.trialDays || 7} days free`)}</p>
+      <p className="mt-1 text-[15px] leading-7">{L("פותחים חשבון חינם ומקבלים את הרדאר המלא. בלי כרטיס אשראי. אחרי ההרשמה חוזרים לכאן.", "Open a free account and get the full radar. No card. After signing up, come back here.")}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Go to={STUDIO_SIGNUP} className="lx-btn lx-btn-ink" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 פתיחת חשבון חינם", "👉 Open a free account")}</Go>
+        <Go to={STUDIO_LOGIN} className="underline">{L("כבר יש לי חשבון", "I have an account")}</Go>
+      </div>
+    </div>
+  );
+}
+
+function Verdict({ board, gated = false }) {
   const { L } = useL();
   if (!board?.early) return null;
+  if (gated) {
+    const open = board.early.open || 0;
+    return (
+      <section className="lx-wrap mt-6" id="verdict">
+        <div className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fffbeb" }}>
+          <p className="text-[18px] font-black">{open ? L(`🔒 יש עכשיו ${open} קביעות פתוחות`, `🔒 ${open} open calls right now`) : L("🔒 הקביעות החיות למנויות", "🔒 Live calls are for subscribers")}</p>
+          <p className="mt-1 text-[14px]">{L("מה הרדאר קבע נשאר חתום עד הציון. כאן למטה: ההוכחה, ספר הקביעות שכבר קיבלו ציון.", "What the radar called stays sealed until graded. Below: the proof and the graded calls.")}</p>
+        </div>
+      </section>
+    );
+  }
   // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
   const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
   // Born now: sellers rush in (listings +25%/week from a small base) before buyers search.
@@ -534,20 +573,9 @@ export function RadarPage() {
 
   // After the owner's trial, while billing is on (accessOf.locked), the results are for subscribers;
   // everyone else gets the upgrade screen. The server decides who is subscribed (sub=radar-get).
-  const { settings } = useMarketplace();
-  const access = accessOf(settings);
-  const [subscribed, setSubscribed] = useState(null);
-  useEffect(() => {
-    if (!access.locked) return undefined;
-    let live = true;
-    (async () => {
-      const token = (await getSessionToken().catch(() => null)) || "";
-      const r = token ? await fetchRadarSubscription(token).catch(() => null) : null;
-      if (live) setSubscribed(Boolean(r?.access));
-    })();
-    return () => { live = false; };
-  }, [access.locked]);
-  const gated = access.locked && subscribed !== true;
+  // The server decides (radarGate.boardAccess): the launch trial, her own trial, her subscription.
+  const acc = board === undefined ? null : radarAccess;
+  const gated = acc?.reason === "sign_in_for_trial" || acc?.reason === "subscription_required";
 
   const concepts = board?.concepts || [];
   const kinds = useMemo(() => [...new Set(concepts.map((c) => c.kind).filter((k) => KINDS[k]))], [concepts]);
@@ -584,7 +612,11 @@ export function RadarPage() {
         </div>
       </section>
 
-      <Verdict board={board} />
+      {acc?.reason === "trial" ? (
+        <div className="lx-wrap mt-6"><p className="rounded-2xl p-3 text-[15px] font-bold" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🎁 את בניסיון חינם: נשארו לך ${acc.daysLeft} ימים.`, `🎁 You're on a free trial: ${acc.daysLeft} days left.`)} <Go to="/radar-pro#radar-tiers" className="underline">{L("למסלולים", "See the plans")}</Go></p></div>
+      ) : null}
+      {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
+      <Verdict board={board} gated={gated} />
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
@@ -631,13 +663,6 @@ export function RadarPage() {
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
         <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("מה הרדאר רואה עכשיו", "What the radar sees now")}</h2>
-        {gated ? (
-          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
-            <p className="text-[18px] font-extrabold">{L("תקופת הניסיון הסתיימה", "The trial has ended")}</p>
-            <p className="mt-1 text-[14px] leading-6">{L("הלוח המלא של הרדאר זמין עכשיו במנוי Basic או Pro. הבדיקה העצמית הפומבית נשארת פתוחה לכולם.", "The full radar board is now available with Basic or Pro. The public self-grading stays open to everyone.")}</p>
-            <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 48 }}>{L("למסלולים", "See the plans")}</Go>
-          </div>
-        ) : null}
         {!gated && board === undefined ? <div className="mt-6"><Spinner /></div> : null}
         {!gated && board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
         {!gated && board ? (

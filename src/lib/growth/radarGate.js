@@ -8,13 +8,37 @@ import { accessOf } from "./radarPlans.js";
 import { radarSubAccess } from "./radarSubs.js";
 
 export const RADAR_BOARD_KEY = "radar:board";
+// Each user's own free trial (the owner, 2026-11-15: "a separate access, a free trial, then they
+// subscribe — like Claude"): it starts the first time she opens the radar signed in after the launch
+// trial has ended, and lasts USER_TRIAL_DAYS (marketplace:settings.radarAccess.userTrialDays, 3–30).
+export const RADAR_TRIALS_KEY = "radar:trials";
+export const USER_TRIAL_DAYS = 7;
+const DAY = 86_400_000;
 
-/** Who may read the full board: the open trial, or this user's active radar subscription. */
-export function boardAccess({ settings = {}, sub = null, now = Date.now() } = {}) {
+export function userTrialDays(settings = {}) {
+  const n = Number(settings?.radarAccess?.userTrialDays);
+  return Number.isFinite(n) && n >= 3 && n <= 30 ? Math.round(n) : USER_TRIAL_DAYS;
+}
+
+/** One user's trial from its start: active until startedAt + days. */
+export function userTrialOf(record, { days = USER_TRIAL_DAYS, now = Date.now() } = {}) {
+  const start = Date.parse(record?.startedAt || "");
+  if (!Number.isFinite(start)) return null;
+  const endsAt = start + days * DAY;
+  return { startedAt: new Date(start).toISOString(), endsAt: new Date(endsAt).toISOString(), active: now < endsAt, daysLeft: Math.max(0, Math.ceil((endsAt - now) / DAY)) };
+}
+
+/**
+ * Who may read the full board: the open launch trial; this user's active subscription; this user's
+ * own trial while it runs. Otherwise: sign in for a trial (anonymous), or subscribe (trial used).
+ */
+export function boardAccess({ settings = {}, sub = null, trial = null, signedIn = false, now = Date.now() } = {}) {
   const a = accessOf(settings, { now });
   if (!a.locked) return { full: true, reason: "open" };
   if (sub && radarSubAccess(sub, now)) return { full: true, reason: "subscriber" };
-  return { full: false, reason: "subscription_required" };
+  if (trial?.active) return { full: true, reason: "trial", trialEndsAt: trial.endsAt, daysLeft: trial.daysLeft };
+  if (!signedIn) return { full: false, reason: "sign_in_for_trial" };
+  return { full: false, reason: "subscription_required", trialEndedAt: trial?.endsAt || null };
 }
 
 /** The public teaser: the proof without the live calls (no concept, no seal text, open calls counted only). */

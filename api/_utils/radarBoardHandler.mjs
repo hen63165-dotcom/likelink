@@ -9,7 +9,8 @@ import { verifyToken } from "./authVerify.js";
 import { readBody } from "./readBody.mjs";
 import { paypalEnvName } from "./paypal.js";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
-import { RADAR_BOARD_KEY, boardAccess, teaserBoard } from "../../src/lib/growth/radarGate.js";
+import { RADAR_BOARD_KEY, RADAR_TRIALS_KEY, boardAccess, teaserBoard, userTrialDays, userTrialOf } from "../../src/lib/growth/radarGate.js";
+import { accessOf } from "../../src/lib/growth/radarPlans.js";
 import { currentRadarSub, ownRadarSubs } from "../../src/lib/growth/radarSubs.js";
 
 const header = (req, k) => String((req.headers?.get ? req.headers.get(k) : req.headers?.[k]) || "");
@@ -39,14 +40,31 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
     if (!board) return json({ ok: false, error: "board_not_ready" }, 503);
     const settings = (await kvGet("marketplace:settings", {})) || {};
     let sub = null;
+    let trial = null;
+    let signedIn = false;
+    const t = now();
     const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
     if (token) {
       const user = await verify(token).catch(() => null);
-      if (user?.id) sub = currentRadarSub(ownRadarSubs((await kvGet("radar:subscriptions", [])) || [], String(user.id), paypalEnvName()), now());
+      if (user?.id) {
+        signedIn = true;
+        const uid = String(user.id);
+        sub = currentRadarSub(ownRadarSubs((await kvGet("radar:subscriptions", [])) || [], uid, paypalEnvName()), t);
+        // Her own trial starts the first time she opens the radar signed in once the launch trial is over.
+        if (accessOf(settings, { now: t }).locked) {
+          const trials = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
+          if (!trials[uid] && !sub) {
+            await kvSet(RADAR_TRIALS_KEY, { ...trials, [uid]: { startedAt: new Date(t).toISOString() } });
+            const back = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
+            trials[uid] = back[uid] || null;
+          }
+          trial = userTrialOf(trials[uid], { days: userTrialDays(settings), now: t });
+        }
+      }
     }
-    const access = boardAccess({ settings, sub, now: now() });
-    if (access.full) return json({ ok: true, access: access.reason, board });
-    return json({ ok: false, error: access.reason, teaser: teaserBoard(board) }, 402);
+    const access = boardAccess({ settings, sub, trial, signedIn, now: t });
+    if (access.full) return json({ ok: true, access: access.reason, trialEndsAt: access.trialEndsAt || null, daysLeft: access.daysLeft ?? null, board });
+    return json({ ok: false, error: access.reason, trialDays: userTrialDays(settings), teaser: teaserBoard(board) }, 402);
   };
 }
 
