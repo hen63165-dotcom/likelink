@@ -17,7 +17,9 @@ const keepAll = !all;
 console.log("products to ask:", ids.length);
 const report = [];
 for (const id of ids) {
-  const p = products.find((x) => x?.id === id);
+  // A bare store item number (not on the site yet) is asked by its store page address, to see whether
+  // the seller has a video before the item is added; nothing is written anywhere.
+  const p = products.find((x) => x?.id === id) || (/^\d{12,20}$/.test(id) ? { id, affiliateUrl: `https://www.aliexpress.com/item/${id}.html` } : null);
   if (!p) { report.push({ id, status: "NOT_IN_CLOUD" }); continue; }
   try {
     const found = await storeVideo(p);
