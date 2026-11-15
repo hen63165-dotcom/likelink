@@ -13,7 +13,7 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
-import { WORLD_STATES, verdictOf } from "../../lib/growth/worldPulse.js";
+import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
 import { fetchRadarSubscription } from "../../lib/commerce.js";
@@ -388,9 +388,27 @@ export function TrialBanner() {
  * grade and the days it was ahead. Shareable as text that only states what was sealed (never a promise).
  */
 const RESULT_HE = { HIT: "✅ פגע", MISS: "❌ לא פגע" };
+function Countdown() {
+  const { L } = useL();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, nextReadingAt(now) - now);
+  const hh = String(Math.floor(left / 3_600_000)).padStart(2, "0");
+  const mm = String(Math.floor((left % 3_600_000) / 60_000)).padStart(2, "0");
+  const ss = String(Math.floor((left % 60_000) / 1000)).padStart(2, "0");
+  return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הבדיקה הבאה של הרדאר בעוד ", "⏰ The radar's next reading in ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
+}
+
 function Verdict({ board }) {
   const { L } = useL();
   if (!board?.early) return null;
+  // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
+  const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
+  // Born now: sellers rush in (listings +25%/week from a small base) before buyers search.
+  const born = (board.concepts || []).filter((c) => c.factory?.born && c.early?.level !== "CALL").sort((a, b) => b.factory.weekPct - a.factory.weekPct).slice(0, 5);
   const day = String(board.at || "").slice(0, 10);
   const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
   const ledger = board.early.ledger || [];
@@ -399,7 +417,10 @@ function Verdict({ board }) {
   return (
     <section className="lx-wrap mt-8" id="verdict">
       <div className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
-        <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+          <Countdown />
+        </div>
         {v.calls.length ? (
           <ul className="mt-3 grid gap-3">
             {v.calls.map((e) => (
@@ -416,8 +437,38 @@ function Verdict({ board }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, היום ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז הקביעה` : ""}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since the call today` : ""}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
         )}
+        {brink.length ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-extrabold">{L("🔥 על סף קביעה: 3 מתוך 4 סימנים", "🔥 On the brink: 3 of 4 signals")}</p>
+            <ul className="mt-1 grid gap-1 text-[13px]">
+              {brink.map((c) => {
+                const missing = Object.entries(c.early.signals || {}).filter(([, v]) => !v).map(([k]) => SIGNAL_HE[k]).join(", ");
+                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}. הבדיקה של מחר תגיד אם זה הופך לקביעה.`, ` · missing: ${missing}. Tomorrow's reading decides.`)}</li>;
+              })}
+            </ul>
+          </div>
+        ) : null}
+        {born.length ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
+            <ul className="mt-1 grid gap-1 text-[13px]">
+              {born.map((c) => <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% מודעות בשבוע (${c.factory.from.toLocaleString("he-IL")} → ${c.factory.to.toLocaleString("he-IL")} ב־${c.factory.days} ימים)`, ` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% listings a week (${c.factory.from} → ${c.factory.to} in ${c.factory.days} days)`)}</li>)}
+            </ul>
+            <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מפעלים ומוכרים מעלים מוצר חדש לפני שמחפשים אותו. זה הסימן הכי מוקדם שהרדאר מודד.", "Factories and sellers list a new product before people search for it: the earliest sign the radar measures.")}</p>
+          </div>
+        ) : null}
+        {board.early.calibration ? (
+          <div className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+            <p className="font-extrabold">{L("📏 כמה פעמים כל סוג קביעה פגע", "📏 How often each kind of call hit")}</p>
+            {[["sniper", L("🎯 קביעת צלף (כל 4 הסימנים)", "🎯 Sniper call (all four signals)")], ["signal", L("📈 סימון רגיל (ביקוש בלבד)", "📈 Ordinary signal (demand only)")]].map(([k, label]) => {
+              const r = board.early.calibration[k];
+              return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`עוד אין ציונים${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
+            })}
+            <p style={{ color: "var(--lx-muted)" }}>{L("הרדאר מבדיל בין סימון רגיל לקביעת צלף, וכאן רואים כמה פעמים כל אחד מהם באמת פגע. כל קביעה נמדדת כל יום, והציון הסופי נכתב אחרי 14 יום ונשאר גלוי.", "The radar tells an ordinary signal from a sniper call, and here you see how often each really hit. Every call is measured daily; the final grade is written after 14 days and stays public.")}</p>
+          </div>
+        ) : null}
         {ledger.length ? (
           <details className="mt-4">
             <summary className="cursor-pointer text-[14px] font-extrabold">{L(`📖 ספר הקביעות: כל ${ledger.length} הקביעות, עם הציון`, `📖 The ledger: all ${ledger.length} calls, with their grade`)}</summary>
@@ -428,7 +479,7 @@ function Verdict({ board }) {
                   <li key={`${e.concept}-${e.at}`} className="flex flex-wrap gap-x-3">
                     <span className="font-bold">{dm(e.at)}</span>
                     <span>{name(e.concept)}</span>
-                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
+                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : e.progress !== null ? L(`⏳ יום ${e.dayN} מתוך 14 · ${e.progress > 0 ? "+" : ""}${e.progress}% מאז הקביעה (פגיעה = +15%)`, `⏳ day ${e.dayN} of 14 · ${e.progress > 0 ? "+" : ""}${e.progress}% since the call (hit = +15%)`) : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
                     {ahead.length ? <span>{L(`🚀 הקדים: ${ahead.map(([k, n]) => `${FINISH_HE[k]} ב־${n} ימים`).join(", ")}`, `🚀 ahead: ${ahead.map(([k, n]) => `${k} by ${n} days`).join(", ")}`)}</span> : null}
                   </li>
                 );

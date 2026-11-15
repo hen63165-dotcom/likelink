@@ -35,7 +35,7 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, echoOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
@@ -389,11 +389,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early });
     // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
     const latest = (readings[c.id] || []).at(-1);
-    if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && !x.result)) {
+    // Only an open EARLY call blocks a new one: a rising concept nearly always has an open stage call
+    // (updateCalls), and that must never stop the stronger early call from being sealed.
+    if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && x.kind === "early" && !x.result)) {
       calls.push({ concept: c.id, kind: "early", stage: c.stage, at: today, base: latest.sum, due: new Date(Date.parse(today) + 14 * 86_400_000).toISOString().slice(0, 10), signals: Object.entries(c.early.signals).filter(([, v]) => v).map(([k]) => k) });
       log.push(`EARLY CALL ${c.id}: ${c.early.count}/4 signals`);
     }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
+    c.factory = factoryOf(c.listings); // the factory signal: sellers rushing in before buyers
   }
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
@@ -420,7 +423,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
   }
-  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls), seal };
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls, { latest: Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum])), today }), calibration: calibrationOf(calls, trackRecord), seal };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

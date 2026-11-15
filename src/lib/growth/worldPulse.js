@@ -295,15 +295,27 @@ export function sealOf(calls = []) {
 
 
 /**
+ * The live scoreboard of an open call (the owner, 2026-11-15: "why only after 14 days?"): measured
+ * every day against its sealed base, the same way the final grade is (orders now / base − 1), so
+ * anyone watches it move toward the +15% a hit needs. Graded calls carry their final growth instead.
+ */
+function liveOf(c, latest = {}, today = null) {
+  const now = Number(latest?.[c.concept]);
+  const progress = !c.result && Number(c.base) > 0 && Number.isFinite(now) ? Math.round((now / c.base - 1) * 1000) / 10 : null;
+  const dayN = !c.result && today ? Math.max(0, Math.round((Date.parse(today) - Date.parse(c.at)) / 86_400_000)) : null;
+  return { progress, dayN: Number.isFinite(dayN) ? dayN : null };
+}
+
+/**
  * The public ledger ("ספר הקביעות"): every early call, newest first, with its sealed day, its grade
  * day, the grade once it exists (HIT/MISS, never edited) and the day each finish line was crossed.
  */
-export function ledgerOf(calls = [], { max = 40 } = {}) {
+export function ledgerOf(calls = [], { max = 40, latest = {}, today = null } = {}) {
   return (Array.isArray(calls) ? calls : [])
     .filter((c) => c?.kind === "early" && c.concept && c.at)
     .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.concept).localeCompare(String(b.concept)))
     .slice(0, max)
-    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
+    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, ...liveOf(c, latest, today), firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
 }
 
 /**
@@ -317,4 +329,44 @@ export function verdictOf({ ledger = [], concepts = [], day = null } = {}) {
   today.sort((a, b) => strength(b) - strength(a));
   const open = (Array.isArray(ledger) ? ledger : []).find((e) => !e.result && e.at !== day && byId.has(e.concept)) || null;
   return { day, calls: today.map((e) => ({ ...e, concept: byId.get(e.concept) })), latestOpen: open ? { ...open, concept: byId.get(open.concept) } : null };
+}
+
+/**
+ * How sure the radar is, and how often that held (the owner, 2026-11-15: "make it the tool that is
+ * right"). Like a weather forecast, the radar states its certainty, and the page proves it: the
+ * ordinary stage signals (demand alone) and the sniper calls (all four signals) are graded apart, so
+ * anyone sees how much more often a sniper call hit. `record` is trendRadar.trackRecord (injected).
+ */
+export function calibrationOf(calls = [], record) {
+  const list = Array.isArray(calls) ? calls : [];
+  const pick = (r) => ({ graded: r.graded, hits: r.hits, accuracy: r.accuracy, pending: r.pending });
+  return { signal: pick(record(list.filter((c) => c?.kind !== "early"))), sniper: pick(record(list.filter((c) => c?.kind === "early"))) };
+}
+
+/** The next daily reading (the page's countdown): the radar runs at 05:37 UTC (Actions → "Trend radar"). */
+export function nextReadingAt(now = Date.now()) {
+  const d = new Date(now);
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 5, 37);
+  return t > now ? t : t + 86_400_000;
+}
+
+/**
+ * The factory signal (the owner, 2026-11-15: "spot trends before anyone spotted them"). Sellers and
+ * factories list a new kind of product on AliExpress BEFORE people search for it: they make it ahead.
+ * From the concept's own daily listing counts (AliExpress's total_record_count): the weekly growth of
+ * matching listings between the oldest and newest readings 2–14 days apart. `born` when the kind is
+ * still small (under 5,000 listings) and listings grow ≥ 25% a week: sellers rush in, buyers not yet.
+ * Measured, never inferred: under two usable readings it is null.
+ */
+export const FACTORY = Object.freeze({ smallBase: 5000, bornWeekPct: 25, minDays: 2, maxDays: 14 });
+export function factoryOf(listings = [], rules = FACTORY) {
+  const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])) && Number(r[1]) > 0 && Number.isFinite(Date.parse(r[0])));
+  if (rs.length < 2) return null;
+  const [d1, n1] = rs[rs.length - 1];
+  const older = rs.slice(0, -1).filter(([d]) => { const days = (Date.parse(d1) - Date.parse(d)) / 86_400_000; return days >= rules.minDays && days <= rules.maxDays; });
+  if (!older.length) return null;
+  const [d0, n0] = older[0];
+  const days = (Date.parse(d1) - Date.parse(d0)) / 86_400_000;
+  const weekPct = Math.round((Math.pow(Number(n1) / Number(n0), 7 / days) - 1) * 1000) / 10;
+  return { weekPct, from: Number(n0), to: Number(n1), days: Math.round(days), born: Number(n0) < rules.smallBase && weekPct >= rules.bornWeekPct };
 }
