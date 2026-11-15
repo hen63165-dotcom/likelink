@@ -225,9 +225,15 @@ function EarlyLine({ early }) {
     <div className="mt-3 rounded-2xl p-3" style={{ background: early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>
       <p className="text-[14px] font-extrabold">{early.level === "CALL" ? L(`🎯 התראה מוקדמת: ${early.count} סימנים מסכימים`, `🎯 Early call: ${early.count} signals agree`) : L(`👀 במעקב: ${early.count} סימנים`, `👀 Watching: ${early.count} signals`)}</p>
       <p className="mt-1 text-[12px] leading-5">{on.join(" · ")}</p>
+      {early.aheadOf?.length ? <p className="mt-1 text-[12px] font-bold">{L(`🚀 הרדאר מקדים את: ${early.aheadOf.map((k) => FINISH_HE[k]).join(", ")}. ביום שזה יקרה, נכתוב כאן בכמה ימים הוא הקדים.`, `🚀 Ahead of: ${early.aheadOf.join(", ")}. The day each one happens, we write here how many days ahead the call was.`)}</p> : null}
+      {early.buzz?.length ? <p className="mt-1 text-[12px]">{L(`📣 כבר יש באז: ${early.buzz.map((k) => BUZZ_HE[k]).join(", ")}. זה סימן מאוחר, הוא לא נספר כסימן מוקדם.`, `📣 Already buzzing: ${early.buzz.join(", ")}. A late sign, never counted as an early one.`)}</p> : null}
     </div>
   );
 }
+const BUZZ_HE = { tiktok: "טיקטוק/ויראלי", amazon: "אמזון", douyin: "דואין (סין)", korea: "טרנד בקוריאה" };
+/** The four public finish lines a call is timed against (worldPulse.FINISH_LINES). */
+const FINISH_LINES_ORDER = ["buzz", "israel", "trends", "wide"];
+const FINISH_HE = { buzz: "הבאז ברשתות", israel: "החיפושים בעברית בארץ", trends: "החיפושים החמים של גוגל", wide: "החיפוש בהרבה מדינות" };
 
 export function ConceptCard({ c }) {
   const { L } = useL();
@@ -318,6 +324,7 @@ function MarketMap({ list, openId = "" }) {
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
                       {c.early && c.early.level !== "NONE" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: c.early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>{c.early.level === "CALL" ? "🎯" : "👀"} {c.early.count}/4</span> : null}
+                      {c.early?.beforeAll ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dbeafe", color: "#0b0b0b" }}>🚀 {L("לפני כולם", "before everyone")}</span> : c.early?.aheadOf?.includes("buzz") ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dbeafe", color: "#0b0b0b" }}>🚀 {L("לפני הרשתות", "before the networks")}</span> : null}
                       {WORLD_SIGNAL.has(c.world?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: WORLD_STYLE[c.world.state].bg, color: WORLD_STYLE[c.world.state].fg }}>🌍 {WORLD_STATES[c.world.state].he}</span> : null}
                       {["GAP", "QUIET", "ARRIVING"].includes(c.gap?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{c.gap.state === "GAP" ? "🔓 " : ""}{gapHe(c.gap)}</span> : null}
                       {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
@@ -557,6 +564,7 @@ export function RadarPage() {
                       {board.early.record.graded
                         ? L(`הדיוק של ההתראות המוקדמות: ${board.early.record.hits} פגיעות מתוך ${board.early.record.graded} שנבדקו (${board.early.record.accuracy}%).`, `Early-call accuracy: ${board.early.record.hits} hits of ${board.early.record.graded} graded (${board.early.record.accuracy}%).`)
                         : L(`התראות שמחכות לבדיקה: ${board.early.record.pending}. כל התראה נבדקת אחרי 14 יום, והתוצאה נכתבת כאן.`, `Calls awaiting their grade: ${board.early.record.pending}. Each is graded after 14 days, here.`)}
+                      {board.early.lead ? <><br />{FINISH_LINES_ORDER.map((k) => { const l = board.early.lead[k]; return l?.ahead ? L(`🚀 לפני ${FINISH_HE[k]}: ${l.ahead} התראות, בחציון ${l.medianDays} ימים קודם. `, `🚀 Ahead of ${k}: ${l.ahead} calls, median ${l.medianDays} days. `) : ""; }).join("") || L("🚀 כל התראה נמדדת מול 4 קווי סיום: הבאז ברשתות, החיפושים בעברית בארץ, החיפושים החמים של גוגל והחיפוש בהרבה מדינות. היום שבו כל אחד מהם קורה נרשם, ואז רואים בכמה ימים הרדאר הקדים.", "🚀 Every call is timed against 4 finish lines: the networks' buzz, Hebrew searches in Israel, Google's trending searches and many countries. The day each happens is recorded, so the head start can be counted.")}</> : null}
                       {board.early.need === 4 ? L(" הדיוק ירד מתחת ל־70%, אז הרדאר מחמיר: עכשיו הוא דורש את כל 4 הסימנים.", " Accuracy fell under 70%, so the bar is now all four signals.") : ""}
                       {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}</> : null}
                     </p>

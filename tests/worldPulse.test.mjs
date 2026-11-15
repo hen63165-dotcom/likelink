@@ -80,3 +80,54 @@ test("China and Korea through their own engines: answers parsed, the echo never 
   assert.equal(cjkExtensions("버터 말랑이", naver), 1);
   assert.equal(parseEngine("baidu", "<html>blocked</html>"), null, "a page that is not an answer is no reading");
 });
+
+test("the finish lines are late: they never count toward a call, they time it ('before everyone')", async () => {
+  const { earlyCall, echoOf, stampFirsts, leadOf, worldReading, finishLinesOf } = await import("../src/lib/growth/worldPulse.js");
+  assert.deepEqual(echoOf({ en: ["pudding squishy tiktok", "pudding squishy"], zh: ["布丁捏捏乐抖音同款"], ko: ["푸딩 말랑이"] }), ["tiktok", "douyin"]);
+  assert.deepEqual(echoOf({}), []);
+  assert.deepEqual(worldReading({ echo: ["tiktok", "made-up"] }).echo, ["tiktok"], "only known networks are kept");
+  const listings = [["2026-11-10", 100], ["2026-11-15", 120]];
+  const quiet = earlyCall({ world: { state: "SPREADING", echo: [], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 2 } });
+  assert.equal(quiet.level, "CALL");
+  assert.equal(quiet.beforeAll, true, "a call before every finish line is 'before everyone'");
+  assert.deepEqual(quiet.aheadOf, ["buzz", "israel", "trends", "wide"]);
+  assert.equal(Object.hasOwn(quiet.signals, "social"), false, "buzz is not one of the agreeing signals");
+  const loud = earlyCall({ world: { state: "SPREADING", echo: ["tiktok"], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 2 } });
+  assert.equal(loud.count, quiet.count, "buzz adds nothing to the count");
+  assert.equal(loud.beforeAll, false);
+  assert.deepEqual(loud.aheadOf, ["israel", "trends", "wide"]);
+  assert.deepEqual(earlyCall({ world: { state: "WIDE", echo: ["tiktok", "douyin"] }, stage: "STEADY" }).level, "NONE", "buzz alone is not even watched");
+  assert.deepEqual(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).aheadOf, [], "no call, no claim of being ahead");
+  assert.deepEqual(finishLinesOf({ world: { state: "VIRAL_NOW", echo: [] }, gap: { state: "ARRIVING" } }), { buzz: false, israel: true, trends: true, wide: false });
+
+  const calls = [
+    { concept: "a", kind: "early", at: "2026-11-01" },
+    { concept: "b", kind: "early", at: "2026-11-10" },
+    { concept: "c", kind: "early", at: "2026-11-05", firsts: { buzz: "2026-11-09" } },
+    { concept: "d", kind: "stage", at: "2026-11-01" },
+  ];
+  const stamped = stampFirsts(calls, { a: { buzz: true, israel: true }, b: { wide: true }, c: { buzz: true }, d: { buzz: true } }, "2026-11-15");
+  assert.deepEqual(stamped[0].firsts, { buzz: "2026-11-15", israel: "2026-11-15" });
+  assert.deepEqual(stamped[1].firsts, { wide: "2026-11-15" });
+  assert.equal(stamped[2].firsts.buzz, "2026-11-09", "the first day is kept, never moved");
+  assert.equal(stamped[3].firsts, undefined, "only early calls are timed");
+  const lead = leadOf(stamped);
+  assert.deepEqual(lead.buzz, { met: 2, ahead: 2, medianDays: 14, waiting: 1 });
+  assert.deepEqual(lead.israel, { met: 1, ahead: 1, medianDays: 14, waiting: 2 });
+  assert.deepEqual(lead.wide, { met: 1, ahead: 1, medianDays: 5, waiting: 2 });
+  assert.deepEqual(lead.trends, { met: 0, ahead: 0, medianDays: null, waiting: 3 });
+  const sameDay = leadOf(stampFirsts([{ concept: "x", kind: "early", at: "2026-11-15" }], { x: { buzz: true } }, "2026-11-15"));
+  assert.deepEqual(sameDay.buzz, { met: 1, ahead: 0, medianDays: null, waiting: 0 }, "a line crossed on the call's day is never 'ahead'");
+});
+
+test("the board keeps only known finish lines on its way to the page", async () => {
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const b = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [{ id: "pudding-squishy", en: "pudding squishy", stage: "RISING", early: { level: "CALL", count: 3, signals: { demand: true }, aheadOf: ["buzz", "evil"], beforeAll: true, buzz: ["tiktok", "x"] } }], early: { need: 3, record: {}, lead: { buzz: { met: 1, ahead: 1, medianDays: 6, waiting: 0 }, junk: {} } } });
+  const c = (b?.concepts || [])[0];
+  {
+    assert.deepEqual(c.early.aheadOf, ["buzz"]);
+    assert.deepEqual(c.early.buzz, ["tiktok"]);
+  }
+  assert.deepEqual(Object.keys(b.early.lead), ["buzz", "israel", "trends", "wide"]);
+  assert.equal(b.early.lead.buzz.medianDays, 6);
+});
