@@ -20,7 +20,7 @@ const MAGIC = "LLRS1";
 export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board";
 
 export function stateKey(secret) {
-  if (!secret || String(secret).length < 16) throw new Error("state key needs AUTOPILOT_SECRET");
+  if (!secret || String(secret).length < 8) throw new Error("state key needs AUTOPILOT_SECRET");
   return createHash("sha256").update(`likelink-radar-state|${secret}`).digest();
 }
 
