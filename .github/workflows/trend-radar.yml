@@ -68,9 +68,21 @@ jobs:
         run: |
           node scripts/catalog/push-archive.mjs radar-state | tee -a /tmp/radar.txt
           { echo "### Catalog archive"; echo '```'; grep -A40 "catalog archive:" /tmp/radar.txt | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: The morning alert (Telegram, only on a day with a new sealed call)
+        # src/lib/growth/radarAlert.js: one message a day at most, SENT only with Telegram's message_id;
+        # from main only (RADAR_ALERT_SEND), without the brand bot it reports REQUIRES_CONNECTION.
+        continue-on-error: true
+        env:
+          BRAND_TELEGRAM_BOT: ${{ secrets.BRAND_TELEGRAM_BOT }}
+          BRAND_TELEGRAM_CHAT: ${{ secrets.BRAND_TELEGRAM_CHAT }}
+          RADAR_ALERT_SEND: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
+        run: |
+          node scripts/catalog/radar-alert.mjs radar-state | tee -a /tmp/radar.txt
+          { echo "### Morning alert"; echo '```'; grep -A8 "radar alert:" /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the history and the board
         run: |
           files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/world.json radar-state/discovered.json radar-state/items.json radar-state/catalog.json radar-state/briefs.json radar-state/catalog-decisions.json radar-state/board.json"
+          [ -f radar-state/alerts.json ] && files="$files radar-state/alerts.json"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), the Israel gap (Google autocomplete levels, never texts), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
             gh release upload radar $files --clobber

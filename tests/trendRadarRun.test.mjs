@@ -23,7 +23,12 @@ function fakeNet({ week }) {
   const fetchImpl = async (url, opts = {}) => {
     const u = String(url);
     const { origin, pathname } = new URL(u);
-    requests.push({ url: u, method: opts.method || "GET" });
+    requests.push({ url: u, method: opts.method || "GET", bytes: opts.body instanceof Uint8Array ? opts.body.length : null });
+    // OpenTimestamps: a calendar answers a pending timestamp for the 32-byte digest (radarSeal.js).
+    if ((origin === "https://a.pool.opentimestamps.org" || origin === "https://b.pool.opentimestamps.org") && pathname === "/digest") {
+      const body = Uint8Array.from([0xf0, 0x10, ...new Array(16).fill(7), 0x08, 0xf1, 0x04, 1, 2, 3, 4, 0x00, 0x83, 0xdf, 0xe3, 0x0d, 0x2e, 0xf9, 0x0c, 0x8e, 0x05, 0x04, 0x61, 0x62, 0x63, 0x64]);
+      return { ok: true, status: 200, arrayBuffer: async () => body.buffer };
+    }
     if (origin === "https://api-sg.aliexpress.com") {
       const p = new URLSearchParams(opts.body);
       const method = p.get("method");
@@ -84,7 +89,7 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   const r2 = await run(dir, { env: ENV, fetchImpl: two.fetchImpl, now: at("2026-11-21"), politeMs: 0 });
 
   for (const net of [one, two]) {
-    assert.ok(net.requests.every((r) => r.method === "GET" || new URL(r.url).origin === "https://api-sg.aliexpress.com"), "only reads: GETs, and the store's signed query calls");
+    assert.ok(net.requests.every((r) => r.method === "GET" || new URL(r.url).origin === "https://api-sg.aliexpress.com" || (/^https:\/\/[ab]\.pool\.opentimestamps\.org$/.test(new URL(r.url).origin) && r.bytes === 32)), "only reads: GETs, the store's signed query calls, and the seal's bare 32-byte hash to OpenTimestamps");
     const firstGoogle = net.requests.findIndex((r) => r.url.includes("/complete/search"));
     const robots = net.requests.findIndex((r) => r.url === "https://suggestqueries.google.com/robots.txt");
     assert.ok(robots >= 0 && robots < firstGoogle, "robots.txt is read before any autocomplete request");

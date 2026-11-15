@@ -40,6 +40,26 @@ export function parseEngine(engine, text) {
   return null;
 }
 
+/**
+ * The social echo (2026-11-15: TikTok, Douyin and Instagram are closed, so the radar reads their buzz
+ * where it lands, in the search engines' own public suggestions). When a product goes viral, people
+ * search "<product> tiktok" (Google), "<product> 抖音同款" (Baidu: "as on Douyin") or "<product> 틱톡"
+ * (Naver), and the engine starts suggesting it. Which networks echo in one day's suggestions (pure).
+ * The echo is LATE by nature (the owner: "if it's on TikTok it was already spotted"): it never counts
+ * toward an early call. It is the finish line a call is timed against (`beforeBuzz`, `leadOf`).
+ */
+export const ECHO = Object.freeze({
+  tiktok: /tik\s*tok|viral|trending/i,
+  amazon: /amazon/i,
+  douyin: /抖音|网红|爆款|小红书/,
+  korea: /틱톡|유행|인기|릴스/,
+});
+export function echoOf({ en = [], zh = [], ko = [] } = {}) {
+  const has = (list, re) => (Array.isArray(list) ? list : []).some((x) => re.test(String(x)));
+  return ["tiktok", "amazon"].filter((k) => has(en, ECHO[k])).concat(has(zh, ECHO.douyin) ? ["douyin"] : [], has(ko, ECHO.korea) ? ["korea"] : []);
+}
+const ECHO_HE = { tiktok: "טיקטוק/ויראלי (גוגל)", amazon: "אמזון (גוגל)", douyin: "דואין/להיט (באידו, סין)", korea: "טיקטוק/טרנד (נייבר, קוריאה)" };
+
 /** Suggestions that extend the phrase (spaces ignored; CJK-safe), never the echo itself. */
 export function cjkExtensions(phrase, suggestions) {
   if (!Array.isArray(suggestions)) return null;
@@ -74,10 +94,10 @@ const level = (n, rules = WORLD) => (Number.isFinite(n) ? (n >= rules.aware ? "A
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 /** One day's world reading: completions per market (null = no answer), YouTube US, today's trends geos. */
-export function worldReading({ by = {}, yt = null, trends = [] } = {}, { now = Date.now() } = {}) {
+export function worldReading({ by = {}, yt = null, trends = [], echo = [] } = {}, { now = Date.now() } = {}) {
   const out = {};
   for (const m of WORLD_MARKETS) out[m.id] = Number.isFinite(by[m.id]) ? by[m.id] : null;
-  return { d: new Date(now).toISOString().slice(0, 10), by: out, yt: Number.isFinite(yt) ? yt : null, trends: (Array.isArray(trends) ? trends : []).filter((g) => TRENDS_GEOS.includes(g)) };
+  return { d: new Date(now).toISOString().slice(0, 10), by: out, yt: Number.isFinite(yt) ? yt : null, trends: (Array.isArray(trends) ? trends : []).filter((g) => TRENDS_GEOS.includes(g)), echo: (Array.isArray(echo) ? echo : []).filter((k) => Object.hasOwn(ECHO, k)) };
 }
 
 /** Adds today's reading (one per day; a later one the same day replaces it). */
@@ -120,7 +140,9 @@ export function worldPulseOf(history = [], { rules = WORLD } = {}) {
   if (trends.length) evidence.push(`בחיפושים החמים של גוגל היום ב${trends.map((g) => GEO_HE[g] || g).join(", ")} (${dm(now.d)}).`);
   evidence.push(where.length ? `מחפשים את זה ב: ${where.join(", ")} (${dm(now.d)}).` : `עוד אין השלמות לחיפוש ב־${WORLD_MARKETS.length} המדינות וביוטיוב (${dm(now.d)}).`);
   if (before && older) evidence.push(`לפני (${dm(older.d)}): ב־${before.searched} מקורות; היום: ב־${today.searched}.`);
-  return { state, he: WORLD_STATES[state].he, searched: today.searched, of: today.answered, trends, evidence };
+  const echo = Array.isArray(now.echo) ? now.echo : [];
+  if (echo.length) evidence.push(`באז ברשתות, בהשלמות החיפוש: ${echo.map((k) => ECHO_HE[k]).join(", ")} (${dm(now.d)}).`);
+  return { state, he: WORLD_STATES[state].he, searched: today.searched, of: today.answered, trends, echo, evidence };
 }
 
 /** The concepts whose English phrase appears in a country's trending searches today (geo → ids). */
@@ -176,10 +198,10 @@ export function productTrend(term, items = [], { rules = WORLD } = {}) {
  *   demand  — AliExpress orders accelerate across most top items (stage EMERGING/RISING);
  *   supply  — sellers rush in: matching listings grew ≥10% between readings ≥2 days apart;
  *   israel  — not searched in Hebrew yet (the head start).
- * CALL when three agree (demand among them) and the previous reading already showed two (it held);
+ * CALL (sniper mode) when all four agree and the previous reading already showed three (it held);
  * WATCH otherwise on two. A call is graded publicly after 14 days.
  */
-export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 3, before = null } = {}) {
+export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 4, before = null } = {}) {
   const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])));
   let supply = false;
   if (rs.length >= 2) {
@@ -196,19 +218,74 @@ export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], g
   const count = Object.values(signals).filter(Boolean).length;
   // Persistence (a fad flashes once; a trend holds): a CALL also needs the previous reading to have
   // shown at least two agreeing signals. Without it, today's three signals are WATCH.
-  const held = Number(before?.count) >= 2;
-  const level = count >= need && signals.demand && held ? "CALL" : count >= 2 ? "WATCH" : "NONE";
-  return { level, count, signals, held };
+  // Sniper mode (the owner, 2026-11-15: "it must hit"): fewer calls, each one stronger. A call needs
+  // all four signals today and three of them in the previous reading; after misses (need 5) the
+  // previous reading must also have shown all four. A miss is never hidden: precision comes from the bar.
+  const heldMin = need > 4 ? 4 : 3;
+  const held = Number(before?.count) >= heldMin;
+  const level = count >= Math.min(need, 4) && signals.demand && held ? "CALL" : count >= 2 ? "WATCH" : "NONE";
+  // The finish lines are not signals (they come after): they only say what the call is ahead of.
+  const crossed = finishLinesOf({ world, gap });
+  const aheadOf = FINISH_LINES.filter((k) => !crossed[k]);
+  const buzz = Array.isArray(world?.echo) ? world.echo.filter((k) => Object.hasOwn(ECHO, k)) : [];
+  return { level, count, signals, held, buzz, aheadOf: level === "CALL" ? aheadOf : [], beforeAll: level === "CALL" && aheadOf.length === FINISH_LINES.length };
+}
+
+/**
+ * "Before everyone" (the owner, 2026-11-15: "not only TikTok — before everyone"), made checkable.
+ * Every early call is timed against four public finish lines, each one a moment when everybody else
+ * can see the trend too:
+ *   buzz   — the networks talk about it (TikTok/Douyin/Amazon/Korean trend words in the engines' suggestions);
+ *   israel — Israelis start searching it in Hebrew (the Israel gap turns ARRIVING/ARRIVED);
+ *   trends — it enters Google's daily trending searches in one of the 10 countries;
+ *   wide   — it is searched in many countries (the world pulse turns WIDE).
+ * A line already crossed when the call is made counts 0 days: never "ahead".
+ */
+export const FINISH_LINES = Object.freeze(["buzz", "israel", "trends", "wide"]);
+export function finishLinesOf({ world = null, gap = null } = {}) {
+  return {
+    buzz: Array.isArray(world?.echo) && world.echo.length > 0,
+    israel: gap?.state === "ARRIVING" || gap?.state === "ARRIVED",
+    trends: (Array.isArray(world?.trends) && world.trends.length > 0) || world?.state === "VIRAL_NOW",
+    wide: world?.state === "WIDE",
+  };
+}
+
+/**
+ * On each run, every early call gets today's date for each finish line its concept crosses for the
+ * first time (pure: returns the updated calls; a date once written is never moved).
+ */
+export function stampFirsts(calls = [], crossedByConcept = {}, today) {
+  return (Array.isArray(calls) ? calls : []).map((c) => {
+    if (c?.kind !== "early") return c;
+    const crossed = crossedByConcept[c.concept] || {};
+    const firsts = { ...(c.firsts || {}) };
+    let changed = false;
+    for (const k of FINISH_LINES) if (crossed[k] && !firsts[k]) { firsts[k] = today; changed = true; }
+    return changed ? { ...c, firsts } : c;
+  });
+}
+
+/** How far ahead the calls were, per finish line: calls that met it, how many were ahead, the median days (pure). */
+export function leadOf(calls = []) {
+  const early = (Array.isArray(calls) ? calls : []).filter((c) => c?.kind === "early" && c.at);
+  const out = {};
+  for (const k of FINISH_LINES) {
+    const days = early.filter((c) => c.firsts?.[k]).map((c) => Math.round((Date.parse(c.firsts[k]) - Date.parse(c.at)) / 86_400_000)).filter((n) => Number.isFinite(n) && n >= 0);
+    const ahead = days.filter((n) => n > 0).sort((a, b) => a - b);
+    out[k] = { met: days.length, ahead: ahead.length, medianDays: ahead.length ? ahead[Math.floor(ahead.length / 2)] : null, waiting: early.length - days.length };
+  }
+  return out;
 }
 
 /**
  * Learns from its misses: once at least `minGraded` early calls are graded, a hit rate under
  * `target`% raises the bar to all four signals (pure; tested). The record stays public either way.
  */
-export function signalsNeeded(earlyRecord = {}, { minGraded = 10, target = 70 } = {}) {
+export function signalsNeeded(earlyRecord = {}, { minGraded = 10, target = 80 } = {}) {
   const graded = Number(earlyRecord?.graded) || 0;
   const acc = Number(earlyRecord?.accuracy);
-  return graded >= minGraded && Number.isFinite(acc) && acc < target ? 4 : 3;
+  return graded >= minGraded && Number.isFinite(acc) && acc < target ? 5 : 4;
 }
 
 /** The sealed envelope: one fingerprint of every early call opened so far (concept, day, signals). */
@@ -216,3 +293,28 @@ export function sealOf(calls = []) {
   return (Array.isArray(calls) ? calls : []).filter((c) => c?.kind === "early").map((c) => `${c.concept}|${c.at}|${(c.signals || []).join(",")}`).sort().join("\n");
 }
 
+
+/**
+ * The public ledger ("ספר הקביעות"): every early call, newest first, with its sealed day, its grade
+ * day, the grade once it exists (HIT/MISS, never edited) and the day each finish line was crossed.
+ */
+export function ledgerOf(calls = [], { max = 40 } = {}) {
+  return (Array.isArray(calls) ? calls : [])
+    .filter((c) => c?.kind === "early" && c.concept && c.at)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)) || String(a.concept).localeCompare(String(b.concept)))
+    .slice(0, max)
+    .map((c) => ({ concept: c.concept, at: c.at, due: c.due || null, result: c.result === "HIT" || c.result === "MISS" ? c.result : null, growth: Number.isFinite(c.growth) ? c.growth : null, firsts: Object.fromEntries(FINISH_LINES.filter((k) => c.firsts?.[k]).map((k) => [k, c.firsts[k]])) }));
+}
+
+/**
+ * Today's verdict ("מה הרדאר קבע היום"): the calls sealed on the board's day, strongest first; on a
+ * day with none, says so (the radar never calls without its signals) and points at the newest open call.
+ */
+export function verdictOf({ ledger = [], concepts = [], day = null } = {}) {
+  const byId = new Map((Array.isArray(concepts) ? concepts : []).map((c) => [c.id, c]));
+  const today = (Array.isArray(ledger) ? ledger : []).filter((e) => e.at === day && byId.has(e.concept));
+  const strength = (e) => byId.get(e.concept)?.early?.count || 0;
+  today.sort((a, b) => strength(b) - strength(a));
+  const open = (Array.isArray(ledger) ? ledger : []).find((e) => !e.result && e.at !== day && byId.has(e.concept)) || null;
+  return { day, calls: today.map((e) => ({ ...e, concept: byId.get(e.concept) })), latestOpen: open ? { ...open, concept: byId.get(open.concept) } : null };
+}

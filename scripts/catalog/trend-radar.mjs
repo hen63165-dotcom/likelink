@@ -35,8 +35,9 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, parseEngine, productTrend, sealOf, signalsNeeded, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, earlyCall, echoOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
+import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 
@@ -113,6 +114,12 @@ async function itemOrders(ids, { env, fetchImpl, now }) {
 async function getText(url, fetchImpl) {
   const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
   return { status: res.status, text: await res.text() };
+}
+
+/** One phrase's suggestions as text (null when the answer is not usable). */
+async function suggestList(phrase, opts, fetchImpl) {
+  const got = await getText(suggestUrl(phrase, opts), fetchImpl);
+  return got.status === 200 ? parseSuggest(got.text) : null;
 }
 
 /** Counted autocomplete extensions for one phrase (null when the answer is not usable). */
@@ -331,17 +338,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           const by = { us: world };
           for (const m of WORLD_MARKETS.filter((x) => x.id !== "us" && !x.engine)) { by[m.id] = await suggestCount(c.en, { hl: "en", gl: m.gl }, fetchImpl); await pause(politeMs); }
           // China (Baidu) and Korea (Naver), in their own language, only where their robots.txt allows.
+          const echoLists = { en: [], zh: [], ko: [] };
           for (const m of WORLD_MARKETS.filter((x) => x.engine && engineOk[x.engine])) {
             const q = m.engine === "baidu" ? c.zh : c.ko;
             if (!q) continue;
             try {
               const got = await getText(ENGINES[m.engine].url(q), fetchImpl);
-              by[m.id] = got.status === 200 ? cjkExtensions(q, parseEngine(m.engine, got.text)) : null;
+              const list = got.status === 200 ? parseEngine(m.engine, got.text) : null;
+              by[m.id] = list ? cjkExtensions(q, list) : null;
+              if (list) echoLists[m.engine === "baidu" ? "zh" : "ko"] = list;
             } catch { by[m.id] = null; }
             await pause(politeMs);
           }
           const ytWorld = await suggestCount(c.en, { hl: "en", gl: "us", ds: "yt" }, fetchImpl); await pause(politeMs);
-          worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [] }, { now }));
+          // The social echo (late: the finish line a call is timed against): the US suggestions as text.
+          echoLists.en = (await suggestList(c.en, { hl: "en", gl: "us" }, fetchImpl)) || [];
+          await pause(politeMs);
+          worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [], echo: echoOf(echoLists) }, { now }));
           const answered = [...he, ...yt, world].filter((n) => n !== null).length;
           if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
           const reading = awarenessReading({ he, yt, hq, world, trend: trendIds.has(c.id), site: sources.siteVisitors === "OK" ? exits[c.id] || 0 : null }, { now });
@@ -382,12 +395,32 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
   }
+  // "Before everyone", timed: the first day a called concept crosses each public finish line (the
+  // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
+  // on its call, so the page can say how many days the call came first.
+  calls = stampFirsts(calls, Object.fromEntries((board.concepts || []).map((c) => [c.id, finishLinesOf({ world: c.world, gap: c.gap })])), today);
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   // The sealed envelope: today's fingerprint of every early call so far (calls.json is public on the
   // release, so anyone can recompute it and see that a call was made before the trend).
   const sealText = sealOf(calls);
-  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), seal: sealText ? { d: today, sha256: createHash("sha256").update(sealText).digest("hex"), count: calls.filter((x) => x.kind === "early").length } : null };
+  const seal = sealText ? { d: today, sha256: createHash("sha256").update(sealText).digest("hex"), count: calls.filter((x) => x.kind === "early").length, text: sealText.length <= 30_000 ? sealText : null, ots: [] } : null;
+  // Anchored in Bitcoin (radarSeal.js): only the 32-byte hash goes to the public OpenTimestamps
+  // calendars, and only when it changed (an unchanged seal keeps the proofs it already has).
+  const prevSeal = prevBoard.early?.seal;
+  if (seal && prevSeal?.sha256 === seal.sha256 && Array.isArray(prevSeal.ots) && prevSeal.ots.length) seal.ots = prevSeal.ots, seal.d = prevSeal.d || seal.d;
+  else if (seal && env.RADAR_OTS !== "0") {
+    for (const cal of OTS_CALENDARS) {
+      try {
+        const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(seal.sha256), signal: AbortSignal.timeout(20_000) });
+        const proof = res.ok ? otsProof(seal.sha256, new Uint8Array(await res.arrayBuffer())) : null;
+        if (proof) seal.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+        else log.push(`seal: ${new URL(cal).host} answered ${res.status}`);
+      } catch (e) { log.push(`seal: ${new URL(cal).host} ${e?.name || "error"}`); }
+    }
+    log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
+  }
+  board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls), seal };
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

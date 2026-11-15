@@ -13,12 +13,12 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
-import { WORLD_STATES } from "../../lib/growth/worldPulse.js";
+import { WORLD_STATES, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
 import { fetchRadarSubscription } from "../../lib/commerce.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
-import { Go, Img, Spinner, TelegramJoin, useL } from "./kit";
+import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
 
@@ -225,9 +225,15 @@ function EarlyLine({ early }) {
     <div className="mt-3 rounded-2xl p-3" style={{ background: early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>
       <p className="text-[14px] font-extrabold">{early.level === "CALL" ? L(`🎯 התראה מוקדמת: ${early.count} סימנים מסכימים`, `🎯 Early call: ${early.count} signals agree`) : L(`👀 במעקב: ${early.count} סימנים`, `👀 Watching: ${early.count} signals`)}</p>
       <p className="mt-1 text-[12px] leading-5">{on.join(" · ")}</p>
+      {early.aheadOf?.length ? <p className="mt-1 text-[12px] font-bold">{L(`🚀 הרדאר מקדים את: ${early.aheadOf.map((k) => FINISH_HE[k]).join(", ")}. ביום שזה יקרה, נכתוב כאן בכמה ימים הוא הקדים.`, `🚀 Ahead of: ${early.aheadOf.join(", ")}. The day each one happens, we write here how many days ahead the call was.`)}</p> : null}
+      {early.buzz?.length ? <p className="mt-1 text-[12px]">{L(`📣 כבר יש באז: ${early.buzz.map((k) => BUZZ_HE[k]).join(", ")}. זה סימן מאוחר, הוא לא נספר כסימן מוקדם.`, `📣 Already buzzing: ${early.buzz.join(", ")}. A late sign, never counted as an early one.`)}</p> : null}
     </div>
   );
 }
+const BUZZ_HE = { tiktok: "טיקטוק/ויראלי", amazon: "אמזון", douyin: "דואין (סין)", korea: "טרנד בקוריאה" };
+/** The four public finish lines a call is timed against (worldPulse.FINISH_LINES). */
+const FINISH_LINES_ORDER = ["buzz", "israel", "trends", "wide"];
+const FINISH_HE = { buzz: "הבאז ברשתות", israel: "החיפושים בעברית בארץ", trends: "החיפושים החמים של גוגל", wide: "החיפוש בהרבה מדינות" };
 
 export function ConceptCard({ c }) {
   const { L } = useL();
@@ -318,6 +324,7 @@ function MarketMap({ list, openId = "" }) {
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
                       {c.early && c.early.level !== "NONE" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: c.early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>{c.early.level === "CALL" ? "🎯" : "👀"} {c.early.count}/4</span> : null}
+                      {c.early?.beforeAll ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dbeafe", color: "#0b0b0b" }}>🚀 {L("לפני כולם", "before everyone")}</span> : c.early?.aheadOf?.includes("buzz") ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dbeafe", color: "#0b0b0b" }}>🚀 {L("לפני הרשתות", "before the networks")}</span> : null}
                       {WORLD_SIGNAL.has(c.world?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: WORLD_STYLE[c.world.state].bg, color: WORLD_STYLE[c.world.state].fg }}>🌍 {WORLD_STATES[c.world.state].he}</span> : null}
                       {["GAP", "QUIET", "ARRIVING"].includes(c.gap?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{c.gap.state === "GAP" ? "🔓 " : ""}{gapHe(c.gap)}</span> : null}
                       {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
@@ -372,6 +379,65 @@ export function TrialBanner() {
         : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
       <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
     </p>
+  );
+}
+
+/**
+ * "מה הרדאר קבע היום" — the one place to check every morning: the calls sealed today, or the honest
+ * line that there is none (no call without its signals), and the public ledger of every call with its
+ * grade and the days it was ahead. Shareable as text that only states what was sealed (never a promise).
+ */
+const RESULT_HE = { HIT: "✅ פגע", MISS: "❌ לא פגע" };
+function Verdict({ board }) {
+  const { L } = useL();
+  if (!board?.early) return null;
+  const day = String(board.at || "").slice(0, 10);
+  const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
+  const ledger = board.early.ledger || [];
+  const name = (id) => (board.concepts || []).find((c) => c.id === id)?.he || id;
+  const shareTitle = (e) => L(`הרדאר של LikeLink2 קבע ב־${dm(e.at)}: ${e.concept.he} מתחיל לעלות. הקביעה חתומה מראש בביטקוין, והציון יתפרסם ב־${dm(e.due)}, גם אם לא פגע.`, `LikeLink2's radar called it on ${dm(e.at)}: ${e.concept.he} is starting to rise. Sealed in advance in Bitcoin; graded in public on ${dm(e.due)}, hit or miss.`);
+  return (
+    <section className="lx-wrap mt-8" id="verdict">
+      <div className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
+        <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
+        {v.calls.length ? (
+          <ul className="mt-3 grid gap-3">
+            {v.calls.map((e) => (
+              <li key={e.concept.id} className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[22px] font-extrabold leading-8">🎯 {e.concept.he}</p>
+                  <p className="text-[13px]">{L(`${e.concept.early?.count || 4} מתוך 4 סימנים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 4} of 4 signals · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink">{L("לפרטים", "Details")}</Go>
+                  <ShareButton path="/radar" title={shareTitle(e)} variant="button" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+        )}
+        {ledger.length ? (
+          <details className="mt-4">
+            <summary className="cursor-pointer text-[14px] font-extrabold">{L(`📖 ספר הקביעות: כל ${ledger.length} הקביעות, עם הציון`, `📖 The ledger: all ${ledger.length} calls, with their grade`)}</summary>
+            <ul className="mt-2 grid gap-1 text-[13px]">
+              {ledger.map((e) => {
+                const ahead = Object.entries(e.firsts || {}).map(([k, d]) => [k, Math.round((Date.parse(d) - Date.parse(e.at)) / 86_400_000)]).filter(([, n]) => n > 0);
+                return (
+                  <li key={`${e.concept}-${e.at}`} className="flex flex-wrap gap-x-3">
+                    <span className="font-bold">{dm(e.at)}</span>
+                    <span>{name(e.concept)}</span>
+                    <span>{e.result ? `${RESULT_HE[e.result]}${e.growth !== null ? ` (${e.growth > 0 ? "+" : ""}${e.growth}%)` : ""}` : L(`⏳ הציון ב־${dm(e.due)}`, `⏳ graded ${dm(e.due)}`)}</span>
+                    {ahead.length ? <span>{L(`🚀 הקדים: ${ahead.map(([k, n]) => `${FINISH_HE[k]} ב־${n} ימים`).join(", ")}`, `🚀 ahead: ${ahead.map(([k, n]) => `${k} by ${n} days`).join(", ")}`)}</span> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -451,6 +517,8 @@ export function RadarPage() {
           <TrialBanner />
         </div>
       </section>
+
+      <Verdict board={board} />
 
       <section className="lx-wrap mt-8">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -557,8 +625,11 @@ export function RadarPage() {
                       {board.early.record.graded
                         ? L(`הדיוק של ההתראות המוקדמות: ${board.early.record.hits} פגיעות מתוך ${board.early.record.graded} שנבדקו (${board.early.record.accuracy}%).`, `Early-call accuracy: ${board.early.record.hits} hits of ${board.early.record.graded} graded (${board.early.record.accuracy}%).`)
                         : L(`התראות שמחכות לבדיקה: ${board.early.record.pending}. כל התראה נבדקת אחרי 14 יום, והתוצאה נכתבת כאן.`, `Calls awaiting their grade: ${board.early.record.pending}. Each is graded after 14 days, here.`)}
-                      {board.early.need === 4 ? L(" הדיוק ירד מתחת ל־70%, אז הרדאר מחמיר: עכשיו הוא דורש את כל 4 הסימנים.", " Accuracy fell under 70%, so the bar is now all four signals.") : ""}
-                      {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}</> : null}
+                      {board.early.lead ? <><br />{FINISH_LINES_ORDER.map((k) => { const l = board.early.lead[k]; return l?.ahead ? L(`🚀 לפני ${FINISH_HE[k]}: ${l.ahead} התראות, בחציון ${l.medianDays} ימים קודם. `, `🚀 Ahead of ${k}: ${l.ahead} calls, median ${l.medianDays} days. `) : ""; }).join("") || L("🚀 כל התראה נמדדת מול 4 קווי סיום: הבאז ברשתות, החיפושים בעברית בארץ, החיפושים החמים של גוגל והחיפוש בהרבה מדינות. היום שבו כל אחד מהם קורה נרשם, ואז רואים בכמה ימים הרדאר הקדים.", "🚀 Every call is timed against 4 finish lines: the networks' buzz, Hebrew searches in Israel, Google's trending searches and many countries. The day each happens is recorded, so the head start can be counted.")}</> : null}
+                      {board.early.need === 5 ? L(" הדיוק ירד מתחת ל־80%, אז הרדאר מחמיר עוד: כל 4 הסימנים צריכים להופיע יומיים ברצף.", " Accuracy fell under 80%, so the bar rises: all four signals two readings in a row.") : L(" מצב צלף: הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. פחות קביעות, כל אחת חזקה יותר.", " Sniper mode: a call only when all four signals agree and three already showed in the previous reading. Fewer calls, each stronger.")}
+                      {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}{board.early.seal.ots?.length ? <><br />{L("⛓️ החותמת נשלחה ל־OpenTimestamps ונרשמת בבלוקצ'יין של ביטקוין, כך שאף אחד, גם לא אנחנו, לא יכול לשנות את התאריך בדיעבד. לבדיקה: מורידים את שני הקבצים וגוררים אותם ל־opentimestamps.org.", "⛓️ The seal was sent to OpenTimestamps and is being written into Bitcoin, so no one, not even us, can backdate it. To check: download both files and drop them on opentimestamps.org.")}{" "}
+                        {board.early.seal.text ? <a className="underline" download={`radar-seal-${board.early.seal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(board.early.seal.text)}`}>{L("ההתראות החתומות", "the sealed calls")}</a> : null}
+                        {board.early.seal.ots.map((o) => <span key={o.cal}> · <a className="underline" download={`radar-seal-${board.early.seal.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}</> : null}</> : null}
                     </p>
                   ) : null}
                   {watch.length ? <p className="mt-3 text-[13px]">{L(`👀 במעקב (2 סימנים): ${watch.map((c) => c.he).join(" · ")}`, `👀 Watching (2 signals): ${watch.map((c) => c.he).join(" · ")}`)}</p> : null}
