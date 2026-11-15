@@ -63,6 +63,7 @@
     { "id": "puffer-tote", "he": "תיק טוט מרופד", "en": "puffer tote bag", "kind": "bags", "hq": ["תיק פאפר", "תיק טוט מרופד"] },
     { "id": "leg-warmers", "he": "מחממי רגליים", "en": "knit leg warmers", "kind": "clothing", "hq": ["מחממי רגליים"] },
     { "id": "knit-balaclava", "he": "כובע ברדס סרוג", "en": "knitted balaclava", "kind": "clothing", "hq": ["בלקלווה סרוגה", "כובע ברדס סרוג", "בלקלווה"] },
-    { "id": "mesh-ballet-flats", "he": "נעלי בובה רשת", "en": "mesh ballet flats", "kind": "clothing", "hq": ["נעלי בובה רשת"] }
+    { "id": "mesh-ballet-flats", "he": "נעלי בובה רשת", "en": "mesh ballet flats", "kind": "clothing", "hq": ["נעלי בובה רשת"] },
+    { "id": "foam-soap-dispenser", "he": "מתקן סבון קצף אוטומטי", "en": "automatic foam soap dispenser", "kind": "home", "hq": ["מתקן סבון קצף", "מתקן סבון אוטומטי"] }
   ]
 }
