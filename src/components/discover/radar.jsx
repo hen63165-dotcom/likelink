@@ -470,14 +470,15 @@ function Verdict({ board }) {
           </div>
         ) : null}
         {board.early.calibration ? (
-          <div className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
-            <p className="font-extrabold">{L("📏 כמה פעמים כל סוג קביעה פגע", "📏 How often each kind of call hit")}</p>
+          <details className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+            <summary className="cursor-pointer font-extrabold">{L("📏 ההוכחה: כמה פעמים הרדאר פגע", "📏 The proof: how often the radar hit")}</summary>
+            
             {[["sniper", L("🎯 קביעת צלף (כל 4 הסימנים)", "🎯 Sniper call (all four signals)")], ["signal", L("📈 סימון רגיל (ביקוש בלבד)", "📈 Ordinary signal (demand only)")]].map(([k, label]) => {
               const r = board.early.calibration[k];
               return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`עוד אין ציונים${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
             })}
             <p style={{ color: "var(--lx-muted)" }}>{L("הרדאר מבדיל בין סימון רגיל לקביעת צלף, וכאן רואים כמה פעמים כל אחד מהם באמת פגע. כל קביעה נמדדת כל יום, והציון הסופי נכתב אחרי 14 יום ונשאר גלוי.", "The radar tells an ordinary signal from a sniper call, and here you see how often each really hit. Every call is measured daily; the final grade is written after 14 days and stays public.")}</p>
-          </div>
+          </details>
         ) : null}
         {ledger.length ? (
           <details className="mt-4">
@@ -569,7 +570,7 @@ export function RadarPage() {
           <p className="lx-kicker mb-3"><Radar size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · חינם בתקופת הניסיון", "New on LikeLink2 · free during the trial")}</p>
           <h1 className="lx-profile-name">{L("רדאר הטרנדים ✨", "The trend radar ✨")}</h1>
           <p className="mt-3 max-w-2xl text-[16px] leading-7">
-            {L("מה מתחיל לעלות בעולם, לפני שזה הופך ללהיט. כל יום הרדאר בודק חיפושים בגוגל וביוטיוב בארה״ב, בריטניה, קנדה ואוסטרליה, את החיפושים החמים של גוגל באותן מדינות, ואת קצב ההזמנות באליאקספרס. מוצר שמתחיל לעלות בעולם, הוא מוצא באליאקספרס ומראה לך את המספרים.", "What is starting to rise worldwide, before it becomes a hit. Every day the radar reads Google and YouTube searches in the US, UK, Canada and Australia, Google's trending searches there, and the pace of orders on AliExpress; a product rising in the world is found on AliExpress, with the numbers.")}
+            {L("מה מתחיל לעלות בעולם, לפני שזה הופך ללהיט. כל בוקר הרדאר בודק את העולם, קובע רק כשכל 4 הסימנים מסכימים, וחותם כל קביעה מראש.", "What is starting to rise worldwide, before it becomes a hit. Every morning the radar reads the world, calls only when all four signals agree, and seals every call in advance.")}
           </p>
           <button type="button" onClick={press} className="lx-btn lx-btn-ink mt-6" style={{ minHeight: 56, fontSize: 18, padding: "10px 28px" }}>
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
@@ -581,10 +582,12 @@ export function RadarPage() {
 
       <Verdict board={board} />
 
-      <section className="lx-wrap mt-8">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <section className="lx-wrap mt-6">
+        <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+          <summary className="cursor-pointer text-[16px] font-extrabold">{L("❓ איך הרדאר עובד? (4 צעדים, דקה קריאה)", "❓ How does the radar work? (4 steps, one minute)")}</summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
-            [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("חיפושים בגוגל וביוטיוב בארה״ב, בריטניה, קנדה ואוסטרליה, והחיפושים החמים של גוגל. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "About 60 kinds of products on AliExpress: the top 20 items' orders, the number of listings and the price.")],
+            [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("גוגל ב־8 מדינות, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים של גוגל ב־10 מדינות. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "Google in 8 countries, Baidu in China, Naver in Korea, YouTube and Google's trending searches in 10 countries; what starts rising there is found on AliExpress: the top 20 items' orders, the listings and the price.")],
             [L("2. מהירות, לא גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. פריט ויראלי אחד לא מספיק.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
             [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ועוד לא מחפשים כאן? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
             [L("4. הרדאר בודק את עצמו", "4. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],
@@ -619,6 +622,7 @@ export function RadarPage() {
             )}
           </div>
         </div>
+        </details>
       </section>
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
