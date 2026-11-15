@@ -83,6 +83,7 @@ function cleanRow(c) {
   return {
     id: c.id,
     he: str(c.he, 80) || c.id,
+    en: /^[\w\s'&.-]{2,80}$/.test(String(c.en || "")) ? String(c.en) : "",
     kind: str(c.kind, 20),
     auto: c.auto === true,
     found: day(c.found),
@@ -103,6 +104,7 @@ function cleanRow(c) {
     match: (Array.isArray(c.match) ? c.match : []).map((m) => str(m, 60)).filter(Boolean).slice(0, 4),
     hot: Object.fromEntries(Object.entries(c.hot && typeof c.hot === "object" ? c.hot : {}).filter(([id, v]) => ITEM.test(id) && Array.isArray(v) && HOTS.has(v[0])).slice(0, 20).map(([id, v]) => [id, [v[0], num(v[1])]])),
     world: c.world && Object.hasOwn(WORLD_STATES, c.world.state) ? { state: c.world.state, he: WORLD_STATES[c.world.state].he, searched: num(c.world.searched), of: num(c.world.of), trends: (Array.isArray(c.world.trends) ? c.world.trends : []).filter((g) => /^[A-Z]{2}$/.test(g)).slice(0, 4), evidence: (Array.isArray(c.world.evidence) ? c.world.evidence : []).map((x) => str(x, 160)).filter(Boolean).slice(0, 4) } : null,
+    early: c.early && ["CALL", "WATCH", "NONE"].includes(c.early.level) ? { level: c.early.level, count: num(c.early.count), signals: Object.fromEntries(["world", "demand", "supply", "israel"].map((k) => [k, c.early.signals?.[k] === true])) } : null,
     pick: cleanPick(c.pick),
     opportunity: cleanOpportunity(c.opportunity),
     action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,

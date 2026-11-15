@@ -28,7 +28,7 @@ test("a reading only one day older is not compared (no direction from noise)", (
 
 test("in today's trends abroad is VIRAL_NOW; searched everywhere is WIDE; nothing is NONE", () => {
   assert.equal(worldPulseOf([worldReading({ by: { us: 5 }, trends: ["US"] }, { now: day("2026-11-15") })]).state, "VIRAL_NOW");
-  assert.equal(worldPulseOf([worldReading({ by: { us: 5, gb: 4, ca: 3, au: 0 } }, { now: day("2026-11-15") })]).state, "WIDE");
+  assert.equal(worldPulseOf([worldReading({ by: { us: 5, gb: 4, ca: 3, au: 3 } }, { now: day("2026-11-15") })]).state, "WIDE");
   assert.equal(worldPulseOf([worldReading({ by: { us: 0, gb: 0, ca: 0, au: 0 }, yt: 0 }, { now: day("2026-11-15") })]).state, "NONE");
 });
 
@@ -50,3 +50,12 @@ test("people, games and plain words are never a product trend, even when AliExpr
   assert.equal(productTrend("cat window perch", Array.from({ length: 4 }, () => ({ title: "Cat window perch hammock", orders: 120 }))).ok, true);
 });
 
+
+test("a trend is called only when independent signals agree, demand among them", async () => {
+  const { earlyCall } = await import("../src/lib/growth/worldPulse.js");
+  const listings = [["2026-11-15", 100], ["2026-11-18", 125]];
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" } }).level, "CALL");
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "STEADY", listings, gap: { state: "GAP" } }).level, "WATCH", "no call without demand");
+  assert.equal(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).level, "NONE");
+  assert.equal(earlyCall({ stage: "RISING", listings: [["2026-11-15", 100], ["2026-11-16", 200]] }).signals.supply, false, "one day apart is not a rush");
+});

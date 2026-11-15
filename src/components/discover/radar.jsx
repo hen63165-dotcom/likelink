@@ -116,7 +116,7 @@ const WORLD_STYLE = {
 };
 /** Early signals worth showing on a row: spreading, first searches, or in today's trends. */
 const WORLD_SIGNAL = new Set(["SPREADING", "EARLY", "VIRAL_NOW"]);
-const earlyScore = (c) => (c.world?.state === "SPREADING" || c.world?.state === "VIRAL_NOW" ? 2 : c.world?.state === "EARLY" ? 1 : 0) + (c.gap?.state === "GAP" ? 1 : 0);
+const earlyScore = (c) => (c.early?.count || 0) * 10 + (c.world?.state === "SPREADING" || c.world?.state === "VIRAL_NOW" ? 2 : c.world?.state === "EARLY" ? 1 : 0) + (c.gap?.state === "GAP" ? 1 : 0);
 
 /** The world line under a concept: Google and YouTube in four countries, and Google's daily trends. */
 function WorldLine({ world }) {
@@ -192,6 +192,43 @@ function AlphaBlock({ c }) {
   );
 }
 
+/** Where else to see it, as plain public search pages (no tracking, nothing read by us). */
+const EVERYWHERE = [
+  ["AliExpress", (q) => `https://www.aliexpress.com/w/wholesale-${encodeURIComponent(q.replace(/\s+/g, "-"))}.html`],
+  ["Amazon", (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}`],
+  ["Temu", (q) => `https://www.temu.com/search_result.html?search_key=${encodeURIComponent(q)}`],
+  ["eBay", (q) => `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}`],
+  ["TikTok", (q) => `https://www.tiktok.com/search?q=${encodeURIComponent(q)}`],
+  ["YouTube", (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`],
+  ["Pinterest", (q) => `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(q)}`],
+];
+function Everywhere({ q }) {
+  const { L } = useL();
+  if (!q) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-[13px] font-extrabold">{L("לראות את זה בכל מקום:", "See it everywhere:")}</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {EVERYWHERE.map(([name, url]) => <a key={name} href={url(q)} target="_blank" rel="noopener nofollow" className="rounded-full px-3 py-1 text-[12px] font-bold" style={{ border: "1px solid var(--lx-line)", background: "#fff" }}>{name} ↗</a>)}
+      </div>
+    </div>
+  );
+}
+
+/** How many independent signals agree (worldPulse.earlyCall): a call needs three, demand among them. */
+const SIGNAL_HE = { world: "🌍 חיפושים מתפשטים בעולם", demand: "📈 קונים יותר מהר", supply: "🏭 מוכרים חדשים נכנסים", israel: "🔓 בעברית עוד לא מחפשים" };
+function EarlyLine({ early }) {
+  const { L } = useL();
+  if (!early || early.level === "NONE") return null;
+  const on = Object.entries(early.signals || {}).filter(([, v]) => v).map(([k]) => SIGNAL_HE[k]);
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>
+      <p className="text-[14px] font-extrabold">{early.level === "CALL" ? L(`🎯 התראה מוקדמת: ${early.count} סימנים מסכימים`, `🎯 Early call: ${early.count} signals agree`) : L(`👀 במעקב: ${early.count} סימנים`, `👀 Watching: ${early.count} signals`)}</p>
+      <p className="mt-1 text-[12px] leading-5">{on.join(" · ")}</p>
+    </div>
+  );
+}
+
 export function ConceptCard({ c }) {
   const { L } = useL();
   const strong = c.stage === "EMERGING" || c.stage === "RISING";
@@ -214,8 +251,10 @@ export function ConceptCard({ c }) {
       <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
         {c.evidence.map((e) => <li key={e.k}>• {e.text}</li>)}
       </ul>
+      <EarlyLine early={c.early} />
       <WorldLine world={c.world} />
       <IsraelLine gap={c.gap} />
+      <Everywhere q={c.en} />
       <AlphaBlock c={c} />
       {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
       {c.pick ? (
@@ -278,6 +317,7 @@ function MarketMap({ list, openId = "" }) {
                   <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-[14px]" style={{ background: "var(--lx-sky)", listStyle: "none" }}>
                     <span className="font-bold" dir={c.auto ? "ltr" : undefined}>{c.he}</span>
                     <span className="flex flex-wrap items-baseline gap-2">
+                      {c.early && c.early.level !== "NONE" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: c.early.level === "CALL" ? "#fef3c7" : "#f2f4f7", color: "#0b0b0b" }}>{c.early.level === "CALL" ? "🎯" : "👀"} {c.early.count}/4</span> : null}
                       {WORLD_SIGNAL.has(c.world?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: WORLD_STYLE[c.world.state].bg, color: WORLD_STYLE[c.world.state].fg }}>🌍 {WORLD_STATES[c.world.state].he}</span> : null}
                       {["GAP", "QUIET", "ARRIVING"].includes(c.gap?.state) ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).bg, color: (GAP_STYLE[c.gap.state] || GAP_STYLE.UNKNOWN).fg }}>{c.gap.state === "GAP" ? "🔓 " : ""}{gapHe(c.gap)}</span> : null}
                       {c.pick?.momentum?.state === "HOT" ? <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: "#dcfce7", color: "#166534" }}>🔥 {c.pick.momentum.he}</span> : null}
@@ -504,6 +544,18 @@ export function RadarPage() {
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : null}
+            {(() => {
+              const calls = list.filter((c) => c.early?.level === "CALL");
+              const watch = list.filter((c) => c.early?.level === "WATCH");
+              return (
+                <div className="lx-card mt-5 p-4" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
+                  <h3 className="text-[20px] font-extrabold">{L("🎯 התראות מוקדמות", "🎯 Early calls")}</h3>
+                  <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (10 מדינות + יוטיוב), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד לא מחפשים. פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (10 countries + YouTube), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
+                  {calls.length ? <ul className="mt-3 grid gap-3 md:grid-cols-2">{calls.map((c) => <ConceptCard key={c.id} c={c} />)}</ul> : <p className="mt-3 text-[14px] font-bold">{L("היום אין מוצר שעבר את הרף של 3 סימנים מסכימים. הרדאר לא מנחש: הוא מחכה לסימנים.", "No product passed the three-signal bar today. The radar doesn't guess; it waits for the signals.")}</p>}
+                  {watch.length ? <p className="mt-3 text-[13px]">{L(`👀 במעקב (2 סימנים): ${watch.map((c) => c.he).join(" · ")}`, `👀 Watching (2 signals): ${watch.map((c) => c.he).join(" · ")}`)}</p> : null}
+                </div>
+              );
+            })()}
             {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
             <SiteHot site={board.site} />
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>

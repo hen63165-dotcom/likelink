@@ -35,7 +35,7 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { TRENDS_GEOS, WORLD_MARKETS, addWorld, productTrend, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { TRENDS_GEOS, WORLD_MARKETS, addWorld, earlyCall, productTrend, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -120,7 +120,7 @@ async function suggestCount(phrase, opts, fetchImpl) {
   return extensions(phrase, parseSuggest(got.text));
 }
 
-export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 720_000, politeMs = 350 } = {}) {
+export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 1_200_000, politeMs = 300 } = {}) {
   mkdirSync(dir, { recursive: true });
   const { concepts: listed = [] } = readJson("scripts/catalog/radar-concepts.json", {});
   const watch = listed.filter(validConcept);
@@ -346,7 +346,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
-  for (const c of board.concepts || []) c.world = worldPulseOf(worldMap[c.id] || []);
+  for (const c of board.concepts || []) {
+    c.world = worldPulseOf(worldMap[c.id] || []);
+    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap });
+    c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
+  }
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
