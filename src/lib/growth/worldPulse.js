@@ -318,3 +318,15 @@ export function verdictOf({ ledger = [], concepts = [], day = null } = {}) {
   const open = (Array.isArray(ledger) ? ledger : []).find((e) => !e.result && e.at !== day && byId.has(e.concept)) || null;
   return { day, calls: today.map((e) => ({ ...e, concept: byId.get(e.concept) })), latestOpen: open ? { ...open, concept: byId.get(open.concept) } : null };
 }
+
+/**
+ * How sure the radar is, and how often that held (the owner, 2026-11-15: "make it the tool that is
+ * right"). Like a weather forecast, the radar states its certainty, and the page proves it: the
+ * ordinary stage signals (demand alone) and the sniper calls (all four signals) are graded apart, so
+ * anyone sees how much more often a sniper call hit. `record` is trendRadar.trackRecord (injected).
+ */
+export function calibrationOf(calls = [], record) {
+  const list = Array.isArray(calls) ? calls : [];
+  const pick = (r) => ({ graded: r.graded, hits: r.hits, accuracy: r.accuracy, pending: r.pending });
+  return { signal: pick(record(list.filter((c) => c?.kind !== "early"))), sniper: pick(record(list.filter((c) => c?.kind === "early"))) };
+}

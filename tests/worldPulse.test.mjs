@@ -158,3 +158,15 @@ test("the ledger and today's verdict: sealed calls only, graded honestly, and a 
   assert.equal(quiet.latestOpen.concept.id, "cloud-slides");
   assert.deepEqual(verdictOf({}), { day: null, calls: [], latestOpen: null });
 });
+
+test("calibration grades the sniper calls apart from the ordinary signals", async () => {
+  const { calibrationOf } = await import("../src/lib/growth/worldPulse.js");
+  const { trackRecord } = await import("../src/lib/growth/trendRadar.js");
+  const calls = [
+    { concept: "a", at: "2026-10-01", result: "MISS" }, { concept: "b", at: "2026-10-01", result: "HIT" }, { concept: "c", at: "2026-10-01", result: "MISS" }, { concept: "d", at: "2026-11-10" },
+    { concept: "a", kind: "early", at: "2026-10-02", result: "HIT" }, { concept: "e", kind: "early", at: "2026-11-15" },
+  ];
+  const cal = calibrationOf(calls, trackRecord);
+  assert.deepEqual(cal.signal, { graded: 3, hits: 1, accuracy: 33, pending: 1 });
+  assert.deepEqual(cal.sniper, { graded: 1, hits: 1, accuracy: 100, pending: 1 });
+});
