@@ -54,21 +54,26 @@ test("people, games and plain words are never a product trend, even when AliExpr
 test("a trend is called only when independent signals agree, demand among them", async () => {
   const { earlyCall } = await import("../src/lib/growth/worldPulse.js");
   const listings = [["2026-11-15", 100], ["2026-11-18", 125]];
-  const held = { count: 2 };
+  const held = { count: 3 };
   assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" }, before: held }).level, "CALL");
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 2 } }).level, "WATCH", "sniper mode: three of them must have held");
+  assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "ARRIVED" }, before: held }).level, "WATCH", "sniper mode: all four signals, not three");
   assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "RISING", listings, gap: { state: "GAP" } }).level, "WATCH", "a first flash is not a call: it must hold");
   assert.equal(earlyCall({ world: { state: "SPREADING" }, stage: "STEADY", listings, gap: { state: "GAP" } }).level, "WATCH", "no call without demand");
   assert.equal(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).level, "NONE");
   assert.equal(earlyCall({ stage: "RISING", listings: [["2026-11-15", 100], ["2026-11-16", 200]] }).signals.supply, false, "one day apart is not a rush");
 });
 
-test("misses raise the bar: under 70% after ten graded early calls needs all four signals", async () => {
+test("sniper mode by default; misses under 80% after ten graded calls raise it further", async () => {
   const { signalsNeeded, earlyCall, sealOf } = await import("../src/lib/growth/worldPulse.js");
-  assert.equal(signalsNeeded({ graded: 4, accuracy: 25 }), 3, "too few graded to judge");
-  assert.equal(signalsNeeded({ graded: 12, accuracy: 60 }), 4);
-  assert.equal(signalsNeeded({ graded: 12, accuracy: 80 }), 3);
+  assert.equal(signalsNeeded({ graded: 4, accuracy: 25 }), 4, "too few graded to judge: the sniper bar");
+  assert.equal(signalsNeeded({ graded: 12, accuracy: 70 }), 5);
+  assert.equal(signalsNeeded({ graded: 12, accuracy: 85 }), 4, "the bar never drops under all four");
   const three = { world: { state: "SPREADING" }, stage: "RISING", gap: { state: "GAP" } };
   assert.equal(earlyCall({ ...three, need: 4, before: { count: 3 } }).level, "WATCH", "three signals are not a call when four are needed");
+  const four = { ...three, listings: [["2026-11-15", 100], ["2026-11-18", 125]] };
+  assert.equal(earlyCall({ ...four, need: 5, before: { count: 3 } }).level, "WATCH", "after misses the previous reading must show all four");
+  assert.equal(earlyCall({ ...four, need: 5, before: { count: 4 } }).level, "CALL");
   assert.equal(sealOf([{ kind: "early", concept: "a", at: "2026-11-17", signals: ["world", "demand", "israel"] }, { concept: "b", at: "2026-11-17" }]), "a|2026-11-17|world,demand,israel", "only early calls are sealed");
 });
 
@@ -87,12 +92,12 @@ test("the finish lines are late: they never count toward a call, they time it ('
   assert.deepEqual(echoOf({}), []);
   assert.deepEqual(worldReading({ echo: ["tiktok", "made-up"] }).echo, ["tiktok"], "only known networks are kept");
   const listings = [["2026-11-10", 100], ["2026-11-15", 120]];
-  const quiet = earlyCall({ world: { state: "SPREADING", echo: [], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 2 } });
+  const quiet = earlyCall({ world: { state: "SPREADING", echo: [], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 3 } });
   assert.equal(quiet.level, "CALL");
   assert.equal(quiet.beforeAll, true, "a call before every finish line is 'before everyone'");
   assert.deepEqual(quiet.aheadOf, ["buzz", "israel", "trends", "wide"]);
   assert.equal(Object.hasOwn(quiet.signals, "social"), false, "buzz is not one of the agreeing signals");
-  const loud = earlyCall({ world: { state: "SPREADING", echo: ["tiktok"], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 2 } });
+  const loud = earlyCall({ world: { state: "SPREADING", echo: ["tiktok"], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 3 } });
   assert.equal(loud.count, quiet.count, "buzz adds nothing to the count");
   assert.equal(loud.beforeAll, false);
   assert.deepEqual(loud.aheadOf, ["israel", "trends", "wide"]);
@@ -122,7 +127,7 @@ test("the finish lines are late: they never count toward a call, they time it ('
 
 test("the board keeps only known finish lines on its way to the page", async () => {
   const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
-  const b = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [{ id: "pudding-squishy", en: "pudding squishy", stage: "RISING", early: { level: "CALL", count: 3, signals: { demand: true }, aheadOf: ["buzz", "evil"], beforeAll: true, buzz: ["tiktok", "x"] } }], early: { need: 3, record: {}, lead: { buzz: { met: 1, ahead: 1, medianDays: 6, waiting: 0 }, junk: {} } } });
+  const b = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [{ id: "pudding-squishy", en: "pudding squishy", stage: "RISING", early: { level: "CALL", count: 3, signals: { demand: true }, aheadOf: ["buzz", "evil"], beforeAll: true, buzz: ["tiktok", "x"] } }], early: { need: 4, record: {}, lead: { buzz: { met: 1, ahead: 1, medianDays: 6, waiting: 0 }, junk: {} } } });
   const c = (b?.concepts || [])[0];
   {
     assert.deepEqual(c.early.aheadOf, ["buzz"]);

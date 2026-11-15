@@ -25,9 +25,9 @@ test("a proof is the reference header, the sha256 digest and the calendar's answ
 test("the board keeps only proofs from the two calendars, and only sealed-call text", async () => {
   const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
   const sha = "a".repeat(64);
-  const b = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [], early: { need: 3, record: {}, seal: { d: "2026-11-15", sha256: sha, count: 1, text: "tofu-squishy|2026-11-15|demand,world", ots: [{ cal: "a.pool.opentimestamps.org", b64: "AE9wZW5UaW1lc3RhbXBz" }, { cal: "evil.example", b64: "AAAA" }, { cal: "b.pool.opentimestamps.org", b64: "<script>" }] } } });
+  const b = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [], early: { need: 4, record: {}, seal: { d: "2026-11-15", sha256: sha, count: 1, text: "tofu-squishy|2026-11-15|demand,world", ots: [{ cal: "a.pool.opentimestamps.org", b64: "AE9wZW5UaW1lc3RhbXBz" }, { cal: "evil.example", b64: "AAAA" }, { cal: "b.pool.opentimestamps.org", b64: "<script>" }] } } });
   assert.deepEqual(b.early.seal.ots, [{ cal: "a.pool.opentimestamps.org", b64: "AE9wZW5UaW1lc3RhbXBz" }]);
   assert.equal(b.early.seal.text, "tofu-squishy|2026-11-15|demand,world");
-  const bad = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [], early: { need: 3, record: {}, seal: { d: "2026-11-15", sha256: sha, count: 1, text: "<img src=x onerror=alert(1)>" } } });
+  const bad = sanitizeBoard({ at: "2026-11-15T05:37:00Z", record: {}, concepts: [], early: { need: 4, record: {}, seal: { d: "2026-11-15", sha256: sha, count: 1, text: "<img src=x onerror=alert(1)>" } } });
   assert.equal(bad.early.seal.text, null);
 });
