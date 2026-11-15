@@ -35,7 +35,7 @@ import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
-import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
+import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
@@ -396,6 +396,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`EARLY CALL ${c.id}: ${c.early.count}/4 signals`);
     }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
+    c.factory = factoryOf(c.listings); // the factory signal: sellers rushing in before buyers
   }
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped

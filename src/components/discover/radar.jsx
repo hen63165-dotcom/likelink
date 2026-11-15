@@ -407,6 +407,8 @@ function Verdict({ board }) {
   if (!board?.early) return null;
   // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
   const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
+  // Born now: sellers rush in (listings +25%/week from a small base) before buyers search.
+  const born = (board.concepts || []).filter((c) => c.factory?.born && c.early?.level !== "CALL").sort((a, b) => b.factory.weekPct - a.factory.weekPct).slice(0, 5);
   const day = String(board.at || "").slice(0, 10);
   const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
   const ledger = board.early.ledger || [];
@@ -446,6 +448,15 @@ function Verdict({ board }) {
                 return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}. הבדיקה של מחר תגיד אם זה הופך לקביעה.`, ` · missing: ${missing}. Tomorrow's reading decides.`)}</li>;
               })}
             </ul>
+          </div>
+        ) : null}
+        {born.length ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
+            <ul className="mt-1 grid gap-1 text-[13px]">
+              {born.map((c) => <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% מודעות בשבוע (${c.factory.from.toLocaleString("he-IL")} → ${c.factory.to.toLocaleString("he-IL")} ב־${c.factory.days} ימים)`, ` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% listings a week (${c.factory.from} → ${c.factory.to} in ${c.factory.days} days)`)}</li>)}
+            </ul>
+            <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מפעלים ומוכרים מעלים מוצר חדש לפני שמחפשים אותו. זה הסימן הכי מוקדם שהרדאר מודד.", "Factories and sellers list a new product before people search for it: the earliest sign the radar measures.")}</p>
           </div>
         ) : null}
         {board.early.calibration ? (

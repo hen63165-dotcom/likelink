@@ -349,3 +349,24 @@ export function nextReadingAt(now = Date.now()) {
   const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 5, 37);
   return t > now ? t : t + 86_400_000;
 }
+
+/**
+ * The factory signal (the owner, 2026-11-15: "spot trends before anyone spotted them"). Sellers and
+ * factories list a new kind of product on AliExpress BEFORE people search for it: they make it ahead.
+ * From the concept's own daily listing counts (AliExpress's total_record_count): the weekly growth of
+ * matching listings between the oldest and newest readings 2–14 days apart. `born` when the kind is
+ * still small (under 5,000 listings) and listings grow ≥ 25% a week: sellers rush in, buyers not yet.
+ * Measured, never inferred: under two usable readings it is null.
+ */
+export const FACTORY = Object.freeze({ smallBase: 5000, bornWeekPct: 25, minDays: 2, maxDays: 14 });
+export function factoryOf(listings = [], rules = FACTORY) {
+  const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])) && Number(r[1]) > 0 && Number.isFinite(Date.parse(r[0])));
+  if (rs.length < 2) return null;
+  const [d1, n1] = rs[rs.length - 1];
+  const older = rs.slice(0, -1).filter(([d]) => { const days = (Date.parse(d1) - Date.parse(d)) / 86_400_000; return days >= rules.minDays && days <= rules.maxDays; });
+  if (!older.length) return null;
+  const [d0, n0] = older[0];
+  const days = (Date.parse(d1) - Date.parse(d0)) / 86_400_000;
+  const weekPct = Math.round((Math.pow(Number(n1) / Number(n0), 7 / days) - 1) * 1000) / 10;
+  return { weekPct, from: Number(n0), to: Number(n1), days: Math.round(days), born: Number(n0) < rules.smallBase && weekPct >= rules.bornWeekPct };
+}

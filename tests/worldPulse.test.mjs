@@ -188,3 +188,14 @@ test("the countdown points at the next 05:37 UTC reading", async () => {
   assert.equal(new Date(nextReadingAt(Date.parse("2026-11-15T18:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
   assert.equal(new Date(nextReadingAt(Date.parse("2026-11-16T05:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
 });
+
+test("the factory signal: sellers rushing into a small kind of product before buyers", async () => {
+  const { factoryOf } = await import("../src/lib/growth/worldPulse.js");
+  const born = factoryOf([["2026-11-01", 800], ["2026-11-08", 1000], ["2026-11-15", 1400]]);
+  assert.equal(born.born, true, "a small kind, 800 → 1400 listings in 14 days: ≥ 25% a week");
+  assert.equal(born.weekPct, 32.3);
+  assert.equal(factoryOf([["2026-11-01", 90000], ["2026-11-15", 160000]]).born, false, "a big kind is not newborn, however fast");
+  assert.equal(factoryOf([["2026-11-14", 100], ["2026-11-15", 200]]), null, "one day apart is not a rush");
+  assert.equal(factoryOf([["2026-11-15", 100]]), null, "one reading measures nothing");
+  assert.equal(factoryOf([["2026-11-01", 1000], ["2026-11-15", 1100]]).born, false);
+});
