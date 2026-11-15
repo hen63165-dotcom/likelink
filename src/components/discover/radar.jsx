@@ -366,7 +366,7 @@ export function RadarPage() {
           <p className="lx-kicker mb-3"><Radar size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · חינם בתקופת הניסיון", "New on LikeLink2 · free during the trial")}</p>
           <h1 className="lx-profile-name">{L("רדאר הטרנדים ✨", "The trend radar ✨")}</h1>
           <p className="mt-3 max-w-2xl text-[16px] leading-7">
-            {L("מה מתחיל לעלות בעולם, לפני שזה מגיע לארץ. כל יום אנחנו מודדים באליאקספרס כמה מהר קונים מזמינים וכמה מוכרים חדשים נכנסים, ומראים לך את המספרים.", "What is starting to rise abroad, before it reaches Israel. Every day we measure on AliExpress how fast buyers order and how many new sellers rush in, and show you the numbers.")}
+            {L("מה מתחיל לעלות בעולם, לפני שמחפשים את זה בארץ. כל יום אנחנו מודדים באליאקספרס כמה מהר קונים מזמינים וכמה מוכרים חדשים נכנסים, ומראים לך את המספרים.", "What is starting to rise abroad, before Israelis search for it. Every day we measure on AliExpress how fast buyers order and how many new sellers rush in, and show you the numbers.")}
           </p>
           <button type="button" onClick={press} className="lx-btn lx-btn-ink mt-6" style={{ minHeight: 56, fontSize: 18, padding: "10px 28px" }}>
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}

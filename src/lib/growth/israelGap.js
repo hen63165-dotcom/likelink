@@ -30,7 +30,7 @@
 //   ARRIVED   (כבר כאן)        — a Hebrew search shows it a lot (confidence rises when another agrees), or it trended
 //   ARRIVING  (מתחיל להגיע)    — first Hebrew searches in one source
 //   UNCERTAIN (לא ודאי)        — only one Hebrew source answered, and it shows nothing
-//   GAP       (עוד לא הגיע)    — the world orders it (AliExpress), no Hebrew search in Israel yet
+//   GAP       (עוד לא מחפשים)  — the world orders it (AliExpress), no Hebrew search in Israel yet
 //   QUIET     (שקט)            — no search sign anywhere yet (not in Israel, not in the US)
 //   UNKNOWN   (לא נבדק)        — not measured (no phrase, the source failed or was skipped)
 // …and the arrival clock: the day the radar first SAW a Hebrew suggestion appear after an earlier
@@ -52,9 +52,12 @@ export const GAP = Object.freeze({
 });
 
 export const GAP_STATES = Object.freeze({
-  ARRIVED: { he: "כבר בארץ", hint: "ישראלים כבר מחפשים את זה בעברית" },
+  ARRIVED: { he: "כבר מחפשים בארץ", hint: "ישראלים כבר מחפשים את זה בעברית" },
   ARRIVING: { he: "מתחיל להגיע", hint: "הופיעו חיפושים ראשונים בעברית" },
-  GAP: { he: "עוד לא הגיע לארץ", hint: "בעולם מזמינים, בעברית עוד לא מחפשים" },
+  // Only what was measured: Hebrew searches (Google and YouTube suggestions). A product can be on
+  // Israeli shelves before anyone searches for it (2026-11-15: capybara squishies were sold by
+  // Israeli toy shops while both searches were still empty), so this never says "not in Israel".
+  GAP: { he: "עוד לא מחפשים בעברית", hint: "בעולם מזמינים, ובגוגל וביוטיוב בעברית עוד אין חיפושים. זה לא אומר שאין את זה בחנויות בארץ" },
   QUIET: { he: "שקט", hint: "עוד אין סימן חיפוש, לא בארץ ולא בחו״ל" },
   UNCERTAIN: { he: "לא ודאי", hint: "רק מקור אחד נמדד, ולא מספיק כדי לקבוע" },
   UNKNOWN: { he: "לא נבדק", hint: "אין עדיין מדידה של חיפושים" },
