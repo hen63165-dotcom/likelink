@@ -1,1 +1,1 @@
-{"spec": "talk-soap-20261115.json"}
+{"spec": "talk-soap-20261115.json", "only": ["s3"]}
