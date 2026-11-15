@@ -1,0 +1,74 @@
+{
+  "name": "talk-soap-20261115",
+  "about": "The owner, 2026-11-15: a selling video about the foam soap dispenser (ae-1005008742678061, on the site). No listing has a seller video, so Shira explains it from the side over the seller's own photos (labelled תמונת המוכר). The soap-to-water ratio is the seller's own (their photo: 'Soap : Water = 1 : 3-4'); the photo with other brands' bottles is cropped out. Short, one line per slide, Hebrew read back before the lips.",
+  "product": "ae-1005008742678061",
+  "editSpeed": 1.06,
+  "voices": {
+    "shira": {
+      "voice": "he-IL-HilaNeural",
+      "rate": "+4%",
+      "pitch": "+0Hz"
+    }
+  },
+  "heads": {
+    "shira": [
+      0.21,
+      0.055,
+      0.899,
+      0.443
+    ]
+  },
+  "bases": {
+    "shira": [
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/cta.mp4",
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/hero.mp4",
+      "scripts/media/studio3d/shots/ae-1005006861665924-shira/wow.mp4"
+    ]
+  },
+  "checkedBases": "2026-11-15 by eye, frame by frame over 3 s: Shira's problem.mp4 turns into another face after ~1.8 s (it was the eye score's pick), so only cta/hero/wow carry her lines; Noa's problem.mp4 left out the same way. Listed bases are used in order, not re-picked by the eye score.",
+  "keep": {
+    "shira": 3.0
+  },
+  "lines": [
+    {
+      "id": "s1",
+      "reel": "soap",
+      "slide": 1,
+      "image": "soap-01.png",
+      "presenter": "shira",
+      "say": "מכירות את מתקני הסבון שמוציאים קצף לבד?"
+    },
+    {
+      "id": "s2",
+      "reel": "soap",
+      "slide": 2,
+      "image": "soap-02.png",
+      "presenter": "shira",
+      "say": "לפי המוכר: חלק אחד סבון, ושלושה עד ארבעה חלקים מים."
+    },
+    {
+      "id": "s3",
+      "reel": "soap",
+      "slide": 3,
+      "image": "soap-03.png",
+      "presenter": "shira",
+      "say": "ככה בקבוק סבון אחד מספיק להרבה מילויים."
+    },
+    {
+      "id": "s4",
+      "reel": "soap",
+      "slide": 4,
+      "image": "soap-04.png",
+      "presenter": "shira",
+      "say": "שמים יד מתחת, והקצף יוצא לבד. יש ארבע עוצמות."
+    },
+    {
+      "id": "s5",
+      "reel": "soap",
+      "slide": 5,
+      "image": "soap-05.png",
+      "presenter": "shira",
+      "say": "רוצה את הקישור? תכתבי אני בתגובות."
+    }
+  ]
+}
