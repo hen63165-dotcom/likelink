@@ -36,6 +36,25 @@ export function povProblems(job) {
   if (HOOK_FORBIDDEN.test(s)) out.push(`claim rule (hook): ${s}`);
   if (DROP_FORBIDDEN.test(s)) out.push(`claim rule (drop): ${s}`);
   if (hasBrandName(s)) out.push(`brand name: ${s}`);
+  for (const c of job.scenes || []) {
+    if (!c) continue;
+    if (String(c).split(/\s+/).length > 7) out.push(`a scene caption needs ≤ 7 words: ${c}`);
+    if (HOOK_FORBIDDEN.test(c) || DROP_FORBIDDEN.test(c)) out.push(`claim rule (scene): ${c}`);
+    if (hasBrandName(c)) out.push(`brand name (scene): ${c}`);
+  }
+  return out;
+}
+
+/** Scene captions as time ranges: consecutive shots with the same line share one. */
+export function sceneRanges(scenes = [], shots = 0, shot = SHOT) {
+  const out = [];
+  for (let i = 0; i < shots; i++) {
+    const text = String(scenes[i] || "").trim();
+    if (!text) continue;
+    const last = out.at(-1);
+    if (last && last.text === text && last.to === Number((i * shot).toFixed(3))) last.to = Number(((i + 1) * shot).toFixed(3));
+    else out.push({ text, from: Number((i * shot).toFixed(3)), to: Number(((i + 1) * shot).toFixed(3)) });
+  }
   return out;
 }
 
@@ -72,7 +91,9 @@ const CSS = `*{margin:0;box-sizing:border-box} html,body{width:${W}px;height:${H
 .labels span{background:rgba(0,0,0,.55);color:#fff;font-size:26px;font-weight:500;padding:8px 18px;border-radius:999px}
 .pov{position:absolute;top:170px;right:80px;left:80px;text-align:center;color:#fff;-webkit-text-stroke:9px #000;paint-order:stroke fill;line-height:1.16;text-wrap:balance}
 .pov b{display:block;font-size:68px;font-weight:900;direction:ltr}
-.pov span{display:block;font-size:66px;font-weight:800}`;
+.pov span{display:block;font-size:66px;font-weight:800}
+.scene{position:absolute;top:1230px;right:90px;left:90px;text-align:center}
+.scene b{display:inline-block;background:#fff;color:#0b0b0c;font-size:58px;font-weight:900;line-height:1.2;padding:16px 30px;border-radius:24px;box-shadow:0 8px 30px rgba(0,0,0,.3);text-wrap:balance}`;
 
 function fontFaces(dir = process.env.FONTSOURCE_DIR || "/tmp/pw/node_modules/@fontsource") {
   const faces = [];
@@ -112,11 +133,23 @@ export async function renderPov({ page, job, clip, work, out }) {
   await page.evaluate(() => document.fonts.ready);
   const png = join(work, `${job.id}-overlay.png`);
   await page.screenshot({ path: png, omitBackground: true });
+  const ranges = sceneRanges(job.scenes, starts.length);
+  const scenePngs = [];
+  for (const [k, r] of ranges.entries()) {
+    await page.setContent(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><style>${fontFaces()}${CSS}</style></head><body><div class="scene"><b>${esc(r.text)}</b></div></body></html>`);
+    await page.evaluate(() => document.fonts.ready);
+    const f = join(work, `${job.id}-scene${k}.png`);
+    await page.screenshot({ path: f, omitBackground: true });
+    scenePngs.push(f);
+  }
   const total = starts.length * SHOT;
   const beat = join(work, `${job.id}-beat.wav`);
   execFileSync("python3", ["scripts/luna_reels/luna_reels/popbeat.py", String(total), beat], { stdio: ["ignore", "ignore", "inherit"] });
   const mp4 = join(out, `${job.id}-pov.mp4`);
-  ff(["-i", cut, "-i", png, "-i", beat, "-filter_complex", "[0:v][1:v]overlay=0:0,format=yuv420p[v]", "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-shortest", "-movflags", "+faststart", mp4]);
+  let chain = "[0:v][1:v]overlay=0:0[b0]";
+  ranges.forEach((r, k) => { chain += `;[b${k}][${k + 3}:v]overlay=0:0:enable='between(t,${r.from},${(r.to - 0.001).toFixed(3)})'[b${k + 1}]`; });
+  chain += `;[b${ranges.length}]format=yuv420p[v]`;
+  ff(["-i", cut, "-i", png, "-i", beat, ...scenePngs.flatMap((f) => ["-i", f]), "-filter_complex", chain, "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-shortest", "-movflags", "+faststart", mp4]);
   const sheet = join(out, `${job.id}-pov-sheet.jpg`);
   ff(["-i", mp4, "-vf", `fps=${(1 / SHOT).toFixed(3)},scale=240:-2,tile=${Math.min(starts.length, 7)}x2`, "-frames:v", "1", sheet]);
   return { mp4, sheet, shots: starts.length, seconds: total, wide };
