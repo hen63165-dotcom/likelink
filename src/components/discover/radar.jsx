@@ -614,6 +614,46 @@ function Verdict({ board, gated = false }) {
   );
 }
 
+/** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
+function FreshRisers({ fresh }) {
+  const L = useL();
+  if (!fresh) return null;
+  return (
+    <section className="lx-wrap mt-8" id="fresh">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f0fdf4" }}>
+        <h2 className="text-[22px] font-black">{L("🆕 מוצרים חדשים שמתחילים לרוץ", "🆕 New products starting to run")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("הרדאר מוצא לבד, בלי רשימה מוכנה מראש: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר, וההאצה החזיקה שתי מדידות ברצף. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings. AliExpress's own numbers, dated.")}</p>
+        <p className="mt-2 text-[13px] font-bold">{fresh.record?.graded ? L(`📏 הציון בפומבי: מתוך ${fresh.record.graded} מוצרים שהרדאר הצביע עליהם, ${fresh.record.hits} עלו ב־50% או יותר תוך 14 יום (${fresh.record.accuracy}%).`, `📏 Public grade: of ${fresh.record.graded} products the radar pointed to, ${fresh.record.hits} grew 50%+ within 14 days (${fresh.record.accuracy}%).`) : fresh.record?.pending ? L(`📏 כל מוצר שמוצג כאן נשמר עם תאריך ונבדק אחרי 14 יום: פגע אם ההזמנות שלו עלו ב־50% או יותר. ${fresh.record.pending} מחכים לבדיקה, הראשונה ב־${dm(fresh.record.nextDue)}.`, `📏 Every product shown is saved with its date and graded after 14 days: a hit if its orders grew 50%+. ${fresh.record.pending} waiting, the first on ${dm(fresh.record.nextDue)}.`) : L("📏 כל מוצר שיוצג כאן יישמר עם תאריך וייבדק אחרי 14 יום, בפומבי: פגע אם ההזמנות שלו עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every product shown here is saved with its date and graded after 14 days, in public: a hit if its orders grew 50%+; misses stay here too.")}</p>
+        {fresh.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{fresh.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.title.slice(0, 40)} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
+        {fresh.risers.length ? (
+          <>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות הוא קישור שותפים", "#ad · the store button is an affiliate link")}</p>
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              {fresh.risers.map((r) => (
+                <li key={r.id} className="lx-card flex gap-3 p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  <div style={{ width: 84, height: 84, flex: "0 0 84px", borderRadius: 12, overflow: "hidden", background: "#fff" }}><Img src={r.image} alt={r.title} loading="lazy" style={{ width: 84, height: 84, objectFit: "cover" }} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{r.title}</p>
+                    <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
+                    <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${r.ordersBefore} הזמנות ב־${dm(r.from)} ← ${r.orders} ב־${dm(r.to)} (30 יום, אליאקספרס)`, `${r.ordersBefore} orders on ${dm(r.from)} → ${r.orders} on ${dm(r.to)} (30 days, AliExpress)`)}{r.price ? L(` · מ־₪${r.price}`, ` · from ₪${r.price}`) : ""}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <a href={r.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(`fresh-${r.category || "new"}`, r.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a>
+                      {r.check ? <Go to={r.check} className="lx-btn lx-btn-ghost" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("מה לבדוק", "What to check")}</Go> : null}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("קצב עלייה של שבוע אחד הוא סימן מוקדם, לא הבטחה. השם הוא המילים של המוכר באליאקספרס.", "One week's growth is an early sign, not a promise. The name is the seller's own words on AliExpress.")}</p>
+          </>
+        ) : (
+          <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר לא מנחש.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -657,10 +697,13 @@ export function RadarPage() {
   const clock = board?.clock;
   const open = list.filter((c) => c.window === "OPEN");
   const firstResults = concepts.length && concepts.every((c) => c.stage === "UNVERIFIED");
+  // The page shows what the radar found on its own (FreshRisers, the verdict); the measured kinds are
+  // the radar's own instruments and open only with ?all=1.
+  const showAll = typeof location !== "undefined" && /[?&]all=1\b/.test(location.search);
 
   const press = () => {
     setShown(true);
-    setTimeout(() => results.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    setTimeout(() => (document.getElementById("fresh") || results.current)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
 
   return (
@@ -685,6 +728,7 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
+      {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} /> : null}
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
@@ -730,10 +774,10 @@ export function RadarPage() {
       </section>
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
-        <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("מה הרדאר רואה עכשיו", "What the radar sees now")}</h2>
+        {showAll ? <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("כל מה שהרדאר מודד", "Everything the radar measures")}</h2> : null}
         {!gated && board === undefined ? <div className="mt-6"><Spinner /></div> : null}
         {!gated && board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
-        {!gated && board ? (
+        {!gated && board && showAll ? (
           <>
             <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`עודכן ${dm(board.at.slice(0, 10))} · ${concepts.length} סוגי מוצרים על הרדאר · מקור: אליאקספרס`, `Updated ${dm(board.at.slice(0, 10))} · ${concepts.length} kinds on the radar · source: AliExpress`)}</p>
             <label className="mt-4 flex items-center gap-2 rounded-full px-4" style={{ border: "2px solid var(--lx-ink, #0d0d0f)", background: "#fff", minHeight: 50 }}>
@@ -769,10 +813,11 @@ export function RadarPage() {
               <p className="mt-6">{L("היום אין סוג מוצר שעובר את הסף של הרדאר. זה גם מידע: אין כרגע טרנד חדש ברור.", "Today no kind passes the radar's threshold. That is information too: no clear new trend right now.")}</p>
             ) : null}
             {rest.length ? (
-              <>
-                <h3 className="mt-8 text-[18px] font-extrabold">{L("יציב, בשיא או דועך", "Steady, at peak or cooling")}</h3>
+              <details className="mt-8" open={Boolean(q || kind)}>
+                <summary className="cursor-pointer text-[18px] font-extrabold">{L(`📚 כבר מוכרים: יציב, בשיא או דועך (${rest.length})`, `📚 Already known: steady, at peak or cooling (${rest.length})`)}</summary>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("את אלה השוק כבר מכיר. הרדאר ממשיך למדוד אותם כל יום, כדי לראות אם משהו מהם מתעורר שוב, אבל זה לא המקום לחפש את הדבר הבא.", "The market already knows these. The radar keeps measuring them daily in case one wakes up again, but this is not where the next thing is.")}</p>
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
-              </>
+              </details>
             ) : null}
             {(() => {
               const calls = list.filter((c) => c.early?.level === "CALL");
