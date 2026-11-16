@@ -1,0 +1,12 @@
+{
+  "note": "POV reels (scripts/marketing/pov-reel.mjs): the store's own video for each product, cut every 1 s, with one POV line fixed at the top (the viewer's own moment, never a claim that we bought or tried it). Only products still listed in the cloud catalog.",
+  "jobs": [
+    { "id": "ae-1005008742678061", "pov": "POV: כשהסבון יוצא קצף לבד, בלי ללחוץ על כלום" },
+    { "id": "ae-1005006678126295", "pov": "POV: כשגילית איך כותשים שום בלי סכין" },
+    { "id": "ae-1005012967864709", "pov": "POV: כשהילדים פותחים את הקופסה הנוצצת הזאת" },
+    { "id": "ae-1005012061688172", "pov": "POV: כשמתקן הסבון עובד לבד" },
+    { "id": "ae-1005011942976222", "pov": "POV: כשזוג עגילים אחד סוגר את כל הלוק" },
+    { "id": "ae-1005012588687878", "pov": "POV: כשמצאת מתנה קטנה לחנוכה" },
+    { "id": "ae-1005008830601930", "pov": "POV: כשהשעון החדש משלים את הלוק" }
+  ]
+}
