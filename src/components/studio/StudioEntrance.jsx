@@ -114,11 +114,14 @@ export default function StudioEntrance() {
   const paused = !loading && (Boolean(snapshotTakenAt()) || cloudStatus().state !== "ok");
   const attr = landingAttribution();
   const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  // The site's "כניסה" button (/studio?auth=login) opens the form on the sign-in tab, in view.
-  const [authMode] = useState(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "login" ? "login" : "signup"));
+  // The site's buttons open the form in view, on the right tab: "כניסה" → /studio?auth=login,
+  // "פתיחת סטודיו" → /studio?auth=signup. (Before 16.11 only login scrolled: 17 presses on
+  // "פתיחת סטודיו" in 30 days landed two screens above the form, and none signed up.)
+  const [authParam] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("auth") : null));
+  const authMode = authParam === "login" ? "login" : "signup";
   useEffect(() => {
-    if (authMode === "login") document.getElementById("signup")?.scrollIntoView({ block: "start" });
-  }, [authMode]);
+    if (authParam === "login" || authParam === "signup") document.getElementById("signup")?.scrollIntoView({ block: "start" });
+  }, [authParam]);
 
   return (
     <div dir={he ? "rtl" : "ltr"} className="mx-auto max-w-3xl space-y-5">
