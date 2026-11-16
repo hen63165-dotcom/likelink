@@ -10,6 +10,7 @@ To update one, copy the folder again from the same repository and change the com
 | `gsap-*/` (8 folders) | github.com/greensock/gsap-skills (`skills/`) | aed9cfd | MIT (`LICENSE.txt` in each folder). Every GSAP plugin is free |
 | `text-to-lottie/` | github.com/diffusionstudio/lottie (`skills/text-to-lottie`) | 3c72912 | MIT (`LICENSE.txt`) |
 | `zack-d-films/`, `breakdown/`, `stick-figure/`, `map-route/`, `graph/`, `minimalistic-graphics/` | AI Master (עמיחי שקל), `ai-master-animation-skills.zip` v1.0.0 (2026-11-10) from its public Notion page, fetched by Actions → "Page read" (zip sha256 `480eed03b611bbeb…`) | v1.0.0 | No licence stated; given away free for installing into Claude's skills folder. Instructions only, no code. AI Master's own note: not affiliated with Zack D. Films or David Ho; the names only match the shortcuts in its video |
+| `frontend-design/` | github.com/anthropics/skills (`skills/frontend-design`, Anthropic's own design skill; installed 2026-11-16 at the owner's request: "the skill that builds sites at the highest level") | 1780c5e | Apache-2.0 (`LICENSE.txt`) |
 
 ## LikeLink2 rules that win over these skills
 

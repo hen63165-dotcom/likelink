@@ -503,9 +503,9 @@ export function LuxeHome({ graph, extra = null }) {
   return (
     <div className="lx-luxe">
       <SeasonStrip />
+      <Hero items={items} featured={featured} reel={featuredReel} />
       <MagicStrip />
       <TelegramStrip />
-      <Hero items={items} featured={featured} reel={featuredReel} />
       <HowItWorks graph={graph} items={items} footage={footage} featured={featured} />
       <Circles products={graph.products} />
       <Collection items={items} footage={footage} />
