@@ -148,3 +148,37 @@ test("the daily put adds the radar's pick to the table and seals it (read back)"
     assert.equal(lb.body.duel.radar.open, 1);
   } finally { delete process.env.AUTOPILOT_SECRET; }
 });
+
+// The sealed receipt (the owner, 2026-11-16: "make it one of a kind").
+test("a receipt: the day, the product, the grade day and whether the morning seal holds it; never an id", async () => {
+  const { receiptView } = await import("../src/lib/growth/radarPicks.js");
+  const p = { id: "abcd1234-rising-c-2026-11-16", userId: "abcd1234-ffff", concept: "rising-c", at: "2026-11-16", due: "2026-11-30", base: 800, show: false, nick: "dana" };
+  const r = receiptView(p, { he: "משהו עולה", sealText: "2026-11-16|rising-c|800|anon" });
+  assert.deepEqual([r.concept, r.he, r.at, r.due, r.nick, r.sealed, r.bot], ["rising-c", "משהו עולה", "2026-11-16", "2026-11-30", null, true, false]);
+  assert.equal(JSON.stringify(r).includes("abcd1234"), false, "no stored id or user id");
+  assert.equal(receiptView(p, { sealText: "" }).sealed, false);
+  assert.equal(receiptView({ ...p, userId: "radar" }, { revealConcept: false }).concept, null, "the radar's open pick stays hidden while the board is locked");
+});
+
+test("the server answers a receipt by its receipt id only, and hands each own pick its receipt id", async () => {
+  const { createRadarBoardHandler } = await import("../api/_utils/radarBoardHandler.mjs");
+  const fakeRes = () => { const r = { code: 0, body: null, headers: {} }; return Object.assign(r, { status(c) { r.code = c; return r; }, setHeader(k, v) { r.headers[k] = v; }, json(b) { r.body = b; } }); };
+  const data = { "radar:picks": [{ id: "radar-rising-c-2026-11-16", userId: "radar", bot: true, concept: "rising-c", nick: "הרדאר", show: true, at: "2026-11-16", due: "2026-11-30", base: 800 }], "radar:board": { at: "2026-11-16T05:40:00Z", concepts: [{ id: "rising-c", he: "משהו עולה" }] } };
+  const kv = { kvGet: async (k, fb) => (k in data ? data[k] : fb), kvSet: async (k, v) => { data[k] = v; } };
+  const h = createRadarBoardHandler({ kv, now: () => Date.parse("2026-11-16T12:00:00Z") });
+  const lb = fakeRes();
+  await h({ method: "GET", url: "/api/store?mode=radar-board&op=leaderboard", headers: { origin: "https://likelink2.vercel.app" } }, lb);
+  const rid = lb.body.duel.recent[0].rid;
+  assert.match(rid, /^[0-9a-f]{16}$/);
+  assert.equal("id" in lb.body.duel.recent[0], false, "the stored id never leaves the server");
+  const ok = fakeRes();
+  await h({ method: "GET", url: `/api/store?mode=radar-board&op=receipt&r=${rid}`, headers: { origin: "https://likelink2.vercel.app" } }, ok);
+  assert.equal(ok.code, 200);
+  assert.equal(ok.body.receipt.nick, "הרדאר");
+  const bad = fakeRes();
+  await h({ method: "GET", url: "/api/store?mode=radar-board&op=receipt&r=nothex", headers: { origin: "https://likelink2.vercel.app" } }, bad);
+  assert.equal(bad.code, 400);
+  const none = fakeRes();
+  await h({ method: "GET", url: "/api/store?mode=radar-board&op=receipt&r=0123456789abcdef", headers: { origin: "https://likelink2.vercel.app" } }, none);
+  assert.equal(none.code, 404);
+});

@@ -138,7 +138,7 @@ export function duelOf(picks = [], { openPicks = false } = {}) {
   const firstDue = radarRows.filter((p) => !p.result).map((p) => p.due).sort()[0] || null;
   const recent = radarRows.slice().sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 14)
     .filter((p) => p.result || openPicks)
-    .map((p) => ({ concept: p.concept, at: p.at, due: p.due, result: p.result || null, growth: p.result ? p.growth : null }));
+    .map((p) => ({ id: p.id, concept: p.concept, at: p.at, due: p.due, result: p.result || null, growth: p.result ? p.growth : null }));
   return { radar, crowd, leader, firstDue, recent };
 }
 
@@ -148,4 +148,24 @@ export function beatsRadar(picks = [], userId) {
   const me = tally(list.filter((p) => p.userId === userId));
   const radar = tally(list.filter((p) => p.userId === RADAR_PLAYER.userId));
   return Boolean(userId && userId !== RADAR_PLAYER.userId && me.graded >= DUEL.minGraded && radar.graded >= DUEL.minGraded && me.accuracy > radar.accuracy);
+}
+
+// The sealed receipt (the owner, 2026-11-16: "make it one of a kind"; a worldwide check found
+// timestamped forecast logs only for market traders, e.g. the open-source "Receipts", and no
+// consumer product-trend pick that a person shares before it is graded): every pick has a public
+// receipt — the day, the product, the order count it is graded against, the grade day, whether the
+// morning seal already holds it in Bitcoin, and later its grade. The sharer chose to share it; it
+// carries her nickname only when she chose to appear on the table, never an id or e-mail.
+export const RECEIPT_ID = /^[0-9a-f]{16}$/;
+export function receiptView(p, { he = null, sealText = "", revealConcept = true } = {}) {
+  if (!p) return null;
+  const line = `${p.at}|${p.concept}|${Number(p.base) || 0}|`;
+  const sealed = typeof sealText === "string" && sealText.split("\n").some((l) => l.startsWith(line));
+  const bot = p.userId === RADAR_PLAYER.userId;
+  return {
+    concept: revealConcept ? p.concept : null, he: revealConcept ? he : null,
+    at: p.at, due: p.due, base: revealConcept ? Number(p.base) || null : null,
+    nick: bot ? RADAR_PLAYER.nick : p.show && p.nick ? p.nick : null, bot,
+    result: p.result || null, growth: p.result ? p.growth : null, sealed,
+  };
 }
