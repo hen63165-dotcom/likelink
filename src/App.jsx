@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
+import { flushSync } from "react-dom";
 import { MarketplaceProvider, useMarketplace } from "./context/MarketplaceContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { LangProvider } from "./lib/LangContext";
@@ -193,10 +194,18 @@ function App() {
     // path on the GitHub Pages copy ("/likelink/p/x").
     const url = new URL(path, window.location.origin);
     const route = stripBase(url.pathname);
-    window.history.pushState({}, "", `${withBase(route)}${url.search}${url.hash}`);
-    // `nav` makes every navigation a new route object, so a page that reads
-    // its query string (search, filters) refreshes on same-path navigation.
-    setRoute({ ...parsePath(route), nav: Date.now() });
+    const go = () => {
+      window.history.pushState({}, "", `${withBase(route)}${url.search}${url.hash}`);
+      // `nav` makes every navigation a new route object, so a page that reads
+      // its query string (search, filters) refreshes on same-path navigation.
+      setRoute({ ...parsePath(route), nav: Date.now() });
+    };
+    // One calm cross-fade between pages where the browser has View Transitions
+    // (public.css styles it; the header stays put). Reduced motion: no transition.
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (typeof document.startViewTransition === "function" && !still) {
+      document.startViewTransition(() => flushSync(go));
+    } else go();
   }
 
   if (loading) return <LoadingScreen />;
