@@ -11,6 +11,8 @@
 // Pure: the runner (scripts/catalog/trend-radar.mjs) does the reading.
 import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
+import { phrasesOf } from "./radarDiscovery.js";
+import { echoOf } from "./worldPulse.js";
 
 export const FRESH = Object.freeze({
   minOrders: 30, // under that a week's growth is noise
@@ -22,7 +24,28 @@ export const FRESH = Object.freeze({
   keepDays: 21, // a listing not seen again for three weeks leaves the pool
   maxPool: 1500,
   show: 12,
+  maxSimilar: 2000, // more matching listings than this = many sellers already copy it: saturated
+  checkUpTo: 24, // candidates checked a day (two reads each)
 });
+
+/**
+ * "Nobody has heard of it yet" (the owner, 2026-11-16: "only things nobody in Israel or the world
+ * thought would be a hit; never what the market is saturated with"), measured twice before a riser
+ * is shown: (1) few sellers — AliExpress's own count of listings matching the item's first
+ * two-word phrase is under maxSimilar; (2) no buzz — Google's public suggestions in the US for that
+ * phrase do not add "tiktok", "viral", "trending" or "amazon". A check that could not be read
+ * hides the riser: unknown is never assumed.
+ */
+export function freshPhrase(title = "") {
+  return [...phrasesOf(title)][0] || null;
+}
+export function unknownCheck({ phrase = null, similar = null, suggestions = null } = {}, { rules = FRESH } = {}) {
+  if (!phrase || !Number.isFinite(similar) || !Array.isArray(suggestions)) return { unknown: false, reason: "NOT_CHECKED", phrase, similar: Number.isFinite(similar) ? similar : null, buzz: [] };
+  const buzz = echoOf({ en: suggestions });
+  if (similar > rules.maxSimilar) return { unknown: false, reason: "SATURATED", phrase, similar, buzz };
+  if (buzz.length) return { unknown: false, reason: "BUZZ", phrase, similar, buzz };
+  return { unknown: true, reason: "UNKNOWN", phrase, similar, buzz: [] };
+}
 
 const BUY = /^https:\/\/s\.click\.aliexpress\.com\//;
 const IMG = /^https:\/\/[^/]*(aliexpress-media\.com|alicdn\.com|aliexpress\.com)\//i;
