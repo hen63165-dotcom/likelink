@@ -40,6 +40,19 @@ Written 15.11.2026 from public sources (roundups and the vendors' own pages, mos
 
 No Israeli or Hebrew-market tool that calls product trends in advance was found (search: Israeli startups predicting viral products; [Calcalist 2025 list](https://www.calcalistech.com/ctechnews/article/923yvb6hw), [JPost on Onebeat](https://www.jpost.com/business-and-innovation/tech-and-start-ups/article-695408), [CTech 2020](https://www.calcalistech.com/ctech/articles/0,7340,L-3812350,00.html)). Nobody's accuracy — ours included — has been verified independently: the radar has no graded call yet, so no claim of hitting better than anyone can be made until it has a sealed, graded record.
 
+## Fourth check (16.11, worldwide: the country clock)
+
+The owner asked "מה עוד" again. Searched for a measured country-by-country arrival clock for product trends and for markets on viral products:
+- No study or tool was found that measures how many days a product trend takes to reach other countries. The closest is research on search trends, not products: GoogleTrendArchive (125 countries, 2026) counts how many countries a search trend reaches and for how long ([arXiv 2603.21871](https://arxiv.org/pdf/2603.21871)), and a TikTok study gives lifespans in days, not cross-border lag ([LBB](https://lbbonline.com/news/Why-Some-TikTok-Trends-Take-Over-the-World)).
+- No product-trend tool with a country map was found. Google Trends breaks down one search term by region, and WGSN sells a social signal map to large brands ([WGSN](https://www.wgsn.com/en/about-us)). Neither seals a "next country" call.
+- Prediction markets (Kalshi, Polymarket) run culture and "mention" markets, but none was found on a specific product going viral ([NPR](https://www.npr.org/transcripts/nx-s1-5718399), [DeFi Rate](https://defirate.com/prediction-markets/culture/)).
+
+**Proposed next move (waits for the owner's yes): the global trend clock.**
+1. Each product's arrival day in 11 countries, measured from local-language searches. The sources are Google's and YouTube's public suggestions in each language (robots.txt is checked first) and the store's own localized title (AliExpress API, so no translation is guessed).
+2. A map that shows the wave moving from country to country, with dates.
+3. Israel's number: how many days after the US a product reaches Israel. It is shown only from measured arrivals (3 or more), always with the count.
+4. "Which country is next": a sealed call by the radar, plus visitors' picks in the sixth-sense game (points only). Both are graded in public.
+
 ## Wording rules (public)
 
 - Never "the only one in the world" or "beats Exploding Topics". Allowed: "we found no other Hebrew product-trend radar that seals every call in advance and publishes its grade" and the comparison above, with its date and sources.

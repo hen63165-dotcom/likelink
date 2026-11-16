@@ -53,3 +53,12 @@ jobs:
         run: |
           gh release view kling-preview >/dev/null 2>&1 || gh release create kling-preview --prerelease --title "Kling clips (review)" --notes "Clips made with the owner's Kling account, copied here for review before editing. AI-made; nothing here is posted and the site never reads this release."
           gh release upload kling-preview kling-out/* --clobber
+      - name: Commit them to the branch that ran (so a session that cannot reach the release can review them)
+        run: |
+          mkdir -p marketing/kling/fetched && cp kling-out/* marketing/kling/fetched/
+          git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add marketing/kling/fetched
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Kling fetch: clips and sheets for review"
+          for i in 1 2 3 4; do git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin HEAD:${GITHUB_REF_NAME} && exit 0; sleep $((i * 5)); done
+          exit 1

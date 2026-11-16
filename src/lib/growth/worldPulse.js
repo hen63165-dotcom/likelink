@@ -94,10 +94,14 @@ const level = (n, rules = WORLD) => (Number.isFinite(n) ? (n >= rules.aware ? "A
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 /** One day's world reading: completions per market (null = no answer), YouTube US, today's trends geos. */
-export function worldReading({ by = {}, yt = null, trends = [], echo = [] } = {}, { now = Date.now() } = {}) {
+export function worldReading({ by = {}, yt = null, trends = [], echo = [], x = null } = {}, { now = Date.now() } = {}) {
   const out = {};
   for (const m of WORLD_MARKETS) out[m.id] = Number.isFinite(by[m.id]) ? by[m.id] : null;
-  return { d: new Date(now).toISOString().slice(0, 10), by: out, yt: Number.isFinite(yt) ? yt : null, trends: (Array.isArray(trends) ? trends : []).filter((g) => TRENDS_GEOS.includes(g)), echo: (Array.isArray(echo) ? echo : []).filter((k) => Object.hasOwn(ECHO, k)) };
+  const r = { d: new Date(now).toISOString().slice(0, 10), by: out, yt: Number.isFinite(yt) ? yt : null, trends: (Array.isArray(trends) ? trends : []).filter((g) => TRENDS_GEOS.includes(g)), echo: (Array.isArray(echo) ? echo : []).filter((k) => Object.hasOwn(ECHO, k)) };
+  // The global clock's own countries (worldClock.js CLOCK_EXTRA): stored apart, never part of the
+  // world pulse (spreadOf reads `by` only), so the early-call signals stay as they were sealed.
+  if (x && typeof x === "object") r.x = Object.fromEntries(Object.entries(x).filter(([k]) => /^[a-z]{2}$/.test(k)).map(([k, v]) => [k, Number.isFinite(v) ? v : null]));
+  return r;
 }
 
 /** Adds today's reading (one per day; a later one the same day replaces it). */
