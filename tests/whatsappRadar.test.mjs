@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { hypeOf, hypeShareText } from "../src/lib/growth/hypeMeter.js";
+import { hypeOf, hypePhrase, hypeShareText } from "../src/lib/growth/hypeMeter.js";
 import { checkReply, findReply, incomingMessages, intentOf, WA_HELP } from "../src/lib/growth/whatsappBot.js";
 import { createWhatsappHandler, signatureOk } from "../api/_utils/whatsappHandler.mjs";
 
@@ -21,6 +21,12 @@ test("hype: levels from measured signals only; a missing answer is MEASURING", (
   assert.ok(!h.lines.join(" ").includes("812"), "orders are never printed");
   assert.ok(hypeShareText(h, "סקווישי").includes("נמדד עכשיו"));
   assert.equal(hypeShareText(hypeOf({}), "x"), "");
+});
+
+test("hype phrase: the words people search for the thing itself", () => {
+  assert.equal(hypePhrase("Automatic Liquid Soap Dispenser Touchless Foam Hand Washer 400ml USB"), "soap dispenser");
+  assert.equal(hypePhrase("Kawaii Capybara Squishy Toy Slow Rising Stress Relief"), "capybara squishy");
+  assert.equal(hypePhrase(""), null);
 });
 
 test("whatsapp: only text (or an image caption) from a number; at most three per delivery", () => {

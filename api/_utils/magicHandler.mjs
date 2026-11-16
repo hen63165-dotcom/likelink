@@ -24,8 +24,7 @@ import { classifyAgent, clientIp, createRateLimiter } from "./botGuard.mjs";
 import { brandTitle, firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
 import { guessCategory, hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { findAttempts, findResults, parseFind } from "../../src/lib/growth/findOnAli.js";
-import { hypeOf } from "../../src/lib/growth/hypeMeter.js";
-import { freshPhrase } from "../../src/lib/growth/freshRisers.js";
+import { hypeOf, hypePhrase } from "../../src/lib/growth/hypeMeter.js";
 import { SUGGEST_HOST, SUGGEST_PATH, parseSuggest, robotsAllows, suggestUrl } from "../../src/lib/growth/israelGap.js";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
@@ -121,7 +120,7 @@ async function measureHype(itemId, x, { env, fetchImpl, now, sleep }) {
   try {
     const en = await aeCall("aliexpress.affiliate.productdetail.get", { product_ids: itemId, target_currency: "USD", target_language: "EN", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID }, { env, fetchImpl, now, sleep });
     const p = arr(en?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product).find((y) => String(y?.product_id) === itemId);
-    phrase = p ? freshPhrase(String(p.product_title || "")) : null;
+    phrase = p ? hypePhrase(String(p.product_title || "")) : null;
   } catch { phrase = null; }
   if (phrase) {
     try {
