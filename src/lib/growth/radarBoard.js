@@ -144,6 +144,8 @@ export function sanitizeBoard(doc) {
     fresh: cleanFresh(doc.fresh),
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
+    // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
+    world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays) } : null,
   };
 }
 

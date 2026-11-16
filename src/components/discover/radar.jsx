@@ -624,7 +624,7 @@ function Verdict({ board, gated = false }) {
 }
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
-function FreshRisers({ fresh }) {
+function FreshRisers({ fresh, world = null }) {
   const { L } = useL();
   if (!fresh) return null;
   return (
@@ -632,6 +632,7 @@ function FreshRisers({ fresh }) {
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f0fdf4" }}>
         <h2 className="text-[22px] font-black">{L("🆕 מוצרים חדשים שמתחילים לרוץ", "🆕 New products starting to run")}</h2>
         <p className="mt-1 text-[14px] leading-6">{L("הרדאר מוצא לבד, בלי רשימה מוכנה מראש: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושאף אחד עוד לא מדבר עליו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד לא משלימים ״טיקטוק״, ״ויראלי״ או ״אמזון״. מה שהשוק כבר רווי בו לא מופיע כאן. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
+        {world?.categories ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 בכל הקטגוריות בעולם: הרדאר עובר על כל ${world.categories.toLocaleString("he-IL")} הקטגוריות של אליאקספרס, ${world.readToday} בכל בוקר, סבב מלא כל ${world.fullRoundDays} ימים.`, `🌍 Every category: the radar goes through all ${world.categories.toLocaleString("en-US")} AliExpress categories, ${world.readToday} every morning, a full round every ${world.fullRoundDays} days.`)}</p> : null}
         <p className="mt-2 text-[13px] font-bold">{fresh.record?.graded ? L(`📏 הציון בפומבי: מתוך ${fresh.record.graded} מוצרים שהרדאר הצביע עליהם, ${fresh.record.hits} עלו ב־50% או יותר תוך 14 יום (${fresh.record.accuracy}%).`, `📏 Public grade: of ${fresh.record.graded} products the radar pointed to, ${fresh.record.hits} grew 50%+ within 14 days (${fresh.record.accuracy}%).`) : fresh.record?.pending ? L(`📏 כל מוצר שמוצג כאן נשמר עם תאריך ונבדק אחרי 14 יום: פגע אם ההזמנות שלו עלו ב־50% או יותר. ${fresh.record.pending} מחכים לבדיקה, הראשונה ב־${dm(fresh.record.nextDue)}.`, `📏 Every product shown is saved with its date and graded after 14 days: a hit if its orders grew 50%+. ${fresh.record.pending} waiting, the first on ${dm(fresh.record.nextDue)}.`) : L("📏 כל מוצר שיוצג כאן יישמר עם תאריך וייבדק אחרי 14 יום, בפומבי: פגע אם ההזמנות שלו עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every product shown here is saved with its date and graded after 14 days, in public: a hit if its orders grew 50%+; misses stay here too.")}</p>
         {fresh.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{fresh.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.title.slice(0, 40)} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
         {fresh.risers.length ? (
@@ -821,7 +822,7 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
-      {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} /> : null}
+      {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
 

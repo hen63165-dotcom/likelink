@@ -42,6 +42,7 @@ import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
+import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
@@ -405,6 +406,51 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       } catch (err) { log.push(`fresh ${cat.key}: ${String(err?.message || err).slice(0, 60)}`); }
       await pause(politeMs);
     }
+    // Every category in the world (worldCategories.js): AliExpress's whole category tree, a slice a
+    // day in rotation. Each category's new listings of the year join the fresh pool; its hot list
+    // joins the waves.
+    if (env.RADAR_WORLD !== "0") {
+      const e = aeEnv(env);
+      let world = readJson(join(dir, "world-categories.json"), {});
+      if (needsRefresh(world, today)) {
+        try {
+          const list = categoriesOf(await aeCall(CATEGORY_GET, {}, { env: e, fetchImpl, now }));
+          if (list?.length) world = { at: today, list, cursor: Number(world.cursor) || 0 };
+        } catch (err) { log.push(`world categories: ${String(err?.message || err).slice(0, 60)}`); }
+      }
+      const rot = rotation(world.list || [], world.cursor);
+      const wStarted = Date.now();
+      let read = 0;
+      for (const cat of rot.slice) {
+        if (Date.now() - wStarted > WORLD.budgetMs) { log.push(`world: budget over at ${cat.id}`); break; }
+        try {
+          const res = await aeCall(SEARCH, { category_ids: cat.id, keywords: `${new Date(now).getUTCFullYear()} new`, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+          const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+          for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+            const entry = freshEntry(p, { category: `world-${cat.id}`, today });
+            if (!entry) continue;
+            entries.push(entry);
+            items[entry.id] = addItemReading(items[entry.id], [today, entry.orders]);
+          }
+          if (waveLists) {
+            const hot = await aeCall(HOT, { category_ids: cat.id, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+            const hr = hot?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
+            const hraw = Number(hr?.resp_code) === 200 ? hr.result?.products?.product : null;
+            waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
+          }
+          read++;
+        } catch (err) { log.push(`world ${cat.id}: ${String(err?.message || err).slice(0, 60)}`); }
+        await pause(politeMs);
+      }
+      if (world.list?.length) {
+        const done = rotation(world.list, world.cursor, read);
+        world.cursor = done.next;
+        writeFileSync(join(dir, "world-categories.json"), JSON.stringify(world));
+      }
+      sources.world = rot.total ? { categories: rot.total, readToday: read, fullRoundDays: rot.days } : "FAILED";
+      log.push(`world: ${read}/${rot.slice.length} categories read today · ${rot.total} in the tree · a full round every ${rot.days} days`);
+    }
     freshPool = mergeFreshPool(freshPool, entries, { today });
     sources.fresh = entries.length ? "OK" : "FAILED";
     log.push(`fresh: ${entries.length} new listings read today · pool ${Object.keys(freshPool).length}`);
@@ -423,6 +469,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   board.fresh = freshRisers(freshPool, items, { rules: { ...FRESH, show: FRESH.checkUpTo } });
   {
