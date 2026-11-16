@@ -20,11 +20,14 @@ const isAutomated = () => {
 const rid = () => `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 
 /** Record one funnel step. Never throws. */
-export async function trackFunnel(type, place = "") {
+export async function trackFunnel(type, place = "", extra = {}) {
   if (!FUNNEL_TYPES.includes(type) || isAutomated()) return false;
   let attr = {};
   try { attr = landingAttribution() || {}; } catch { attr = {}; }
   const ev = { id: rid(), type, ts: Date.now(), place: String(place || "").slice(0, 60), ...attr };
+  // The crowd sensor (src/lib/growth/crowdSensor.js): a magic check may carry the item number
+  // (once per item per browser session), never anything about the person.
+  if (type === "magic_check" && /^\d{6,20}$/.test(String(extra?.item || ""))) ev.item = String(extra.item);
   try {
     await storage.set(FUNNEL_KEY, JSON.stringify([ev]), true);
     return true;

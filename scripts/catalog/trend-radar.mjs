@@ -32,7 +32,7 @@ import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
 import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
-import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
+import { HOT as HOT_RULES, addItemReading, itemMomentum, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
@@ -41,6 +41,7 @@ import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growt
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
+import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
@@ -534,6 +535,35 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.waves = { at: today, list: cards.slice(0, WAVES.show) };
     log.push(`waves: ${cards.map((c) => `${c.token} (${c.items} items, ${c.orders} orders${c.alt ? ", alt" : ""})`).join(", ") || "none today"} · youtube ${ytN} · instagram ${sources.instagram}`);
   }
+  // The crowd sensor (crowdSensor.js): items checked in the magic button by different people this
+  // week (counts only, from the server), with the store's own facts; their orders join the histories.
+  if (store && env.AUTOPILOT_SECRET && env.RADAR_CROWD !== "0") {
+    try {
+      const res = await fetchImpl(env.CROWD_ENDPOINT || "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board&op=crowd", { headers: { authorization: `Bearer ${env.AUTOPILOT_SECRET}`, origin: "https://likelink2.vercel.app" }, signal: AbortSignal.timeout(30_000) });
+      const body = await res.json().catch(() => null);
+      const counts = Array.isArray(body?.crowd) ? body.crowd : null;
+      if (!counts) throw new Error(`crowd ${res.status}`);
+      const cards = [];
+      if (counts.length) {
+        const e = aeEnv(env);
+        const out = await aeCall(DETAIL, { product_ids: counts.slice(0, CROWD.top).map((c) => c.item).join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
+        const r = out?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+        const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+        const byId = new Map((Array.isArray(raw) ? raw : raw ? [raw] : []).map((p) => [String(p?.product_id || ""), p]));
+        for (const c of counts) {
+          const p = byId.get(c.item);
+          if (!p) continue;
+          const v = Number(p.lastest_volume);
+          if (Number.isFinite(v)) items[c.item] = addItemReading(items[c.item], [today, v]);
+          const card = crowdCard(c, p, { momentum: itemMomentum(items[c.item] || [], { rules: HOT_RULES }) });
+          if (card) cards.push(card);
+        }
+      }
+      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show) };
+      sources.crowd = "OK";
+      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length}`);
+    } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
+  } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);

@@ -11,6 +11,7 @@ import { AlertTriangle, ClipboardPaste, ExternalLink, Info, Octagon, Search, Sma
 import { MAGIC_FAQ, MAGIC_PATH, RECENT_KEY, addRecent, catalogMatch, firstLink, isStoreLink, priceMemory, shekel, shortDate } from "../../lib/growth/magic.js";
 import { activeSeasons, seasonName } from "../../lib/saleSeason.js";
 import { trackFunnel, BOT_UA } from "../../lib/funnel.js";
+import { firstCheckThisSession } from "../../lib/growth/crowdSensor.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
@@ -337,7 +338,7 @@ export function MagicPage({ graph }) {
       const saved = writeRecent(next);
       setRecent(next);
       setState({ phase: "done", link, report: body.report, memory, saved });
-      trackFunnel("magic_check", body.report.buy?.via || "");
+      trackFunnel("magic_check", body.report.buy?.via || "", firstCheckThisSession(item.id) ? { item: item.id } : {});
       try {
         const u = new URL(window.location.href);
         if (u.searchParams.get("u") !== link || u.searchParams.has("q")) { u.searchParams.delete("q"); u.searchParams.set("u", link); window.history.replaceState(window.history.state, "", u.toString()); }
@@ -420,7 +421,7 @@ export function MagicPage({ graph }) {
             </form>
             {recent.length && state.phase !== "loading" ? (
               <div>
-                <p className="lx-mute mb-2 text-[13px] font-bold">{L("הבדיקות האחרונות שלך (נשמרות רק במכשיר הזה)", "Your recent checks (kept on this device only)")}</p>
+                <p className="lx-mute mb-2 text-[13px] font-bold">{L("הבדיקות האחרונות שלך (נשמרות רק במכשיר הזה). לרדאר נספר רק מספר המוצר, בלי שום פרט עלייך.", "Your recent checks (kept on this device only). The radar counts only the item number, nothing about you.")}</p>
                 <div className="flex flex-wrap gap-2">
                   {recent.map((r) => (
                     <button key={r.link} type="button" className="lx-chip !min-h-[36px] !text-[12.5px]" onClick={() => check(r.link)} style={{ maxWidth: "100%" }}>

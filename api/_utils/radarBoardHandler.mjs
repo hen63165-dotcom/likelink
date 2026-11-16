@@ -36,6 +36,7 @@ async function sealPicks(picks, { kvGet, kvSet, fetchImpl, today }) {
   return seal;
 }
 import { currentRadarSub, ownRadarSubs } from "../../src/lib/growth/radarSubs.js";
+import { crowdOf } from "../../src/lib/growth/crowdSensor.js";
 
 const header = (req, k) => String((req.headers?.get ? req.headers.get(k) : req.headers?.[k]) || "");
 
@@ -66,6 +67,12 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       return json({ ok, at: board.at, concepts: board.concepts.length }, ok ? 200 : 502);
     }
 
+    // The crowd sensor (crowdSensor.js): items checked in the magic button in different browser
+    // sessions this week, counts only. For the radar run (cron auth).
+    if (req.method === "GET" && url.searchParams.get("op") === "crowd") {
+      if (!isAuthorizedCron(req, [process.env.AUTOPILOT_SECRET].filter(Boolean))) return json({ ok: false, error: "unauthorized" }, 401);
+      return json({ ok: true, crowd: crowdOf((await kvGet("marketplace:funnel", [])) || [], { now: now() }) });
+    }
     const origin = header(req, "origin");
     if (origin && !isApprovedOrigin(origin)) return json({ ok: false, error: "origin_not_allowed" }, 403);
     const op = url.searchParams.get("op") || "";

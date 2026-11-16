@@ -709,6 +709,44 @@ function Waves({ waves }) {
   );
 }
 
+/** The crowd sensor (crowdSensor.js): what different people checked in the magic button this week. */
+function Crowd({ crowd }) {
+  const { L } = useL();
+  if (!crowd) return null;
+  return (
+    <section className="lx-wrap mt-8" id="crowd">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fefce8" }}>
+        <h2 className="text-[22px] font-black">{L("👥 מה בודקים בארץ השבוע", "👥 What people in Israel check this week")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("מי שרואה מוצר ברילס מדביקה את הקישור בכפתור הקסם. כשכמה אנשים שונים בודקים את אותו מוצר באותו שבוע, הוא כנראה מסתובב עכשיו ברשתות בארץ. הרדאר סופר רק את מספר המוצר, בלי שום פרט על מי שבדק.", "People who see a product in a reel paste its link into the magic button. When several different people check the same item in a week, it is probably going around Israeli feeds right now. The radar counts only the item number, nothing about who checked.")}</p>
+        {crowd.list.length ? (
+          <>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות הוא קישור שותפים", "#ad · the store button is an affiliate link")}</p>
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              {crowd.list.map((c) => (
+                <li key={c.id} className="lx-card flex gap-3 p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  <div style={{ width: 76, height: 76, flex: "0 0 76px", borderRadius: 12, overflow: "hidden" }}><Img src={c.image} alt={c.title} loading="lazy" style={{ width: 76, height: 76, objectFit: "cover" }} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-bold leading-5">{c.title}</p>
+                    <p className="mt-1 text-[15px] font-black" style={{ color: "#a16207" }}>{L(`👥 ${c.people} אנשים שונים בדקו אותו ב־${crowd.days} ימים`, `👥 ${c.people} different people checked it in ${crowd.days} days`)}</p>
+                    {c.momentum ? <p className="text-[12px]">{L(`באליאקספרס: ${c.momentum.weekPct > 0 ? "+" : ""}${c.momentum.weekPct}% הזמנות בשבוע`, `On AliExpress: ${c.momentum.weekPct > 0 ? "+" : ""}${c.momentum.weekPct}% orders a week`)}</p> : null}
+                    {c.blocked ? <p className="text-[12px] font-bold" style={{ color: "#b91c1c" }}>{L(c.blocked === "TOOL" ? "🚫 לא מקדמים: כלי להעתקת כרטיסים ושלטים" : "🚫 לא מקדמים: שם של מותג או דמות", c.blocked === "TOOL" ? "🚫 Not promoted: a card and remote copying tool" : "🚫 Not promoted: a brand or character name")}</p> : null}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {c.buy ? <a href={c.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit("crowd", c.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 32, padding: "2px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a> : null}
+                      <Go to={c.check} className="lx-btn lx-btn-ghost" style={{ minHeight: 32, padding: "2px 12px", fontSize: 12 }}>{L("מה לבדוק", "What to check")}</Go>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-3 text-[14px] font-bold">{L("השבוע עוד אין מוצר ששני אנשים שונים בדקו. כל בדיקה בכפתור הקסם מזינה את הרדאר.", "No item has been checked by two different people this week yet. Every magic-button check feeds the radar.")} <Go to="/magic" className="underline">{L("לכפתור הקסם", "To the magic button")}</Go></p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -785,6 +823,7 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
+      {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
