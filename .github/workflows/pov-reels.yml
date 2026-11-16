@@ -52,7 +52,9 @@ jobs:
           # A push runs what scripts/marketing/pov-reels/run.json says (the workflow is not on main yet).
           [ -n "$MODE" ] || MODE=$(node -p 'require("./scripts/marketing/pov-reels/run.json").mode || "render"')
           [ -n "$LIMIT" ] || LIMIT=$(node -p 'require("./scripts/marketing/pov-reels/run.json").limit || 40')
-          if [ "$MODE" = "hot" ]; then
+          if [ "$MODE" = "hands" ]; then
+            node scripts/marketing/pov-reel.mjs --hands pov-reels-out "$LIMIT" | tee /tmp/report.txt
+          elif [ "$MODE" = "hot" ]; then
             node scripts/marketing/pov-reel.mjs --hot pov-reels-out "$LIMIT" | tee /tmp/report.txt
           elif [ "$MODE" = "sheets" ]; then
             node scripts/marketing/pov-reel.mjs --sheets pov-reels-out "$LIMIT" | tee /tmp/report.txt

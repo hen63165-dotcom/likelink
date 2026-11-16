@@ -221,6 +221,54 @@ async function hotSheets(out, limit) {
   console.log(JSON.stringify({ outcome, withVideo: items.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
 }
 
+/**
+ * The owner, 2026-11-16 ("ידיים של בחורה מטופחות ויפות"): kinds whose sellers film with a
+ * groomed woman's hands, because the hands sell the product. product.query by recent orders,
+ * ship to IL, ILS; the deals rules (≥ 95%, ≥ 300 orders, no brand or unlisted kind) and a seller
+ * video. The hands themselves are judged by eye on the shot sheets, never assumed.
+ */
+export const HAND_KINDS = Object.freeze(["press on nails", "women ring", "women bracelet", "nail art stickers", "women phone case", "hand cream", "women earrings", "hair claw clip"]);
+
+async function handsSheets(out, limit) {
+  const { aeCall } = await import("../../api/_utils/aliexpressAffiliate.mjs");
+  const { dealCheck } = await import("../../src/lib/growth/deals.js");
+  const env = process.env;
+  const seen = new Set();
+  const items = [];
+  for (const kw of HAND_KINDS) {
+    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const json = await aeCall("aliexpress.affiliate.product.query", { keywords: kw, sort: "LAST_VOLUME_DESC", page_size: "40", target_currency: "ILS", target_language: "HE", ship_to_country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID }, { env });
+      const list = json?.aliexpress_affiliate_product_query_response?.resp_result?.result?.products?.product || [];
+      for (const x of Array.isArray(list) ? list : [list]) {
+        const id = String(x?.product_id || "");
+        const video = String(x?.product_video_url || "");
+        if (!id || seen.has(id) || !/^https:\/\/\S+\.mp4/.test(video) || !dealCheck(x).ok) continue;
+        seen.add(id);
+        items.push({ id, kind: kw, video, title: String(x.product_title || "").slice(0, 90), price: Number(x.target_sale_price || x.sale_price || 0) });
+      }
+    } catch (e) {
+      console.error(`query ${kw}: ${String(e?.message || e).slice(0, 100)}`);
+    }
+  }
+  const pick = items.slice(0, limit);
+  const work = join(out, "work");
+  mkdirSync(work, { recursive: true });
+  const report = [];
+  for (const i of pick) {
+    try {
+      const clip = join(work, `${i.id}-src.mp4`);
+      await download(i.video, clip);
+      const shots = shotSheet(clip, work, join(out, `${i.id}-shots.jpg`), i.id);
+      report.push({ ...i, video: undefined, status: "SHOTS", shots });
+    } catch (e) {
+      report.push({ id: i.id, kind: i.kind, status: "FAILED", reason: String(e?.message || e).slice(0, 160) });
+    }
+  }
+  writeFileSync(join(out, "hands-candidates.json"), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ found: items.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
+}
+
 /** Products worth a POV reel: approved, an AliExpress link, not archived. */
 export function sheetCandidates(products = []) {
   return products.filter((p) => p?.id && p.status === "approved" && /aliexpress/i.test(String(p.affiliateUrl || "")));
@@ -250,7 +298,9 @@ async function sheetsMode(out, limit) {
   console.log(JSON.stringify({ candidates: list.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--hot") {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--hands") {
+  await handsSheets(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 32));
+} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--hot") {
   await hotSheets(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 30));
 } else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--sheets") {
   await sheetsMode(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 40));
