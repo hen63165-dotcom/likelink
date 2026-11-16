@@ -51,6 +51,9 @@ jobs:
       # The owner's own free YouTube Data API key (src/lib/growth/youtubeSignal.js); without it the
       # YouTube check is skipped (REQUIRES_CONNECTION) and nothing else changes.
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      # Instagram's own Hashtag Search API for the waves (the owner's business account; without them: REQUIRES_CONNECTION).
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

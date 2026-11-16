@@ -142,7 +142,22 @@ export function sanitizeBoard(doc) {
     } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
     fresh: cleanFresh(doc.fresh),
+    waves: cleanWaves(doc.waves),
   };
+}
+
+/** Waves the radar measures but never sells (brandWaves.js): counts only; a buy button only for the legal alternative. */
+function cleanWaves(w) {
+  if (!w || typeof w !== "object") return null;
+  const list = (Array.isArray(w.list) ? w.list : []).slice(0, 8).map((c) => {
+    if (!c || !["BRAND", "TOOL"].includes(c.reason) || num(c.items) === null || num(c.orders) === null) return null;
+    const a = c.alt && typeof c.alt === "object" ? c.alt : null;
+    const alt = a && ITEM.test(String(a.id || "")) && typeof a.buy === "string" && BUY.test(a.buy) && radarImage(a.image) ? { id: String(a.id), title: str(a.title, 140), image: radarImage(a.image), buy: a.buy, price: num(a.price), check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${a.id}.html`)}` } : null;
+    const yt = c.yt && num(c.yt.videos) !== null ? { videos: num(c.yt.videos), views: num(c.yt.views), days: num(c.yt.days) ?? 7 } : null;
+    const ig = c.ig && num(c.ig.posts) !== null ? { posts: num(c.ig.posts), videos: num(c.ig.videos), likes: num(c.ig.likes), comments: num(c.ig.comments), capped: c.ig.capped === true } : null;
+    return { token: str(c.token, 40), reason: c.reason, reasonHe: str(c.reasonHe, 80), items: num(c.items), orders: num(c.orders), firstSeen: day(c.firstSeen), listings: num(c.listings), listingsWeekPct: num(c.listingsWeekPct), ordersWeekPct: num(c.ordersWeekPct), buzz: Array.isArray(c.buzz) ? strs(c.buzz, 4, 20) : null, yt, ig, alt };
+  }).filter((c) => c && c.token);
+  return { at: day(w.at), list };
 }
 
 /** New listings that start to run (freshRisers.js): the store's own words, numbers and photo only. */

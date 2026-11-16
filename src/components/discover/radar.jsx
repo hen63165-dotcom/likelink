@@ -666,6 +666,49 @@ function FreshRisers({ fresh }) {
   );
 }
 
+/** Waves the radar measures but never sells (brandWaves.js): the copy has no buy button; the legal alternative does. */
+function Waves({ waves }) {
+  const { L } = useL();
+  if (!waves?.list?.length) return null;
+  const pct = (v) => (v > 0 ? `+${v}%` : `${v}%`);
+  return (
+    <section className="lx-wrap mt-8" id="waves">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#eff6ff" }}>
+        <h2 className="text-[22px] font-black">{L("🌊 גלים שהרדאר רואה, ולא מקדם", "🌊 Waves the radar sees, and does not promote")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("ברשימות המוצרים החמים של אליאקספרס יש הרבה מוצרים עם שם של מותג, דמות או כלי להעתקת כרטיסים. אנחנו לא מקדמים אותם, אבל הרדאר מודד כל גל כזה: כמה מוצרים חמים נושאים את השם, כמה מודעות יש לו וכמה הן גדלו בשבוע, מה משלימים בגוגל בארה״ב, וכמה סרטונים קצרים עלו עליו השבוע. לצידו, כשנמצאה: החלופה החוקית שעונה על אותו צורך, בלי השם.", "AliExpress's hot lists are full of items named after a brand, a character or a card-copying tool. We don't promote them, but the radar measures every such wave: how many hot items carry the name, how many listings it has and their weekly change, what Google suggests in the US, and how many short videos came out this week. Beside it, when found: the legal alternative that answers the same need, without the name.")}</p>
+        <ul className="mt-3 grid gap-3 md:grid-cols-2">
+          {waves.list.map((w) => (
+            <li key={w.token} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+              <p className="text-[16px] font-black" dir="ltr" style={{ textAlign: "start" }}>{w.token}</p>
+              <p className="text-[12px] font-bold" style={{ color: "#b91c1c" }}>{L(`🚫 לא מקדמים: ${w.reasonHe}`, `🚫 Not promoted: ${w.reason === "TOOL" ? "a card and remote copying tool" : "a brand or character name: on AliExpress, an imitation or unlicensed"}`)}</p>
+              <p className="mt-1 text-[12px]">{L(`${w.items} מוצרים חמים עם השם · ${w.orders.toLocaleString("he-IL")} הזמנות ב־30 יום (אליאקספרס)`, `${w.items} hot items carry the name · ${w.orders.toLocaleString("en-US")} orders in 30 days (AliExpress)`)}</p>
+              {w.listings !== null ? <p className="text-[12px]">{L(`${w.listings.toLocaleString("he-IL")} מודעות באליאקספרס${w.listingsWeekPct !== null ? ` · ${pct(w.listingsWeekPct)} בשבוע` : ""}`, `${w.listings.toLocaleString("en-US")} AliExpress listings${w.listingsWeekPct !== null ? ` · ${pct(w.listingsWeekPct)} a week` : ""}`)}</p> : null}
+              {w.buzz?.length ? <p className="text-[12px]">{L(`🔊 בגוגל בארה״ב כבר משלימים: ${w.buzz.join(", ")}`, `🔊 Google in the US already suggests: ${w.buzz.join(", ")}`)}</p> : w.buzz ? <p className="text-[12px]">{L("🤫 בגוגל בארה״ב עוד לא משלימים ״טיקטוק״ או ״ויראלי״", "🤫 Google in the US doesn't suggest 'tiktok' or 'viral' yet")}</p> : null}
+              {w.yt ? <p className="text-[12px]">{L(`▶️ ביוטיוב: ${w.yt.videos} סרטונים קצרים חדשים ב־${w.yt.days} ימים${w.yt.views ? `, ${w.yt.views.toLocaleString("he-IL")} צפיות` : ""}`, `▶️ YouTube: ${w.yt.videos} new short videos in ${w.yt.days} days${w.yt.views ? `, ${w.yt.views.toLocaleString("en-US")} views` : ""}`)}</p> : null}
+              {w.ig ? <p className="text-[12px]">{L(`📸 באינסטגרם: ${w.ig.capped ? "50+" : w.ig.posts} פוסטים עם #${w.token.replace(/[^a-z0-9]/gi, "")} ב־24 השעות האחרונות`, `📸 Instagram: ${w.ig.capped ? "50+" : w.ig.posts} posts on #${w.token.replace(/[^a-z0-9]/gi, "")} in the last 24 hours`)}</p> : null}
+              {w.firstSeen ? <p className="text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`הרדאר מודד את הגל מ־${dm(w.firstSeen)}`, `Measured since ${dm(w.firstSeen)}`)}</p> : null}
+              {w.alt ? (
+                <div className="mt-2 flex gap-2 rounded-xl p-2" style={{ background: "#f0fdf4" }}>
+                  <div style={{ width: 64, height: 64, flex: "0 0 64px", borderRadius: 10, overflow: "hidden" }}><Img src={w.alt.image} alt={w.alt.title} loading="lazy" style={{ width: 64, height: 64, objectFit: "cover" }} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-black" style={{ color: "#166534" }}>{L("✅ החלופה החוקית", "✅ The legal alternative")}</p>
+                    <p className="text-[12px] leading-5">{w.alt.title}{w.alt.price ? L(` · מ־₪${w.alt.price}`, ` · from ₪${w.alt.price}`) : ""}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <a href={w.alt.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(`wave-${w.token}`, w.alt.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 30, padding: "2px 10px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a>
+                      <Go to={w.alt.check} className="lx-btn lx-btn-ghost" style={{ minHeight: 30, padding: "2px 10px", fontSize: 12 }}>{L("מה לבדוק", "What to check")}</Go>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות של החלופה הוא קישור שותפים. המספרים נמדדו, שום דבר לא מנוחש.", "#ad · the alternative's store button is an affiliate link. Measured numbers, nothing guessed.")}</p>
+      </div>
+    </section>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -741,6 +784,7 @@ export function RadarPage() {
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} /> : null}
+      {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>

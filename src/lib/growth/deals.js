@@ -67,6 +67,11 @@ export const isBulkPack = (title = "") => BULK_PACK.test(String(title || ""));
 
 /** A brand, character or celebrity name in a store title (on AliExpress: an imitation, or no licence). */
 export const hasBrandName = (title = "") => BRAND_IMITATION.test(String(title || ""));
+/** The brand, character or celebrity word itself (lower case), or null: the radar's waves are named by it. */
+export const brandWord = (title = "") => {
+  const m = String(title || "").match(BRAND_IMITATION);
+  return m ? m[0].toLowerCase().replace(/\s+/g, " ").trim() : null;
+};
 /** A kind of item the site never recommends (weapons, smoking, adult items, health or slimming claims). */
 export const isNotListedKind = (title = "") => NOT_LISTED.test(String(title || ""));
 

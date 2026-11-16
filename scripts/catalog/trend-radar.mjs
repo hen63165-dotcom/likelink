@@ -41,6 +41,7 @@ import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growt
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
+import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -176,6 +177,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   }
 
   // 1. Discovery.
+  let waveLists = null;
   if (store && env.RADAR_DISCOVER !== "0") {
     const lists = {};
     const started = Date.now();
@@ -185,6 +187,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     // A category's own search words are what its hot list was asked for: never a discovery.
     const candidates = discover(lists, [...watch, ...TREND_CATEGORIES.map((c) => ({ id: `category-${c.key}`, en: c.keywords }))]);
+    // The waves (brandWaves.js) read the same hot lists plus the gadget areas the shop has no category for.
+    waveLists = { ...lists };
+    if (env.RADAR_WAVES !== "0") {
+      for (const area of WAVE_AREAS) {
+        try { waveLists[area.key] = await hotList(area, { env, fetchImpl, now }); } catch (err) { log.push(`waves ${area.key}: ${String(err?.message || err).slice(0, 60)}`); }
+      }
+    }
     const before = new Set(discovered.map((c) => c.id));
     discovered = admitDiscovered(discovered, candidates, { concepts: watch, stages: stagesBefore, now });
     const added = discovered.filter((c) => !before.has(c.id));
@@ -377,7 +386,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (store && env.RADAR_FRESH !== "0") {
     const started = Date.now();
     const entries = [];
-    for (const cat of TREND_CATEGORIES) {
+    for (const cat of [...TREND_CATEGORIES, ...WAVE_AREAS]) {
       if (Date.now() - started > 75_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
       try {
         const e = aeEnv(env);
@@ -455,6 +464,75 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     board.fresh.risers = checked.slice(0, FRESH.show);
     log.push(`fresh unknown check: ${JSON.stringify(counts)}`);
+  }
+  // Waves the radar measures but never sells (brandWaves.js): a brand, character or hacking-tool name
+  // on many hot items. Each card: the store's own counts, the listings' weekly change, Google's US
+  // suggestions, short YouTube videos this week, Instagram's hashtag (official API, the owner's
+  // connection), and the legal alternative. The copy never gets a buy button.
+  if (store && waveLists && env.RADAR_WAVES !== "0") {
+    const waveState = readJson(join(dir, "waves.json"), {});
+    const cards = [];
+    const ig = { userId: env.IG_USER_ID, token: env.IG_ACCESS_TOKEN };
+    sources.waves = "OK";
+    sources.instagram = ig.userId && ig.token ? "NOT_ASKED" : "REQUIRES_CONNECTION";
+    let ytN = 0;
+    let igN = 0;
+    const e = aeEnv(env);
+    for (const w of collectWaves(waveLists).slice(0, WAVES.read)) {
+      const st = waveState[w.token] && typeof waveState[w.token] === "object" ? waveState[w.token] : { first: today, hist: [] };
+      let listings = null;
+      try {
+        const res = await aeCall(SEARCH, { keywords: w.token, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+        const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200 && Number.isFinite(Number(rr.result?.total_record_count))) listings = Number(rr.result.total_record_count);
+      } catch { /* not read today */ }
+      st.hist = addWaveReading(st.hist, [today, w.items, w.orders, listings]);
+      st.seen = today;
+      waveState[w.token] = st;
+      let buzz = null;
+      if (sources.suggest === "OK") {
+        try { const s = await suggestList(w.token, { hl: "en", gl: "us" }, fetchImpl); buzz = Array.isArray(s) ? echoOf({ en: s }) : null; } catch { buzz = null; }
+        await pause(politeMs);
+      }
+      let yt = null;
+      if (env.YOUTUBE_API_KEY && ytN < WAVES.ytPerDay) {
+        ytN++;
+        try {
+          const search = await (await fetchImpl(ytSearchUrl(w.token, { key: env.YOUTUBE_API_KEY, now, short: true }), { signal: AbortSignal.timeout(15_000) })).json();
+          const ids = ytIdsOf(search);
+          const views = ids === null ? null : ids.length ? ytViewsOf(await (await fetchImpl(ytVideosUrl(ids, { key: env.YOUTUBE_API_KEY }), { signal: AbortSignal.timeout(15_000) })).json()) : 0;
+          yt = ytSignal({ videos: ids === null ? null : ids.length, views });
+        } catch { yt = null; }
+      }
+      let igs = null;
+      const tag = igTag(w.token);
+      if (sources.instagram !== "REQUIRES_CONNECTION" && tag && igN < WAVES.igPerDay) {
+        igN++;
+        try {
+          const found = await (await fetchImpl(igSearchUrl(tag, ig), { signal: AbortSignal.timeout(15_000) })).json();
+          const hid = found?.data?.[0]?.id;
+          igs = hid ? igSignal(await (await fetchImpl(igRecentUrl(hid, ig), { signal: AbortSignal.timeout(15_000) })).json(), { now }) : null;
+          if (!igs && found?.error?.code) log.push(`instagram hashtag: error ${Number(found.error.code)}`);
+        } catch { igs = null; } // never logs the request: it carries the token
+        sources.instagram = igs ? "OK" : sources.instagram === "OK" ? "OK" : "FAILED";
+      }
+      let alt = null;
+      if (w.need) {
+        try {
+          const res = await aeCall(SEARCH, { keywords: w.need, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE", ship_to_country: "IL", page_size: "30", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          const raw = Number(rr?.resp_code) === 200 ? rr.result?.products?.product : null;
+          alt = altPick(Array.isArray(raw) ? raw : raw ? [raw] : []);
+        } catch { alt = null; }
+      }
+      cards.push(waveCard(w, { hist: st.hist, firstSeen: st.first, buzz, yt, ig: igs, alt }));
+      await pause(politeMs);
+    }
+    const cutoff = new Date(Date.parse(`${today}T00:00:00Z`) - WAVES.keepDays * 86_400_000).toISOString().slice(0, 10);
+    for (const [k, v] of Object.entries(waveState)) if (!v?.seen || v.seen < cutoff) delete waveState[k];
+    writeFileSync(join(dir, "waves.json"), JSON.stringify(waveState));
+    board.waves = { at: today, list: cards.slice(0, WAVES.show) };
+    log.push(`waves: ${cards.map((c) => `${c.token} (${c.items} items, ${c.orders} orders${c.alt ? ", alt" : ""})`).join(", ") || "none today"} · youtube ${ytN} · instagram ${sources.instagram}`);
   }
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
