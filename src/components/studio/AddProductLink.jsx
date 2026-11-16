@@ -107,6 +107,14 @@ function useAffiliateIntegration() {
  * @param {boolean} [props.compact] onboarding mode (no product list chrome)
  * @param {(p:{id:string,status:string}|null)=>void} [props.onSaved] after a real save
  */
+/** A prefilled link from the radar: only an https AliExpress item page, nothing else. */
+export function radarPrefill(search = typeof location !== "undefined" ? location.search : "") {
+  try {
+    const u = new URLSearchParams(search).get("u") || "";
+    return /^https:\/\/(www\.)?aliexpress\.com\/item\/\d{6,20}\.html$/.test(u) ? u : "";
+  } catch { return ""; }
+}
+
 export default function AddProductLink({ onNavigate, compact = false, onSaved }) {
   const { lang, categoryLabel } = useI18n();
   const he = lang === "he";
@@ -119,7 +127,10 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
   const [route, setRoute] = useState(LINK_ROUTE.AFFILIATE);
   const [routesOpen, setRoutesOpen] = useState(false);
   const showRoutes = routesOpen || route !== LINK_ROUTE.AFFILIATE;
-  const [urlRaw, setUrlRaw] = useState("");
+  // From the radar (the owner, 2026-11-16: "from spotting to selling in one tap"): /studio/add-product?u=<an
+  // AliExpress item page> fills the link box; she then pastes her own affiliate link for the same item.
+  const [urlRaw, setUrlRaw] = useState(() => radarPrefill());
+  const fromRadar = Boolean(urlRaw) && typeof location !== "undefined" && /[?&]from=radar\b/.test(location.search);
   const [checked, setChecked] = useState(null);   // validation result
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState(null);   // {title,image,price,currency}
@@ -539,6 +550,14 @@ export default function AddProductLink({ onNavigate, compact = false, onSaved })
                 ? `כבר יש מוצר עם הקישור הזה: «${duplicateOf.title}». אפשר להמשיך ולשמור אם זה באמת קישור שונה.`
                 : `A product with this link already exists: “${duplicateOf.title}”. You can still save if this is genuinely a different link.`}
             </span>
+          </p>
+        )}
+
+        {fromRadar && (
+          <p className="mt-2 rounded-xl px-3 py-2 text-[12px] leading-5" style={{ background: "var(--bg-subtle)", border: "1px solid var(--border)" }} role="status">
+            {he
+              ? "🎯 הגיע מהרדאר. כדי לקבל את העמלה שלך, החליפי את הקישור בקישור השותפים שלך לאותו מוצר (באליאקספרס: שיתוף ← קישור שותפים), ואז ״בדיקת הקישור״."
+              : "🎯 From the radar. To earn your own commission, replace the link with your affiliate link for the same item, then check it."}
           </p>
         )}
 

@@ -640,6 +640,7 @@ function FreshRisers({ fresh }) {
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <a href={r.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(`fresh-${r.category || "new"}`, r.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a>
                       {r.check ? <Go to={r.check} className="lx-btn lx-btn-ghost" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("מה לבדוק", "What to check")}</Go> : null}
+                      <Go to={`/studio/add-product?from=radar&u=${encodeURIComponent(`https://www.aliexpress.com/item/${r.id}.html`)}`} className="lx-btn lx-btn-ghost" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }} data-tip={L("פותח את הסטודיו עם המוצר, ואת מדביקה את קישור השותפים שלך", "Opens your studio with the item; you paste your own affiliate link")}>{L("📲 לחנות שלי", "📲 To my store")}</Go>
                     </div>
                   </div>
                 </li>
