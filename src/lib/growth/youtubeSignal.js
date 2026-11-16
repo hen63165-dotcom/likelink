@@ -9,9 +9,10 @@ export const YT = Object.freeze({ days: 7, buzzVideos: 50, buzzViews: 1_000_000,
 
 const API = "https://www.googleapis.com/youtube/v3";
 
-export function ytSearchUrl(phrase, { key, now = Date.now(), days = YT.days } = {}) {
+export function ytSearchUrl(phrase, { key, now = Date.now(), days = YT.days, short = false } = {}) {
   const after = new Date(now - days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const q = new URLSearchParams({ part: "id", type: "video", q: `"${String(phrase || "").trim()}"`, publishedAfter: after, maxResults: "50", order: "viewCount", key: String(key || "") });
+  // short: videos under 4 minutes, where YouTube's Shorts (the reels of YouTube) sit.
+  const q = new URLSearchParams({ part: "id", type: "video", q: `"${String(phrase || "").trim()}"`, publishedAfter: after, maxResults: "50", order: "viewCount", ...(short ? { videoDuration: "short" } : {}), key: String(key || "") });
   return `${API}/search?${q}`;
 }
 
