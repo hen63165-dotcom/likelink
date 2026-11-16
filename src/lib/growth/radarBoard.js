@@ -155,7 +155,9 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct) };
   }).filter(Boolean);
-  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers };
+  const rec = f.record && typeof f.record === "object" ? f.record : {};
+  const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
+  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
 }
 
 /**

@@ -23,13 +23,13 @@ test("fresh: an entry needs the owner's own link, a store photo, and no brand or
 test("fresh: a small listing whose orders grew ≥ 40% a week is a riser; a big or slow one is not", () => {
   const pool = mergeFreshPool({}, [
     freshEntry(p("1005002222221", "Cloud Night Light", 200), { category: "home", today: "2026-11-09" }),
-    freshEntry(p("1005002222222", "Phone Holder Clip", 3000), { category: "tech", today: "2026-11-09" }),
+    freshEntry(p("1005002222222", "Phone Holder Clip", 2000), { category: "tech", today: "2026-11-09" }),
     freshEntry(p("1005002222223", "Hair Claw Big", 9000), { category: "hair", today: "2026-11-09" }),
   ], { today: "2026-11-16" });
   for (const e of Object.values(pool)) e.seen = "2026-11-16";
   const items = {
-    "1005002222221": [["2026-11-09", 200], ["2026-11-16", 400]], // +100% a week
-    "1005002222222": [["2026-11-09", 3000], ["2026-11-16", 3300]], // +10%
+    "1005002222221": [["2026-11-06", 150], ["2026-11-09", 200], ["2026-11-16", 400]], // +100% a week, held
+    "1005002222222": [["2026-11-09", 2000], ["2026-11-16", 2200]], // +10%
     "1005002222223": [["2026-11-09", 6000], ["2026-11-16", 9000]], // too big
   };
   const f = freshRisers(pool, items);
@@ -38,8 +38,9 @@ test("fresh: a small listing whose orders grew ≥ 40% a week is a riser; a big 
   assert.equal(f.risers[0].weekPct, 100);
   assert.equal(f.risers[0].ordersBefore, 200);
   assert.ok(f.risers[0].orders <= FRESH.maxOrders);
-  // one reading only → nothing claimed
+  // one reading only → nothing claimed; a jump the reading before did not show → not held
   assert.equal(freshRisers(pool, { "1005002222221": [["2026-11-16", 400]] }).risers.length, 0);
+  assert.equal(freshRisers(pool, { "1005002222221": [["2026-11-06", 200], ["2026-11-09", 200], ["2026-11-16", 400]] }).risers.length, 0);
 });
 
 test("fresh: listings not seen for three weeks leave the pool", () => {
@@ -55,4 +56,18 @@ test("fresh: the browser keeps only safe fields", () => {
   ] } });
   assert.equal(b.fresh.tracking, 5);
   assert.deepEqual(b.fresh.risers.map((r) => r.id), ["1005004444441"]);
+});
+
+test("fresh: every riser shown is a call graded after 14 days, never edited", async () => {
+  const { recordFresh, gradeFresh, freshRecord } = await import("../src/lib/growth/freshRisers.js");
+  let calls = recordFresh([], [{ id: "1005005555551", title: "A", orders: 200 }, { id: "1005005555552", title: "B", orders: 100 }], "2026-11-16");
+  calls = recordFresh(calls, [{ id: "1005005555551", title: "A", orders: 260 }], "2026-11-17");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].due, "2026-11-30");
+  const items = { "1005005555551": [["2026-11-30", 320]], "1005005555552": [["2026-11-30", 110]] };
+  assert.deepEqual(gradeFresh(calls, items, "2026-11-29"), calls); // not due yet
+  const graded = gradeFresh(calls, items, "2026-11-30");
+  assert.deepEqual(graded.map((c) => c.result), ["HIT", "MISS"]);
+  assert.deepEqual(gradeFresh(graded, { "1005005555552": [["2026-12-01", 500]] }, "2026-12-01").map((c) => c.result), ["HIT", "MISS"]);
+  assert.deepEqual(freshRecord(graded), { calls: 2, graded: 2, hits: 1, accuracy: 50, pending: 0, nextDue: null });
 });

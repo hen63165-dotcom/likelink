@@ -40,7 +40,7 @@ import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
-import { freshEntry, freshKeywords, freshRisers, mergeFreshPool } from "../../src/lib/growth/freshRisers.js";
+import { freshEntry, freshKeywords, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -413,6 +413,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const board = intel.board;
   board.sourcesToday = sources;
   board.fresh = freshRisers(freshPool, items);
+  // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
+  let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
+  freshCalls = recordFresh(freshCalls, board.fresh.risers, today);
+  board.fresh.record = freshRecord(freshCalls);
+  board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
+  writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
   log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
