@@ -153,7 +153,9 @@ function cleanFresh(f) {
     const image = radarImage(r?.image);
     if (!ITEM.test(String(r?.id || "")) || !buy || !image || num(r.weekPct) === null || num(r.orders) === null) return null;
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct) };
+    // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
+    if (!r.known || num(r.known.similar) === null) return null;
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar) } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));

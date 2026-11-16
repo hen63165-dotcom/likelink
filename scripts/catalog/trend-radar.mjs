@@ -40,7 +40,7 @@ import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
-import { freshEntry, freshKeywords, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh } from "../../src/lib/growth/freshRisers.js";
+import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -412,7 +412,34 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
-  board.fresh = freshRisers(freshPool, items);
+  // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
+  board.fresh = freshRisers(freshPool, items, { rules: { ...FRESH, show: FRESH.checkUpTo } });
+  {
+    const checked = [];
+    const counts = {};
+    for (const r of board.fresh.risers) {
+      const phrase = freshPhrase(r.title);
+      let similar = null;
+      let suggestions = null;
+      if (phrase && store) {
+        try {
+          const e = aeEnv(env);
+          const res = await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+        } catch { /* not read → not shown */ }
+      }
+      if (phrase && sources.suggest === "OK") {
+        try { suggestions = await suggestList(phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+        await pause(politeMs);
+      }
+      const known = unknownCheck({ phrase, similar, suggestions });
+      counts[known.reason] = (counts[known.reason] || 0) + 1;
+      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar } });
+    }
+    board.fresh.risers = checked.slice(0, FRESH.show);
+    log.push(`fresh unknown check: ${JSON.stringify(counts)}`);
+  }
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);

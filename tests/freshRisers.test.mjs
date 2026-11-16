@@ -4,7 +4,7 @@
 // only the store's own fields.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FRESH, freshEntry, freshKeywords, freshRisers, mergeFreshPool } from "../src/lib/growth/freshRisers.js";
+import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRisers, mergeFreshPool, unknownCheck } from "../src/lib/growth/freshRisers.js";
 import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 
 const p = (id, title, orders, extra = {}) => ({ product_id: id, product_title: title, lastest_volume: orders, promotion_link: `https://s.click.aliexpress.com/e/_x${id}`, product_main_image_url: `https://ae01.alicdn.com/kf/${id}.jpg`, target_sale_price: "12.5", ...extra });
@@ -50,7 +50,8 @@ test("fresh: listings not seen for three weeks leave the pool", () => {
 
 test("fresh: the browser keeps only safe fields", () => {
   const b = sanitizeBoard({ at: "2026-11-16T05:40:00Z", concepts: [], record: {}, fresh: { tracking: 5, since: "2026-11-16", risers: [
-    { id: "1005004444441", title: "Cloud Light", image: "https://ae01.alicdn.com/kf/a.jpg", buy: "https://s.click.aliexpress.com/e/_abc", check: "/magic?u=https%3A%2F%2Fwww.aliexpress.com%2Fitem%2F1005004444441.html", weekPct: 80, orders: 300, ordersBefore: 150, from: "2026-11-09", to: "2026-11-16" },
+    { id: "1005004444441", title: "Cloud Light", image: "https://ae01.alicdn.com/kf/a.jpg", buy: "https://s.click.aliexpress.com/e/_abc", check: "/magic?u=https%3A%2F%2Fwww.aliexpress.com%2Fitem%2F1005004444441.html", weekPct: 80, orders: 300, ordersBefore: 150, from: "2026-11-09", to: "2026-11-16", known: { phrase: "cloud light", similar: 420 } },
+    { id: "1005004444444", title: "No check", image: "https://ae01.alicdn.com/kf/c.jpg", buy: "https://s.click.aliexpress.com/e/_abe", weekPct: 90, orders: 300 },
     { id: "1005004444442", title: "x", image: "https://evil.example/a.jpg", buy: "https://s.click.aliexpress.com/e/_abd", weekPct: 80, orders: 300 },
     { id: "1005004444443", title: "x", image: "https://ae01.alicdn.com/kf/b.jpg", buy: "javascript:alert(1)", weekPct: 80, orders: 300 },
   ] } });
@@ -70,4 +71,14 @@ test("fresh: every riser shown is a call graded after 14 days, never edited", as
   assert.deepEqual(graded.map((c) => c.result), ["HIT", "MISS"]);
   assert.deepEqual(gradeFresh(graded, { "1005005555552": [["2026-12-01", 500]] }, "2026-12-01").map((c) => c.result), ["HIT", "MISS"]);
   assert.deepEqual(freshRecord(graded), { calls: 2, graded: 2, hits: 1, accuracy: 50, pending: 0, nextDue: null });
+});
+
+test("fresh: shown only when nobody has heard of it yet — few sellers, no buzz abroad, both read", () => {
+  assert.equal(freshPhrase("2026 New Cute Cloud Night Light for Kids"), "cloud night"); // the store's generic words are skipped
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: 420, suggestions: ["cloud light for bedroom", "cloud light kids"] }).unknown, true);
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: 9000, suggestions: [] }).reason, "SATURATED");
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: 100, suggestions: ["cloud light tiktok"] }).reason, "BUZZ");
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: 100, suggestions: ["cloud light amazon"] }).reason, "BUZZ");
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: null, suggestions: [] }).reason, "NOT_CHECKED");
+  assert.equal(unknownCheck({ phrase: "cloud light", similar: 100, suggestions: null }).reason, "NOT_CHECKED");
 });
