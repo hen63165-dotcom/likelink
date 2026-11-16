@@ -625,7 +625,7 @@ function Verdict({ board, gated = false }) {
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
 function FreshRisers({ fresh }) {
-  const L = useL();
+  const { L } = useL();
   if (!fresh) return null;
   return (
     <section className="lx-wrap mt-8" id="fresh">
