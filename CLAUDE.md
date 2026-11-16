@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LikeLink2: a Hebrew-first (RTL) creator marketplace / creator "Studio" built with React 18 + Vite + Tailwind, deployed on Vercel at `https://likelink2.vercel.app` (Vercel Hobby plan). Every push to `main` auto-deploys to production. Shared data lives in a Supabase Postgres `kv` table (key → JSON text). Capacitor wraps the web build for `android/` and `ios/`.
 
+## The owner's words (read before every radar or growth task)
+
+- **"לעקוף" means surpass legally, never break a rule** (the owner, 2026-11-15, repeated 2026-11-16): learn everything the big companies do and do not do, then build what nobody does. Never bypass a block, a robots.txt, a terms of use or a paywall.
+- The radar must find what nobody has heard of yet, never what the market is saturated with, and prove every call (sealed in advance, graded in public).
+
 ## Vision (read first)
 
 `docs/VISION.md` is the product vision: an AI-powered Creator Commerce & Discovery Network for buyers, creators/sellers (small to large) and Luna. Build toward it, and keep its rules: public claims describe only what is live today, ranking comes from real evidence shown to the buyer ("why here"), and nothing is invented (ratings, reviews, sales, income). Update its status table when a vision item ships.
