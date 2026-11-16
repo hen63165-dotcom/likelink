@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { teaserBoard } from "../../src/lib/growth/radarGate.js";
 
 export const STATE_FILE = "state.enc";
-export const PUBLIC_FILES = ["board-public.json", "briefs-public.json"];
+export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json"];
 const MAGIC = "LLRS1";
 export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board";
 
@@ -63,6 +63,8 @@ export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetc
   const board = files["board.json"] ? JSON.parse(files["board.json"]) : null;
   if (board) writeFileSync(join(dir, "board-public.json"), JSON.stringify(isOpen ? board : teaserBoard(board)));
   if (isOpen && files["briefs.json"]) writeFileSync(join(dir, "briefs-public.json"), files["briefs.json"]);
+  // 🏷️ The price ledger is public on purpose (realDeal.js): store prices, and the seals that prove them.
+  if (files["prices.json"]) writeFileSync(join(dir, "prices-public.json"), JSON.stringify({ ledger: JSON.parse(files["prices.json"]), seals: files["price-seals.json"] ? JSON.parse(files["price-seals.json"]) : {} }));
   return { files: names.length, open: isOpen };
 }
 

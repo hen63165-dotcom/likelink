@@ -18,6 +18,7 @@ import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "
 import { loadBoard } from "./radar.jsx";
 import { radarForItem, siteHotFor } from "../../lib/growth/radarBoard.js";
 import { hypeShareText } from "../../lib/growth/hypeMeter.js";
+import { PRICES_HOME, dealLines, dealShareText, dealVerdict, priceShard } from "../../lib/growth/realDeal.js";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -313,6 +314,26 @@ function RadarHint({ item }) {
 }
 
 
+
+/** 🏷️ המבצע האמיתי (realDeal.js): the price now against the radar's recorded, Bitcoin-sealed daily prices. */
+function RealDeal({ deal, title, link }) {
+  const { L } = useL();
+  if (!deal) return null;
+  const words = dealLines(deal.verdict);
+  const bg = words.tone === "good" ? "#ecfdf3" : words.tone === "warn" ? "#fffaeb" : "#f8fafc";
+  const border = words.tone === "good" ? "#16a34a" : words.tone === "warn" ? "#d97706" : "var(--lx-line)";
+  const share = dealShareText(deal.verdict, title);
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: bg, border: `2px solid ${border}` }}>
+      <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("🏷️ המבצע האמיתי · מחירים שהרדאר רשם כל בוקר", "🏷️ The real deal · prices the radar recorded every morning")}</p>
+      <p className="mt-1 text-[18px] font-black">{words.title}</p>
+      <p className="text-[13.5px] leading-6">{words.text}</p>
+      {deal.seal ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`רשימת המחירים של ${deal.seal.d.split("-").reverse().slice(0, 2).map(Number).join(".")} חתומה בביטקוין`, `The ${deal.seal.d} price list is sealed in Bitcoin`)} · <span dir="ltr">SHA-256 {deal.seal.sha256.slice(0, 16)}…</span></p> : null}
+      {share ? <div className="mt-2"><ShareButton path={`${MAGIC_PATH}?u=${encodeURIComponent(link || "")}`} title={share} variant="button" /></div> : null}
+    </div>
+  );
+}
+
 /** מד ההייפ (hypeMeter.js): what the world says about this item today, every signal printed. */
 function HypeMeter({ hype, title, link }) {
   const { L } = useL();
@@ -360,6 +381,20 @@ export function MagicPage({ graph }) {
       const saved = writeRecent(next);
       setRecent(next);
       setState({ phase: "done", link, report: body.report, memory, saved, hype: null });
+      // 🏷️ המבצע האמיתי (realDeal.js): the item's recorded daily prices from the public ledger.
+      if (item.id) {
+        Promise.all([
+          fetch(`${PRICES_HOME}/${priceShard(item.id)}.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+          fetch(`${PRICES_HOME}/index.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        ]).then(([shard, index]) => {
+          const series = Array.isArray(shard?.[item.id]) ? shard[item.id] : [];
+          const price = item.currency === "ILS" ? item.price : null;
+          const verdict = dealVerdict(series, { price, today: new Date().toISOString().slice(0, 10) });
+          const lastDay = series.at(-1)?.[0] || null;
+          const seal = lastDay && index?.seals?.[lastDay] ? { d: lastDay, sha256: index.seals[lastDay].sha256 } : null;
+          setState((st) => (st.report?.item?.id === item.id ? { ...st, deal: { verdict, seal } } : st));
+        });
+      }
       // מד ההייפ (hypeMeter.js): measured by the server right after the report, so the check stays fast.
       if (item.id) {
         fetch(`/api/store?mode=magic&hype=${encodeURIComponent(item.id)}`, { headers: { accept: "application/json" } })
@@ -482,6 +517,7 @@ export function MagicPage({ graph }) {
                 <p className="mt-2 text-[22px] font-extrabold">{L(`מ־₪${shekel(report.item.price)}`, `from ₪${shekel(report.item.price)}`)} <span className="lx-mute text-[13px] font-normal">{L("נבדק עכשיו בחנות", "checked just now")}</span></p>
               ) : <p className="lx-mute mt-2 text-[14px]">{L("המחיר המעודכן בחנות", "See the price in the store")}</p>}
               <PriceMemory memory={state.memory} saved={state.saved} price={report.item.price} />
+              <RealDeal deal={state.deal} title={report.item.title} link={state.link} />
               <HypeMeter hype={state.hype} title={report.item.title} link={state.link} />
 
               {report.verdict === "LOOK" ? <p className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13.5px] font-extrabold" style={{ background: "#fef0c7", color: "#7a2e0e" }}><AlertTriangle size={15} aria-hidden="true" /> {L("כדאי לשים לב", "Worth a closer look")}</p> : null}

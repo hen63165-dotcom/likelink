@@ -24,7 +24,17 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
+import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
+import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
+
+// 🏷️ המבצע האמיתי (realDeal.js): every AliExpress answer this run reads also leaves each item's
+// shekel "from" price for today in the price ledger (prices.json), sealed per day below.
+const PRICE_SINK = { ledger: null, today: null };
+async function aeCall(method, biz, opts) {
+  const res = await aeCallRaw(method, biz, opts);
+  if (PRICE_SINK.ledger) { try { sniffPrices(res, PRICE_SINK.today, PRICE_SINK.ledger); } catch { /* a price is never worth a failed run */ } }
+  return res;
+}
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
@@ -152,6 +162,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     for (const [id, series] of Object.entries(readJson(SEED, {}).items || {})) for (const r of series) items[id] = addItemReading(items[id], r);
   }
   const today = new Date(now).toISOString().slice(0, 10);
+  const prices = env.RADAR_PRICES === "0" ? null : readJson(join(dir, "prices.json"), {});
+  PRICE_SINK.ledger = prices;
+  PRICE_SINK.today = today;
   const prevBoard = readJson(join(dir, "board.json"), {});
   const picks = Object.fromEntries((prevBoard.concepts || []).filter((c) => c.pick).map((c) => [c.id, c.pick]));
   const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
@@ -728,6 +741,31 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     writeFileSync(join(dir, "challenge-seals.json"), JSON.stringify(seals));
     board.challenge = challengeBoard(chs, latest, today, seals);
     log.push(`challenge: open ${board.challenge.open?.id || "-"} · graded ${board.challenge.record.graded} (radar hits ${board.challenge.record.radarHits})`);
+  }
+  // 🏷️ The price ledger: today's prices sealed (SHA-256 of dayText → the OpenTimestamps calendars),
+  // so the price before a sale is provable later. The ledger and its seals become public in pack().
+  if (prices) {
+    PRICE_SINK.ledger = null;
+    const priceSeals = readJson(join(dir, "price-seals.json"), {});
+    const text = dayText(prices, today);
+    if (text) {
+      const sha = createHash("sha256").update(text).digest("hex");
+      const s0 = priceSeals[today]?.sha256 === sha ? priceSeals[today] : { sha256: sha, n: text.split("\n").length, ots: [] };
+      if (!s0.ots.length && env.RADAR_OTS !== "0") {
+        for (const cal of OTS_CALENDARS) {
+          try {
+            const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(sha), signal: AbortSignal.timeout(20_000) });
+            const proof = res.ok ? otsProof(sha, new Uint8Array(await res.arrayBuffer())) : null;
+            if (proof) s0.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+          } catch { /* the next run of the same day tries again */ }
+        }
+      }
+      priceSeals[today] = s0;
+    }
+    for (const d of Object.keys(priceSeals).sort().slice(0, -90)) delete priceSeals[d];
+    writeFileSync(join(dir, "prices.json"), JSON.stringify(prices));
+    writeFileSync(join(dir, "price-seals.json"), JSON.stringify(priceSeals));
+    log.push(`prices: ${Object.keys(prices).length} items in the ledger · today ${text ? text.split("\n").length : 0} priced${priceSeals[today] ? ` · sealed ${priceSeals[today].sha256.slice(0, 12)} (${priceSeals[today].ots.length} proofs)` : ""}`);
   }
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
