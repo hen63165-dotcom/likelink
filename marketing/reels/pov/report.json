@@ -1,37 +1,27 @@
 [
   {
     "id": "ae-1005008742678061",
-    "status": "FAILED",
-    "reason": "aliexpress_provider_ApiCallLimit:Api access frequency exceeds the limit. this ban will last 1 seconds"
+    "status": "NO_SELLER_VIDEO",
+    "reason": ""
   },
   {
     "id": "ae-1005006678126295",
     "status": "FAILED",
-    "reason": "aliexpress_provider_ApiCallLimit:Api access frequency exceeds the limit. this ban will last 1 seconds"
-  },
-  {
-    "id": "ae-1005012967864709",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
+    "reason": "Command failed: ffmpeg -y -loglevel error -f concat -safe 0 -i pov-reels-out/work/ae-1005006678126295-list.txt -c copy pov-reels-out/work/ae-1005006678126295-cut.mp4\n[concat @ 0x577d06734f00] Impossib"
   },
   {
     "id": "ae-1005012061688172",
+    "status": "NO_SELLER_VIDEO",
+    "reason": ""
+  },
+  {
+    "id": "p-live-05",
+    "status": "NO_SELLER_VIDEO",
+    "reason": ""
+  },
+  {
+    "id": "p-live-04",
     "status": "FAILED",
-    "reason": "aliexpress_provider_ApiCallLimit:Api access frequency exceeds the limit. this ban will last 1 seconds"
-  },
-  {
-    "id": "ae-1005011942976222",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
-  },
-  {
-    "id": "ae-1005012588687878",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
-  },
-  {
-    "id": "ae-1005008830601930",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
+    "reason": "Command failed: ffmpeg -y -loglevel error -f concat -safe 0 -i pov-reels-out/work/p-live-04-list.txt -c copy pov-reels-out/work/p-live-04-cut.mp4\n[concat @ 0x5ae78c778f00] Impossible to open 'pov-reel"
   }
 ]
