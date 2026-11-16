@@ -11,7 +11,7 @@ import { paypalEnvName } from "./paypal.js";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
 import { RADAR_BOARD_KEY, RADAR_TRIALS_KEY, boardAccess, teaserBoard, userTrialDays, userTrialOf } from "../../src/lib/growth/radarGate.js";
 import { accessOf } from "../../src/lib/growth/radarPlans.js";
-import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, addPick, addRadarPick, beatsRadar, duelOf, gradePicks, leaderboard, myPicks, picksSealText } from "../../src/lib/growth/radarPicks.js";
+import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, RECEIPT_ID, addPick, addRadarPick, beatsRadar, duelOf, gradePicks, leaderboard, myPicks, picksSealText, receiptView } from "../../src/lib/growth/radarPicks.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 
 const sha256Hex = async (text) => [...new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -39,6 +39,9 @@ import { currentRadarSub, ownRadarSubs } from "../../src/lib/growth/radarSubs.js
 import { crowdOf } from "../../src/lib/growth/crowdSensor.js";
 
 const header = (req, k) => String((req.headers?.get ? req.headers.get(k) : req.headers?.[k]) || "");
+
+// A pick's public receipt id: 16 hex of SHA-256 over its stored id (the stored id never leaves the server).
+const ridOf = async (p) => (await sha256Hex(`receipt|${p.id}`)).slice(0, 16);
 
 export function createRadarBoardHandler({ kv = null, verify = verifyToken, now = () => Date.now(), fetchImpl = (...a) => globalThis.fetch(...a) } = {}) {
   const store = async () => kv || (await import("../store.mjs"));
@@ -81,7 +84,9 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       const all = (await kvGet(RADAR_PICKS_KEY, [])) || [];
       // The radar's open picks are named only while the board itself is open (the launch trial).
       const openPicks = !accessOf((await kvGet("marketplace:settings", {})) || {}, { now: now() }).locked;
-      return json({ ok: true, table: leaderboard(all), duel: duelOf(all, { openPicks }), seal: seal && /^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) ? { d: seal.d, sha256: seal.sha256, count: seal.count, text: seal.text || null, ots: Array.isArray(seal.ots) ? seal.ots.slice(0, 2) : [] } : null });
+      const duel = duelOf(all, { openPicks });
+      duel.recent = await Promise.all(duel.recent.map(async ({ id, ...r }) => ({ ...r, rid: await ridOf({ id }) })));
+      return json({ ok: true, table: leaderboard(all), duel, seal: seal && /^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) ? { d: seal.d, sha256: seal.sha256, count: seal.count, text: seal.text || null, ots: Array.isArray(seal.ots) ? seal.ots.slice(0, 2) : [] } : null });
     }
     if (req.method === "POST" && op === "pick") {
       const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
@@ -102,14 +107,30 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       await kvSet(RADAR_PICKS_KEY, out.picks);
       const back = (await kvGet(RADAR_PICKS_KEY, [])) || [];
       const ok = back.some((p) => p.id === out.pick.id);
-      return json({ ok, pick: ok ? myPicks([out.pick], uid)[0] : null }, ok ? 200 : 502);
+      return json({ ok, pick: ok ? { ...myPicks([out.pick], uid)[0], rid: await ridOf(out.pick) } : null }, ok ? 200 : 502);
     }
     if (req.method === "GET" && op === "mine") {
       const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
       const user = token ? await verify(token).catch(() => null) : null;
       if (!user?.id) return json({ ok: false, error: "unauthenticated" }, 401);
       const all = (await kvGet(RADAR_PICKS_KEY, [])) || [];
-      return json({ ok: true, picks: myPicks(all, String(user.id)), beat: beatsRadar(all, String(user.id)) });
+      const own = await Promise.all(myPicks(all, String(user.id)).map(async (p) => ({ ...p, rid: await ridOf(p) })));
+      return json({ ok: true, picks: own, beat: beatsRadar(all, String(user.id)) });
+    }
+    // The sealed receipt (radarPicks.js receiptView): public, by its receipt id only.
+    if (req.method === "GET" && op === "receipt") {
+      const rid = String(url.searchParams.get("r") || "");
+      if (!RECEIPT_ID.test(rid)) return json({ ok: false, error: "invalid_receipt" }, 400);
+      const all = (await kvGet(RADAR_PICKS_KEY, [])) || [];
+      let hit = null;
+      for (const p of all) { if ((await ridOf(p)) === rid) { hit = p; break; } }
+      if (!hit) return json({ ok: false, error: "receipt_not_found" }, 404);
+      const board = await kvGet(RADAR_BOARD_KEY, null);
+      const seal = await kvGet(RADAR_PICKS_SEAL_KEY, null);
+      const locked = accessOf((await kvGet("marketplace:settings", {})) || {}, { now: now() }).locked;
+      const revealConcept = !(hit.userId === "radar" && !hit.result && locked);
+      const he = (board?.concepts || []).find((c) => c.id === hit.concept)?.he || null;
+      return json({ ok: true, receipt: { rid, ...receiptView(hit, { he, sealText: seal?.text || "", revealConcept }), sealDay: seal?.d || null } });
     }
     if (req.method !== "GET") return json({ ok: false, error: "method_not_allowed" }, 405);
     const board = await kvGet(RADAR_BOARD_KEY, null);

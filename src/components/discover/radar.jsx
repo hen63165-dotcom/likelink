@@ -451,8 +451,16 @@ function cleanDuel(d) {
     radar: side(d.radar), crowd: side(d.crowd),
     leader: ["radar", "crowd", "tie"].includes(d.leader) ? d.leader : null,
     firstDue: dayOk(d.firstDue),
-    recent: (Array.isArray(d.recent) ? d.recent : []).filter((r) => DUEL_ID.test(String(r?.concept || "")) && dayOk(r?.at)).slice(0, 14).map((r) => ({ concept: r.concept, at: dayOk(r.at), due: dayOk(r.due), result: r.result === "HIT" || r.result === "MISS" ? r.result : null, growth: Number.isFinite(Number(r.growth)) ? Number(r.growth) : null })),
+    recent: (Array.isArray(d.recent) ? d.recent : []).filter((r) => DUEL_ID.test(String(r?.concept || "")) && dayOk(r?.at)).slice(0, 14).map((r) => ({ concept: r.concept, at: dayOk(r.at), due: dayOk(r.due), result: r.result === "HIT" || r.result === "MISS" ? r.result : null, growth: Number.isFinite(Number(r.growth)) ? Number(r.growth) : null, rid: /^[0-9a-f]{16}$/.test(String(r.rid || "")) ? r.rid : null })),
   };
+}
+// A sealed receipt from the server (radarPicks.js receiptView), text capped, ids checked.
+function cleanReceipt(r) {
+  if (!r || typeof r !== "object") return null;
+  const dayOk = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+  if (!dayOk(r.at)) return null;
+  const txt = (v, n) => (typeof v === "string" && v.trim() ? v.replace(/\s+/g, " ").trim().slice(0, n) : null);
+  return { concept: DUEL_ID.test(String(r.concept || "")) ? r.concept : null, he: txt(r.he, 60), at: dayOk(r.at), due: dayOk(r.due), nick: txt(r.nick, 20), result: r.result === "HIT" || r.result === "MISS" ? r.result : null, growth: Number.isFinite(Number(r.growth)) ? Number(r.growth) : null, sealed: r.sealed === true, sealDay: dayOk(r.sealDay) };
 }
 
 /** "מי זיהתה ראשונה" (radarPicks.js): pick a concept, sealed with the day, graded after 14 days. */
@@ -464,6 +472,8 @@ function PicksBox({ board }) {
   const [mine, setMine] = useState(null);
   const [duel, setDuel] = useState(null);
   const [beat, setBeat] = useState(false);
+  const [receipt, setReceipt] = useState(null);
+  const [lastPick, setLastPick] = useState(null);
   const box = useRef(null);
   const [token, setToken] = useState(null);
   const [concept, setConcept] = useState("");
@@ -478,6 +488,8 @@ function PicksBox({ board }) {
   useEffect(() => {
     let live = true;
     getSessionToken().catch(() => null).then((t) => { if (!live) return; setToken(t || null); load(t); });
+    const rid = typeof location !== "undefined" ? new URLSearchParams(location.search).get("r") : null;
+    if (rid && /^[0-9a-f]{16}$/.test(rid)) fetch(`/api/store?mode=radar-board&op=receipt&r=${rid}`).then((r) => r.json()).then((b) => { if (live) setReceipt(cleanReceipt(b?.receipt)); }).catch(() => {});
     return () => { live = false; };
   }, []);
   const options = (board?.concepts || []).filter((c) => Number(c.today?.orders) > 0).sort((a, b) => (b.early?.count || 0) - (a.early?.count || 0)).slice(0, 80);
@@ -488,7 +500,7 @@ function PicksBox({ board }) {
     try {
       const res = await fetch("/api/store?mode=radar-board&op=pick", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ concept, nick, show }) });
       const b = await res.json().catch(() => ({}));
-      if (b?.ok) { setMsg(L("🏆 נחתם! הציון ב־" + dm(b.pick?.due), "🏆 Sealed! Graded " + dm(b.pick?.due))); setConcept(""); load(token); }
+      if (b?.ok) { setMsg(L("🔮 נשמר! הבחירה תיחתם בביטקוין בקריאת הבוקר, והציון ב־" + dm(b.pick?.due), "🔮 Saved! Sealed in Bitcoin with the morning reading; graded " + dm(b.pick?.due))); setLastPick(b.pick && /^[0-9a-f]{16}$/.test(String(b.pick.rid || "")) ? b.pick : null); setConcept(""); load(token); }
       else setMsg(L(PICK_ERR[b?.error] || "לא נשמר, נסי שוב", "Not saved, try again"));
     } catch { setMsg(L("נסי שוב בעוד רגע", "Not saved, try again")); }
     setBusy(false);
@@ -500,6 +512,14 @@ function PicksBox({ board }) {
   return (
     <>
     <div className="mt-4 rounded-2xl p-4" id="duel" style={{ background: "#0b0b0b", color: "#fff" }}>
+      {receipt ? (
+        <div className="mb-3 rounded-xl p-3" style={{ background: "#fffbeb", color: "#0b0b0b" }}>
+          <p className="text-[13px] font-bold" style={{ color: "#92400e" }}>{L("🧾 קבלה חתומה", "🧾 Sealed receipt")}</p>
+          <p className="mt-1 text-[16px] font-black">{receipt.he || receipt.concept ? L(`${receipt.nick || "מישהי"} בחרה ב־${dm(receipt.at)}: ${receipt.he || receipt.concept}`, `${receipt.nick || "Someone"} picked on ${dm(receipt.at)}: ${receipt.he || receipt.concept}`) : L(`בחירה מ־${dm(receipt.at)}, השם נחשף ביום הציון`, `A pick from ${dm(receipt.at)}; revealed on grading day`)}</p>
+          <p className="mt-1 text-[14px]">{receipt.result ? `${RESULT_HE[receipt.result]} (${receipt.growth > 0 ? "+" : ""}${receipt.growth}%)` : L(`⏳ הציון בפומבי ב־${dm(receipt.due)}`, `⏳ Graded in public on ${dm(receipt.due)}`)} · {receipt.sealed ? L(`⛓️ חתום בביטקוין (${dm(receipt.sealDay)})`, `⛓️ Sealed in Bitcoin (${dm(receipt.sealDay)})`) : L("⛓️ נחתם בביטקוין בקריאת הבוקר", "⛓️ Sealed in Bitcoin with the morning reading")}</p>
+          <p className="mt-1 text-[14px] font-extrabold">{L("ומה החוש השישי שלך אומר?", "And what does your sixth sense say?")}</p>
+        </div>
+      ) : null}
       <p className="text-[18px] font-black">{L("🔮 יש לך חוש שישי לטרנדים?", "🔮 Do you have a sixth sense for trends?")}</p>
       <p className="mt-1 text-[13px]" style={{ opacity: 0.85 }}>{L("הרדאר כבר בחר להיום, חתום מראש בביטקוין. עכשיו תורך: בוחרים מוצר שמתחיל לעלות, ואחרי 14 יום כולם מקבלים ציון בפומבי באותם כללים (פגיעה = +15% הזמנות).", "The radar has picked for today, sealed in advance in Bitcoin. Now it's your turn: pick a product that is starting to rise; after 14 days everyone is graded in public by the same rules (hit = +15% orders).")}</p>
       {duel ? (
@@ -509,7 +529,7 @@ function PicksBox({ board }) {
         </div>
       ) : null}
       <p className="mt-2 text-[14px] font-extrabold" style={{ color: "#fbbf24" }}>{lead}</p>
-      {radarToday && name(radarToday.concept) ? <p className="mt-1 text-[14px]">{L(`🤖 הבחירה של הרדאר היום: ${name(radarToday.concept)} · הציון ב־${dm(radarToday.due)}`, `🤖 The radar's pick today: ${name(radarToday.concept)} · graded ${dm(radarToday.due)}`)}</p> : null}
+      {radarToday && name(radarToday.concept) ? <p className="mt-1 flex flex-wrap items-center gap-2 text-[14px]">{L(`🤖 הבחירה של הרדאר היום: ${name(radarToday.concept)} · הציון ב־${dm(radarToday.due)}`, `🤖 The radar's pick today: ${name(radarToday.concept)} · graded ${dm(radarToday.due)}`)}{radarToday.rid ? <ShareButton path={`/radar?r=${radarToday.rid}#duel`} title={L(`🤖 הרדאר של LikeLink2 בחר היום את ${name(radarToday.concept)}, חתום מראש בביטקוין. הציון בפומבי ב־${dm(radarToday.due)}. יש לך חוש שישי לטרנדים?`, `LikeLink2's radar picked ${name(radarToday.concept)} today, sealed in advance in Bitcoin; graded in public on ${dm(radarToday.due)}.`)} /> : null}</p> : null}
       {(duel?.recent || []).filter((r) => r.result).slice(0, 3).map((r) => <p key={r.at + r.concept} className="mt-1 text-[13px]" style={{ opacity: 0.9 }}>{dm(r.at)} · {name(r.concept) || r.concept} · {RESULT_HE[r.result]} ({r.growth > 0 ? "+" : ""}{r.growth}%)</p>)}
       <button type="button" onClick={() => { if (box.current) { box.current.open = true; box.current.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className="lx-btn mt-3" style={{ minHeight: 48, background: "#fbbf24", color: "#0b0b0b", fontWeight: 900 }}>{L("🔮 לבחור את שלי", "🔮 Make my pick")}</button>
     </div>
@@ -525,6 +545,7 @@ function PicksBox({ board }) {
           <label className="flex items-center gap-2"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> {L("להופיע בטבלה בכינוי הזה", "Show me on the board by this nickname")}</label>
           <button type="submit" disabled={!concept || busy} className="lx-btn lx-btn-ink" style={{ minHeight: 48 }}>{L("🏆 אני בוחרת", "🏆 I pick this")}</button>
           {msg ? <p className="font-bold">{msg}</p> : null}
+          {lastPick ? <p className="flex flex-wrap items-center gap-2 font-bold">{L("🧾 לשתף את הקבלה, ובעוד 14 יום כולם יראו אם צדקת:", "🧾 Share the receipt; in 14 days everyone sees if you were right:")} <ShareButton path={`/radar?r=${lastPick.rid}#duel`} title={L(`🔮 בחרתי היום את ${name(lastPick.concept) || lastPick.concept} כמוצר שמתחיל לעלות. הבחירה נחתמת מראש בביטקוין, והציון בפומבי ב־${dm(lastPick.due)}. יש לך חוש שישי לטרנדים?`, `🔮 Today I picked ${name(lastPick.concept) || lastPick.concept} as starting to rise, sealed in advance; graded in public on ${dm(lastPick.due)}.`)} /></p> : null}
           <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הבחירה נשמרת עם התאריך, ונבדקת אחרי 14 יום כמו הקביעות של הרדאר (פגיעה = +15% הזמנות). עד 3 בחירות פתוחות.", "Saved with the day and graded after 14 days like the radar's calls (hit = +15% orders). Up to 3 open picks.")}</p>
         </form>
       ) : (
@@ -532,7 +553,7 @@ function PicksBox({ board }) {
       )}
       {mine?.length ? (
         <ul className="mt-3 grid gap-1 text-[13px]">
-          {mine.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-2">{name(p.concept) || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}{p.result === "HIT" ? <ShareButton path="/radar#duel" title={beat ? L(`🔮 החוש השישי שלי עקף את הרדאר! זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. יש לך חוש שישי לטרנדים?`, `🔮 My sixth sense passed the radar! I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`) : L(`🔮 יש לי חוש שישי לטרנדים: זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)} לפני כולם, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. ולך יש?`, `🔮 I have a sixth sense for trends: I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`)} /> : null}</li>)}
+          {mine.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-2">{name(p.concept) || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}{!p.result && /^[0-9a-f]{16}$/.test(String(p.rid || "")) ? <ShareButton path={`/radar?r=${p.rid}#duel`} title={L(`🔮 בחרתי ב־${dm(p.at)} את ${name(p.concept) || p.concept} כמוצר שמתחיל לעלות, חתום מראש בביטקוין. הציון בפומבי ב־${dm(p.due)}. יש לך חוש שישי לטרנדים?`, `🔮 On ${dm(p.at)} I picked ${name(p.concept) || p.concept}, sealed in advance; graded in public on ${dm(p.due)}.`)} /> : null}{p.result === "HIT" ? <ShareButton path={/^[0-9a-f]{16}$/.test(String(p.rid || "")) ? `/radar?r=${p.rid}#duel` : "/radar#duel"} title={beat ? L(`🔮 החוש השישי שלי עקף את הרדאר! זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. יש לך חוש שישי לטרנדים?`, `🔮 My sixth sense passed the radar! I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`) : L(`🔮 יש לי חוש שישי לטרנדים: זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)} לפני כולם, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. ולך יש?`, `🔮 I have a sixth sense for trends: I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`)} /> : null}</li>)}
         </ul>
       ) : null}
       {beat ? (
