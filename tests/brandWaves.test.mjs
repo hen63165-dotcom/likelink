@@ -95,3 +95,14 @@ test("the waves section on the page carries no promise or forecast wording", () 
   assert.match(part, /const \{ L \} = useL\(\)/);
   assert.equal(WAVES.show <= 8, true);
 });
+
+test("an accessory that only names the device it fits is not a wave; a copy is", async () => {
+  const { waveOf } = await import("../src/lib/growth/brandWaves.js");
+  assert.equal(waveOf("Luxury Silicone Case for iPhone 15 Pro Max Shockproof Cover"), null);
+  assert.equal(waveOf("Nylon Strap Compatible with Garmin Forerunner 265"), null);
+  assert.equal(waveOf("Magnetic Charger Cable for Apple Watch Series 9"), null);
+  assert.equal(waveOf("Sonic Electric Toothbrush 5 Modes USB Rechargeable"), null);
+  assert.deepEqual(waveOf("TWS Airpods Pro 2 Wireless Earbuds Noise Cancelling"), { token: "airpods", reason: "BRAND" });
+  assert.deepEqual(waveOf("Labubu Plush Keychain Blind Box"), { token: "labubu", reason: "BRAND" });
+  assert.equal(waveOf("Flipper Zero Multi-tool Device")?.reason, "TOOL");
+});
