@@ -3,7 +3,7 @@
 // Pro tiers — with NO price and a waitlist until the owner approves the prices and switches billing
 // on (radarPlans.js billingOf); then the price (monthly / yearly), the trial line and the upgrade
 // button to PayPal (server: sub=radar-checkout). Bilingual (useL).
-// No claim of uniqueness, no promised hit, no promised income.
+// No claim of uniqueness, no promised hit, no promised income: the proof is the public, sealed record.
 import React, { useEffect, useMemo, useState } from "react";
 import { BellRing, Check, Radar, ShieldCheck } from "lucide-react";
 import { useMarketplace } from "../../context/MarketplaceContext";
@@ -170,7 +170,7 @@ export function RadarProPage() {
           <p className="lx-kicker mb-3"><Radar size={14} aria-hidden="true" /> {L("רדאר הטרנדים של LikeLink2", "The LikeLink2 trend radar")}</p>
           <h1 className="lx-profile-name">{L("לראות מה מתחיל לעלות, עם המספרים", "See what is starting to rise, with the numbers")}</h1>
           <p className="mt-3 max-w-2xl text-[16px] leading-7">{L("כל יום הרדאר מודד באליאקספרס את קצב ההזמנות, מוכרים חדשים ומחיר לכ־60 סוגי מוצרים, ובודק בגוגל וביוטיוב אם בישראל כבר מחפשים אותם בעברית. כל סימון נשמר עם תאריך ונבדק אחרי 14 יום, והתוצאה מוצגת לכולם.", "Every day the radar measures order speed, new sellers and price for about 60 kinds of products on AliExpress, and checks on Google and YouTube whether Israelis already search for them in Hebrew. Every call is saved with its date and graded 14 days later, in public.")}</p>
-          <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("הרדאר לא מבטיח להיט ולא מבטיח רווח. הוא מראה סימנים מוקדמים, עם המקור והתאריך של כל מספר.", "The radar never promises a hit or a profit. It shows early signs, with each number's source and date.")}</p>
+          <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("כל קביעה של הרדאר נחתמת מראש ונבדקת בפומבי, עם המקור והתאריך של כל מספר: רואים בדיוק כמה פגעו, עוד לפני שמצטרפים.", "Every radar call is sealed in advance and graded in public, with each number's source and date: you see exactly how many hit before you join.")}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Go to="/radar" className="lx-btn lx-btn-ink" style={{ minHeight: 52 }}>{L("לרדאר של היום", "Today's radar")}</Go>
             <a href="#radar-tiers" className="lx-btn lx-btn-ghost" style={{ minHeight: 52 }}>{L("המסלולים", "The tiers")}</a>

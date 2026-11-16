@@ -657,7 +657,7 @@ function FreshRisers({ fresh, world = null }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("קצב עלייה של שבוע אחד הוא סימן מוקדם, לא הבטחה. השם הוא המילים של המוכר באליאקספרס.", "One week's growth is an early sign, not a promise. The name is the seller's own words on AliExpress.")}</p>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("קצב של שבוע הוא הסימן המוקדם, והציון אחרי 14 יום מראה אם פגע. השם הוא המילים של המוכר באליאקספרס.", "A week's pace is the early sign; the grade after 14 days shows whether it hit. The name is the seller's own words on AliExpress.")}</p>
           </>
         ) : (
           <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר לא מנחש.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
@@ -812,7 +812,7 @@ export function RadarPage() {
           <button type="button" onClick={press} className="lx-btn lx-btn-ink mt-6" style={{ minHeight: 56, fontSize: 18, padding: "10px 28px" }}>
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
           </button>
-          <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הרדאר לא מבטיח להיט. הוא מראה סימנים מוקדמים, עם המספרים והתאריכים.", "The radar never promises a hit. It shows early signs, with the numbers and dates.")}</p>
+          <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("כל קביעה של הרדאר נחתמת מראש ונבדקת בפומבי, עם המספרים והתאריכים: כל פגיעה וכל החטאה נשארות בספר הקביעות.", "Every radar call is sealed in advance and graded in public, with the numbers and dates: every hit and every miss stays in the ledger.")}</p>
           <TrialBanner />
         </div>
       </section>
@@ -942,7 +942,7 @@ export function RadarPage() {
             {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
             <SiteHot site={board.site} />
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
-              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא מחפשים בעברית״ נקבע רק כששני מקורות החיפוש מסכימים, וזה לא אומר שאין את זה בחנויות בארץ. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
+              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא מחפשים בעברית״ נקבע רק כששני מקורות החיפוש מסכימים, וזה לא אומר שאין את זה בחנויות בארץ. הרדאר מראה סימנים מדודים, וההחלטה מה לקנות ומה למכור היא שלכם.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows measured signs; what to buy or sell is your call.")}
             </p>
           </>
         ) : null}

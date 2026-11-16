@@ -70,8 +70,10 @@ test("/radar-pro: routed, rewritten, its own head, bilingual, no price or promis
   assert.equal(seo.canonical, "https://likelink2.vercel.app/radar-pro");
   assert.match(readFileSync("scripts/prerender-products.mjs", "utf8"), /"\/radar-pro"/);
   const page = readFileSync("src/components/discover/radarPro.jsx", "utf8");
-  for (const he of ["מחיר: עוד לא נקבע", "לא מבטיח להיט", "רשימת ההמתנה"]) assert.ok(page.includes(he));
-  for (const en of ["Price: not set yet", "never promises a hit", "Join the waitlist"]) assert.ok(page.includes(en));
+  // The owner, 2026-11-16: no "doesn't promise" line; the proof is the sealed, public record. Still never a promise.
+  for (const he of ["מחיר: עוד לא נקבע", "נחתמת מראש ונבדקת בפומבי", "רשימת ההמתנה"]) assert.ok(page.includes(he));
+  for (const en of ["Price: not set yet", "sealed in advance and graded in public", "Join the waitlist"]) assert.ok(page.includes(en));
+  assert.doesNotMatch(page, /(?<!לא )מבטיח(ה)? להיט|יהיה להיט|guaranteed hit/);
   assert.doesNotMatch(page, /\$\d|היחיד בעולם|only one in the world|guarantee/i);
   // Shekel signs appear only in the subscriber's own record (MySubscription: a subscription exists only
   // after billing was on) and in the billing.enabled branch (prices from billingOf).
