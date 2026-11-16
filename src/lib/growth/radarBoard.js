@@ -141,7 +141,21 @@ export function sanitizeBoard(doc) {
       keep: (Array.isArray(doc.site.keep) ? doc.site.keep : []).slice(0, 24).filter((r) => r && /^[\w-]{2,60}$/.test(String(r.id || ""))).map((r) => ({ id: r.id, title: str(r.title, 60), accel: cleanAccel(r.accel), lifecycle: Object.hasOwn(LIFECYCLE, r.lifecycle) ? r.lifecycle : null, lifecycleHe: Object.hasOwn(LIFECYCLE, r.lifecycle) ? LIFECYCLE[r.lifecycle].he : null, alpha: num(r.alpha), confidence: num(r.confidence), israelHe: str(r.israel?.he, 40) })),
     } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
+    fresh: cleanFresh(doc.fresh),
   };
+}
+
+/** New listings that start to run (freshRisers.js): the store's own words, numbers and photo only. */
+function cleanFresh(f) {
+  if (!f || typeof f !== "object") return null;
+  const risers = (Array.isArray(f.risers) ? f.risers : []).slice(0, 12).map((r) => {
+    const buy = typeof r?.buy === "string" && BUY.test(r.buy) ? r.buy : null;
+    const image = radarImage(r?.image);
+    if (!ITEM.test(String(r?.id || "")) || !buy || !image || num(r.weekPct) === null || num(r.orders) === null) return null;
+    const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct) };
+  }).filter(Boolean);
+  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers };
 }
 
 /**

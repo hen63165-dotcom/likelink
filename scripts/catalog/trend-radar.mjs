@@ -40,6 +40,7 @@ import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
+import { freshEntry, freshKeywords, freshRisers, mergeFreshPool } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -150,7 +151,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
   let calls = readJson(join(dir, "calls.json"), []);
   const log = [];
-  const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", youtube: "OFF", trendsIL: "OFF", trendsWorld: "OFF", worldSearch: "OFF", trendsDiscovery: "OFF", siteVisitors: "OFF", siteProducts: "OFF" };
+  const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", youtube: "OFF", trendsIL: "OFF", trendsWorld: "OFF", worldSearch: "OFF", trendsDiscovery: "OFF", siteVisitors: "OFF", siteProducts: "OFF", fresh: "OFF" };
   const store = aeStatus(env).configured;
 
   // 0. The world first: Google Trends' daily trending searches in four English-speaking countries
@@ -368,6 +369,36 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
   }
 
+  // New listings that start to run (freshRisers.js): per category, the listings sellers title as
+  // this year's new items, sorted by recent orders. Their 30-day orders join the item histories, so
+  // a small new listing whose orders grow fast shows up as a fresh riser after a few readings.
+  let freshPool = readJson(join(dir, "fresh.json"), {});
+  if (store && env.RADAR_FRESH !== "0") {
+    const started = Date.now();
+    const entries = [];
+    for (const cat of TREND_CATEGORIES) {
+      if (Date.now() - started > 75_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
+      try {
+        const e = aeEnv(env);
+        const biz = { keywords: freshKeywords(cat, now), tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" };
+        const res = await aeCall(SEARCH, biz, { env: e, fetchImpl, now });
+        const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(r?.resp_code) !== 200) { log.push(`fresh ${cat.key}: resp ${r?.resp_code ?? "none"}`); continue; }
+        const raw = r.result?.products?.product;
+        for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+          const entry = freshEntry(p, { category: cat.key, today });
+          if (!entry) continue;
+          entries.push(entry);
+          items[entry.id] = addItemReading(items[entry.id], [today, entry.orders]);
+        }
+      } catch (err) { log.push(`fresh ${cat.key}: ${String(err?.message || err).slice(0, 60)}`); }
+      await pause(politeMs);
+    }
+    freshPool = mergeFreshPool(freshPool, entries, { today });
+    sources.fresh = entries.length ? "OK" : "FAILED";
+    log.push(`fresh: ${entries.length} new listings read today · pool ${Object.keys(freshPool).length}`);
+  }
+
   // Items no longer read (not a top item, not on the site) for 45 days are dropped.
   const keepFrom = new Date(now - 45 * 86_400_000).toISOString().slice(0, 10);
   for (const id of Object.keys(items)) if (!(items[id] || []).some((r) => r[0] >= keepFrom)) delete items[id];
@@ -381,6 +412,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  board.fresh = freshRisers(freshPool, items);
+  log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
@@ -429,6 +462,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));
   writeFileSync(join(dir, "discovered.json"), JSON.stringify(discovered, null, 1));
   writeFileSync(join(dir, "items.json"), JSON.stringify(items));
+  writeFileSync(join(dir, "fresh.json"), JSON.stringify(freshPool));
   writeFileSync(join(dir, "catalog.json"), JSON.stringify(intel.audit, null, 1));
   writeFileSync(join(dir, "briefs.json"), JSON.stringify(intel.briefs, null, 1));
   writeFileSync(join(dir, "catalog-decisions.json"), JSON.stringify(intel.decisions, null, 1));
