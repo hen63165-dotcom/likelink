@@ -52,6 +52,9 @@ export function teaserBoard(board) {
     teaser: true,
     record: board.record,
     clock: board.clock,
+    // The weekly challenge is public on purpose (it is the post people vote on): the open one carries
+    // no choice and no salt; graded ones are revealed.
+    challenge: board.challenge || null,
     concepts: [],
     early: e ? {
       need: e.need,

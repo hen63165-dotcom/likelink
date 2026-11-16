@@ -148,6 +148,32 @@ export function sanitizeBoard(doc) {
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
     world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays) } : null,
     globe: cleanGlobe(doc.globe),
+    challenge: cleanChallenge(doc.challenge),
+  };
+}
+
+/** 🔮 The weekly challenge (radarChallenge.js): the open one never carries the radar's choice or the salt. */
+function cleanChallenge(c) {
+  if (!c || typeof c !== "object") return null;
+  const seal = (s) => (s && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? { d: day(s.d), sha256: s.sha256, ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null);
+  const opt = (o) => (ID.test(String(o?.concept || "")) && str(o.label, 30) ? { concept: o.concept, label: str(o.label, 30) } : null);
+  const o = c.open && typeof c.open === "object" && /^ch-\d{4}-\d{2}-\d{2}$/.test(String(c.open.id || "")) ? c.open : null;
+  return {
+    open: o ? {
+      id: o.id, at: day(o.at), due: day(o.due), dayN: num(o.dayN) ?? 0,
+      options: (Array.isArray(o.options) ? o.options : []).slice(0, 4).map((x) => { const v = opt(x); return v ? { ...v, image: radarImage(x.image) } : null; }).filter(Boolean),
+      progress: (Array.isArray(o.progress) ? o.progress : []).slice(0, 4).filter((p) => ID.test(String(p?.concept || ""))).map((p) => ({ concept: p.concept, pct: num(p.pct) })),
+      seal: seal(o.seal),
+    } : null,
+    recent: (Array.isArray(c.recent) ? c.recent : []).slice(0, 6).filter((r) => /^ch-\d{4}-\d{2}-\d{2}$/.test(String(r?.id || "")) && (r.result === "HIT" || r.result === "MISS")).map((r) => ({
+      id: r.id, at: day(r.at), due: day(r.due), gradedAt: day(r.gradedAt), result: r.result,
+      radar: ID.test(String(r.radar || "")) ? r.radar : null, radarLabel: str(r.radarLabel, 30),
+      winners: (Array.isArray(r.winners) ? r.winners : []).filter((w) => ID.test(String(w))).slice(0, 4), winnerLabels: strs(r.winnerLabels, 4, 30),
+      options: (Array.isArray(r.options) ? r.options : []).slice(0, 4).map((x) => { const v = opt(x); return v ? { ...v, growth: num(x.growth) } : null; }).filter(Boolean),
+      text: typeof r.text === "string" && /^ch-[0-9-]+\|[0-9-]+\|[a-z0-9,-]+\|radar=[a-z0-9-]+\|salt=[0-9a-f]{32}$/.test(r.text) ? r.text : null,
+      seal: seal(r.seal),
+    })),
+    record: { graded: num(c.record?.graded) ?? 0, radarHits: num(c.record?.radarHits) ?? 0 },
   };
 }
 

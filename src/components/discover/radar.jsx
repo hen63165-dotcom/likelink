@@ -843,6 +843,57 @@ function Globe({ globe }) {
   );
 }
 
+/** 🔮 The weekly challenge (radarChallenge.js): four measured products, the radar's sealed choice, the live scoreboard, the results. */
+function Challenge({ ch }) {
+  const { L } = useL();
+  if (!ch || (!ch.open && !ch.recent?.length)) return null;
+  const o = ch.open;
+  const pct = (v) => (v === null || v === undefined ? "—" : `${v > 0 ? "+" : ""}${v}%`);
+  const live = (id) => o?.progress?.find((p) => p.concept === id)?.pct ?? null;
+  return (
+    <section className="lx-wrap mt-8" id="challenge" style={{ scrollMarginTop: 80 }}>
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#faf5ff" }}>
+        <h2 className="text-[22px] font-black">{L("🔮 האתגר השבועי: מה החוש השישי שלך אומר?", "🔮 This week's challenge: what does your sixth sense say?")}</h2>
+        {o ? (
+          <>
+            <p className="mt-1 text-[14px] leading-6">{L(`איזה מהמוצרים האלה יזנק הכי הרבה בהזמנות באליאקספרס עד ${dm(o.due)}? הרדאר כבר בחר, והבחירה שלו חתומה מראש. ב־${dm(o.due)} החתימה נפתחת וההזמנות האמיתיות קובעות, בפומבי.`, `Which of these will grow the most in AliExpress orders by ${dm(o.due)}? The radar already chose, sealed in advance. On ${dm(o.due)} the seal opens and the real orders decide, in public.`)}</p>
+            <ul className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {o.options.map((x, i) => (
+                <li key={x.concept} className="lx-card overflow-hidden" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  {x.image ? <div style={{ aspectRatio: "1 / 1", overflow: "hidden" }}><Img src={x.image} alt={x.label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div> : null}
+                  <div className="p-2">
+                    <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{i + 1}</p>
+                    <p className="text-[14px] font-black leading-5">{x.label}</p>
+                    <p className="mt-1 text-[12.5px] font-bold">{L(`עד עכשיו: ${pct(live(x.concept))}`, `So far: ${pct(live(x.concept))}`)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[12.5px]">{L(`יום ${o.dayN} מתוך 14. "עד עכשיו" הוא השינוי בהזמנות מאז שהאתגר נפתח.`, `Day ${o.dayN} of 14. "So far" is the change in orders since the challenge opened.`)}</p>
+            {o.seal ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }} dir="ltr">🔒 SHA-256 {o.seal.sha256.slice(0, 24)}… · {dm(o.seal.d)}{o.seal.ots?.length ? " · OpenTimestamps" : ""}</p> : null}
+            <div className="mt-2"><ShareButton path="/radar#challenge" title={L(`🔮 האתגר השבועי של רדאר הטרנדים: איזה מוצר יזנק הכי הרבה עד ${dm(o.due)}? הרדאר כבר בחר, חתום מראש. מה החוש השישי שלך אומר?`, `🔮 The trend radar's weekly challenge: which product grows most by ${dm(o.due)}? The radar already chose, sealed in advance. What does your sixth sense say?`)} variant="button" /></div>
+          </>
+        ) : null}
+        {ch.recent?.length ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-black">{L(`📖 תוצאות (${ch.record.radarHits} מתוך ${ch.record.graded} פעמים הבחירה של הרדאר ניצחה)`, `📖 Results (the radar's choice won ${ch.record.radarHits} of ${ch.record.graded})`)}</p>
+            <ul className="mt-2 grid gap-2">
+              {ch.recent.map((r) => (
+                <li key={r.id} className="rounded-xl p-3 text-[13px]" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+                  <p className="font-black">{L(`האתגר של ${dm(r.at)}: המנצח ${r.winnerLabels.join(" / ")}`, `${dm(r.at)}: the winner was ${r.winnerLabels.join(" / ")}`)}</p>
+                  <p>{r.options.map((x) => `${x.label} ${pct(x.growth)}`).join(" · ")}</p>
+                  <p className="mt-1">{L(`הבחירה החתומה של הרדאר: ${r.radarLabel} ${r.result === "HIT" ? "🎯" : "· הפעם ניצח מוצר אחר"}`, `The radar's sealed choice: ${r.radarLabel} ${r.result === "HIT" ? "🎯" : "· another product won this time"}`)}</p>
+                  {r.text ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)", wordBreak: "break-all" }} dir="ltr">{r.text}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 /** The crowd sensor (crowdSensor.js): what different people checked in the magic button this week. */
 function Crowd({ crowd }) {
   const { L } = useL();
@@ -976,6 +1027,7 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
+      {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
