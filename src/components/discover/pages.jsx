@@ -633,7 +633,7 @@ export function ProductPage({ graph, id, navigate }) {
               (synthetic) reel opens the page only when there is no photo. The
               reels stay one scroll below, in "בסרטונים". */}
           <div className="md:sticky md:top-24 md:self-start">
-            <div className="lx-card" style={heroVideo ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
+            <div className="lx-card lx-pp-hero" style={heroVideo ? { maxWidth: "min(100%, calc(80vh * 9 / 16))", marginInline: "auto" } : undefined}>
               <Media src={look?.src || product.media.image} video={heroVideo} poster={product.media.poster} alt={product.displayTitle} ratio={heroVideo ? "9 / 16" : "4 / 5"} width={1000} eager label={product.displayTitle} controls={Boolean(heroVideo)} engageId={heroVideo ? product.id : ""}>
                 {heroVideo ? null : (
                   <div className="absolute start-3 top-3 flex flex-wrap gap-1.5">

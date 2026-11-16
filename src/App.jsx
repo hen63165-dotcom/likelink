@@ -22,6 +22,16 @@ import { capturePayPalCheckout } from "./lib/paymentFlow.js";
 import { toHebrewError } from "./lib/errorMessages.js";
 import PasswordRecovery from "./components/auth/PasswordRecovery.jsx";
 
+// The link a visitor last pressed, so navigate() can turn its picture into the
+// next page's hero (View Transitions). Only an <a> whose own path is the route.
+let lastPress = null;
+if (typeof document !== "undefined") {
+  document.addEventListener("click", (e) => { lastPress = e.target?.closest?.("a[href]") || null; }, true);
+}
+function sameRoute(a, route) {
+  try { return stripBase(new URL(a.href, window.location.origin).pathname) === route; } catch { return false; }
+}
+
 // View Components — lazy-loaded for faster first paint (code-splitting)
 // The Studio is its own surface — public visitors never download it.
 const StudioShell = lazy(() => import("./components/studio/StudioShell").then((m) => ({ default: m.StudioShell })));
@@ -203,8 +213,18 @@ function App() {
     // One calm cross-fade between pages where the browser has View Transitions
     // (public.css styles it; the header stays put). Reduced motion: no transition.
     const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const pressed = lastPress;
+    lastPress = null;
     if (typeof document.startViewTransition === "function" && !still) {
-      document.startViewTransition(() => flushSync(go));
+      // Opening a product from its picture: that picture becomes the product
+      // page's hero (one shared name, lx-pp-hero, see public.css).
+      const morph = /^\/p\//.test(route) && pressed?.isConnected && sameRoute(pressed, route) ? pressed.querySelector("img, video") : null;
+      if (morph) {
+        document.querySelectorAll(".lx-pp-hero").forEach((el) => { el.style.viewTransitionName = "none"; });
+        morph.style.viewTransitionName = "lx-pp-hero";
+      }
+      const t = document.startViewTransition(() => flushSync(go));
+      t.finished.catch(() => {}).finally(() => { if (morph) morph.style.viewTransitionName = ""; });
     } else go();
   }
 

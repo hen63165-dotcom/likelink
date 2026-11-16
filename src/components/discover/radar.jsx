@@ -810,6 +810,24 @@ function Crowd({ crowd }) {
   );
 }
 
+/** The radar's own symbol, drawn: rings, a cross and one sweeping beam
+ *  (frontend-design: the page's single moment). Decoration only — no blips,
+ *  so nothing on it reads as a measurement. */
+function RadarScope() {
+  return (
+    <div className="lx-rdr-scope" aria-hidden="true">
+      <svg viewBox="0 0 200 200" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <circle cx="100" cy="100" r="96" />
+        <circle cx="100" cy="100" r="64" />
+        <circle cx="100" cy="100" r="32" />
+        <path d="M100 4v192M4 100h192" />
+      </svg>
+      <span className="lx-rdr-sweep" />
+      <span className="lx-rdr-core" />
+    </div>
+  );
+}
+
 export function RadarPage() {
   const { L } = useL();
   const [board, setBoard] = useState(undefined);
@@ -864,8 +882,10 @@ export function RadarPage() {
 
   return (
     <>
-      <section className="lx-profile">
-        <div className="lx-wrap py-10 md:py-16">
+      <section className="lx-profile lx-rdr-hero">
+        <div className="lx-wrap lx-rdr-grid py-10 md:py-16">
+          <RadarScope />
+          <div>
           <p className="lx-kicker mb-3"><Radar size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · חינם בתקופת הניסיון", "New on LikeLink2 · free during the trial")}</p>
           <h1 className="lx-profile-name">{L("רדאר הטרנדים ✨", "The trend radar ✨")}</h1>
           <p className="mt-3 max-w-2xl text-[16px] leading-7">
@@ -876,6 +896,7 @@ export function RadarPage() {
           </button>
           <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("כל קביעה של הרדאר נחתמת מראש ונבדקת בפומבי, עם המספרים והתאריכים: כל פגיעה וכל החטאה נשארות בספר הקביעות.", "Every radar call is sealed in advance and graded in public, with the numbers and dates: every hit and every miss stays in the ledger.")}</p>
           <TrialBanner />
+          </div>
         </div>
       </section>
 
