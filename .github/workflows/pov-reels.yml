@@ -6,6 +6,13 @@
 name: POV reels
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "render (jobs.json) or sheets (every listed product with a store video: its shots, for captions)"
+        default: render
+      limit:
+        description: "sheets: how many products"
+        default: "40"
   push:
     paths:
       - scripts/marketing/pov-reel.mjs
@@ -33,23 +40,39 @@ jobs:
           npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 @fontsource/heebo@5.3.0 >/dev/null
           sudo apt-get -qq update && sudo apt-get -qq install -y ffmpeg fonts-noto-core >/dev/null
           python3 -m pip install --quiet numpy
-      - name: Render the reels
+      - name: Render the reels (or the shot sheets)
         env:
           ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
           ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
           ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+          MODE: ${{ inputs.mode || 'render' }}
+          LIMIT: ${{ inputs.limit || '40' }}
         run: |
           set -o pipefail
-          node scripts/marketing/pov-reel.mjs scripts/marketing/pov-reels/jobs.json pov-reels-out | tee /tmp/report.txt
-          { echo "### POV reels"; echo '```json'; cat /tmp/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - name: Commit them for review
+          if [ "$MODE" = "sheets" ]; then
+            node scripts/marketing/pov-reel.mjs --sheets pov-reels-out "$LIMIT" | tee /tmp/report.txt
+          else
+            node scripts/marketing/pov-reel.mjs scripts/marketing/pov-reels/jobs.json pov-reels-out | tee /tmp/report.txt
+          fi
+          { echo "### POV reels ($MODE)"; echo '```json'; cat /tmp/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Put the reels on the "pov-reels" release (for the owner's phone)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
-          files=(pov-reels-out/*.mp4 pov-reels-out/*.jpg pov-reels-out/report.json)
-          [ ${#files[@]} -gt 0 ] || { echo "nothing rendered"; exit 0; }
+          files=(pov-reels-out/*.mp4)
+          [ ${#files[@]} -gt 0 ] || { echo "no reels"; exit 0; }
+          gh release view pov-reels >/dev/null 2>&1 || gh release create pov-reels --prerelease --title "POV reels" --notes "POV reels for the owner to download on her phone, add a trending sound and post. Nothing here is posted automatically."
+          gh release upload pov-reels "${files[@]}" --clobber
+      - name: Commit the sheets and the report for review
+        run: |
+          shopt -s nullglob
+          files=(pov-reels-out/*.jpg pov-reels-out/*.json)
+          [ ${#files[@]} -gt 0 ] || { echo "nothing to commit"; exit 0; }
           mkdir -p marketing/reels/pov && cp "${files[@]}" marketing/reels/pov/
           git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add marketing/reels/pov
           git diff --cached --quiet && exit 0
-          git commit -q -m "POV reels: rendered for review"
+          git commit -q -m "POV reels: sheets and report for review"
+          git pull -q --rebase origin "${GITHUB_REF_NAME}" || true
           git push -q origin HEAD:${GITHUB_REF_NAME}

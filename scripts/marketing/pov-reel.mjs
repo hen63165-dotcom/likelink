@@ -143,8 +143,10 @@ export async function renderPov({ page, job, clip, work, out }) {
     scenePngs.push(f);
   }
   const total = starts.length * SHOT;
+  // music: false → a silent track (the owner adds a trending sound in Instagram's app).
   const beat = join(work, `${job.id}-beat.wav`);
-  execFileSync("python3", ["scripts/luna_reels/luna_reels/popbeat.py", String(total), beat], { stdio: ["ignore", "ignore", "inherit"] });
+  if (job.music === false) ff(["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", String(total), beat]);
+  else execFileSync("python3", ["scripts/luna_reels/luna_reels/popbeat.py", String(total), beat], { stdio: ["ignore", "ignore", "inherit"] });
   const mp4 = join(out, `${job.id}-pov.mp4`);
   let chain = "[0:v][1:v]overlay=0:0[b0]";
   ranges.forEach((r, k) => { chain += `;[b${k}][${k + 3}:v]overlay=0:0:enable='between(t,${r.from},${(r.to - 0.001).toFixed(3)})'[b${k + 1}]`; });
@@ -161,7 +163,42 @@ async function download(url, file) {
   writeFileSync(file, Buffer.from(await res.arrayBuffer()));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/** Products worth a POV reel: approved, an AliExpress link, not archived. */
+export function sheetCandidates(products = []) {
+  return products.filter((p) => p?.id && p.status === "approved" && /aliexpress/i.test(String(p.affiliateUrl || "")));
+}
+
+/** Writes <id>-shots.jpg (the shots in order, left to right then down) for each candidate with a store video. */
+async function sheetsMode(out, limit) {
+  const { cloudProducts, storeVideo } = await import("../media/product-video/studio-videos.mjs");
+  const work = join(out, "work");
+  mkdirSync(work, { recursive: true });
+  const list = sheetCandidates(await cloudProducts()).slice(0, limit);
+  const report = [];
+  for (const p of list) {
+    await new Promise((r) => setTimeout(r, 1500));
+    let v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
+    if (v.status === "ERROR" && /ApiCallLimit/.test(v.reason)) { await new Promise((r) => setTimeout(r, 3000)); v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) })); }
+    if (v.status !== "FOUND") { report.push({ id: p.id, status: v.status }); continue; }
+    try {
+      const clip = join(work, `${p.id}-src.mp4`);
+      await download(v.video, clip);
+      const { seconds } = probe(clip);
+      const starts = shotStarts(seconds);
+      const frames = starts.map((t, i) => { const f = join(work, `${p.id}-f${i}.jpg`); ff(["-ss", String(t + SHOT / 2), "-i", clip, "-frames:v", "1", "-vf", "scale=240:-2", f]); return f; });
+      ff([...frames.flatMap((f) => ["-i", f]), "-filter_complex", `${frames.map((_, i) => `[${i}:v]scale=240:300:force_original_aspect_ratio=decrease,pad=240:300:(ow-iw)/2:(oh-ih)/2[c${i}]`).join(";")};${frames.map((_, i) => `[c${i}]`).join("")}xstack=inputs=${frames.length}:layout=${frames.map((_, i) => `${(i % 7) * 240}_${Math.floor(i / 7) * 300}`).join("|")}:fill=black`, "-frames:v", "1", join(out, `${p.id}-shots.jpg`)]);
+      report.push({ id: p.id, status: "SHOTS", shots: starts.length, title: String(p.displayTitle || p.title || "").slice(0, 80), storeTitle: v.title.slice(0, 120) });
+    } catch (e) {
+      report.push({ id: p.id, status: "FAILED", reason: String(e?.message || e).slice(0, 160) });
+    }
+  }
+  writeFileSync(join(out, "candidates.json"), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ candidates: list.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--sheets") {
+  await sheetsMode(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 40));
+} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [jobsFile = "scripts/marketing/pov-reels/jobs.json", out = "pov-reels-out"] = process.argv.slice(2);
   const jobs = JSON.parse(readFileSync(jobsFile, "utf8")).jobs || [];
   const { cloudProducts, storeVideo } = await import("../media/product-video/studio-videos.mjs");
