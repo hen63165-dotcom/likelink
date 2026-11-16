@@ -120,6 +120,7 @@ jobs:
           node scripts/catalog/radar-state.mjs pack radar-state
           files="radar-state/state.enc radar-state/board-public.json"
           [ -f radar-state/briefs-public.json ] && files="$files radar-state/briefs-public.json"
+          [ -f radar-state/prices-public.json ] && files="$files radar-state/prices-public.json"
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then rel=radar; else rel=radar-preview; fi
           gh release view $rel >/dev/null 2>&1 || gh release create $rel --prerelease --title "Trend radar (state)" --notes "The trend radar's state, encrypted (state.enc), and the public board (board-public.json). Written by .github/workflows/trend-radar.yml."
           gh release upload $rel $files --clobber

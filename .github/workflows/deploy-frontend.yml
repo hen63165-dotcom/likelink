@@ -193,6 +193,11 @@ jobs:
           if gh release download radar --pattern briefs-public.json --dir /tmp/radar-kits --clobber; then
             node scripts/marketing/radar-kits.mjs /tmp/radar-kits/briefs-public.json dist/radar/kits || true
           else echo "::notice::no public kits (the radar is for subscribers)"; fi
+          # 🏷️ The public price ledger (realDeal.js) → /radar/prices/ for the magic button's "המבצע האמיתי".
+          rm -rf /tmp/radar-prices && mkdir -p /tmp/radar-prices
+          if gh release download radar --pattern prices-public.json --dir /tmp/radar-prices --clobber; then
+            node scripts/catalog/price-ledger.mjs /tmp/radar-prices/prices-public.json dist/radar/prices || true
+          else echo "::notice::no public price ledger yet"; fi
           ls -la dist/radar dist/radar/kits
 
       - name: The radar's morning story (→ /radar-story/, posted by the owner from her phone)
