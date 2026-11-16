@@ -10,7 +10,18 @@
 // A reading of today's signals, never a forecast or a promise: every level prints what was measured.
 // Pure; the magic server does the reading (api/_utils/magicHandler.mjs).
 
-import { ECHO } from "./worldPulse.js";
+import { ECHO, PRODUCT_NOUNS } from "./worldPulse.js";
+import { phrasesOf } from "./radarDiscovery.js";
+
+/**
+ * The phrase people would search for the item (pure): the first two-word phrase of its English
+ * store title that ENDS in a thing people buy ("soap dispenser", not "automatic liquid"); else the
+ * first phrase. 2026-11-16: the first live check read "automatic liquid" for a soap dispenser.
+ */
+export function hypePhrase(title = "") {
+  const all = [...phrasesOf(String(title || ""))];
+  return all.find((p) => PRODUCT_NOUNS.has(p.split(" ").at(-1))) || all[0] || null;
+}
 
 export const HYPE = Object.freeze({
   manyListings: 2000, // as the radar's fresh check (freshRisers FRESH.maxSimilar): many sellers already
