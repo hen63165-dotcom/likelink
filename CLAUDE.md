@@ -10,6 +10,7 @@ LikeLink2: a Hebrew-first (RTL) creator marketplace / creator "Studio" built wit
 
 - **"לעקוף" means surpass legally, never break a rule** (the owner, 2026-11-15, repeated 2026-11-16): learn everything the big companies do and do not do, then build what nobody does. Never bypass a block, a robots.txt, a terms of use or a paywall.
 - The radar must find what nobody has heard of yet, never what the market is saturated with, and prove every call (sealed in advance, graded in public).
+- **"יחיד, מיוחד, מהפכה שאיש לא ראה"** (the owner, 2026-11-16): whenever she asks for that, first think the way Maor Shlomo did with Base44, and beyond it: one thing people use every day, built in public, that spreads by itself because using it makes people want to show it; something nobody offers yet, found by studying what the big players do and do not do. Then build exactly what she asked, within every rule above (true only, legal only, nothing invented).
 
 ## Vision (read first)
 
