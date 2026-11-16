@@ -244,3 +244,9 @@ test("a refused save shows the server's reason, not a guess about the connection
     assert.match(src, /toHebrewError\(e,/, `${f}: the save error goes through toHebrewError`);
   }
 });
+
+test("the site's studio buttons open the form in view: ?auth=login and ?auth=signup both scroll to #signup", () => {
+  const src = readFileSync("src/components/studio/StudioEntrance.jsx", "utf8");
+  assert.match(src, /authParam === "login" \|\| authParam === "signup"\) document\.getElementById\("signup"\)\?\.scrollIntoView/);
+  assert.match(src, /<section id="signup"/);
+});
