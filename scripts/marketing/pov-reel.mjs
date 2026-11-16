@@ -145,7 +145,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (!product) problems.push("not in the cloud catalog");
     if (problems.length) { report.push({ id: job.id, status: "REFUSED", problems }); continue; }
     try {
-      const v = await storeVideo(product);
+      // The store allows about one call a second: wait between items, and retry once after a ban.
+      await new Promise((r) => setTimeout(r, 1500));
+      let v = await storeVideo(product).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
+      if (v.status === "ERROR" && /ApiCallLimit/.test(v.reason)) {
+        await new Promise((r) => setTimeout(r, 3000));
+        v = await storeVideo(product);
+      }
       if (v.status !== "FOUND") { report.push({ id: job.id, status: v.status, reason: v.reason || "" }); continue; }
       const clip = join(work, `${job.id}-src.mp4`);
       await download(v.video, clip);
