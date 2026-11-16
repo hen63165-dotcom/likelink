@@ -118,7 +118,7 @@ export default function StudioEntrance() {
   // "פתיחת סטודיו" → /studio?auth=signup. (Before 16.11 only login scrolled: 17 presses on
   // "פתיחת סטודיו" in 30 days landed two screens above the form, and none signed up.)
   const [authParam] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("auth") : null));
-  const authMode = authParam === "login" ? "login" : "signup";
+  const [authMode] = useState(() => (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("auth") === "login" ? "login" : "signup"));
   useEffect(() => {
     if (authParam === "login" || authParam === "signup") document.getElementById("signup")?.scrollIntoView({ block: "start" });
   }, [authParam]);

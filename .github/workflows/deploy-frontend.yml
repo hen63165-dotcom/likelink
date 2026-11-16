@@ -203,6 +203,13 @@ jobs:
         continue-on-error: true
         run: PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright node scripts/marketing/radar-story.mjs dist || echo "::warning::radar story skipped"
 
+      - name: The radar's weekly challenge (→ /radar-challenge/, the poll the owner posts on LinkedIn and X)
+        # src/lib/growth/radarChallenge.js + scripts/marketing/radar-challenge.mjs: the poll question,
+        # the four options, the posts in Hebrew and English, a 1080×1350 picture, and the results post
+        # once graded. Read from the public board; nothing is posted from here.
+        continue-on-error: true
+        run: PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright node scripts/marketing/radar-challenge.mjs dist || echo "::warning::radar challenge skipped"
+
       - name: Publish dist to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

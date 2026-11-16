@@ -38,7 +38,8 @@ import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
@@ -693,6 +694,40 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     const il = board.globe.israel;
     log.push(`globe: ${board.globe.observed} arrivals observed · Israel after the US: ${il.medianDays ?? "-"} days (${il.n} pairs) · next-country calls open ${board.globe.calls.open.length}, graded ${board.globe.calls.graded}`);
+  }
+  // 🔮 The weekly challenge (radarChallenge.js): four measured products, the radar's choice sealed
+  // (only the hash of a salted text is public until grading), graded after 14 days by the same order
+  // sums as every call. RADAR_CHALLENGE=0 turns it off.
+  if (env.RADAR_CHALLENGE !== "0") {
+    const latest = Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum]));
+    let chs = readJson(join(dir, "challenge.json"), []).map((c) => gradeChallenge(c, latest, today));
+    if (shouldOpen(chs, today)) {
+      const rows = (board.concepts || []).map((c) => ({ id: c.id, he: c.he, kind: c.kind, stage: c.stage, score: c.score, auto: c.auto === true, base: latest[c.id], image: c.pick?.image || null }));
+      const picked = pickOptions(rows);
+      if (picked) {
+        chs.push(openChallenge(picked, today, randomBytes(16).toString("hex")));
+        log.push(`challenge opened: ${picked.options.map((o) => o.concept).join(", ")}`);
+      } else log.push("challenge: fewer than 4 measured kinds today, opens on a later run");
+    }
+    const seals = readJson(join(dir, "challenge-seals.json"), {});
+    for (const c of chs) {
+      const sha = createHash("sha256").update(challengeSealText(c)).digest("hex");
+      const s0 = seals[c.id]?.sha256 === sha ? seals[c.id] : { d: c.at, sha256: sha, ots: [] };
+      if (!s0.ots.length && !c.result && env.RADAR_OTS !== "0") {
+        for (const cal of OTS_CALENDARS) {
+          try {
+            const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(sha), signal: AbortSignal.timeout(20_000) });
+            const proof = res.ok ? otsProof(sha, new Uint8Array(await res.arrayBuffer())) : null;
+            if (proof) s0.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+          } catch { /* the next run tries again */ }
+        }
+      }
+      seals[c.id] = s0;
+    }
+    writeFileSync(join(dir, "challenge.json"), JSON.stringify(chs, null, 1));
+    writeFileSync(join(dir, "challenge-seals.json"), JSON.stringify(seals));
+    board.challenge = challengeBoard(chs, latest, today, seals);
+    log.push(`challenge: open ${board.challenge.open?.id || "-"} · graded ${board.challenge.record.graded} (radar hits ${board.challenge.record.radarHits})`);
   }
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
