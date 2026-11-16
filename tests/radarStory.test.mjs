@@ -18,7 +18,7 @@ test("radar story: a call sealed today is the story, with the seal and the grade
   assert.equal(s.kind, "call");
   assert.equal(s.title, "סקווישי חמאה");
   assert.ok(s.items.some((i) => i.text.includes("חתומה מראש")));
-  assert.ok(s.items.some((i) => i.text.includes("4.12") && i.text.includes("גם אם לא פגע")));
+  assert.ok(s.items.some((i) => i.text.includes("4.12") && i.text.includes("בפומבי")));
   assert.equal(s.link, "https://likelink2.vercel.app/radar?utm_source=instagram&utm_medium=story&utm_campaign=radar_20261120");
   assert.equal(s.disclosure, "#פרסומת · באתר יש קישורי שותפים");
 });
@@ -35,7 +35,9 @@ test("radar story: no call says so plainly, with only measured items", () => {
   };
   const s = radarStoryOf(board);
   assert.equal(s.kind, "quiet");
-  assert.match(s.title, /אין קביעה חדשה/);
+  // The owner, 2026-11-16: "the word לא already pushes away": a quiet day says what comes next, plainly.
+  assert.match(s.title, /במעקב צמוד/);
+  assert.match(s.sub, /הקביעה הבאה תיחתם/);
   const texts = s.items.map((i) => i.text);
   assert.ok(texts.includes("על סף קביעה: מנורת ירח"));
   assert.ok(texts.includes("נולד עכשיו: כרית צוואר (+32% מוכרים בשבוע)"));

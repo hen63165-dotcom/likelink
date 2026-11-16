@@ -19,7 +19,7 @@ export function alertOf(board, { origin = PRODUCTION_ORIGIN } = {}) {
     `📣 הרדאר של LikeLink2 קבע היום (${dm(day)})`,
     ...lines,
     "",
-    "הקביעה חתומה מראש בביטקוין, והציון יתפרסם בדף הרדאר, גם אם לא פגע.",
+    "הקביעה חתומה מראש בביטקוין, והציון יתפרסם בפומבי בדף הרדאר.",
     `${origin}/radar?utm_source=telegram&utm_medium=radar_alert&utm_campaign=radar_${day.replace(/-/g, "")}`,
   ].join("\n");
   return ALERT_FORBIDDEN.test(text) ? null : { day, text, concepts: v.calls.map((e) => e.concept.id) };

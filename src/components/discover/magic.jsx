@@ -421,7 +421,7 @@ export function MagicPage({ graph }) {
             </form>
             {recent.length && state.phase !== "loading" ? (
               <div>
-                <p className="lx-mute mb-2 text-[13px] font-bold">{L("הבדיקות האחרונות שלך (נשמרות רק במכשיר הזה). לרדאר נספר רק מספר המוצר, בלי שום פרט עלייך.", "Your recent checks (kept on this device only). The radar counts only the item number, nothing about you.")}</p>
+                <p className="lx-mute mb-2 text-[13px] font-bold">{L("הבדיקות האחרונות שלך (נשמרות רק במכשיר הזה). לרדאר נספר רק מספר המוצר, והפרטים שלך נשארים שלך.", "Your recent checks (kept on this device only). The radar counts only the item number, nothing about you.")}</p>
                 <div className="flex flex-wrap gap-2">
                   {recent.map((r) => (
                     <button key={r.link} type="button" className="lx-chip !min-h-[36px] !text-[12.5px]" onClick={() => check(r.link)} style={{ maxWidth: "100%" }}>

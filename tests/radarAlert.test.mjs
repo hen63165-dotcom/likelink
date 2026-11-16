@@ -14,7 +14,7 @@ test("the alert states what was sealed and when it is graded, and nothing on a q
   const a = alertOf(board(todayCall));
   assert.match(a.text, /הרדאר של LikeLink2 קבע היום \(16\.11\)/);
   assert.match(a.text, /סקווישי טופו: 4 מתוך 4 סימנים · לפני כולם · הציון ב־30\.11/);
-  assert.match(a.text, /גם אם לא פגע/);
+  assert.match(a.text, /והציון יתפרסם בפומבי/);
   assert.match(a.text, /\/radar\?utm_source=telegram&utm_medium=radar_alert/);
   assert.doesNotMatch(a.text, ALERT_FORBIDDEN, "no promise, no 'the only one'");
   assert.equal(alertOf(board([{ concept: "tofu-squishy", at: "2026-11-10", due: "2026-11-24" }])), null, "an older call is not today's alert");

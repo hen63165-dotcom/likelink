@@ -54,17 +54,17 @@ export function radarStoryOf(board, { origin = PRODUCTION_ORIGIN } = {}) {
         kind: "call",
         kicker: `📣 הרדאר קבע היום · ${dm(day)}`,
         title: first.concept.he,
-        sub: "מתחיל לעלות בעולם, ובעברית עוד כמעט לא מחפשים.",
+        sub: "מתחיל לעלות בעולם, ובעברית עוד שקט.",
       };
       for (const e of rest.slice(0, 2)) items.push({ icon: "🟢", text: `וגם: ${e.concept.he}` });
       items.push({ icon: "🔏", text: "הקביעה חתומה מראש בביטקוין" });
-      if (first.due) items.push({ icon: "📅", text: `הציון ב־${dm(first.due)}, גם אם לא פגע` });
+      if (first.due) items.push({ icon: "📅", text: `הציון בפומבי ב־${dm(first.due)}` });
     } else {
       story = {
         kind: "quiet",
         kicker: "📡 הבדיקה של הבוקר",
-        title: "⚪ היום אין קביעה חדשה",
-        sub: "הרדאר קובע רק כשכל 4 הסימנים מסכימים.",
+        title: "🔎 היום הרדאר במעקב צמוד",
+        sub: "הקביעה הבאה תיחתם כשכל 4 הסימנים יסכימו.",
       };
       const brink = concepts.filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 2);
       for (const c of brink) items.push({ icon: "🔥", text: `על סף קביעה: ${c.he}` });
