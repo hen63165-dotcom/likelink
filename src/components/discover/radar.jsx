@@ -496,22 +496,22 @@ function PicksBox({ board }) {
   const name = (id) => (board?.concepts || []).find((c) => c.id === id)?.he || null;
   const today = String(board?.at || "").slice(0, 10);
   const radarToday = (duel?.recent || []).find((r) => r.at === today && !r.result);
-  const lead = !duel ? null : duel.leader === "radar" ? L("🤖 הרדאר מוביל כרגע", "🤖 The radar leads") : duel.leader === "crowd" ? L("🇮🇱 ישראל מובילה כרגע", "🇮🇱 Israel leads") : duel.leader === "tie" ? L("🤝 תיקו כרגע", "🤝 A tie for now") : duel.firstDue ? L(`⏳ הציונים הראשונים של הדו־קרב ב־${dm(duel.firstDue)}`, `⏳ The duel's first grades land on ${dm(duel.firstDue)}`) : L("⏳ הדו־קרב מתחיל עם הבחירה הראשונה של הרדאר בבוקר", "⏳ The duel starts with the radar's first pick in the morning");
+  const lead = !duel ? null : duel.leader === "radar" ? L("🤖 הרדאר מוביל כרגע", "🤖 The radar leads") : duel.leader === "crowd" ? L("✨ החוש השישי של ישראל מוביל כרגע", "✨ Israel's sixth sense leads") : duel.leader === "tie" ? L("🤝 תיקו כרגע", "🤝 A tie for now") : duel.firstDue ? L(`⏳ הציונים הראשונים ב־${dm(duel.firstDue)}`, `⏳ The first grades land on ${dm(duel.firstDue)}`) : L("⏳ מתחילים עם הבחירה הראשונה של הרדאר בבוקר", "⏳ It starts with the radar's first pick in the morning");
   return (
     <>
     <div className="mt-4 rounded-2xl p-4" id="duel" style={{ background: "#0b0b0b", color: "#fff" }}>
-      <p className="text-[18px] font-black">{L("🤖 הרדאר נגד ישראל 🇮🇱", "🤖 The radar vs Israel 🇮🇱")}</p>
-      <p className="mt-1 text-[13px]" style={{ opacity: 0.85 }}>{L("כל בוקר הרדאר חותם בביטקוין בחירה אחת, וכל אחת ואחד יכולים לבחור נגדו. אחרי 14 יום כולם מקבלים ציון בפומבי, באותם כללים (פגיעה = +15% הזמנות).", "Every morning the radar seals one pick in Bitcoin, and anyone can pick against it. After 14 days everyone is graded in public by the same rules (hit = +15% orders).")}</p>
+      <p className="text-[18px] font-black">{L("🔮 יש לך חוש שישי לטרנדים?", "🔮 Do you have a sixth sense for trends?")}</p>
+      <p className="mt-1 text-[13px]" style={{ opacity: 0.85 }}>{L("הרדאר כבר בחר להיום, חתום מראש בביטקוין. עכשיו תורך: בוחרים מוצר שמתחיל לעלות, ואחרי 14 יום כולם מקבלים ציון בפומבי באותם כללים (פגיעה = +15% הזמנות).", "The radar has picked for today, sealed in advance in Bitcoin. Now it's your turn: pick a product that is starting to rise; after 14 days everyone is graded in public by the same rules (hit = +15% orders).")}</p>
       {duel ? (
         <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-bold">
           <div className="rounded-xl p-3" style={{ background: "#1f2937" }}>{L("🤖 הרדאר", "🤖 The radar")}<br /><span className="text-[22px] font-black">{duel.radar.hits}/{duel.radar.graded}</span><br /><span className="text-[12px]" style={{ opacity: 0.8 }}>{L(`פגיעות · ${duel.radar.open} פתוחות`, `hits · ${duel.radar.open} open`)}</span></div>
-          <div className="rounded-xl p-3" style={{ background: "#1f2937" }}>{L(`🇮🇱 ישראל (${duel.crowd.players})`, `🇮🇱 Israel (${duel.crowd.players})`)}<br /><span className="text-[22px] font-black">{duel.crowd.hits}/{duel.crowd.graded}</span><br /><span className="text-[12px]" style={{ opacity: 0.8 }}>{L(`פגיעות · ${duel.crowd.open} פתוחות`, `hits · ${duel.crowd.open} open`)}</span></div>
+          <div className="rounded-xl p-3" style={{ background: "#1f2937" }}>{L(`✨ החוש השישי של ישראל (${duel.crowd.players})`, `✨ Israel's sixth sense (${duel.crowd.players})`)}<br /><span className="text-[22px] font-black">{duel.crowd.hits}/{duel.crowd.graded}</span><br /><span className="text-[12px]" style={{ opacity: 0.8 }}>{L(`פגיעות · ${duel.crowd.open} פתוחות`, `hits · ${duel.crowd.open} open`)}</span></div>
         </div>
       ) : null}
       <p className="mt-2 text-[14px] font-extrabold" style={{ color: "#fbbf24" }}>{lead}</p>
       {radarToday && name(radarToday.concept) ? <p className="mt-1 text-[14px]">{L(`🤖 הבחירה של הרדאר היום: ${name(radarToday.concept)} · הציון ב־${dm(radarToday.due)}`, `🤖 The radar's pick today: ${name(radarToday.concept)} · graded ${dm(radarToday.due)}`)}</p> : null}
       {(duel?.recent || []).filter((r) => r.result).slice(0, 3).map((r) => <p key={r.at + r.concept} className="mt-1 text-[13px]" style={{ opacity: 0.9 }}>{dm(r.at)} · {name(r.concept) || r.concept} · {RESULT_HE[r.result]} ({r.growth > 0 ? "+" : ""}{r.growth}%)</p>)}
-      <button type="button" onClick={() => { if (box.current) { box.current.open = true; box.current.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className="lx-btn mt-3" style={{ minHeight: 48, background: "#fbbf24", color: "#0b0b0b", fontWeight: 900 }}>{L("🏆 לבחור נגד הרדאר", "🏆 Pick against the radar")}</button>
+      <button type="button" onClick={() => { if (box.current) { box.current.open = true; box.current.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className="lx-btn mt-3" style={{ minHeight: 48, background: "#fbbf24", color: "#0b0b0b", fontWeight: 900 }}>{L("🔮 לבחור את שלי", "🔮 Make my pick")}</button>
     </div>
     <details ref={box} id="picks" className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
       <summary className="cursor-pointer text-[15px] font-extrabold">{L("🏆 מי זיהתה ראשונה? תבחרי ותראי אם צדקת", "🏆 Who spotted it first? Pick, and see if you were right")}</summary>
@@ -532,11 +532,11 @@ function PicksBox({ board }) {
       )}
       {mine?.length ? (
         <ul className="mt-3 grid gap-1 text-[13px]">
-          {mine.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-2">{name(p.concept) || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}{p.result === "HIT" ? <ShareButton path="/radar#duel" title={beat ? L(`🤖 ניצחתי את הרדאר! זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. מי מנסה לנצח אותו?`, `🤖 I beat the radar! I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`) : L(`🏆 זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. מי מנסה לנצח את הרדאר?`, `🏆 I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`)} /> : null}</li>)}
+          {mine.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-2">{name(p.concept) || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}{p.result === "HIT" ? <ShareButton path="/radar#duel" title={beat ? L(`🔮 החוש השישי שלי עקף את הרדאר! זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. יש לך חוש שישי לטרנדים?`, `🔮 My sixth sense passed the radar! I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`) : L(`🔮 יש לי חוש שישי לטרנדים: זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)} לפני כולם, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. ולך יש?`, `🔮 I have a sixth sense for trends: I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`)} /> : null}</li>)}
         </ul>
       ) : null}
       {beat ? (
-        <p className="mt-2 text-[15px] font-black">{L("🤖 ניצחת את הרדאר! הדיוק שלך גבוה משלו, בבחירות שנחתמו מראש.", "🤖 You beat the radar! Your accuracy is higher than its, on picks sealed in advance.")}</p>
+        <p className="mt-2 text-[15px] font-black">{L("🔮 החוש השישי שלך עקף את הרדאר: הדיוק שלך גבוה משלו, בבחירות שנחתמו מראש.", "🔮 Your sixth sense passed the radar: your accuracy is higher than its, on picks sealed in advance.")}</p>
       ) : null}
       <p className="mt-3 text-[14px] font-extrabold">{L("הטבלה", "The board")}</p>
       {table.length ? (
