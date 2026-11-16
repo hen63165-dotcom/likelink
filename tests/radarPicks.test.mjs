@@ -42,3 +42,49 @@ test("the table: only those who chose to appear, hits first then the earliest hi
   assert.deepEqual(myPicks(picks, "u1").map((p) => p.concept), ["a", "b"]);
   assert.equal(myPicks(picks, "u1")[0].userId, undefined);
 });
+
+// The scouts (the owner, 2026-11-16: "1+2"): every pick sealed in Bitcoin, a verified badge only
+// from sealed and graded picks, and no user id or e-mail in what is sealed.
+test("scouts: the sealed text has no user id; a verified scout needs 3 hits at 60%", async () => {
+  const { picksSealText, SCOUT } = await import("../src/lib/growth/radarPicks.js");
+  const picks = [
+    { userId: "11111111-aaaa", concept: "cloud-light", at: "2026-11-16", base: 200, nick: "נועה", show: true },
+    { userId: "22222222-bbbb", concept: "cloud-light", at: "2026-11-16", base: 200, nick: "secret", show: false },
+  ];
+  const text = picksSealText(picks);
+  assert.equal(text, "2026-11-16|cloud-light|200|anon\n2026-11-16|cloud-light|200|נועה");
+  assert.doesNotMatch(text, /11111111|22222222|secret/);
+  const graded = (n, hits) => Array.from({ length: n }, (_, i) => ({ userId: "u9", concept: `c${i}`, at: "2026-11-01", nick: "שירה", show: true, result: i < hits ? "HIT" : "MISS" }));
+  assert.equal(leaderboard(graded(4, 3))[0].verified, true);
+  assert.equal(leaderboard(graded(4, 3))[0].accuracy, 75);
+  assert.equal(leaderboard(graded(6, 3))[0].verified, false, "3 of 6 is 50%");
+  assert.equal(leaderboard(graded(2, 2))[0].verified, false, "fewer than 3 hits");
+  assert.equal(SCOUT.verifiedHits, 3);
+});
+
+test("scouts: the daily put seals the picks once (OpenTimestamps) and the leaderboard shows the proof", async () => {
+  const { createRadarBoardHandler } = await import("../api/_utils/radarBoardHandler.mjs");
+  const { RADAR_PICKS_SEAL_KEY } = await import("../src/lib/growth/radarPicks.js");
+  const fakeRes = () => { const r = { code: 0, body: null, headers: {} }; return Object.assign(r, { status(c) { r.code = c; return r; }, setHeader(k, v) { r.headers[k] = v; }, json(b) { r.body = b; } }); };
+  const data = { "radar:picks": [{ id: "x", userId: "u1", concept: "tofu-squishy", at: "2026-12-01", base: 100, nick: "נועה", show: true, due: "2026-12-15" }] };
+  const kv = { kvGet: async (k, fb) => (k in data ? data[k] : fb), kvSet: async (k, v) => { data[k] = v; } };
+  let calls = 0;
+  const fetchImpl = async (url) => { calls++; assert.match(String(url), /^https:\/\/[ab]\.pool\.opentimestamps\.org\/digest$/); return { ok: true, arrayBuffer: async () => new Uint8Array([0xf0, 0x10, 1, 2, 3]).buffer }; };
+  const board = { v: 2, at: "2026-12-05T05:37:00Z", record: { calls: 0, graded: 0, hits: 0, pending: 0 }, concepts: [{ id: "tofu-squishy", he: "סקווישי טופו", stage: "STEADY", today: { orders: 120 } }] };
+  const h = createRadarBoardHandler({ kv, fetchImpl, now: () => Date.parse("2026-12-05T06:00:00Z") });
+  process.env.AUTOPILOT_SECRET = "s3cret-for-test";
+  try {
+    const put = async () => { const res = fakeRes(); await h({ method: "POST", url: "/api/store?mode=radar-board&op=put", headers: { authorization: "Bearer s3cret-for-test" }, body: board }, res); return res; };
+    assert.equal((await put()).code, 200);
+    const seal = data[RADAR_PICKS_SEAL_KEY];
+    assert.match(seal.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(seal.ots.length, 2);
+    assert.equal(calls, 2);
+    await put();
+    assert.equal(calls, 2, "unchanged picks are not sealed again");
+    const res = fakeRes();
+    await h({ method: "GET", url: "/api/store?mode=radar-board&op=leaderboard", headers: { origin: "https://likelink2.vercel.app" } }, res);
+    assert.equal(res.body.seal.sha256, seal.sha256);
+    assert.doesNotMatch(JSON.stringify(res.body), /u1/);
+  } finally { delete process.env.AUTOPILOT_SECRET; }
+});

@@ -82,3 +82,18 @@ test("fresh: shown only when nobody has heard of it yet — few sellers, no buzz
   assert.equal(unknownCheck({ phrase: "cloud light", similar: null, suggestions: [] }).reason, "NOT_CHECKED");
   assert.equal(unknownCheck({ phrase: "cloud light", similar: 100, suggestions: null }).reason, "NOT_CHECKED");
 });
+
+test("fresh: one tap from the radar to the Studio — only an AliExpress item page is prefilled", async () => {
+  const { radarPrefill } = await import("../src/components/studio/AddProductLink.jsx").catch(() => ({}));
+  if (!radarPrefill) return; // JSX is not importable under node:test; the page test below covers the link
+  assert.equal(radarPrefill("?from=radar&u=https%3A%2F%2Fwww.aliexpress.com%2Fitem%2F1005004444441.html"), "https://www.aliexpress.com/item/1005004444441.html");
+  assert.equal(radarPrefill("?u=https%3A%2F%2Fevil.example%2Fx"), "");
+});
+
+test("fresh: the radar card links each riser to the Studio with the item page only", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/components/discover/radar.jsx", import.meta.url), "utf8");
+  assert.match(page, /\/studio\/add-product\?from=radar&u=\$\{encodeURIComponent\(`https:\/\/www\.aliexpress\.com\/item\/\$\{r\.id\}\.html`\)\}/);
+  const studio = readFileSync(new URL("../src/components/studio/AddProductLink.jsx", import.meta.url), "utf8");
+  assert.match(studio, /aliexpress\\\.com\\\/item\\\/\\d\{6,20\}\\\.html\$/);
+});

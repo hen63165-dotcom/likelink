@@ -11,12 +11,35 @@ import { paypalEnvName } from "./paypal.js";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
 import { RADAR_BOARD_KEY, RADAR_TRIALS_KEY, boardAccess, teaserBoard, userTrialDays, userTrialOf } from "../../src/lib/growth/radarGate.js";
 import { accessOf } from "../../src/lib/growth/radarPlans.js";
-import { RADAR_PICKS_KEY, addPick, gradePicks, leaderboard, myPicks } from "../../src/lib/growth/radarPicks.js";
+import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, addPick, gradePicks, leaderboard, myPicks, picksSealText } from "../../src/lib/growth/radarPicks.js";
+import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
+
+const sha256Hex = async (text) => [...new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/** Seals the picks in Bitcoin (OpenTimestamps) when they changed; returns the stored seal. */
+async function sealPicks(picks, { kvGet, kvSet, fetchImpl, today }) {
+  const text = picksSealText(picks);
+  if (!text) return null;
+  const sha256 = await sha256Hex(text);
+  const prev = await kvGet(RADAR_PICKS_SEAL_KEY, null);
+  if (prev?.sha256 === sha256) return prev;
+  const ots = [];
+  for (const cal of OTS_CALENDARS) {
+    try {
+      const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(sha256), signal: AbortSignal.timeout(15_000) });
+      const proof = res.ok ? otsProof(sha256, new Uint8Array(await res.arrayBuffer())) : null;
+      if (proof) ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+    } catch { /* a calendar that did not answer adds no proof */ }
+  }
+  const seal = { d: today, sha256, count: text.split("\n").length, text: text.length <= 60_000 ? text : null, ots };
+  await kvSet(RADAR_PICKS_SEAL_KEY, seal);
+  return seal;
+}
 import { currentRadarSub, ownRadarSubs } from "../../src/lib/growth/radarSubs.js";
 
 const header = (req, k) => String((req.headers?.get ? req.headers.get(k) : req.headers?.[k]) || "");
 
-export function createRadarBoardHandler({ kv = null, verify = verifyToken, now = () => Date.now() } = {}) {
+export function createRadarBoardHandler({ kv = null, verify = verifyToken, now = () => Date.now(), fetchImpl = (...a) => globalThis.fetch(...a) } = {}) {
   const store = async () => kv || (await import("../store.mjs"));
   return async function radarBoardHandler(req, res) {
     const json = (obj, status = 200) => jsonCors(res, obj, status, req);
@@ -35,6 +58,8 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
         const orders = Object.fromEntries(board.concepts.map((c) => [c.id, c.today?.orders]));
         const graded = gradePicks(picks, orders, String(board.at).slice(0, 10));
         if (graded.some((p, i) => p !== picks[i])) await kvSet(RADAR_PICKS_KEY, graded);
+        // The scouts: every pick sealed in Bitcoin (the day it existed can never be moved).
+        await sealPicks(graded, { kvGet, kvSet, fetchImpl, today: String(board.at).slice(0, 10) }).catch(() => null);
       }
       const back = await kvGet(RADAR_BOARD_KEY, null);
       const ok = back?.at === board.at && Array.isArray(back?.concepts) && back.concepts.length === board.concepts.length;
@@ -45,7 +70,8 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
     if (origin && !isApprovedOrigin(origin)) return json({ ok: false, error: "origin_not_allowed" }, 403);
     const op = url.searchParams.get("op") || "";
     if (req.method === "GET" && op === "leaderboard") {
-      return json({ ok: true, table: leaderboard((await kvGet(RADAR_PICKS_KEY, [])) || []) });
+      const seal = await kvGet(RADAR_PICKS_SEAL_KEY, null);
+      return json({ ok: true, table: leaderboard((await kvGet(RADAR_PICKS_KEY, [])) || []), seal: seal && /^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) ? { d: seal.d, sha256: seal.sha256, count: seal.count, text: seal.text || null, ots: Array.isArray(seal.ots) ? seal.ots.slice(0, 2) : [] } : null });
     }
     if (req.method === "POST" && op === "pick") {
       const token = header(req, "authorization").replace(/^Bearer\s+/i, "");

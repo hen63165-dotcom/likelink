@@ -40,6 +40,7 @@ import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
+import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -417,6 +418,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   {
     const checked = [];
     const counts = {};
+    let ytSearches = 0;
+    sources.youtubeApi = env.YOUTUBE_API_KEY ? "NOT_ASKED" : "REQUIRES_CONNECTION";
     for (const r of board.fresh.risers) {
       const phrase = freshPhrase(r.title);
       let similar = null;
@@ -434,8 +437,21 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         await pause(politeMs);
       }
       const known = unknownCheck({ phrase, similar, suggestions });
+      // YouTube (official Data API, the owner's own key): already many new videos or views = BUZZ.
+      let yt = null;
+      if (known.unknown && env.YOUTUBE_API_KEY && ytSearches < YT.maxSearches) {
+        ytSearches++;
+        try {
+          const search = await (await fetchImpl(ytSearchUrl(phrase, { key: env.YOUTUBE_API_KEY, now }), { signal: AbortSignal.timeout(15_000) })).json();
+          const ids = ytIdsOf(search);
+          const views = ids === null ? null : ids.length ? ytViewsOf(await (await fetchImpl(ytVideosUrl(ids, { key: env.YOUTUBE_API_KEY }), { signal: AbortSignal.timeout(15_000) })).json()) : 0;
+          yt = ytSignal({ videos: ids === null ? null : ids.length, views });
+        } catch { yt = null; }
+        sources.youtubeApi = yt ? "OK" : sources.youtubeApi === "OK" ? "OK" : "FAILED";
+      }
+      if (known.unknown && yt?.level === "BUZZ") { counts.BUZZ_YT = (counts.BUZZ_YT || 0) + 1; continue; }
       counts[known.reason] = (counts[known.reason] || 0) + 1;
-      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar } });
+      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt } });
     }
     board.fresh.risers = checked.slice(0, FRESH.show);
     log.push(`fresh unknown check: ${JSON.stringify(counts)}`);
