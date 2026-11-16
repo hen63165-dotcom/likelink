@@ -1,10 +1,47 @@
 {
-  "note": "POV reels (scripts/marketing/pov-reel.mjs): the store's own video for each product, cut every 1 s, with one POV line fixed at the top (the viewer's own moment, never a claim that we bought or tried it). Only products still listed in the cloud catalog.",
+  "note": "POV reels (the owner's reference: real hands, natural setting, a caption per scene, no music). Scenes = one line per 1-second shot, written from the shot sheet.",
   "jobs": [
-    { "id": "ae-1005008742678061", "pov": "POV: כשהסבון יוצא קצף לבד, בלי ללחוץ על כלום" },
-    { "id": "ae-1005006678126295", "pov": "POV: כשגילית איך כותשים שום בלי סכין" },
-    { "id": "ae-1005012061688172", "pov": "POV: כשמתקן הסבון עובד לבד" },
-    { "id": "p-live-05", "pov": "POV: כשזוג עגילים אחד סוגר את כל הלוק" },
-    { "id": "p-live-04", "pov": "POV: כששרשרת יד אחת משדרגת את כל היד" }
+    {
+      "id": "watch-strap-1005001805140014",
+      "item": "1005001805140014",
+      "music": false,
+      "pov": "POV: כשהשעון הישן מקבל רצועה חדשה",
+      "scenes": [
+        "רצועת מתכת לשעון",
+        "רצועת מתכת לשעון",
+        "רצועת מתכת לשעון",
+        "ככה נפתח הסוגר",
+        "חוליות מתכת מקרוב",
+        "חוליות מתכת מקרוב",
+        "חוליות מתכת מקרוב",
+        "חוליות מתכת מקרוב",
+        "חוליות מתכת מקרוב",
+        "מוציאים את הפין",
+        "מוציאים את הפין",
+        "מחברים לשעון",
+        "ועל היד"
+      ]
+    },
+    {
+      "id": "pet-carrier-1005004577771483",
+      "item": "1005004577771483",
+      "music": false,
+      "pov": "POV: כשהחתול יוצא איתך בסטייל",
+      "scenes": [
+        "תיק נשיאה לכלב או לחתול",
+        "תיק נשיאה לכלב או לחתול",
+        "מגלגלים את חלון הרשת",
+        "מגלגלים את חלון הרשת",
+        "מגלגלים את חלון הרשת",
+        "פתח עגול בצד",
+        "רצועה בפנים",
+        "פתח עגול בצד",
+        "רצועת כתף",
+        "מבפנים: בטנה משובצת",
+        "מבפנים: בטנה משובצת",
+        "מבפנים: בטנה משובצת",
+        "מוכן ליציאה"
+      ]
+    }
   ]
 }

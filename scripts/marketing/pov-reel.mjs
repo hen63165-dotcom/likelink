@@ -267,7 +267,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href &
   const report = [];
   for (const job of jobs) {
     const problems = povProblems(job);
-    const product = products.get(String(job.id));
+    // A hot item chosen from its shot sheet before it is on the site: read by its own item page.
+    const product = products.get(String(job.id)) || (/^\d{8,20}$/.test(String(job.item || "")) ? { id: job.id, affiliateUrl: `https://www.aliexpress.com/item/${job.item}.html` } : null);
     if (!product) problems.push("not in the cloud catalog");
     if (problems.length) { report.push({ id: job.id, status: "REFUSED", problems }); continue; }
     try {

@@ -72,7 +72,7 @@ jobs:
       - name: Commit the sheets and the report for review
         run: |
           shopt -s nullglob
-          files=(pov-reels-out/*.jpg pov-reels-out/*.json)
+          files=(pov-reels-out/*.jpg pov-reels-out/*.json pov-reels-out/*.mp4)
           [ ${#files[@]} -gt 0 ] || { echo "nothing to commit"; exit 0; }
           mkdir -p marketing/reels/pov && cp "${files[@]}" marketing/reels/pov/
           git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
