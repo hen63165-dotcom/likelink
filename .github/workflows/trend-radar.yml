@@ -75,6 +75,9 @@ jobs:
           rm -f radar-state/board-public.json radar-state/briefs-public.json
           ls -la radar-state
       - name: Today's reading
+        env:
+          # The crowd sensor's counts (GET mode=radar-board&op=crowd, cron auth).
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
           set -o pipefail
           timeout 840 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt

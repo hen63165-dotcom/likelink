@@ -30,7 +30,7 @@ const hackWord = (title = "") => {
 };
 
 export const REASON_HE = Object.freeze({
-  BRAND: "שם של מותג או דמות: באליאקספרס זה חיקוי או בלי רישיון",
+  BRAND: "שם של מותג או דמות (באליאקספרס: חיקוי)",
   TOOL: "כלי להעתקת כרטיסים ושלטים",
 });
 

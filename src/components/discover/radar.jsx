@@ -177,8 +177,8 @@ function AlphaBlock({ c }) {
   return (
     <div className="mt-3 rounded-2xl p-3" style={{ background: "#f8fafc", border: "1px solid var(--lx-line)" }}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-[16px] font-extrabold">{L("מדד אלפא", "Alpha")}: {a.score !== null ? <>{a.score}<span className="text-[12px] font-bold">/100</span></> : <span className="text-[13px]">{L("אין ציון עדיין (חסר מומנטום עולמי נמדד)", "no score yet (no measured global momentum)")}</span>}</p>
-        <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: a.verified ? "#dcfce7" : "#fef0c7", color: a.verified ? "#166534" : "#93370d" }}>{a.verified ? L("הזדמנות מאומתת", "Verified") : L("לא מאומת עדיין", "Not verified yet")} · {a.confidenceHe}</span>
+        <p className="text-[16px] font-extrabold">{L("מדד אלפא", "Alpha")}: {a.score !== null ? <>{a.score}<span className="text-[12px] font-bold">/100</span></> : <span className="text-[13px]">{L("הציון יופיע אחרי מדידת המומנטום העולמי", "no score yet (no measured global momentum)")}</span>}</p>
+        <span className="rounded-full px-2 text-[12px] font-bold" style={{ background: a.verified ? "#dcfce7" : "#fef0c7", color: a.verified ? "#166534" : "#93370d" }}>{a.verified ? L("הזדמנות מאומתת", "Verified") : L("בבדיקה", "Not verified yet")} · {a.confidenceHe}</span>
         {c.lifecycleHe ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("שלב:", "Stage:")} {c.lifecycleHe}</span> : null}
         {c.accel?.he ? <span className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L("תאוצה:", "Acceleration:")} {c.accel.he}</span> : null}
       </div>
@@ -240,7 +240,7 @@ function EarlyLine({ early }) {
       <p className="text-[14px] font-extrabold">{early.level === "CALL" ? L(`🎯 התראה מוקדמת: ${early.count} סימנים מסכימים`, `🎯 Early call: ${early.count} signals agree`) : L(`👀 במעקב: ${early.count} סימנים`, `👀 Watching: ${early.count} signals`)}</p>
       <p className="mt-1 text-[12px] leading-5">{on.join(" · ")}</p>
       {early.aheadOf?.length ? <p className="mt-1 text-[12px] font-bold">{L(`🚀 הרדאר מקדים את: ${early.aheadOf.map((k) => FINISH_HE[k]).join(", ")}. ביום שזה יקרה, נכתוב כאן בכמה ימים הוא הקדים.`, `🚀 Ahead of: ${early.aheadOf.join(", ")}. The day each one happens, we write here how many days ahead the call was.`)}</p> : null}
-      {early.buzz?.length ? <p className="mt-1 text-[12px]">{L(`📣 כבר יש באז: ${early.buzz.map((k) => BUZZ_HE[k]).join(", ")}. זה סימן מאוחר, הוא לא נספר כסימן מוקדם.`, `📣 Already buzzing: ${early.buzz.join(", ")}. A late sign, never counted as an early one.`)}</p> : null}
+      {early.buzz?.length ? <p className="mt-1 text-[12px]">{L(`📣 כבר יש באז: ${early.buzz.map((k) => BUZZ_HE[k]).join(", ")}. זה סימן מאוחר, ולכן הוא נספר בנפרד.`, `📣 Already buzzing: ${early.buzz.join(", ")}. A late sign, never counted as an early one.`)}</p> : null}
     </div>
   );
 }
@@ -293,13 +293,13 @@ export function ConceptCard({ c }) {
           </div>
         </div>
       ) : c.stage !== "UNVERIFIED" ? (
-        <p className="mt-3 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("עוד אין פריט שעובר את הכללים שלנו (95% שביעות רצון, 300 הזמנות, בלי חיקויים).", "No item passes our rules yet (95% satisfaction, 300 orders, no imitations).")}</p>
+        <p className="mt-3 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("פריט יופיע כאן כשיעבור את הכללים שלנו: 95% שביעות רצון, 300 הזמנות, מוצר מקורי.", "No item passes our rules yet (95% satisfaction, 300 orders, no imitations).")}</p>
       ) : null}
       {c.opportunity ? (
         <details className="mt-3 text-[13px]">
           <summary className="cursor-pointer font-bold">{L(`בדיקת הזדמנות: ${c.opportunity.passed} מתוך ${c.opportunity.measured} בדיקות שנמדדו עברו`, `Opportunity check: ${c.opportunity.passed} of ${c.opportunity.measured} measured checks passed`)}</summary>
           <ul className="mt-2 grid gap-1">
-            {c.opportunity.checks.map((x) => <li key={x.id}>{x.ok === true ? "✅" : x.ok === false ? "❌" : "⏳"} {x.he}{x.ok === null ? L(" (עוד לא נמדד)", " (not measured yet)") : ""}</li>)}
+            {c.opportunity.checks.map((x) => <li key={x.id}>{x.ok === true ? "✅" : x.ok === false ? "❌" : "⏳"} {x.he}{x.ok === null ? L(" (נמדד בקרוב)", " (not measured yet)") : ""}</li>)}
           </ul>
           {c.pick?.momentum?.line ? <p className="mt-2" style={{ color: "var(--lx-muted)" }}>{c.pick.momentum.line}</p> : null}
         </details>
@@ -326,7 +326,7 @@ function MarketMap({ list, openId = "" }) {
   return (
     <>
       <h3 className="mt-8 text-[18px] font-extrabold">{L("מפת השוק של היום", "Today's market map")}</h3>
-      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("גודל זה לא כיוון: הוא אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה. לחיצה על שורה פותחת את כל הבדיקה: בישראל, הפריט לקנייה, בדיקת ההזדמנות וההמלצה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading. Tap a row for the full check.")}</p>
+      <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("הגודל אומר כמה גדול השוק היום. הכיוון (עולה או יורד) יופיע אחרי המדידה הבאה. לחיצה על שורה פותחת את כל הבדיקה: בישראל, הפריט לקנייה, בדיקת ההזדמנות וההמלצה.", "Size is not direction: it says how big the market is today. The direction (up or down) shows after the next reading. Tap a row for the full check.")}</p>
       {groups.map(([k, l]) => (
         <div key={k} className="mt-4">
           <p className="text-[15px] font-extrabold" style={{ color: SIZE[k].color }}>{SIZE[k].he} · {l.length}</p>
@@ -375,7 +375,7 @@ function SiteHot({ site }) {
             </li>
           ))}
         </ul>
-      ) : <p className="mt-3 text-[14px]">{L("השבוע אין באתר מוצר שההזמנות שלו מאיצות. זה מידע אמיתי, לא תקלה.", "No product on the site is accelerating this week. That is real information, not a fault.")}</p>}
+      ) : <p className="mt-3 text-[14px]">{L("השבוע הרדאר מחכה למוצר באתר שההזמנות שלו מאיצות, ומודד כל בוקר.", "No product on the site is accelerating this week. That is real information, not a fault.")}</p>}
     </div>
   );
 }
@@ -389,7 +389,7 @@ export function TrialBanner() {
   return (
     <p className="lx-card mt-4 p-3 text-[14px] leading-6" role="status" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "var(--lx-sky-soft, var(--lx-sunk))" }}>
       {a.state === "TRIAL"
-        ? L(`תקופת ניסיון חינם: עוד ${a.daysLeft} ימים (עד ${dm(a.endsAt.slice(0, 10))}). המחירים של Basic ו־Pro עוד לא נקבעו.`, `Free trial: ${a.daysLeft} days left (until ${dm(a.endsAt.slice(0, 10))}). Basic and Pro prices are not set yet.`)
+        ? L(`תקופת ניסיון חינם: עוד ${a.daysLeft} ימים (עד ${dm(a.endsAt.slice(0, 10))}). המחירים של Basic ו־Pro ייקבעו בהמשך.`, `Free trial: ${a.daysLeft} days left (until ${dm(a.endsAt.slice(0, 10))}). Basic and Pro prices are not set yet.`)
         : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
       <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
     </p>
@@ -472,7 +472,7 @@ function PicksBox({ board }) {
       const b = await res.json().catch(() => ({}));
       if (b?.ok) { setMsg(L("🏆 נחתם! הציון ב־" + dm(b.pick?.due), "🏆 Sealed! Graded " + dm(b.pick?.due))); setConcept(""); load(token); }
       else setMsg(L(PICK_ERR[b?.error] || "לא נשמר, נסי שוב", "Not saved, try again"));
-    } catch { setMsg(L("לא נשמר, נסי שוב", "Not saved, try again")); }
+    } catch { setMsg(L("נסי שוב בעוד רגע", "Not saved, try again")); }
     setBusy(false);
   };
   return (
@@ -503,7 +503,7 @@ function PicksBox({ board }) {
         <ol className="mt-1 grid gap-1 text-[13px]">
           {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick}{r.verified ? L(" ✅ צופה מאומתת", " ✅ verified scout") : ""} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.accuracy !== null && r.accuracy !== undefined ? ` (${r.accuracy}%)` : ""}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
         </ol>
-      ) : <p className="mt-1 text-[13px]">{L("עוד אין אף אחת בטבלה. הראשונה שתבחר תופיע כאן.", "Nobody on the board yet. The first to pick shows here.")}</p>}
+      ) : <p className="mt-1 text-[13px]">{L("הראשונה שתבחר תופיע כאן, בראש הטבלה.", "Nobody on the board yet. The first to pick shows here.")}</p>}
       <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("✅ צופה מאומתת: לפחות 3 פגיעות ו־60% דיוק, רק מבחירות שנחתמו מראש. אי אפשר לזייף את זה.", "✅ Verified scout: at least 3 hits at 60%+, only from picks sealed in advance. It cannot be faked.")}</p>
       {pickSeal ? (
         <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>
@@ -538,7 +538,7 @@ function Verdict({ board, gated = false }) {
   const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
   const ledger = board.early.ledger || [];
   const name = (id) => (board.concepts || []).find((c) => c.id === id)?.he || id;
-  const shareTitle = (e) => L(`הרדאר של LikeLink2 קבע ב־${dm(e.at)}: ${e.concept.he} מתחיל לעלות. הקביעה חתומה מראש בביטקוין, והציון יתפרסם ב־${dm(e.due)}, גם אם לא פגע.`, `LikeLink2's radar called it on ${dm(e.at)}: ${e.concept.he} is starting to rise. Sealed in advance in Bitcoin; graded in public on ${dm(e.due)}, hit or miss.`);
+  const shareTitle = (e) => L(`הרדאר של LikeLink2 קבע ב־${dm(e.at)}: ${e.concept.he} מתחיל לעלות. הקביעה חתומה מראש בביטקוין, והציון יתפרסם בפומבי ב־${dm(e.due)}.`, `LikeLink2's radar called it on ${dm(e.at)}: ${e.concept.he} is starting to rise. Sealed in advance in Bitcoin; graded in public on ${dm(e.due)}, hit or miss.`);
   return (
     <section className="lx-wrap mt-8" id="verdict">
       <div className="lx-card p-5 md:p-6" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
@@ -552,7 +552,7 @@ function Verdict({ board, gated = false }) {
               <li key={e.concept.id}>
                 <p className="text-[16px] font-extrabold">{L("🟢 היום הרדאר קבע:", "🟢 Today the radar called:")}</p>
                 <p className="mt-1 text-[30px] font-black leading-9">{e.concept.he}</p>
-                <p className="mt-1 text-[16px] leading-7">{L("מתחיל לעלות בעולם, ובעברית עוד כמעט לא מחפשים.", "Rising worldwide, barely searched in Hebrew yet.")}</p>
+                <p className="mt-1 text-[16px] leading-7">{L("מתחיל לעלות בעולם, ובעברית עוד שקט.", "Rising worldwide, barely searched in Hebrew yet.")}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 מה לעשות עכשיו", "👉 What to do now")}</Go>
                   <ShareButton path="/radar" title={shareTitle(e)} variant="button" />
@@ -563,7 +563,7 @@ function Verdict({ board, gated = false }) {
           </ul>
         ) : (
           <div className="mt-2">
-            <p className="text-[22px] font-black leading-8">{L("⚪ היום אין קביעה חדשה", "⚪ No new call today")}</p>
+            <p className="text-[22px] font-black leading-8">{L("🔎 היום הרדאר במעקב צמוד", "⚪ No new call today")}</p>
             <p className="mt-1 text-[15px] leading-7">{L("הרדאר קובע רק כשכל 4 הסימנים מסכימים. בודקים שוב מחר בבוקר.", "The radar calls only when all four signals agree. Check again tomorrow morning.")}</p>
             {v.latestOpen ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הקביעה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז` : ""}).`, `Latest call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since` : ""}).`)}</p> : null}
           </div>
@@ -595,7 +595,7 @@ function Verdict({ board, gated = false }) {
             
             {[["sniper", L("🎯 קביעת צלף (כל 4 הסימנים)", "🎯 Sniper call (all four signals)")], ["signal", L("📈 סימון רגיל (ביקוש בלבד)", "📈 Ordinary signal (demand only)")]].map(([k, label]) => {
               const r = board.early.calibration[k];
-              return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`עוד אין ציונים${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
+              return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`הציונים יופיעו כאן${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
             })}
             <p style={{ color: "var(--lx-muted)" }}>{L("הרדאר מבדיל בין סימון רגיל לקביעת צלף, וכאן רואים כמה פעמים כל אחד מהם באמת פגע. כל קביעה נמדדת כל יום, והציון הסופי נכתב אחרי 14 יום ונשאר גלוי.", "The radar tells an ordinary signal from a sniper call, and here you see how often each really hit. Every call is measured daily; the final grade is written after 14 days and stays public.")}</p>
           </details>
@@ -624,14 +624,15 @@ function Verdict({ board, gated = false }) {
 }
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
-function FreshRisers({ fresh }) {
+function FreshRisers({ fresh, world = null }) {
   const { L } = useL();
   if (!fresh) return null;
   return (
     <section className="lx-wrap mt-8" id="fresh">
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f0fdf4" }}>
         <h2 className="text-[22px] font-black">{L("🆕 מוצרים חדשים שמתחילים לרוץ", "🆕 New products starting to run")}</h2>
-        <p className="mt-1 text-[14px] leading-6">{L("הרדאר מוצא לבד, בלי רשימה מוכנה מראש: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושאף אחד עוד לא מדבר עליו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד לא משלימים ״טיקטוק״, ״ויראלי״ או ״אמזון״. מה שהשוק כבר רווי בו לא מופיע כאן. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
+        <p className="mt-1 text-[14px] leading-6">{L("הרדאר מוצא לבד: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושעוד שקט סביבו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביב ״טיקטוק״, ״ויראלי״ ו״אמזון״. כאן מופיעים רק מוצרים טריים. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
+        {world?.categories ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 בכל הקטגוריות בעולם: הרדאר עובר על כל ${world.categories.toLocaleString("he-IL")} הקטגוריות של אליאקספרס, ${world.readToday} בכל בוקר, סבב מלא כל ${world.fullRoundDays} ימים.`, `🌍 Every category: the radar goes through all ${world.categories.toLocaleString("en-US")} AliExpress categories, ${world.readToday} every morning, a full round every ${world.fullRoundDays} days.`)}</p> : null}
         <p className="mt-2 text-[13px] font-bold">{fresh.record?.graded ? L(`📏 הציון בפומבי: מתוך ${fresh.record.graded} מוצרים שהרדאר הצביע עליהם, ${fresh.record.hits} עלו ב־50% או יותר תוך 14 יום (${fresh.record.accuracy}%).`, `📏 Public grade: of ${fresh.record.graded} products the radar pointed to, ${fresh.record.hits} grew 50%+ within 14 days (${fresh.record.accuracy}%).`) : fresh.record?.pending ? L(`📏 כל מוצר שמוצג כאן נשמר עם תאריך ונבדק אחרי 14 יום: פגע אם ההזמנות שלו עלו ב־50% או יותר. ${fresh.record.pending} מחכים לבדיקה, הראשונה ב־${dm(fresh.record.nextDue)}.`, `📏 Every product shown is saved with its date and graded after 14 days: a hit if its orders grew 50%+. ${fresh.record.pending} waiting, the first on ${dm(fresh.record.nextDue)}.`) : L("📏 כל מוצר שיוצג כאן יישמר עם תאריך וייבדק אחרי 14 יום, בפומבי: פגע אם ההזמנות שלו עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every product shown here is saved with its date and graded after 14 days, in public: a hit if its orders grew 50%+; misses stay here too.")}</p>
         {fresh.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{fresh.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.title.slice(0, 40)} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
         {fresh.risers.length ? (
@@ -644,8 +645,8 @@ function FreshRisers({ fresh }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{r.title}</p>
                     <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
-                    <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד לא רווי: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד לא משלימים "טיקטוק" או "ויראלי"`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
-                    {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: עוד אין סרטון חדש עליו ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
+                    <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
+                    {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
                     <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${r.ordersBefore} הזמנות ב־${dm(r.from)} ← ${r.orders} ב־${dm(r.to)} (30 יום, אליאקספרס)`, `${r.ordersBefore} orders on ${dm(r.from)} → ${r.orders} on ${dm(r.to)} (30 days, AliExpress)`)}{r.price ? L(` · מ־₪${r.price}`, ` · from ₪${r.price}`) : ""}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <a href={r.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(`fresh-${r.category || "new"}`, r.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a>
@@ -656,10 +657,10 @@ function FreshRisers({ fresh }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("קצב עלייה של שבוע אחד הוא סימן מוקדם, לא הבטחה. השם הוא המילים של המוכר באליאקספרס.", "One week's growth is an early sign, not a promise. The name is the seller's own words on AliExpress.")}</p>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("קצב של שבוע הוא הסימן המוקדם, והציון אחרי 14 יום מראה אם פגע. השם הוא המילים של המוכר באליאקספרס.", "A week's pace is the early sign; the grade after 14 days shows whether it hit. The name is the seller's own words on AliExpress.")}</p>
           </>
         ) : (
-          <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר לא מנחש.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
+          <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר מודד.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
         )}
       </div>
     </section>
@@ -675,15 +676,15 @@ function Waves({ waves }) {
     <section className="lx-wrap mt-8" id="waves">
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#eff6ff" }}>
         <h2 className="text-[22px] font-black">{L("🌊 גלים שהרדאר רואה, ולא מקדם", "🌊 Waves the radar sees, and does not promote")}</h2>
-        <p className="mt-1 text-[14px] leading-6">{L("ברשימות המוצרים החמים של אליאקספרס יש הרבה מוצרים עם שם של מותג, דמות או כלי להעתקת כרטיסים. אנחנו לא מקדמים אותם, אבל הרדאר מודד כל גל כזה: כמה מוצרים חמים נושאים את השם, כמה מודעות יש לו וכמה הן גדלו בשבוע, מה משלימים בגוגל בארה״ב, וכמה סרטונים קצרים עלו עליו השבוע. לצידו, כשנמצאה: החלופה החוקית שעונה על אותו צורך, בלי השם.", "AliExpress's hot lists are full of items named after a brand, a character or a card-copying tool. We don't promote them, but the radar measures every such wave: how many hot items carry the name, how many listings it has and their weekly change, what Google suggests in the US, and how many short videos came out this week. Beside it, when found: the legal alternative that answers the same need, without the name.")}</p>
+        <p className="mt-1 text-[14px] leading-6">{L("ברשימות המוצרים החמים של אליאקספרס יש הרבה מוצרים עם שם של מותג, דמות או כלי להעתקת כרטיסים. הרדאר מודד כל גל כזה, ומקדם רק את החלופה החוקית: כמה מוצרים חמים נושאים את השם, כמה מודעות יש לו וכמה הן גדלו בשבוע, מה משלימים בגוגל בארה״ב, וכמה סרטונים קצרים עלו עליו השבוע. לצידו, כשנמצאה: החלופה החוקית שעונה על אותו צורך, בשם משלה.", "AliExpress's hot lists are full of items named after a brand, a character or a card-copying tool. We don't promote them, but the radar measures every such wave: how many hot items carry the name, how many listings it has and their weekly change, what Google suggests in the US, and how many short videos came out this week. Beside it, when found: the legal alternative that answers the same need, without the name.")}</p>
         <ul className="mt-3 grid gap-3 md:grid-cols-2">
           {waves.list.map((w) => (
             <li key={w.token} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
               <p className="text-[16px] font-black" dir="ltr" style={{ textAlign: "start" }}>{w.token}</p>
-              <p className="text-[12px] font-bold" style={{ color: "#b91c1c" }}>{L(`🚫 לא מקדמים: ${w.reasonHe}`, `🚫 Not promoted: ${w.reason === "TOOL" ? "a card and remote copying tool" : "a brand or character name: on AliExpress, an imitation or unlicensed"}`)}</p>
+              <p className="text-[12px] font-bold" style={{ color: "#b91c1c" }}>{L(`🔒 ${w.reasonHe}: מקדמים רק את החלופה החוקית`, `🚫 Not promoted: ${w.reason === "TOOL" ? "a card and remote copying tool" : "a brand or character name: on AliExpress, an imitation or unlicensed"}`)}</p>
               <p className="mt-1 text-[12px]">{L(`${w.items} מוצרים חמים עם השם · ${w.orders.toLocaleString("he-IL")} הזמנות ב־30 יום (אליאקספרס)`, `${w.items} hot items carry the name · ${w.orders.toLocaleString("en-US")} orders in 30 days (AliExpress)`)}</p>
               {w.listings !== null ? <p className="text-[12px]">{L(`${w.listings.toLocaleString("he-IL")} מודעות באליאקספרס${w.listingsWeekPct !== null ? ` · ${pct(w.listingsWeekPct)} בשבוע` : ""}`, `${w.listings.toLocaleString("en-US")} AliExpress listings${w.listingsWeekPct !== null ? ` · ${pct(w.listingsWeekPct)} a week` : ""}`)}</p> : null}
-              {w.buzz?.length ? <p className="text-[12px]">{L(`🔊 בגוגל בארה״ב כבר משלימים: ${w.buzz.join(", ")}`, `🔊 Google in the US already suggests: ${w.buzz.join(", ")}`)}</p> : w.buzz ? <p className="text-[12px]">{L("🤫 בגוגל בארה״ב עוד לא משלימים ״טיקטוק״ או ״ויראלי״", "🤫 Google in the US doesn't suggest 'tiktok' or 'viral' yet")}</p> : null}
+              {w.buzz?.length ? <p className="text-[12px]">{L(`🔊 בגוגל בארה״ב כבר משלימים: ${w.buzz.join(", ")}`, `🔊 Google in the US already suggests: ${w.buzz.join(", ")}`)}</p> : w.buzz ? <p className="text-[12px]">{L("🤫 בגוגל בארה״ב עוד שקט סביבו", "🤫 Google in the US doesn't suggest 'tiktok' or 'viral' yet")}</p> : null}
               {w.yt ? <p className="text-[12px]">{L(`▶️ ביוטיוב: ${w.yt.videos} סרטונים קצרים חדשים ב־${w.yt.days} ימים${w.yt.views ? `, ${w.yt.views.toLocaleString("he-IL")} צפיות` : ""}`, `▶️ YouTube: ${w.yt.videos} new short videos in ${w.yt.days} days${w.yt.views ? `, ${w.yt.views.toLocaleString("en-US")} views` : ""}`)}</p> : null}
               {w.ig ? <p className="text-[12px]">{L(`📸 באינסטגרם: ${w.ig.capped ? "50+" : w.ig.posts} פוסטים עם #${w.token.replace(/[^a-z0-9]/gi, "")} ב־24 השעות האחרונות`, `📸 Instagram: ${w.ig.capped ? "50+" : w.ig.posts} posts on #${w.token.replace(/[^a-z0-9]/gi, "")} in the last 24 hours`)}</p> : null}
               {w.firstSeen ? <p className="text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`הרדאר מודד את הגל מ־${dm(w.firstSeen)}`, `Measured since ${dm(w.firstSeen)}`)}</p> : null}
@@ -703,7 +704,45 @@ function Waves({ waves }) {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות של החלופה הוא קישור שותפים. המספרים נמדדו, שום דבר לא מנוחש.", "#ad · the alternative's store button is an affiliate link. Measured numbers, nothing guessed.")}</p>
+        <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות של החלופה הוא קישור שותפים. כל המספרים נמדדו.", "#ad · the alternative's store button is an affiliate link. Measured numbers, nothing guessed.")}</p>
+      </div>
+    </section>
+  );
+}
+
+/** The crowd sensor (crowdSensor.js): what different people checked in the magic button this week. */
+function Crowd({ crowd }) {
+  const { L } = useL();
+  if (!crowd) return null;
+  return (
+    <section className="lx-wrap mt-8" id="crowd">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fefce8" }}>
+        <h2 className="text-[22px] font-black">{L("👥 מה בודקים בארץ השבוע", "👥 What people in Israel check this week")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("מי שרואה מוצר ברילס מדביקה את הקישור בכפתור הקסם. כשכמה אנשים שונים בודקים את אותו מוצר באותו שבוע, הוא כנראה מסתובב עכשיו ברשתות בארץ. הרדאר סופר רק את מספר המוצר, והזהות של מי שבדק נשארת פרטית.", "People who see a product in a reel paste its link into the magic button. When several different people check the same item in a week, it is probably going around Israeli feeds right now. The radar counts only the item number, nothing about who checked.")}</p>
+        {crowd.list.length ? (
+          <>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות הוא קישור שותפים", "#ad · the store button is an affiliate link")}</p>
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              {crowd.list.map((c) => (
+                <li key={c.id} className="lx-card flex gap-3 p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  <div style={{ width: 76, height: 76, flex: "0 0 76px", borderRadius: 12, overflow: "hidden" }}><Img src={c.image} alt={c.title} loading="lazy" style={{ width: 76, height: 76, objectFit: "cover" }} /></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-bold leading-5">{c.title}</p>
+                    <p className="mt-1 text-[15px] font-black" style={{ color: "#a16207" }}>{L(`👥 ${c.people} אנשים שונים בדקו אותו ב־${crowd.days} ימים`, `👥 ${c.people} different people checked it in ${crowd.days} days`)}</p>
+                    {c.momentum ? <p className="text-[12px]">{L(`באליאקספרס: ${c.momentum.weekPct > 0 ? "+" : ""}${c.momentum.weekPct}% הזמנות בשבוע`, `On AliExpress: ${c.momentum.weekPct > 0 ? "+" : ""}${c.momentum.weekPct}% orders a week`)}</p> : null}
+                    {c.blocked ? <p className="text-[12px] font-bold" style={{ color: "#b91c1c" }}>{L(c.blocked === "TOOL" ? "🔒 כלי להעתקת כרטיסים ושלטים: מקדמים רק חלופה חוקית" : "🔒 שם של מותג או דמות: מקדמים רק חלופה חוקית", c.blocked === "TOOL" ? "🚫 Not promoted: a card and remote copying tool" : "🚫 Not promoted: a brand or character name")}</p> : null}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {c.buy ? <a href={c.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit("crowd", c.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 32, padding: "2px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a> : null}
+                      <Go to={c.check} className="lx-btn lx-btn-ghost" style={{ minHeight: 32, padding: "2px 12px", fontSize: 12 }}>{L("מה לבדוק", "What to check")}</Go>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-3 text-[14px] font-bold">{L("כאן יופיע מוצר ברגע ששני אנשים שונים יבדקו אותו השבוע. כל בדיקה בכפתור הקסם מזינה את הרדאר.", "No item has been checked by two different people this week yet. Every magic-button check feeds the radar.")} <Go to="/magic" className="underline">{L("לכפתור הקסם", "To the magic button")}</Go></p>
+        )}
       </div>
     </section>
   );
@@ -773,7 +812,7 @@ export function RadarPage() {
           <button type="button" onClick={press} className="lx-btn lx-btn-ink mt-6" style={{ minHeight: 56, fontSize: 18, padding: "10px 28px" }}>
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
           </button>
-          <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הרדאר לא מבטיח להיט. הוא מראה סימנים מוקדמים, עם המספרים והתאריכים.", "The radar never promises a hit. It shows early signs, with the numbers and dates.")}</p>
+          <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("כל קביעה של הרדאר נחתמת מראש ונבדקת בפומבי, עם המספרים והתאריכים: כל פגיעה וכל החטאה נשארות בספר הקביעות.", "Every radar call is sealed in advance and graded in public, with the numbers and dates: every hit and every miss stays in the ledger.")}</p>
           <TrialBanner />
         </div>
       </section>
@@ -783,8 +822,9 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
-      {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} /> : null}
+      {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
+      {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
@@ -792,8 +832,8 @@ export function RadarPage() {
         <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
             [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("גוגל ב־8 מדינות, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים של גוגל ב־10 מדינות. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "Google in 8 countries, Baidu in China, Naver in Korea, YouTube and Google's trending searches in 10 countries; what starts rising there is found on AliExpress: the top 20 items' orders, the listings and the price.")],
-            [L("2. מהירות, לא גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. פריט ויראלי אחד לא מספיק.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
-            [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ועוד לא מחפשים כאן? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
+            [L("2. מהירות לפני גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. צריך שרוב הפריטים יאיצו יחד.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
+            [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ובארץ עוד שקט? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
             [L("4. הרדאר בודק את עצמו", "4. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],
           ].map(([t, d]) => (
             <div key={t} className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
@@ -810,7 +850,7 @@ export function RadarPage() {
             {record?.graded ? (
               <p>{L(`מתוך ${record.graded} סימונים שנבדקו אחרי 14 יום, ${record.hits} באמת עלו ב־${board.rules.hitPct}% או יותר (${record.accuracy}%).`, `Of ${record.graded} calls checked after 14 days, ${record.hits} really rose by ${board.rules.hitPct}% or more (${record.accuracy}%).`)}</p>
             ) : (
-              <p>{record?.pending ? L(`${record.pending} סימונים מחכים לבדיקה. הבדיקה הראשונה: ${dm(record.nextDue)}.`, `${record.pending} calls are waiting. The first check: ${dm(record.nextDue)}.`) : L("עוד אין סימונים לבדוק. כשהרדאר יסמן טרנד ראשון, הוא ייבדק אחרי 14 יום והתוצאה תופיע כאן.", "No calls to check yet. When the radar flags its first trend, it is checked 14 days later and the result shows here.")}</p>
+              <p>{record?.pending ? L(`${record.pending} סימונים מחכים לבדיקה. הבדיקה הראשונה: ${dm(record.nextDue)}.`, `${record.pending} calls are waiting. The first check: ${dm(record.nextDue)}.`) : L("כשהרדאר יסמן טרנד ראשון, הוא ייבדק אחרי 14 יום והתוצאה תופיע כאן.", "No calls to check yet. When the radar flags its first trend, it is checked 14 days later and the result shows here.")}</p>
             )}
           </div>
         </div>
@@ -847,7 +887,7 @@ export function RadarPage() {
                 ))}
               </div>
             ) : null}
-            <p className="mt-3 text-[14px] font-bold" role="status">{list.length ? L(`מוצגים ${list.length} מתוך ${concepts.length} סוגי מוצרים${kind ? ` · ${KINDS[kind]}` : ""}`, `Showing ${list.length} of ${concepts.length}`) : L("לא נמצא סוג מוצר כזה ברדאר. נסי מילה אחרת או ״הכול״.", "Nothing like that on the radar. Try another word or All.")}</p>
+            <p className="mt-3 text-[14px] font-bold" role="status">{list.length ? L(`מוצגים ${list.length} מתוך ${concepts.length} סוגי מוצרים${kind ? ` · ${KINDS[kind]}` : ""}`, `Showing ${list.length} of ${concepts.length}`) : L("נסי מילה אחרת או ״הכול״.", "Nothing like that on the radar. Try another word or All.")}</p>
             {firstResults ? (
               <p className="lx-card mt-4 p-4 text-[14px] leading-6" style={{ boxShadow: "none", border: "1px dashed var(--lx-line)" }}>
                 {L(`הרדאר התחיל למדוד ב־${dm(concepts[0]?.since)}. כדי לראות כיוון צריך שתי מדידות בהפרש של יומיים לפחות, אז התוצאות הראשונות יופיעו בעוד יומיים. בינתיים: אלה סוגי המוצרים שעל הרדאר.`, `The radar started measuring on ${dm(concepts[0]?.since)}. A direction needs two readings at least two days apart, so the first results come in two days. Meanwhile: the kinds on the radar.`)}
@@ -855,8 +895,8 @@ export function RadarPage() {
             ) : null}
             {open.length ? (
               <>
-                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ חלון פתוח: עולה בעולם, ובעברית עוד לא מחפשים", "✨ Open window: rising abroad, not searched in Hebrew yet")}</h3>
-                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("ההזמנות באליאקספרס מאיצות, ובגוגל בעברית עוד אין חיפושים. זה הזמן שבו מי שמגיע ראשונה מגיעה לפני כולם.", "Orders on AliExpress are speeding up and nobody searches it in Hebrew on Google yet. That's when whoever arrives first is ahead of everyone.")}</p>
+                <h3 className="mt-6 text-[20px] font-extrabold">{L("✨ חלון פתוח: עולה בעולם, ובעברית עוד שקט", "✨ Open window: rising abroad, not searched in Hebrew yet")}</h3>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("ההזמנות באליאקספרס מאיצות, ובגוגל בעברית עוד שקט. זה הזמן שבו מי שמגיע ראשונה מגיעה לפני כולם.", "Orders on AliExpress are speeding up and nobody searches it in Hebrew on Google yet. That's when whoever arrives first is ahead of everyone.")}</p>
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{open.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : null}
@@ -866,12 +906,12 @@ export function RadarPage() {
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{early.filter((c) => c.window !== "OPEN").map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </>
             ) : shown && !firstResults && !open.length ? (
-              <p className="mt-6">{L("היום אין סוג מוצר שעובר את הסף של הרדאר. זה גם מידע: אין כרגע טרנד חדש ברור.", "Today no kind passes the radar's threshold. That is information too: no clear new trend right now.")}</p>
+              <p className="mt-6">{L("היום הרדאר במעקב: הטרנד הבא יופיע כאן כשיעבור את הסף.", "Today no kind passes the radar's threshold. That is information too: no clear new trend right now.")}</p>
             ) : null}
             {rest.length ? (
               <details className="mt-8" open={Boolean(q || kind)}>
                 <summary className="cursor-pointer text-[18px] font-extrabold">{L(`📚 כבר מוכרים: יציב, בשיא או דועך (${rest.length})`, `📚 Already known: steady, at peak or cooling (${rest.length})`)}</summary>
-                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("את אלה השוק כבר מכיר. הרדאר ממשיך למדוד אותם כל יום, כדי לראות אם משהו מהם מתעורר שוב, אבל זה לא המקום לחפש את הדבר הבא.", "The market already knows these. The radar keeps measuring them daily in case one wakes up again, but this is not where the next thing is.")}</p>
+                <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("את אלה השוק כבר מכיר. הרדאר ממשיך למדוד אותם כל יום, כדי לראות אם משהו מהם מתעורר שוב. את הדבר הבא מוצאים למעלה.", "The market already knows these. The radar keeps measuring them daily in case one wakes up again, but this is not where the next thing is.")}</p>
                 <ul className="mt-3 grid gap-3 md:grid-cols-2">{rest.map((c) => <ConceptCard key={c.id} c={c} />)}</ul>
               </details>
             ) : null}
@@ -881,8 +921,8 @@ export function RadarPage() {
               return (
                 <div className="lx-card mt-5 p-4" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
                   <h3 className="text-[20px] font-extrabold">{L("🎯 התראות מוקדמות", "🎯 Early calls")}</h3>
-                  <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (גוגל ב־8 מדינות כולל יפן וקוריאה, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים ב־10 מדינות), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד לא מחפשים, והסימנים חייבים להחזיק שתי מדידות ברצף (אופנה של יום אחד לא נחשבת). פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (Google in 8 countries incl. Japan and Korea, Baidu in China, Naver in Korea, YouTube, trending searches in 10), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
-                  {calls.length ? <ul className="mt-3 grid gap-3 md:grid-cols-2">{calls.map((c) => <ConceptCard key={c.id} c={c} />)}</ul> : <p className="mt-3 text-[14px] font-bold">{L("היום אין מוצר שעבר את הרף של 3 סימנים מסכימים. הרדאר לא מנחש: הוא מחכה לסימנים.", "No product passed the three-signal bar today. The radar doesn't guess; it waits for the signals.")}</p>}
+                  <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (גוגל ב־8 מדינות כולל יפן וקוריאה, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים ב־10 מדינות), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד שקט, והסימנים חייבים להחזיק שתי מדידות ברצף (רק מה שמחזיק נחשב). פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (Google in 8 countries incl. Japan and Korea, Baidu in China, Naver in Korea, YouTube, trending searches in 10), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
+                  {calls.length ? <ul className="mt-3 grid gap-3 md:grid-cols-2">{calls.map((c) => <ConceptCard key={c.id} c={c} />)}</ul> : <p className="mt-3 text-[14px] font-bold">{L("היום הרדאר במעקב: מוצר יופיע כאן ברגע ש־3 סימנים יסכימו עליו.", "No product passed the three-signal bar today. The radar doesn't guess; it waits for the signals.")}</p>}
                   {board.early ? (
                     <p className="mt-3 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>
                       {board.early.record.graded
@@ -890,7 +930,7 @@ export function RadarPage() {
                         : L(`התראות שמחכות לבדיקה: ${board.early.record.pending}. כל התראה נבדקת אחרי 14 יום, והתוצאה נכתבת כאן.`, `Calls awaiting their grade: ${board.early.record.pending}. Each is graded after 14 days, here.`)}
                       {board.early.lead ? <><br />{FINISH_LINES_ORDER.map((k) => { const l = board.early.lead[k]; return l?.ahead ? L(`🚀 לפני ${FINISH_HE[k]}: ${l.ahead} התראות, בחציון ${l.medianDays} ימים קודם. `, `🚀 Ahead of ${k}: ${l.ahead} calls, median ${l.medianDays} days. `) : ""; }).join("") || L("🚀 כל התראה נמדדת מול 4 קווי סיום: הבאז ברשתות, החיפושים בעברית בארץ, החיפושים החמים של גוגל והחיפוש בהרבה מדינות. היום שבו כל אחד מהם קורה נרשם, ואז רואים בכמה ימים הרדאר הקדים.", "🚀 Every call is timed against 4 finish lines: the networks' buzz, Hebrew searches in Israel, Google's trending searches and many countries. The day each happens is recorded, so the head start can be counted.")}</> : null}
                       {board.early.need === 5 ? L(" הדיוק ירד מתחת ל־80%, אז הרדאר מחמיר עוד: כל 4 הסימנים צריכים להופיע יומיים ברצף.", " Accuracy fell under 80%, so the bar rises: all four signals two readings in a row.") : L(" מצב צלף: הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. פחות קביעות, כל אחת חזקה יותר.", " Sniper mode: a call only when all four signals agree and three already showed in the previous reading. Fewer calls, each stronger.")}
-                      {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}{board.early.seal.ots?.length ? <><br />{L("⛓️ החותמת נשלחה ל־OpenTimestamps ונרשמת בבלוקצ'יין של ביטקוין, כך שאף אחד, גם לא אנחנו, לא יכול לשנות את התאריך בדיעבד. לבדיקה: מורידים את שני הקבצים וגוררים אותם ל־opentimestamps.org.", "⛓️ The seal was sent to OpenTimestamps and is being written into Bitcoin, so no one, not even us, can backdate it. To check: download both files and drop them on opentimestamps.org.")}{" "}
+                      {board.early.seal ? <><br />{L(`🔏 חותמת ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (טביעת אצבע של כל ${board.early.seal.count} ההתראות שנקראו, כדי שכל אחד יוכל לבדוק אחר כך שהן נקראו מראש)`, `🔏 Seal ${dm(board.early.seal.d)}: ${board.early.seal.sha256.slice(0, 16)}… (a fingerprint of all ${board.early.seal.count} calls, so anyone can check later they were made in advance)`)}{board.early.seal.ots?.length ? <><br />{L("⛓️ החותמת נשלחה ל־OpenTimestamps ונרשמת בבלוקצ'יין של ביטקוין, כך שהתאריך קבוע לתמיד, גם עבורנו. לבדיקה: מורידים את שני הקבצים וגוררים אותם ל־opentimestamps.org.", "⛓️ The seal was sent to OpenTimestamps and is being written into Bitcoin, so no one, not even us, can backdate it. To check: download both files and drop them on opentimestamps.org.")}{" "}
                         {board.early.seal.text ? <a className="underline" download={`radar-seal-${board.early.seal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(board.early.seal.text)}`}>{L("ההתראות החתומות", "the sealed calls")}</a> : null}
                         {board.early.seal.ots.map((o) => <span key={o.cal}> · <a className="underline" download={`radar-seal-${board.early.seal.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}</> : null}</> : null}
                     </p>
@@ -902,7 +942,7 @@ export function RadarPage() {
             {measuring.length ? <MarketMap list={measuring} openId={hashId} /> : null}
             <SiteHot site={board.site} />
             <p className="mt-6 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>
-              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך לא משתנה. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים, לא מספר חיפושים. ״עוד לא מחפשים בעברית״ נקבע רק כששני מקורות החיפוש מסכימים, וזה לא אומר שאין את זה בחנויות בארץ. הרדאר מראה סימנים ולא מבטיח מכירות.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows signs and never promises sales.")}
+              {L("#פרסומת · קישורי שותפים: הכפתורים לחנות הם קישורים של LikeLink2, ואם קונים דרכם נקבל עמלה קטנה מהחנות. המחיר שלך נשאר אותו מחיר. המספרים הם של אליאקספרס (הזמנות ב־30 הימים האחרונים ומספר המודעות), נמדדים פעם ביום. ״בישראל״ נמדד בהשלמה האוטומטית הציבורית של גוגל ושל יוטיוב בישראל בעברית (ובגוגל בארה״ב באנגלית), בטרנדים היומיים של Google Trends לישראל ובכניסות של מבקרי LikeLink2 לחנות: זה סימן לחיפושים. ״בעברית עוד שקט״ נקבע רק כששני מקורות החיפוש מסכימים, ובחנויות בארץ ייתכן שכבר יש. הרדאר מראה סימנים מדודים, וההחלטה מה לקנות ומה למכור היא שלכם.", "#ad · affiliate links: the store buttons are LikeLink2's links; if you buy through them we get a small commission from the store. Your price doesn't change. The numbers are AliExpress's (orders in the last 30 days and the number of listings), measured once a day. “In Israel” is measured with Google's and YouTube's public autocomplete in Israel in Hebrew (and Google in the US in English), Google Trends' daily Israel feed and LikeLink2 visitors' exits to the store: a sign of searches, not a count. “Not here yet” needs both search sources to agree. The radar shows measured signs; what to buy or sell is your call.")}
             </p>
           </>
         ) : null}

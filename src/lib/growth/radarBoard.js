@@ -143,7 +143,22 @@ export function sanitizeBoard(doc) {
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
     fresh: cleanFresh(doc.fresh),
     waves: cleanWaves(doc.waves),
+    crowd: cleanCrowd(doc.crowd),
+    // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
+    world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays) } : null,
   };
+}
+
+/** The crowd sensor (crowdSensor.js): counts per item only; a buy button only when the item passed. */
+function cleanCrowd(c) {
+  if (!c || typeof c !== "object") return null;
+  const list = (Array.isArray(c.list) ? c.list : []).slice(0, 8).map((x) => {
+    const image = radarImage(x?.image);
+    if (!ITEM.test(String(x?.id || "")) || !image || num(x.people) === null || x.people < 2) return null;
+    const buy = !x.blocked && typeof x.buy === "string" && BUY.test(x.buy) ? x.buy : null;
+    return { id: String(x.id), title: str(x.title, 140), image, people: num(x.people), checks: num(x.checks), first: day(x.first), last: day(x.last), orders: num(x.orders), price: num(x.price), buy, blocked: ["BRAND", "TOOL"].includes(x.blocked) ? x.blocked : null, momentum: x.momentum && num(x.momentum.weekPct) !== null ? { weekPct: num(x.momentum.weekPct) } : null, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${x.id}.html`)}` };
+  }).filter(Boolean);
+  return { at: day(c.at), days: num(c.days) ?? 7, list };
 }
 
 /** Waves the radar measures but never sells (brandWaves.js): counts only; a buy button only for the legal alternative. */

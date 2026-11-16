@@ -32,7 +32,7 @@ import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
 import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
-import { addItemReading, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
+import { HOT as HOT_RULES, addItemReading, itemMomentum, siteHotness } from "../../src/lib/growth/radarOpportunity.js";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
@@ -41,6 +41,8 @@ import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growt
 import { createHash } from "node:crypto";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
+import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
+import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
@@ -404,6 +406,51 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       } catch (err) { log.push(`fresh ${cat.key}: ${String(err?.message || err).slice(0, 60)}`); }
       await pause(politeMs);
     }
+    // Every category in the world (worldCategories.js): AliExpress's whole category tree, a slice a
+    // day in rotation. Each category's new listings of the year join the fresh pool; its hot list
+    // joins the waves.
+    if (env.RADAR_WORLD !== "0") {
+      const e = aeEnv(env);
+      let world = readJson(join(dir, "world-categories.json"), {});
+      if (needsRefresh(world, today)) {
+        try {
+          const list = categoriesOf(await aeCall(CATEGORY_GET, {}, { env: e, fetchImpl, now }));
+          if (list?.length) world = { at: today, list, cursor: Number(world.cursor) || 0 };
+        } catch (err) { log.push(`world categories: ${String(err?.message || err).slice(0, 60)}`); }
+      }
+      const rot = rotation(world.list || [], world.cursor);
+      const wStarted = Date.now();
+      let read = 0;
+      for (const cat of rot.slice) {
+        if (Date.now() - wStarted > WORLD.budgetMs) { log.push(`world: budget over at ${cat.id}`); break; }
+        try {
+          const res = await aeCall(SEARCH, { category_ids: cat.id, keywords: `${new Date(now).getUTCFullYear()} new`, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+          const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+          for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+            const entry = freshEntry(p, { category: `world-${cat.id}`, today });
+            if (!entry) continue;
+            entries.push(entry);
+            items[entry.id] = addItemReading(items[entry.id], [today, entry.orders]);
+          }
+          if (waveLists) {
+            const hot = await aeCall(HOT, { category_ids: cat.id, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+            const hr = hot?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
+            const hraw = Number(hr?.resp_code) === 200 ? hr.result?.products?.product : null;
+            waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
+          }
+          read++;
+        } catch (err) { log.push(`world ${cat.id}: ${String(err?.message || err).slice(0, 60)}`); }
+        await pause(politeMs);
+      }
+      if (world.list?.length) {
+        const done = rotation(world.list, world.cursor, read);
+        world.cursor = done.next;
+        writeFileSync(join(dir, "world-categories.json"), JSON.stringify(world));
+      }
+      sources.world = rot.total ? { categories: rot.total, readToday: read, fullRoundDays: rot.days } : "FAILED";
+      log.push(`world: ${read}/${rot.slice.length} categories read today · ${rot.total} in the tree · a full round every ${rot.days} days`);
+    }
     freshPool = mergeFreshPool(freshPool, entries, { today });
     sources.fresh = entries.length ? "OK" : "FAILED";
     log.push(`fresh: ${entries.length} new listings read today · pool ${Object.keys(freshPool).length}`);
@@ -422,6 +469,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   board.fresh = freshRisers(freshPool, items, { rules: { ...FRESH, show: FRESH.checkUpTo } });
   {
@@ -534,6 +582,35 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.waves = { at: today, list: cards.slice(0, WAVES.show) };
     log.push(`waves: ${cards.map((c) => `${c.token} (${c.items} items, ${c.orders} orders${c.alt ? ", alt" : ""})`).join(", ") || "none today"} · youtube ${ytN} · instagram ${sources.instagram}`);
   }
+  // The crowd sensor (crowdSensor.js): items checked in the magic button by different people this
+  // week (counts only, from the server), with the store's own facts; their orders join the histories.
+  if (store && env.AUTOPILOT_SECRET && env.RADAR_CROWD !== "0") {
+    try {
+      const res = await fetchImpl(env.CROWD_ENDPOINT || "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board&op=crowd", { headers: { authorization: `Bearer ${env.AUTOPILOT_SECRET}`, origin: "https://likelink2.vercel.app" }, signal: AbortSignal.timeout(30_000) });
+      const body = await res.json().catch(() => null);
+      const counts = Array.isArray(body?.crowd) ? body.crowd : null;
+      if (!counts) throw new Error(`crowd ${res.status}`);
+      const cards = [];
+      if (counts.length) {
+        const e = aeEnv(env);
+        const out = await aeCall(DETAIL, { product_ids: counts.slice(0, CROWD.top).map((c) => c.item).join(","), target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
+        const r = out?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+        const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+        const byId = new Map((Array.isArray(raw) ? raw : raw ? [raw] : []).map((p) => [String(p?.product_id || ""), p]));
+        for (const c of counts) {
+          const p = byId.get(c.item);
+          if (!p) continue;
+          const v = Number(p.lastest_volume);
+          if (Number.isFinite(v)) items[c.item] = addItemReading(items[c.item], [today, v]);
+          const card = crowdCard(c, p, { momentum: itemMomentum(items[c.item] || [], { rules: HOT_RULES }) });
+          if (card) cards.push(card);
+        }
+      }
+      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show) };
+      sources.crowd = "OK";
+      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length}`);
+    } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
+  } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);

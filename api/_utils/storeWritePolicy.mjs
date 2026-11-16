@@ -209,6 +209,8 @@ const policyFunnel = appendOnly({
     if (typeof n.place === "string" && n.place) out.place = n.place.slice(0, 60);
     for (const [k, max] of [["src", 80], ["med", 60], ["camp", 80], ["cnt", 60]]) if (typeof n[k] === "string" && n[k]) out[k] = n[k].slice(0, max);
     if (typeof n.cid === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(n.cid)) out.cid = n.cid;
+    // The crowd sensor: a magic check keeps only the item number (no identifier of any kind).
+    if (n.type === "magic_check" && typeof n.item === "string" && /^\d{6,20}$/.test(n.item)) out.item = n.item;
     return out;
   },
 });
