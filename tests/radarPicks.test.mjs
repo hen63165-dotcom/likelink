@@ -88,3 +88,63 @@ test("scouts: the daily put seals the picks once (OpenTimestamps) and the leader
     assert.doesNotMatch(JSON.stringify(res.body), /u1/);
   } finally { delete process.env.AUTOPILOT_SECRET; }
 });
+
+// "הרדאר נגד ישראל" (the owner, 2026-11-16): the radar plays on the same table, same rules.
+test("the radar seals one pick a day from its own measurements, never PEAK or COOLING, never a concept it has open", async () => {
+  const { addRadarPick, radarCandidates, RADAR_PLAYER } = await import("../src/lib/growth/radarPicks.js");
+  const board = { at: "2026-11-17T05:40:00Z", concepts: [
+    { id: "peak-thing", stage: "PEAK", today: { orders: 9000 }, alpha: { score: 99 } },
+    { id: "steady-a", stage: "STEADY", today: { orders: 500 }, alpha: { score: 70 } },
+    { id: "rising-b", stage: "RISING", today: { orders: 800 }, alpha: { score: 40 } },
+    { id: "rising-c", stage: "RISING", today: { orders: 800 }, alpha: { score: 60 } },
+    { id: "cooling", stage: "COOLING", today: { orders: 5000 } },
+    { id: "nothing", stage: "EMERGING", today: { orders: 0 } },
+  ] };
+  assert.deepEqual(radarCandidates(board).map((c) => c.id), ["rising-c", "rising-b", "steady-a"]);
+  const one = addRadarPick([], board);
+  assert.equal(one.length, 1);
+  assert.deepEqual([one[0].userId, one[0].concept, one[0].at, one[0].due, one[0].base, one[0].show], [RADAR_PLAYER.userId, "rising-c", "2026-11-17", "2026-12-01", 800, true]);
+  assert.equal(addRadarPick(one, board), one, "once a day");
+  const next = addRadarPick(one, { ...board, at: "2026-11-18T05:40:00Z" });
+  assert.equal(next.at(-1).concept, "rising-b", "never a concept it already has open");
+  assert.equal(addRadarPick([], { at: "2026-11-17", concepts: [{ id: "peak-thing", stage: "PEAK", today: { orders: 1 } }] }).length, 0);
+});
+
+test("the duel: the radar against everyone else; a leader only once both sides have 3 graded picks", async () => {
+  const { duelOf, beatsRadar, leaderboard } = await import("../src/lib/growth/radarPicks.js");
+  const g = (userId, concept, result, growth, at = "2026-11-01") => ({ userId, concept, at, due: "2026-11-15", base: 100, show: userId === "radar" || userId === "u1", nick: userId === "radar" ? "הרדאר" : "dana", result, growth });
+  const early = [g("radar", "a", "HIT", 20), g("u1", "b", "MISS", 3)];
+  const d0 = duelOf(early);
+  assert.equal(d0.leader, null);
+  assert.deepEqual([d0.radar.hits, d0.radar.graded, d0.crowd.graded, d0.crowd.players], [1, 1, 1, 1]);
+  const picks = [...early, g("radar", "c", "MISS", 1), g("radar", "d", "MISS", 2), g("u1", "e", "HIT", 30), g("u1", "f", "HIT", 40), { userId: "radar", concept: "open-one", at: "2026-11-16", due: "2026-11-30", base: 10 }];
+  const d = duelOf(picks);
+  assert.equal(d.leader, "crowd");
+  assert.equal(d.firstDue, "2026-11-30");
+  assert.equal(d.recent.some((r) => r.concept === "open-one"), false, "an open radar pick is named only while the board is open");
+  assert.equal(duelOf(picks, { openPicks: true }).recent.some((r) => r.concept === "open-one"), true);
+  assert.equal(beatsRadar(picks, "u1"), true);
+  assert.equal(beatsRadar(picks, "radar"), false);
+  assert.equal(leaderboard(picks).find((r) => r.nick === "הרדאר").bot, true);
+});
+
+test("the daily put adds the radar's pick to the table and seals it (read back)", async () => {
+  const { createRadarBoardHandler } = await import("../api/_utils/radarBoardHandler.mjs");
+  const fakeRes = () => { const r = { code: 0, body: null, headers: {} }; return Object.assign(r, { status(c) { r.code = c; return r; }, setHeader(k, v) { r.headers[k] = v; }, json(b) { r.body = b; } }); };
+  const data = {};
+  const kv = { kvGet: async (k, fb) => (k in data ? data[k] : fb), kvSet: async (k, v) => { data[k] = v; } };
+  const fetchImpl = async () => ({ ok: true, arrayBuffer: async () => new Uint8Array([0, 1, 2]).buffer });
+  const h = createRadarBoardHandler({ kv, fetchImpl, now: () => Date.parse("2026-11-17T05:45:00Z") });
+  process.env.AUTOPILOT_SECRET = "s3cret-for-test";
+  try {
+    const board = { v: 2, at: "2026-11-17T05:40:00Z", record: {}, concepts: [{ id: "rising-c", he: "משהו עולה", stage: "RISING", today: { orders: 800 } }] };
+    const res = fakeRes();
+    await h({ method: "POST", url: "/api/store?mode=radar-board&op=put", headers: { authorization: "Bearer s3cret-for-test" }, body: board }, res);
+    assert.equal(res.code, 200);
+    assert.equal(data["radar:picks"].length, 1);
+    assert.equal(data["radar:picks"][0].userId, "radar");
+    const lb = fakeRes();
+    await h({ method: "GET", url: "/api/store?mode=radar-board&op=leaderboard", headers: { origin: "https://likelink2.vercel.app" } }, lb);
+    assert.equal(lb.body.duel.radar.open, 1);
+  } finally { delete process.env.AUTOPILOT_SECRET; }
+});

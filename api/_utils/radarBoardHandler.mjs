@@ -11,7 +11,7 @@ import { paypalEnvName } from "./paypal.js";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
 import { RADAR_BOARD_KEY, RADAR_TRIALS_KEY, boardAccess, teaserBoard, userTrialDays, userTrialOf } from "../../src/lib/growth/radarGate.js";
 import { accessOf } from "../../src/lib/growth/radarPlans.js";
-import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, addPick, gradePicks, leaderboard, myPicks, picksSealText } from "../../src/lib/growth/radarPicks.js";
+import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, addPick, addRadarPick, beatsRadar, duelOf, gradePicks, leaderboard, myPicks, picksSealText } from "../../src/lib/growth/radarPicks.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 
 const sha256Hex = async (text) => [...new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -55,13 +55,13 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       await kvSet(RADAR_BOARD_KEY, board);
       // "Who spotted it first": due picks are graded against today's order counts (radarPicks.js).
       const picks = (await kvGet(RADAR_PICKS_KEY, [])) || [];
-      if (picks.length) {
-        const orders = Object.fromEntries(board.concepts.map((c) => [c.id, c.today?.orders]));
-        const graded = gradePicks(picks, orders, String(board.at).slice(0, 10));
-        if (graded.some((p, i) => p !== picks[i])) await kvSet(RADAR_PICKS_KEY, graded);
-        // The scouts: every pick sealed in Bitcoin (the day it existed can never be moved).
-        await sealPicks(graded, { kvGet, kvSet, fetchImpl, today: String(board.at).slice(0, 10) }).catch(() => null);
-      }
+      const orders = Object.fromEntries(board.concepts.map((c) => [c.id, c.today?.orders]));
+      const graded = gradePicks(picks, orders, String(board.at).slice(0, 10));
+      // "הרדאר נגד ישראל": the radar seals its own pick of the day on the same table, same rules.
+      const next = addRadarPick(graded, board, { now: now() });
+      if (next.length !== picks.length || next.some((p, i) => p !== picks[i])) await kvSet(RADAR_PICKS_KEY, next);
+      // The scouts: every pick sealed in Bitcoin (the day it existed can never be moved).
+      if (next.length) await sealPicks(next, { kvGet, kvSet, fetchImpl, today: String(board.at).slice(0, 10) }).catch(() => null);
       const back = await kvGet(RADAR_BOARD_KEY, null);
       const ok = back?.at === board.at && Array.isArray(back?.concepts) && back.concepts.length === board.concepts.length;
       return json({ ok, at: board.at, concepts: board.concepts.length }, ok ? 200 : 502);
@@ -78,7 +78,10 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
     const op = url.searchParams.get("op") || "";
     if (req.method === "GET" && op === "leaderboard") {
       const seal = await kvGet(RADAR_PICKS_SEAL_KEY, null);
-      return json({ ok: true, table: leaderboard((await kvGet(RADAR_PICKS_KEY, [])) || []), seal: seal && /^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) ? { d: seal.d, sha256: seal.sha256, count: seal.count, text: seal.text || null, ots: Array.isArray(seal.ots) ? seal.ots.slice(0, 2) : [] } : null });
+      const all = (await kvGet(RADAR_PICKS_KEY, [])) || [];
+      // The radar's open picks are named only while the board itself is open (the launch trial).
+      const openPicks = !accessOf((await kvGet("marketplace:settings", {})) || {}, { now: now() }).locked;
+      return json({ ok: true, table: leaderboard(all), duel: duelOf(all, { openPicks }), seal: seal && /^[0-9a-f]{64}$/.test(String(seal.sha256 || "")) ? { d: seal.d, sha256: seal.sha256, count: seal.count, text: seal.text || null, ots: Array.isArray(seal.ots) ? seal.ots.slice(0, 2) : [] } : null });
     }
     if (req.method === "POST" && op === "pick") {
       const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
@@ -105,7 +108,8 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
       const user = token ? await verify(token).catch(() => null) : null;
       if (!user?.id) return json({ ok: false, error: "unauthenticated" }, 401);
-      return json({ ok: true, picks: myPicks((await kvGet(RADAR_PICKS_KEY, [])) || [], String(user.id)) });
+      const all = (await kvGet(RADAR_PICKS_KEY, [])) || [];
+      return json({ ok: true, picks: myPicks(all, String(user.id)), beat: beatsRadar(all, String(user.id)) });
     }
     if (req.method !== "GET") return json({ ok: false, error: "method_not_allowed" }, 405);
     const board = await kvGet(RADAR_BOARD_KEY, null);
