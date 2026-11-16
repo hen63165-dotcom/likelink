@@ -39,6 +39,7 @@ import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrati
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash } from "node:crypto";
+import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
@@ -363,11 +364,15 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
             } catch { by[m.id] = null; }
             await pause(politeMs);
           }
+          // The global clock's own countries (worldClock.js): the same English store words, each in the
+          // country's own interface language, kept apart from the world pulse. RADAR_CLOCK=0 turns it off.
+          const x = {};
+          if (env.RADAR_CLOCK !== "0") for (const m of CLOCK_EXTRA) { x[m.id] = await suggestCount(c.en, { hl: m.hl, gl: m.gl }, fetchImpl); await pause(politeMs); }
           const ytWorld = await suggestCount(c.en, { hl: "en", gl: "us", ds: "yt" }, fetchImpl); await pause(politeMs);
           // The social echo (late: the finish line a call is timed against): the US suggestions as text.
           echoLists.en = (await suggestList(c.en, { hl: "en", gl: "us" }, fetchImpl)) || [];
           await pause(politeMs);
-          worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [], echo: echoOf(echoLists) }, { now }));
+          worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [], echo: echoOf(echoLists), x: env.RADAR_CLOCK !== "0" ? x : null }, { now }));
           const answered = [...he, ...yt, world].filter((n) => n !== null).length;
           if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
           const reading = awarenessReading({ he, yt, hq, world, trend: trendIds.has(c.id), site: sources.siteVisitors === "OK" ? exits[c.id] || 0 : null }, { now });
@@ -661,6 +666,34 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     log.push(`seal ${seal.sha256.slice(0, 12)}: ${seal.ots.length}/${OTS_CALENDARS.length} OpenTimestamps proofs`);
   }
   board.early = { need, record: trackRecord(calls.filter((x) => x.kind === "early")), lead: leadOf(calls), ledger: ledgerOf(calls, { latest: Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum])), today }), calibration: calibrationOf(calls, trackRecord), seal };
+  // The global clock (worldClock.js): each concept's arrival day per country, the national lag table,
+  // and the sealed "next country" calls (made only once the table has measured lags; graded after 14 days).
+  if (env.RADAR_CLOCK !== "0") {
+    const clocks = {};
+    for (const c of concepts) clocks[c.id] = clockOf(worldMap[c.id] || [], awareness[c.id] || []);
+    let nextCalls = gradeNextCalls(readJson(join(dir, "globe-calls.json"), []), clocks, today);
+    nextCalls = recordNextCalls(nextCalls, clocks, lagTable(clocks), today);
+    writeFileSync(join(dir, "globe-calls.json"), JSON.stringify(nextCalls, null, 1));
+    board.globe = globeBoard({ clocks, concepts: concepts.map((c) => ({ id: c.id, he: c.he, en: c.en, zh: c.zh, ko: c.ko, q: (Array.isArray(c.hq) ? c.hq[0] : "") || "" })), calls: nextCalls, today });
+    const gText = nextCallsSealText(nextCalls);
+    const prevG = prevBoard.globe?.seal;
+    if (gText) {
+      const gs = { d: today, sha256: createHash("sha256").update(gText).digest("hex"), count: nextCalls.length, text: gText.length <= 30_000 ? gText : null, ots: [] };
+      if (prevG?.sha256 === gs.sha256 && Array.isArray(prevG.ots) && prevG.ots.length) gs.ots = prevG.ots, gs.d = prevG.d || gs.d;
+      else if (env.RADAR_OTS !== "0") {
+        for (const cal of OTS_CALENDARS) {
+          try {
+            const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(gs.sha256), signal: AbortSignal.timeout(20_000) });
+            const proof = res.ok ? otsProof(gs.sha256, new Uint8Array(await res.arrayBuffer())) : null;
+            if (proof) gs.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+          } catch { /* the next run tries again */ }
+        }
+      }
+      board.globe.seal = gs;
+    }
+    const il = board.globe.israel;
+    log.push(`globe: ${board.globe.observed} arrivals observed · Israel after the US: ${il.medianDays ?? "-"} days (${il.n} pairs) · next-country calls open ${board.globe.calls.open.length}, graded ${board.globe.calls.graded}`);
+  }
   writeFileSync(join(dir, "calls.json"), JSON.stringify(calls, null, 1));
   writeFileSync(join(dir, "awareness.json"), JSON.stringify(awareness));
   writeFileSync(join(dir, "world.json"), JSON.stringify(worldMap));

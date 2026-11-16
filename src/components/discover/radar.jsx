@@ -772,6 +772,77 @@ function Waves({ waves }) {
   );
 }
 
+/** The global trend clock (worldClock.js): the day each product reached each country, Israel's lag, the sealed "next country" calls. */
+function Globe({ globe }) {
+  const { L } = useL();
+  if (!globe?.countries?.length) return null;
+  const C = Object.fromEntries(globe.countries.map((c) => [c.id, c]));
+  const il = globe.israel || { n: 0, medianDays: null };
+  const base = C[globe.base]?.he || "ארה״ב";
+  const lagText = (d) => (d > 0 ? L(`${d} ימים אחרי ${base}`, `${d} days after the US`) : d < 0 ? L(`${-d} ימים לפני ${base}`, `${-d} days before the US`) : L(`באותו יום כמו ${base}`, "the same day as the US"));
+  const measured = globe.table.filter((r) => r.medianDays !== null);
+  return (
+    <section className="lx-wrap mt-8" id="globe">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f0f9ff" }}>
+        <h2 className="text-[22px] font-black">{L("🌍 השעון העולמי של הטרנדים", "🌍 The global trend clock")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`בכל בוקר הרדאר בודק בחיפוש של גוגל ב־${globe.countries.length - 1} מדינות ובעברית בישראל אם כבר מחפשים כל מוצר. היום הראשון שבו מופיעים חיפושים, אחרי יום שקט, הוא יום ההגעה למדינה. כך רואים את הגל עובר ממדינה למדינה, עם תאריכים.`, `Every morning the radar checks Google search in ${globe.countries.length - 1} countries, and Hebrew search in Israel, for every product. The first day searches show up after a quiet day is its arrival there, so you watch the wave move from country to country, with dates.`)}</p>
+        <div className="mt-3 rounded-2xl p-4" style={{ background: "#0b0b0b", color: "#fff" }}>
+          <p className="text-[13px] font-bold" style={{ color: "#93c5fd" }}>{L("🇮🇱 המספר של ישראל", "🇮🇱 Israel's number")}</p>
+          {il.medianDays !== null ? (
+            <p className="mt-1 text-[20px] font-black leading-7">{L(`מוצר טרנדי מגיע לישראל בדרך כלל ${lagText(il.medianDays)}`, `A trending product typically reaches Israel ${lagText(il.medianDays)}`)}</p>
+          ) : (
+            <p className="mt-1 text-[18px] font-black leading-7">{L(`נמדד עכשיו: ${il.n} מתוך ${globe.minPairs} מוצרים שהרדאר ראה מגיעים גם ל${base} וגם לישראל`, `Measuring now: ${il.n} of ${globe.minPairs} products the radar saw arrive in both the US and Israel`)}</p>
+          )}
+          <p className="mt-1 text-[12px]" style={{ color: "#cbd5e1" }}>{L(`חציון של ${il.n} מוצרים שהגעתם נצפתה בשתי המדינות. המספר מופיע מ־${globe.minPairs} מוצרים.`, `The median of ${il.n} products whose arrival was observed in both countries. It shows from ${globe.minPairs}.`)}</p>
+        </div>
+        {measured.length ? (
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {measured.map((r) => <li key={r.id} className="rounded-full px-3 py-1 text-[12px] font-bold" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>{C[r.id]?.flag} {C[r.id]?.he}: {lagText(r.medianDays)} ({r.n})</li>)}
+          </ul>
+        ) : null}
+        {globe.waves?.length ? (
+          <ul className="mt-4 grid gap-3 md:grid-cols-2">
+            {globe.waves.map((w) => {
+              const arrived = w.countries.filter((c) => c.status === "ARRIVED").sort((a, b) => (a.on < b.on ? -1 : 1));
+              const present = w.countries.filter((c) => c.status === "PRESENT");
+              const quiet = w.countries.filter((c) => c.status === "QUIET");
+              const name = w.he || w.en;
+              return (
+                <li key={w.id} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  <p className="text-[16px] font-black">{name}</p>
+                  {arrived.length ? (
+                    <ol className="mt-2 flex flex-wrap items-center gap-1 text-[12px] font-bold">
+                      {arrived.map((c, i) => <li key={c.id} className="flex items-center gap-1">{i ? <span aria-hidden="true">←</span> : null}<span className="rounded-full px-2 py-0.5" style={{ background: "#dbeafe" }}>{C[c.id]?.flag} {C[c.id]?.he} {dm(c.on)}</span></li>)}
+                    </ol>
+                  ) : null}
+                  {present.length ? <p className="mt-2 text-[12px]">{L(`כבר חיפשו כשהרדאר התחיל למדוד: ${present.map((c) => `${C[c.id]?.flag} ${C[c.id]?.he}`).join(" · ")}`, `Already searched when the radar began: ${present.map((c) => `${C[c.id]?.flag} ${C[c.id]?.he}`).join(" · ")}`)}</p> : null}
+                  {quiet.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`עוד שקט: ${quiet.map((c) => `${C[c.id]?.flag} ${C[c.id]?.he}`).join(" · ")}`, `Still quiet: ${quiet.map((c) => `${C[c.id]?.flag} ${C[c.id]?.he}`).join(" · ")}`)}</p> : null}
+                  {w.israelAfterUs !== null ? <p className="mt-2 text-[13px] font-black">{L(`🇮🇱 הגיע לישראל ${lagText(w.israelAfterUs)}`, `🇮🇱 Reached Israel ${lagText(w.israelAfterUs)}`)}</p> : null}
+                  <p className="mt-2 text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("מה נבדק: ", "Checked: ")}<span dir="ltr">“{w.en}”</span>{w.q ? <> · {L("בעברית", "Hebrew")}: “{w.q}”</> : null}{w.zh ? <> · <span dir="ltr">{w.zh}</span></> : null}{w.ko ? <> · <span dir="ltr">{w.ko}</span></> : null}</p>
+                  {w.israelAfterUs !== null ? <div className="mt-2"><ShareButton path="/radar#globe" title={L(`השעון העולמי של הרדאר: ${name} הגיע לישראל ${lagText(w.israelAfterUs)}. נמדד בחיפושי גוגל, עם תאריכים.`, `The radar's global clock: ${name} reached Israel ${lagText(w.israelAfterUs)}. Measured in Google searches, with dates.`)} variant="button" /></div> : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        <div className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+          <p className="text-[14px] font-black">{L("🎯 איזו מדינה הבאה?", "🎯 Which country is next?")}</p>
+          {globe.calls?.open?.length ? (
+            <ul className="mt-1 grid gap-1 text-[13px]">
+              {globe.calls.open.map((c) => <li key={`${c.concept}-${c.at}`}>{L(`${c.concept}: הרדאר קבע ב־${dm(c.at)} שהבאה בתור היא ${C[c.country]?.flag} ${C[c.country]?.he}. הציון בפומבי ב־${dm(c.due)}.`, `${c.concept}: on ${dm(c.at)} the radar called ${C[c.country]?.flag} ${C[c.country]?.he} next. Graded in public on ${dm(c.due)}.`)}</li>)}
+            </ul>
+          ) : (
+            <p className="mt-1 text-[13px] leading-6">{L(`הרדאר קובע את המדינה הבאה, חתום מראש בביטקוין, מהרגע שיש לו פער מדוד לפחות מ־${globe.minPairs} מוצרים במדינה. עד אז הוא אוסף הגעות: ${globe.observed} נצפו עד היום.`, `The radar calls the next country, sealed in advance in Bitcoin, once it has a measured lag from at least ${globe.minPairs} products in that country. Until then it collects arrivals: ${globe.observed} observed so far.`)}</p>
+          )}
+          {globe.calls?.graded ? <p className="mt-1 text-[12px] font-bold">{L(`${globe.calls.hits} מתוך ${globe.calls.graded} קביעות פגעו`, `${globe.calls.hits} of ${globe.calls.graded} calls hit`)}</p> : null}
+          {globe.seal ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }} dir="ltr">SHA-256 {globe.seal.sha256.slice(0, 16)}… · {dm(globe.seal.d)}</p> : null}
+        </div>
+        <p className="mt-2 text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("המקורות: ההשלמות הציבוריות של גוגל בכל מדינה (השם באנגלית מהחנות), באידו בסינית, נייבר בקוריאנית, וחיפוש בעברית בגוגל וביוטיוב בישראל. נמדדות רמות (כמה השלמות לחיפוש), וכל מדידה עם תאריך.", "Sources: Google's public suggestions in each country (the store's English words), Baidu in Chinese, Naver in Korean, and Hebrew search on Google and YouTube in Israel. Levels (how many search suggestions), every measurement dated.")}</p>
+      </div>
+    </section>
+  );
+}
+
 /** The crowd sensor (crowdSensor.js): what different people checked in the magic button this week. */
 function Crowd({ crowd }) {
   const { L } = useL();
@@ -908,6 +979,7 @@ export function RadarPage() {
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
+      {!gated && board?.globe ? <Globe globe={board.globe} /> : null}
 
       <section className="lx-wrap mt-6">
         <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>

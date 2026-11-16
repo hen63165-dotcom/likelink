@@ -8,6 +8,7 @@ import { WORLD_STATES } from "./worldPulse.js";
 import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
+import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -146,6 +147,33 @@ export function sanitizeBoard(doc) {
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
     world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays) } : null,
+    globe: cleanGlobe(doc.globe),
+  };
+}
+
+/** The global clock (worldClock.js): known countries only, measured days only, calls by concept id. */
+const CLOCK_STATUS = new Set(["ARRIVED", "PRESENT", "QUIET", "UNMEASURED"]);
+const COUNTRY = new Set(CLOCK_IDS);
+function cleanGlobe(g) {
+  if (!g || typeof g !== "object" || !Array.isArray(g.waves)) return null;
+  const call = (c) => (ID.test(String(c?.concept || "")) && COUNTRY.has(c?.country) && day(c?.at) ? { concept: c.concept, country: c.country, at: c.at, due: day(c.due), result: c.result === "HIT" || c.result === "MISS" ? c.result : null, arrivedOn: day(c.arrivedOn) } : null);
+  const cl = g.calls && typeof g.calls === "object" ? g.calls : {};
+  const seal = g.seal && /^[0-9a-f]{64}$/.test(String(g.seal.sha256 || "")) ? { d: day(g.seal.d), sha256: g.seal.sha256, count: num(g.seal.count) ?? 0, text: typeof g.seal.text === "string" && g.seal.text.length <= 30_000 && /^[a-z0-9|\n-]*$/.test(g.seal.text) ? g.seal.text : null, ots: (Array.isArray(g.seal.ots) ? g.seal.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null;
+  return {
+    at: day(g.at),
+    countries: CLOCK_COUNTRIES.map(({ id, he, flag, lang }) => ({ id, he, flag, lang })),
+    base: "us",
+    minPairs: num(g.minPairs) ?? 3,
+    table: (Array.isArray(g.table) ? g.table : []).filter((r) => COUNTRY.has(r?.id)).map((r) => ({ id: r.id, n: num(r.n) ?? 0, medianDays: num(r.medianDays) })),
+    israel: { n: num(g.israel?.n) ?? 0, medianDays: num(g.israel?.medianDays), pairs: (Array.isArray(g.israel?.pairs) ? g.israel.pairs : []).slice(0, 5).filter((x) => ID.test(String(x?.concept || "")) && day(x?.base) && day(x?.on)).map((x) => ({ concept: x.concept, base: x.base, on: x.on, days: num(x.days) })) },
+    observed: num(g.observed) ?? 0,
+    waves: g.waves.slice(0, 12).map((w) => (ID.test(String(w?.id || "")) && Array.isArray(w.countries) ? {
+      id: w.id, he: str(w.he, 60), en: str(w.en, 60), q: str(w.q, 60), zh: str(w.zh, 40), ko: str(w.ko, 40),
+      reached: num(w.reached) ?? 0, measured: num(w.measured) ?? 0, arrivals: num(w.arrivals) ?? 0, israelAfterUs: num(w.israelAfterUs),
+      countries: w.countries.filter((c) => COUNTRY.has(c?.id) && CLOCK_STATUS.has(c?.status)).map((c) => ({ id: c.id, status: c.status, on: c.status === "ARRIVED" ? day(c.on) : null })),
+    } : null)).filter(Boolean),
+    calls: { open: (Array.isArray(cl.open) ? cl.open : []).slice(0, 12).map(call).filter(Boolean), recent: (Array.isArray(cl.recent) ? cl.recent : []).slice(0, 12).map(call).filter(Boolean), graded: num(cl.graded) ?? 0, hits: num(cl.hits) ?? 0 },
+    seal,
   };
 }
 
