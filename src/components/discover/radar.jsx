@@ -445,6 +445,7 @@ const PICK_ERR = { invalid_nickname: "כינוי של 2–20 אותיות או �
 function PicksBox({ board }) {
   const { L } = useL();
   const [table, setTable] = useState([]);
+  const [pickSeal, setPickSeal] = useState(null);
   const [mine, setMine] = useState(null);
   const [token, setToken] = useState(null);
   const [concept, setConcept] = useState("");
@@ -453,7 +454,7 @@ function PicksBox({ board }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const load = async (t) => {
-    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : [])).catch(() => {});
+    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => { setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : []); const s = b?.seal; setPickSeal(s && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? { d: s.d, sha256: s.sha256, text: typeof s.text === "string" && /^[\p{L}\p{N} |._\n-]*$/u.test(s.text) ? s.text : null, ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"].includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || ""))).slice(0, 2) } : null); }).catch(() => {});
     if (t) fetch("/api/store?mode=radar-board&op=mine", { headers: { Authorization: `Bearer ${t}` } }).then((r) => r.json()).then((b) => setMine(Array.isArray(b?.picks) ? b.picks : [])).catch(() => {});
   };
   useEffect(() => {
@@ -500,9 +501,17 @@ function PicksBox({ board }) {
       <p className="mt-3 text-[14px] font-extrabold">{L("הטבלה", "The board")}</p>
       {table.length ? (
         <ol className="mt-1 grid gap-1 text-[13px]">
-          {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
+          {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick}{r.verified ? L(" ✅ צופה מאומתת", " ✅ verified scout") : ""} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.accuracy !== null && r.accuracy !== undefined ? ` (${r.accuracy}%)` : ""}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
         </ol>
       ) : <p className="mt-1 text-[13px]">{L("עוד אין אף אחת בטבלה. הראשונה שתבחר תופיע כאן.", "Nobody on the board yet. The first to pick shows here.")}</p>}
+      <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("✅ צופה מאומתת: לפחות 3 פגיעות ו־60% דיוק, רק מבחירות שנחתמו מראש. אי אפשר לזייף את זה.", "✅ Verified scout: at least 3 hits at 60%+, only from picks sealed in advance. It cannot be faked.")}</p>
+      {pickSeal ? (
+        <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>
+          {L(`⛓️ כל הבחירות נחתמו בביטקוין (${dm(pickSeal.d)}, ${pickSeal.sha256.slice(0, 12)}…). לבדיקה: מורידים את שני הקבצים וגוררים ל־opentimestamps.org. `, `⛓️ Every pick is sealed in Bitcoin (${dm(pickSeal.d)}, ${pickSeal.sha256.slice(0, 12)}…). To check: download both files and drop them on opentimestamps.org. `)}
+          {pickSeal.text ? <a className="underline" download={`radar-picks-${pickSeal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(pickSeal.text)}`}>{L("הבחירות החתומות", "the sealed picks")}</a> : null}
+          {pickSeal.ots.map((o) => <span key={o.cal}> · <a className="underline" download={`radar-picks-${pickSeal.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
+        </p>
+      ) : null}
     </details>
   );
 }

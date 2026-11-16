@@ -4,6 +4,10 @@
 // after 14 days exactly like the radar's own calls (HIT at ≥ +15%). The leaderboard shows only those
 // who chose to appear, by nickname, never an e-mail or id. Pure; tested.
 export const RADAR_PICKS_KEY = "radar:picks";
+export const RADAR_PICKS_SEAL_KEY = "radar:picks:seal";
+// The scouts (the owner, 2026-11-16: "1+2"): a verified scout has ≥ 3 graded hits at ≥ 60% —
+// earned only from picks sealed in advance and graded like the radar's own calls.
+export const SCOUT = Object.freeze({ verifiedHits: 3, verifiedPct: 60 });
 export const PICKS = Object.freeze({ maxOpen: 3, gradeDays: 14, hitPct: 15, keep: 2000 });
 const DAY = 86_400_000;
 const NICK = /^[\p{L}\p{N} ._-]{2,20}$/u;
@@ -53,7 +57,24 @@ export function leaderboard(picks = [], { top = 20 } = {}) {
   return [...by.values()]
     .sort((a, b) => b.hits - a.hits || String(a.firstHit || "9").localeCompare(String(b.firstHit || "9")) || b.graded - a.graded)
     .slice(0, top)
-    .map((r, i) => ({ rank: i + 1, ...r }));
+    .map((r, i) => {
+      const accuracy = r.graded ? Math.round((r.hits / r.graded) * 100) : null;
+      return { rank: i + 1, ...r, accuracy, verified: r.hits >= SCOUT.verifiedHits && accuracy >= SCOUT.verifiedPct };
+    });
+}
+
+/**
+ * The text every pick is sealed with (its SHA-256 goes to OpenTimestamps on the radar's daily put):
+ * one line per pick — day, concept, the order count it is graded against, and the public nickname
+ * (or "anon" when she did not choose to appear). Never a user id or an e-mail. Sorted, so anyone
+ * holding the same picks recomputes the same text.
+ */
+export function picksSealText(picks = []) {
+  return (Array.isArray(picks) ? picks : [])
+    .filter((p) => p && p.at && p.concept)
+    .map((p) => `${p.at}|${p.concept}|${Number(p.base) || 0}|${p.show && p.nick ? String(p.nick).replace(/[|\n]/g, " ") : "anon"}`)
+    .sort()
+    .join("\n");
 }
 
 /** One user's own picks, without anyone else's data. */
