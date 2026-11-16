@@ -77,5 +77,8 @@ jobs:
           git add marketing/reels/pov
           git diff --cached --quiet && exit 0
           git commit -q -m "POV reels: sheets and report for review"
-          git pull -q --rebase origin "${GITHUB_REF_NAME}" || true
-          git push -q origin HEAD:${GITHUB_REF_NAME}
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin HEAD:${GITHUB_REF_NAME} && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

@@ -1,1 +1,1 @@
-{ "mode": "sheets", "limit": 40 }
+{ "mode": "sheets", "limit": 40, "note": "second run: the first one lost its push to a race" }
