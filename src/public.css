@@ -1182,6 +1182,29 @@ html body .lx img {
 ::view-transition-new(root) { animation: 260ms var(--lx-ease, ease-out) both lx-vt-in; }
 @keyframes lx-vt-out { to { opacity: 0; } }
 @keyframes lx-vt-in { from { opacity: 0; translate: 0 10px; } }
+/* Radar hero: the scope (radar.jsx RadarScope). One sweep turns slowly; with
+   reduced motion the beam rests. */
+.lx-rdr-grid { display: grid; gap: 22px; align-items: center; }
+.lx-rdr-scope { position: relative; width: 132px; aspect-ratio: 1; border-radius: 50%; color: var(--lx-ink); background: var(--lx-sky-2); overflow: hidden; justify-self: start; }
+.lx-rdr-scope svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.28; }
+.lx-rdr-sweep { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 290deg, color-mix(in srgb, var(--lx-ink) 26%, transparent) 360deg); transform: rotate(40deg); }
+.lx-rdr-core { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--lx-ink); }
+@media (min-width: 768px) {
+  .lx-rdr-grid { grid-template-columns: minmax(0, 1fr) auto; gap: 48px; }
+  .lx-rdr-scope { order: 2; width: 260px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lx-rdr-scope { animation: lx-scope-in 0.9s var(--lx-ease) both; }
+  .lx-rdr-sweep { animation: lx-sweep 6s linear infinite; }
+}
+@keyframes lx-scope-in { from { opacity: 0; scale: 0.86; } }
+@keyframes lx-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Product page: the picture a visitor pressed glides into this hero
+   (App.jsx names it lx-pp-hero for the transition). */
+.lx-pp-hero { view-transition-name: lx-pp-hero; }
+::view-transition-group(lx-pp-hero) { animation-duration: 420ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-old(lx-pp-hero), ::view-transition-new(lx-pp-hero) { height: 100%; object-fit: cover; }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
 
 /* On a phone the moving collage and the phone's real video open the hero (the
