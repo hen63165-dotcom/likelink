@@ -186,6 +186,41 @@ function keptCatalog() {
   } catch { return new Map(); }
 }
 
+/** The clip's shots in order (left to right, then down), one frame each, for a person to look at. */
+function shotSheet(clip, work, file, id) {
+  const { seconds } = probe(clip);
+  const starts = shotStarts(seconds);
+  const frames = starts.map((t, i) => { const f = join(work, `${id}-f${i}.jpg`); ff(["-ss", String(t + SHOT / 2), "-i", clip, "-frames:v", "1", "-vf", "scale=240:-2", f]); return f; });
+  ff([...frames.flatMap((f) => ["-i", f]), "-filter_complex", `${frames.map((_, i) => `[${i}:v]scale=240:300:force_original_aspect_ratio=decrease,pad=240:300:(ow-iw)/2:(oh-ih)/2[c${i}]`).join(";")};${frames.map((_, i) => `[c${i}]`).join("")}xstack=inputs=${frames.length}:layout=${frames.map((_, i) => `${(i % 7) * 240}_${Math.floor(i / 7) * 300}`).join("|")}:fill=black`, "-frames:v", "1", file]);
+  return starts.length;
+}
+
+/**
+ * The owner, 2026-11-16 ("כן למוצרים עם סרטון אמיתי"): today's hot items (the trend board's own
+ * read: hotproduct.query per category, the deals rules) that are not on the site yet and come with
+ * the seller's own video → their shots, so a person keeps only real hands on the real product.
+ */
+async function hotSheets(out, limit) {
+  const { findTrends } = await import("../catalog/trend-finder.mjs");
+  const { outcome, board } = await findTrends({ budgetMs: 120_000 });
+  const items = (board?.categories || []).flatMap((c) => (c.items || []).map((i) => ({ ...i, category: c.key }))).filter((i) => i.video && !i.onSite).slice(0, limit);
+  const work = join(out, "work");
+  mkdirSync(work, { recursive: true });
+  const report = [];
+  for (const i of items) {
+    try {
+      const clip = join(work, `${i.id}-src.mp4`);
+      await download(i.video, clip);
+      const shots = shotSheet(clip, work, join(out, `${i.id}-shots.jpg`), i.id);
+      report.push({ id: i.id, status: "SHOTS", shots, category: i.category, title: String(i.title || "").slice(0, 90), price: i.price, itemUrl: i.itemUrl });
+    } catch (e) {
+      report.push({ id: i.id, status: "FAILED", reason: String(e?.message || e).slice(0, 160) });
+    }
+  }
+  writeFileSync(join(out, "hot-candidates.json"), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ outcome, withVideo: items.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
+}
+
 /** Products worth a POV reel: approved, an AliExpress link, not archived. */
 export function sheetCandidates(products = []) {
   return products.filter((p) => p?.id && p.status === "approved" && /aliexpress/i.test(String(p.affiliateUrl || "")));
@@ -205,11 +240,8 @@ async function sheetsMode(out, limit) {
     try {
       const clip = join(work, `${p.id}-src.mp4`);
       await download(v.video, clip);
-      const { seconds } = probe(clip);
-      const starts = shotStarts(seconds);
-      const frames = starts.map((t, i) => { const f = join(work, `${p.id}-f${i}.jpg`); ff(["-ss", String(t + SHOT / 2), "-i", clip, "-frames:v", "1", "-vf", "scale=240:-2", f]); return f; });
-      ff([...frames.flatMap((f) => ["-i", f]), "-filter_complex", `${frames.map((_, i) => `[${i}:v]scale=240:300:force_original_aspect_ratio=decrease,pad=240:300:(ow-iw)/2:(oh-ih)/2[c${i}]`).join(";")};${frames.map((_, i) => `[c${i}]`).join("")}xstack=inputs=${frames.length}:layout=${frames.map((_, i) => `${(i % 7) * 240}_${Math.floor(i / 7) * 300}`).join("|")}:fill=black`, "-frames:v", "1", join(out, `${p.id}-shots.jpg`)]);
-      report.push({ id: p.id, status: "SHOTS", shots: starts.length, title: String(p.displayTitle || p.title || "").slice(0, 80), storeTitle: v.title.slice(0, 120) });
+      const shots = shotSheet(clip, work, join(out, `${p.id}-shots.jpg`), p.id);
+      report.push({ id: p.id, status: "SHOTS", shots, title: String(p.displayTitle || p.title || "").slice(0, 80), storeTitle: v.title.slice(0, 120) });
     } catch (e) {
       report.push({ id: p.id, status: "FAILED", reason: String(e?.message || e).slice(0, 160) });
     }
@@ -218,7 +250,9 @@ async function sheetsMode(out, limit) {
   console.log(JSON.stringify({ candidates: list.length, withShots: report.filter((r) => r.status === "SHOTS").length }));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--sheets") {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--hot") {
+  await hotSheets(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 30));
+} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2] === "--sheets") {
   await sheetsMode(process.argv[3] || "pov-sheets-out", Number(process.argv[4] || 40));
 } else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [jobsFile = "scripts/marketing/pov-reels/jobs.json", out = "pov-reels-out"] = process.argv.slice(2);
