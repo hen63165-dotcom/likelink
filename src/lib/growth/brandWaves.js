@@ -34,14 +34,24 @@ export const REASON_HE = Object.freeze({
   TOOL: "כלי להעתקת כרטיסים ושלטים",
 });
 
-/** The wave a store title belongs to ({ token, reason }), or null. Weapons, vapes, adult items and health claims are never a wave. */
+// A tech brand named only to say what an accessory fits ("case for iPhone 15", "strap for Garmin")
+// is not an imitation: those waves are the most saturated thing on the store (16.11's first run read
+// "iphone" 111k orders of cases and cables). Sonic as in a sonic toothbrush is not the character.
+const TECH_BRAND = /^(?:apple|iphone|ipad|airpods?|samsung|galaxy|xiaomi|redmi|mi band|huawei|sony|garmin|fitbit|amazfit|htc|oneplus|lenovo|dyson|jbl|bose|beats|casio|g-?shock)$/i;
+const FITS = /\b(?:for|fits?|fit\s+for|compatible\s+with|suitable\s+for|replacement\s+for|works\s+with)\s+(?:the\s+|new\s+|apple\s+)*(?:iphone|ipad|airpods?|samsung|galaxy|xiaomi|redmi|mi\s*band|huawei|sony|garmin|fitbit|amazfit|htc|oneplus|lenovo|dyson|jbl|bose|beats|apple|casio|g-?shock)\b/i;
+const ACCESSORY = /\b(?:case|cover|charger|charging|cable|strap|band|protector|tempered|glass|film|holder|mount|stand|adapter|skin|sleeve|replacement|ear\s*tips|keyboard|stylus|pouch)\b/i;
+export const fitsBrand = (title = "", token = "") => TECH_BRAND.test(String(token || "")) && (FITS.test(String(title || "")) || ACCESSORY.test(String(title || "")));
+const notCharacter = (title = "", token = "") => /^sonic$/i.test(String(token || "")) && /\bsonic\s+(?:electric|toothbrush|vibrat|clean|massage)/i.test(String(title || ""));
+
+/** The wave a store title belongs to ({ token, reason }), or null. Weapons, vapes, adult items and health claims are never a wave; nor is an accessory that only names the device it fits. */
 export function waveOf(title = "") {
   const t = String(title || "");
   if (!t || isNotListedKind(t)) return null;
   const tool = hackWord(t);
   if (tool) return { token: tool, reason: "TOOL" };
   const brand = brandWord(t);
-  return brand ? { token: brand, reason: "BRAND" } : null;
+  if (!brand || fitsBrand(t, brand) || notCharacter(t, brand)) return null;
+  return { token: brand, reason: "BRAND" };
 }
 
 /** The need behind a wave: the top item's own words without the name (its first two-word phrase), or null. */
