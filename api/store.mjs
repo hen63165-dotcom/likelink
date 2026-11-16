@@ -1100,6 +1100,11 @@ export default async function handler(req, res) {
     const { default: radarBoardHandler } = await import('./_utils/radarBoardHandler.mjs');
     return radarBoardHandler(req, res);
   }
+  // "שאלי את הרדאר" on WhatsApp: Meta's webhook (signed with the app secret) → the magic button's own check.
+  if (new URL(req.url, 'https://x').searchParams.get('mode') === 'whatsapp') {
+    const { default: whatsappHandler } = await import('./_utils/whatsappHandler.mjs');
+    return whatsappHandler(req, res);
+  }
   if (new URL(req.url, 'https://x').searchParams.get('mode') === 'magic') {
     const { default: magicHandler } = await import('./_utils/magicHandler.mjs');
     return magicHandler(req, res);

@@ -24,6 +24,9 @@ import { classifyAgent, clientIp, createRateLimiter } from "./botGuard.mjs";
 import { brandTitle, firstLink, isCreatorLink, isStoreLink, itemIdIn, magicReport, storePage } from "../../src/lib/growth/magic.js";
 import { guessCategory, hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { findAttempts, findResults, parseFind } from "../../src/lib/growth/findOnAli.js";
+import { hypeOf } from "../../src/lib/growth/hypeMeter.js";
+import { freshPhrase } from "../../src/lib/growth/freshRisers.js";
+import { SUGGEST_HOST, SUGGEST_PATH, parseSuggest, robotsAllows, suggestUrl } from "../../src/lib/growth/israelGap.js";
 
 const arr = (v) => (Array.isArray(v) ? v : []);
 const header = (req, name) => {
@@ -91,6 +94,48 @@ async function ownLinkFor(itemId, { env, fetchImpl, now, sleep }) {
   }
 }
 
+/**
+ * מד ההייפ (hypeMeter.js): the item's English title (productdetail.get, EN) gives its two-word phrase;
+ * the store counts the listings for it, and Google's public US suggestions show whether people add
+ * "tiktok"/"viral"/"amazon". Google's robots.txt is read once a day per instance; a disallow or an
+ * error means no suggestion read (the meter then says it is still measuring, never a guess).
+ */
+let robotsDay = { day: "", ok: false };
+async function suggestionsFor(phrase, { fetchImpl, now }) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  if (robotsDay.day !== day) {
+    try {
+      const r = await fetchImpl(`${SUGGEST_HOST}/robots.txt`, { signal: AbortSignal.timeout(6000) });
+      robotsDay = { day, ok: robotsAllows(r.status, r.status === 200 ? await r.text() : "", SUGGEST_PATH) };
+    } catch { robotsDay = { day, ok: false }; }
+  }
+  if (!robotsDay.ok) return null;
+  try {
+    const r = await fetchImpl(suggestUrl(phrase, { hl: "en", gl: "us" }), { signal: AbortSignal.timeout(6000) });
+    return r.status === 200 ? parseSuggest(await r.text()) : null;
+  } catch { return null; }
+}
+async function measureHype(itemId, x, { env, fetchImpl, now, sleep }) {
+  let phrase = null;
+  let listings = null;
+  try {
+    const en = await aeCall("aliexpress.affiliate.productdetail.get", { product_ids: itemId, target_currency: "USD", target_language: "EN", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID }, { env, fetchImpl, now, sleep });
+    const p = arr(en?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product).find((y) => String(y?.product_id) === itemId);
+    phrase = p ? freshPhrase(String(p.product_title || "")) : null;
+  } catch { phrase = null; }
+  if (phrase) {
+    try {
+      const q = await aeCall("aliexpress.affiliate.product.query", { keywords: phrase, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env, fetchImpl, now, sleep });
+      const rr = q?.aliexpress_affiliate_product_query_response?.resp_result;
+      if (Number(rr?.resp_code) === 200 && Number.isFinite(Number(rr.result?.total_record_count))) listings = Number(rr.result.total_record_count);
+    } catch { listings = null; }
+  }
+  const suggestions = phrase ? await suggestionsFor(phrase, { fetchImpl, now }) : null;
+  const h = hypeOf({ phrase, suggestions, listings, orders: Number(x?.lastest_volume) });
+  // Only what the page prints: the level, its words, the phrase, the networks and the listings count.
+  return { level: h.level, he: h.he, en: h.en, hint: h.hint, phrase: h.phrase, buzz: h.buzz, listings: h.listings, lines: h.lines };
+}
+
 export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, now = () => Date.now(), limiter = createRateLimiter({ windowMs: 60_000, max: 10 }), cache = new Map(), sleep } = {}) {
   const readEnv = () => aeEnv(rawEnv || process.env);
   const cached = (key) => {
@@ -146,33 +191,14 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
     return json({ ok: true, ...body });
   }
 
-  return async function magicHandler(req, res) {
-    const json = (obj, status = 200) => jsonCors(res, obj, status, req);
-    if (req.method === "OPTIONS") return json({ ok: true });
-    const origin = header(req, "origin");
-    if (origin && !isApprovedOrigin(origin)) return json({ ok: false, error: "origin_not_allowed" }, 403);
-    if (req.method !== "GET") return json({ ok: false, error: "method_not_allowed" }, 405);
-    if (classifyAgent(header(req, "user-agent")) === "scraper") return json({ ok: false, error: "automated_client" }, 403);
-
-    const url = new URL(req.url, "https://x");
-    if (url.searchParams.has("q")) return find(req, res, url, json);
-    const pasted = firstLink(url.searchParams.get("u") || "");
-    if (!pasted) return json({ ok: false, reason: "no_link" });
-    if (!isStoreLink(pasted)) return json({ ok: false, reason: "not_aliexpress" });
-
+  /** One pasted AliExpress link → { body } (the magic report, or why the store gave nothing). Shared with WhatsApp. */
+  async function check(pasted) {
     const env = readEnv();
-    if (!aeStatus(env).configured) return json({ ok: false, reason: "store_connection_required" });
-
-    const verdict = limiter(`magic|${clientIp(req)}`);
-    if (!verdict.allowed) {
-      res.setHeader?.("Retry-After", String(verdict.retryAfter || 60));
-      return json({ ok: false, reason: "rate_limited", retryAfter: verdict.retryAfter }, 429);
-    }
-
+    if (!aeStatus(env).configured) return { body: { ok: false, reason: "store_connection_required" } };
     try {
       const linkKey = `link|${pasted}`;
       const resolved = cached(linkKey) || await resolveMagicLink(pasted, { fetchImpl });
-      if (!resolved.itemId) return json({ ok: false, reason: "no_item" });
+      if (!resolved.itemId) return { body: { ok: false, reason: "no_item" } };
       remember(linkKey, resolved);
 
       const itemKey = `item|${resolved.itemId}`;
@@ -184,12 +210,12 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
             product_ids: resolved.itemId, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
           }, { env, fetchImpl, now: now(), sleep });
         } catch (err) {
-          return json(storeFailure(err));
+          return { body: storeFailure(err) };
         }
         const result = answer?.aliexpress_affiliate_productdetail_get_response?.resp_result;
-        if (Number(result?.resp_code) !== 200) return json({ ok: false, reason: "store_not_returned", code: `resp_${Number(result?.resp_code) || "none"}` });
+        if (Number(result?.resp_code) !== 200) return { body: { ok: false, reason: "store_not_returned", code: `resp_${Number(result?.resp_code) || "none"}` } };
         const x = arr(result?.result?.products?.product).find((p) => String(p?.product_id) === resolved.itemId);
-        if (!x) return json({ ok: false, reason: "store_not_returned", code: "not_in_answer" });
+        if (!x) return { body: { ok: false, reason: "store_not_returned", code: "not_in_answer" } };
         store = { x, ownLink: OWN_LINK.test(String(x.promotion_link || "")) ? String(x.promotion_link) : "" };
         remember(itemKey, store);
       }
@@ -202,11 +228,79 @@ export function createMagicHandler({ env: rawEnv, fetchImpl = globalThis.fetch, 
         if (store.ownLink) remember(itemKey, store);
       }
       const report = magicReport({ x: store.x, category: guessCategory(store.x), pasted, creator: resolved.creator, ownLink: store.ownLink, brand, notListed, now: now() });
-      return json({ ok: true, report });
+      return { body: { ok: true, report } };
     } catch (err) {
-      return json(storeFailure(err));
+      return { body: storeFailure(err) };
     }
+  }
+
+  /**
+   * מד ההייפ for one item (GET mode=magic&hype=<item id>, asked by the page right after the report,
+   * so the check itself stays as fast as before). Measured at most once per item per cache period.
+   */
+  async function hypeFor(itemId) {
+    const env = readEnv();
+    if (!aeStatus(env).configured) return { ok: false, reason: "store_connection_required" };
+    const hypeKey = `hype|${itemId}`;
+    const hit = cached(hypeKey);
+    if (hit) return { ok: true, hype: hit };
+    let x = cached(`item|${itemId}`)?.x || null;
+    if (!x) {
+      try {
+        const answer = await aeCall("aliexpress.affiliate.productdetail.get", { product_ids: itemId, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID }, { env, fetchImpl, now: now(), sleep });
+        x = arr(answer?.aliexpress_affiliate_productdetail_get_response?.resp_result?.result?.products?.product).find((p) => String(p?.product_id) === itemId) || null;
+      } catch (err) { return storeFailure(err); }
+      if (!x) return { ok: false, reason: "store_not_returned", code: "not_in_answer" };
+    }
+    const hype = await measureHype(itemId, x, { env, fetchImpl, now: now(), sleep });
+    if (hype.level !== "MEASURING") remember(hypeKey, hype);
+    return { ok: true, hype };
+  }
+
+  async function handler(req, res) {
+    const json = (obj, status = 200) => jsonCors(res, obj, status, req);
+    if (req.method === "OPTIONS") return json({ ok: true });
+    const origin = header(req, "origin");
+    if (origin && !isApprovedOrigin(origin)) return json({ ok: false, error: "origin_not_allowed" }, 403);
+    if (req.method !== "GET") return json({ ok: false, error: "method_not_allowed" }, 405);
+    if (classifyAgent(header(req, "user-agent")) === "scraper") return json({ ok: false, error: "automated_client" }, 403);
+
+    const url = new URL(req.url, "https://x");
+    if (url.searchParams.has("q")) return find(req, res, url, json);
+    if (url.searchParams.has("hype")) {
+      const id = String(url.searchParams.get("hype") || "");
+      if (!/^\d{6,20}$/.test(id)) return json({ ok: false, reason: "no_item" });
+      const v = limiter(`hype|${clientIp(req)}`);
+      if (!v.allowed) {
+        res.setHeader?.("Retry-After", String(v.retryAfter || 60));
+        return json({ ok: false, reason: "rate_limited", retryAfter: v.retryAfter }, 429);
+      }
+      return json(await hypeFor(id));
+    }
+    const pasted = firstLink(url.searchParams.get("u") || "");
+    if (!pasted) return json({ ok: false, reason: "no_link" });
+    if (!isStoreLink(pasted)) return json({ ok: false, reason: "not_aliexpress" });
+
+    if (!aeStatus(readEnv()).configured) return json({ ok: false, reason: "store_connection_required" });
+
+    const verdict = limiter(`magic|${clientIp(req)}`);
+    if (!verdict.allowed) {
+      res.setHeader?.("Retry-After", String(verdict.retryAfter || 60));
+      return json({ ok: false, reason: "rate_limited", retryAfter: verdict.retryAfter }, 429);
+    }
+
+    const out = await check(pasted);
+    return json(out.body, out.status || 200);
+  }
+  handler.check = check;
+  handler.hype = hypeFor;
+  handler.findWords = async (q, who = "whatsapp") => {
+    // The same "מצאי לי באלי" search, for WhatsApp: a fake GET carrying only the words.
+    let out = null;
+    await find({ headers: {}, socket: { remoteAddress: who } }, { setHeader() {} }, new URL(`https://x/?q=${encodeURIComponent(q)}`), (obj) => { out = obj; return obj; });
+    return out;
   };
+  return handler;
 }
 
 export default createMagicHandler();

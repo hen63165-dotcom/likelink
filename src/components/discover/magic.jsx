@@ -17,6 +17,7 @@ import { storage } from "../../lib/storage.js";
 import { Go, Img, ProductCard, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 import { loadBoard } from "./radar.jsx";
 import { radarForItem, siteHotFor } from "../../lib/growth/radarBoard.js";
+import { hypeShareText } from "../../lib/growth/hypeMeter.js";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -311,6 +312,27 @@ function RadarHint({ item }) {
   );
 }
 
+
+/** מד ההייפ (hypeMeter.js): what the world says about this item today, every signal printed. */
+function HypeMeter({ hype, title, link }) {
+  const { L } = useL();
+  if (!hype) return <p className="lx-mute mt-3 text-[13px]">{L("🔥 מד ההייפ נמדד עכשיו…", "🔥 Measuring the hype…")}</p>;
+  if (hype.level === "MEASURING") return null;
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: "#0b0b0b", color: "#fff" }}>
+      <p className="text-[12px] font-bold" style={{ color: "#93c5fd" }}>{L("מד ההייפ · נמדד עכשיו", "Hype meter · measured now")}</p>
+      <p className="mt-1 text-[19px] font-black">{L(hype.he, hype.en)}</p>
+      <p className="text-[13.5px]" style={{ color: "#e2e8f0" }}>{hype.hint}</p>
+      <ul className="mt-2 grid gap-1 text-[12.5px] leading-5" style={{ color: "#cbd5e1" }}>
+        {(hype.lines || []).map((l) => <li key={l}>• {l}</li>)}
+      </ul>
+      <div className="mt-2">
+        <ShareButton path={`${MAGIC_PATH}?u=${encodeURIComponent(link || "")}`} title={hypeShareText(hype, title)} variant="button" />
+      </div>
+    </div>
+  );
+}
+
 export function MagicPage({ graph }) {
   const { L, lang } = useL();
   const he = lang === "he";
@@ -337,7 +359,13 @@ export function MagicPage({ graph }) {
       const next = addRecent(recent, { link, title: item.title, image: item.image, itemId: item.id, price: item.currency === "ILS" ? item.price : null });
       const saved = writeRecent(next);
       setRecent(next);
-      setState({ phase: "done", link, report: body.report, memory, saved });
+      setState({ phase: "done", link, report: body.report, memory, saved, hype: null });
+      // מד ההייפ (hypeMeter.js): measured by the server right after the report, so the check stays fast.
+      if (item.id) {
+        fetch(`/api/store?mode=magic&hype=${encodeURIComponent(item.id)}`, { headers: { accept: "application/json" } })
+          .then((r) => r.json()).then((h) => { if (h?.ok && h.hype) setState((st) => (st.report?.item?.id === item.id ? { ...st, hype: h.hype } : st)); })
+          .catch(() => {});
+      }
       trackFunnel("magic_check", body.report.buy?.via || "", firstCheckThisSession(item.id) ? { item: item.id } : {});
       try {
         const u = new URL(window.location.href);
@@ -454,6 +482,7 @@ export function MagicPage({ graph }) {
                 <p className="mt-2 text-[22px] font-extrabold">{L(`מ־₪${shekel(report.item.price)}`, `from ₪${shekel(report.item.price)}`)} <span className="lx-mute text-[13px] font-normal">{L("נבדק עכשיו בחנות", "checked just now")}</span></p>
               ) : <p className="lx-mute mt-2 text-[14px]">{L("המחיר המעודכן בחנות", "See the price in the store")}</p>}
               <PriceMemory memory={state.memory} saved={state.saved} price={report.item.price} />
+              <HypeMeter hype={state.hype} title={report.item.title} link={state.link} />
 
               {report.verdict === "LOOK" ? <p className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13.5px] font-extrabold" style={{ background: "#fef0c7", color: "#7a2e0e" }}><AlertTriangle size={15} aria-hidden="true" /> {L("כדאי לשים לב", "Worth a closer look")}</p> : null}
               {report.verdict === "STOP" ? <p className="mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13.5px] font-extrabold" style={{ background: "#fee4e2", color: "#7a271a" }}><Octagon size={15} aria-hidden="true" /> {L("לא ממליצים", "Not recommended")}</p> : null}
