@@ -16,9 +16,9 @@ import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
-import { fetchRadarSubscription } from "../../lib/commerce.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
+import { STUDIO_LOGIN, STUDIO_SIGNUP } from "./PublicShell";
 
 export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/radar/board.json";
 
@@ -61,14 +61,18 @@ function recordExit(concept, link) {
 
 /** The board: the site's own address first (proxied to GitHub Pages), then GitHub Pages itself.
  *  Untrusted input from another host: only what sanitizeBoard keeps is ever rendered. */
+/** The server's last answer about this visitor's access (radarGate.boardAccess), for the page. */
+export let radarAccess = null;
 export async function loadBoard() {
-  // The server first (radarGate.js): the full board while the trial is open or for a subscriber;
-  // a 402 or any failure falls back to the public file below.
+  // The server first (radarGate.js): the full board during the launch trial, her own trial or her
+  // subscription; a 402 brings the teaser and why (sign in for a trial / subscribe).
   try {
     const token = await getSessionToken().catch(() => null);
     const res = await fetch("/api/store?mode=radar-board", { cache: "no-store", headers: token ? { Authorization: `Bearer ${token}` } : {} });
-    if (res.ok) {
-      const doc = sanitizeBoard((await res.json())?.board);
+    if (res.ok || res.status === 402) {
+      const body = await res.json();
+      radarAccess = res.ok ? { reason: body?.access || "open", daysLeft: Number.isFinite(body?.daysLeft) ? body.daysLeft : null } : { reason: body?.error === "subscription_required" ? "subscription_required" : "sign_in_for_trial", trialDays: Number(body?.trialDays) || 7 };
+      const doc = sanitizeBoard(res.ok ? body?.board : body?.teaser);
       if (doc) return doc;
     }
   } catch { /* no server answer: the public file */ }
@@ -412,9 +416,111 @@ function Countdown() {
   return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הבדיקה הבאה של הרדאר בעוד ", "⏰ The radar's next reading in ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
 }
 
-function Verdict({ board }) {
+/** The card for a visitor without access: sign in for her own free trial, or subscribe. */
+function AccessCard({ acc }) {
+  const { L } = useL();
+  if (acc?.reason === "subscription_required") {
+    return (
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
+        <p className="text-[22px] font-black">{L("⏳ תקופת הניסיון שלך הסתיימה", "⏳ Your trial has ended")}</p>
+        <p className="mt-1 text-[15px] leading-7">{L("הקביעות החיות, \"אולי מחר\" ו\"נולד עכשיו\" פתוחים למנויות. ההוכחה וספר הקביעות נשארים פתוחים לכולם.", "Live calls, 'maybe tomorrow' and 'born now' are for subscribers. The proof and the ledger stay open to everyone.")}</p>
+        <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 למנוי", "👉 Subscribe")}</Go>
+      </div>
+    );
+  }
+  return (
+    <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
+      <p className="text-[22px] font-black">{L(`🎁 ${acc?.trialDays || 7} ימים חינם`, `🎁 ${acc?.trialDays || 7} days free`)}</p>
+      <p className="mt-1 text-[15px] leading-7">{L("פותחים חשבון חינם ומקבלים את הרדאר המלא. בלי כרטיס אשראי. אחרי ההרשמה חוזרים לכאן.", "Open a free account and get the full radar. No card. After signing up, come back here.")}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Go to={STUDIO_SIGNUP} className="lx-btn lx-btn-ink" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 פתיחת חשבון חינם", "👉 Open a free account")}</Go>
+        <Go to={STUDIO_LOGIN} className="underline">{L("כבר יש לי חשבון", "I have an account")}</Go>
+      </div>
+    </div>
+  );
+}
+
+/** "מי זיהתה ראשונה" (radarPicks.js): pick a concept, sealed with the day, graded after 14 days. */
+const PICK_ERR = { invalid_nickname: "כינוי של 2–20 אותיות או מספרים", already_picked: "כבר בחרת את זה", too_many_open: "אפשר עד 3 בחירות פתוחות", concept_not_measured: "עוד אין מדידה למוצר הזה", subscription_required: "הבחירה פתוחה בניסיון או במנוי", unauthenticated: "צריך להתחבר" };
+function PicksBox({ board }) {
+  const { L } = useL();
+  const [table, setTable] = useState([]);
+  const [mine, setMine] = useState(null);
+  const [token, setToken] = useState(null);
+  const [concept, setConcept] = useState("");
+  const [nick, setNick] = useState("");
+  const [show, setShow] = useState(true);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = async (t) => {
+    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : [])).catch(() => {});
+    if (t) fetch("/api/store?mode=radar-board&op=mine", { headers: { Authorization: `Bearer ${t}` } }).then((r) => r.json()).then((b) => setMine(Array.isArray(b?.picks) ? b.picks : [])).catch(() => {});
+  };
+  useEffect(() => {
+    let live = true;
+    getSessionToken().catch(() => null).then((t) => { if (!live) return; setToken(t || null); load(t); });
+    return () => { live = false; };
+  }, []);
+  const options = (board?.concepts || []).filter((c) => Number(c.today?.orders) > 0).sort((a, b) => (b.early?.count || 0) - (a.early?.count || 0)).slice(0, 80);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!concept || busy) return;
+    setBusy(true); setMsg("");
+    try {
+      const res = await fetch("/api/store?mode=radar-board&op=pick", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ concept, nick, show }) });
+      const b = await res.json().catch(() => ({}));
+      if (b?.ok) { setMsg(L("🏆 נחתם! הציון ב־" + dm(b.pick?.due), "🏆 Sealed! Graded " + dm(b.pick?.due))); setConcept(""); load(token); }
+      else setMsg(L(PICK_ERR[b?.error] || "לא נשמר, נסי שוב", "Not saved, try again"));
+    } catch { setMsg(L("לא נשמר, נסי שוב", "Not saved, try again")); }
+    setBusy(false);
+  };
+  return (
+    <details className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+      <summary className="cursor-pointer text-[15px] font-extrabold">{L("🏆 מי זיהתה ראשונה? תבחרי ותראי אם צדקת", "🏆 Who spotted it first? Pick, and see if you were right")}</summary>
+      {token ? (
+        <form onSubmit={submit} className="mt-3 grid gap-2 text-[14px]">
+          <select value={concept} onChange={(e) => setConcept(e.target.value)} className="rounded-xl p-2" style={{ border: "1px solid var(--lx-line)", minHeight: 44 }} aria-label={L("מוצר", "Product")}>
+            <option value="">{L("בחרי מוצר שלדעתך יעלה", "Pick a product you think will rise")}</option>
+            {options.map((c) => <option key={c.id} value={c.id}>{c.he}</option>)}
+          </select>
+          <input value={nick} onChange={(e) => setNick(e.target.value)} placeholder={L("הכינוי שלך בטבלה", "Your nickname on the board")} maxLength={20} className="rounded-xl p-2" style={{ border: "1px solid var(--lx-line)", minHeight: 44 }} />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> {L("להופיע בטבלה בכינוי הזה", "Show me on the board by this nickname")}</label>
+          <button type="submit" disabled={!concept || busy} className="lx-btn lx-btn-ink" style={{ minHeight: 48 }}>{L("🏆 אני בוחרת", "🏆 I pick this")}</button>
+          {msg ? <p className="font-bold">{msg}</p> : null}
+          <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הבחירה נשמרת עם התאריך, ונבדקת אחרי 14 יום כמו הקביעות של הרדאר (פגיעה = +15% הזמנות). עד 3 בחירות פתוחות.", "Saved with the day and graded after 14 days like the radar's calls (hit = +15% orders). Up to 3 open picks.")}</p>
+        </form>
+      ) : (
+        <p className="mt-2 text-[14px]"><Go to={STUDIO_LOGIN} className="font-bold underline">{L("התחברי", "Sign in")}</Go>{L(" כדי לבחור ולהיכנס לטבלה.", " to pick and join the board.")}</p>
+      )}
+      {mine?.length ? (
+        <ul className="mt-3 grid gap-1 text-[13px]">
+          {mine.map((p) => <li key={p.id}>{(board?.concepts || []).find((c) => c.id === p.concept)?.he || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}</li>)}
+        </ul>
+      ) : null}
+      <p className="mt-3 text-[14px] font-extrabold">{L("הטבלה", "The board")}</p>
+      {table.length ? (
+        <ol className="mt-1 grid gap-1 text-[13px]">
+          {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
+        </ol>
+      ) : <p className="mt-1 text-[13px]">{L("עוד אין אף אחת בטבלה. הראשונה שתבחר תופיע כאן.", "Nobody on the board yet. The first to pick shows here.")}</p>}
+    </details>
+  );
+}
+
+function Verdict({ board, gated = false }) {
   const { L } = useL();
   if (!board?.early) return null;
+  if (gated) {
+    const open = board.early.open || 0;
+    return (
+      <section className="lx-wrap mt-6" id="verdict">
+        <div className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fffbeb" }}>
+          <p className="text-[18px] font-black">{open ? L(`🔒 יש עכשיו ${open} קביעות פתוחות`, `🔒 ${open} open calls right now`) : L("🔒 הקביעות החיות למנויות", "🔒 Live calls are for subscribers")}</p>
+          <p className="mt-1 text-[14px]">{L("מה הרדאר קבע נשאר חתום עד הציון. כאן למטה: ההוכחה, ספר הקביעות שכבר קיבלו ציון.", "What the radar called stays sealed until graded. Below: the proof and the graded calls.")}</p>
+        </div>
+      </section>
+    );
+  }
   // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
   const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
   // Born now: sellers rush in (listings +25%/week from a small base) before buyers search.
@@ -434,50 +540,56 @@ function Verdict({ board }) {
         {v.calls.length ? (
           <ul className="mt-3 grid gap-3">
             {v.calls.map((e) => (
-              <li key={e.concept.id} className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[22px] font-extrabold leading-8">🎯 {e.concept.he}</p>
-                  <p className="text-[13px]">{L(`${e.concept.early?.count || 4} מתוך 4 סימנים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 4} of 4 signals · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink">{L("לפרטים", "Details")}</Go>
+              <li key={e.concept.id}>
+                <p className="text-[16px] font-extrabold">{L("🟢 היום הרדאר קבע:", "🟢 Today the radar called:")}</p>
+                <p className="mt-1 text-[30px] font-black leading-9">{e.concept.he}</p>
+                <p className="mt-1 text-[16px] leading-7">{L("מתחיל לעלות בעולם, ובעברית עוד כמעט לא מחפשים.", "Rising worldwide, barely searched in Hebrew yet.")}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Go to={`/radar#${e.concept.id}`} className="lx-btn lx-btn-ink" style={{ minHeight: 52, fontSize: 17 }}>{L("👉 מה לעשות עכשיו", "👉 What to do now")}</Go>
                   <ShareButton path="/radar" title={shareTitle(e)} variant="button" />
                 </div>
+                <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${e.concept.early?.count || 4} מתוך 4 סימנים · חתום היום · הציון ב־${dm(e.due)}`, `${e.concept.early?.count || 4} of 4 signals · sealed today · graded ${dm(e.due)}`)}{e.concept.early?.beforeAll ? L(" · 🚀 לפני כולם", " · 🚀 before everyone") : ""}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-[16px] font-bold leading-7">{L("היום אין קביעה חדשה. במצב צלף הרדאר קובע רק כשכל 4 הסימנים מסכימים, ו־3 מהם הופיעו כבר בבדיקה הקודמת. עדיף לשתוק מאשר לנחש.", "No new call today. In sniper mode the radar calls only when all four signals agree and three already showed in the previous reading. Silence beats a guess.")}{v.latestOpen ? L(` הקביעה הפתוחה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, היום ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז הקביעה` : ""}, הציון ב־${dm(v.latestOpen.due)}).`, ` Latest open call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since the call today` : ""}, graded ${dm(v.latestOpen.due)}).`) : ""}</p>
+          <div className="mt-2">
+            <p className="text-[22px] font-black leading-8">{L("⚪ היום אין קביעה חדשה", "⚪ No new call today")}</p>
+            <p className="mt-1 text-[15px] leading-7">{L("הרדאר קובע רק כשכל 4 הסימנים מסכימים. בודקים שוב מחר בבוקר.", "The radar calls only when all four signals agree. Check again tomorrow morning.")}</p>
+            {v.latestOpen ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הקביעה האחרונה: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% מאז` : ""}).`, `Latest call: ${v.latestOpen.concept.he} (${dm(v.latestOpen.at)}${v.latestOpen.progress !== null ? `, ${v.latestOpen.progress > 0 ? "+" : ""}${v.latestOpen.progress}% since` : ""}).`)}</p> : null}
+          </div>
         )}
         {brink.length ? (
           <div className="mt-4">
-            <p className="text-[14px] font-extrabold">{L("🔥 על סף קביעה: 3 מתוך 4 סימנים", "🔥 On the brink: 3 of 4 signals")}</p>
+            <p className="text-[14px] font-extrabold">{L("🟡 אולי מחר: חסר רק סימן אחד", "🟡 Maybe tomorrow: one signal missing")}</p>
             <ul className="mt-1 grid gap-1 text-[13px]">
               {brink.map((c) => {
                 const missing = Object.entries(c.early.signals || {}).filter(([, v]) => !v).map(([k]) => SIGNAL_HE[k]).join(", ");
-                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}. הבדיקה של מחר תגיד אם זה הופך לקביעה.`, ` · missing: ${missing}. Tomorrow's reading decides.`)}</li>;
+                return <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · חסר: ${missing}`, ` · missing: ${missing}`)}</li>;
               })}
             </ul>
           </div>
         ) : null}
         {born.length ? (
           <div className="mt-4">
-            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
+            <p className="text-[14px] font-extrabold">{L("🐣 נולד עכשיו: המוכרים כבר ממהרים, הקונים עוד לא", "🐣 Born now: sellers rush in, buyers not yet")}</p>
             <ul className="mt-1 grid gap-1 text-[13px]">
               {born.map((c) => <li key={c.id}><Go to={`/radar#${c.id}`} className="font-bold underline">{c.he}</Go>{L(` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% מודעות בשבוע (${c.factory.from.toLocaleString("he-IL")} → ${c.factory.to.toLocaleString("he-IL")} ב־${c.factory.days} ימים)`, ` · ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% listings a week (${c.factory.from} → ${c.factory.to} in ${c.factory.days} days)`)}</li>)}
             </ul>
             <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מפעלים ומוכרים מעלים מוצר חדש לפני שמחפשים אותו. זה הסימן הכי מוקדם שהרדאר מודד.", "Factories and sellers list a new product before people search for it: the earliest sign the radar measures.")}</p>
           </div>
         ) : null}
+        <PicksBox board={board} />
         {board.early.calibration ? (
-          <div className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
-            <p className="font-extrabold">{L("📏 כמה פעמים כל סוג קביעה פגע", "📏 How often each kind of call hit")}</p>
+          <details className="mt-4 rounded-2xl p-3 text-[13px] leading-6" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+            <summary className="cursor-pointer font-extrabold">{L("📏 ההוכחה: כמה פעמים הרדאר פגע", "📏 The proof: how often the radar hit")}</summary>
+            
             {[["sniper", L("🎯 קביעת צלף (כל 4 הסימנים)", "🎯 Sniper call (all four signals)")], ["signal", L("📈 סימון רגיל (ביקוש בלבד)", "📈 Ordinary signal (demand only)")]].map(([k, label]) => {
               const r = board.early.calibration[k];
               return <p key={k}>{label}: {r.graded ? L(`פגע ${r.hits} מתוך ${r.graded} (${r.accuracy}%)`, `hit ${r.hits} of ${r.graded} (${r.accuracy}%)`) : L(`עוד אין ציונים${r.pending ? ` (${r.pending} מחכות לבדיקה)` : ""}`, `no grades yet${r.pending ? ` (${r.pending} awaiting)` : ""}`)}</p>;
             })}
             <p style={{ color: "var(--lx-muted)" }}>{L("הרדאר מבדיל בין סימון רגיל לקביעת צלף, וכאן רואים כמה פעמים כל אחד מהם באמת פגע. כל קביעה נמדדת כל יום, והציון הסופי נכתב אחרי 14 יום ונשאר גלוי.", "The radar tells an ordinary signal from a sniper call, and here you see how often each really hit. Every call is measured daily; the final grade is written after 14 days and stays public.")}</p>
-          </div>
+          </details>
         ) : null}
         {ledger.length ? (
           <details className="mt-4">
@@ -529,20 +641,9 @@ export function RadarPage() {
 
   // After the owner's trial, while billing is on (accessOf.locked), the results are for subscribers;
   // everyone else gets the upgrade screen. The server decides who is subscribed (sub=radar-get).
-  const { settings } = useMarketplace();
-  const access = accessOf(settings);
-  const [subscribed, setSubscribed] = useState(null);
-  useEffect(() => {
-    if (!access.locked) return undefined;
-    let live = true;
-    (async () => {
-      const token = (await getSessionToken().catch(() => null)) || "";
-      const r = token ? await fetchRadarSubscription(token).catch(() => null) : null;
-      if (live) setSubscribed(Boolean(r?.access));
-    })();
-    return () => { live = false; };
-  }, [access.locked]);
-  const gated = access.locked && subscribed !== true;
+  // The server decides (radarGate.boardAccess): the launch trial, her own trial, her subscription.
+  const acc = board === undefined ? null : radarAccess;
+  const gated = acc?.reason === "sign_in_for_trial" || acc?.reason === "subscription_required";
 
   const concepts = board?.concepts || [];
   const kinds = useMemo(() => [...new Set(concepts.map((c) => c.kind).filter((k) => KINDS[k]))], [concepts]);
@@ -569,7 +670,7 @@ export function RadarPage() {
           <p className="lx-kicker mb-3"><Radar size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · חינם בתקופת הניסיון", "New on LikeLink2 · free during the trial")}</p>
           <h1 className="lx-profile-name">{L("רדאר הטרנדים ✨", "The trend radar ✨")}</h1>
           <p className="mt-3 max-w-2xl text-[16px] leading-7">
-            {L("מה מתחיל לעלות בעולם, לפני שזה הופך ללהיט. כל יום הרדאר בודק חיפושים בגוגל וביוטיוב בארה״ב, בריטניה, קנדה ואוסטרליה, את החיפושים החמים של גוגל באותן מדינות, ואת קצב ההזמנות באליאקספרס. מוצר שמתחיל לעלות בעולם, הוא מוצא באליאקספרס ומראה לך את המספרים.", "What is starting to rise worldwide, before it becomes a hit. Every day the radar reads Google and YouTube searches in the US, UK, Canada and Australia, Google's trending searches there, and the pace of orders on AliExpress; a product rising in the world is found on AliExpress, with the numbers.")}
+            {L("מה מתחיל לעלות בעולם, לפני שזה הופך ללהיט. כל בוקר הרדאר בודק את העולם, קובע רק כשכל 4 הסימנים מסכימים, וחותם כל קביעה מראש.", "What is starting to rise worldwide, before it becomes a hit. Every morning the radar reads the world, calls only when all four signals agree, and seals every call in advance.")}
           </p>
           <button type="button" onClick={press} className="lx-btn lx-btn-ink mt-6" style={{ minHeight: 56, fontSize: 18, padding: "10px 28px" }}>
             <Sparkles size={18} aria-hidden="true" /> {L("מה הולך להיות להיט?", "What's about to be a hit?")}
@@ -579,12 +680,18 @@ export function RadarPage() {
         </div>
       </section>
 
-      <Verdict board={board} />
+      {acc?.reason === "trial" ? (
+        <div className="lx-wrap mt-6"><p className="rounded-2xl p-3 text-[15px] font-bold" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🎁 את בניסיון חינם: נשארו לך ${acc.daysLeft} ימים.`, `🎁 You're on a free trial: ${acc.daysLeft} days left.`)} <Go to="/radar-pro#radar-tiers" className="underline">{L("למסלולים", "See the plans")}</Go></p></div>
+      ) : null}
+      {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
+      <Verdict board={board} gated={gated} />
 
-      <section className="lx-wrap mt-8">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <section className="lx-wrap mt-6">
+        <details className="lx-card p-4" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
+          <summary className="cursor-pointer text-[16px] font-extrabold">{L("❓ איך הרדאר עובד? (4 צעדים, דקה קריאה)", "❓ How does the radar work? (4 steps, one minute)")}</summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           {[
-            [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("חיפושים בגוגל וביוטיוב בארה״ב, בריטניה, קנדה ואוסטרליה, והחיפושים החמים של גוגל. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "About 60 kinds of products on AliExpress: the top 20 items' orders, the number of listings and the price.")],
+            [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("גוגל ב־8 מדינות, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים של גוגל ב־10 מדינות. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "Google in 8 countries, Baidu in China, Naver in Korea, YouTube and Google's trending searches in 10 countries; what starts rising there is found on AliExpress: the top 20 items' orders, the listings and the price.")],
             [L("2. מהירות, לא גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. פריט ויראלי אחד לא מספיק.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
             [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ועוד לא מחפשים כאן? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
             [L("4. הרדאר בודק את עצמו", "4. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],
@@ -619,17 +726,11 @@ export function RadarPage() {
             )}
           </div>
         </div>
+        </details>
       </section>
 
       <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
         <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("מה הרדאר רואה עכשיו", "What the radar sees now")}</h2>
-        {gated ? (
-          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
-            <p className="text-[18px] font-extrabold">{L("תקופת הניסיון הסתיימה", "The trial has ended")}</p>
-            <p className="mt-1 text-[14px] leading-6">{L("הלוח המלא של הרדאר זמין עכשיו במנוי Basic או Pro. הבדיקה העצמית הפומבית נשארת פתוחה לכולם.", "The full radar board is now available with Basic or Pro. The public self-grading stays open to everyone.")}</p>
-            <Go to="/radar-pro#radar-tiers" className="lx-btn lx-btn-ink mt-3" style={{ minHeight: 48 }}>{L("למסלולים", "See the plans")}</Go>
-          </div>
-        ) : null}
         {!gated && board === undefined ? <div className="mt-6"><Spinner /></div> : null}
         {!gated && board === null ? <p className="mt-4">{L("הרדאר מתחיל למדוד. התוצאות הראשונות יופיעו כאן בקרוב.", "The radar is starting to measure. The first results will show here soon.")}</p> : null}
         {!gated && board ? (

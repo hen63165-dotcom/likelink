@@ -27,10 +27,18 @@ on:
       - src/lib/cloud/catalogArchive.js
       - scripts/catalog/push-archive.mjs
       - .github/workflows/trend-radar.yml
+      - scripts/catalog/radar-state.mjs
+      - scripts/catalog/push-board.mjs
+      - scripts/catalog/radar-alert.mjs
+      - src/lib/growth/radarGate.js
+      - src/lib/growth/radarBoard.js
 permissions:
   contents: write
 concurrency:
-  group: trend-radar
+  # One run at a time per branch: a branch push must never cancel main's pending run (15.11: the
+  # run for #182's merge was cancelled by a branch run queued behind it, so the board never reached
+  # the cloud that evening).
+  group: trend-radar-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   read:
@@ -47,11 +55,18 @@ jobs:
         with:
           node-version: 22
       - name: The history so far
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
           mkdir -p radar-state
           if gh release view radar >/dev/null 2>&1; then
             gh release download radar --dir radar-state --pattern '*.json' --clobber || true
+            # The private state (scripts/catalog/radar-state.mjs): one encrypted file wins over any
+            # older plaintext asset.
+            gh release download radar --dir radar-state --pattern state.enc --clobber || true
           fi
+          node scripts/catalog/radar-state.mjs unpack radar-state
+          rm -f radar-state/board-public.json radar-state/briefs-public.json
           ls -la radar-state
       - name: Today's reading
         run: |
@@ -86,14 +101,21 @@ jobs:
         run: |
           node scripts/catalog/radar-alert.mjs radar-state | tee -a /tmp/radar.txt
           { echo "### Morning alert"; echo '```'; grep -A8 "radar alert:" /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - name: Keep the history and the board
+      - name: Keep the history (encrypted) and the public board
+        # scripts/catalog/radar-state.mjs: every state file in one encrypted state.enc (the releases
+        # are public); board-public.json is the full board only while the server says the trial is
+        # open, else the teaser (no live call); briefs-public.json (the kits) only while open.
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
-          files="radar-state/readings.json radar-state/calls.json radar-state/awareness.json radar-state/world.json radar-state/discovered.json radar-state/items.json radar-state/catalog.json radar-state/briefs.json radar-state/catalog-decisions.json radar-state/board.json"
-          [ -f radar-state/alerts.json ] && files="$files radar-state/alerts.json"
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            gh release view radar >/dev/null 2>&1 || gh release create radar --prerelease --title "Trend radar (state)" --notes "The trend radar's daily readings (AliExpress's own numbers), the Israel gap (Google autocomplete levels, never texts), its public self-grading calls and the board the /radar page reads. Written by .github/workflows/trend-radar.yml."
-            gh release upload radar $files --clobber
-          else
-            gh release view radar-preview >/dev/null 2>&1 || gh release create radar-preview --prerelease --title "Trend radar (branch preview)" --notes "A branch run of the trend radar, for review. The site never reads this release; the live board is the radar release, written from main only."
-            gh release upload radar-preview $files --clobber
-          fi
+          node scripts/catalog/radar-state.mjs pack radar-state
+          files="radar-state/state.enc radar-state/board-public.json"
+          [ -f radar-state/briefs-public.json ] && files="$files radar-state/briefs-public.json"
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then rel=radar; else rel=radar-preview; fi
+          gh release view $rel >/dev/null 2>&1 || gh release create $rel --prerelease --title "Trend radar (state)" --notes "The trend radar's state, encrypted (state.enc), and the public board (board-public.json). Written by .github/workflows/trend-radar.yml."
+          gh release upload $rel $files --clobber
+          # The older plaintext assets now live inside state.enc: remove them from the public release.
+          [ -f radar-state/briefs-public.json ] || gh release delete-asset $rel briefs-public.json -y 2>/dev/null || true
+          for f in readings calls awareness world discovered items catalog briefs catalog-decisions board alerts; do
+            gh release delete-asset $rel "$f.json" -y 2>/dev/null || true
+          done
