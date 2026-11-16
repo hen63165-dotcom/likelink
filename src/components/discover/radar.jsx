@@ -440,6 +440,21 @@ function AccessCard({ acc }) {
   );
 }
 
+// The duel from the server (radarPicks.js duelOf), numbers and ids only.
+const DUEL_ID = /^[a-z0-9][a-z0-9-]{1,40}$/;
+const n0 = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const side = (x) => ({ hits: n0(x?.hits), graded: n0(x?.graded), open: n0(x?.open), players: n0(x?.players) });
+function cleanDuel(d) {
+  if (!d || typeof d !== "object") return null;
+  const dayOk = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+  return {
+    radar: side(d.radar), crowd: side(d.crowd),
+    leader: ["radar", "crowd", "tie"].includes(d.leader) ? d.leader : null,
+    firstDue: dayOk(d.firstDue),
+    recent: (Array.isArray(d.recent) ? d.recent : []).filter((r) => DUEL_ID.test(String(r?.concept || "")) && dayOk(r?.at)).slice(0, 14).map((r) => ({ concept: r.concept, at: dayOk(r.at), due: dayOk(r.due), result: r.result === "HIT" || r.result === "MISS" ? r.result : null, growth: Number.isFinite(Number(r.growth)) ? Number(r.growth) : null })),
+  };
+}
+
 /** "מי זיהתה ראשונה" (radarPicks.js): pick a concept, sealed with the day, graded after 14 days. */
 const PICK_ERR = { invalid_nickname: "כינוי של 2–20 אותיות או מספרים", already_picked: "כבר בחרת את זה", too_many_open: "אפשר עד 3 בחירות פתוחות", concept_not_measured: "עוד אין מדידה למוצר הזה", subscription_required: "הבחירה פתוחה בניסיון או במנוי", unauthenticated: "צריך להתחבר" };
 function PicksBox({ board }) {
@@ -447,6 +462,9 @@ function PicksBox({ board }) {
   const [table, setTable] = useState([]);
   const [pickSeal, setPickSeal] = useState(null);
   const [mine, setMine] = useState(null);
+  const [duel, setDuel] = useState(null);
+  const [beat, setBeat] = useState(false);
+  const box = useRef(null);
   const [token, setToken] = useState(null);
   const [concept, setConcept] = useState("");
   const [nick, setNick] = useState("");
@@ -454,8 +472,8 @@ function PicksBox({ board }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const load = async (t) => {
-    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => { setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : []); const s = b?.seal; setPickSeal(s && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? { d: s.d, sha256: s.sha256, text: typeof s.text === "string" && /^[\p{L}\p{N} |._\n-]*$/u.test(s.text) ? s.text : null, ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"].includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || ""))).slice(0, 2) } : null); }).catch(() => {});
-    if (t) fetch("/api/store?mode=radar-board&op=mine", { headers: { Authorization: `Bearer ${t}` } }).then((r) => r.json()).then((b) => setMine(Array.isArray(b?.picks) ? b.picks : [])).catch(() => {});
+    fetch("/api/store?mode=radar-board&op=leaderboard").then((r) => r.json()).then((b) => { setTable(Array.isArray(b?.table) ? b.table.slice(0, 10) : []); setDuel(cleanDuel(b?.duel)); const s = b?.seal; setPickSeal(s && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? { d: s.d, sha256: s.sha256, text: typeof s.text === "string" && /^[\p{L}\p{N} |._\n-]*$/u.test(s.text) ? s.text : null, ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"].includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || ""))).slice(0, 2) } : null); }).catch(() => {});
+    if (t) fetch("/api/store?mode=radar-board&op=mine", { headers: { Authorization: `Bearer ${t}` } }).then((r) => r.json()).then((b) => { setMine(Array.isArray(b?.picks) ? b.picks : []); setBeat(b?.beat === true); }).catch(() => {});
   };
   useEffect(() => {
     let live = true;
@@ -475,8 +493,27 @@ function PicksBox({ board }) {
     } catch { setMsg(L("נסי שוב בעוד רגע", "Not saved, try again")); }
     setBusy(false);
   };
+  const name = (id) => (board?.concepts || []).find((c) => c.id === id)?.he || null;
+  const today = String(board?.at || "").slice(0, 10);
+  const radarToday = (duel?.recent || []).find((r) => r.at === today && !r.result);
+  const lead = !duel ? null : duel.leader === "radar" ? L("🤖 הרדאר מוביל כרגע", "🤖 The radar leads") : duel.leader === "crowd" ? L("🇮🇱 ישראל מובילה כרגע", "🇮🇱 Israel leads") : duel.leader === "tie" ? L("🤝 תיקו כרגע", "🤝 A tie for now") : duel.firstDue ? L(`⏳ הציונים הראשונים של הדו־קרב ב־${dm(duel.firstDue)}`, `⏳ The duel's first grades land on ${dm(duel.firstDue)}`) : L("⏳ הדו־קרב מתחיל עם הבחירה הראשונה של הרדאר בבוקר", "⏳ The duel starts with the radar's first pick in the morning");
   return (
-    <details className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+    <>
+    <div className="mt-4 rounded-2xl p-4" id="duel" style={{ background: "#0b0b0b", color: "#fff" }}>
+      <p className="text-[18px] font-black">{L("🤖 הרדאר נגד ישראל 🇮🇱", "🤖 The radar vs Israel 🇮🇱")}</p>
+      <p className="mt-1 text-[13px]" style={{ opacity: 0.85 }}>{L("כל בוקר הרדאר חותם בביטקוין בחירה אחת, וכל אחת ואחד יכולים לבחור נגדו. אחרי 14 יום כולם מקבלים ציון בפומבי, באותם כללים (פגיעה = +15% הזמנות).", "Every morning the radar seals one pick in Bitcoin, and anyone can pick against it. After 14 days everyone is graded in public by the same rules (hit = +15% orders).")}</p>
+      {duel ? (
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[14px] font-bold">
+          <div className="rounded-xl p-3" style={{ background: "#1f2937" }}>{L("🤖 הרדאר", "🤖 The radar")}<br /><span className="text-[22px] font-black">{duel.radar.hits}/{duel.radar.graded}</span><br /><span className="text-[12px]" style={{ opacity: 0.8 }}>{L(`פגיעות · ${duel.radar.open} פתוחות`, `hits · ${duel.radar.open} open`)}</span></div>
+          <div className="rounded-xl p-3" style={{ background: "#1f2937" }}>{L(`🇮🇱 ישראל (${duel.crowd.players})`, `🇮🇱 Israel (${duel.crowd.players})`)}<br /><span className="text-[22px] font-black">{duel.crowd.hits}/{duel.crowd.graded}</span><br /><span className="text-[12px]" style={{ opacity: 0.8 }}>{L(`פגיעות · ${duel.crowd.open} פתוחות`, `hits · ${duel.crowd.open} open`)}</span></div>
+        </div>
+      ) : null}
+      <p className="mt-2 text-[14px] font-extrabold" style={{ color: "#fbbf24" }}>{lead}</p>
+      {radarToday && name(radarToday.concept) ? <p className="mt-1 text-[14px]">{L(`🤖 הבחירה של הרדאר היום: ${name(radarToday.concept)} · הציון ב־${dm(radarToday.due)}`, `🤖 The radar's pick today: ${name(radarToday.concept)} · graded ${dm(radarToday.due)}`)}</p> : null}
+      {(duel?.recent || []).filter((r) => r.result).slice(0, 3).map((r) => <p key={r.at + r.concept} className="mt-1 text-[13px]" style={{ opacity: 0.9 }}>{dm(r.at)} · {name(r.concept) || r.concept} · {RESULT_HE[r.result]} ({r.growth > 0 ? "+" : ""}{r.growth}%)</p>)}
+      <button type="button" onClick={() => { if (box.current) { box.current.open = true; box.current.scrollIntoView({ behavior: "smooth", block: "start" }); } }} className="lx-btn mt-3" style={{ minHeight: 48, background: "#fbbf24", color: "#0b0b0b", fontWeight: 900 }}>{L("🏆 לבחור נגד הרדאר", "🏆 Pick against the radar")}</button>
+    </div>
+    <details ref={box} id="picks" className="mt-4 rounded-2xl p-3" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
       <summary className="cursor-pointer text-[15px] font-extrabold">{L("🏆 מי זיהתה ראשונה? תבחרי ותראי אם צדקת", "🏆 Who spotted it first? Pick, and see if you were right")}</summary>
       {token ? (
         <form onSubmit={submit} className="mt-3 grid gap-2 text-[14px]">
@@ -495,13 +532,16 @@ function PicksBox({ board }) {
       )}
       {mine?.length ? (
         <ul className="mt-3 grid gap-1 text-[13px]">
-          {mine.map((p) => <li key={p.id}>{(board?.concepts || []).find((c) => c.id === p.concept)?.he || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}</li>)}
+          {mine.map((p) => <li key={p.id} className="flex flex-wrap items-center gap-2">{name(p.concept) || p.concept} · {dm(p.at)} · {p.result ? `${RESULT_HE[p.result]} (${p.growth > 0 ? "+" : ""}${p.growth}%)` : L(`⏳ הציון ב־${dm(p.due)}`, `⏳ graded ${dm(p.due)}`)}{p.result === "HIT" ? <ShareButton path="/radar#duel" title={beat ? L(`🤖 ניצחתי את הרדאר! זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. מי מנסה לנצח אותו?`, `🤖 I beat the radar! I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`) : L(`🏆 זיהיתי את ${name(p.concept) || p.concept} ב־${dm(p.at)}, הבחירה חתומה מראש בביטקוין, ותוך 14 יום: +${p.growth}% הזמנות. מי מנסה לנצח את הרדאר?`, `🏆 I spotted ${name(p.concept) || p.concept} on ${dm(p.at)}, sealed in advance in Bitcoin: +${p.growth}% orders in 14 days.`)} /> : null}</li>)}
         </ul>
+      ) : null}
+      {beat ? (
+        <p className="mt-2 text-[15px] font-black">{L("🤖 ניצחת את הרדאר! הדיוק שלך גבוה משלו, בבחירות שנחתמו מראש.", "🤖 You beat the radar! Your accuracy is higher than its, on picks sealed in advance.")}</p>
       ) : null}
       <p className="mt-3 text-[14px] font-extrabold">{L("הטבלה", "The board")}</p>
       {table.length ? (
         <ol className="mt-1 grid gap-1 text-[13px]">
-          {table.map((r) => <li key={r.rank}>{r.rank}. {r.nick}{r.verified ? L(" ✅ צופה מאומתת", " ✅ verified scout") : ""} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.accuracy !== null && r.accuracy !== undefined ? ` (${r.accuracy}%)` : ""}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
+          {table.map((r) => <li key={r.rank}>{r.rank}. {r.bot ? "🤖 " : ""}{r.nick}{r.verified ? L(" ✅ צופה מאומתת", " ✅ verified scout") : ""} · {L(`פגעה ${r.hits} מתוך ${r.graded}`, `hit ${r.hits} of ${r.graded}`)}{r.accuracy !== null && r.accuracy !== undefined ? ` (${r.accuracy}%)` : ""}{r.open ? L(` · ${r.open} פתוחות`, ` · ${r.open} open`) : ""}</li>)}
         </ol>
       ) : <p className="mt-1 text-[13px]">{L("הראשונה שתבחר תופיע כאן, בראש הטבלה.", "Nobody on the board yet. The first to pick shows here.")}</p>}
       <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("✅ צופה מאומתת: לפחות 3 פגיעות ו־60% דיוק, רק מבחירות שנחתמו מראש. אי אפשר לזייף את זה.", "✅ Verified scout: at least 3 hits at 60%+, only from picks sealed in advance. It cannot be faked.")}</p>
@@ -513,6 +553,7 @@ function PicksBox({ board }) {
         </p>
       ) : null}
     </details>
+    </>
   );
 }
 
