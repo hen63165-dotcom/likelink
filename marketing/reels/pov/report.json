@@ -1,27 +1,20 @@
 [
   {
-    "id": "ae-1005008742678061",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
+    "id": "watch-strap-1005001805140014",
+    "status": "RENDERED",
+    "pov": "POV: כשהשעון הישן מקבל רצועה חדשה",
+    "shots": 13,
+    "seconds": 13,
+    "wide": true,
+    "storeTitle": "רצועת שעון מתכת פלדת אל-חלד לנשים וגברים בגדלים 18 20 21 22 23 24 מילימטר עם אביזרי החלפה"
   },
   {
-    "id": "ae-1005006678126295",
-    "status": "FAILED",
-    "reason": "Command failed: ffmpeg -y -loglevel error -f concat -safe 0 -i pov-reels-out/work/ae-1005006678126295-list.txt -c copy pov-reels-out/work/ae-1005006678126295-cut.mp4\n[concat @ 0x577d06734f00] Impossib"
-  },
-  {
-    "id": "ae-1005012061688172",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
-  },
-  {
-    "id": "p-live-05",
-    "status": "NO_SELLER_VIDEO",
-    "reason": ""
-  },
-  {
-    "id": "p-live-04",
-    "status": "FAILED",
-    "reason": "Command failed: ffmpeg -y -loglevel error -f concat -safe 0 -i pov-reels-out/work/p-live-04-list.txt -c copy pov-reels-out/work/p-live-04-cut.mp4\n[concat @ 0x5ae78c778f00] Impossible to open 'pov-reel"
+    "id": "pet-carrier-1005004577771483",
+    "status": "RENDERED",
+    "pov": "POV: כשהחתול יוצא איתך בסטייל",
+    "shots": 13,
+    "seconds": 13,
+    "wide": true,
+    "storeTitle": "Puppy Go Out תיק כתף נייד תיק כלב לחיות מחמד חתול צ'יוואווה יורקשייר ציוד לכלבים מתאים לכלבים קטנים מנשא לכלבים"
   }
 ]
