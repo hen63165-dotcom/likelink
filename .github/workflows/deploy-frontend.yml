@@ -195,6 +195,14 @@ jobs:
           else echo "::notice::no public kits (the radar is for subscribers)"; fi
           ls -la dist/radar dist/radar/kits
 
+      - name: The radar's morning story (→ /radar-story/, posted by the owner from her phone)
+        # src/lib/growth/radarStory.js + scripts/marketing/radar-story.mjs: one 1080×1920 picture
+        # from the public board (what the radar called today, or plainly nothing), the link for the
+        # link sticker and the steps. Rendered with the Chrome the TikTok kit installed. Nothing is
+        # posted from here.
+        continue-on-error: true
+        run: PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright node scripts/marketing/radar-story.mjs dist || echo "::warning::radar story skipped"
+
       - name: Publish dist to gh-pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
