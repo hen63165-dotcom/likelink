@@ -127,7 +127,10 @@ export function buildProductSeo(c) {
       "@context": "https://schema.org",
       "@type": "Product",
       name: c.title,
-      ...(c.description ? { description: c.description } : {}),
+      // Google Search Console (2026-11-16, merchant listings): "missing field description" is a
+      // critical issue, so a product without its own description gets the page's own true summary
+      // (its title, the store price and who recommends it), never invented text.
+      description: c.description || description,
       ...(c.image ? { image: c.image } : {}),
       url,
       ...(c.category ? { category: c.category } : {}),
