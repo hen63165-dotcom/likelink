@@ -1,6 +1,7 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
+import { hotOnlyPool } from "../src/lib/growth/hotGate.js";
 import { pitchFor } from "../src/lib/growth/postPitches.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
@@ -1082,7 +1083,15 @@ export async function runOne(store, marketerId, cfg, origin) {
   const sharedLinks = sharedAffiliateLinks(allProducts);
   // Catalog integrity: a product whose affiliate link is shared by other
   // products (it opens the store home page) is never promoted.
-  const pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved" && isPromotable(p, allProducts, sharedLinks));
+  let pool = allProducts.filter((p) => p.marketerId === marketerId && p.status === "approved" && isPromotable(p, allProducts, sharedLinks));
+  // Hot-only (src/lib/growth/hotGate.js): the owner's channel posts only products the radar keeps today
+  // (all 8 criteria: hot now, rising, not saturated in Israel …); none → nothing is posted.
+  let hotReason = null;
+  if (cfg.hotOnly === true || marketerId === (process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5")) {
+    const gate = hotOnlyPool(pool, await kvGet("radar:board", null).catch(() => null));
+    pool = gate.pool;
+    hotReason = gate.reason;
+  }
   const product = pickProduct(cfg, pool);
 
   // If a real UGC asset exists for this product, use it for image-capable
@@ -1107,7 +1116,7 @@ export async function runOne(store, marketerId, cfg, origin) {
 
   if (!product) {
     cfg.logs = [
-      { ts: Date.now(), ok: false, channel: "-", detail: "no products in pool", text: "" },
+      { ts: Date.now(), ok: false, channel: "-", detail: hotReason ? `hot-only: ${hotReason}` : "no products in pool", text: "" },
       ...(cfg.logs || []),
     ].slice(0, MAX_LOGS_PER_CREATOR);
     return { ok: false, error: "no products" };
