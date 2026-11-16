@@ -45,10 +45,13 @@ jobs:
           ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
           ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
           ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
-          MODE: ${{ inputs.mode || 'render' }}
-          LIMIT: ${{ inputs.limit || '40' }}
+          MODE: ${{ inputs.mode }}
+          LIMIT: ${{ inputs.limit }}
         run: |
           set -o pipefail
+          # A push runs what scripts/marketing/pov-reels/run.json says (the workflow is not on main yet).
+          [ -n "$MODE" ] || MODE=$(node -p 'require("./scripts/marketing/pov-reels/run.json").mode || "render"')
+          [ -n "$LIMIT" ] || LIMIT=$(node -p 'require("./scripts/marketing/pov-reels/run.json").limit || 40')
           if [ "$MODE" = "sheets" ]; then
             node scripts/marketing/pov-reel.mjs --sheets pov-reels-out "$LIMIT" | tee /tmp/report.txt
           else

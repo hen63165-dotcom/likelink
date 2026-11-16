@@ -14,7 +14,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { HOOK_FORBIDDEN } from "../../src/lib/growth/likeloop.js";
 import { DROP_FORBIDDEN } from "../../src/lib/growth/dailyDrop.js";
@@ -126,7 +126,7 @@ export async function renderPov({ page, job, clip, work, out }) {
     return seg;
   });
   const list = join(work, `${job.id}-list.txt`);
-  writeFileSync(list, segs.map((s) => `file '${s}'`).join("\n"));
+  writeFileSync(list, segs.map((s) => `file '${resolve(s)}'`).join("\n")); // the concat list resolves paths from its own folder
   const cut = join(work, `${job.id}-cut.mp4`);
   ff(["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", cut]);
   await page.setContent(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><style>${fontFaces()}${CSS}</style></head><body>${overlayHtml(job)}</body></html>`);
@@ -163,6 +163,29 @@ async function download(url, file) {
   writeFileSync(file, Buffer.from(await res.arrayBuffer()));
 }
 
+/** The store's video for a product: the affiliate API's answer, else the seller video the catalog sync kept. */
+async function findVideo(p, storeVideo, kept = new Map()) {
+  await new Promise((r) => setTimeout(r, 1500));
+  let v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
+  if (v.status === "ERROR" && /ApiCallLimit/.test(v.reason)) {
+    await new Promise((r) => setTimeout(r, 3000));
+    v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
+  }
+  if (v.status === "FOUND") return v;
+  const url = p.sellerVideo?.url || kept.get(String(p.id))?.sellerVideo?.url || "";
+  if (/^https:\/\/video\.aliexpress-media\.com\/\S+\.mp4$/.test(url)) return { status: "FOUND", video: url, title: String(p.storeTitle || p.title || ""), from: "catalog" };
+  return v;
+}
+
+function keptCatalog() {
+  try {
+    const doc = JSON.parse(readFileSync("public/snapshot/kv.json", "utf8"));
+    const raw = doc.keys?.["marketplace:products"];
+    const list = typeof raw === "string" ? JSON.parse(raw) : raw || [];
+    return new Map(list.map((p) => [String(p.id), p]));
+  } catch { return new Map(); }
+}
+
 /** Products worth a POV reel: approved, an AliExpress link, not archived. */
 export function sheetCandidates(products = []) {
   return products.filter((p) => p?.id && p.status === "approved" && /aliexpress/i.test(String(p.affiliateUrl || "")));
@@ -175,10 +198,9 @@ async function sheetsMode(out, limit) {
   mkdirSync(work, { recursive: true });
   const list = sheetCandidates(await cloudProducts()).slice(0, limit);
   const report = [];
+  const kept = keptCatalog();
   for (const p of list) {
-    await new Promise((r) => setTimeout(r, 1500));
-    let v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
-    if (v.status === "ERROR" && /ApiCallLimit/.test(v.reason)) { await new Promise((r) => setTimeout(r, 3000)); v = await storeVideo(p).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) })); }
+    const v = await findVideo(p, storeVideo, kept);
     if (v.status !== "FOUND") { report.push({ id: p.id, status: v.status }); continue; }
     try {
       const clip = join(work, `${p.id}-src.mp4`);
@@ -215,13 +237,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href &
     if (!product) problems.push("not in the cloud catalog");
     if (problems.length) { report.push({ id: job.id, status: "REFUSED", problems }); continue; }
     try {
-      // The store allows about one call a second: wait between items, and retry once after a ban.
-      await new Promise((r) => setTimeout(r, 1500));
-      let v = await storeVideo(product).catch((e) => ({ status: "ERROR", reason: String(e?.message || e) }));
-      if (v.status === "ERROR" && /ApiCallLimit/.test(v.reason)) {
-        await new Promise((r) => setTimeout(r, 3000));
-        v = await storeVideo(product);
-      }
+      // The store allows about one call a second (findVideo waits and retries once after a ban).
+      const v = await findVideo(product, storeVideo, keptCatalog());
       if (v.status !== "FOUND") { report.push({ id: job.id, status: v.status, reason: v.reason || "" }); continue; }
       const clip = join(work, `${job.id}-src.mp4`);
       await download(v.video, clip);
