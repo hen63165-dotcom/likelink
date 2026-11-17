@@ -14,7 +14,7 @@
     { "id": "mini-food-squishy-set", "he": "סט סקווישי אוכל מיני", "en": "mini food squishy set", "kind": "kids", "hq": ["סקווישי אוכל"], "zh": "迷你食物捏捏乐", "ko": "미니 음식 말랑이" },
     { "id": "fidget-blind-box", "he": "קופסת הפתעה של צעצועי לחיצה", "en": "fidget toy blind box", "kind": "kids", "hq": ["קופסת הפתעה פידג'ט", "פידג'ט הפתעה"], "zh": "解压玩具盲盒", "ko": "피젯 랜덤박스" },
     { "id": "magnetic-fidget-rings", "he": "טבעות מגנטיות לידיים", "en": "magnetic fidget rings", "kind": "kids", "hq": ["טבעות מגנטיות פידג'ט", "טבעות מגנטיות"], "zh": "磁力指环", "ko": "자석 피젯링" },
-    { "id": "mini-claw-machine", "he": "מכונת מתקן קטנה", "en": "mini claw machine", "kind": "kids", "hq": ["מכונת מתקן קטנה", "מכונת דובונים קטנה"], "zh": "迷你抓娃娃机", "ko": "미니 인형뽑기" },
+    { "id": "mini-claw-machine", "he": "מכונת דובונים קטנה", "en": "mini claw machine", "kind": "kids", "hq": ["מכונת מתקן קטנה", "מכונת דובונים קטנה"], "zh": "迷你抓娃娃机", "ko": "미니 인형뽑기" },
     { "id": "kids-print-camera", "he": "מצלמה מדפיסה לילדים", "en": "kids instant print camera", "kind": "kids", "hq": ["מצלמה מדפיסה לילדים"], "zh": "儿童拍立得相机", "ko": "어린이 즉석 카메라" },
     { "id": "magnetic-tiles", "he": "אריחים מגנטיים לבנייה", "en": "magnetic building tiles", "kind": "kids", "hq": ["אריחים מגנטיים"], "zh": "磁力片积木", "ko": "자석 블록" },
     { "id": "busy-board", "he": "לוח פעילות מונטסורי", "en": "montessori busy board", "kind": "kids", "hq": ["לוח פעילות מונטסורי", "לוח עסוק"], "zh": "蒙氏忙碌板", "ko": "비지보드" },
