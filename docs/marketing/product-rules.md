@@ -45,6 +45,22 @@ or a carousel follows it, and so does the daily routine.
    - a few warm, specific lines with one practical tip (`postPitches.js`);
    - the disclosure first.
 
+6. **Trendy, a hit, and the look of the brands everyone wants** (the owner,
+   2026-11-17: *"לא לעלות מה שלא טרנדי ולהיט ודומה למותגים שכולם רוצים"*). All
+   three, or it is not posted:
+   - **trendy now:** HOT on the radar (orders rising ≥ 10% a week, ≥ 300
+     orders) or one of the radar's own discoveries (a fresh riser that passed
+     the unknown check);
+   - **a hit:** real demand measured by AliExpress's own orders, never "just
+     popular" (the 15.11 watch sets sold well and got 3 and 16 views: a known
+     product with many sellers is not the next hit);
+   - **the look people want from the big brands:** the style, cut and finish of
+     what everyone wants (the "million-dollar look"), but never the brand's name
+     or logo and never a copy sold as the brand — that is the brand-copy rule
+     below. The legal alternative is the item: the radar's waves show which
+     brand look is wanted (`brandWaves.js`), and its `altPick` is the no-name
+     item with the same look that may be posted.
+
 ## What is never posted, even when it is hot
 
 - **Brand copies.** On AliExpress, "Lululemon", "Loewe", "Alo", "Calvin Klein",
