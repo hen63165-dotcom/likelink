@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { LEDGER_BOOKS, freshSealText, ledgerText, parseLedgerText } from "../src/lib/growth/radarLedger.js";
+import { LEDGER_BOOKS, freshSealText, ledgerText, parseLedgerText, stagesSealText } from "../src/lib/growth/radarLedger.js";
 import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 import { teaserBoard } from "../src/lib/growth/radarGate.js";
 
@@ -37,7 +37,8 @@ test("one root over every sealed book, in a fixed order; anyone can read it back
   assert.deepEqual(parseLedgerText(root), parts);
   assert.equal(ledgerText({ early: "not-a-hash" }), null);
   assert.equal(ledgerText({}), null);
-  assert.deepEqual(LEDGER_BOOKS, ["early", "fresh", "globe", "prices"]);
+  assert.deepEqual(LEDGER_BOOKS, ["early", "stages", "fresh", "globe", "prices"]);
+  assert.deepEqual(ledgerText({ fresh: sha("f"), stages: sha("s"), early: sha("e") }).split("\n").map((l) => l.split("=")[0]), ["early", "stages", "fresh"]);
 });
 
 test("the board keeps the sealed books and drops anything else", () => {
@@ -66,4 +67,37 @@ test("the run seals the fresh book and the root; the page shows the ledger", () 
   assert.match(run, /board\.ledger = await sealBook\(/);
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
   assert.match(page, /<Ledger ledger=\{board\.ledger\}/);
+});
+
+test("every stage call is a line in its own book, misses included; early calls stay in theirs", () => {
+  const calls = [
+    { concept: "capybara-plush", stage: "RISING", at: "2026-11-16", base: 15787.4, due: "2026-11-30" },
+    { concept: "cat-window-perch", stage: "EMERGING", at: "2026-11-03", base: 900, due: "2026-11-17", result: "MISS", growth: 4 },
+    { concept: "auto-cloud-slides", stage: "RISING", at: "2026-11-01", base: 300, due: "2026-11-15", result: "HIT", growth: 22 },
+    { concept: "squishy", kind: "early", stage: "EMERGING", at: "2026-11-16", base: 40, due: "2026-11-30", signals: ["world"] },
+    { concept: "Bad Id", stage: "RISING", at: "2026-11-16", base: 10, due: "2026-11-30" },
+    { concept: "steady-thing", stage: "STEADY", at: "2026-11-16", base: 10, due: "2026-11-30" },
+  ];
+  const text = stagesSealText(calls);
+  assert.equal(text, [
+    "auto-cloud-slides|2026-11-01|RISING|300|2026-11-15|HIT",
+    "capybara-plush|2026-11-16|RISING|15787|2026-11-30|-",
+    "cat-window-perch|2026-11-03|EMERGING|900|2026-11-17|MISS",
+  ].join("\n"));
+  assert.equal(stagesSealText([...calls].reverse()), text, "the same book always gives the same text");
+  const board = sanitizeBoard({ v: 2, at: "2026-11-18T06:00:00Z", record: {}, concepts: [], stagesSeal: { d: "2026-11-18", sha256: sha(text), count: 3, text, ots: [] } });
+  assert.equal(board.stagesSeal.text, text);
+  assert.equal(sanitizeBoard({ v: 2, at: "2026-11-18T06:00:00Z", record: {}, concepts: [], stagesSeal: { d: "2026-11-18", sha256: sha(text), text: "<img src=x>", ots: [] } }).stagesSeal.text, null);
+  assert.equal(teaserBoard({ v: 2, at: "2026-11-18T06:00:00Z", stagesSeal: { d: "2026-11-18", sha256: sha(text), text } }).stagesSeal, undefined, "the stage book names open calls: never behind the lock");
+});
+
+test("the run seals the stage book into the root; the page explains how anyone checks it", () => {
+  const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /board\.stagesSeal = await sealBook\(/);
+  assert.match(run, /stages: board\.stagesSeal\?\.sha256/);
+  const page = readFileSync("src/components/discover/radar.jsx", "utf8");
+  assert.match(page, /<Proof record=\{board\?\.record\}/);
+  assert.match(page, /שמצאנו בעולם/, "the sentence always says 'we found', with the check's date beside it");
+  assert.match(page, /לפי בדיקה עולמית מ־17\.11\.2026/);
+  assert.doesNotMatch(page, /היחיד בעולם/, "never the bare 'the only one in the world'");
 });

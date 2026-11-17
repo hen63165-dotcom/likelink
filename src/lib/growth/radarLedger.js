@@ -16,7 +16,22 @@
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ITEM = /^\d{6,20}$/;
 const SHA = /^[0-9a-f]{64}$/;
-export const LEDGER_BOOKS = Object.freeze(["early", "fresh", "globe", "prices"]);
+const CONCEPT = /^[a-z0-9][a-z0-9-]{0,79}$/;
+export const LEDGER_BOOKS = Object.freeze(["early", "stages", "fresh", "globe", "prices"]);
+
+/**
+ * Every ordinary stage call (a concept that turned EMERGING or RISING), one line each:
+ * `concept|called on|stage|orders then|graded on|grade`. Before 18.11 these were kept and graded but
+ * never sealed (the owner, 17.11: "how will people know there is nothing like it?" — the answer has
+ * to be true for every call, not only the early ones). Early calls have their own book.
+ */
+export function stagesSealText(calls = []) {
+  return (Array.isArray(calls) ? calls : [])
+    .filter((c) => c && c.kind !== "early" && CONCEPT.test(String(c.concept || "")) && (c.stage === "EMERGING" || c.stage === "RISING") && DAY.test(String(c.at || "")) && DAY.test(String(c.due || "")) && Number(c.base) > 0)
+    .map((c) => `${c.concept}|${c.at}|${c.stage}|${Math.round(Number(c.base))}|${c.due}|${c.result === "HIT" || c.result === "MISS" ? c.result : "-"}`)
+    .sort()
+    .join("\n");
+}
 
 /**
  * Every new product the radar has shown, one line each: `item|shown on|orders then|graded on|grade`.

@@ -774,9 +774,56 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
-function Ledger({ ledger, freshBook = null }) {
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
+
+/**
+ * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
+ * like it in the world?" — then "כן" to building it and to the sentence). People are shown how to
+ * check, never asked to trust: the steps, the difference from accuracy a company measures itself,
+ * and the record as it stands today. The sentence rests on the worldwide check of 17.11
+ * (docs/research/radar-gap-map.md) and is dated, so it reads as what was found, never as a promise.
+ */
+function Proof({ record, hasLedger = false }) {
+  const { L } = useL();
+  const graded = Number(record?.graded) || 0;
+  const hits = Number(record?.hits) || 0;
+  const next = record?.nextDue || null;
+  const steps = [
+    L("📝 ביום הקביעה: הרדאר כותב אותה בספר, עם התאריך ומספר ההזמנות של אותו יום.", "📝 On the day of the call: the radar writes it in the book, with the date and that day's order count."),
+    L("⛓️ באותו יום: טביעת האצבע של הספר נחתמת בביטקוין. מהרגע הזה הספר קבוע, וכל שינוי בו היה נראה מיד.", "⛓️ The same day: the book's fingerprint is sealed in Bitcoin. From then on the book is fixed, and any change would show at once."),
+    L("⚖️ אחרי 14 יום: ציון בפומבי, פגיעה או פספוס. שניהם נשארים בספר לתמיד.", "⚖️ After 14 days: a public grade, hit or miss. Both stay in the book for good."),
+    L("🔍 כל אחד בודק בעצמו: מורידים את הקבצים מספר החתימות וגוררים אותם לאתר החינמי opentimestamps.org.", "🔍 Anyone checks it themselves: download the files from the sealed ledger and drop them on the free site opentimestamps.org."),
+  ];
+  return (
+    <section className="lx-wrap mt-6" id="proof">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fff" }}>
+        <h2 className="text-[22px] font-black">{L("🔍 איך יודעים שזה אמיתי?", "🔍 How do you know it's real?")}</h2>
+        <p className="mt-2 text-[16px] font-black leading-7">{L("רדאר הטרנדים היחיד שמצאנו בעולם שחותם כל קביעה מראש, גם את הטעויות, ונותן לה ציון בפומבי.", "The only trend radar we found in the world that seals every call in advance, misses included, and grades it in public.")}</p>
+        <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("לפי בדיקה עולמית מ־17.11.2026 · כל הספרים נחתמים יחד מ־18.11.2026", "Per a worldwide check on 17 Nov 2026 · every book sealed together since 18 Nov 2026")}</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#f8fafc" }}>
+            <p className="text-[13px] font-black">{L("בכלי טרנדים אחרים", "In other trend tools")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("אחוז דיוק שהחברה מדדה ומפרסמת בעצמה.", "An accuracy figure the company measured and publishes itself.")}</p>
+          </div>
+          <div className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid #0b0b0b", background: "#fffbeb" }}>
+            <p className="text-[13px] font-black">{L("ברדאר", "In the radar")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("כל קביעה כתובה מראש, עם תאריך חתום בביטקוין, כולל הפספוסים. כל אחד בודק בעצמו.", "Every call written in advance, with a date sealed in Bitcoin, misses included. Anyone checks it themselves.")}</p>
+          </div>
+        </div>
+        <ol className="mt-4 grid gap-2 text-[14px] leading-6">{steps.map((t) => <li key={t}>{t}</li>)}</ol>
+        <p className="mt-3 text-[14px] font-bold">
+          {graded
+            ? L(`עד היום: ${graded} קביעות קיבלו ציון, ${hits} מהן פגיעות.`, `So far: ${graded} calls graded, ${hits} of them hits.`)
+            : next ? L(`הציון הראשון בפומבי: ${dm(next)}.`, `The first public grade: ${dm(next)}.`) : null}
+          {hasLedger ? <> <a className="underline" href="#ledger">{L("לספר החתימות המלא ←", "To the complete sealed ledger →")}</a></> : null}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function Ledger({ ledger, freshBook = null, stagesBook = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
   const books = String(ledger.text || "").split("\n").map((l) => l.split("=")[0]).filter((k) => BOOK_HE[k]);
@@ -789,6 +836,7 @@ function Ledger({ ledger, freshBook = null }) {
         <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>
           <span dir="ltr">🔏 SHA-256 {ledger.sha256.slice(0, 24)}…</span>
           {ledger.text ? <> · <a className="underline" download={`radar-ledger-${ledger.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(ledger.text)}`}>{L("השורש (טקסט)", "the root (text)")}</a></> : null}
+          {stagesBook?.text ? <> · <a className="underline" download={`radar-stages-${stagesBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(stagesBook.text)}`}>{L(`כל ${stagesBook.count} קביעות השלב`, `all ${stagesBook.count} stage calls`)}</a></> : null}
           {freshBook?.text ? <> · <a className="underline" download={`radar-fresh-${freshBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(freshBook.text)}`}>{L(`כל ${freshBook.count} המוצרים החדשים שהוצגו`, `all ${freshBook.count} new products shown`)}</a></> : null}
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
@@ -1101,7 +1149,8 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
-      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} /> : null}
+      <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
