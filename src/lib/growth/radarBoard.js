@@ -160,12 +160,12 @@ function cleanChallenge(c) {
   const o = c.open && typeof c.open === "object" && /^ch-\d{4}-\d{2}-\d{2}$/.test(String(c.open.id || "")) ? c.open : null;
   return {
     open: o ? {
-      id: o.id, at: day(o.at), due: day(o.due), dayN: num(o.dayN) ?? 0,
+      id: o.id, at: day(o.at), due: day(o.due), dayN: num(o.dayN) ?? 0, source: o.source === "fresh" ? "fresh" : "concepts",
       options: (Array.isArray(o.options) ? o.options : []).slice(0, 4).map((x) => { const v = opt(x); return v ? { ...v, image: radarImage(x.image) } : null; }).filter(Boolean),
       progress: (Array.isArray(o.progress) ? o.progress : []).slice(0, 4).filter((p) => ID.test(String(p?.concept || ""))).map((p) => ({ concept: p.concept, pct: num(p.pct) })),
       seal: seal(o.seal),
     } : null,
-    recent: (Array.isArray(c.recent) ? c.recent : []).slice(0, 6).filter((r) => /^ch-\d{4}-\d{2}-\d{2}$/.test(String(r?.id || "")) && (r.result === "HIT" || r.result === "MISS")).map((r) => ({
+    recent: (Array.isArray(c.recent) ? c.recent : []).slice(0, 6).filter((r) => /^ch-\d{4}-\d{2}-\d{2}$/.test(String(r?.id || "")) && (r.result === "HIT" || r.result === "MISS" || r.result === "CANCELLED")).map((r) => ({
       id: r.id, at: day(r.at), due: day(r.due), gradedAt: day(r.gradedAt), result: r.result,
       radar: ID.test(String(r.radar || "")) ? r.radar : null, radarLabel: str(r.radarLabel, 30),
       winners: (Array.isArray(r.winners) ? r.winners : []).filter((w) => ID.test(String(w))).slice(0, 4), winnerLabels: strs(r.winnerLabels, 4, 30),

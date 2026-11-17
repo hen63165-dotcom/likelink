@@ -74,7 +74,7 @@ export function pageHtml(board, posts, file) {
     parts.push(`<p>משך הסקר: <b>${esc(posts.open.duration)}</b></p>`);
     parts.push(copyBlock("הפוסט בעברית (לינקדאין)", posts.open.he));
     parts.push(copyBlock("הפוסט באנגלית (X / לינקדאין)", posts.open.en));
-  } else parts.push("<p>האתגר הבא נפתח בריצה הבאה של הרדאר (כל בוקר ב־07:37), מהרגע שיש 4 סוגי מוצרים מדודים.</p>");
+  } else parts.push("<p>האתגר הבא נפתח ביום שהרדאר מוצא בעצמו 4 מוצרים חדשים שעוברים את כל הבדיקות (מעט מוכרים, הזמנות שגדלות מהר בשתי מדידות ברצף, ובחו״ל עוד שקט סביבם). הרדאר בודק כל בוקר.</p>");
   if (posts.result) parts.push(copyBlock(`פוסט התוצאות (${posts.result.id})`, posts.result.he));
   parts.push(`<h2>איך מפרסמים</h2><ol>${STEPS.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`);
   return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

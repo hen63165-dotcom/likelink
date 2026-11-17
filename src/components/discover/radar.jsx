@@ -856,7 +856,7 @@ function Challenge({ ch }) {
         <h2 className="text-[22px] font-black">{L("🔮 האתגר השבועי: מה החוש השישי שלך אומר?", "🔮 This week's challenge: what does your sixth sense say?")}</h2>
         {o ? (
           <>
-            <p className="mt-1 text-[14px] leading-6">{L(`איזה מהמוצרים האלה יזנק הכי הרבה בהזמנות באליאקספרס עד ${dm(o.due)}? הרדאר כבר בחר, והבחירה שלו חתומה מראש. ב־${dm(o.due)} החתימה נפתחת וההזמנות האמיתיות קובעות, בפומבי.`, `Which of these will grow the most in AliExpress orders by ${dm(o.due)}? The radar already chose, sealed in advance. On ${dm(o.due)} the seal opens and the real orders decide, in public.`)}</p>
+            <p className="mt-1 text-[14px] leading-6">{L(`${o.source === "fresh" ? "4 מוצרים חדשים שהרדאר מצא בעצמו: מעט מוכרים, ההזמנות גדלות מהר, ובחו״ל עוד שקט סביבם. " : ""}איזה מהם יזנק הכי הרבה בהזמנות באליאקספרס עד ${dm(o.due)}? הרדאר כבר בחר, והבחירה שלו חתומה מראש. ב־${dm(o.due)} החתימה נפתחת וההזמנות האמיתיות קובעות, בפומבי.`, `${o.source === "fresh" ? "Four new listings the radar found on its own: few sellers, fast-growing orders, no buzz abroad yet. " : ""}Which will grow the most in AliExpress orders by ${dm(o.due)}? The radar already chose, sealed in advance. On ${dm(o.due)} the seal opens and the real orders decide, in public.`)}</p>
             <ul className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
               {o.options.map((x, i) => (
                 <li key={x.concept} className="lx-card overflow-hidden" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
@@ -873,12 +873,17 @@ function Challenge({ ch }) {
             {o.seal ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }} dir="ltr">🔒 SHA-256 {o.seal.sha256.slice(0, 24)}… · {dm(o.seal.d)}{o.seal.ots?.length ? " · OpenTimestamps" : ""}</p> : null}
             <div className="mt-2"><ShareButton path="/radar#challenge" title={L(`🔮 האתגר השבועי של רדאר הטרנדים: איזה מוצר יזנק הכי הרבה עד ${dm(o.due)}? הרדאר כבר בחר, חתום מראש. מה החוש השישי שלך אומר?`, `🔮 The trend radar's weekly challenge: which product grows most by ${dm(o.due)}? The radar already chose, sealed in advance. What does your sixth sense say?`)} variant="button" /></div>
           </>
-        ) : null}
+        ) : <p className="mt-1 text-[14px] leading-6">{L("האתגר הבא נפתח ביום שהרדאר מוצא בעצמו 4 מוצרים חדשים שעוברים את כל הבדיקות: מעט מוכרים, הזמנות שגדלות מהר בשתי מדידות ברצף, ובחו״ל עוד שקט סביבם. עד אז, עוד שקט.", "The next challenge opens on the day the radar finds 4 new listings that pass every check on its own: few sellers, orders growing fast in two readings in a row, no buzz abroad yet. Until then, quiet.")}</p>}
         {ch.recent?.length ? (
           <div className="mt-4">
             <p className="text-[14px] font-black">{L(`📖 תוצאות (${ch.record.radarHits} מתוך ${ch.record.graded} פעמים הבחירה של הרדאר ניצחה)`, `📖 Results (the radar's choice won ${ch.record.radarHits} of ${ch.record.graded})`)}</p>
             <ul className="mt-2 grid gap-2">
-              {ch.recent.map((r) => (
+              {ch.recent.map((r) => r.result === "CANCELLED" ? (
+                <li key={r.id} className="rounded-xl p-3 text-[13px]" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
+                  <p className="font-black">{L(`האתגר של ${dm(r.at)} נסגר: ארבעת המוצרים בו היו מוצרים מוכרים (${r.options.map((x) => x.label).join(", ")}). מעכשיו האתגר נבנה רק ממוצרים שהרדאר גילה בעצמו.`, `The ${dm(r.at)} challenge was closed: its four products were already well known (${r.options.map((x) => x.label).join(", ")}). From now on the challenge is built only from what the radar found on its own.`)}</p>
+                  {r.text ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)", wordBreak: "break-all" }} dir="ltr">{r.text}</p> : null}
+                </li>
+              ) : (
                 <li key={r.id} className="rounded-xl p-3 text-[13px]" style={{ background: "#fff", border: "1px solid var(--lx-line)" }}>
                   <p className="font-black">{L(`האתגר של ${dm(r.at)}: המנצח ${r.winnerLabels.join(" / ")}`, `${dm(r.at)}: the winner was ${r.winnerLabels.join(" / ")}`)}</p>
                   <p>{r.options.map((x) => `${x.label} ${pct(x.growth)}`).join(" · ")}</p>

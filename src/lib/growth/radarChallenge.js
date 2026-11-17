@@ -7,6 +7,12 @@
 // numbers as every radar call (the top items' 30-day orders, now vs the sealed base), never edited.
 // The radar is the yardstick, never the enemy (the owner, 2026-11-16: no "נגד"). Posts say what IS:
 // no promise of a hit, no prize. Pure; the radar run (scripts/catalog/trend-radar.mjs) reads and seals.
+// Since 17.11 (the owner: "למה אתה בונה אותם ככה ולא על פי הרדאר?") the four options are only the
+// radar's own discoveries: new listings that passed the fresh-riser bar and the unknown check (few
+// sellers, no buzz abroad), graded by each item's own orders. The first challenge (16.11, four known
+// watch-list kinds) is closed as CANCELLED, kept with its sealed text, never counted.
+
+import { freshPhrase } from "./freshRisers.js";
 
 export const CHALLENGE = Object.freeze({
   options: 4,
@@ -38,6 +44,37 @@ export function shortLabel(text = "", max = CHALLENGE.labelMax) {
  * (stage first, then score). The options are shown in Hebrew alphabetical order, so the choice never
  * shows in the order. Null when fewer than four qualify (the next run tries again).
  */
+/**
+ * The four options from the radar's own discoveries (pure; tested): fresh risers that already passed
+ * the unknown check, strongest weekly growth first (the radar's choice), one per distinctive phrase,
+ * each with a measured base (its 30-day orders). Null below four: no challenge that week.
+ */
+export function pickFreshOptions(risers = [], { rules = CHALLENGE } = {}) {
+  const seen = new Set();
+  const chosen = [];
+  const ok = (Array.isArray(risers) ? risers : []).filter((r) => r && /^\d{6,20}$/.test(String(r.id || "")) && r.known && Number(r.orders) > 0 && String(r.title || "").trim())
+    .sort((a, b) => (Number(b.weekPct) || 0) - (Number(a.weekPct) || 0) || Number(a.orders) - Number(b.orders));
+  for (const r of ok) {
+    const key = freshPhrase(r.title) || String(r.title).toLowerCase().slice(0, 30);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    chosen.push(r);
+    if (chosen.length === rules.options) break;
+  }
+  if (chosen.length < rules.options) return null;
+  const options = chosen.map((r) => ({ concept: String(r.id), label: shortLabel(r.title, rules.labelMax), base: Number(r.orders), image: typeof r.image === "string" ? r.image : null }))
+    .sort((a, b) => a.label.localeCompare(b.label, "he"));
+  return { options, radar: String(chosen[0].id), source: "fresh" };
+}
+
+/** Closes an open challenge that was not built from the radar's discoveries (pure): CANCELLED, never graded. */
+export function cancelNotFresh(list = [], today) {
+  return (Array.isArray(list) ? list : []).map((c) => (c && !c.result && c.source !== "fresh"
+    ? { ...c, result: "CANCELLED", gradedAt: today, reason: "known_kinds" }
+    : c));
+}
+
+/** The watch-list options (the first challenge, 16.11); kept for its record, no longer opened. */
 export function pickOptions(rows = [], { rules = CHALLENGE } = {}) {
   const ok = (Array.isArray(rows) ? rows : []).filter((r) => r && !r.auto && /[֐-׿]/.test(String(r.he || "")) && Number(r.base) > 0 && rules.stages.includes(r.stage));
   ok.sort((a, b) => STAGE_RANK[a.stage] - STAGE_RANK[b.stage] || (Number(b.score) || 0) - (Number(a.score) || 0) || (a.id < b.id ? -1 : 1));
@@ -63,14 +100,14 @@ export function challengeSealText(ch) {
 
 /** A new challenge when none is open and the last one is a week old (pure). */
 export function shouldOpen(list = [], today, { rules = CHALLENGE } = {}) {
-  const all = Array.isArray(list) ? list : [];
+  const all = (Array.isArray(list) ? list : []).filter((c) => c?.result !== "CANCELLED");
   if (all.some((c) => !c.result)) return false;
   const last = all.map((c) => c.at).sort().at(-1);
   return !last || Date.parse(today) - Date.parse(last) >= rules.everyDays * DAY;
 }
 
 export function openChallenge(picked, today, salt, { rules = CHALLENGE } = {}) {
-  return { id: `ch-${today}`, at: today, due: addDays(today, rules.days), options: picked.options, radar: picked.radar, salt: String(salt) };
+  return { id: `ch-${today}`, at: today, due: addDays(today, rules.days), options: picked.options, radar: picked.radar, salt: String(salt), source: picked.source || "concepts" };
 }
 
 /**
@@ -105,17 +142,18 @@ export function progressOf(ch, latest = {}) {
 export function challengeBoard(list = [], latest = {}, today, seals = {}) {
   const all = Array.isArray(list) ? list : [];
   const open = all.find((c) => !c.result) || null;
-  const graded = all.filter((c) => c.result && c.result !== "VOID").sort((a, b) => (a.at < b.at ? 1 : -1));
+  const graded = all.filter((c) => c.result === "HIT" || c.result === "MISS").sort((a, b) => (a.at < b.at ? 1 : -1));
+  const shown = all.filter((c) => c.result === "HIT" || c.result === "MISS" || c.result === "CANCELLED").sort((a, b) => (a.at < b.at ? 1 : -1));
   const label = (c, id) => c.options.find((o) => o.concept === id)?.label || id;
   return {
     open: open ? {
-      id: open.id, at: open.at, due: open.due,
+      id: open.id, at: open.at, due: open.due, source: open.source || "concepts",
       dayN: Math.max(0, Math.round((Date.parse(today) - Date.parse(open.at)) / DAY)),
       options: open.options.map((o) => ({ concept: o.concept, label: o.label, image: o.image || null })),
       progress: progressOf(open, latest),
       seal: seals[open.id] || null,
     } : null,
-    recent: graded.slice(0, 6).map((c) => ({
+    recent: shown.slice(0, 6).map((c) => ({
       id: c.id, at: c.at, due: c.due, gradedAt: c.gradedAt, result: c.result,
       radar: c.radar, radarLabel: label(c, c.radar), winners: c.winners || [], winnerLabels: (c.winners || []).map((w) => label(c, w)),
       options: c.options.map((o) => ({ concept: o.concept, label: o.label, growth: (c.growth || []).find((g) => g.concept === o.concept)?.growth ?? null })),
@@ -145,6 +183,7 @@ export function challengePosts(board, { origin = "https://likelink2.vercel.app" 
         "🔮 האתגר השבועי של רדאר הטרנדים",
         "",
         `איזה מ־${o.options.length} המוצרים האלה יזנק הכי הרבה בהזמנות באליאקספרס עד ${dm(o.due)}?`,
+        ...(o.source === "fresh" ? ["", "4 מוצרים חדשים שהרדאר מצא בעצמו השבוע: מעט מוכרים, ההזמנות גדלות מהר, ובחו״ל עוד שקט סביבם."] : []),
         "",
         fp ? `הרדאר כבר בחר, והבחירה שלו חתומה מראש בביטקוין (טביעת אצבע ${fp}…).` : "הרדאר כבר בחר, והבחירה שלו חתומה מראש.",
         `ב־${dm(o.due)} נפתח את החתימה ונראה מה אמר החוש השישי שלכם, ומה אמר הרדאר.`,
@@ -160,6 +199,7 @@ export function challengePosts(board, { origin = "https://likelink2.vercel.app" 
         "🔮 This week's trend radar challenge",
         "",
         `Which of these ${o.options.length} products will grow the most in AliExpress orders by ${o.due}?`,
+        ...(o.source === "fresh" ? ["Four new listings the radar found on its own this week: few sellers, fast-growing orders, no buzz abroad yet."] : []),
         ...o.options.map((x, i) => `${i + 1}. ${x.label}`),
         "",
         fp ? `The radar already chose, sealed in Bitcoin in advance (fingerprint ${fp}…).` : "The radar already chose, sealed in advance.",
@@ -171,7 +211,7 @@ export function challengePosts(board, { origin = "https://likelink2.vercel.app" 
       ].join("\n"),
     };
   }
-  const r = board?.recent?.[0];
+  const r = (board?.recent || []).find((x) => x.result === "HIT" || x.result === "MISS");
   if (r) {
     const win = r.winnerLabels.join(" / ");
     const best = Math.max(...r.options.map((x) => (x.growth === null ? -Infinity : x.growth)));

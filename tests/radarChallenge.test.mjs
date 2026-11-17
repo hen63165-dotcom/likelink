@@ -80,3 +80,65 @@ test("posts: the poll fits LinkedIn, say what is, promise nothing", () => {
   const r = challengePosts(challengeBoard([g], {}, ch.due, {})).result;
   assert.ok(r.he.includes("מתקן סבון אוטומטי") && r.he.includes("salt="));
 });
+
+// 17.11, the owner: "למה אתה בונה אותם ככה ולא על פי הרדאר?" — only the radar's own discoveries.
+import { cancelNotFresh, pickFreshOptions } from "../src/lib/growth/radarChallenge.js";
+import { FRESH, freshBar } from "../src/lib/growth/freshRisers.js";
+
+const risers = [
+  { id: "1005000000000001", title: "Magnetic Cable Organizer Clip Desk", orders: 400, weekPct: 90, known: { similar: 300 }, image: "https://ae01.alicdn.com/kf/a.jpg" },
+  { id: "1005000000000002", title: "Silicone Stretch Lid Bowl Cover", orders: 120, weekPct: 70, known: { similar: 900 } },
+  { id: "1005000000000003", title: "Magnetic Cable Organizer Holder", orders: 200, weekPct: 65, known: { similar: 300 } },
+  { id: "1005000000000004", title: "Foldable Shoe Drying Rack Portable", orders: 800, weekPct: 55, known: { similar: 100 } },
+  { id: "1005000000000005", title: "Mini Thermal Label Printer Pocket", orders: 60, weekPct: 45, known: { similar: 1500 } },
+  { id: "1005000000000006", title: "Not checked yet", orders: 60, weekPct: 99 },
+];
+
+test("only the radar's discoveries: unknown-checked risers, one per phrase, the strongest is the radar's choice", () => {
+  const p = pickFreshOptions(risers);
+  assert.equal(p.source, "fresh");
+  assert.equal(p.radar, "1005000000000001", "the fastest-growing discovery");
+  assert.equal(p.options.length, 4);
+  assert.ok(!p.options.some((o) => o.concept === "1005000000000006"), "a riser without the unknown check never joins");
+  assert.ok(!p.options.some((o) => o.concept === "1005000000000003"), "the same phrase twice is one option");
+  assert.ok(p.options.every((o) => o.label.length <= CHALLENGE.labelMax && o.base > 0));
+  assert.equal(pickFreshOptions(risers.slice(0, 3)), null, "fewer than four discoveries: no challenge");
+  const ch = openChallenge(p, T, "a".repeat(32));
+  assert.equal(ch.source, "fresh");
+  assert.match(challengeSealText(ch), /^ch-[0-9-]+\|[0-9-]+\|[0-9,]+\|radar=\d+\|salt=a{32}$/);
+});
+
+test("the 16.11 challenge of known kinds is closed, kept with its text, never counted; a new one can open", () => {
+  const old = openChallenge(pickOptions(rows), T, "b".repeat(32));
+  delete old.source;
+  const list = cancelNotFresh([old], "2026-11-17");
+  assert.equal(list[0].result, "CANCELLED");
+  assert.equal(shouldOpen(list, "2026-11-17"), true, "a cancelled challenge never blocks the next");
+  const fresh = openChallenge(pickFreshOptions(risers), "2026-11-17", "c".repeat(32));
+  assert.equal(cancelNotFresh([fresh], "2026-11-18")[0].result, undefined, "a fresh challenge stays open");
+  const board = challengeBoard(list, {}, "2026-11-17", {});
+  assert.equal(board.open, null);
+  assert.equal(board.record.graded, 0);
+  assert.equal(board.recent[0].result, "CANCELLED");
+  assert.ok(board.recent[0].text.includes("salt="), "the reveal is public");
+  const clean = sanitizeBoard({ at: "2026-11-17T06:00:00Z", concepts: [], record: {}, challenge: board }).challenge;
+  assert.equal(clean.recent[0].result, "CANCELLED");
+  assert.equal(challengePosts(board).result, null, "no results post for a cancelled challenge");
+});
+
+test("graded by each item's own orders", () => {
+  const ch = openChallenge(pickFreshOptions(risers), T, "d".repeat(32));
+  const latest = Object.fromEntries(ch.options.map((o) => [o.concept, o.base * (o.concept === "1005000000000004" ? 3 : 1.2)]));
+  const g = gradeChallenge(ch, latest, ch.due);
+  assert.equal(g.result, "MISS");
+  assert.deepEqual(g.winners, ["1005000000000004"]);
+});
+
+test("the bar only rises: under 80% hits after 10 graded, a riser must grow 1.5× faster", () => {
+  assert.equal(freshBar({ graded: 3, accuracy: 0 }).strict, false);
+  assert.equal(freshBar({ graded: 12, accuracy: 85 }).minWeekPct, FRESH.minWeekPct);
+  const s = freshBar({ graded: 12, accuracy: 60 });
+  assert.equal(s.strict, true);
+  assert.equal(s.minWeekPct, FRESH.minWeekPct * 1.5);
+  assert.equal(s.heldWeekPct, FRESH.heldWeekPct * 2);
+});
