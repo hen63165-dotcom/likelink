@@ -90,17 +90,27 @@ test("scouts: the daily put seals the picks once (OpenTimestamps) and the leader
 });
 
 // "הרדאר נגד ישראל" (the owner, 2026-11-16): the radar plays on the same table, same rules.
-test("the radar seals one pick a day from its own measurements, never PEAK or COOLING, never a concept it has open", async () => {
+test("the radar seals one pick a day, only a trend caught before everyone, never a concept it has open", async () => {
   const { addRadarPick, radarCandidates, RADAR_PLAYER } = await import("../src/lib/growth/radarPicks.js");
+  const early = { world: { state: "EARLY" }, gap: { state: "GAP" }, early: { buzz: [] } };
   const board = { at: "2026-11-17T05:40:00Z", concepts: [
-    { id: "peak-thing", stage: "PEAK", today: { orders: 9000 }, alpha: { score: 99 } },
-    { id: "steady-a", stage: "STEADY", today: { orders: 500 }, alpha: { score: 70 } },
-    { id: "rising-b", stage: "RISING", today: { orders: 800 }, alpha: { score: 40 } },
-    { id: "rising-c", stage: "RISING", today: { orders: 800 }, alpha: { score: 60 } },
-    { id: "cooling", stage: "COOLING", today: { orders: 5000 } },
-    { id: "nothing", stage: "EMERGING", today: { orders: 0 } },
+    { id: "peak-thing", stage: "PEAK", today: { orders: 9000 }, alpha: { score: 99 }, ...early },
+    { id: "steady-a", stage: "STEADY", today: { orders: 500 }, alpha: { score: 70 }, ...early },
+    { id: "rising-b", stage: "RISING", today: { orders: 800 }, alpha: { score: 40 }, ...early },
+    { id: "rising-c", stage: "RISING", today: { orders: 800 }, alpha: { score: 60 }, ...early },
+    { id: "cooling", stage: "COOLING", today: { orders: 5000 }, ...early },
+    { id: "nothing", stage: "EMERGING", today: { orders: 0 }, ...early },
+    // Rising, but the world already knows it: one finish line crossed is enough to leave it out.
+    { id: "rising-wide", stage: "EMERGING", today: { orders: 900 }, alpha: { score: 99 }, ...early, world: { state: "WIDE" } },
+    { id: "rising-hot", stage: "EMERGING", today: { orders: 900 }, ...early, world: { state: "VIRAL_NOW" } },
+    { id: "rising-tiktok", stage: "EMERGING", today: { orders: 900 }, ...early, early: { buzz: ["tiktok"] } },
+    { id: "rising-israel", stage: "EMERGING", today: { orders: 900 }, ...early, gap: { state: "ARRIVED" } },
+    { id: "rising-unmeasured", stage: "EMERGING", today: { orders: 900 }, ...early, world: null },
   ] };
-  assert.deepEqual(radarCandidates(board).map((c) => c.id), ["rising-c", "rising-b", "steady-a"]);
+  assert.deepEqual(radarCandidates(board).map((c) => c.id), ["rising-c", "rising-b"]);
+  // 17.11: a steady kind searched in 9 of 9 countries, flat 0% a week, was sealed because nothing rose.
+  const quiet = { at: "2026-11-17", concepts: [{ id: "cat-window-perch", stage: "STEADY", today: { orders: 15787 }, world: { state: "WIDE" }, gap: { state: "GAP" }, early: { buzz: [] } }] };
+  assert.equal(addRadarPick([], quiet).length, 0, "a quiet day: no pick");
   const one = addRadarPick([], board);
   assert.equal(one.length, 1);
   assert.deepEqual([one[0].userId, one[0].concept, one[0].at, one[0].due, one[0].base, one[0].show], [RADAR_PLAYER.userId, "rising-c", "2026-11-17", "2026-12-01", 800, true]);
@@ -137,7 +147,7 @@ test("the daily put adds the radar's pick to the table and seals it (read back)"
   const h = createRadarBoardHandler({ kv, fetchImpl, now: () => Date.parse("2026-11-17T05:45:00Z") });
   process.env.AUTOPILOT_SECRET = "s3cret-for-test";
   try {
-    const board = { v: 2, at: "2026-11-17T05:40:00Z", record: {}, concepts: [{ id: "rising-c", he: "משהו עולה", stage: "RISING", today: { orders: 800 } }] };
+    const board = { v: 2, at: "2026-11-17T05:40:00Z", record: {}, concepts: [{ id: "rising-c", he: "משהו עולה", stage: "RISING", today: { orders: 800 }, world: { state: "EARLY" }, gap: { state: "GAP" } }] };
     const res = fakeRes();
     await h({ method: "POST", url: "/api/store?mode=radar-board&op=put", headers: { authorization: "Bearer s3cret-for-test" }, body: board }, res);
     assert.equal(res.code, 200);

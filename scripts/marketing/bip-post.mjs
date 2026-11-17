@@ -1,7 +1,9 @@
 // "Building in public" (the owner, 2026-11-16: "publish like Maor Shlomo did at the start, alone";
 // "I want it global"): one 1080x1350 picture per language for the day, from the radar's own sealed
-// pick of the day (op=leaderboard → duel.recent) — facts only: what it picked, that day's order
-// count, the seal day and the public grade day. No promise, no forecast, no "only one in the world".
+// pick of the day (op=leaderboard → duel.recent) — facts only: what it picked, its sealed base (the
+// top items' AliExpress orders over 30 days, measured that day — never "orders today"), the seal day and the public grade day. No promise, no forecast, no "only one in the world".
+// Only a pick made under the radar's principle (radarPicks.js `beforeEveryone`: rising, the world still
+// quiet, Israel not arrived): never a steady or widely known kind (17.11, the day-2 post was stopped).
 // Usage: FONTS=<@fontsource dir> node scripts/marketing/bip-post.mjs <day> <name-he> <name-en> <orders> <sealed d.m> <due d.m> <outdir>
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
@@ -14,8 +16,8 @@ const F = process.env.FONTS || join(process.cwd(), "node_modules/@fontsource");
 const b64 = (p) => readFileSync(p).toString("base64");
 const font = (n, f, w) => `@font-face{font-family:${n};font-weight:${w};src:url(data:font/woff2;base64,${b64(join(F, f))}) format("woff2");}`;
 const T = {
-  he: { dir: "rtl", tag: `🛠️ יום ${DAY} · בונה בפומבי`, h: "רדאר שמזהה מוצרים<br>לפני שהם מגיעים לישראל", k: "🤖 הרדאר בחר היום", v: HE, rows: [`📦 ${ORDERS} הזמנות היום`, `⛓️ חתום בביטקוין ב־${SEALED}`, `⚖️ הציון בפומבי ב־${DUE} (פגיעה = ‎+15%)`], cta: "🔮 יש לך חוש שישי לטרנדים?<br>likelink2.vercel.app/radar" },
-  en: { dir: "ltr", tag: `🛠️ Day ${DAY} · Building in public`, h: "A trend radar that seals<br>every pick in advance", k: "🤖 Today the radar picked", v: EN, rows: [`📦 ${ORDERS} orders today`, `⛓️ Sealed in Bitcoin on ${enDay(SEALED)}`, `⚖️ Graded in public on ${enDay(DUE)} (hit = +15%)`], cta: "🔮 Do you have a sixth sense for trends?<br>likelink2.vercel.app/radar" },
+  he: { dir: "rtl", tag: `🛠️ יום ${DAY} · בונה בפומבי`, h: "רדאר שמזהה מוצרים<br>לפני שהם מגיעים לישראל", k: "🤖 הרדאר בחר היום", v: HE, rows: [`📦 ${ORDERS} הזמנות ב־30 יום (נמדד היום)`, `⛓️ חתום בביטקוין ב־${SEALED}`, `⚖️ הציון בפומבי ב־${DUE} (פגיעה = ‎+15%)`], cta: "🔮 יש לך חוש שישי לטרנדים?<br>likelink2.vercel.app/radar" },
+  en: { dir: "ltr", tag: `🛠️ Day ${DAY} · Building in public`, h: "A trend radar that seals every pick in advance", k: "🤖 Today the radar picked", v: EN, rows: [`📦 ${ORDERS} orders in 30 days (measured today)`, `⛓️ Sealed in Bitcoin on ${enDay(SEALED)}`, `⚖️ Graded in public on ${enDay(DUE)} (hit = +15%)`], cta: "🔮 Do you have a sixth sense for trends?<br>likelink2.vercel.app/radar" },
 };
 const css = `${font("Heebo", "heebo/files/heebo-hebrew-800-normal.woff2", 800)}${font("Heebo", "heebo/files/heebo-latin-800-normal.woff2", 800)}${font("Heebo", "heebo/files/heebo-hebrew-900-normal.woff2", 900)}${font("Heebo", "heebo/files/heebo-latin-900-normal.woff2", 900)}${font("Frank", "frank-ruhl-libre/files/frank-ruhl-libre-hebrew-900-normal.woff2", 900)}${font("Frank", "frank-ruhl-libre/files/frank-ruhl-libre-latin-900-normal.woff2", 900)}
 *{margin:0;padding:0;box-sizing:border-box}body{width:1080px;height:1350px;font-family:Heebo,sans-serif;background:#0b0b0b;color:#fff;overflow:hidden}

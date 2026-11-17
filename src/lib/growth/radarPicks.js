@@ -85,18 +85,29 @@ export const myPicks = (picks = [], userId) => (Array.isArray(picks) ? picks : [
 // FutureEval, and no product-trend duel sealed in advance): the radar plays on the same table. Every
 // day it seals one pick of its own from the day's board, by the same rules as everyone (one open pick
 // per concept, graded after 14 days, HIT at ≥ +15%), and the duel compares its record with everyone
-// else's. Its pick is chosen by its own measurements only: a concept the board says is starting to
-// rise (EMERGING), then rising (RISING), then steady, strongest Alpha first. Never PEAK or COOLING.
+// else's. Its pick is chosen by its own measurements only, and only a trend caught before everyone
+// (the owner, 2026-11-17: "לפני כולם, עוד בעולם, לפני כל הכי גדולים היום בשוק"): demand starting to
+// rise (EMERGING) or rising (RISING), the world still quiet (measured: no searches yet, one or two
+// countries, or just spreading — never searched widely or in Google's hot searches), no TikTok /
+// Amazon / Douyin / Korea echo, and Israel not arrived yet. Strongest stage and Alpha first. A steady,
+// peaking or cooling kind is never its pick (17.11: it sealed a steady cat window perch searched in 9
+// of 9 countries, flat 0% a week, because nothing was rising); on a quiet day it picks nothing.
 export const RADAR_PLAYER = Object.freeze({ userId: "radar", nick: "הרדאר" });
 export const DUEL = Object.freeze({ minGraded: 3 });
-const STAGE_RANK = Object.freeze({ EMERGING: 3, RISING: 2, STEADY: 1 });
+const STAGE_RANK = Object.freeze({ EMERGING: 2, RISING: 1 });
+const QUIET_WORLD = new Set(["NONE", "EARLY", "SPREADING"]);
+const ISRAEL_NOT_YET = new Set(["GAP", "QUIET", "UNCERTAIN", "ARRIVING"]);
+/** Before everyone: measured, and no finish line crossed (wide searches, hot searches, buzz, Israel). */
+export function beforeEveryone(c) {
+  return Boolean(c && STAGE_RANK[c.stage] && QUIET_WORLD.has(c.world?.state) && !(Array.isArray(c.early?.buzz) && c.early.buzz.length) && ISRAEL_NOT_YET.has(c.gap?.state));
+}
 const ID = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const dayOf = (t) => new Date(t).toISOString().slice(0, 10);
 
 /** The radar's candidates for today, best first (its own measurements only). */
 export function radarCandidates(board) {
   return (Array.isArray(board?.concepts) ? board.concepts : [])
-    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && STAGE_RANK[c.stage])
+    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && beforeEveryone(c))
     .sort((a, b) => STAGE_RANK[b.stage] - STAGE_RANK[a.stage]
       || (Number(b.alpha?.score) || -1) - (Number(a.alpha?.score) || -1)
       || (Number(b.early?.count) || 0) - (Number(a.early?.count) || 0)
