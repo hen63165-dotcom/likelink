@@ -48,6 +48,7 @@ import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
+import { freshSealText, ledgerText } from "../../src/lib/growth/radarLedger.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
@@ -167,6 +168,22 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   PRICE_SINK.ledger = prices;
   PRICE_SINK.today = today;
   const prevBoard = readJson(join(dir, "board.json"), {});
+  // One book sealed: SHA-256 of its exact text, sent to the OpenTimestamps calendars only when it
+  // changed (an unchanged book keeps its day and proofs). Only the 32-byte hash leaves the runner.
+  const sealBook = async ({ text, count }, prev, name) => {
+    const seal = { d: today, sha256: createHash("sha256").update(text).digest("hex"), count, text: text.length <= 30_000 ? text : null, ots: [] };
+    if (prev?.sha256 === seal.sha256 && Array.isArray(prev.ots) && prev.ots.length) return { ...seal, d: prev.d || seal.d, ots: prev.ots };
+    if (env.RADAR_OTS === "0") return seal;
+    for (const cal of OTS_CALENDARS) {
+      try {
+        const res = await fetchImpl(`${cal}/digest`, { method: "POST", headers: { Accept: "application/vnd.opentimestamps.v1", "Content-Type": "application/x-www-form-urlencoded" }, body: hexBytes(seal.sha256), signal: AbortSignal.timeout(20_000) });
+        const proof = res.ok ? otsProof(seal.sha256, new Uint8Array(await res.arrayBuffer())) : null;
+        if (proof) seal.ots.push({ cal: new URL(cal).host, b64: toBase64(proof) });
+        else log.push(`${name} seal: ${new URL(cal).host} answered ${res.status}`);
+      } catch (e) { log.push(`${name} seal: ${new URL(cal).host} ${e?.name || "error"}`); }
+    }
+    return seal;
+  };
   const picks = Object.fromEntries((prevBoard.concepts || []).filter((c) => c.pick).map((c) => [c.id, c.pick]));
   const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
   let calls = readJson(join(dir, "calls.json"), []);
@@ -665,6 +682,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
   log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
+  // Every new product the radar ever showed, misses included, sealed in Bitcoin (radarLedger.js):
+  // the one book of calls that was not sealed before 17.11.
+  const freshText = freshSealText(freshCalls);
+  if (freshText) board.fresh.seal = await sealBook({ text: freshText, count: freshText.split("\n").length }, prevBoard.fresh?.seal, "fresh");
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
@@ -806,6 +827,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   writeFileSync(join(dir, "catalog.json"), JSON.stringify(intel.audit, null, 1));
   writeFileSync(join(dir, "briefs.json"), JSON.stringify(intel.briefs, null, 1));
   writeFileSync(join(dir, "catalog-decisions.json"), JSON.stringify(intel.decisions, null, 1));
+  // The root of the complete ledger (radarLedger.js): one line per sealed book — early calls, every
+  // new product shown, the next-country calls, today's prices — and one Bitcoin seal over all of it.
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  if (rootText) {
+    board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
+    log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
+  }
   writeFileSync(join(dir, "board.json"), JSON.stringify(board));
   const counts = board.concepts.reduce((m, c) => ((m[c.stage] = (m[c.stage] || 0) + 1), m), {});
   const gapCounts = board.concepts.reduce((m, c) => ((m[c.gap.state] = (m[c.gap.state] || 0) + 1), m), {});
