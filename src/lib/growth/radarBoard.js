@@ -32,7 +32,9 @@ const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/
   ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
 } : null);
 const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
-const LEDGER_ROOT = /^(early|fresh|globe|prices)=[0-9a-f]{64}(\n(early|fresh|globe|prices)=[0-9a-f]{64})*$/;
+const LEDGER_ROOT = /^(early|stages|fresh|globe|prices)=[0-9a-f]{64}(\n(early|stages|fresh|globe|prices)=[0-9a-f]{64})*$/;
+const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
+const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const day = (v) => (typeof v === "string" && DAY.test(v) ? v : null);
 const lines = (list, max = 8) => (Array.isArray(list) ? list : []).slice(0, max).map((e) => ({ k: str(e?.k, 20), text: str(e?.text, 300) })).filter((e) => e.text);
@@ -155,6 +157,8 @@ export function sanitizeBoard(doc) {
     fresh: cleanFresh(doc.fresh),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
+    // The stage calls' book (radarLedger.js stagesSealText): names open calls, so the lock keeps it out of teaserBoard.
+    stagesSeal: cleanBook(doc.stagesSeal, STAGES_BOOK),
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.

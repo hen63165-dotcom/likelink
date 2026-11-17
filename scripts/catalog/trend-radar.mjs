@@ -48,7 +48,7 @@ import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
-import { freshSealText, ledgerText } from "../../src/lib/growth/radarLedger.js";
+import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
@@ -829,7 +829,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   writeFileSync(join(dir, "catalog-decisions.json"), JSON.stringify(intel.decisions, null, 1));
   // The root of the complete ledger (radarLedger.js): one line per sealed book — early calls, every
   // new product shown, the next-country calls, today's prices — and one Bitcoin seal over all of it.
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
+  const stagesText = stagesSealText(calls);
+  if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

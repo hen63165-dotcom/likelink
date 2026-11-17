@@ -53,9 +53,17 @@ The owner asked "מה עוד" again. Searched for a measured country-by-country 
 3. Israel's number: how many days after the US a product reaches Israel. It is shown only from measured arrivals (3 or more), always with the count.
 4. "Which country is next": a sealed call by the radar, plus visitors' picks in the sixth-sense game (points only). Both are graded in public.
 
+## Fifth check (17.11, worldwide: who audits their own accuracy)
+
+The owner asked for a check "of every company, above everything". What was found:
+- The big trend companies publish an accuracy they measured themselves: Pinterest Predicts (80%), WGSN (94%), Heuritech (92%), Glimpse (95%). None was found audited from outside or sealed before the outcome.
+- Forecasts sealed in advance and graded in public exist for sports and events (NeuPortal) and general questions (Nostradamus Intellect, 16 sealed, 0 graded at the time). No product-trend tool in any language was found doing it.
+- A timestamp proves something only when every call, misses included, is sealed (otherwise "seal every outcome, show the winner" fakes a record). So the radar seals every book — early calls, stage calls (from 18.11), every new product shown (from 18.11), next-country calls, the store prices — under one daily root (`radarLedger.js`), plus its own picks and the weekly challenge in their own seals.
+
 ## Wording rules (public)
 
-- Never "the only one in the world" or "beats Exploding Topics". Allowed: "we found no other Hebrew product-trend radar that seals every call in advance and publishes its grade" and the comparison above, with its date and sources.
+- Allowed since 17.11, after the owner's "כן" (dated, always with "we found"): "the only trend radar we found in the world that seals every call in advance, misses included, and grades it in public" / "רדאר הטרנדים היחיד שמצאנו בעולם שחותם כל קביעה מראש, גם את הטעויות, ונותן לה ציון בפומבי", with "per a worldwide check on 17.11.2026" beside it (`Proof` on `/radar`).
+- Never "beats Exploding Topics", never "the most accurate", never a hit rate before the record has one: hitting better than anyone is a claim only a graded record can make.
 - Numbers about competitors only as they publish them, with the source.
 
 Sources: [Contently roundup](https://contently.com/2025/12/26/how-to-detect-micro-trends-before-they-break-out-top-10-platforms-for-2026/), [trendsmcp comparison](https://www.trendsmcp.ai/blog/best-tools-for-trend-forecasting-2026), [ai-in-fashion: WGSN/Heuritech](https://ai-in-fashion.com/en/trend-forecasting-tools-compared/), [EchoTik TikTok tools](https://echotik.live/blog/best-tiktok-product-research-tools-2026/), [SmartScout: Helium 10 vs Jungle Scout](https://www.smartscout.com/blog/helium-10-vs-jungle-scout), [DemandSage](https://www.demandsage.com/helium-10-vs-jungle-scout/), [NeuPortal](https://neuportal.ai/blog/prove-prediction-made-before-event-opentimestamps), [Exploding Topics](https://explodingtopics.com/solutions/market-researchers), [Glimpse](https://meetglimpse.com/software-guides/trend-forecasting/), [ZIK](https://www.zikanalytics.com/academy/ebay/advanced-tools/ali-growth-scanner-tutorial), [Minea](https://minea.com/./aliexpress-products-finder).
