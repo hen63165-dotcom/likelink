@@ -83,7 +83,9 @@ jobs:
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
           set -o pipefail
-          timeout 840 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
+          # 30 minutes (17.11: 120 world categories and 16 styles a day did not fit in 14; the job's 50
+          # leave time for the archive, the board, the alert and the encrypted state after it).
+          timeout 1800 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: The hot-only storefront (archive / restore the owner's products the radar decided)
         # src/lib/cloud/catalogArchive.js on the server decides and refuses; from main it applies
