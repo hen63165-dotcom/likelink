@@ -22,7 +22,7 @@ export const FRESH = Object.freeze({
   gradeDays: 14,
   hitPct: 50,
   keepDays: 21, // a listing not seen again for three weeks leaves the pool
-  maxPool: 1500,
+  maxPool: 6000, // 17.11: the world is read 120 categories a day (~6,000 listings): one day's reading fits
   show: 12,
   maxSimilar: 2000, // more matching listings than this = many sellers already copy it: saturated
   checkUpTo: 24, // candidates checked a day (two reads each)
@@ -46,6 +46,17 @@ export function unknownCheck({ phrase = null, similar = null, suggestions = null
   if (buzz.length) return { unknown: false, reason: "BUZZ", phrase, similar, buzz };
   return { unknown: true, reason: "UNKNOWN", phrase, similar, buzz: [] };
 }
+
+// Fashion pieces the shop's categories leave out (the owner, 2026-11-17: "the radar also spots the
+// fashion items about to be the next trend: accessories, clothes, everything"): read every day with
+// the categories, so a new shoe, pair of sunglasses, hat, scarf or belt can become a fresh riser.
+export const FASHION_AREAS = Object.freeze([
+  Object.freeze({ key: "shoes", he: "נעליים", keywords: "women shoes" }),
+  Object.freeze({ key: "sunglasses", he: "משקפי שמש", keywords: "women sunglasses" }),
+  Object.freeze({ key: "hats", he: "כובעים", keywords: "women hat" }),
+  Object.freeze({ key: "scarves", he: "צעיפים", keywords: "women scarf" }),
+  Object.freeze({ key: "belts", he: "חגורות", keywords: "women belt" }),
+]);
 
 const BUY = /^https:\/\/s\.click\.aliexpress\.com\//;
 const IMG = /^https:\/\/[^/]*(aliexpress-media\.com|alicdn\.com|aliexpress\.com)\//i;

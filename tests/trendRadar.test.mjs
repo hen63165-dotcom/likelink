@@ -155,3 +155,17 @@ test("the buy pick must be that kind of thing: its store title names it (the rea
   assert.equal(pickFrom(both, { concept: tofu }).itemId, "1000002", "the best seller that IS tofu, not the best seller");
   assert.equal(pickFrom(answer([["1000001", 9000, 8, { ...ok, product_title: "צעצוע לחיץ בצורת פנינה" }]]), { concept: tofu }), null, "no matching item, no pick");
 });
+
+test("the styles radar (the owner, 2026-11-17): the looks everyone wants, generic words only, measured like every kind", () => {
+  const { concepts } = JSON.parse(readFileSync("scripts/catalog/radar-concepts.json", "utf8"));
+  const styles = concepts.filter((c) => c.kind === "style");
+  assert.ok(styles.length >= 12, `${styles.length} styles`);
+  for (const c of styles) {
+    assert.ok(Array.isArray(c.hq) && c.hq.length, `${c.id} has Hebrew searches for the Israel gap`);
+    assert.ok(!hasBrandName(c.en) && !hasBrandName(c.he), `no brand in ${c.id}`);
+    assert.ok(pickMatches(c.he, c), `${c.id}: an item titled like the style can be its pick`);
+  }
+  const page = readFileSync("src/components/discover/radar.jsx", "utf8");
+  assert.match(page, /style: "סגנונות"/);
+  assert.match(page, /<Styles concepts=/);
+});

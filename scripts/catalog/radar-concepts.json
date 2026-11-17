@@ -67,6 +67,22 @@
     { "id": "leg-warmers", "he": "מחממי רגליים", "en": "knit leg warmers", "kind": "clothing", "hq": ["מחממי רגליים"], "zh": "针织袜套", "ko": "레그워머" },
     { "id": "knit-balaclava", "he": "כובע ברדס סרוג", "en": "knitted balaclava", "kind": "clothing", "hq": ["בלקלווה סרוגה", "כובע ברדס סרוג", "בלקלווה"], "zh": "针织巴拉克拉法帽", "ko": "바라클라바" },
     { "id": "mesh-ballet-flats", "he": "נעלי בובה רשת", "en": "mesh ballet flats", "kind": "clothing", "hq": ["נעלי בובה רשת"], "zh": "网面芭蕾平底鞋", "ko": "메쉬 플랫슈즈" },
-    { "id": "foam-soap-dispenser", "he": "מתקן סבון קצף אוטומטי", "en": "automatic foam soap dispenser", "kind": "home", "hq": ["מתקן סבון קצף", "מתקן סבון אוטומטי"], "zh": "自动泡沫洗手机", "ko": "자동 거품 디스펜서" }
+    { "id": "foam-soap-dispenser", "he": "מתקן סבון קצף אוטומטי", "en": "automatic foam soap dispenser", "kind": "home", "hq": ["מתקן סבון קצף", "מתקן סבון אוטומטי"], "zh": "自动泡沫洗手机", "ko": "자동 거품 디스펜서" },
+    { "id": "old-money-sweater", "he": "סוודר אולד מאני", "en": "old money cable knit sweater", "kind": "style", "hq": ["אולד מאני", "סוודר אולד מאני"], "zh": "老钱风毛衣", "ko": "올드머니 니트" },
+    { "id": "quiet-luxury-tote", "he": "תיק טוט קוויט לאקשרי", "en": "quiet luxury tote bag", "kind": "style", "hq": ["קוויט לאקשרי", "תיק טוט"], "zh": "静奢风托特包", "ko": "콰이어트 럭셔리 토트백" },
+    { "id": "coquette-bow-top", "he": "חולצת פפיון קוקט", "en": "coquette bow top", "kind": "style", "hq": ["קוקט", "חולצת פפיון"], "zh": "蝴蝶结上衣", "ko": "코케트 리본 블라우스" },
+    { "id": "boho-maxi-skirt", "he": "חצאית מקסי בוהו", "en": "boho tiered maxi skirt", "kind": "style", "hq": ["חצאית בוהו", "חצאית מקסי בוהו"], "zh": "波西米亚长裙", "ko": "보헤미안 롱스커트" },
+    { "id": "leopard-print-skirt", "he": "חצאית מנומרת", "en": "leopard print midi skirt", "kind": "style", "hq": ["חצאית מנומרת", "חצאית נמר"], "zh": "豹纹半身裙", "ko": "레오파드 스커트" },
+    { "id": "burgundy-shoulder-bag", "he": "תיק כתף בורדו", "en": "burgundy shoulder bag", "kind": "style", "hq": ["תיק בורדו", "תיק כתף בורדו"], "zh": "酒红色腋下包", "ko": "버건디 숄더백" },
+    { "id": "western-boots", "he": "מגפי קאובוי לנשים", "en": "western cowboy boots women", "kind": "style", "hq": ["מגפי קאובוי", "מגפי בוקרים"], "zh": "西部牛仔靴", "ko": "웨스턴 부츠" },
+    { "id": "mary-jane-shoes", "he": "נעלי מרי ג׳יין", "en": "mary jane shoes women", "kind": "style", "hq": ["נעלי מרי גיין", "מרי ג׳יין"], "zh": "玛丽珍鞋", "ko": "메리제인 슈즈" },
+    { "id": "chunky-gold-hoops", "he": "עגילי חישוק זהב עבים", "en": "chunky gold hoop earrings", "kind": "style", "hq": ["עגילי חישוק עבים", "עגילי חישוק זהב"], "zh": "粗金耳圈", "ko": "볼드 골드 링귀걸이" },
+    { "id": "baroque-pearl-earrings", "he": "עגילי פנינת בארוק", "en": "baroque pearl earrings", "kind": "style", "hq": ["פנינת בארוק", "עגילי פנינה בארוק"], "zh": "巴洛克珍珠耳环", "ko": "바로크 진주 귀걸이" },
+    { "id": "cat-eye-sunglasses", "he": "משקפי שמש עין חתול", "en": "cat eye sunglasses women", "kind": "style", "hq": ["משקפי שמש עין חתול", "משקפי חתול"], "zh": "猫眼墨镜", "ko": "캣아이 선글라스" },
+    { "id": "satin-square-scarf", "he": "צעיף סאטן מרובע", "en": "satin square scarf", "kind": "style", "hq": ["מטפחת משי", "צעיף משי לשיער"], "zh": "丝巾方巾", "ko": "실크 스카프" },
+    { "id": "faux-fur-bucket-hat", "he": "כובע באקט פרווה", "en": "faux fur bucket hat", "kind": "style", "hq": ["כובע פרווה", "כובע באקט פרווה"], "zh": "毛绒渔夫帽", "ko": "퍼 버킷햇" },
+    { "id": "wide-waist-belt", "he": "חגורת מותן רחבה", "en": "wide waist belt women", "kind": "style", "hq": ["חגורה רחבה", "חגורת מותן"], "zh": "宽腰封", "ko": "와이드 허리벨트" },
+    { "id": "barrel-jeans", "he": "ג׳ינס בארל", "en": "barrel leg jeans", "kind": "style", "hq": ["ג׳ינס בארל", "גינס בארל"], "zh": "弯刀裤", "ko": "배럴 진" },
+    { "id": "suede-jacket", "he": "ז׳קט זמש לנשים", "en": "suede jacket women", "kind": "style", "hq": ["ז׳קט זמש", "מעיל זמש"], "zh": "麂皮夹克", "ko": "스웨이드 자켓" }
   ]
 }

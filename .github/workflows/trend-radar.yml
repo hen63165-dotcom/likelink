@@ -54,6 +54,9 @@ jobs:
       # Instagram's own Hashtag Search API for the waves (the owner's business account; without them: REQUIRES_CONNECTION).
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+      # Pinterest's own trends API (src/lib/growth/pinterestTrends.js): the owner's Pinterest app token;
+      # without it nothing is asked (REQUIRES_CONNECTION).
+      PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

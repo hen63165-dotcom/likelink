@@ -97,3 +97,10 @@ test("fresh: the radar card links each riser to the Studio with the item page on
   const studio = readFileSync(new URL("../src/components/studio/AddProductLink.jsx", import.meta.url), "utf8");
   assert.match(studio, /aliexpress\\\.com\\\/item\\\/\\d\{6,20\}\\\.html\$/);
 });
+
+test("fashion pieces are read every day with the categories (the owner, 2026-11-17)", async () => {
+  const { FASHION_AREAS } = await import("../src/lib/growth/freshRisers.js");
+  assert.deepEqual(FASHION_AREAS.map((a) => a.key), ["shoes", "sunglasses", "hats", "scarves", "belts"]);
+  const run = (await import("node:fs")).readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /\.\.\.WAVE_AREAS, \.\.\.FASHION_AREAS\]/);
+});
