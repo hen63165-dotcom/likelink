@@ -20,7 +20,7 @@ const F = process.env.FONTS || join(process.cwd(), "node_modules/@fontsource");
 const b64 = (p) => readFileSync(p).toString("base64");
 const font = (n, f, w) => `@font-face{font-family:${n};font-weight:${w};src:url(data:font/woff2;base64,${b64(join(F, f))}) format("woff2");}`;
 const T = {
-  he: { dir: "rtl", tag: `🛠️ יום ${DAY} · בונה בפומבי`, h: "רדאר שמזהה מוצרים<br>לפני שהם מגיעים לישראל", k: "🤖 הרדאר בחר היום", v: HE, rows: [`📦 ${ORDERS} הזמנות ב־30 יום (נמדד היום)`, `⛓️ חתום בביטקוין ב־${SEALED}`, `⚖️ הציון בפומבי ב־${DUE} (פגיעה = ‎+15%)`], cta: "🔮 יש לך חוש שישי לטרנדים?<br>likelink2.vercel.app/radar" },
+  he: { dir: "rtl", tag: `🛠️ יום ${DAY} · בונה בפומבי`, h: "רדאר טרנדים שחותם<br>כל בחירה מראש", k: "🤖 הרדאר בחר היום", v: HE, rows: [`📦 ${ORDERS} הזמנות ב־30 יום (נמדד היום)`, `⛓️ חתום בביטקוין ב־${SEALED}`, `⚖️ הציון בפומבי ב־${DUE} (פגיעה = ‎+15%)`], cta: "🔮 יש לך חוש שישי לטרנדים?<br>likelink2.vercel.app/radar" },
   en: { dir: "ltr", tag: `🛠️ Day ${DAY} · Building in public`, h: "A trend radar that seals every pick in advance", k: "🤖 Today the radar picked", v: EN, rows: [`📦 ${ORDERS} orders in 30 days (measured today)`, `⛓️ Sealed in Bitcoin on ${enDay(SEALED)}`, `⚖️ Graded in public on ${enDay(DUE)} (hit = +15%)`], cta: "🔮 Do you have a sixth sense for trends?<br>likelink2.vercel.app/radar" },
 };
 if (QUIET) {
