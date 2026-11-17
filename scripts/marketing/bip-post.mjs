@@ -2,6 +2,8 @@
 // "I want it global"): one 1080x1350 picture per language for the day, from the radar's own sealed
 // pick of the day (op=leaderboard → duel.recent) — facts only: what it picked, its sealed base (the
 // top items' AliExpress orders over 30 days, measured that day — never "orders today"), the seal day and the public grade day. No promise, no forecast, no "only one in the world".
+// Only a pick made under the radar's principle (radarPicks.js `beforeEveryone`: rising, the world still
+// quiet, Israel not arrived): never a steady or widely known kind (17.11, the day-2 post was stopped).
 // Usage: FONTS=<@fontsource dir> node scripts/marketing/bip-post.mjs <day> <name-he> <name-en> <orders> <sealed d.m> <due d.m> <outdir>
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
