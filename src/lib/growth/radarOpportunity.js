@@ -25,6 +25,7 @@ export const HOT = Object.freeze({
   minOrders: 300,
   popularOrders: 3000,
   keep: 45,
+  maxJump: 20, // a 30-day order count that grew more than 20× between two readings is a listing change to check, never a trend
 });
 
 export const HOT_STATES = Object.freeze({
@@ -53,9 +54,13 @@ export function itemMomentum(series = [], { rules = HOT } = {}) {
   const rs = (Array.isArray(series) ? series : []).filter((r) => Array.isArray(r) && Number.isFinite(r[1]));
   const now = rs.at(-1);
   if (!now) return { state: "UNVERIFIED", weekPct: null, orders: null };
-  const base = rs.filter((r) => { const g = days(r[0], now[0]); return g >= rules.minSpanDays && g <= rules.maxSpanDays; })
-    .sort((a, b) => Math.abs(days(a[0], now[0]) - 7) - Math.abs(days(b[0], now[0]) - 7))[0];
-  if (!base || !(base[1] > 0)) return { state: "UNVERIFIED", weekPct: null, orders: now[1], to: now[0] };
+  const window = rs.filter((r) => { const g = days(r[0], now[0]); return g >= rules.minSpanDays && g <= rules.maxSpanDays; })
+    .sort((a, b) => Math.abs(days(a[0], now[0]) - 7) - Math.abs(days(b[0], now[0]) - 7));
+  // 17.11: a squishy read 137 orders on 14.11 and 20,651 on 17.11 (×150 in three days) and the page
+  // printed +12,092,356% a week. A jump that size is a listing that changed, not a measured trend:
+  // only a base without such a jump counts; with none, the item waits for readings after the jump.
+  const base = window.find((r) => r[1] > 0 && now[1] / r[1] <= rules.maxJump);
+  if (!base) return { state: "UNVERIFIED", weekPct: null, orders: now[1], to: now[0], ...(window.some((r) => r[1] > 0) ? { jump: true } : {}) };
   const span = days(base[0], now[0]);
   const weekPct = round1((Math.pow(now[1] / base[1], 7 / span) - 1) * 100);
   const state = weekPct <= rules.coolingWeek ? "COOLING"

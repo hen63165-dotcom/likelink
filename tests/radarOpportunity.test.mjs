@@ -59,3 +59,15 @@ test("the site's own products: the real seed parses and ranks hot items first", 
   assert.ok(h.counts.HOT >= 1 && h.counts.UNVERIFIED >= 1);
   assert.deepEqual(siteHotness([{ id: "../x", itemId: "1" }], items).checked, 0, "bad ids are skipped");
 });
+
+test("a jump of more than 20× between two readings is a listing change to check, never HOT (17.11: +12,092,356%)", async () => {
+  const { itemMomentum } = await import("../src/lib/growth/radarOpportunity.js");
+  const m = itemMomentum([["2026-11-14", 137], ["2026-11-17", 20651]]);
+  assert.equal(m.state, "UNVERIFIED");
+  assert.equal(m.weekPct, null);
+  assert.equal(m.jump, true);
+  const after = itemMomentum([["2026-11-14", 137], ["2026-11-17", 20651], ["2026-11-20", 23000]]);
+  assert.equal(after.ordersBefore, 20651, "readings after the jump are the base");
+  assert.equal(after.state, "HOT");
+  assert.equal(itemMomentum([["2026-11-10", 300], ["2026-11-17", 600]]).state, "HOT", "a real doubling still counts");
+});
