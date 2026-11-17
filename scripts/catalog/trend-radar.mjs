@@ -49,14 +49,14 @@ import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrati
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { createHash, randomBytes } from "node:crypto";
-import { challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
+import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
-import { FRESH, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -490,7 +490,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   board.sourcesToday = sources;
   board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
-  board.fresh = freshRisers(freshPool, items, { rules: { ...FRESH, show: FRESH.checkUpTo } });
+  const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
+  board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
+  board.fresh.strict = freshRules.strict;
   {
     const checked = [];
     const counts = {};
@@ -708,19 +710,21 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const il = board.globe.israel;
     log.push(`globe: ${board.globe.observed} arrivals observed · Israel after the US: ${il.medianDays ?? "-"} days (${il.n} pairs) · next-country calls open ${board.globe.calls.open.length}, graded ${board.globe.calls.graded}`);
   }
-  // 🔮 The weekly challenge (radarChallenge.js): four measured products, the radar's choice sealed
-  // (only the hash of a salted text is public until grading), graded after 14 days by the same order
-  // sums as every call. RADAR_CHALLENGE=0 turns it off.
+  // 🔮 The weekly challenge (radarChallenge.js): four of the radar's own discoveries (fresh risers that
+  // passed the unknown check), the radar's choice sealed (only the hash of a salted text is public until
+  // grading), graded after 14 days by each item's own orders. RADAR_CHALLENGE=0 turns it off.
   if (env.RADAR_CHALLENGE !== "0") {
-    const latest = Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum]));
-    let chs = readJson(join(dir, "challenge.json"), []).map((c) => gradeChallenge(c, latest, today));
+    const latest = {
+      ...Object.fromEntries(Object.entries(readings).map(([id, rs]) => [id, (rs || []).at(-1)?.sum])),
+      ...Object.fromEntries(Object.entries(items || {}).map(([id, rs]) => [id, (Array.isArray(rs) ? rs : []).at(-1)?.[1]])),
+    };
+    let chs = cancelNotFresh(readJson(join(dir, "challenge.json"), []), today).map((c) => gradeChallenge(c, latest, today));
     if (shouldOpen(chs, today)) {
-      const rows = (board.concepts || []).map((c) => ({ id: c.id, he: c.he, kind: c.kind, stage: c.stage, score: c.score, auto: c.auto === true, base: latest[c.id], image: c.pick?.image || null }));
-      const picked = pickOptions(rows);
+      const picked = pickFreshOptions(board.fresh?.risers || []);
       if (picked) {
         chs.push(openChallenge(picked, today, randomBytes(16).toString("hex")));
         log.push(`challenge opened: ${picked.options.map((o) => o.concept).join(", ")}`);
-      } else log.push("challenge: fewer than 4 measured kinds today, opens on a later run");
+      } else log.push(`challenge: ${board.fresh?.risers?.length || 0} of 4 discoveries today, opens on the day the radar finds 4`);
     }
     const seals = readJson(join(dir, "challenge-seals.json"), {});
     for (const c of chs) {

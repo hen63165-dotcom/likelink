@@ -99,6 +99,17 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
+/**
+ * The bar never drops, it only rises with the record (pure; tested; the owner, 2026-11-17: "חייב להיות
+ * בטוחים שהוא פוגע בול"): once 10 risers are graded under 80% hits, a riser must grow 1.5× faster
+ * (≥ 60% a week) and the reading before must already show ≥ 40%. Precision comes from the bar, never
+ * from hiding or regrading a call.
+ */
+export function freshBar(record, { rules = FRESH } = {}) {
+  const strict = Number(record?.graded) >= 10 && Number.isFinite(record?.accuracy) && record.accuracy < 80;
+  return strict ? { ...rules, minWeekPct: rules.minWeekPct * 1.5, heldWeekPct: rules.heldWeekPct * 2, strict: true } : { ...rules, strict: false };
+}
+
 /** Today's risers saved as calls (one open call per item), each due 14 days later. */
 export function recordFresh(calls = [], risers = [], today, { rules = FRESH } = {}) {
   const list = Array.isArray(calls) ? [...calls] : [];
