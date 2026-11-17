@@ -23,6 +23,16 @@ const IMG_HOST = /(^|\.)(aliexpress-media\.com|alicdn\.com|aliexpress\.com)$/i;
 const str = (v, max = 200) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : "");
 const FINISH = ["buzz", "israel", "trends", "wide"];
 const OTS_HOSTS = ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"];
+/** A sealed book (radarLedger.js): its day, hash, line count, text when it fits and matches, and up to two proofs. */
+const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? {
+  d: day(s.d),
+  sha256: s.sha256,
+  count: num(s.count) ?? 0,
+  text: typeof s.text === "string" && s.text.length <= 30_000 && textRe.test(s.text) ? s.text : null,
+  ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
+} : null);
+const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
+const LEDGER_ROOT = /^(early|fresh|globe|prices)=[0-9a-f]{64}(\n(early|fresh|globe|prices)=[0-9a-f]{64})*$/;
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const day = (v) => (typeof v === "string" && DAY.test(v) ? v : null);
 const lines = (list, max = 8) => (Array.isArray(list) ? list : []).slice(0, max).map((e) => ({ k: str(e?.k, 20), text: str(e?.text, 300) })).filter((e) => e.text);
@@ -143,6 +153,8 @@ export function sanitizeBoard(doc) {
     } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
     fresh: cleanFresh(doc.fresh),
+    // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
+    ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
@@ -243,7 +255,7 @@ function cleanFresh(f) {
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
-  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
+  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, seal: cleanBook(f.seal, FRESH_BOOK), record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
 }
 
 /**

@@ -55,6 +55,9 @@ export function teaserBoard(board) {
     // The weekly challenge is public on purpose (it is the post people vote on): the open one carries
     // no choice and no salt; graded ones are revealed.
     challenge: board.challenge || null,
+    // The complete ledger's root is public on purpose: it names no call (only the books' hashes), and
+    // it is what lets anyone see later that nothing was added or removed after the day.
+    ledger: board.ledger ? { d: board.ledger.d, sha256: board.ledger.sha256, count: board.ledger.count, text: board.ledger.text, ots: board.ledger.ots || [] } : null,
     concepts: [],
     early: e ? {
       need: e.need,

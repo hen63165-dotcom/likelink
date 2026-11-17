@@ -768,6 +768,36 @@ function Styles({ concepts = [] }) {
   );
 }
 
+/**
+ * The complete sealed ledger (radarLedger.js; the owner, 2026-11-17: "a million levels above
+ * everyone"). The worldwide check that day found the big trend companies publishing accuracy they
+ * measured themselves; here every book of calls, misses included, is sealed daily under one root,
+ * and anyone can recompute it. Public behind the lock too: the root names no call.
+ */
+const BOOK_HE = { early: "ההתראות המוקדמות", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
+function Ledger({ ledger, freshBook = null }) {
+  const { L } = useL();
+  if (!ledger?.sha256) return null;
+  const books = String(ledger.text || "").split("\n").map((l) => l.split("=")[0]).filter((k) => BOOK_HE[k]);
+  return (
+    <section className="lx-wrap mt-6" id="ledger">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fffbeb" }}>
+        <h2 className="text-[20px] font-black">{L("🧾 ספר החתימות המלא", "🧾 The complete sealed ledger")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("כל מה שהרדאר אמר, כולל החטאות, נחתם כל יום בביטקוין תחת חתימה אחת, כך שכל אחד יכול לבדוק שהכול נשאר בדיוק כמו שנחתם. חברות הטרנדים הגדולות מפרסמות אחוזי דיוק שהן מדדו בעצמן; כאן כל קביעה חתומה מראש ופתוחה לבדיקה של כל אחד.", "Everything the radar said, misses included, is sealed in Bitcoin every day under one root, so anyone can check that it all stayed exactly as sealed. The big trend companies publish accuracy they measured themselves; here every call is sealed in advance and open for anyone to check.")}</p>
+        {books.length ? <p className="mt-2 text-[13px] font-bold">{L(`בחתימה של ${dm(ledger.d)}: ${books.map((k) => BOOK_HE[k]).join(" · ")}`, `In the ${dm(ledger.d)} seal: ${books.map((k) => BOOK_EN[k]).join(" · ")}`)}</p> : null}
+        <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>
+          <span dir="ltr">🔏 SHA-256 {ledger.sha256.slice(0, 24)}…</span>
+          {ledger.text ? <> · <a className="underline" download={`radar-ledger-${ledger.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(ledger.text)}`}>{L("השורש (טקסט)", "the root (text)")}</a></> : null}
+          {freshBook?.text ? <> · <a className="underline" download={`radar-fresh-${freshBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(freshBook.text)}`}>{L(`כל ${freshBook.count} המוצרים החדשים שהוצגו`, `all ${freshBook.count} new products shown`)}</a></> : null}
+          {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
+        </p>
+        <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
+      </div>
+    </section>
+  );
+}
+
 /** Waves the radar measures but never sells (brandWaves.js): the copy has no buy button; the legal alternative does. */
 function Waves({ waves }) {
   const { L } = useL();
@@ -1071,6 +1101,7 @@ export function RadarPage() {
       ) : null}
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
