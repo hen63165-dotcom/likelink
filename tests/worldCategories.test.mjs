@@ -29,10 +29,34 @@ test("the list is read again once a week", () => {
   assert.equal(needsRefresh(null, "2026-11-16"), true);
   assert.equal(needsRefresh({ at: "2026-11-12", list: [{ id: "1" }] }, "2026-11-16"), false);
   assert.equal(needsRefresh({ at: "2026-11-09", list: [{ id: "1" }] }, "2026-11-16"), true);
-  assert.equal(WORLD.perRun, 12);
+  assert.equal(WORLD.perRun, 120, "17.11: 120 a day (the owner asked for the whole world faster)");
 });
 
 test("the board says how much of the world the radar reads, numbers only", () => {
   const b = sanitizeBoard({ v: 2, at: "2026-11-16T05:00:00Z", concepts: [], record: {}, world: { categories: 412, readToday: 12, fullRoundDays: 35, extra: "x" } });
   assert.deepEqual(b.world, { categories: 412, readToday: 12, fullRoundDays: 35 });
+});
+
+// 17.11: 12 a day brought a category back only every ~47 days, too late for a riser (3–14 days).
+import { WORLD as W2, worldSlice } from "../src/lib/growth/worldCategories.js";
+
+test("every fashion category every day, the rest in rotation, 120 a day", () => {
+  const list = [
+    { id: "100", name: "Women's Clothing", parent: null },
+    { id: "101", name: "Dresses", parent: "100" },
+    { id: "102", name: "Sweaters", parent: "100" },
+    { id: "200", name: "Shoes", parent: null },
+    { id: "201", name: "Sneakers", parent: "200" },
+    { id: "300", name: "Home & Garden", parent: null },
+    ...Array.from({ length: 300 }, (_, i) => ({ id: String(1000 + i), name: `Tools ${i}`, parent: "300" })),
+  ];
+  const a = worldSlice(list, 0);
+  assert.equal(W2.perRun, 120);
+  assert.equal(a.fashion, 3, "Dresses, Sweaters, Sneakers: by their own name or their parent's");
+  assert.ok(["101", "102", "201"].every((id) => a.slice.slice(0, 3).some((c) => c.id === id)));
+  assert.equal(a.slice.length, 120);
+  const b = worldSlice(list, a.next);
+  assert.ok(["101", "102", "201"].every((id) => b.slice.some((c) => c.id === id)), "fashion again the next day");
+  assert.notEqual(b.slice[3].id, a.slice[3].id, "the rest moves on");
+  assert.ok(a.days <= 7, "every other kind comes back within a week");
 });

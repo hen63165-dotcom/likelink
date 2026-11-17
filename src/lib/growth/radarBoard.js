@@ -146,7 +146,7 @@ export function sanitizeBoard(doc) {
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
-    world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays) } : null,
+    world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays), ...(num(doc.world.fashionDaily) ? { fashionDaily: num(doc.world.fashionDaily) } : {}) } : null,
     globe: cleanGlobe(doc.globe),
     challenge: cleanChallenge(doc.challenge),
   };

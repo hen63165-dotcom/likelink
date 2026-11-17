@@ -25,7 +25,7 @@ export const RADAR_BOARD_HOME = "https://hen63165-dotcom.github.io/likelink/rada
 const KINDS = {
   kids: "ילדים", kitchen: "מטבח", home: "בית", hair: "שיער", makeup: "איפור וטיפוח", bracelets: "צמידים", rings: "טבעות",
   earrings: "עגילים", necklaces: "שרשראות", bags: "תיקים", gadgets: "גאדג׳טים", car: "לרכב", pets: "חיות מחמד",
-  fitness: "כושר", clothing: "בגדים", watches: "שעונים",
+  fitness: "כושר", clothing: "בגדים", watches: "שעונים", style: "סגנונות",
 };
 
 const STAGE_STYLE = {
@@ -694,7 +694,7 @@ function FreshRisers({ fresh, world = null }) {
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f0fdf4" }}>
         <h2 className="text-[22px] font-black">{L("🆕 מוצרים חדשים שמתחילים לרוץ", "🆕 New products starting to run")}</h2>
         <p className="mt-1 text-[14px] leading-6">{L("הרדאר מוצא לבד: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושעוד שקט סביבו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביב ״טיקטוק״, ״ויראלי״ ו״אמזון״. כאן מופיעים רק מוצרים טריים. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
-        {world?.categories ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 בכל הקטגוריות בעולם: הרדאר עובר על כל ${world.categories.toLocaleString("he-IL")} הקטגוריות של אליאקספרס, ${world.readToday} בכל בוקר, סבב מלא כל ${world.fullRoundDays} ימים.`, `🌍 Every category: the radar goes through all ${world.categories.toLocaleString("en-US")} AliExpress categories, ${world.readToday} every morning, a full round every ${world.fullRoundDays} days.`)}</p> : null}
+        {world?.categories ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 בכל הקטגוריות בעולם: הרדאר עובר על כל ${world.categories.toLocaleString("he-IL")} הקטגוריות של אליאקספרס, ${world.readToday} בכל בוקר${world.fashionDaily ? `: ${world.fashionDaily} קטגוריות האופנה כל יום, והשאר` : ","} בסבב של ${world.fullRoundDays} ימים.`, `🌍 Every category: the radar goes through all ${world.categories.toLocaleString("en-US")} AliExpress categories, ${world.readToday} every morning${world.fashionDaily ? `: the ${world.fashionDaily} fashion categories every day, the rest` : ","} in a ${world.fullRoundDays}-day round.`)}</p> : null}
         <p className="mt-2 text-[13px] font-bold">{fresh.record?.graded ? L(`📏 הציון בפומבי: מתוך ${fresh.record.graded} מוצרים שהרדאר הצביע עליהם, ${fresh.record.hits} עלו ב־50% או יותר תוך 14 יום (${fresh.record.accuracy}%).`, `📏 Public grade: of ${fresh.record.graded} products the radar pointed to, ${fresh.record.hits} grew 50%+ within 14 days (${fresh.record.accuracy}%).`) : fresh.record?.pending ? L(`📏 כל מוצר שמוצג כאן נשמר עם תאריך ונבדק אחרי 14 יום: פגע אם ההזמנות שלו עלו ב־50% או יותר. ${fresh.record.pending} מחכים לבדיקה, הראשונה ב־${dm(fresh.record.nextDue)}.`, `📏 Every product shown is saved with its date and graded after 14 days: a hit if its orders grew 50%+. ${fresh.record.pending} waiting, the first on ${dm(fresh.record.nextDue)}.`) : L("📏 כל מוצר שיוצג כאן יישמר עם תאריך וייבדק אחרי 14 יום, בפומבי: פגע אם ההזמנות שלו עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every product shown here is saved with its date and graded after 14 days, in public: a hit if its orders grew 50%+; misses stay here too.")}</p>
         {fresh.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{fresh.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.title.slice(0, 40)} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
         {fresh.risers.length ? (
@@ -724,6 +724,45 @@ function FreshRisers({ fresh, world = null }) {
         ) : (
           <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר מודד.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The styles radar (the owner, 2026-11-17: "the look everyone wants from the big brands, without
+ * the brand's name"): every look is one generic store search, measured every morning like every kind
+ * (the top 20 items' orders, the listings, Hebrew searches in Israel) and its calls are sealed and
+ * graded like every call. Strongest stage first; a first reading shows today's size only.
+ */
+const STYLE_ORDER = { EMERGING: 0, RISING: 1, STEADY: 2, UNVERIFIED: 3, PEAK: 4, COOLING: 5 };
+function Styles({ concepts = [] }) {
+  const { L } = useL();
+  const list = concepts.filter((c) => c.kind === "style").sort((a, b) => (STYLE_ORDER[a.stage] ?? 9) - (STYLE_ORDER[b.stage] ?? 9) || (b.score || 0) - (a.score || 0));
+  if (!list.length) return null;
+  return (
+    <section className="lx-wrap mt-8" id="styles">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fdf2f8" }}>
+        <h2 className="text-[22px] font-black">{L("👗 רדאר הסגנונות", "👗 The styles radar")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`הלוק שכולם רוצים מהמותגים הגדולים, במילים כלליות בלבד: ${list.length} סגנונות נמדדים כל בוקר כמו כל מוצר. ההזמנות של 20 הפריטים המובילים באליאקספרס, כמה מוכרים מציעים אותו, והאם בישראל כבר מחפשים אותו בעברית. כל קביעה נחתמת מראש ונבדקת אחרי 14 יום, בפומבי.`, `The look everyone wants from the big brands, in generic words only: ${list.length} styles measured every morning like every product. The top 20 items' orders on AliExpress, how many sellers list it, and whether Israelis already search it in Hebrew. Every call is sealed in advance and graded after 14 days, in public.`)}</p>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {list.map((c) => (
+            <li key={c.id} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[15px] font-extrabold">{c.he}</p>
+                <StageBadge stage={c.stage} label={c.stageHe} />
+              </div>
+              {c.stage === "UNVERIFIED" ? (
+                <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נמדד מ־${dm(c.since)}${c.today?.orders ? ` · היום ${c.today.orders.toLocaleString("he-IL")} הזמנות ב־30 יום` : ""} · הכיוון יופיע ב־${dm(nextDay(c.since))}`, `Measured since ${dm(c.since)}${c.today?.orders ? ` · today ${c.today.orders.toLocaleString("en-US")} orders in 30 days` : ""} · the direction shows on ${dm(nextDay(c.since))}`)}</p>
+              ) : c.evidence?.[0]?.text ? (
+                <p className="mt-1 text-[12px] leading-5">{c.evidence[0].text}</p>
+              ) : null}
+              {c.factory ? <p className="text-[12px] font-bold" style={{ color: c.factory.weekPct >= 25 ? "#166534" : "var(--lx-muted)" }}>{L(`🏭 מודעות חדשות: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% בשבוע`, `🏭 New listings: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% a week`)}</p> : null}
+              {c.gap?.he ? <p className="text-[12px]" style={{ color: "#1d4ed8" }}>{L(`🇮🇱 ${gapHe(c.gap)}`, `🇮🇱 ${gapHe(c.gap)}`)}</p> : null}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("המילים הן חיפוש כללי באליאקספרס, כמו ״סוודר אולד מאני״: שם של מותג נשאר מחוץ לרדאר.", "The words are a generic AliExpress search, like \"old money sweater\": brand names stay off the radar.")}</p>
       </div>
     </section>
   );
@@ -1034,6 +1073,7 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
+      {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
       {!gated && board?.globe ? <Globe globe={board.globe} /> : null}

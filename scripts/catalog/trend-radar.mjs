@@ -54,9 +54,10 @@ import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSe
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
-import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation } from "../../src/lib/growth/worldCategories.js";
+import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
-import { FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
+import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -192,6 +193,22 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     } catch (err) { sources.trendsWorld = "FAILED"; log.push(`google trends robots: ${String(err?.message || err).slice(0, 60)}`); }
     log.push(`google trends abroad: ${Object.entries(abroadTerms).map(([g, t]) => `${g} ${t.length}`).join(", ") || "none"}`);
   }
+  // Pinterest's own growing keywords in fashion and beauty (pinterestTrends.js, the official API
+  // with the owner's app token): they join the terms from abroad. The token is never logged.
+  // Kept apart from abroadTerms: those are Google's trending searches, the "trends" finish line.
+  let pinTerms = [];
+  sources.pinterest = env.PINTEREST_TOKEN ? "NOT_ASKED" : "REQUIRES_CONNECTION";
+  if (env.PINTEREST_TOKEN && env.RADAR_PINTEREST !== "0") {
+    try {
+      const res = await fetchImpl(pinterestTrendsUrl(), { headers: { authorization: `Bearer ${String(env.PINTEREST_TOKEN).trim()}`, accept: "application/json" } });
+      if (res.ok) {
+        const terms = pinterestTerms(await res.json());
+        pinTerms = terms.map((t) => t.term);
+        sources.pinterest = terms.length ? "OK" : "EMPTY";
+        log.push(`pinterest trends: ${terms.length} growing fashion and beauty keywords`);
+      } else { sources.pinterest = `HTTP_${res.status}`; log.push(`pinterest trends: HTTP ${res.status}`); }
+    } catch (err) { sources.pinterest = "FAILED"; log.push(`pinterest trends: ${String(err?.message || err).slice(0, 60)}`); }
+  }
 
   // 1. Discovery.
   let waveLists = null;
@@ -218,7 +235,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     log.push(`discovery: ${Object.keys(lists).length} hot lists · ${candidates.length} candidates · added ${added.map((c) => c.en).join(", ") || "none"} · on trial ${discovered.length}`);
     // Found in the world first, then on AliExpress: a term trending today in a country's Google
     // searches joins the radar when AliExpress sells it (productTrend: matching items and orders).
-    const terms = [...new Map(Object.entries(abroadTerms).flatMap(([geo, ts]) => ts.map((t) => [String(t).toLowerCase().trim(), geo]))).entries()]
+    // Pinterest's growing fashion keywords first (the styles), then Google's trending searches.
+    const seenTerm = new Set();
+    const terms = [["pinterest", pinTerms], ...Object.entries(abroadTerms)].flatMap(([geo, ts]) => ts.map((t) => [String(t).toLowerCase().trim(), geo])).filter(([t]) => !seenTerm.has(t) && seenTerm.add(t))
       .filter(([t]) => t.length >= 4 && !hasBrandName(t) && !isNotListedKind(t)).slice(0, 60);
     if (terms.length) {
       const e = aeEnv(env);
@@ -233,7 +252,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           const raw = r.result?.products?.product;
           const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
           const verdict = productTrend(term, list);
-          if (verdict.ok) tCands.push({ en: term, kind: "", items: verdict.items, orders: verdict.orders, category: `google-trends-${geo}` });
+          if (verdict.ok) tCands.push({ en: term, kind: "", items: verdict.items, orders: verdict.orders, category: geo === "pinterest" ? "pinterest-trends" : `google-trends-${geo}` });
         } catch (err) { log.push(`trends discovery ${term}: ${String(err?.message || err).slice(0, 60)}`); }
       }
       const tBefore = new Set(discovered.map((c) => c.id));
@@ -407,8 +426,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (store && env.RADAR_FRESH !== "0") {
     const started = Date.now();
     const entries = [];
-    for (const cat of [...TREND_CATEGORIES, ...WAVE_AREAS]) {
-      if (Date.now() - started > 75_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
+    for (const cat of [...TREND_CATEGORIES, ...WAVE_AREAS, ...FASHION_AREAS]) {
+      if (Date.now() - started > 100_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
       try {
         const e = aeEnv(env);
         const biz = { keywords: freshKeywords(cat, now), tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" };
@@ -437,9 +456,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           if (list?.length) world = { at: today, list, cursor: Number(world.cursor) || 0 };
         } catch (err) { log.push(`world categories: ${String(err?.message || err).slice(0, 60)}`); }
       }
-      const rot = rotation(world.list || [], world.cursor);
+      const rot = worldSlice(world.list || [], world.cursor);
       const wStarted = Date.now();
       let read = 0;
+      let restRead = 0;
       for (const cat of rot.slice) {
         if (Date.now() - wStarted > WORLD.budgetMs) { log.push(`world: budget over at ${cat.id}`); break; }
         try {
@@ -459,16 +479,22 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
             waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
           }
           read++;
-        } catch (err) { log.push(`world ${cat.id}: ${String(err?.message || err).slice(0, 60)}`); }
+          if (!rot.slice.slice(0, rot.fashion).includes(cat)) restRead++;
+        } catch (err) {
+          const msg = String(err?.message || err);
+          log.push(`world ${cat.id}: ${msg.slice(0, 60)}`);
+          // The store's own limit: stop for today, the cursor keeps the place.
+          if (/limit|frequen|flow control|isv\.|throttl/i.test(msg)) { log.push("world: the store's limit reached, the rest tomorrow"); break; }
+        }
         await pause(politeMs);
       }
       if (world.list?.length) {
-        const done = rotation(world.list, world.cursor, read);
+        const done = rotation(rot.restList, world.cursor, restRead);
         world.cursor = done.next;
         writeFileSync(join(dir, "world-categories.json"), JSON.stringify(world));
       }
-      sources.world = rot.total ? { categories: rot.total, readToday: read, fullRoundDays: rot.days } : "FAILED";
-      log.push(`world: ${read}/${rot.slice.length} categories read today · ${rot.total} in the tree · a full round every ${rot.days} days`);
+      sources.world = rot.total ? { categories: rot.total, readToday: read, fashionDaily: rot.fashion, fullRoundDays: rot.days } : "FAILED";
+      log.push(`world: ${read}/${rot.slice.length} categories read today (${rot.fashion} fashion, every day) · ${rot.total} in the tree · the rest every ${rot.days} days`);
     }
     freshPool = mergeFreshPool(freshPool, entries, { today });
     sources.fresh = entries.length ? "OK" : "FAILED";
