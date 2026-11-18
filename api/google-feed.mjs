@@ -171,6 +171,7 @@ export default async function handler(req, res) {
   if (kind === "sitemap") return sitemapHandler(req, res);
   if (kind === "discover") return discoveryFeedHandler(req, res);
   if (kind === "story") return storyHandler(req, res);
+  if (kind === "openai") return openAiFeedHandler(req, res);
   return googleFeedHandler(req, res);
 }
 
@@ -343,5 +344,55 @@ async function googleFeedHandler(req, res) {
     res.status(500);
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.end(JSON.stringify({ error: `Failed to build the feed: ${error.message}` }));
+  }
+}
+
+/**
+ * OpenAI Agentic Commerce hosted JSONL feed.
+ * Never fabricates brand or seller fields: incomplete products are excluded.
+ * A zero-row feed fails closed so it cannot be mistaken for a valid catalog.
+ */
+async function openAiFeedHandler(req, res) {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    res.status(503);
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Catalog source is not configured." }));
+    return;
+  }
+  try {
+    const { buildOpenAIJsonl } = await import("../src/lib/openAiProductFeed.js");
+    const origin = process.env.PUBLIC_ORIGIN || process.env.LIKELINK_BASE_URL || originFromRequest(req);
+    const [products, marketers] = await Promise.all([
+      fetchKv(supabaseUrl, supabaseKey, SUPABASE_KEY),
+      fetchKv(supabaseUrl, supabaseKey, MARKETERS_KEY),
+    ]);
+    const result = buildOpenAIJsonl({
+      products, marketers, baseUrl: origin,
+      currency: process.env.LIKELINK_CURRENCY || "ILS",
+      targetCountry: process.env.LIKELINK_TARGET_COUNTRY || "IL",
+    });
+    res.setHeader("cache-control", "public, max-age=300, s-maxage=300");
+    res.setHeader("x-likelink-feed-items", String(result.count));
+    res.setHeader("x-likelink-feed-skipped", JSON.stringify(result.skipped));
+    if (!result.count) {
+      res.status(503);
+      res.setHeader("content-type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({
+        error: "No products currently satisfy the OpenAI discovery feed's required fields. Add verified brand and seller data; no placeholders are generated.",
+        count: 0, skipped: result.skipped,
+      }));
+      return;
+    }
+    res.status(200);
+    res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("content-disposition", 'inline; filename="likelink-openai-products.jsonl"');
+    res.end(result.body);
+  } catch (error) {
+    console.error("[openai-product-feed] generation failed", error);
+    res.status(500);
+    res.setHeader("content-type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ error: "Failed to build OpenAI product feed." }));
   }
 }
