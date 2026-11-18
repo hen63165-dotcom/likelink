@@ -800,15 +800,15 @@ function Proof({ record, hasLedger = false }) {
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fff" }}>
         <h2 className="text-[22px] font-black">{L("🔍 איך יודעים שזה אמיתי?", "🔍 How do you know it's real?")}</h2>
         <p className="mt-2 text-[16px] font-black leading-7">{L("כאן אפשר לבדוק את יומן הרדאר, את הקביעות שפורסמו ואת קובצי ההוכחה הזמינים — בלי להסתמך רק על הצהרת החברה.", "Inspect the radar ledger, published calls and available proof files here — without relying only on the company’s own claims.")}</p>
-        <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("לפי בדיקה עולמית מ־17.11.2026 · כל הספרים נחתמים יחד מ־18.11.2026", "Per a worldwide check on 17 Nov 2026 · every book sealed together since 18 Nov 2026")}</p>
+        <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("הסטטוס והתאריכים המוצגים כאן מתייחסים לקובצי ההוכחה הזמינים בפועל.", "Statuses and dates shown here refer to proof files actually available.")}</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#f8fafc" }}>
-            <p className="text-[13px] font-black">{L("בכלי טרנדים אחרים", "In other trend tools")}</p>
-            <p className="mt-1 text-[14px] leading-6">{L("אחוז דיוק שהחברה מדדה ומפרסמת בעצמה.", "An accuracy figure the company measured and publishes itself.")}</p>
+            <p className="text-[13px] font-black">{L("מה חשוב לבדוק בכל כלי", "What matters in any trend tool")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("איך נמדדו התחזיות, מתי נרשמו מראש, והאם גם הפספוסים נשארים גלויים.", "How predictions were measured, when they were recorded, and whether misses remain visible.")}</p>
           </div>
           <div className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid #0b0b0b", background: "#fffbeb" }}>
             <p className="text-[13px] font-black">{L("ברדאר", "In the radar")}</p>
-            <p className="mt-1 text-[14px] leading-6">{L("כל קביעה כתובה מראש, עם תאריך חתום בביטקוין, כולל הפספוסים. כל אחד בודק בעצמו.", "Every call written in advance, with a date sealed in Bitcoin, misses included. Anyone checks it themselves.")}</p>
+            <p className="mt-1 text-[14px] leading-6">{L("אפשר לבדוק את הקביעות, מועדי הרישום, קובצי ההוכחה וסטטוס האימות. לא נסמן הוכחה כמושלמת לפני אימות עצמאי.", "Check calls, recording dates, proof files and verification status. A proof is not marked complete before independent verification.")}</p>
           </div>
         </div>
         <ol className="mt-4 grid gap-2 text-[14px] leading-6">{steps.map((t) => <li key={t}>{t}</li>)}</ol>
