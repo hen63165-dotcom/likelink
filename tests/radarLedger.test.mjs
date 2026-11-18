@@ -97,7 +97,7 @@ test("the run seals the stage book into the root; the page explains how anyone c
   assert.match(run, /stages: board\.stagesSeal\?\.sha256/);
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
   assert.match(page, /<Proof record=\{board\?\.record\}/);
-  assert.match(page, /שמצאנו בעולם/, "the sentence always says 'we found', with the check's date beside it");
-  assert.match(page, /לפי בדיקה עולמית מ־17\.11\.2026/);
+  assert.match(page, /כאן אפשר לבדוק את יומן הרדאר/);
+  assert.match(page, /הסטטוס והתאריכים המוצגים כאן מתייחסים לקובצי ההוכחה הזמינים בפועל/);
   assert.doesNotMatch(page, /היחיד בעולם/, "never the bare 'the only one in the world'");
 });
