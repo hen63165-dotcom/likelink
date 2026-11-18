@@ -13,3 +13,16 @@
 ## Usage
 
 Quoting short passages with a link back is welcome. Bulk collection, copying the catalog, the scores or the design, and using the content to build a competing service are not permitted — see [Acceptable use](https://likelink2.vercel.app/legal/acceptable-use).
+
+## Trend radar
+
+- [Trend radar in Hebrew](https://likelink2.vercel.app/radar): product trend signals, Israel/global demand context, methodology and public evidence area.
+- [Trend radar in English](https://likelink2.vercel.app/radar?lang=en): English view of the trend radar.
+- [Radar plans](https://likelink2.vercel.app/radar-pro): access and plan information.
+- Evidence area: https://likelink2.vercel.app/radar#proof
+
+## Product discovery feed
+
+- Hosted OpenAI Agentic Commerce discovery feed (JSONL): https://likelink2.vercel.app/openai-product-feed.jsonl
+- The feed includes only approved products with verified required brand and seller fields. Products missing those fields are excluded rather than assigned invented values.
+- Feed delivery does not itself enroll LikeLink in ChatGPT product discovery. Merchant identity verification and feed submission through OpenAI Business Hub are still required.
