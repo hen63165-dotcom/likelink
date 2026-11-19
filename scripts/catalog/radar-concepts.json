@@ -93,6 +93,14 @@
     { "id": "gum-sole-sneakers", "he": "סניקרס רטרו עם סוליית גומי", "en": "retro gum sole sneakers women", "kind": "style", "hq": ["סניקרס רטרו", "נעלי סניקרס לנשים"], "zh": "复古德训鞋", "ko": "빈티지 검솔 스니커즈" },
     { "id": "retro-track-jacket", "he": "ג׳קט טרנינג רטרו", "en": "retro track jacket women", "kind": "style", "hq": ["ג׳קט טרנינג", "ז׳קט ספורט רטרו"], "zh": "复古运动夹克", "ko": "레트로 트랙 자켓" },
     { "id": "lip-oil", "he": "שמן שפתיים", "en": "lip oil gloss", "kind": "makeup", "hq": ["שמן שפתיים"], "zh": "唇油", "ko": "립오일" },
-    { "id": "blush-stick", "he": "סומק סטיק", "en": "cream blush stick", "kind": "makeup", "hq": ["סומק סטיק", "סומק קרמי"], "zh": "腮红棒", "ko": "블러셔 스틱" }
+    { "id": "blush-stick", "he": "סומק סטיק", "en": "cream blush stick", "kind": "makeup", "hq": ["סומק סטיק", "סומק קרמי"], "zh": "腮红棒", "ko": "블러셔 스틱" },
+    { "id": "ribbed-crew-socks", "he": "גרביים גבוהות מצולעות", "en": "ribbed crew socks women", "kind": "style", "hq": ["גרביים מצולעות", "גרביים גבוהות לנשים"], "zh": "罗纹中筒袜", "ko": "골지 크루삭스" },
+    { "id": "plaid-belted-jacket", "he": "ג׳קט משובץ קצר עם חגורה", "en": "plaid belted short trench jacket women", "kind": "style", "hq": ["ג׳קט משובץ", "ג׳קט טרנץ׳ קצר"], "zh": "格纹系带短款风衣", "ko": "체크 벨티드 트렌치 자켓" },
+    { "id": "chunky-retro-sneakers", "he": "סניקרס צ׳אנקי רטרו", "en": "chunky retro running sneakers women", "kind": "style", "hq": ["סניקרס צ׳אנקי", "נעלי ריצה רטרו"], "zh": "复古老爹鞋", "ko": "청키 레트로 스니커즈" },
+    { "id": "cropped-windbreaker", "he": "ג׳קט רוח קצר לספורט", "en": "cropped windbreaker jacket women", "kind": "style", "hq": ["ג׳קט רוח", "ג׳קט רוח לנשים"], "zh": "短款防风运动外套", "ko": "크롭 바람막이" },
+    { "id": "bow-fur-boots", "he": "מגפוני פרווה עם פפיון", "en": "bow mini snow boots fur lined women", "kind": "style", "hq": ["מגפוני פרווה", "מגפיים עם פפיון"], "zh": "蝴蝶结雪地靴", "ko": "리본 털부츠" },
+    { "id": "linen-shirt-men", "he": "חולצת פשתן מכופתרת לגברים", "en": "linen short sleeve button shirt men", "kind": "style", "hq": ["חולצת פשתן לגברים", "חולצה מכופתרת פשתן"], "zh": "男士亚麻短袖衬衫", "ko": "남자 린넨 반팔 셔츠" },
+    { "id": "sherpa-zip-jacket", "he": "ג׳קט שרפה עם רוכסן", "en": "sherpa fleece zip jacket women", "kind": "style", "hq": ["ג׳קט שרפה", "מעיל פרווה קצר"], "zh": "羊羔毛拉链外套", "ko": "뽀글이 집업 자켓" },
+    { "id": "retro-track-suit", "he": "סט טרנינג רטרו", "en": "retro track suit set women", "kind": "style", "hq": ["סט טרנינג", "חליפת טרנינג לנשים"], "zh": "复古运动套装", "ko": "레트로 트레이닝 세트" }
   ]
 }
