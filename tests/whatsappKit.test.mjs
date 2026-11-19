@@ -23,6 +23,14 @@ test("only listed, own-link, real-photo items without a brand name reach the gro
   assert.equal(waEligible(P("f", { imageProvenance: "stock_photo" })), false);
 });
 
+test("the group gets the looks only; the claim filter keeps what a photo shows", () => {
+  const kit = kitOf({ products: [P("look1"), P("home1", { kind: "home" })], keepIds: ["home1", "look1"], now: NOW });
+  assert.deepEqual(kit.posts.map((x) => x.id), ["look1"], "מועדון הדיופים: fashion, beauty, bags, shoes, jewellery");
+  const warm = waPost(P("w", { storeTitle: "נעלי בית פרוותיות לנשים, חמות ונעימות לחורף, סוליה רכה, עם פפיון, 100% כותנה" }), { now: NOW });
+  assert.match(warm.text, /\nעם פפיון\n/);
+  assert.doesNotMatch(warm.text, /חמות|רכה|כותנה|100%/);
+});
+
 test("the looks first (HOT, then newly added), then the radar's other HOT products", () => {
   const products = [
     P("old", { createdAt: NOW - 10 * 86_400_000, importSource: "aliexpress-deals" }),
@@ -38,9 +46,10 @@ test("a post in the groups' format: hook, the seller's words, tip, dated store p
   const post = waPost(P("ae-1", { title: "טייץ יוגה מתרחב לנשים בגזרה גבוהה", storeTitle: "טייץ יוגה מתרחב לנשים, מותן גבוה, שליטה בבטן, מכנסיים מתרחבים", price: 24.39, priceSource: "aliexpress_api", priceCheckedAt: "2026-11-19T06:00:00Z" }), { now: NOW });
   const lines = post.text.split("\n");
   assert.match(lines[0], /טייץ יוגה מתרחב/, "the hook names the item");
-  assert.ok(lines.includes("לפי תיאור המוכר: מותן גבוה, שליטה בבטן"), "the store's own words, said as the seller's");
+  assert.ok(lines.includes("מותן גבוה, מכנסיים מתרחבים"), "what the photos show, in the store's own words");
+  assert.doesNotMatch(post.text, /שליטה בבטן|לפי תיאור המוכר/, "a seller's claim (tummy control) is left out");
   assert.ok(lines.includes(WA_BUY));
-  assert.equal(lines[lines.indexOf(WA_BUY) + 1], "https://likelink2.vercel.app/p/ae-1?utm_source=whatsapp&utm_medium=group&utm_campaign=wa_20261119");
+  assert.equal(lines[lines.indexOf(WA_BUY) + 1], "https://likelink2.vercel.app/p/ae-1?utm_source=whatsapp&utm_medium=group");
   assert.equal(lines.at(-1), WA_AD, "the disclosure on its own line in every post");
   assert.match(post.text, /מחיר בחנות: מ־₪24\.39 \(נבדק ב־19\.11\)/);
   assert.equal(post.images.length, 2, "https photos only, at most four");

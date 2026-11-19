@@ -17,12 +17,13 @@ export const WA_AD = "#פרסומת · קישור שותפים";
 export const WA_BUY = "לרכישה 👇";
 // Never "original", "1:1", "replica": the look is the store's own item, never presented as a brand's.
 export const WA_FORBIDDEN = /(רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|הכי זול|הכי טוב|מקורי|אחד לאחד|1:1|רפליקה|העתק|זהה ל)/;
-// Hooks in the deals groups' voice: excitement about the look, never a claim (no "original", no stock, no price).
+// Hooks in the deals groups' voice (the owner's examples, 19.11: "אמאלה איזה יפיםםם", "תקשיבוווו",
+// "לחורףףף"): excitement about the look, stretched letters — never a claim (no "original", no stock, no price).
 const HOOKS = Object.freeze([
-  (n) => `${n} 😍 אמאלה איזה יפה!!`,
-  (n) => `תקשיבו איזה ${n} 🔥`,
-  (n) => `${n} 💜 איזה לוק!!`,
-  (n) => `מה אומרות על ${n}? 👀`, // no "הזה": "הגרביים הזה" (19.11) — the name may be plural or feminine
+  (n) => `${n}!! אמאלה איזה יפההה 😍`,
+  (n) => `תקשיבוווו איזה ${n} 🔥`,
+  (n) => `${n} 💜 איזה לוקקק!!`,
+  (n) => `מה אומרות על ${n}?? 👀`, // no "הזה": "הגרביים הזה" (19.11) — the name may be plural or feminine
 ]);
 const TIPS = Object.freeze({
   clothing: "ממליצה לבדוק את טבלת המידות בחנות לפני שמזמינים",
@@ -68,7 +69,7 @@ const isLook = (p) => LOOK_KINDS.has(String(p?.kind || ""));
  * Today's products: the radar's HOT looks, then the looks added in the last `days`, then the radar's other
  * HOT products (its keep list order, newest first for the added ones).
  */
-export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 3, max = 12 } = {}) {
+export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 3, max = 12, looksOnly = false } = {}) {
   const byId = new Map((Array.isArray(products) ? products : []).map((p) => [p?.id, p]));
   const out = [];
   const add = (p, why) => {
@@ -81,6 +82,7 @@ export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 
     .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
   for (const p of hot.filter(isLook)) add(p, "hot");
   for (const p of fresh.filter(isLook)) add(p, "new");
+  if (looksOnly) return out;
   for (const p of hot) add(p, "hot");
   for (const p of fresh) add(p, "new");
   return out;
@@ -100,11 +102,18 @@ export function shortName(title = "") {
   return out.join(" ");
 }
 
-/** The store's own description (its title's later phrases), said as the seller's words. */
-function sellerWords(p) {
-  const phrases = clean(p.storeTitle).split(/[,،]+/).map((x) => x.trim()).filter(Boolean).slice(1, 3);
-  const text = phrases.join(", ").slice(0, 110);
-  return text ? `לפי תיאור המוכר: ${text}` : "";
+// What a photo can show (cut, shape, details) may be said plainly; what only the seller can claim
+// (soft, warm, quality, lifts, slims, materials like silver/gold/cotton) is left out of the post.
+const SELLER_CLAIM = /(איכות|במיוחד|גמיש|רך|רכה|רכים|רכות|נעים|נעימ|עמיד|נושם|נושמ|ייבוש|מהיר|חם|חמה|חמים|חמות|מחמם|מקורי|נגד|מונע|הרמ|מרזה|מרזים|שליטה|תמיכה|אורתופד|אורגני|כותנה|משי|קשמיר|צמר|עור אמיתי|כסף|זהב|925|יוקרה|יוקרתי|%|\d+\s*(?:ס"מ|מ"מ|cm|mm))/;
+const DETAIL_WORDS = 6;
+
+/** The look in a line: the store title's later phrases that describe what the photos show. */
+export function lookLine(p) {
+  const phrases = clean(p.storeTitle).replace(/[.!]+$/, "").split(/[,،]+/).map((x) => x.trim()).filter(Boolean).slice(1)
+    .filter((x) => !SELLER_CLAIM.test(x) && !WA_FORBIDDEN.test(x) && !HOOK_FORBIDDEN.test(x) && !hasBrandName(x))
+    .filter((x) => x.split(/\s+/).length <= DETAIL_WORDS)
+    .slice(0, 2);
+  return phrases.join(", ");
 }
 
 /**
@@ -113,7 +122,8 @@ function sellerWords(p) {
  */
 export function waPost(p, { now = Date.now(), origin = PRODUCTION_ORIGIN, i = 0, why = "new" } = {}) {
   const day = ymd(now);
-  const link = `${origin}/p/${encodeURIComponent(p.id)}?utm_source=whatsapp&utm_medium=group&utm_campaign=wa_${day}`;
+  // Short, like the groups' links: the product page and where the visit came from.
+  const link = `${origin}/p/${encodeURIComponent(p.id)}?utm_source=whatsapp&utm_medium=group`;
   const name = shortName(p.title) || clean(p.title);
   const hook = HOOKS[(Math.floor(now / DAY_MS) + i) % HOOKS.length](name);
   const tip = TIPS[p.kind] || TIP_DEFAULT;
@@ -123,13 +133,13 @@ export function waPost(p, { now = Date.now(), origin = PRODUCTION_ORIGIN, i = 0,
   const priceLine = price > 0 && p.priceSource === "aliexpress_api" && fresh && dm(p.priceCheckedAt)
     ? `מחיר בחנות: מ־₪${Math.round(price * 100) / 100} (נבדק ב־${dm(p.priceCheckedAt)})`
     : "המחיר המעודכן מופיע בחנות";
-  const seller = sellerWords(p);
-  const lines = [hook, "", ...(seller ? [seller] : []), tip, priceLine, "", WA_BUY, link, "", WA_AD];
+  const look = lookLine(p);
+  const lines = [hook, "", ...(look ? [look] : []), tip, priceLine, "", WA_BUY, link, "", WA_AD];
   const images = [p.image, ...(Array.isArray(p.images) ? p.images : [])]
     .map((u) => String(u || "").trim())
     .filter((u, k, a) => HTTPS_IMG.test(u) && a.indexOf(u) === k)
     .slice(0, 4);
-  return { id: p.id, why, title: clean(p.title), text: lines.join("\n"), link, images, safe: waSafe(`${hook.replace(name, "")}\n${tip}`) };
+  return { id: p.id, day, why, title: clean(p.title), text: lines.join("\n"), link, images, safe: waSafe(`${hook.replace(name, "")}\n${look}\n${tip}`) };
 }
 
 /** The lines we write ourselves pass the hook rules and this kit's own list. */
@@ -139,7 +149,8 @@ export function waSafe(text) {
 
 /** The day's kit. */
 export function kitOf({ products = [], keepIds = [], now = Date.now(), origin = PRODUCTION_ORIGIN, max = 12 } = {}) {
-  const picks = pickKit({ products, keepIds, now, max });
+  // "מועדון הדיופים" (19.11): the group gets the looks only — fashion, beauty, bags, shoes, jewellery.
+  const picks = pickKit({ products, keepIds, now, max, looksOnly: true });
   const posts = picks.map(({ product, why }, i) => waPost(product, { now, origin, i, why })).filter((x) => x.safe && x.images.length);
   return { day: ymd(now), posts };
 }
