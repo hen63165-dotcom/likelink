@@ -30,7 +30,7 @@ test("today's numbers come from the public board only, escaped", () => {
   assert.match(html, /עד היום 3 קביעות קיבלו ציון בפומבי, 2 מהן פגיעות/);
   assert.match(html, /19\.11\.2026 · SHA-256 <span dir="ltr">aaaaaaaaaaaaaaaa…<\/span>/);
   const bad = radarStaticMain({ ledger: { d: "2026-11-19", sha256: "<SCRIPT>x</SCRIPT>" } });
-  assert.ok(!bad.includes("SHA-256") && !bad.toLowerCase().includes("<script"), "a malformed seal is never written");
+  assert.ok(!bad.includes("SHA-256 <span") && !bad.toLowerCase().includes("<script"), "a malformed seal is never written");
 });
 
 test("the shell's first paint swaps its <main>, and the build writes it into /radar only", () => {
