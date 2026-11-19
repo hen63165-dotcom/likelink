@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { WA_AD, WA_BUY, kitOf, pickKit, waEligible, waPost } from "../src/lib/growth/whatsappKit.js";
+import { WA_AD, WA_BUY, kitOf, pickKit, shortName, waEligible, waPost } from "../src/lib/growth/whatsappKit.js";
 import { kitPage } from "../scripts/marketing/whatsapp-kit.mjs";
 
 const NOW = Date.parse("2026-11-19T10:00:00Z");
@@ -26,6 +26,8 @@ test("only listed, own-link, real-photo items without a brand name reach the gro
 test("the group gets the looks only; the claim filter keeps what a photo shows", () => {
   const kit = kitOf({ products: [P("look1"), P("home1", { kind: "home" })], keepIds: ["home1", "look1"], now: NOW });
   assert.deepEqual(kit.posts.map((x) => x.id), ["look1"], "מועדון הדיופים: fashion, beauty, bags, shoes, jewellery");
+  const order = kitOf({ products: [P("hotLook"), P("newLook", { createdAt: NOW - 3_600_000, importSource: "aliexpress-trend-board" })], keepIds: ["hotLook"], now: NOW });
+  assert.deepEqual(order.posts.map((x) => x.id), ["newLook", "hotLook"], "the looks she just chose come first");
   const warm = waPost(P("w", { storeTitle: "נעלי בית פרוותיות לנשים, חמות ונעימות לחורף, סוליה רכה, עם פפיון, 100% כותנה" }), { now: NOW });
   assert.match(warm.text, /\nעם פפיון\n/);
   assert.doesNotMatch(warm.text, /חמות|רכה|כותנה|100%/);
@@ -61,6 +63,12 @@ test("a post in the groups' format: hook, the seller's words, tip, dated store p
   const stale = waPost(P("ae-3", { price: 11.19, priceSource: "aliexpress_api", priceCheckedAt: "2026-10-26T06:00:00Z" }), { now: NOW });
   assert.match(stale.text, /המחיר המעודכן מופיע בחנות/);
   assert.doesNotMatch(stale.text, /₪|26\.10/);
+});
+
+test("a short name never ends on a dangling word", () => {
+  for (const [title, name] of [["כפכפי נשים עם צווארון פרווה", "כפכפי נשים"], ["סט ספורט ללא תפרים · חולצה ומכנסונים", "סט ספורט"], ["חולצת יוגה עם כתפיים חשופות", "חולצת יוגה"]]) {
+    assert.equal(shortName(title), name);
+  }
 });
 
 test("no hook says 'הזה' after a name that may be plural or feminine", () => {
