@@ -54,13 +54,14 @@ export function radarStaticMain(board = null) {
             <li>מוצרים חדשים שמתחילים לרוץ: מוצרים קטנים שההזמנות שלהם גדלות מהר, עם מעט מוכרים ובלי באז ברשתות.</li>
             <li>המבצע האמיתי: מחיר החנות של כל מוצר נרשם ונחתם כל יום, כדי לבדוק אם "מבצע" הוא באמת מבצע.</li>
             <li>החוש השישי: כל אחד יכול לבחור מוצר מול הרדאר, עם קבלה חתומה וציון באותו כלל בדיוק.</li>
+            <li>הרדאר מול המזל: כל יום נבחר באקראי סוג מוצר אחד, לפי טביעת האצבע של מחירי החנות החתומים של אותו יום, ומקבל ציון באותו כלל. ככה רואים כמה הרדאר טוב יותר ממזל.</li>
           </ul>
           <h2>היום</h2>
           <ul>
             ${today.join("\n            ")}
           </ul>
           <h2 lang="en" dir="ltr">In English</h2>
-          <p lang="en" dir="ltr">Every morning the LikeLink2 radar reads AliExpress (all 564 categories in about a week, all of fashion daily), checks Google and YouTube searches in Hebrew and in 15 countries, and makes a call only when all four signals agree. ${esc(RADAR_CLAIM.en)} (Per a worldwide check on ${esc(dm(RADAR_CLAIM.checked))}.) Each day's books are hashed with SHA-256 and timestamped in Bitcoin through OpenTimestamps, so anyone can check that nothing was added, removed or changed later.</p>
+          <p lang="en" dir="ltr">Every morning the LikeLink2 radar reads AliExpress (all 564 categories in about a week, all of fashion daily), checks Google and YouTube searches in Hebrew and in 15 countries, and makes a call only when all four signals agree. ${esc(RADAR_CLAIM.en)} (Per a worldwide check on ${esc(dm(RADAR_CLAIM.checked))}.) Each day's books are hashed with SHA-256 and timestamped in Bitcoin through OpenTimestamps, so anyone can check that nothing was added, removed or changed later. Beside the calls, one kind is drawn at random each day (seeded by the hash of that day's sealed store prices) and graded by the same rule, so the record shows the radar against luck.</p>
           <nav aria-label="הרדאר">
             <a href="/radar#proof">איך יודעים שזה אמיתי</a> · <a href="/radar#ledger">ספר החתימות המלא</a> · <a href="/magic">כפתור הקסם</a> · <a href="/radar-pro">המסלולים</a>
           </nav>
