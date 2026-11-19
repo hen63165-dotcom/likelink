@@ -22,7 +22,7 @@ const HOOKS = Object.freeze([
   (n) => `${n} 😍 אמאלה איזה יפה!!`,
   (n) => `תקשיבו איזה ${n} 🔥`,
   (n) => `${n} 💜 איזה לוק!!`,
-  (n) => `מה אומרות על ה${n} הזה? 👀`,
+  (n) => `מה אומרות על ${n}? 👀`, // no "הזה": "הגרביים הזה" (19.11) — the name may be plural or feminine
 ]);
 const TIPS = Object.freeze({
   clothing: "ממליצה לבדוק את טבלת המידות בחנות לפני שמזמינים",
@@ -36,6 +36,8 @@ const TIP_DEFAULT = "כל הפרטים והתמונות של המוכר בקיש
 const OWN_LINK = /^https:\/\/s\.click\.aliexpress\.com\/\S+$/;
 const HTTPS_IMG = /^https:\/\/\S+$/;
 const DAY_MS = 86_400_000;
+// A store price is printed only while its check is fresh (19.11: posts said "נבדק ב־26.10").
+export const PRICE_FRESH_DAYS = 7;
 
 const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
 const ymd = (ms) => new Date(ms).toISOString().slice(0, 10).replace(/-/g, "");
@@ -116,7 +118,9 @@ export function waPost(p, { now = Date.now(), origin = PRODUCTION_ORIGIN, i = 0,
   const hook = HOOKS[(Math.floor(now / DAY_MS) + i) % HOOKS.length](name);
   const tip = TIPS[p.kind] || TIP_DEFAULT;
   const price = Number(p.price);
-  const priceLine = price > 0 && p.priceSource === "aliexpress_api" && dm(p.priceCheckedAt)
+  const checked = Date.parse(p.priceCheckedAt);
+  const fresh = Number.isFinite(checked) && now - checked <= PRICE_FRESH_DAYS * DAY_MS && checked <= now + DAY_MS;
+  const priceLine = price > 0 && p.priceSource === "aliexpress_api" && fresh && dm(p.priceCheckedAt)
     ? `מחיר בחנות: מ־₪${Math.round(price * 100) / 100} (נבדק ב־${dm(p.priceCheckedAt)})`
     : "המחיר המעודכן מופיע בחנות";
   const seller = sellerWords(p);

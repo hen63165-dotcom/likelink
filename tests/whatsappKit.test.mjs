@@ -48,6 +48,17 @@ test("a post in the groups' format: hook, the seller's words, tip, dated store p
   assert.match(noSource.text, /המחיר המעודכן מופיע בחנות/);
   assert.doesNotMatch(noSource.text, /₪/, "a hand-entered price is never printed");
   assert.doesNotMatch(post.text, /מקורי|1:1|אחד לאחד|רפליקה|העתק|זהה ל/);
+  // 19.11: posts printed "נבדק ב־26.10" — a store price older than a week is not printed.
+  const stale = waPost(P("ae-3", { price: 11.19, priceSource: "aliexpress_api", priceCheckedAt: "2026-10-26T06:00:00Z" }), { now: NOW });
+  assert.match(stale.text, /המחיר המעודכן מופיע בחנות/);
+  assert.doesNotMatch(stale.text, /₪|26\.10/);
+});
+
+test("no hook says 'הזה' after a name that may be plural or feminine", () => {
+  for (let i = 0; i < 4; i++) {
+    const hook = waPost(P("ae-4", { title: "גרביים לגברים גרבי חורף עבות" }), { now: NOW, i }).text.split("\n")[0];
+    assert.doesNotMatch(hook, /הזה|הזאת/);
+  }
 });
 
 test("the page sends through the share sheet, escapes the text and is never indexed", () => {
