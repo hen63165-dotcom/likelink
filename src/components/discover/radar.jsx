@@ -12,6 +12,7 @@ import { BOT_UA } from "../../lib/funnel.js";
 import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
+import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
@@ -42,6 +43,7 @@ const gapHe = (gap) => GAP_STATES[gap?.state]?.he || gap?.he || "";
 /** Opportunities first: not searched in Hebrew yet, then first signs, then the rest. */
 const GAP_ORDER = { GAP: 0, QUIET: 1, ARRIVING: 2, UNCERTAIN: 3, UNKNOWN: 4, ARRIVED: 5 };
 const dm = (d) => (typeof d === "string" && d.length >= 10 ? `${Number(d.slice(8, 10))}.${Number(d.slice(5, 7))}` : "");
+const dmy = (d) => `${dm(d)}.${String(d).slice(0, 4)}`;
 /** The first day a direction can be measured: two days after the first reading. */
 const nextDay = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return Number.isFinite(t) ? new Date(t + 2 * 86_400_000).toISOString().slice(0, 10) : ""; };
 
@@ -799,8 +801,8 @@ function Proof({ record, hasLedger = false }) {
     <section className="lx-wrap mt-6" id="proof">
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fff" }}>
         <h2 className="text-[22px] font-black">{L("🔍 איך יודעים שזה אמיתי?", "🔍 How do you know it's real?")}</h2>
-        <p className="mt-2 text-[16px] font-black leading-7">{L("רדאר הטרנדים היחיד שמצאנו בעולם שחותם כל קביעה מראש, גם את הטעויות, ונותן לה ציון בפומבי.", "The only trend radar we found in the world that seals every call in advance, misses included, and grades it in public.")}</p>
-        <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("לפי בדיקה עולמית מ־17.11.2026 · כל הספרים נחתמים יחד מ־18.11.2026", "Per a worldwide check on 17 Nov 2026 · every book sealed together since 18 Nov 2026")}</p>
+        <p className="mt-2 text-[16px] font-black leading-7">{L(RADAR_CLAIM.he, RADAR_CLAIM.en)}</p>
+        <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`לפי בדיקה עולמית מ־${dmy(RADAR_CLAIM.checked)} · כל הספרים נחתמים יחד מ־18.11.2026`, `Per a worldwide check on ${dmy(RADAR_CLAIM.checked)} · every book sealed together since 18 Nov 2026`)}</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#f8fafc" }}>
             <p className="text-[13px] font-black">{L("בכלי טרנדים אחרים", "In other trend tools")}</p>

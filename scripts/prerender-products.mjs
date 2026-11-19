@@ -25,6 +25,8 @@ import { SALE_PATHS, SALE_SEASONS } from "../src/lib/saleSeason.js";
 import { GUIDE } from "../src/lib/guide.js";
 import { getCreatorSEO } from "../src/lib/seo.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
+import { withRadarMain } from "../src/lib/growth/radarStatic.js";
+import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
@@ -120,7 +122,7 @@ export function listedFromSnapshot(doc) {
 
 // `catalog`: the catalog doc to publish (the build passes the copy merged with
 // the live cloud, scripts/catalog/live-catalog.mjs); without it, the copy alone.
-export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "public/snapshot/kv.json"), origin = PRODUCTION_ORIGIN, now = new Date(), catalog = null } = {}) {
+export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "public/snapshot/kv.json"), origin = PRODUCTION_ORIGIN, now = new Date(), catalog = null, radarBoard = null } = {}) {
   const shellPath = join(dist, "index.html");
   if (!existsSync(shellPath) || (!catalog && !existsSync(snapshot))) return { pages: 0, skipped: true };
   const shell = readFileSync(shellPath, "utf8");
@@ -135,7 +137,10 @@ export function prerender({ dist = join(ROOT, "dist"), snapshot = join(ROOT, "pu
   for (const page of sectionPages(origin)) {
     const file = `${page.path.slice(1)}.html`;
     mkdirSync(dirname(join(dist, file)), { recursive: true });
-    writeFileSync(join(dist, file), pageHead(shell, page));
+    // /radar's first paint carries the radar's own facts (radarStatic.js), not the home page's line:
+    // AI engines and readers without JavaScript judged it from that line alone (2026-11-19).
+    const head = pageHead(shell, page);
+    writeFileSync(join(dist, file), page.path === "/radar" ? withRadarMain(head, radarBoard) : head);
     rules.push(`${page.path}  /${file}  200`);
   }
   // Creator storefronts (/u/<slug>): the link a creator puts in a bio, and a
@@ -172,6 +177,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     catalog = built.doc;
     note = built.live === "ok" ? `copy + ${built.added} live products` : `copy only (live catalog: ${built.live})`;
   }
-  const result = prerender({ catalog });
+  // The public radar board (the same file /radar falls back to), for today's numbers on its first
+  // paint; a failed read writes the fixed facts only.
+  let radarBoard = null;
+  if (process.env.PRERENDER_LIVE !== "0") {
+    try {
+      const res = await fetch("https://hen63165-dotcom.github.io/likelink/radar/board.json", { signal: AbortSignal.timeout(8000) });
+      if (res.ok) radarBoard = sanitizeBoard(await res.json());
+    } catch { /* fixed facts only */ }
+  }
+  const result = prerender({ catalog, radarBoard });
   console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls (${note})`);
 }
