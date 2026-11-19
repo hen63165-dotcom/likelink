@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["claude/likelink2-design-execution-f0ga6q"]
-    paths: ["scripts/catalog/deals-probe.mjs", "scripts/catalog/deals-sheet.py", "src/lib/growth/deals.js", ".github/workflows/deals-probe.yml"]
+    paths: ["scripts/catalog/deals-probe.mjs", "scripts/catalog/deals-sheet.py", "scripts/catalog/looks-probe.json", "src/lib/growth/deals.js", ".github/workflows/deals-probe.yml"]
 permissions:
   contents: write
 jobs:

@@ -53,7 +53,7 @@ export const dealCategory = (key) => DEAL_CATEGORIES.find((c) => c.key === key) 
 
 // Names that, on AliExpress, mean an imitation of the brand, or a character/celebrity
 // sold without a licence (never the brand itself).
-const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|redmi|mi\s*band|lenovo|htc|oneplus|huawei|garmin|fitbit|amazfit|sony|bose|beats|jbl|patek|nautilus|audemars|royal\s*oak|hublot|casio|g-?shock|calvin\s*klein|tommy\s*hilfiger|ralph\s*lauren|under\s*armour|puma|gymshark|lululemon|alo\s*yoga|loewe|dyson|ray\s*-?\s*ban|wayfarer|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|לולולמון|לואווה|רייבן|ריי\s*באן|קלווין\s*קליין|הואווי|גרמין|שיאומי|רדמי|לנובו|סמסונג|אייפון|פיטביט|קסיו|פטק|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו|pikachu|kuromi|cinnamoroll|rilakkuma|chiikawa|jiikawa|my\s*melody|פוקימון|פיקאצ'ו|קורומי|סינמורול|רילאקומה|צ'יקאווה|הלו\s*קיטי|סנריו|סטיץ'|מיקי\s*מאוס|פרוזן|ספיידרמן|spider-?man|frozen\s*elsa|paw\s*patrol|מפרץ\s*ההרפתקאות|peppa|פפה\s*פיג/i;
+const BRAND_IMITATION = /\b(pandora|cartier|chanel|dior|gucci|louis\s*vuitton|\blv\b|hermes|herm[eè]s|tiffany|bvlgari|bulgari|van\s*cleef|rolex|omega|cartier|prada|fendi|versace|balenciaga|ysl|saint\s*laurent|swarovski|michael\s*kors|apple|airpods?|iphone|samsung|xiaomi|redmi|mi\s*band|lenovo|htc|oneplus|huawei|garmin|fitbit|amazfit|sony|bose|beats|jbl|patek|nautilus|audemars|royal\s*oak|hublot|casio|g-?shock|calvin\s*klein|tommy\s*hilfiger|ralph\s*lauren|under\s*armour|puma|gymshark|lululemon|alo\s*yoga|loewe|dyson|ray\s*-?\s*ban|wayfarer|disney|marvel|nike|adidas|stanley|lego|pokemon|hello\s*kitty|sanrio|fenty|rhode|glossier|charlotte\s*tilbury|sol\s*de\s*janeiro|rare\s*beauty|drunk\s*elephant|laneige|kylie|huda\s*beauty|nars|ugg|new\s*balance|zara|birkenstock|skims|miu\s*miu|alo|north\s*face|stussy|hoka|crocs|converse|lacoste|burberry|celine|bottega|jacquemus|longchamp)\b|anime|cosplay|meme|tokidoki|vampire\s*diaries|asap\s*rocky|rapper|fans?\s*gift|chainsaw\s*man|naruto|one\s*piece|harry\s*potter|barbie|bts|kpop|michael\s*jackson|taylor\s*swift|star\s*wars|minecraft|sonic|labubu|פנדורה|קרטייה|שאנל|דיור|גוצ'י|לואי\s*ויטון|טיפאני|רולקס|סברובסקי|אפל|איירפודס|דיסני|נייקי|אדידס|לולולמון|לואווה|רייבן|ריי\s*באן|קלווין\s*קליין|הואווי|גרמין|שיאומי|רדמי|לנובו|סמסונג|אייפון|פיטביט|קסיו|פטק|אנימה|קוספליי|ממים|ראפר|למעריצים|מעריצי|סדרות\s*טלוויזיה|יומני\s*הערפדים|אסאפ|מייקל\s*ג'קסון|הארי\s*פוטר|ברבי|לבובו|ניו\s*באלאנס|בירקנשטוק|זארה|סקימס|מיו\s*מיו|האגג|פנטי\s*ביוטי|pikachu|kuromi|cinnamoroll|rilakkuma|chiikawa|jiikawa|my\s*melody|פוקימון|פיקאצ'ו|קורומי|סינמורול|רילאקומה|צ'יקאווה|הלו\s*קיטי|סנריו|סטיץ'|מיקי\s*מאוס|פרוזן|ספיידרמן|spider-?man|frozen\s*elsa|paw\s*patrol|מפרץ\s*ההרפתקאות|peppa|פפה\s*פיג/i;
 // Items the site does not list whatever their numbers: weapons, adult items, and
 // health claims ("anti-anxiety", "wrinkle lifting") the site cannot stand behind.
 const NOT_LISTED = /\b(vape|e-?cig|cigarette|knife|blade|dagger|gun|pistol|airsoft|taser|stun|pepper\s*spray|sex|adult|lingerie|erotic|weight\s*loss|slimming|pill|supplement|medicine|tattoo\s*gun|replica|copy)\b|adhd|anxiety|autism|therapy|anti[\s-]*aging|wrinkle|tactical|סיגרי|סכין|אקדח|רובה|טקטי|טייזר|גז\s*פלפל|ארוטי|הרזיה|כדורי\s*הרזיה|גלולות|תוסף\s*תזונה|רפליקה|(?<!\p{L})העתק(?!\p{L})|חרדה|אוטיזם|קמטים|ריפוי|מרפא|טיפולי/iu;
@@ -210,9 +210,41 @@ export function cleanStoreTitle(title = "", max = 56) {
  * the kind of item + the materials/details the title names ("צמיד טניס ·
  * מואסניט · כסף 925"). Other categories: the cleaned store title.
  */
+// What an item is, by the first item noun its store title names (2026-11-19: an item found by the
+// "earrings" search was a fleece neck warmer — "מחמם אוזניים" — and two from the jewellery searches
+// were watch sets with an earring or a heart bracelet inside; they were listed as "עגילים" and "צמיד").
+const SUBJECTS = Object.freeze([
+  ["rings", /טבעת|טבעות|(?<![a-z])rings?(?![a-z])/i],
+  ["earrings", /עגיל|earrings?(?![a-z])/i],
+  ["necklaces", /שרשר|תליון|necklaces?(?![a-z])|pendants?(?![a-z])/i],
+  ["bracelets", /צמיד|bracelets?(?![a-z])|bangles?(?![a-z])/i],
+  ["watches", /שעון|שעוני|(?<![a-z])watch(es)?(?![a-z])/i],
+  ["bags", /(?<![\p{L}])תיק(?:ים|י)?(?![\p{L}])|(?<![a-z])bags?(?![a-z])|handbags?(?![a-z])/iu],
+  [null, /צעיף|מחמם|כובע|גרב|כפפ|צווארון|scarf|warmer|gaiter|(?<![a-z])hats?(?![a-z])|socks?(?![a-z])|gloves?(?![a-z])/i],
+]);
+
+/** The category key of the first item noun the store title names (null: not an accessory kind; undefined: none named). */
+export function titleSubject(title = "") {
+  const t = String(title);
+  if (/^[^,]*?(שרשרת\s*יד|hand\s*chain)/i.test(t) && !/^[^,]*?(טבעת|עגיל|שעון)/.test(t.split(/שרשרת\s*יד|hand\s*chain/i)[0])) return "bracelets";
+  let best;
+  let at = Infinity;
+  for (const [key, re] of SUBJECTS) {
+    const m = re.exec(t);
+    if (m && m.index < at) { at = m.index; best = key; }
+  }
+  return best;
+}
+
+/** True when the store title is about the category's own kind of item (its first item noun is that kind). */
+export function subjectMatches(x = {}, category) {
+  if (!category?.noun) return true;
+  return titleSubject(x.product_title) === category.key;
+}
+
 export function dealTitle(x = {}, category) {
   const raw = String(x.product_title || "").replace(/\s+/g, " ").trim();
-  if (category?.noun) {
+  if (category?.noun && subjectMatches(x, category)) {
     const feats = [];
     for (const [re, label] of FEATURES) if (re.test(raw) && !feats.includes(label)) feats.push(label);
     const head = feats.includes("טניס") && category.noun === "צמיד" ? "צמיד טניס" : category.noun;
@@ -280,6 +312,14 @@ export function toDealProduct(x = {}, { category, marketerId, now = Date.now(), 
     imageSource: { via: "aliexpress_affiliate_api", itemId: id, itemUrl: https(x.product_detail_url) || null, provenance: "merchant_photo", resolvedAt: new Date(now).toISOString() },
     importSource: link ? "aliexpress-owner-link" : "aliexpress-deals",
   };
+  if (!subjectMatches(x, category)) {
+    // The search's category is not what the item is: name it by its own first item noun, else by its words.
+    const subject = titleSubject(x.product_title);
+    // a scarf, a warmer, a hat, socks or gloves (the null subject) are clothes; otherwise its own noun, else its words
+    const own = subject === null ? dealCategory("clothing") : dealCategory(subject || "") || guessCategory({ product_title: x.product_title });
+    if (own && own.key !== category.key && subjectMatches(x, own)) { p.category = own.category; p.kind = own.kind; }
+    else delete p.kind;
+  }
   if (facts.originalPrice) p.originalPrice = facts.originalPrice;
   if (facts.sellerVideo) p.sellerVideo = { url: facts.sellerVideo, source: "aliexpress_api", checkedAt: facts.priceCheckedAt };
   return p;

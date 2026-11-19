@@ -5,11 +5,11 @@
 //   <dir>/<category>-<n>.jpg (the photos; scripts/catalog/deals-sheet.py puts
 //   them on one numbered sheet per category). Prints no credential.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { productsOf } from "./trend-finder.mjs";
-import { DEAL_CATEGORIES, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
+import { DEAL_CATEGORIES, dealCheck, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
 
 const dir = process.argv[2] || "deals-preview";
 const env = aeEnv(process.env);
@@ -17,19 +17,39 @@ if (!aeStatus(env).configured) { console.log("REQUIRES_CONNECTION"); process.exi
 mkdirSync(dir, { recursive: true });
 const method = "aliexpress.affiliate.product.query";
 const all = [];
-for (const c of DEAL_CATEGORIES) {
+// Looks mode (scripts/catalog/looks-probe.json lists watch-list ids): the radar's generic search for each
+// look, through the same deal rules (95%, 300 orders, no brand name, no unlisted kind), so a person can
+// check the photos for logos before any item is added. The owner, 2026-11-19: the hottest looks of the
+// brands everyone wants, without the name.
+const looksFile = "scripts/catalog/looks-probe.json";
+const lookIds = existsSync(looksFile) ? (JSON.parse(readFileSync(looksFile, "utf8")).ids || []) : [];
+const LOOKS = lookIds.length
+  ? JSON.parse(readFileSync("scripts/catalog/radar-concepts.json", "utf8")).concepts
+    .filter((c) => lookIds.includes(c.id))
+    .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 260, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
+  : null;
+// Looks mode reads up to `pages` pages (50 items each): the logo-free items sit below the best sellers.
+const PAGES = LOOKS ? Math.min(5, Math.max(1, Number(JSON.parse(readFileSync(looksFile, "utf8")).pages) || 1)) : 1;
+for (const c of LOOKS || DEAL_CATEGORIES) {
   let list = [];
-  try {
-    list = productsOf(await aeCall(method, {
-      keywords: c.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
-      ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
-    }, { env }), method);
-  } catch (e) {
-    console.log(`${c.key}: ${String(e?.message || e).slice(0, 120)}`);
-    continue;
+  for (let page = 1; page <= PAGES; page++) {
+    try {
+      const got = productsOf(await aeCall(method, {
+        keywords: c.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
+        ship_to_country: "IL", page_size: "50", page_no: String(page), sort: "LAST_VOLUME_DESC",
+      }, { env }), method);
+      list = list.concat(got);
+      if (got.length < 50) break;
+    } catch (e) {
+      console.log(`${c.key} p${page}: ${String(e?.message || e).slice(0, 120)}`);
+      break;
+    }
   }
+  if (!list.length) continue;
   const picks = rankDeals(list, c).slice(0, 8);
-  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules`);
+  const why = {};
+  for (const x of list) { const r = dealCheck(x, c); if (!r.ok) why[r.reason] = (why[r.reason] || 0) + 1; }
+  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules; refused: ${JSON.stringify(why)}`);
   picks.forEach((x, i) => {
     const img = String(x.product_main_image_url || "").replace(/^\/\//, "https://");
     const file = join(dir, `${c.key}-${i + 1}.jpg`);
