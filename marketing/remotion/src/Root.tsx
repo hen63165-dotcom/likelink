@@ -4,7 +4,7 @@ import { STUDIO_SECONDS, StudioSteps } from "./StudioSteps";
 import { BUTTERFLY_SECONDS, ButterflyFix } from "./ButterflyFix";
 import { BUTTERFLY_UGC_SECONDS, ButterflyUgc } from "./ButterflyUgc";
 import { GARLIC, HandsReel, RINGS, totalSeconds } from "./HandsReel";
-import { GARLIC_SELL, SellReel, sellSeconds } from "./SellReel";
+import { GARLIC_SELL, OIL_SELL, SellReel, sellSeconds } from "./SellReel";
 import { TalkSlides, talkSeconds } from "./TalkSlides";
 import { TALKS as SLIDES } from "./talk/talk-slides-20261115b";
 import { TALKS as SOAP } from "./talk/talk-soap-20261115";
@@ -53,6 +53,15 @@ export const RemotionRoot: React.FC = () => {
         component={SellReel}
         defaultProps={GARLIC_SELL}
         durationInFrames={Math.round(sellSeconds(GARLIC_SELL) * 30)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="OilSell"
+        component={SellReel}
+        defaultProps={OIL_SELL}
+        durationInFrames={Math.round(sellSeconds(OIL_SELL) * 30)}
         fps={30}
         width={1080}
         height={1920}

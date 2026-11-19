@@ -16,7 +16,7 @@ const INK = "#111111";
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 export const SELL_FPS = 30;
 
-export type Cut = { from: number; to: number; pos?: string; zoom?: number };
+export type Cut = { from: number; to: number; pos?: string; zoom?: number; origin?: string }; // origin: where a zoom anchors (to crop burned-in seller text off one edge)
 export type Line = { from: number; to: number; text: string };
 export type SellProps = {
   clip: string; audio: string; cuts: Cut[]; lines: Line[]; name: string; endSeconds: number;
@@ -36,7 +36,7 @@ const Shot: React.FC<{ clip: string; cut: Cut; len: number; first: boolean }> = 
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
       <OffthreadVideo src={staticFile(clip)} muted trimBefore={Math.round(cut.from * SELL_FPS)}
-        style={{ width: 1080, height: 1920, objectFit: "cover", objectPosition: cut.pos || "50% 50%", scale: String(s) }} />
+        style={{ width: 1080, height: 1920, objectFit: "cover", objectPosition: cut.pos || "50% 50%", scale: String(s), transformOrigin: cut.origin || "50% 50%" }} />
     </AbsoluteFill>
   );
 };
@@ -140,6 +140,37 @@ export const GARLIC_SELL: SellProps = {
     { from: B * 2, to: B * 4, text: "שן שום פנימה" },
     { from: B * 4, to: B * 5.2, text: "מגררים ישר על הקרש" },
     { from: B * 5.2, to: B * 6.2, text: "ושוטפים במים" },
+  ],
+  endSeconds: 2.4,
+};
+
+// Oil pour & spray bottle (1005007011405828; radar 19.11: this item's orders +55% a week), the store's own
+// 57 s clip, 720×1280. Only shots with real hands or the product in use; the seller's English captions are
+// cropped off by anchoring the zoom at the top (origin), and the split-screen opening is not used.
+const o = (from: number, n = 1, pos = "50% 50%", zoom = 1, origin?: string): Cut => ({ from, to: from + B * n, pos, zoom, origin });
+const OB = Math.round(B * SELL_FPS) / SELL_FPS;
+export const OIL_SELL: SellProps = {
+  clip: "oil-store.mp4",
+  audio: "pop-oil.wav",
+  name: "בקבוק שמן 2 ב־1: שופך ומרסס",
+  filmedBy: "סרטון המוכר · בעריכת LikeLink2",
+  cuts: [
+    o(8.8, 1, "50% 50%", 1.32, "50% 12%"),  // the oil pours out in a stream (caption cropped off the bottom)
+    o(33.5, 1, "50% 50%", 1.0),             // a spray into the air fryer
+    o(35.7, 1, "50% 50%", 1.0),             // a spray over the pan
+    o(16.3, 1, "40% 50%", 1.0),             // over the salad
+    o(26.2, 1, "50% 50%", 1.32, "50% 12%"), // filling from the big bottle (caption cropped off)
+    o(30.6, 1, "50% 50%", 1.0),             // the lid goes back on
+    o(31.9, 1, "50% 50%", 1.0),             // pressing the top
+    o(41.9, 1, "50% 50%", 1.0),             // hot water to wash it
+    o(38.1, 0.8, "50% 50%", 1.0),           // the colours
+  ],
+  lines: [ // on the cut boundaries as rendered (each cut is rounded to whole frames)
+    { from: 0, to: OB * 2, text: "בקבוק שמן שגם שופך\nוגם מרסס 🫒" },
+    { from: OB * 2, to: OB * 4, text: "למחבת, לסיר האוויר\nולסלט" },
+    { from: OB * 4, to: OB * 7, text: "ממלאים, סוגרים\nולוחצים" },
+    { from: OB * 7, to: OB * 8, text: "נשטף במים" },
+    { from: OB * 8, to: OB * 8 + 0.8, text: "ויש בכמה צבעים" },
   ],
   endSeconds: 2.4,
 };
