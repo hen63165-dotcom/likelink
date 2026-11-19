@@ -28,17 +28,24 @@ const LOOKS = lookIds.length
     .filter((c) => lookIds.includes(c.id))
     .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 260, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
   : null;
+// Looks mode reads up to `pages` pages (50 items each): the logo-free items sit below the best sellers.
+const PAGES = LOOKS ? Math.min(5, Math.max(1, Number(JSON.parse(readFileSync(looksFile, "utf8")).pages) || 1)) : 1;
 for (const c of LOOKS || DEAL_CATEGORIES) {
   let list = [];
-  try {
-    list = productsOf(await aeCall(method, {
-      keywords: c.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
-      ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC",
-    }, { env }), method);
-  } catch (e) {
-    console.log(`${c.key}: ${String(e?.message || e).slice(0, 120)}`);
-    continue;
+  for (let page = 1; page <= PAGES; page++) {
+    try {
+      const got = productsOf(await aeCall(method, {
+        keywords: c.keywords, tracking_id: env.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "HE",
+        ship_to_country: "IL", page_size: "50", page_no: String(page), sort: "LAST_VOLUME_DESC",
+      }, { env }), method);
+      list = list.concat(got);
+      if (got.length < 50) break;
+    } catch (e) {
+      console.log(`${c.key} p${page}: ${String(e?.message || e).slice(0, 120)}`);
+      break;
+    }
   }
+  if (!list.length) continue;
   const picks = rankDeals(list, c).slice(0, 8);
   const why = {};
   for (const x of list) { const r = dealCheck(x, c); if (!r.ok) why[r.reason] = (why[r.reason] || 0) + 1; }

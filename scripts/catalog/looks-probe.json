@@ -1,19 +1,22 @@
 {
   "why": "The owner, 2026-11-19: the hottest looks of the brands everyone wants (Alo, Lululemon, UGG, Adidas, New Balance, Zara, Ralph Lauren), identical in look but without the name or logo. The Deals probe reads each look's generic search and puts the items that pass the deal rules on one sheet per look, to check every photo for a logo by eye. Empty ids = the normal per-category probe.",
   "ids": [
+    "wide-yoga-pants",
+    "nylon-crossbody-bag",
+    "structured-top-handle-bag",
+    "parachute-pants",
+    "platform-suede-slippers",
+    "sherpa-zip-jacket",
+    "bow-fur-boots",
     "platform-fur-boots",
     "gum-sole-sneakers",
-    "retro-track-jacket",
-    "plaid-belted-jacket",
-    "chunky-retro-sneakers",
-    "sherpa-zip-jacket",
     "retro-track-suit",
-    "half-zip-pullover",
-    "wide-pleated-trousers",
+    "plaid-belted-jacket",
     "cable-knit-scarf",
-    "fitted-long-sleeve-top",
-    "fur-suede-mules",
-    "cork-buckle-sandals",
-    "crossover-leggings"
-  ]
+    "oversized-crewneck",
+    "knit-hoodie-wide-pants-set",
+    "linen-shirt-men",
+    "cropped-windbreaker"
+  ],
+  "pages": 3
 }

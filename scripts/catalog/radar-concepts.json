@@ -110,6 +110,11 @@
     { "id": "crossover-leggings", "he": "טייץ מותן מוצלבת", "en": "crossover waist leggings women", "kind": "style", "hq": ["טייץ מותן גבוה", "טייץ מוצלב"], "zh": "交叉高腰瑜伽裤", "ko": "크로스 하이웨스트 레깅스" },
     { "id": "oversized-crewneck", "he": "סווטשירט אוברסייז לנשים", "en": "oversized crewneck sweatshirt women", "kind": "style", "hq": ["סווטשירט אוברסייז", "סווטשירט לנשים"], "zh": "宽松圆领卫衣", "ko": "오버핏 맨투맨" },
     { "id": "side-stripe-baggy-jeans", "he": "ג׳ינס רחב עם פס בצד", "en": "baggy wide leg jeans side stripe women", "kind": "style", "hq": ["ג׳ינס רחב", "ג׳ינס באגי"], "zh": "侧条纹阔腿牛仔裤", "ko": "사이드 라인 와이드 데님" },
-    { "id": "knit-hoodie-wide-pants-set", "he": "סט סריג קפוצ׳ון ומכנס רחב", "en": "knit zip hoodie wide leg pants set women", "kind": "style", "hq": ["סט סריג", "סט קפוצ׳ון ומכנס"], "zh": "针织连帽开衫阔腿裤套装", "ko": "니트 후드 집업 와이드 팬츠 세트" }
+    { "id": "knit-hoodie-wide-pants-set", "he": "סט סריג קפוצ׳ון ומכנס רחב", "en": "knit zip hoodie wide leg pants set women", "kind": "style", "hq": ["סט סריג", "סט קפוצ׳ון ומכנס"], "zh": "针织连帽开衫阔腿裤套装", "ko": "니트 후드 집업 와이드 팬츠 세트" },
+    { "id": "wide-yoga-pants", "he": "מכנסי יוגה רחבים", "en": "wide leg yoga pants women high waist", "kind": "style", "hq": ["מכנסי יוגה רחבים", "טייץ רחב"], "zh": "高腰阔腿瑜伽裤", "ko": "와이드 요가 팬츠" },
+    { "id": "nylon-crossbody-bag", "he": "תיק צד ניילון קטן", "en": "nylon crossbody bag women small", "kind": "style", "hq": ["תיק צד ניילון", "תיק צד קטן לנשים"], "zh": "尼龙斜挎包女", "ko": "나일론 크로스백" },
+    { "id": "structured-top-handle-bag", "he": "תיק יד מעוצב עם ידית", "en": "structured top handle leather bag women", "kind": "style", "hq": ["תיק יד לנשים", "תיק עם ידית"], "zh": "手提结构皮包", "ko": "탑핸들 가죽 백" },
+    { "id": "parachute-pants", "he": "מכנסי ניילון רחבים עם גומי", "en": "wide leg parachute pants women elastic waist", "kind": "style", "hq": ["מכנסי ניילון רחבים", "מכנסי פראשוט"], "zh": "阔腿降落伞裤", "ko": "파라슈트 팬츠" },
+    { "id": "platform-suede-slippers", "he": "כפכפי זמש פלטפורמה עם פרווה", "en": "platform suede slippers fur lined embroidered trim", "kind": "style", "hq": ["כפכפי זמש פלטפורמה", "נעלי בית זמש"], "zh": "厚底麂皮毛毛鞋", "ko": "플랫폼 스웨이드 털 슬리퍼" }
   ]
 }
