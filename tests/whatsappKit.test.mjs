@@ -23,14 +23,15 @@ test("only listed, own-link, real-photo items without a brand name reach the gro
   assert.equal(waEligible(P("f", { imageProvenance: "stock_photo" })), false);
 });
 
-test("the radar's HOT products come first, then the newly added ones", () => {
+test("the looks first (HOT, then newly added), then the radar's other HOT products", () => {
   const products = [
     P("old", { createdAt: NOW - 10 * 86_400_000, importSource: "aliexpress-deals" }),
     P("new1", { createdAt: NOW - 3_600_000, importSource: "aliexpress-trend-board" }),
-    P("hot1"), P("hot2"),
+    P("newHome", { kind: "home", createdAt: NOW - 3_600_000, importSource: "aliexpress-trend-board" }),
+    P("hot1"), P("hot2"), P("hotPet", { kind: "pets" }),
   ];
-  const picks = pickKit({ products, keepIds: ["hot2", "missing", "hot1"], now: NOW });
-  assert.deepEqual(picks.map((x) => [x.product.id, x.why]), [["hot2", "hot"], ["hot1", "hot"], ["new1", "new"]]);
+  const picks = pickKit({ products, keepIds: ["hotPet", "hot2", "missing", "hot1"], now: NOW });
+  assert.deepEqual(picks.map((x) => [x.product.id, x.why]), [["hot2", "hot"], ["hot1", "hot"], ["new1", "new"], ["hotPet", "hot"], ["newHome", "new"]]);
 });
 
 test("a post in the groups' format: hook, the seller's words, tip, dated store price, buy line, link, disclosure", () => {

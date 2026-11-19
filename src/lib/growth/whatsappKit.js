@@ -58,18 +58,28 @@ export function waEligible(p = {}) {
   return !hasBrandName(words) && !isNotListedKind(words);
 }
 
-/** Today's products: the radar's keep list first (in its order), then items added in the last `days`. */
-export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 3, max = 8 } = {}) {
+// The group is about the looks (the owner, 19.11: "מועדון הדיופים"): fashion, beauty and accessories first.
+export const LOOK_KINDS = Object.freeze(new Set(["clothing", "fitness", "bags", "hair", "makeup", "beauty", "earrings", "rings", "necklaces", "bracelets", "watches", "men", "shoes"]));
+const isLook = (p) => LOOK_KINDS.has(String(p?.kind || ""));
+
+/**
+ * Today's products: the radar's HOT looks, then the looks added in the last `days`, then the radar's other
+ * HOT products (its keep list order, newest first for the added ones).
+ */
+export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 3, max = 12 } = {}) {
   const byId = new Map((Array.isArray(products) ? products : []).map((p) => [p?.id, p]));
   const out = [];
   const add = (p, why) => {
     if (p && waEligible(p) && !out.some((x) => x.product.id === p.id) && out.length < max) out.push({ product: p, why });
   };
-  for (const id of Array.isArray(keepIds) ? keepIds : []) add(byId.get(id), "hot");
+  const hot = (Array.isArray(keepIds) ? keepIds : []).map((id) => byId.get(id)).filter(Boolean);
   const since = now - days * DAY_MS;
   const fresh = [...byId.values()]
     .filter((p) => Number(p?.createdAt) >= since && /^aliexpress-(trend-board|owner-link|deals)$/.test(String(p?.importSource || "")))
     .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  for (const p of hot.filter(isLook)) add(p, "hot");
+  for (const p of fresh.filter(isLook)) add(p, "new");
+  for (const p of hot) add(p, "hot");
   for (const p of fresh) add(p, "new");
   return out;
 }
@@ -124,7 +134,7 @@ export function waSafe(text) {
 }
 
 /** The day's kit. */
-export function kitOf({ products = [], keepIds = [], now = Date.now(), origin = PRODUCTION_ORIGIN, max = 8 } = {}) {
+export function kitOf({ products = [], keepIds = [], now = Date.now(), origin = PRODUCTION_ORIGIN, max = 12 } = {}) {
   const picks = pickKit({ products, keepIds, now, max });
   const posts = picks.map(({ product, why }, i) => waPost(product, { now, origin, i, why })).filter((x) => x.safe && x.images.length);
   return { day: ymd(now), posts };
