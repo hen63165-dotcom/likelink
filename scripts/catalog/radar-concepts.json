@@ -101,6 +101,12 @@
     { "id": "bow-fur-boots", "he": "מגפוני פרווה עם פפיון", "en": "bow mini snow boots fur lined women", "kind": "style", "hq": ["מגפוני פרווה", "מגפיים עם פפיון"], "zh": "蝴蝶结雪地靴", "ko": "리본 털부츠" },
     { "id": "linen-shirt-men", "he": "חולצת פשתן מכופתרת לגברים", "en": "linen short sleeve button shirt men", "kind": "style", "hq": ["חולצת פשתן לגברים", "חולצה מכופתרת פשתן"], "zh": "男士亚麻短袖衬衫", "ko": "남자 린넨 반팔 셔츠" },
     { "id": "sherpa-zip-jacket", "he": "ג׳קט שרפה עם רוכסן", "en": "sherpa fleece zip jacket women", "kind": "style", "hq": ["ג׳קט שרפה", "מעיל פרווה קצר"], "zh": "羊羔毛拉链外套", "ko": "뽀글이 집업 자켓" },
-    { "id": "retro-track-suit", "he": "סט טרנינג רטרו", "en": "retro track suit set women", "kind": "style", "hq": ["סט טרנינג", "חליפת טרנינג לנשים"], "zh": "复古运动套装", "ko": "레트로 트레이닝 세트" }
+    { "id": "retro-track-suit", "he": "סט טרנינג רטרו", "en": "retro track suit set women", "kind": "style", "hq": ["סט טרנינג", "חליפת טרנינג לנשים"], "zh": "复古运动套装", "ko": "레트로 트레이닝 세트" },
+    { "id": "wide-pleated-trousers", "he": "מכנסיים רחבים עם קפלים", "en": "wide leg pleated trousers women high waist", "kind": "style", "hq": ["מכנסיים רחבים לנשים", "מכנסיים מחויטים רחבים"], "zh": "高腰阔腿西裤", "ko": "와이드 핀턱 슬랙스" },
+    { "id": "cable-knit-scarf", "he": "צעיף סריג צמות", "en": "cable knit scarf women", "kind": "style", "hq": ["צעיף סריג", "צעיף צמות"], "zh": "麻花针织围巾", "ko": "꽈배기 니트 머플러" },
+    { "id": "fitted-long-sleeve-top", "he": "חולצת שרוול ארוך צמודה", "en": "fitted long sleeve crew neck top women", "kind": "style", "hq": ["חולצה צמודה שרוול ארוך", "גופייה שרוול ארוך"], "zh": "修身长袖打底衫", "ko": "슬림 긴팔 티셔츠" },
+    { "id": "fur-suede-mules", "he": "סניקרס כפכף עם פרווה", "en": "fur lined suede sneaker mules women", "kind": "style", "hq": ["סניקרס פרווה", "כפכפי סניקרס"], "zh": "毛毛德训鞋穆勒鞋", "ko": "털 스웨이드 뮬 스니커즈" },
+    { "id": "cork-buckle-sandals", "he": "סנדלי פקק עם אבזמים", "en": "cork footbed double buckle sandals", "kind": "style", "hq": ["סנדלי פקק", "כפכפי אבזמים"], "zh": "软木双扣拖鞋", "ko": "코르크 버클 샌들" },
+    { "id": "crossover-leggings", "he": "טייץ מותן מוצלבת", "en": "crossover waist leggings women", "kind": "style", "hq": ["טייץ מותן גבוה", "טייץ מוצלב"], "zh": "交叉高腰瑜伽裤", "ko": "크로스 하이웨스트 레깅스" }
   ]
 }

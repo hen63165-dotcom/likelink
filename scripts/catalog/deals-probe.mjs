@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { productsOf } from "./trend-finder.mjs";
-import { DEAL_CATEGORIES, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
+import { DEAL_CATEGORIES, dealCheck, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
 
 const dir = process.argv[2] || "deals-preview";
 const env = aeEnv(process.env);
@@ -26,7 +26,7 @@ const lookIds = existsSync(looksFile) ? (JSON.parse(readFileSync(looksFile, "utf
 const LOOKS = lookIds.length
   ? JSON.parse(readFileSync("scripts/catalog/radar-concepts.json", "utf8")).concepts
     .filter((c) => lookIds.includes(c.id))
-    .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 180, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
+    .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 260, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
   : null;
 for (const c of LOOKS || DEAL_CATEGORIES) {
   let list = [];
@@ -40,7 +40,9 @@ for (const c of LOOKS || DEAL_CATEGORIES) {
     continue;
   }
   const picks = rankDeals(list, c).slice(0, 8);
-  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules`);
+  const why = {};
+  for (const x of list) { const r = dealCheck(x, c); if (!r.ok) why[r.reason] = (why[r.reason] || 0) + 1; }
+  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules; refused: ${JSON.stringify(why)}`);
   picks.forEach((x, i) => {
     const img = String(x.product_main_image_url || "").replace(/^\/\//, "https://");
     const file = join(dir, `${c.key}-${i + 1}.jpg`);
