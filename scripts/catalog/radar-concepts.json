@@ -83,6 +83,16 @@
     { "id": "faux-fur-bucket-hat", "he": "כובע באקט פרווה", "en": "faux fur bucket hat", "kind": "style", "hq": ["כובע פרווה", "כובע באקט פרווה"], "zh": "毛绒渔夫帽", "ko": "퍼 버킷햇" },
     { "id": "wide-waist-belt", "he": "חגורת מותן רחבה", "en": "wide waist belt women", "kind": "style", "hq": ["חגורה רחבה", "חגורת מותן"], "zh": "宽腰封", "ko": "와이드 허리벨트" },
     { "id": "barrel-jeans", "he": "ג׳ינס בארל", "en": "barrel leg jeans", "kind": "style", "hq": ["ג׳ינס בארל", "גינס בארל"], "zh": "弯刀裤", "ko": "배럴 진" },
-    { "id": "suede-jacket", "he": "ז׳קט זמש לנשים", "en": "suede jacket women", "kind": "style", "hq": ["ז׳קט זמש", "מעיל זמש"], "zh": "麂皮夹克", "ko": "스웨이드 자켓" }
+    { "id": "suede-jacket", "he": "ז׳קט זמש לנשים", "en": "suede jacket women", "kind": "style", "hq": ["ז׳קט זמש", "מעיל זמש"], "zh": "麂皮夹克", "ko": "스웨이드 자켓" },
+    { "id": "seamless-yoga-set", "he": "סט יוגה חלק", "en": "seamless yoga set women", "kind": "style", "hq": ["סט יוגה", "סט ספורט לנשים"], "zh": "无缝瑜伽套装", "ko": "심리스 요가 세트" },
+    { "id": "flare-leggings", "he": "טייץ מתרחב", "en": "flare yoga leggings women", "kind": "style", "hq": ["טייץ מתרחב", "טייץ פלייר"], "zh": "喇叭瑜伽裤", "ko": "부츠컷 레깅스" },
+    { "id": "half-zip-pullover", "he": "סווטשירט חצי רוכסן", "en": "half zip fleece pullover women", "kind": "style", "hq": ["סווטשירט חצי רוכסן", "חצי רוכסן"], "zh": "半拉链抓绒卫衣", "ko": "반집업 플리스" },
+    { "id": "tennis-skirt", "he": "חצאית טניס", "en": "tennis skirt women", "kind": "style", "hq": ["חצאית טניס"], "zh": "网球裙", "ko": "테니스 스커트" },
+    { "id": "platform-fur-boots", "he": "מגפי פלטפורמה עם פרווה", "en": "platform mini snow boots women", "kind": "style", "hq": ["מגפי פרווה", "מגפי פלטפורמה"], "zh": "厚底雪地靴", "ko": "플랫폼 털부츠" },
+    { "id": "platform-fur-slippers", "he": "נעלי בית פלטפורמה עם פרווה", "en": "platform fur slippers women", "kind": "style", "hq": ["נעלי בית פרווה", "נעלי בית פלטפורמה"], "zh": "厚底毛毛拖鞋", "ko": "플랫폼 털 슬리퍼" },
+    { "id": "gum-sole-sneakers", "he": "סניקרס רטרו עם סוליית גומי", "en": "retro gum sole sneakers women", "kind": "style", "hq": ["סניקרס רטרו", "נעלי סניקרס לנשים"], "zh": "复古德训鞋", "ko": "빈티지 검솔 스니커즈" },
+    { "id": "retro-track-jacket", "he": "ג׳קט טרנינג רטרו", "en": "retro track jacket women", "kind": "style", "hq": ["ג׳קט טרנינג", "ז׳קט ספורט רטרו"], "zh": "复古运动夹克", "ko": "레트로 트랙 자켓" },
+    { "id": "lip-oil", "he": "שמן שפתיים", "en": "lip oil gloss", "kind": "makeup", "hq": ["שמן שפתיים"], "zh": "唇油", "ko": "립오일" },
+    { "id": "blush-stick", "he": "סומק סטיק", "en": "cream blush stick", "kind": "makeup", "hq": ["סומק סטיק", "סומק קרמי"], "zh": "腮红棒", "ko": "블러셔 스틱" }
   ]
 }

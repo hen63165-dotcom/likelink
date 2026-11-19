@@ -88,8 +88,11 @@ export async function storeVideo(product, { env = process.env, fetchImpl = globa
   if (!x) return { status: S.NOT_RETURNED, reason: "the store did not return the item" };
   const video = https(x.product_video_url);
   const title = String(x.product_title || "").trim().slice(0, 200);
-  if (!STORE_VIDEO.test(video)) return { status: S.NO_SELLER_VIDEO, title };
-  return { status: "FOUND", video, title, itemId };
+  // the store's own gallery, for a person to check by eye (Store videos with "photos": true)
+  const small = x.product_small_image_urls?.string;
+  const images = [x.product_main_image_url, ...(Array.isArray(small) ? small : small ? [small] : [])].map(https).filter((u, i, a) => /^https:\/\/\S+$/.test(u) && a.indexOf(u) === i).slice(0, 6);
+  if (!STORE_VIDEO.test(video)) return { status: S.NO_SELLER_VIDEO, title, images };
+  return { status: "FOUND", video, title, itemId, images };
 }
 
 function probe(file) {
