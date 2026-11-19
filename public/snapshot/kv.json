@@ -3406,6 +3406,48 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 87.98
+   },
+   {
+    "id": "ae-1005007011405828",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "2 ב 1 לשפוך תרסיס מרסס מטגן אוויר שמן מנפק בקבוק זית",
+    "storeTitle": "2 ב 1 לשפוך תרסיס מרסס מטגן אוויר שמן מנפק בקבוק שמן זית בישול טבל קמפינג קיבולת גדולה",
+    "category": "Home",
+    "kind": "kitchen",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sa04676720db74072b0dfdf53b5b8d816A.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoxRIhB4bdFeAe065vCcTP4mJgj6aFF9TuICZaIYgVsG4gsfIQ8xXZZxYGAMpfBTPsHXpNO6gUrMIwmtPUCQLhVOZi0TelwF1uLME0itNBOXjHO9IwKs1TlWwf7wQK4Ophso4nRWrVMTtkNx8lO7llyBWbvJ7qiLwLcEXJwoTVl0e9mHZLNAqFsXpEkkFScUZxKK73IDBKseu6uUa4o7NnWxCCY2Lis99FNwIfnWZhTCRGZfiBaHb6Na63E3yLaWViQ3KNjYZDNVwMvGC7HfvXw4WoQ2M9H926g0Q0uxOqBlAhySc489Uu5Psr0dDoAkHTX2J9fiEBdAaNi3IladC5H6aPCTLyZHEXo9O6pe6oMPimTfKvA42JEHYhQQZKR77YBRqw74tF41pO2xLbpyxrpzX7MYgFeRmxDBarsGAZDTrhmB6lDEwjhvLGc4pS0vF6PXL8ZU95pzW1vth1zBOi2M8P1fUsHJlonpvejDSlaFBggf6ASLdaDkavTpazHOBNh013TkZDu297QnUfYLgBgEtcAfuZMNERGuBEzW6uT22MD7WZoUKqOJotE7GS7N97gTQeMNBBnBe1hBMZ8GPUsHVta74D5fBNgM7rCoOh0kW51ugXUPj1PAEQstyAipP7tp5lyageIT6Ch6ztmymWI7IaSVz4st0WkSEADmvwUPLR81YY95DCag5WuLcJ9XNVXGdKYE9g7Y4z",
+    "aliexpressId": "1005007011405828",
+    "price": 12.19,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-19T10:07:26.726Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sa04676720db74072b0dfdf53b5b8d816A.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S9e95fd17ea744d06a742b0a4f6ccd9efZ.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S6c5ff0bde7ee48f9bcc655f5ab1551d5r.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S8e9dd172a6c84d318f0f1b3607bcf381a.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S0649a1fc047e4a1198619670b037000fJ.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S2f33a45ce550446a9bc8216f3ebecf514.jpg"
+    ],
+    "createdAt": 1795082846726,
+    "updatedAt": 1795082846726,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005007011405828",
+     "itemUrl": "https://he.aliexpress.com/item/1005007011405828.html?pdp_npi=6%40dis%21ILS%2125.19%2112.19%21%21%2150.11%2124.25%21%402141149b17950828474288328e0f28%2112000039058815957%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-19T10:07:26.726Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 25.19,
+    "sellerVideo": {
+     "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/2668032684/p/1/e/6/t/10301/4000205678378.mp4",
+     "source": "aliexpress_api",
+     "checkedAt": "2026-11-19T10:07:26.726Z"
+    }
    }
   ],
   "marketplace:marketers": [
