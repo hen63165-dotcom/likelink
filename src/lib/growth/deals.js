@@ -145,6 +145,7 @@ export function rankDeals(list = [], category, { exclude = new Set(), rules = DE
 // Words of the store's own title that describe how the item looks. Materials
 // ("925 silver", "gold plated", "moissanite") are the seller's claim and at a
 // deals price often not true, so they stay out of our name for it.
+const JEWELLERY_KINDS = new Set(["rings", "earrings", "necklaces", "bracelets"]);
 const FEATURES = [
   [/טניס|tennis/i, "טניס"],
   [/זי?רקון|zircon|\bcz\b/i, "זרקון"],
@@ -197,11 +198,15 @@ export function cleanStoreTitle(title = "", max = 56) {
     .filter(Boolean)
     .filter((w) => !(/^[A-Z]{3,}$/.test(w) && !KEEP_CAPS.has(w)));
   const out = [];
+  let cut = false;
   for (const w of words) {
     if (out.some((o) => o.toLowerCase() === w.toLowerCase())) continue;
-    if ((out.join(" ") + " " + w).trim().length > max) break;
+    if ((out.join(" ") + " " + w).trim().length > max) { cut = true; break; }
     out.push(w);
   }
+  // A cut inside an "עם …" detail leaves half of it ("…לנשים עם חזה" for "עם חזה מרופד"): end before it.
+  const withAt = cut ? out.lastIndexOf("עם") : -1;
+  if (withAt >= 3) out.length = withAt;
   return out.join(" ").trim();
 }
 
@@ -249,7 +254,10 @@ export function dealTitle(x = {}, category) {
     for (const [re, label] of FEATURES) if (re.test(raw) && !feats.includes(label)) feats.push(label);
     const head = feats.includes("טניס") && category.noun === "צמיד" ? "צמיד טניס" : category.noun;
     const rest = feats.filter((f) => !(f === "טניס" && head === "צמיד טניס")).slice(0, 3);
-    return [head, ...rest].join(" · ");
+    // A bag or a watch whose title names none of these details keeps the store's own words
+    // ("תיק יד אלגנטי לנשים…"), never a bare "תיק" (19.11). Jewellery keeps its noun alone:
+    // its store words carry the material claims (925, gold plated) we never put in a name.
+    if (rest.length || head !== category.noun || JEWELLERY_KINDS.has(category.kind)) return [head, ...rest].join(" · ");
   }
   return cleanStoreTitle(raw) || raw.slice(0, 56);
 }

@@ -162,6 +162,18 @@ test("Hebrew whole words: \\b knows only Latin letters", () => {
   assert.equal(dealTitle(item("1005001", { product_title: "שרשרת לבנה" }), dealCategory("necklaces")), "שרשרת", "לבנה (white) is not a heart");
 });
 
+test("a bag is named by its store's words, never a bare noun; a cut never leaves half a detail", () => {
+  // The real store title of ae-1005011624837441 (19.11): the bag was named "תיק" alone.
+  const bag = "תיק יד אלגנטי לנשים עם רצועה רחבה, בעיצוב צלב, עשוי מחומר PU עם דוגמת שברון, תיק קטן ונוח לנשיאה על הכתף";
+  assert.equal(dealTitle(item("1005001", { product_title: bag }), dealCategory("bags")), "תיק יד אלגנטי לנשים עם רצועה רחבה");
+  assert.equal(dealTitle(item("1005001", { product_title: "bag pearl chain" }), dealCategory("bags")), "תיק · פנינים", "a named detail keeps the short name");
+  assert.equal(dealTitle(item("1005001", { product_title: "plain ring" }), dealCategory("rings")), "טבעת", "jewellery keeps its noun alone");
+  // ae-1005012374470555: cut at 56 characters it read "…לנשים עם חזה" (with chest), half of "עם חזה מרופד".
+  const set = "סט יוגה לספורט בחדר כושר מהיר התייבשות לנשים עם חזה מרופד ומכנסיים רחבים במותן";
+  assert.equal(cleanStoreTitle(set), "סט יוגה לספורט בחדר כושר מהיר התייבשות לנשים");
+  assert.equal(cleanStoreTitle("שעון לנשים עם רצועת עור"), "שעון לנשים עם רצועת עור", "a whole detail stays");
+});
+
 test("a product of a known kind is the picture of that kind's circle only", () => {
   const p = (id, title, kind) => ({ id, title, displayTitle: title, kind, category: "Accessories", media: { image: "https://ae01.alicdn.com/kf/x.jpg" }, image: "https://ae01.alicdn.com/kf/x.jpg" });
   // Ids with a clean picture on the site (src/lib/looks.js), so each one can be a circle.

@@ -1,22 +1,24 @@
 {
-  "why": "The owner, 2026-11-19: the hottest looks of the brands everyone wants (Alo, Lululemon, UGG, Adidas, New Balance, Zara, Ralph Lauren), identical in look but without the name or logo. The Deals probe reads each look's generic search and puts the items that pass the deal rules on one sheet per look, to check every photo for a logo by eye. Empty ids = the normal per-category probe.",
+  "why": "The owner, 2026-11-19: the hottest looks of the brands everyone wants (Alo, Lululemon, UGG, Adidas, New Balance, Zara, Ralph Lauren), identical in look but without the name or logo. The Deals probe reads each look's generic search and puts the items that pass the deal rules on one sheet per look, to check every photo for a logo by eye. Empty ids = the normal per-category probe. 19.11 (her second set of examples): the looks of those posts, at 90% and 300 orders (clothing is rated lower everywhere in the store).",
   "ids": [
-    "wide-yoga-pants",
-    "nylon-crossbody-bag",
-    "structured-top-handle-bag",
-    "parachute-pants",
-    "platform-suede-slippers",
-    "sherpa-zip-jacket",
-    "bow-fur-boots",
-    "platform-fur-boots",
-    "gum-sole-sneakers",
-    "retro-track-suit",
-    "plaid-belted-jacket",
+    "wide-pleated-trousers",
+    "fur-suede-mules",
+    "cork-buckle-sandals",
     "cable-knit-scarf",
+    "fitted-long-sleeve-top",
+    "crossover-leggings",
+    "ribbed-crew-socks",
+    "bow-fur-boots",
+    "retro-track-suit",
+    "sherpa-zip-jacket",
     "oversized-crewneck",
     "knit-hoodie-wide-pants-set",
-    "linen-shirt-men",
-    "cropped-windbreaker"
+    "structured-top-handle-bag",
+    "half-zip-pullover",
+    "seamless-yoga-set",
+    "flare-leggings"
   ],
-  "pages": 3
+  "pages": 3,
+  "minPositivePct": 90,
+  "minOrders": 300
 }

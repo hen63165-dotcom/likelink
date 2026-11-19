@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { productsOf } from "./trend-finder.mjs";
-import { DEAL_CATEGORIES, dealCheck, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
+import { DEAL_CATEGORIES, DEAL_RULES, dealCheck, dealTitle, rankDeals } from "../../src/lib/growth/deals.js";
 
 const dir = process.argv[2] || "deals-preview";
 const env = aeEnv(process.env);
@@ -29,7 +29,15 @@ const LOOKS = lookIds.length
     .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 260, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
   : null;
 // Looks mode reads up to `pages` pages (50 items each): the logo-free items sit below the best sellers.
-const PAGES = LOOKS ? Math.min(5, Math.max(1, Number(JSON.parse(readFileSync(looksFile, "utf8")).pages) || 1)) : 1;
+const LOOKS_CFG = LOOKS ? JSON.parse(readFileSync(looksFile, "utf8")) : {};
+const PAGES = LOOKS ? Math.min(5, Math.max(1, Number(LOOKS_CFG.pages) || 1)) : 1;
+// Clothing is rated lower everywhere in the store (19.11: 1,500 items read, 18 at 95%): looks mode may set
+// its own floor (never under 90%, never under 300 orders), for the sheet a person checks by eye only.
+// The site's daily import keeps DEAL_RULES.
+const RULES = LOOKS
+  ? { ...DEAL_RULES, minPositivePct: Math.max(90, Number(LOOKS_CFG.minPositivePct) || DEAL_RULES.minPositivePct), minOrders: Math.max(300, Number(LOOKS_CFG.minOrders) || DEAL_RULES.minOrders) }
+  : DEAL_RULES;
+if (LOOKS) console.log(`looks rules: ${RULES.minPositivePct}% and ${RULES.minOrders} orders`);
 for (const c of LOOKS || DEAL_CATEGORIES) {
   let list = [];
   for (let page = 1; page <= PAGES; page++) {
@@ -46,10 +54,11 @@ for (const c of LOOKS || DEAL_CATEGORIES) {
     }
   }
   if (!list.length) continue;
-  const picks = rankDeals(list, c).slice(0, 8);
+  const passing = rankDeals(list, c, { rules: RULES });
+  const picks = passing.slice(0, 8);
   const why = {};
-  for (const x of list) { const r = dealCheck(x, c); if (!r.ok) why[r.reason] = (why[r.reason] || 0) + 1; }
-  console.log(`${c.key}: ${list.length} read, ${rankDeals(list, c).length} pass the rules; refused: ${JSON.stringify(why)}`);
+  for (const x of list) { const r = dealCheck(x, c, RULES); if (!r.ok) why[r.reason] = (why[r.reason] || 0) + 1; }
+  console.log(`${c.key}: ${list.length} read, ${passing.length} pass the rules; refused: ${JSON.stringify(why)}`);
   picks.forEach((x, i) => {
     const img = String(x.product_main_image_url || "").replace(/^\/\//, "https://");
     const file = join(dir, `${c.key}-${i + 1}.jpg`);
