@@ -228,3 +228,27 @@ test("a gadget the owner picks by link finds its category", async () => {
   for (const t of ["מיקרופון דש אלחוטי מקצועי עם חיבור Type-C לסמארטפונים", "מקליט קול מקצועי דיגיטלי 8G/16G + נגן MP3 + כונן פלאש USB", "Wireless lavalier microphone"]) assert.equal(guessCategory({ product_title: t })?.key, "tech", t);
   assert.equal(guessCategory({ product_title: "סווטשירט קוריאני רחב עם קפוצ'ון" })?.key, "clothing");
 });
+
+// 2026-11-19: three items the jewellery searches returned were listed under the search's own kind: a
+// fleece neck warmer ("מחמם אוזניים") as "עגילים · מתכוונן", and two watch sets (an earring or a heart
+// bracelet inside) as "עגילים · קריסטלים" and "צמיד · לב". The name and kind now follow the first item
+// noun of the store's own title.
+test("an item is named and filed by what its own store title says it is", async () => {
+  const { toDealProduct, dealCategory, titleSubject } = await import("../src/lib/growth/deals.js");
+  const item = (t) => ({ product_id: "1005000000000001", promotion_link: "https://s.click.aliexpress.com/e/_x", product_main_image_url: "https://ae01.alicdn.com/a.jpg", target_sale_price: "10", target_sale_price_currency: "ILS", product_title: t });
+  const make = (key, t) => toDealProduct(item(t), { category: dealCategory(key), marketerId: "m1" });
+  const set = make("earrings", "סט תכשיטי שעון לנשים 6 יחידות - שעון קוורץ אופנתי + צמיד אינפיניטי קריסטל, שרשרת, עגיל וטבעת לנשים (ללא קופסה)");
+  assert.doesNotMatch(set.title, /^עגילים/);
+  assert.equal(set.kind, "watches");
+  const heart = make("bracelets", "2 יחידות אופנה ערבית חוגה ערבית שעון קוורץ לנשים סט צמיד לב שעוני יד רצועת סיליקון מרובעת (ללא קופסה)");
+  assert.doesNotMatch(heart.title, /^צמיד/);
+  assert.equal(heart.kind, "watches");
+  const scarf = make("earrings", "צעיף צוואר מפולאר פליס לחורף, מחמם אוזניים לדיג, סקי, ריצה וספורט, צווארון מתכוונן");
+  assert.match(scarf.title, /^צעיף צוואר/);
+  assert.equal(scarf.kind, "clothing");
+  // the right kind keeps the short jewellery name
+  assert.equal(make("earrings", "עגילי חישוק בצורת ירח לנשים, כסף").title, "עגילים · חישוק · ירח");
+  assert.equal(make("bracelets", "צמיד טניס מואסניט כסף 925").kind, "bracelets");
+  assert.equal(titleSubject("שרשרת יד עדינה לנשים עם לב"), "bracelets", "a hand chain is a bracelet");
+  assert.equal(titleSubject("תיקון שעון"), "watches", "תיקון is not a bag");
+});
