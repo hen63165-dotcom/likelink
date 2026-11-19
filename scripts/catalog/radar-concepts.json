@@ -107,6 +107,9 @@
     { "id": "fitted-long-sleeve-top", "he": "חולצת שרוול ארוך צמודה", "en": "fitted long sleeve crew neck top women", "kind": "style", "hq": ["חולצה צמודה שרוול ארוך", "גופייה שרוול ארוך"], "zh": "修身长袖打底衫", "ko": "슬림 긴팔 티셔츠" },
     { "id": "fur-suede-mules", "he": "סניקרס כפכף עם פרווה", "en": "fur lined suede sneaker mules women", "kind": "style", "hq": ["סניקרס פרווה", "כפכפי סניקרס"], "zh": "毛毛德训鞋穆勒鞋", "ko": "털 스웨이드 뮬 스니커즈" },
     { "id": "cork-buckle-sandals", "he": "סנדלי פקק עם אבזמים", "en": "cork footbed double buckle sandals", "kind": "style", "hq": ["סנדלי פקק", "כפכפי אבזמים"], "zh": "软木双扣拖鞋", "ko": "코르크 버클 샌들" },
-    { "id": "crossover-leggings", "he": "טייץ מותן מוצלבת", "en": "crossover waist leggings women", "kind": "style", "hq": ["טייץ מותן גבוה", "טייץ מוצלב"], "zh": "交叉高腰瑜伽裤", "ko": "크로스 하이웨스트 레깅스" }
+    { "id": "crossover-leggings", "he": "טייץ מותן מוצלבת", "en": "crossover waist leggings women", "kind": "style", "hq": ["טייץ מותן גבוה", "טייץ מוצלב"], "zh": "交叉高腰瑜伽裤", "ko": "크로스 하이웨스트 레깅스" },
+    { "id": "oversized-crewneck", "he": "סווטשירט אוברסייז לנשים", "en": "oversized crewneck sweatshirt women", "kind": "style", "hq": ["סווטשירט אוברסייז", "סווטשירט לנשים"], "zh": "宽松圆领卫衣", "ko": "오버핏 맨투맨" },
+    { "id": "side-stripe-baggy-jeans", "he": "ג׳ינס רחב עם פס בצד", "en": "baggy wide leg jeans side stripe women", "kind": "style", "hq": ["ג׳ינס רחב", "ג׳ינס באגי"], "zh": "侧条纹阔腿牛仔裤", "ko": "사이드 라인 와이드 데님" },
+    { "id": "knit-hoodie-wide-pants-set", "he": "סט סריג קפוצ׳ון ומכנס רחב", "en": "knit zip hoodie wide leg pants set women", "kind": "style", "hq": ["סט סריג", "סט קפוצ׳ון ומכנס"], "zh": "针织连帽开衫阔腿裤套装", "ko": "니트 후드 집업 와이드 팬츠 세트" }
   ]
 }
