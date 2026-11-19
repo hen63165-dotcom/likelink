@@ -5,7 +5,7 @@
 //   <dir>/<category>-<n>.jpg (the photos; scripts/catalog/deals-sheet.py puts
 //   them on one numbered sheet per category). Prints no credential.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { aeCall, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { productsOf } from "./trend-finder.mjs";
@@ -17,7 +17,18 @@ if (!aeStatus(env).configured) { console.log("REQUIRES_CONNECTION"); process.exi
 mkdirSync(dir, { recursive: true });
 const method = "aliexpress.affiliate.product.query";
 const all = [];
-for (const c of DEAL_CATEGORIES) {
+// Looks mode (scripts/catalog/looks-probe.json lists watch-list ids): the radar's generic search for each
+// look, through the same deal rules (95%, 300 orders, no brand name, no unlisted kind), so a person can
+// check the photos for logos before any item is added. The owner, 2026-11-19: the hottest looks of the
+// brands everyone wants, without the name.
+const looksFile = "scripts/catalog/looks-probe.json";
+const lookIds = existsSync(looksFile) ? (JSON.parse(readFileSync(looksFile, "utf8")).ids || []) : [];
+const LOOKS = lookIds.length
+  ? JSON.parse(readFileSync("scripts/catalog/radar-concepts.json", "utf8")).concepts
+    .filter((c) => lookIds.includes(c.id))
+    .map((c) => ({ key: c.id, keywords: c.en, maxPrice: 180, kind: c.kind === "makeup" ? "makeup" : "clothing", category: c.kind === "makeup" ? "Beauty" : "Fashion", noun: "" }))
+  : null;
+for (const c of LOOKS || DEAL_CATEGORIES) {
   let list = [];
   try {
     list = productsOf(await aeCall(method, {
