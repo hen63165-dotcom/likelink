@@ -80,13 +80,20 @@ export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 
   const fresh = [...byId.values()]
     .filter((p) => Number(p?.createdAt) >= since && /^aliexpress-(trend-board|owner-link|deals)$/.test(String(p?.importSource || "")))
     .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+  if (looksOnly) {
+    // מועדון הדיופים (19.11): the looks she just chose come first, then the radar's HOT looks.
+    for (const p of fresh.filter(isLook)) add(p, "new");
+    for (const p of hot.filter(isLook)) add(p, "hot");
+    return out;
+  }
   for (const p of hot.filter(isLook)) add(p, "hot");
   for (const p of fresh.filter(isLook)) add(p, "new");
-  if (looksOnly) return out;
   for (const p of hot) add(p, "hot");
   for (const p of fresh) add(p, "new");
   return out;
 }
+
+const DANGLING = /^(עם|ללא|בלי|של|עבור|על|ב|ל|מ|ו|·|-|–)$/;
 
 /** A short name for the hook: the first words of the product's own title. */
 export function shortName(title = "") {
@@ -99,12 +106,14 @@ export function shortName(title = "") {
     if (!/^(\d+|ב|x)$/i.test(w)) counted += 1; // "2 ב 1 מרסס…": the numbers ride along
     if (/^ל(נשים|גברים|ילדים|בנות|תינוקות)$/.test(w)) break; // "כפכפי פרווה לנשים", not "…לנשים מתאימים"
   }
+  // A short name never ends on a word that needs the next one ("כפכפי נשים עם", "סט ספורט ללא", 19.11).
+  while (out.length > 1 && DANGLING.test(out[out.length - 1])) out.pop();
   return out.join(" ");
 }
 
 // What a photo can show (cut, shape, details) may be said plainly; what only the seller can claim
 // (soft, warm, quality, lifts, slims, materials like silver/gold/cotton) is left out of the post.
-const SELLER_CLAIM = /(איכות|במיוחד|גמיש|רך|רכה|רכים|רכות|נעים|נעימ|עמיד|נושם|נושמ|ייבוש|מהיר|חם|חמה|חמים|חמות|מחמם|מקורי|נגד|מונע|הרמ|מרזה|מרזים|שליטה|תמיכה|אורתופד|אורגני|כותנה|משי|קשמיר|צמר|עור אמיתי|כסף|זהב|925|יוקרה|יוקרתי|%|\d+\s*(?:ס"מ|מ"מ|cm|mm))/;
+const SELLER_CLAIM = /(איכות|במיוחד|גמיש|מחטב|מפחית|מחליק|החלקה|אוניברסלי|חדש|רך|רכה|רכים|רכות|נעים|נעימ|עמיד|נושם|נושמ|ייבוש|מהיר|חם|חמה|חמים|חמות|מחמם|מקורי|נגד|מונע|הרמ|מרזה|מרזים|שליטה|תמיכה|אורתופד|אורגני|כותנה|משי|קשמיר|צמר|עור אמיתי|כסף|זהב|925|יוקרה|יוקרתי|%|\d+\s*(?:ס"מ|מ"מ|cm|mm))/;
 const DETAIL_WORDS = 6;
 
 /** The look in a line: the store title's later phrases that describe what the photos show. */
