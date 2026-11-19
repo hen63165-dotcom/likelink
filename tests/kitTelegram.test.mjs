@@ -37,7 +37,7 @@ test("send: a dry run off main; SENT only with Telegram's message_id; the log ke
   };
   const dry = await sendKit(dir, { env: {}, fetchImpl, now: NOW });
   assert.equal(dry.state, "DRY_RUN");
-  assert.equal(calls.filter((u) => u.includes("api.telegram.org")).length, 0, "nothing is sent off main");
+  assert.equal(calls.filter((u) => new URL(u).hostname === "api.telegram.org").length, 0, "nothing is sent off main");
   const noKey = await sendKit(dir, { env: { KIT_TG_SEND: "1" }, fetchImpl, now: NOW });
   assert.equal(noKey.state, "REQUIRES_CONNECTION");
   const real = await sendKit(dir, { env: { KIT_TG_SEND: "1", BRAND_TELEGRAM_BOT: "x", BRAND_TELEGRAM_CHAT: "y" }, fetchImpl, now: NOW });
