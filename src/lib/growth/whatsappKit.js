@@ -17,11 +17,17 @@ export const WA_AD = "#פרסומת · קישור שותפים";
 export const WA_BUY = "לרכישה 👇";
 // Never "original", "1:1", "replica": the look is the store's own item, never presented as a brand's.
 export const WA_FORBIDDEN = /(רק היום|נשאר|אחרונ|מהרו|לזמן מוגבל|הכי זול|הכי טוב|מקורי|אחד לאחד|1:1|רפליקה|העתק|זהה ל)/;
-const OPENERS = Object.freeze(["תראו מה מצאתי 😍", "שווה הצצה 👀", "מה דעתכן? 💭", "הלוק הזה 🔥", "חדש אצלי בחנות 💜", "שמרתי את זה בשבילכן ✨"]);
+// Hooks in the deals groups' voice: excitement about the look, never a claim (no "original", no stock, no price).
+const HOOKS = Object.freeze([
+  (n) => `${n} 😍 אמאלה איזה יפה!!`,
+  (n) => `תקשיבו איזה ${n} 🔥`,
+  (n) => `${n} 💜 איזה לוק!!`,
+  (n) => `מה אומרות על ה${n} הזה? 👀`,
+]);
 const TIPS = Object.freeze({
-  clothing: "כדאי לבדוק את טבלת המידות בחנות לפני שמזמינים",
-  fitness: "כדאי לבדוק את טבלת המידות בחנות לפני שמזמינים",
-  men: "כדאי לבדוק את טבלת המידות בחנות לפני שמזמינים",
+  clothing: "ממליצה לבדוק את טבלת המידות בחנות לפני שמזמינים",
+  fitness: "ממליצה לבדוק את טבלת המידות בחנות לפני שמזמינים",
+  men: "ממליצה לבדוק את טבלת המידות בחנות לפני שמזמינים",
   hair: "כל הצבעים והפרטים בקישור",
   makeup: "כל הגוונים והפרטים בקישור",
   beauty: "כל הגוונים והפרטים בקישור",
@@ -68,22 +74,48 @@ export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 
   return out;
 }
 
-/** One post: the text (disclosure first, the hook, the name, a tip, the dated store price, the link) and up to 4 photos. */
+/** A short name for the hook: the first words of the product's own title. */
+export function shortName(title = "") {
+  const words = clean(title).replace(/[,.!?:;()"]/g, " ").split(/\s+/).filter(Boolean);
+  const out = [];
+  let counted = 0;
+  for (const w of words) {
+    if (counted >= 3 || (out.join(" ") + " " + w).trim().length > 26) break;
+    out.push(w);
+    if (!/^(\d+|ב|x)$/i.test(w)) counted += 1; // "2 ב 1 מרסס…": the numbers ride along
+    if (/^ל(נשים|גברים|ילדים|בנות|תינוקות)$/.test(w)) break; // "כפכפי פרווה לנשים", not "…לנשים מתאימים"
+  }
+  return out.join(" ");
+}
+
+/** The store's own description (its title's later phrases), said as the seller's words. */
+function sellerWords(p) {
+  const phrases = clean(p.storeTitle).split(/[,،]+/).map((x) => x.trim()).filter(Boolean).slice(1, 3);
+  const text = phrases.join(", ").slice(0, 110);
+  return text ? `לפי תיאור המוכר: ${text}` : "";
+}
+
+/**
+ * One post in the deals groups' format (the owner's examples, 19.11): the hook, the seller's own words,
+ * a tip, the dated store price, "לרכישה 👇" and the link, then the disclosure on its own line; up to 4 photos.
+ */
 export function waPost(p, { now = Date.now(), origin = PRODUCTION_ORIGIN, i = 0, why = "new" } = {}) {
   const day = ymd(now);
   const link = `${origin}/p/${encodeURIComponent(p.id)}?utm_source=whatsapp&utm_medium=group&utm_campaign=wa_${day}`;
-  const opener = OPENERS[(Math.floor(now / DAY_MS) + i) % OPENERS.length];
+  const name = shortName(p.title) || clean(p.title);
+  const hook = HOOKS[(Math.floor(now / DAY_MS) + i) % HOOKS.length](name);
   const tip = TIPS[p.kind] || TIP_DEFAULT;
   const price = Number(p.price);
   const priceLine = price > 0 && p.priceSource === "aliexpress_api" && dm(p.priceCheckedAt)
     ? `מחיר בחנות: מ־₪${Math.round(price * 100) / 100} (נבדק ב־${dm(p.priceCheckedAt)})`
     : "המחיר המעודכן מופיע בחנות";
-  const lines = [WA_AD, "", opener, clean(p.title), tip, priceLine, "", WA_BUY, link];
+  const seller = sellerWords(p);
+  const lines = [hook, "", ...(seller ? [seller] : []), tip, priceLine, "", WA_BUY, link, "", WA_AD];
   const images = [p.image, ...(Array.isArray(p.images) ? p.images : [])]
     .map((u) => String(u || "").trim())
     .filter((u, k, a) => HTTPS_IMG.test(u) && a.indexOf(u) === k)
     .slice(0, 4);
-  return { id: p.id, why, title: clean(p.title), text: lines.join("\n"), link, images, safe: waSafe(`${opener}\n${tip}`) };
+  return { id: p.id, why, title: clean(p.title), text: lines.join("\n"), link, images, safe: waSafe(`${hook.replace(name, "")}\n${tip}`) };
 }
 
 /** The lines we write ourselves pass the hook rules and this kit's own list. */

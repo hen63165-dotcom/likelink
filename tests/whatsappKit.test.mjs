@@ -33,12 +33,14 @@ test("the radar's HOT products come first, then the newly added ones", () => {
   assert.deepEqual(picks.map((x) => [x.product.id, x.why]), [["hot2", "hot"], ["hot1", "hot"], ["new1", "new"]]);
 });
 
-test("a post: the disclosure first, the buy line, a tracked link, a dated store price only from the store", () => {
-  const post = waPost(P("ae-1", { price: 24.39, priceSource: "aliexpress_api", priceCheckedAt: "2026-11-19T06:00:00Z" }), { now: NOW });
+test("a post in the groups' format: hook, the seller's words, tip, dated store price, buy line, link, disclosure", () => {
+  const post = waPost(P("ae-1", { title: "טייץ יוגה מתרחב לנשים בגזרה גבוהה", storeTitle: "טייץ יוגה מתרחב לנשים, מותן גבוה, שליטה בבטן, מכנסיים מתרחבים", price: 24.39, priceSource: "aliexpress_api", priceCheckedAt: "2026-11-19T06:00:00Z" }), { now: NOW });
   const lines = post.text.split("\n");
-  assert.equal(lines[0], WA_AD);
+  assert.match(lines[0], /טייץ יוגה מתרחב/, "the hook names the item");
+  assert.ok(lines.includes("לפי תיאור המוכר: מותן גבוה, שליטה בבטן"), "the store's own words, said as the seller's");
   assert.ok(lines.includes(WA_BUY));
-  assert.equal(lines.at(-1), "https://likelink2.vercel.app/p/ae-1?utm_source=whatsapp&utm_medium=group&utm_campaign=wa_20261119");
+  assert.equal(lines[lines.indexOf(WA_BUY) + 1], "https://likelink2.vercel.app/p/ae-1?utm_source=whatsapp&utm_medium=group&utm_campaign=wa_20261119");
+  assert.equal(lines.at(-1), WA_AD, "the disclosure on its own line in every post");
   assert.match(post.text, /מחיר בחנות: מ־₪24\.39 \(נבדק ב־19\.11\)/);
   assert.equal(post.images.length, 2, "https photos only, at most four");
   const noSource = waPost(P("ae-2", { price: 50 }), { now: NOW });
