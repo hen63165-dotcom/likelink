@@ -37,7 +37,7 @@ test("one root over every sealed book, in a fixed order; anyone can read it back
   assert.deepEqual(parseLedgerText(root), parts);
   assert.equal(ledgerText({ early: "not-a-hash" }), null);
   assert.equal(ledgerText({}), null);
-  assert.deepEqual(LEDGER_BOOKS, ["early", "stages", "fresh", "globe", "prices"]);
+  assert.deepEqual(LEDGER_BOOKS, ["early", "stages", "luck", "fresh", "globe", "prices"]);
   assert.deepEqual(ledgerText({ fresh: sha("f"), stages: sha("s"), early: sha("e") }).split("\n").map((l) => l.split("=")[0]), ["early", "stages", "fresh"]);
 });
 

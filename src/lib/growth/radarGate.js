@@ -58,6 +58,8 @@ export function teaserBoard(board) {
     // The complete ledger's root is public on purpose: it names no call (only the books' hashes), and
     // it is what lets anyone see later that nothing was added or removed after the day.
     ledger: board.ledger ? { d: board.ledger.d, sha256: board.ledger.sha256, count: board.ledger.count, text: board.ledger.text, ots: board.ledger.ots || [] } : null,
+    // The radar vs luck: the record and the comparison stay public; the day's draw does not.
+    luck: board.luck ? { versus: board.luck.versus, draws: board.luck.draws, nextDue: board.luck.nextDue, recent: board.luck.recent || [], today: null, seal: board.luck.seal ? { d: board.luck.seal.d, sha256: board.luck.seal.sha256, count: board.luck.seal.count, ots: board.luck.seal.ots || [] } : null } : null,
     concepts: [],
     early: e ? {
       need: e.need,

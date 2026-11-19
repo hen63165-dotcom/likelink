@@ -49,6 +49,7 @@ import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrati
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
+import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
@@ -829,10 +830,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   writeFileSync(join(dir, "catalog-decisions.json"), JSON.stringify(intel.decisions, null, 1));
   // The root of the complete ledger (radarLedger.js): one line per sealed book — early calls, every
   // new product shown, the next-country calls, today's prices — and one Bitcoin seal over all of it.
+  // 🎲 The radar vs luck (radarLuck.js): one kind drawn at random each day from the kinds read today,
+  // seeded by the hash of today's sealed store prices (nobody chooses them), graded by the same rule
+  // as the radar's calls, in its own sealed book. A day without sealed prices has no draw.
+  {
+    const priceSha = prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null;
+    let luck = gradeLuck(readJson(join(dir, "luck.json"), []), readings);
+    luck = recordLuck(luck, drawLuck(readings, today, luckSeed(today, priceSha)), today);
+    writeFileSync(join(dir, "luck.json"), JSON.stringify(luck, null, 1));
+    board.luck = luckBoard(luck, calls, today);
+    const luckText = luckSealText(luck);
+    if (luckText) board.luck.seal = await sealBook({ text: luckText, count: luckText.split("\n").length }, prevBoard.luck?.seal, "luck");
+    const v = board.luck.versus;
+    log.push(`luck: today ${board.luck.today ? `${board.luck.today.concept} (1 of ${board.luck.today.pool})` : "no draw (no sealed prices)"} · luck ${v.luck.hits}/${v.luck.graded} · radar ${v.radar.hits}/${v.radar.graded}${v.edge !== null ? ` · edge ${v.edge} pts` : ""}`);
+  }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

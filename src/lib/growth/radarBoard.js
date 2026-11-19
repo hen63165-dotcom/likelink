@@ -32,7 +32,9 @@ const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/
   ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
 } : null);
 const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
-const LEDGER_ROOT = /^(early|stages|fresh|globe|prices)=[0-9a-f]{64}(\n(early|stages|fresh|globe|prices)=[0-9a-f]{64})*$/;
+const LEDGER_ROOT = /^(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64})*$/;
+const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
+const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -159,6 +161,8 @@ export function sanitizeBoard(doc) {
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // The stage calls' book (radarLedger.js stagesSealText): names open calls, so the lock keeps it out of teaserBoard.
     stagesSeal: cleanBook(doc.stagesSeal, STAGES_BOOK),
+    // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.
+    luck: cleanLuck(doc.luck),
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
@@ -196,6 +200,21 @@ function cleanChallenge(c) {
 /** The global clock (worldClock.js): known countries only, measured days only, calls by concept id. */
 const CLOCK_STATUS = new Set(["ARRIVED", "PRESENT", "QUIET", "UNMEASURED"]);
 const COUNTRY = new Set(CLOCK_IDS);
+function cleanLuck(l) {
+  if (!l || typeof l !== "object") return null;
+  const cid = (v) => (typeof v === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(v) ? v : null);
+  const side = (x) => ({ graded: num(x?.graded) ?? 0, hits: num(x?.hits) ?? 0, rate: num(x?.rate) });
+  const t = l.today && cid(l.today.concept) && /^[0-9a-f]{64}$/.test(String(l.today.seed || "")) ? { concept: l.today.concept, at: day(l.today.at), base: num(l.today.base), due: day(l.today.due), seed: l.today.seed, pool: num(l.today.pool) } : null;
+  return {
+    today: t,
+    versus: { radar: side(l.versus?.radar), luck: side(l.versus?.luck), edge: num(l.versus?.edge) },
+    draws: num(l.draws) ?? 0,
+    nextDue: day(l.nextDue),
+    recent: (Array.isArray(l.recent) ? l.recent : []).slice(0, 12).filter((x) => cid(x?.concept) && (x.result === "HIT" || x.result === "MISS")).map((x) => ({ concept: x.concept, at: day(x.at), result: x.result, growth: num(x.growth) })),
+    seal: cleanBook(l.seal, LUCK_BOOK),
+  };
+}
+
 function cleanGlobe(g) {
   if (!g || typeof g !== "object" || !Array.isArray(g.waves)) return null;
   const call = (c) => (ID.test(String(c?.concept || "")) && COUNTRY.has(c?.country) && day(c?.at) ? { concept: c.concept, country: c.country, at: c.at, due: day(c.due), result: c.result === "HIT" || c.result === "MISS" ? c.result : null, arrivedOn: day(c.arrivedOn) } : null);

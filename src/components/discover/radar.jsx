@@ -776,8 +776,8 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
 
 /**
  * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
@@ -820,6 +820,35 @@ function Proof({ record, hasLedger = false }) {
             : next ? L(`הציון הראשון בפומבי: ${dm(next)}.`, `The first public grade: ${dm(next)}.`) : null}
           {hasLedger ? <> <a className="underline" href="#ledger">{L("לספר החתימות המלא ←", "To the complete sealed ledger →")}</a></> : null}
         </p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 🎲 The radar vs luck (radarLuck.js; the owner, 19.11: "כן"). A timestamp proves a call was not
+ * changed, never that it was good; so each day one kind is drawn at random (seeded by the hash of
+ * that day's sealed store prices) and graded by the same rule. The page prints both records, and
+ * the difference only once both sides have three grades.
+ */
+function Luck({ luck, concepts = [] }) {
+  const { L } = useL();
+  if (!luck) return null;
+  const name = (id) => (concepts.find((c) => c.id === id) || {}).he || id;
+  const v = luck.versus || {};
+  const line = (s, he, en) => (s?.graded ? L(`${he}: ${s.hits} מתוך ${s.graded} פגעו (${s.rate}%)`, `${en}: ${s.hits} of ${s.graded} hit (${s.rate}%)`) : null);
+  const r = line(v.radar, "הרדאר", "The radar");
+  const k = line(v.luck, "המזל", "Luck");
+  return (
+    <section className="lx-wrap mt-6" id="luck">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#f5f3ff" }}>
+        <h2 className="text-[20px] font-black">{L("🎲 הרדאר מול המזל", "🎲 The radar vs luck")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("חותמת זמן מוכיחה שקביעה לא שונתה, אבל לא שהיא טובה. לכן כל יום נבחר באקראי סוג מוצר אחד מכל מה שהרדאר מדד, והוא מקבל ציון באותו כלל בדיוק: ‎+15% הזמנות בתוך 14 יום. ככה רואים במספרים כמה הרדאר טוב יותר ממזל.", "A timestamp proves a call was not changed, not that it was good. So each day one kind of product is drawn at random from everything the radar measured, and graded by exactly the same rule: +15% orders within 14 days. The numbers then show how much better than luck the radar is.")}</p>
+        {luck.today ? <p className="mt-2 text-[14px] font-bold">{L(`הבחירה האקראית של היום: ${name(luck.today.concept)} (אחד מתוך ${luck.today.pool}). היא נקבעה לפי טביעת האצבע של מחירי החנות של היום, שנחתמו בביטקוין, כך שאיש לא בחר אותה.`, `Today's random draw: ${name(luck.today.concept)} (1 of ${luck.today.pool}). It was set by the fingerprint of today's store prices, sealed in Bitcoin, so nobody chose it.`)}</p> : null}
+        {r || k ? <p className="mt-2 text-[15px] font-black">{[r, k].filter(Boolean).join(" · ")}</p> : null}
+        {Number.isFinite(v.edge) ? <p className="text-[14px] font-bold">{v.edge >= 0 ? L(`הרדאר מעל המזל ב־${v.edge} נקודות אחוז.`, `The radar is ${v.edge} percentage points above luck.`) : L(`המזל לפני הרדאר ב־${-v.edge} נקודות אחוז. גם זה נשאר בספר.`, `Luck is ${-v.edge} percentage points ahead of the radar. That stays in the ledger too.`)}</p>
+          : luck.nextDue ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הציון הראשון של הבחירה האקראית: ${dm(luck.nextDue)}. ההשוואה מופיעה כשלשני הצדדים יש 3 ציונים.`, `The first grade of a random draw: ${dm(luck.nextDue)}. The comparison shows once both sides have 3 grades.`)}</p> : null}
+        {luck.seal?.text ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}><a className="underline" download={`radar-luck-${luck.seal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(luck.seal.text)}`}>{L(`כל ${luck.seal.count} הבחירות האקראיות, חתומות`, `all ${luck.seal.count} random draws, sealed`)}</a></p> : null}
       </div>
     </section>
   );
@@ -1152,6 +1181,7 @@ export function RadarPage() {
       {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
       <Verdict board={board} gated={gated} />
       <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
+      {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
       {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
