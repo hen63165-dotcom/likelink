@@ -208,6 +208,15 @@ jobs:
         continue-on-error: true
         run: PLAYWRIGHT_MODULE=/tmp/pw/node_modules/playwright node scripts/marketing/radar-story.mjs dist || echo "::warning::radar story skipped"
 
+      - name: The WhatsApp group posts (→ /whatsapp/, sent by the owner with one tap)
+        # src/lib/growth/whatsappKit.js + scripts/marketing/whatsapp-kit.mjs: today's posts for her own
+        # WhatsApp group in the deals groups' format (a collage of the store's photos, a few lines,
+        # "לרכישה 👇", the product link), the radar's HOT products first. Nothing is posted from here.
+        continue-on-error: true
+        run: |
+          python3 -c 'import PIL' 2>/dev/null || python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
+          node scripts/marketing/whatsapp-kit.mjs dist || echo "::warning::whatsapp kit skipped"
+
       - name: The radar's weekly challenge (→ /radar-challenge/, the poll the owner posts on LinkedIn and X)
         # src/lib/growth/radarChallenge.js + scripts/marketing/radar-challenge.mjs: the poll question,
         # the four options, the posts in Hebrew and English, a 1080×1350 picture, and the results post
