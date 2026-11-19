@@ -1,0 +1,42 @@
+name: Kit to Telegram
+# The WhatsApp group kit, posted by itself to the brand Telegram channel every morning (the owner, 19.11:
+# "שישלח לבד"). src/lib/growth/kitTelegram.js + scripts/marketing/wa-telegram.mjs. Up to 4 posts a
+# morning, never the same product twice in 14 days, nothing on Saturday; SENT only with Telegram's
+# message_id. Sends from main only; any other branch prints what it would send.
+on:
+  schedule:
+    - cron: "23 5 * * 0-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: wa-telegram
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The log of what was sent
+        run: |
+          mkdir -p kit-telegram
+          gh release download telegram-kit -p sent.json -D kit-telegram 2>/dev/null || echo "[]" > kit-telegram/sent.json
+      - name: Today's posts to the channel
+        env:
+          BRAND_TELEGRAM_BOT: ${{ secrets.BRAND_TELEGRAM_BOT }}
+          BRAND_TELEGRAM_CHAT: ${{ secrets.BRAND_TELEGRAM_CHAT }}
+          KIT_TG_SEND: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
+        run: |
+          node scripts/marketing/wa-telegram.mjs kit-telegram | tee /tmp/kit.txt
+          { echo "### Kit to Telegram"; echo '```'; cat /tmp/kit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the log
+        if: github.ref == 'refs/heads/main'
+        run: |
+          gh release view telegram-kit >/dev/null 2>&1 || gh release create telegram-kit --prerelease --title "Kit to Telegram (log)" --notes "Which kit posts went to the brand Telegram channel and when (product id, Telegram message id). Written by .github/workflows/wa-telegram.yml."
+          gh release upload telegram-kit kit-telegram/sent.json --clobber
