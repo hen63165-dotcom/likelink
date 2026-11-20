@@ -39,6 +39,12 @@ export const PROMISE = Object.freeze({
   waitDays: 3, // a range whose item was not read within 3 days of its slack is set aside, never counted
   bands: [300, 3000], // size bands of the 30-day orders: under 300, 300–3,000, over 3,000
   keepRecent: 60,
+  // 🎯 The calibrated chance (the owner, 20.11, the next round: "find more gaps"; the check that day
+  // found calibrated probabilities graded with Brier scores at weather services and prediction
+  // markets, and none for product trends): per horizon, the chance the item's 30-day orders grow by
+  // at least this much. 14 days uses the new products' own hit line (+50%, freshRisers.gradeFresh).
+  chanceLine: { 3: 10, 7: 25, 14: 50 },
+  chanceBins: 10,
 });
 
 const DAY = 86_400_000;
@@ -146,7 +152,11 @@ export function calibrate(items, today, { alphas = {}, rules = PROMISE } = {}) {
     const train = ex.slice(0, cut);
     const cal = ex.slice(cut);
     const beta = fitRidge(train, { lambda: rules.ridge });
-    const scores = cal.map((e) => ({ s: Math.abs(e.y - predict(beta, e.x)), band: e.band }));
+    const signed = cal.map((e) => ({ r: e.y - predict(beta, e.x), band: e.band }));
+    const scores = signed.map((x) => ({ s: Math.abs(x.r), band: x.band }));
+    // The signed errors, sorted, per size band: the conformal predictive distribution behind the chance.
+    const res = { all: signed.map((x) => x.r).sort((a, b) => a - b), bands: {} };
+    for (const b of [0, 1, 2]) { const rb = signed.filter((x) => x.band === b).map((x) => x.r).sort((a, b2) => a - b2); if (rb.length >= rules.minGroup) res.bands[b] = rb; }
     const q = {};
     for (const level of rules.levels) {
       const alpha = levelAlpha(alphas, h, level);
@@ -158,7 +168,7 @@ export function calibrate(items, today, { alphas = {}, rules = PROMISE } = {}) {
       }
       q[level] = { alpha: Math.round(alpha * 10000) / 10000, all, bands };
     }
-    out[h] = { h, state: "READY", n: ex.length, train: train.length, cal: cal.length, beta: beta.map((v) => Math.round(v * 1e6) / 1e6), q };
+    out[h] = { h, state: "READY", n: ex.length, train: train.length, cal: cal.length, beta: beta.map((v) => Math.round(v * 1e6) / 1e6), q, res };
   }
   return out;
 }
@@ -176,6 +186,26 @@ export function rangeFor(series, today, cal, level, { rules = PROMISE } = {}) {
   const lo = Math.max(0, Math.floor((f.o + 1) * Math.exp(mid - q) - 1));
   const hi = Math.ceil((f.o + 1) * Math.exp(mid + q) - 1);
   return { h: cal.h, level, o: f.o, lo, hi, loPct: Math.round((Math.exp(mid - q) - 1) * 100), hiPct: Math.round((Math.exp(mid + q) - 1) * 100) };
+}
+
+/**
+ * The calibrated chance (conformal predictive distribution, Vovk): the share of the model's own
+ * held-out errors that, added to today's prediction, reach the line. A chance of 30% should come true
+ * about 3 times in 10, and the public reliability record shows whether it does.
+ */
+export function chanceFor(series, today, cal, { rules = PROMISE } = {}) {
+  if (!cal || cal.state !== "READY" || !cal.res) return null;
+  const f = featuresAt(series, today, { rules });
+  if (!f) return null;
+  const line = rules.chanceLine[cal.h];
+  if (!Number.isFinite(line)) return null;
+  const rs = cal.res.bands?.[bandOf(f.o, rules)] || cal.res.all;
+  if (!rs?.length) return null;
+  const need = Math.log((f.o * (1 + line / 100) + 1) / (f.o + 1)) - predict(cal.beta, xOf(f, cal.h));
+  let lo = 0, hi = rs.length; // first index with r >= need (rs sorted ascending)
+  while (lo < hi) { const m = (lo + hi) >> 1; if (rs[m] >= need) hi = m; else lo = m + 1; }
+  const p = (rs.length - lo + 0.5) / (rs.length + 1);
+  return { h: cal.h, line, p: Math.max(1, Math.min(99, Math.round(p * 100))) };
 }
 
 // FNV-1a: a fixed, public shuffle of the items for the day's sample (nobody picks them by hand).
@@ -197,13 +227,14 @@ export function issuePromises(items, ids, today, calib, { rules = PROMISE } = {}
     for (const h of rules.horizons) {
       const r = rules.levels.map((L) => rangeFor(items?.[id], today, calib?.[h], L, { rules }));
       if (!r.some(Boolean)) continue;
-      out.push({ i: String(id), a: today, h, o: (r.find(Boolean)).o, r: r.flatMap((x) => (x ? [x.lo, x.hi] : [null, null])) });
+      const c = chanceFor(items?.[id], today, calib?.[h], { rules });
+      out.push({ i: String(id), a: today, h, o: (r.find(Boolean)).o, r: r.flatMap((x) => (x ? [x.lo, x.hi] : [null, null])), ...(c ? { c: c.p } : {}) });
     }
   }
   return out;
 }
 
-export const newPromiseState = () => ({ v: PROMISE.version, alphas: {}, totals: {}, open: [], recent: [] });
+export const newPromiseState = () => ({ v: PROMISE.version, alphas: {}, totals: {}, chance: {}, open: [], recent: [] });
 
 /**
  * Grades every open range whose day came: HELD (1) when the real 30-day orders fell inside, else 0,
@@ -215,6 +246,7 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
   const s = { ...newPromiseState(), ...(state || {}) };
   const alphas = JSON.parse(JSON.stringify(s.alphas || {}));
   const totals = JSON.parse(JSON.stringify(s.totals || {}));
+  const chance = JSON.parse(JSON.stringify(s.chance || {}));
   const open = [];
   const graded = [];
   let setAside = 0;
@@ -232,6 +264,17 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
   }
   graded.sort((a, b) => (a.a < b.a ? -1 : a.a > b.a ? 1 : a.i < b.i ? -1 : a.i > b.i ? 1 : a.h - b.h));
   for (const g of graded) {
+    // The chance, graded like a weather forecast: did it happen, and how far was the chance from it.
+    const line = rules.chanceLine[g.h];
+    if (Number.isFinite(g.c) && Number.isFinite(line)) {
+      const hit = g.v >= g.o * (1 + line / 100) ? 1 : 0;
+      const p = g.c / 100;
+      const t = (chance[g.h] ||= { n: 0, hits: 0, brier: 0, bins: Array.from({ length: rules.chanceBins }, () => ({ n: 0, p: 0, hits: 0 })) });
+      t.n++; t.hits += hit; t.brier = Math.round((t.brier + (p - hit) ** 2) * 1e6) / 1e6;
+      const bin = t.bins[Math.min(rules.chanceBins - 1, Math.floor(p * rules.chanceBins))];
+      bin.n++; bin.p = Math.round((bin.p + p) * 1e4) / 1e4; bin.hits += hit;
+      g.hit = hit;
+    }
     rules.levels.forEach((L, k) => {
       if (g.held[k] === null) return;
       const tot = ((totals[g.h] ||= {})[L] ||= { n: 0, held: 0 });
@@ -241,7 +284,7 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
     });
   }
   return {
-    state: { v: rules.version, alphas, totals, open, recent: [...graded.reverse(), ...(s.recent || [])].slice(0, rules.keepRecent) },
+    state: { v: rules.version, alphas, totals, chance, open, recent: [...graded.reverse(), ...(s.recent || [])].slice(0, rules.keepRecent) },
     graded: graded.length,
     setAside,
   };
@@ -263,12 +306,36 @@ export function coverageOf(state, { rules = PROMISE } = {}) {
   return out;
 }
 
-/** The day's book: every range issued today, `item|day|horizon|orders then|lo80-hi80|lo90-hi90`, sorted. */
+/**
+ * The chance's public record per horizon: how many were graded, how often the line was reached, the
+ * Brier score (0 is perfect), the skill against always saying the base rate (above 0 = better than
+ * the base rate), and the reliability table: per tenth, what the radar said and what happened.
+ */
+export function chanceRecord(state, { rules = PROMISE } = {}) {
+  const out = [];
+  for (const h of rules.horizons) {
+    const t = state?.chance?.[h];
+    if (!t?.n) { out.push({ h, line: rules.chanceLine[h], n: 0, hits: 0, brier: null, baseRate: null, skill: null, bins: [] }); continue; }
+    const brier = t.brier / t.n;
+    const base = t.hits / t.n;
+    const ref = base * (1 - base);
+    out.push({
+      h, line: rules.chanceLine[h], n: t.n, hits: t.hits,
+      brier: Math.round(brier * 1000) / 1000,
+      baseRate: Math.round(base * 1000) / 10,
+      skill: ref > 0 ? Math.round((1 - brier / ref) * 1000) / 10 : null,
+      bins: t.bins.map((b, k) => ({ from: (k * 100) / rules.chanceBins, to: ((k + 1) * 100) / rules.chanceBins, n: b.n, said: b.n ? Math.round((b.p / b.n) * 1000) / 10 : null, happened: b.n ? Math.round((b.hits / b.n) * 1000) / 10 : null })).filter((b) => b.n > 0),
+    });
+  }
+  return out;
+}
+
+/** The day's book: every range issued today, `item|day|horizon|orders then|lo80-hi80|lo90-hi90|chance`, sorted. */
 export function promiseSealText(issued = []) {
   const rng = (lo, hi) => (lo === null || hi === null ? "-" : `${lo}-${hi}`);
   return (Array.isArray(issued) ? issued : [])
     .filter((e) => /^\d{6,20}$/.test(String(e?.i || "")) && /^\d{4}-\d{2}-\d{2}$/.test(String(e?.a || "")) && Number.isInteger(e?.h))
-    .map((e) => `${e.i}|${e.a}|${e.h}|${Math.round(e.o)}|${rng(e.r[0], e.r[1])}|${rng(e.r[2], e.r[3])}`)
+    .map((e) => `${e.i}|${e.a}|${e.h}|${Math.round(e.o)}|${rng(e.r[0], e.r[1])}|${rng(e.r[2], e.r[3])}|${Number.isFinite(e.c) ? `${e.c}%` : "-"}`)
     .sort()
     .join("\n") || null;
 }
@@ -285,10 +352,11 @@ export function promiseBoard(state, calib, issued, today, { rules = PROMISE } = 
       return { h, state: c.state, n: c.n, need: rules.minCalib, alpha: c.state === "READY" ? Object.fromEntries(rules.levels.map((L) => [L, c.q[L].alpha])) : null };
     }),
     coverage: coverageOf(state, { rules }),
+    chance: chanceRecord(state, { rules }),
     issued: issued.length,
     open: (state.open || []).length,
     nextDue: dues.find((d) => d > today) || dues[0] || null,
-    recent: (state.recent || []).slice(0, 12).map((g) => ({ i: g.i, a: g.a, h: g.h, o: g.o, v: g.v, r: g.r, held: g.held })),
+    recent: (state.recent || []).slice(0, 12).map((g) => ({ i: g.i, a: g.a, h: g.h, o: g.o, v: g.v, r: g.r, held: g.held, ...(Number.isFinite(g.c) ? { c: g.c, hit: g.hit } : {}) })),
   };
 }
 
@@ -302,7 +370,8 @@ export function cardRange(items, id, today, calib, { hitPct = 50, rules = PROMIS
     // The hit line of a new product is +50% in 14 days (freshRisers.gradeFresh): only a 14-day range
     // can clear it, at the highest level whose whole range is above it.
     const clears = h !== 14 ? null : r90 && r90.loPct >= hitPct ? 90 : r80 && r80.loPct >= hitPct ? 80 : null;
-    return { h, o: main.o, r80: r80 ? [r80.lo, r80.hi] : null, r90: r90 ? [r90.lo, r90.hi] : null, pct90: r90 ? [r90.loPct, r90.hiPct] : null, pct80: r80 ? [r80.loPct, r80.hiPct] : null, clears };
+    const chance = chanceFor(items?.[id], today, calib?.[h], { rules });
+    return { h, o: main.o, r80: r80 ? [r80.lo, r80.hi] : null, r90: r90 ? [r90.lo, r90.hi] : null, pct90: r90 ? [r90.loPct, r90.hiPct] : null, pct80: r80 ? [r80.loPct, r80.hiPct] : null, clears, ...(chance ? { chance: { line: chance.line, p: chance.p } } : {}) };
   }
   return null;
 }

@@ -70,6 +70,76 @@ function Upgrade({ planId, period }) {
   );
 }
 
+/**
+ * The radar's plans, like a product pricing page: the free side, Basic and Pro side by side, the
+ * monthly / yearly switch, the money-back box and (on /radar) the visitor's own subscription. Prices
+ * and the PayPal button appear only while the owner's billing switch is on (billingOf); before that,
+ * the waitlist. Used on /radar-pro and in the "מסלולים ומחיר" tab of /radar.
+ */
+export function RadarTiers({ withAccount = false }) {
+  const { L, lang } = useL();
+  const { settings } = useMarketplace();
+  const billing = billingOf(settings);
+  const access = accessOf(settings);
+  const [period, setPeriod] = useState("monthly");
+  const freeRows = [
+    L("הרקורד הציבורי של כל הקביעות, עם הציון שלהן", "The public record of every call, with its grade"),
+    L("ספר החתימות בביטקוין, לבדיקה של כל אחד", "The ledger sealed in Bitcoin, for anyone to check"),
+    L("האתגר השבועי: החוש השישי שלך מול הרדאר", "The weekly challenge: your sixth sense against the radar"),
+    L("כפתור הקסם: בדיקת כל מוצר מאליאקספרס", "The magic button: check any AliExpress product"),
+  ];
+  return (
+      <section id="radar-tiers" className="lx-wrap mt-10" aria-labelledby="rp-tiers" style={{ scrollMarginTop: 140 }}>
+        <h2 id="rp-tiers" className="lx-display text-[24px] md:text-[30px]">{L("המסלולים", "The tiers")}</h2>
+        {billing.enabled ? (
+          <>
+            <p className="mt-2 text-[14px]">{access.state === "TRIAL" ? L(`עכשיו תקופת ניסיון חינם (עוד ${access.daysLeft} ימים), בלי כרטיס אשראי ובלי חיוב אוטומטי בסופה. אחריה הרדאר נמשך במנוי.`, `A free trial is on now (${access.daysLeft} days left), no card and no automatic charge when it ends. After it, the radar continues with a subscription.`) : L("המנוי מתחדש כל חודש עד שמבטלים. המנוי השנתי הוא תקופה אחת של 12 חודשים, בלי חידוש אוטומטי. ביטול בכל עת לפי מדיניות הביטול.", "Monthly renews until you cancel. Yearly is one 12-month term with no automatic renewal. Cancel any time under the cancellation policy.")}</p>
+            <div className="mt-3 flex gap-2" role="group" aria-label={L("תקופת חיוב", "Billing period")}>
+              {[["monthly", L("חודשי", "Monthly")], ["yearly", L("שנתי (חודשיים מתנה)", "Yearly (2 months free)")]].map(([k, t]) => (
+                <button key={k} type="button" onClick={() => setPeriod(k)} aria-pressed={period === k} className={`lx-btn ${period === k ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 38, padding: "4px 14px", fontSize: 14 }}>{t}</button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="mt-2 text-[14px]">{L("הרדאר פתוח היום לכולם בחינם. המסלולים בהכנה: המחיר עוד לא נקבע ואין עדיין אפשרות לשלם. רשימת ההמתנה לא מחייבת בכלום.", "The radar is free and open to everyone today. The tiers are in preparation: no price is set and nothing can be paid yet. The waitlist commits you to nothing.")}</p>
+        )}
+        <div className="lx-rdr-plans mt-4">
+          <article className="lx-card lx-rdr-plan p-5">
+            <h3 className="text-[20px] font-extrabold">{L("חינם", "Free")}</h3>
+            <p className="text-[14px]" style={{ color: "var(--lx-mute)" }}>{L("ההוכחה, לכל אחד", "The proof, for everyone")}</p>
+            <p className="mt-2 text-[22px] font-extrabold">{L("בלי תשלום", "No charge")}</p>
+            <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
+              {freeRows.map((f) => <li key={f} className="flex gap-2"><Check size={16} aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 4 }} /> {f}</li>)}
+            </ul>
+            <Go to="/radar#proof" className="lx-btn lx-btn-ghost mt-3 w-full" style={{ minHeight: 48 }}>{L("לראות את ההוכחה", "See the proof")}</Go>
+          </article>
+          {Object.values(RADAR_PLANS).map((p) => (
+            <article key={p.id} className={`lx-card lx-rdr-plan p-5${p.id === "radar_basic" ? " is-main" : ""}`}>
+              <h3 className="text-[20px] font-extrabold">{p.name[lang] || p.name.he}</h3>
+              <p className="text-[14px]" style={{ color: "var(--lx-muted)" }}>{p.tagline[lang] || p.tagline.he}</p>
+              {billing.enabled && RADAR_PRICES[p.id] ? (
+                <p className="mt-2 text-[22px] font-extrabold">₪{billing.prices[p.id][period]}<span className="text-[14px] font-normal"> {period === "yearly" ? L("לשנה", "a year") : L("לחודש", "a month")}</span></p>
+              ) : (
+                <p className="mt-2 font-bold">{RADAR_PRICES[p.id] ? L("מחיר: עוד לא נקבע", "Price: not set yet") : L("בקרוב · רשימת המתנה", "Coming later · waitlist")}</p>
+              )}
+              <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
+                {p.features.map((f) => <li key={f} className="flex gap-2"><Check size={16} aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 4 }} /> {L(RADAR_FEATURES[f].he, RADAR_FEATURES[f].en)}</li>)}
+              </ul>
+              {billing.enabled && RADAR_PRICES[p.id] ? <Upgrade planId={p.id} period={period} /> : <Waitlist planId={p.id} />}
+            </article>
+          ))}
+        </div>
+        {billing.enabled && RADAR_GUARANTEE.live ? (
+          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
+            <p className="text-[18px] font-extrabold">🛡️ {L(RADAR_GUARANTEE.he, RADAR_GUARANTEE.en)}</p>
+            <p className="mt-1 text-[14px] leading-6">{L(RADAR_GUARANTEE.termsHe, "If a radar sniper call sealed in a month you paid for is graded ❌ after 14 days, one month's price comes back to you. At most one month per paid month. The refund is sent in PayPal within 14 days of the grade.")}</p>
+          </div>
+        ) : null}
+        {withAccount ? <><ReturnStatus /><MySubscription /></> : null}
+      </section>
+  );
+}
+
 /** After PayPal's return: the server asks PayPal for the real status (never the redirect alone). */
 function ReturnStatus() {
   const { L } = useL();
@@ -158,10 +228,6 @@ export function RadarProPage() {
   }, [board]);
   const record = board?.record;
   const hot = board?.site?.hot || [];
-  const { settings } = useMarketplace();
-  const billing = billingOf(settings);
-  const access = accessOf(settings);
-  const [period, setPeriod] = useState("monthly");
 
   return (
     <>
@@ -198,44 +264,7 @@ export function RadarProPage() {
         ) : null}
       </section>
 
-      <section id="radar-tiers" className="lx-wrap mt-10" aria-labelledby="rp-tiers" style={{ scrollMarginTop: 80 }}>
-        <h2 id="rp-tiers" className="lx-display text-[24px] md:text-[30px]">{L("המסלולים", "The tiers")}</h2>
-        {billing.enabled ? (
-          <>
-            <p className="mt-2 text-[14px]">{access.state === "TRIAL" ? L(`עכשיו תקופת ניסיון חינם (עוד ${access.daysLeft} ימים), בלי כרטיס אשראי ובלי חיוב אוטומטי בסופה. אחריה הרדאר נמשך במנוי.`, `A free trial is on now (${access.daysLeft} days left), no card and no automatic charge when it ends. After it, the radar continues with a subscription.`) : L("המנוי מתחדש כל חודש עד שמבטלים. המנוי השנתי הוא תקופה אחת של 12 חודשים, בלי חידוש אוטומטי. ביטול בכל עת לפי מדיניות הביטול.", "Monthly renews until you cancel. Yearly is one 12-month term with no automatic renewal. Cancel any time under the cancellation policy.")}</p>
-            <div className="mt-3 flex gap-2" role="group" aria-label={L("תקופת חיוב", "Billing period")}>
-              {[["monthly", L("חודשי", "Monthly")], ["yearly", L("שנתי (חודשיים מתנה)", "Yearly (2 months free)")]].map(([k, t]) => (
-                <button key={k} type="button" onClick={() => setPeriod(k)} aria-pressed={period === k} className={`lx-btn ${period === k ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 38, padding: "4px 14px", fontSize: 14 }}>{t}</button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="mt-2 text-[14px]">{L("הרדאר פתוח היום לכולם בחינם. המסלולים בהכנה: המחיר עוד לא נקבע ואין עדיין אפשרות לשלם. רשימת ההמתנה לא מחייבת בכלום.", "The radar is free and open to everyone today. The tiers are in preparation: no price is set and nothing can be paid yet. The waitlist commits you to nothing.")}</p>
-        )}
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {Object.values(RADAR_PLANS).map((p) => (
-            <article key={p.id} className="lx-card p-5" style={{ boxShadow: "none", border: "1px solid var(--lx-line)" }}>
-              <h3 className="text-[20px] font-extrabold">{p.name[lang] || p.name.he}</h3>
-              <p className="text-[14px]" style={{ color: "var(--lx-muted)" }}>{p.tagline[lang] || p.tagline.he}</p>
-              {billing.enabled && RADAR_PRICES[p.id] ? (
-                <p className="mt-2 text-[22px] font-extrabold">₪{billing.prices[p.id][period]}<span className="text-[14px] font-normal"> {period === "yearly" ? L("לשנה", "a year") : L("לחודש", "a month")}</span></p>
-              ) : (
-                <p className="mt-2 font-bold">{RADAR_PRICES[p.id] ? L("מחיר: עוד לא נקבע", "Price: not set yet") : L("בקרוב · רשימת המתנה", "Coming later · waitlist")}</p>
-              )}
-              <ul className="mt-3 grid gap-1.5 text-[14px] leading-6">
-                {p.features.map((f) => <li key={f} className="flex gap-2"><Check size={16} aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 4 }} /> {L(RADAR_FEATURES[f].he, RADAR_FEATURES[f].en)}</li>)}
-              </ul>
-              {billing.enabled && RADAR_PRICES[p.id] ? <Upgrade planId={p.id} period={period} /> : <Waitlist planId={p.id} />}
-            </article>
-          ))}
-        </div>
-        {billing.enabled && RADAR_GUARANTEE.live ? (
-          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
-            <p className="text-[18px] font-extrabold">🛡️ {L(RADAR_GUARANTEE.he, RADAR_GUARANTEE.en)}</p>
-            <p className="mt-1 text-[14px] leading-6">{L(RADAR_GUARANTEE.termsHe, "If a radar sniper call sealed in a month you paid for is graded ❌ after 14 days, one month's price comes back to you. At most one month per paid month. The refund is sent in PayPal within 14 days of the grade.")}</p>
-          </div>
-        ) : null}
-      </section>
+      <RadarTiers />
     </>
   );
 }

@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  PROMISE, addIssued, bandOf, calibrate, cardRange, conformalQuantile, coverageOf, examples, featuresAt, fitRidge,
+  PROMISE, addIssued, bandOf, calibrate, cardRange, chanceFor, chanceRecord, conformalQuantile, coverageOf, examples, featuresAt, fitRidge,
   gradePromises, issuePromises, newPromiseState, predict, promiseBoard, promiseSealText, rangeFor, samplePool, targetAt,
 } from "../src/lib/growth/radarPromise.js";
 
@@ -151,10 +151,10 @@ test("the day's sample is a fixed shuffle (same day, same items), never the show
 
 test("the sealed book: one line per range issued, fixed fields, sorted; the board carries the record only", () => {
   const issued = [
-    { i: "1005000000000002", a: day(1), h: 7, o: 150.4, r: [160, 240, 140, 300] },
+    { i: "1005000000000002", a: day(1), h: 7, o: 150.4, r: [160, 240, 140, 300], c: 34 },
     { i: "1005000000000001", a: day(1), h: 3, o: 90, r: [null, null, 80, 120] },
   ];
-  assert.equal(promiseSealText(issued), `1005000000000001|${day(1)}|3|90|-|80-120\n1005000000000002|${day(1)}|7|150|160-240|140-300`);
+  assert.equal(promiseSealText(issued), `1005000000000001|${day(1)}|3|90|-|80-120|-\n1005000000000002|${day(1)}|7|150|160-240|140-300|34%`);
   assert.equal(promiseSealText([]), null);
   const state = addIssued(newPromiseState(), issued);
   const b = promiseBoard(state, { 3: { state: "CALIBRATING", n: 12 } }, issued, day(1));
@@ -192,7 +192,7 @@ test("the board keeps the range's state, record and card lines; the teaser keeps
   const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
   const { teaserBoard } = await import("../src/lib/growth/radarGate.js");
   const { createHash } = await import("node:crypto");
-  const text = `1005000000000001|2026-11-21|3|90|80-100|70-120`;
+  const text = `1005000000000001|2026-11-21|3|90|80-100|70-120|12%`;
   const promise = {
     v: 1, at: "2026-11-21", levels: [80, 90],
     horizons: [{ h: 3, state: "READY", n: 900, need: 60 }, { h: 14, state: "CALIBRATING", n: 0, need: 60 }],
@@ -201,7 +201,7 @@ test("the board keeps the range's state, record and card lines; the teaser keeps
     recent: [{ i: "1005000000000002", a: "2026-11-18", h: 3, o: 90, v: 95, r: [80, 100, 70, 120], held: [1, 1] }],
     seal: { d: "2026-11-21", sha256: createHash("sha256").update(text).digest("hex"), count: 1, text, ots: [] },
   };
-  const riser = { id: "1005000000000001", title: "x", image: "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg", buy: "https://s.click.aliexpress.com/e/_abc", weekPct: 60, orders: 90, known: { similar: 10 }, promise: { h: 14, o: 90, r80: [120, 200], r90: [100, 240], pct80: [33, 122], pct90: [11, 166], clears: 90 } };
+  const riser = { id: "1005000000000001", title: "x", image: "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg", buy: "https://s.click.aliexpress.com/e/_abc", weekPct: 60, orders: 90, known: { similar: 10 }, promise: { h: 14, o: 90, r80: [120, 200], r90: [100, 240], pct80: [33, 122], pct90: [11, 166], clears: 90, chance: { line: 50, p: 41 } } };
   const b = sanitizeBoard({ v: 2, at: "2026-11-21T06:00:00Z", record: {}, concepts: [], promise, fresh: { tracking: 1, risers: [riser] } });
   assert.equal(b.promise.horizons[0].state, "READY");
   assert.deepEqual(b.promise.coverage[0], { h: 3, level: 90, n: 10, held: 9, rate: 90 });
@@ -209,6 +209,7 @@ test("the board keeps the range's state, record and card lines; the teaser keeps
   assert.deepEqual(b.promise.recent[0].held, [1, 1]);
   assert.deepEqual(b.fresh.risers[0].promise.r90, [100, 240]);
   assert.equal(b.fresh.risers[0].promise.clears, null, "a card that claims the hit line with a range under +50% loses the claim");
+  assert.deepEqual(b.fresh.risers[0].promise.chance, { line: 50, p: 41 });
   const bad = sanitizeBoard({ v: 2, at: "2026-11-21T06:00:00Z", record: {}, concepts: [], promise: { ...promise, seal: { ...promise.seal, text: "<script>" } } });
   assert.equal(bad.promise.seal.text, null);
   const t = teaserBoard({ v: 2, at: "2026-11-21T06:00:00Z", promise });
@@ -216,4 +217,51 @@ test("the board keeps the range's state, record and card lines; the teaser keeps
   assert.deepEqual(t.promise.recent, []);
   assert.equal(t.promise.seal.text, undefined, "behind the lock the book's text (item numbers) stays hidden");
   assert.equal(t.promise.seal.sha256, promise.seal.sha256);
+});
+
+test("🎯 the calibrated chance: on days it never saw, a 30% comes true about 3 times in 10, and it beats the base rate", () => {
+  const all = world({ items: 600, days: 50, seed: 11 });
+  const today = day(30);
+  const known = upTo(all, today);
+  const cal = calibrate(known, today);
+  assert.equal(cal[7].state, "READY");
+  const line = PROMISE.chanceLine[7];
+  const rows = [];
+  for (const id of Object.keys(known)) {
+    const c = chanceFor(known[id], today, cal[7]);
+    if (!c) continue;
+    const o = known[id].at(-1)[1];
+    const v = all[id].find((x) => x[0] === day(37))[1];
+    rows.push({ p: c.p / 100, hit: v >= o * (1 + line / 100) ? 1 : 0 });
+  }
+  assert.ok(rows.length > 400);
+  const n = rows.length;
+  const base = rows.reduce((t, r) => t + r.hit, 0) / n;
+  const brier = rows.reduce((t, r) => t + (r.p - r.hit) ** 2, 0) / n;
+  assert.ok(brier < base * (1 - base), `Brier ${brier.toFixed(3)} beats always saying the base rate ${base.toFixed(3)}`);
+  // Reliability: in every third of the scale with enough cases, what was said and what happened stay close.
+  for (const [lo, hi] of [[0, 0.33], [0.33, 0.66], [0.66, 1.01]]) {
+    const r = rows.filter((x) => x.p >= lo && x.p < hi);
+    if (r.length < 40) continue;
+    const said = r.reduce((t, x) => t + x.p, 0) / r.length;
+    const happened = r.reduce((t, x) => t + x.hit, 0) / r.length;
+    assert.ok(Math.abs(said - happened) < 0.12, `said ${said.toFixed(2)} happened ${happened.toFixed(2)} (n ${r.length})`);
+  }
+});
+
+test("the chance is graded like a weather forecast: Brier, base rate, skill and the reliability table", () => {
+  const items = { 1005000000000001: [[day(0), 100], [day(7), 130]], 1005000000000002: [[day(0), 100], [day(7), 110]] };
+  const state = addIssued(newPromiseState(), [
+    { i: "1005000000000001", a: day(0), h: 7, o: 100, r: [0, 999, 0, 999], c: 80 },
+    { i: "1005000000000002", a: day(0), h: 7, o: 100, r: [0, 999, 0, 999], c: 20 },
+  ]);
+  const g = gradePromises(state, items, day(7));
+  const rec = chanceRecord(g.state).find((x) => x.h === 7);
+  assert.equal(rec.n, 2);
+  assert.equal(rec.hits, 1, "+30% reached the 7-day line of +25%; +10% did not");
+  assert.equal(rec.brier, 0.04, "((0.8−1)² + (0.2−0)²) / 2");
+  assert.equal(rec.baseRate, 50);
+  assert.equal(rec.skill, 84, "1 − 0.04 / 0.25");
+  assert.deepEqual(rec.bins.map((b) => [b.from, b.said, b.happened, b.n]), [[20, 20, 0, 1], [80, 80, 100, 1]]);
+  assert.deepEqual(g.state.recent.map((x) => x.hit).sort(), [0, 1]);
 });
