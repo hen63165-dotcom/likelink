@@ -19,6 +19,8 @@ import { loadBoard } from "./radar.jsx";
 import { radarForItem, siteHotFor } from "../../lib/growth/radarBoard.js";
 import { hypeShareText } from "../../lib/growth/hypeMeter.js";
 import { PRICES_HOME, dealLines, dealShareText, dealVerdict, priceShard } from "../../lib/growth/realDeal.js";
+import { LENS, firstKindThisSession, rankKinds } from "../../lib/growth/lens.js";
+import { withBase } from "../../lib/basePath.js";
 
 const STEPS = [
   ["באפליקציה של אליאקספרס, בטיקטוק או באינסטגרם: „שיתוף” ← „העתקת קישור”", "In AliExpress, TikTok or Instagram: Share → Copy link"],
@@ -354,6 +356,102 @@ function HypeMeter({ hype, title, link }) {
   );
 }
 
+/**
+ * 📸 The lens (src/lib/growth/lens.js): a screenshot of a product seen in a reel → the kinds it looks
+ * like. MobileCLIP-S0 runs in this browser (transformers.js from the CDN, loaded only when a picture is
+ * chosen), so the picture stays on the phone; only the kind's id is recorded, once per session, for
+ * the crowd sensor. The answer says how sure the model is and never more; the radar's own
+ * measurements for the kind come from its board.
+ */
+let lensOnce = null;
+function loadLens() {
+  lensOnce = lensOnce || (async () => {
+    const [doc, lib] = await Promise.all([
+      fetch(withBase(LENS.labels)).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`labels ${r.status}`)))),
+      import(/* @vite-ignore */ LENS.lib),
+    ]);
+    lib.env.allowLocalModels = false;
+    const gpu = typeof navigator !== "undefined" && navigator.gpu;
+    const plain = () => lib.CLIPVisionModelWithProjection.from_pretrained(LENS.model, { dtype: LENS.visionDtype });
+    const [processor, vision] = await Promise.all([
+      lib.AutoProcessor.from_pretrained(LENS.model),
+      gpu ? lib.CLIPVisionModelWithProjection.from_pretrained(LENS.model, { device: "webgpu", dtype: LENS.webgpuDtype }).catch(plain) : plain(),
+    ]);
+    return { labels: doc.labels || [], lib, processor, vision };
+  })();
+  lensOnce.catch(() => { lensOnce = null; });
+  return lensOnce;
+}
+
+function MagicLens() {
+  const { L } = useL();
+  const [st, setSt] = useState({ phase: "idle" });
+  const [concept, setConcept] = useState(null);
+  const input = useRef(null);
+  useEffect(() => () => { if (st.preview) URL.revokeObjectURL(st.preview); }, [st.preview]);
+  async function onFile(file) {
+    if (!file || !/^image\//.test(file.type || "")) return;
+    const preview = URL.createObjectURL(file);
+    setConcept(null);
+    setSt({ phase: "loading", preview });
+    try {
+      const { labels, lib, processor, vision } = await loadLens();
+      setSt({ phase: "reading", preview });
+      const image = await lib.RawImage.fromBlob(file);
+      const { image_embeds } = await vision(await processor(image));
+      const r = rankKinds(image_embeds.normalize().tolist()[0], labels);
+      setSt({ phase: "done", preview, r });
+      const top = r.kinds[0];
+      if (top && r.verdict !== "UNSURE") {
+        if (firstKindThisSession(top.id)) trackFunnel("magic_check", "lens", { kind: top.id });
+        if (!top.id.startsWith("category-")) {
+          boardOnce = boardOnce || loadBoard().catch(() => null);
+          boardOnce.then((b) => setConcept((b?.concepts || []).find((c) => c.id === top.id) || null));
+        }
+      }
+    } catch {
+      setSt({ phase: "error", preview });
+    }
+  }
+  const r = st.r;
+  const top = r?.kinds?.[0];
+  const searchFor = (k) => (k.id.startsWith("category-") ? `/magic?q=${encodeURIComponent(k.he)}` : `/radar#${k.id}`);
+  return (
+    <div className="mt-6 grid max-w-xl gap-3">
+      <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+      <button type="button" onClick={() => input.current?.click()} className="lx-btn lx-btn-ink" style={{ minHeight: 60, fontSize: 18, justifyContent: "center" }} disabled={st.phase === "loading" || st.phase === "reading"}>
+        {st.phase === "loading" || st.phase === "reading" ? <Spinner /> : "📸"} {L("בחירת צילום מסך", "Choose a screenshot")}
+      </button>
+      <p className="lx-mute text-[13.5px]">{L("התמונה נבדקת רק בטלפון שלך ונשארת אצלך. לרדאר נרשם רק סוג המוצר, פעם אחת, בלי שום פרט עלייך. בפעם הראשונה הבינה המלאכותית נטענת לטלפון (עד 45 מגה, עדיף ב־Wi‑Fi), ואחר כך זה מהיר.", "The picture is checked only on your phone and stays there. The radar records only the kind of product, once, nothing about you. The first time, the AI loads onto your phone (up to 45 MB, Wi‑Fi is best); after that it is fast.")}</p>
+      {st.preview ? <div style={{ width: 120, height: 160, borderRadius: 14, overflow: "hidden", border: "1px solid var(--lx-line)" }}><Img src={st.preview} alt={L("צילום המסך שבחרת", "Your screenshot")} style={{ width: 120, height: 160, objectFit: "cover" }} /></div> : null}
+      {st.phase === "loading" ? <p className="text-[14px] font-bold">{L("טוענת את הבינה המלאכותית לטלפון…", "Loading the AI onto your phone…")}</p> : null}
+      {st.phase === "reading" ? <p className="text-[14px] font-bold">{L("מסתכלת על התמונה…", "Looking at the picture…")}</p> : null}
+      {st.phase === "error" ? <p className="text-[14px] font-bold" style={{ color: "#b91c1c" }}>{L("הבדיקה נעצרה באמצע. נסי שוב, או כתבי במילים מה המוצר בלשונית ״מצאי לי באלי״.", "The check stopped halfway. Try again, or describe the product in the “Find it on AliExpress” tab.")}</p> : null}
+      {st.phase === "done" && top ? (
+        <div className="rounded-[14px] p-4 text-[15px] leading-7" style={{ background: "var(--lx-sky-50, #eef6fb)" }}>
+          {r.verdict === "UNSURE" ? (
+            <>
+              <p className="font-extrabold">{L("הבינה המלאכותית עוד מתלבטת.", "The AI is still unsure.")}</p>
+              <p>{L(`הכי קרוב: ${r.kinds.map((k) => k.he).join(" / ")}. אפשר לכתוב במילים מה המוצר:`, `Closest: ${r.kinds.map((k) => k.he).join(" / ")}. Describe it in words:`)} <Go to="/magic?q=" className="underline font-bold">{L("מצאי לי באלי", "Find it on AliExpress")}</Go></p>
+            </>
+          ) : (
+            <>
+              <p className="font-extrabold">{r.verdict === "SURE" ? L(`📸 נראה כמו: ${top.he}`, `📸 Looks like: ${top.he}`) : L(`📸 אולי: ${r.kinds.slice(0, 2).map((k) => k.he).join(" או ")}`, `📸 Maybe: ${r.kinds.slice(0, 2).map((k) => k.he).join(" or ")}`)}</p>
+              <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הבינה המלאכותית בטוחה ב־${Math.round(top.p * 100)}%. כדאי לוודא שזה באמת המוצר מהסרטון.`, `The AI is ${Math.round(top.p * 100)}% sure. Make sure it's really the product from the video.`)}</p>
+              {concept ? <p className="mt-1">📡 {L(`ברדאר: ${concept.stageHe || ""}${concept.gap?.he ? ` · בישראל: ${concept.gap.he}` : ""}`, `On the radar: ${concept.stageHe || ""}${concept.gap?.he ? ` · in Israel: ${concept.gap.he}` : ""}`)}</p> : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {r.kinds.slice(0, r.verdict === "SURE" ? 1 : 2).map((k) => (
+                  <Go key={k.id} to={searchFor(k)} className="lx-btn lx-btn-ghost" style={{ minHeight: 40 }}>{k.id.startsWith("category-") ? L(`🔎 ${k.he} באלי`, `🔎 ${k.he} on AliExpress`) : L(`📡 ${k.he} ברדאר`, `📡 ${k.he} on the radar`)}</Go>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function MagicPage({ graph }) {
   const { L, lang } = useL();
   const he = lang === "he";
@@ -439,11 +537,18 @@ export function MagicPage({ graph }) {
           <p className="lx-kicker mb-3"><Sparkles size={14} aria-hidden="true" /> {L("חדש ב־LikeLink2 · בחינם, בלי הרשמה", "New on LikeLink2 · free, no sign-up")}</p>
           <h1 className="lx-profile-name">{L("כפתור הקסם ✨", "The magic button ✨")}</h1>
           <div role="tablist" aria-label={L("מה עושים", "What to do")} className="mt-4 flex flex-wrap gap-2">
-            {[["link", L("🔗 יש לי קישור", "🔗 I have a link")], ["find", L("🔎 מצאי לי באלי", "🔎 Find it on AliExpress")]].map(([id, label]) => (
+            {[["link", L("🔗 יש לי קישור", "🔗 I have a link")], ["lens", L("📸 יש לי צילום מסך", "📸 I have a screenshot")], ["find", L("🔎 מצאי לי באלי", "🔎 Find it on AliExpress")]].map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`lx-btn ${tab === id ? "lx-btn-ink" : "lx-btn-ghost"}`} style={{ minHeight: 44 }}>{label}</button>
             ))}
           </div>
-          {tab === "find" ? (
+          {tab === "lens" ? (
+            <>
+              <p className="lx-profile-bio mt-4" style={{ fontSize: 16, maxWidth: "56ch" }}>
+                {L("ראית מוצר ברילס ואין לך קישור? צלמי מסך והעלי כאן. בינה מלאכותית שרצה בטלפון שלך תזהה איזה סוג מוצר זה, ותראה מה הרדאר מודד עליו.", "Saw a product in a reel with no link? Take a screenshot and upload it here. An AI running on your phone recognizes the kind of product and shows what the radar measures about it.")}
+              </p>
+              <MagicLens />
+            </>
+          ) : tab === "find" ? (
             <>
               <p className="lx-profile-bio mt-4" style={{ fontSize: 16, maxWidth: "56ch" }}>
                 {L("כתבי בעברית מה את מחפשת, ואפשר גם תקציב. נחפש באליאקספרס ונראה רק מוצרים שעוברים את הכללים שלנו: הרבה הזמנות, שביעות רצון גבוהה ובלי חיקויים.", "Write in Hebrew what you're looking for, with a budget if you like. We'll search AliExpress and show only items that pass our rules: many orders, high satisfaction, no imitations.")}

@@ -174,3 +174,33 @@ export const OIL_SELL: SellProps = {
   ],
   endSeconds: 2.4,
 };
+
+// Magnetic stud earrings (1005005522818667; radar 20.11: this item's orders +11.7% a week), the store's own
+// 17 s clip, 720×720: real hands snap the magnet onto the back on a bedsheet (0–7 s), then the pair sparkles
+// on black (7–17 s). The sparkle first, then how it goes on. "No piercing" is the seller's description, so
+// the hook asks it as a question and the caption says it is the seller's.
+const e = (from: number, n = 1, pos = "50% 50%", zoom = 1): Cut => ({ from, to: from + B * n, pos, zoom });
+const EB = Math.round(B * SELL_FPS) / SELL_FPS;
+export const EARRINGS_SELL: SellProps = {
+  clip: "ear-store.mp4",
+  audio: "pop-ear.wav",
+  name: "עגילי מגנט נוצצים",
+  filmedBy: "סרטון המוכר · בעריכת LikeLink2",
+  cuts: [
+    e(8.2, 1, "50% 50%", 1.7),    // the pair sparkles: the payoff first
+    e(0.4, 1, "50% 58%", 1.15),   // a hand holds the earring by the small magnet
+    e(2.4, 1, "50% 58%", 1.15),   // it goes onto the magnet
+    e(4.9, 1, "45% 52%", 1.2),    // two hands snap the back on
+    e(6.0, 0.9, "45% 55%", 1.2),  // the pair, held up
+    e(10.6, 1, "50% 50%", 1.7),   // sparkle
+    e(13.6, 1, "50% 50%", 1.7),   // sparkle, another angle
+    e(15.5, 0.9, "50% 50%", 1.7), // sparkle
+  ],
+  lines: [
+    { from: 0, to: EB * 2, text: "עגילים בלי חור? 🧲" },
+    { from: EB * 2, to: EB * 4, text: "עגיל קטן + מגנט" },
+    { from: EB * 4, to: EB * 5, text: "מצמידים מאחור" },
+    { from: EB * 5, to: EB * 7.8, text: "ומנצנץ ✨" },
+  ],
+  endSeconds: 2.4,
+};

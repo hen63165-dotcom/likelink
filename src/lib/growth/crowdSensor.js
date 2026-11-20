@@ -43,6 +43,29 @@ export function crowdOf(funnel = [], { now = Date.now(), rules = CROWD } = {}) {
     .slice(0, rules.top);
 }
 
+/**
+ * Kinds photographed in the magic button's lens (lens.js) by at least minPeople different browser
+ * sessions in the last `days`: the kind's id only (one event per kind per session), never the picture.
+ */
+const KIND = /^[a-z0-9-]{3,48}$/;
+export function crowdKinds(funnel = [], { now = Date.now(), rules = CROWD } = {}) {
+  const since = now - rules.days * 86_400_000;
+  const by = new Map();
+  for (const e of Array.isArray(funnel) ? funnel : []) {
+    if (e?.type !== "magic_check" || !KIND.test(String(e.kind || "")) || !(Number(e.ts) >= since)) continue;
+    const r = by.get(e.kind) || { kind: e.kind, people: 0, first: Number(e.ts), last: Number(e.ts) };
+    r.people++;
+    r.first = Math.min(r.first, Number(e.ts));
+    r.last = Math.max(r.last, Number(e.ts));
+    by.set(e.kind, r);
+  }
+  return [...by.values()]
+    .filter((r) => r.people >= rules.minPeople)
+    .map((r) => ({ kind: r.kind, people: r.people, first: new Date(r.first).toISOString().slice(0, 10), last: new Date(r.last).toISOString().slice(0, 10) }))
+    .sort((a, b) => b.people - a.people || (a.last < b.last ? 1 : -1))
+    .slice(0, rules.top);
+}
+
 const BUY = /^https:\/\/s\.click\.aliexpress\.com\//;
 const IMG = /^https:\/\/[^/]*(aliexpress-media\.com|alicdn\.com|aliexpress\.com)\//i;
 

@@ -28,6 +28,8 @@ export async function trackFunnel(type, place = "", extra = {}) {
   // The crowd sensor (src/lib/growth/crowdSensor.js): a magic check may carry the item number
   // (once per item per browser session), never anything about the person.
   if (type === "magic_check" && /^\d{6,20}$/.test(String(extra?.item || ""))) ev.item = String(extra.item);
+  // The lens (src/lib/growth/lens.js): the kind a screenshot looks like, once per kind per session; never the picture.
+  if (type === "magic_check" && /^[a-z0-9-]{3,48}$/.test(String(extra?.kind || ""))) ev.kind = String(extra.kind);
   try {
     await storage.set(FUNNEL_KEY, JSON.stringify([ev]), true);
     return true;

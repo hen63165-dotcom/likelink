@@ -211,6 +211,8 @@ const policyFunnel = appendOnly({
     if (typeof n.cid === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(n.cid)) out.cid = n.cid;
     // The crowd sensor: a magic check keeps only the item number (no identifier of any kind).
     if (n.type === "magic_check" && typeof n.item === "string" && /^\d{6,20}$/.test(n.item)) out.item = n.item;
+    // The lens: the kind a screenshot looked like (an id from public/lens/labels.json), never the picture.
+    if (n.type === "magic_check" && typeof n.kind === "string" && /^[a-z0-9-]{3,48}$/.test(n.kind)) out.kind = n.kind;
     return out;
   },
 });

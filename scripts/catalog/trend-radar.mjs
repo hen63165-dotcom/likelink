@@ -38,6 +38,9 @@ async function aeCall(method, biz, opts) {
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
+import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
+import { poolVectors } from "./radar-embed.mjs";
+import { brainText, freshFeatures, kindFeatures, learn, likeThis, matchesPattern, sureState } from "../../src/lib/growth/radarBrain.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
@@ -282,6 +285,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     // Readings of concepts that left the trial are dropped with them.
     for (const id of Object.keys(readings)) if (id.startsWith("auto-") && !discovered.some((c) => c.id === id)) { delete readings[id]; delete awareness[id]; delete picks[id]; }
+  }
+  // 1c. New kinds by meaning (newKinds.js): an open sentence model on this runner groups the fresh
+  // pool's new listings (read on earlier mornings) by meaning; a group of ≥ 3 new listings whose
+  // median orders grow ≥ 25% a week is a new kind. The strongest join as trial concepts, so the
+  // whole radar measures them from today. RADAR_KINDS=0 turns it off; a missing model skips it.
+  let kindsToday = [];
+  let kindVectors = 0;
+  sources.kinds = "OFF";
+  if (env.RADAR_KINDS !== "0") {
+    const poolBefore = readJson(join(dir, "fresh.json"), {});
+    try {
+      const { vectors, cache, embedded } = await poolVectors(poolBefore, readJson(join(dir, "embeds.json"), {}));
+      writeFileSync(join(dir, "embeds.json"), JSON.stringify(cache));
+      kindVectors = Object.keys(vectors).length;
+      kindsToday = newKinds(poolBefore, items, vectors, { concepts: watch });
+      sources.kinds = "OK";
+      log.push(`kinds by meaning: ${embedded} new titles embedded · ${kindVectors} listings · ${kindsToday.length} candidate kinds (${kindsToday.slice(0, 5).map((k) => `${k.en} ×${k.members.length} +${k.medianWeekPct}%`).join(", ") || "none"})`);
+    } catch (err) { sources.kinds = "FAILED"; log.push(`kinds by meaning: ${String(err?.message || err).slice(0, 120)}`); }
   }
   const concepts = [...watch, ...discovered.filter(validConcept)];
 
@@ -672,9 +693,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           if (card) cards.push(card);
         }
       }
-      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show) };
+      // What people photographed in the lens this week (kinds only): named by the watch list or the shop's categories.
+      const kindName = new Map([...watch.map((c) => [c.id, c.he]), ...TREND_CATEGORIES.map((c) => [`category-${c.key}`, c.he])]);
+      const photographed = (Array.isArray(body?.kinds) ? body.kinds : []).filter((k) => kindName.has(k?.kind)).slice(0, CROWD.show).map((k) => ({ id: k.kind, he: kindName.get(k.kind), people: k.people, first: k.first, last: k.last }));
+      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show), kinds: photographed };
       sources.crowd = "OK";
-      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length}`);
+      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length} · kinds photographed ${photographed.length}`);
     } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
   } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
@@ -688,6 +712,73 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // the one book of calls that was not sealed before 17.11.
   const freshText = freshSealText(freshCalls);
   if (freshText) board.fresh.seal = await sealBook({ text: freshText, count: freshText.split("\n").length }, prevBoard.fresh?.seal, "fresh");
+  // The kinds found by meaning: each shown kind is a call, graded after 14 days and sealed as its own book.
+  if (sources.kinds === "OK" || readJson(join(dir, "kinds-calls.json"), []).length) {
+    // Only what nobody heard of yet (the same unknownCheck as the new products): few listings for the
+    // kind's name on AliExpress and no tiktok/viral/amazon in Google's US suggestions. A seasonal kind
+    // (20.11: "balls tree", Christmas ornaments) has thousands of listings and stays out. A check that
+    // could not be read hides the kind. The kinds that pass join the radar as trial concepts (read from
+    // the next morning).
+    const shownKinds = [];
+    const kindCounts = {};
+    for (const k of kindsToday.slice(0, KINDS.show * 2)) {
+      if (shownKinds.length >= KINDS.show) break;
+      let similar = null;
+      let suggestions = null;
+      if (store) {
+        try {
+          const e = aeEnv(env);
+          const res = await aeCall(SEARCH, { keywords: k.en, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+        } catch { /* not read → not shown */ }
+      }
+      if (sources.suggest === "OK") {
+        try { suggestions = await suggestList(k.en, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+        await pause(politeMs);
+      }
+      const known = unknownCheck({ phrase: k.en, similar, suggestions });
+      kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
+      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar } });
+    }
+    log.push(`kinds unknown check: ${JSON.stringify(kindCounts)}`);
+    if (shownKinds.length) {
+      const kBefore = new Set(discovered.map((c) => c.id));
+      discovered = admitDiscovered(discovered, kindCandidates(shownKinds), { concepts: watch, stages: stagesBefore, now });
+      log.push(`kinds joined as trial concepts: ${discovered.filter((c) => !kBefore.has(c.id)).map((c) => c.en).join(", ") || "none (trial list full or already tracked)"}`);
+    }
+    let kindCalls = gradeKinds(readJson(join(dir, "kinds-calls.json"), []), items, today);
+    kindCalls = recordKinds(kindCalls, shownKinds, today);
+    writeFileSync(join(dir, "kinds-calls.json"), JSON.stringify(kindCalls));
+    board.kinds = {
+      model: KINDS.model, tracked: kindVectors, list: shownKinds.map(({ bases, ...k }) => k), record: kindsRecord(kindCalls),
+      recent: kindCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ en: c.en, at: c.at, members: Object.keys(c.bases || {}).length, result: c.result, growth: c.growth })),
+    };
+    const kindsText = kindsSealText(kindCalls);
+    if (kindsText) board.kinds.seal = await sealBook({ text: kindsText, count: kindsText.split("\n").length }, prevBoard.kinds?.seal, "kinds");
+    log.push(`kinds: ${shownKinds.length} shown · record ${JSON.stringify(board.kinds.record)}`);
+  }
+  // 🧠 The brain (radarBrain.js): what the radar learned from every graded call that recorded its
+  // signals the day it was made; for today's risers and kinds, the record of past calls like them.
+  // History only, never a forecast; the bar stays as it is. Sealed every day as the book "brain".
+  {
+    const kindsAll = readJson(join(dir, "kinds-calls.json"), []);
+    const brain = learn({ fresh: freshCalls, kinds: kindsAll }, { today });
+    for (const r of board.fresh.risers) { const l = likeThis(freshFeatures(r), brain.books.fresh, freshCalls, { book: "fresh", today }); if (l) r.learned = l; }
+    for (const k of board.kinds?.list || []) { const l = likeThis(kindFeatures(k), brain.books.kinds, kindsAll, { book: "kinds", today }); if (l) k.learned = l; }
+    // 🎯 The sure voice: a pattern frozen the day it is chosen, certified only by calls made after it.
+    brain.sure = {
+      fresh: sureState(prevBoard.brain?.sure?.fresh, freshCalls, "fresh", { today }),
+      kinds: sureState(prevBoard.brain?.sure?.kinds, kindsAll, "kinds", { today }),
+    };
+    for (const r of board.fresh.risers) if (matchesPattern(freshFeatures(r), brain.sure.fresh, "fresh")) r.sure = brain.sure.fresh.level;
+    for (const k of board.kinds?.list || []) if (matchesPattern(kindFeatures(k), brain.sure.kinds, "kinds")) k.sure = brain.sure.kinds.level;
+    if (brain.books.fresh.ready) board.fresh.risers.sort((a, b) => (b.sure ?? 0) - (a.sure ?? 0) || (b.learned?.rate ?? -1) - (a.learned?.rate ?? -1) || b.weekPct - a.weekPct);
+    board.brain = brain;
+    const text = brainText(brain);
+    if (text) board.brain.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.brain?.seal, "brain");
+    log.push(`brain v${brain.version}: new products ${brain.books.fresh.graded} graded, ${brain.books.fresh.waiting} waiting · kinds ${brain.books.kinds.graded} graded, ${brain.books.kinds.waiting} waiting · learned ${brain.ready ? "yes" : "not yet"} · sure voice ${["fresh", "kinds"].map((b) => `${b} ${brain.sure[b].key || "none"} ${brain.sure[b].live.hits}/${brain.sure[b].live.n}${brain.sure[b].level ? ` ≥${brain.sure[b].level}%` : ""}`).join(", ")}`);
+  }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
@@ -848,7 +939,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

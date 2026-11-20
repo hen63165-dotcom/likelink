@@ -32,6 +32,8 @@ on:
       - scripts/catalog/radar-alert.mjs
       - src/lib/growth/radarGate.js
       - src/lib/growth/radarBoard.js
+      - src/lib/growth/newKinds.js
+      - scripts/catalog/radar-embed.mjs
 permissions:
   contents: write
 concurrency:
@@ -77,6 +79,12 @@ jobs:
           node scripts/catalog/radar-state.mjs unpack radar-state
           rm -f radar-state/board-public.json radar-state/briefs-public.json
           ls -la radar-state
+      - name: The radar's sentence model (new kinds by meaning)
+        # src/lib/growth/newKinds.js: an open model (all-MiniLM-L6-v2) through transformers.js on this
+        # runner's CPU; installed here only, never shipped to the site. A failed install only skips the
+        # kinds (the reading reports kinds: FAILED) and nothing else changes.
+        continue-on-error: true
+        run: npm install --no-save --no-audit --no-fund @huggingface/transformers@4.3.1
       - name: Today's reading
         env:
           # The crowd sensor's counts (GET mode=radar-board&op=crowd, cron auth).

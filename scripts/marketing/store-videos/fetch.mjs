@@ -40,7 +40,7 @@ for (const id of ids) {
         console.log("photos failed", id, String(e.message || e).slice(0, 120));
       }
     }
-    if (found.status !== "FOUND") { report.push({ id, status: found.status, reason: found.reason || "", title: found.title || "" }); continue; }
+    if (found.status !== "FOUND") { report.push({ id, status: found.status, reason: found.reason || "", seen: found.seen || "", title: found.title || "" }); continue; }
     const file = `store-out/${id}.mp4`;
     execFileSync("curl", ["-fsSL", "--max-time", "120", "--max-filesize", "150000000", "-o", file, found.video]);
     execFileSync("ffmpeg", ["-v", "error", "-i", file, "-vf", "fps=1,scale=240:-2,tile=6x3", "-frames:v", "1", `store-out/${id}-sheet.jpg`, "-y"]);
