@@ -311,7 +311,8 @@ function cleanKinds(k) {
       return { id: String(m.id), title: str(m.title, 140), image, buy, orders: num(m.orders), weekPct: num(m.weekPct) };
     }).filter(Boolean);
     if (!samples.length) return null;
-    return { en: x.en, learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    if (!x.known || num(x.known.similar) === null) return null; // shown only with its "nobody has heard of it yet" check
+    return { en: x.en, known: { similar: num(x.known.similar) }, learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));

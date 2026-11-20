@@ -111,3 +111,15 @@ test("wiring: the model is installed on the radar runner only, and its book is i
   assert.match(run, /kinds: board\.kinds\?\.seal\?\.sha256/);
   assert.match(run, /RADAR_KINDS !== "0"/);
 });
+
+test("a kind reaches the page only with its 'nobody heard of it yet' check (20.11: Christmas ornaments were saturated)", async () => {
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const sample = { id: "1005000000000001", title: "Magnetic Ear Cuff", image: "https://ae-pic-a1.aliexpress-media.com/kf/x.jpg", buy: "https://s.click.aliexpress.com/e/_x", orders: 400, weekPct: 100 };
+  const kind = { en: "ear cuff", members: ["1005000000000001", "1005000000000002", "1005000000000003"], measured: 3, medianWeekPct: 50, orders: 900, samples: [sample] };
+  const board = (list) => sanitizeBoard({ v: 2, at: "2026-11-20T06:00:00Z", record: {}, concepts: [], kinds: { model: "m", tracked: 6000, list } });
+  assert.equal(board([kind]).kinds.list.length, 0, "unchecked: hidden");
+  const shown = board([{ ...kind, known: { similar: 640 } }]).kinds.list[0];
+  assert.deepEqual([shown.en, shown.known.similar, shown.members], ["ear cuff", 640, 3]);
+  const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /unknownCheck\(\{ phrase: k\.en, similar, suggestions \}\)/);
+});

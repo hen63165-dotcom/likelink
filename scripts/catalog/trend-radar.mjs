@@ -300,11 +300,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       writeFileSync(join(dir, "embeds.json"), JSON.stringify(cache));
       kindVectors = Object.keys(vectors).length;
       kindsToday = newKinds(poolBefore, items, vectors, { concepts: watch });
-      const kBefore = new Set(discovered.map((c) => c.id));
-      discovered = admitDiscovered(discovered, kindCandidates(kindsToday), { concepts: watch, stages: stagesBefore, now });
-      const kAdded = discovered.filter((c) => !kBefore.has(c.id));
       sources.kinds = "OK";
-      log.push(`kinds by meaning: ${embedded} new titles embedded · ${kindVectors} listings · ${kindsToday.length} new kinds (${kindsToday.slice(0, 5).map((k) => `${k.en} ×${k.members.length} +${k.medianWeekPct}%`).join(", ") || "none"}) · added ${kAdded.map((c) => c.en).join(", ") || "none"}`);
+      log.push(`kinds by meaning: ${embedded} new titles embedded · ${kindVectors} listings · ${kindsToday.length} candidate kinds (${kindsToday.slice(0, 5).map((k) => `${k.en} ×${k.members.length} +${k.medianWeekPct}%`).join(", ") || "none"})`);
     } catch (err) { sources.kinds = "FAILED"; log.push(`kinds by meaning: ${String(err?.message || err).slice(0, 120)}`); }
   }
   const concepts = [...watch, ...discovered.filter(validConcept)];
@@ -717,7 +714,39 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (freshText) board.fresh.seal = await sealBook({ text: freshText, count: freshText.split("\n").length }, prevBoard.fresh?.seal, "fresh");
   // The kinds found by meaning: each shown kind is a call, graded after 14 days and sealed as its own book.
   if (sources.kinds === "OK" || readJson(join(dir, "kinds-calls.json"), []).length) {
-    const shownKinds = kindsToday.slice(0, KINDS.show);
+    // Only what nobody heard of yet (the same unknownCheck as the new products): few listings for the
+    // kind's name on AliExpress and no tiktok/viral/amazon in Google's US suggestions. A seasonal kind
+    // (20.11: "balls tree", Christmas ornaments) has thousands of listings and stays out. A check that
+    // could not be read hides the kind. The kinds that pass join the radar as trial concepts (read from
+    // the next morning).
+    const shownKinds = [];
+    const kindCounts = {};
+    for (const k of kindsToday.slice(0, KINDS.show * 2)) {
+      if (shownKinds.length >= KINDS.show) break;
+      let similar = null;
+      let suggestions = null;
+      if (store) {
+        try {
+          const e = aeEnv(env);
+          const res = await aeCall(SEARCH, { keywords: k.en, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+        } catch { /* not read → not shown */ }
+      }
+      if (sources.suggest === "OK") {
+        try { suggestions = await suggestList(k.en, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+        await pause(politeMs);
+      }
+      const known = unknownCheck({ phrase: k.en, similar, suggestions });
+      kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
+      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar } });
+    }
+    log.push(`kinds unknown check: ${JSON.stringify(kindCounts)}`);
+    if (shownKinds.length) {
+      const kBefore = new Set(discovered.map((c) => c.id));
+      discovered = admitDiscovered(discovered, kindCandidates(shownKinds), { concepts: watch, stages: stagesBefore, now });
+      log.push(`kinds joined as trial concepts: ${discovered.filter((c) => !kBefore.has(c.id)).map((c) => c.en).join(", ") || "none (trial list full or already tracked)"}`);
+    }
     let kindCalls = gradeKinds(readJson(join(dir, "kinds-calls.json"), []), items, today);
     kindCalls = recordKinds(kindCalls, shownKinds, today);
     writeFileSync(join(dir, "kinds-calls.json"), JSON.stringify(kindCalls));
