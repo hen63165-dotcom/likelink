@@ -1200,6 +1200,31 @@ html body .lx img {
 @keyframes lx-scope-in { from { opacity: 0; scale: 0.86; } }
 @keyframes lx-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* Radar page structure (the owner, 20.11: "clear at a glance, like a 2026 product"): the live
+   readout under the headline, one sticky tab bar, one panel at a time, and the plans side by side. */
+.lx-rdr-facts { margin: 22px 0 0; max-width: 560px; border-top: 1px solid var(--lx-line); }
+.lx-rdr-facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--lx-line); }
+.lx-rdr-facts dt { color: var(--lx-mute); font-size: 14px; }
+.lx-rdr-facts dd { margin: 0; font-size: 16px; font-weight: 800; text-align: end; font-variant-numeric: tabular-nums; }
+.lx-rdr-tabs { position: sticky; top: 64px; z-index: 30; background: color-mix(in srgb, var(--lx-paper) 92%, transparent); border-bottom: 1px solid var(--lx-line); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); scroll-margin-top: 64px; }
+@media (min-width: 768px) { .lx-rdr-tabs { top: 74px; scroll-margin-top: 74px; } }
+.lx-rdr-tablist { display: flex; gap: 6px; padding: 10px 0; overflow-x: auto; scrollbar-width: none; }
+.lx-rdr-tablist::-webkit-scrollbar { display: none; }
+.lx-rdr-tab { flex: 0 0 auto; min-height: 42px; padding: 8px 18px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--lx-mute); font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.lx-rdr-tab:hover { color: var(--lx-ink); background: var(--lx-sky-2); }
+.lx-rdr-tab[aria-selected="true"] { background: var(--lx-ink); color: var(--lx-paper); }
+.lx-rdr-tab:focus-visible { outline: 2px solid var(--lx-ink); outline-offset: 2px; }
+[role="tabpanel"][hidden] { display: none; }
+[role="tabpanel"] section[id] { scroll-margin-top: 140px; }
+.lx-rdr-ctas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lx-rdr-ctas > .lx-btn { padding-inline: 12px !important; }
+@media (min-width: 640px) { .lx-rdr-ctas { display: flex; flex-wrap: wrap; gap: 12px; } .lx-rdr-ctas > .lx-btn { padding-inline: 24px !important; } }
+.lx-rdr-plans { display: grid; gap: 14px; }
+@media (min-width: 900px) { .lx-rdr-plans { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; } }
+.lx-rdr-plan { display: flex; flex-direction: column; box-shadow: none; border: 1px solid var(--lx-line); }
+.lx-rdr-plan > :last-child { margin-top: auto; }
+.lx-rdr-plan.is-main { border: 2px solid var(--lx-ink); }
+
 /* Product page: the picture a visitor pressed glides into this hero
    (App.jsx names it lx-pp-hero for the transition). */
 .lx-pp-hero { view-transition-name: lx-pp-hero; }
