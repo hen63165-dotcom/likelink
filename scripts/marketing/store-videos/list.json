@@ -1,7 +1,8 @@
 {
-  "why": "Daily run 2026-11-20, round 2: none of the site's HOT products without a reel has a store video, so the HOT items inside the radar's concepts today (each ≥300 orders and ≥ +10% a week in items.json): earrings, selfie tripod, magnetic rings, fidget blind box, soap dispenser, balaclava, lint removers, pudding squishies, car gap filler, kids print camera, stacking rings, portable blender, crunchy squishy, motion light, leg warmers, magnetic tiles, heated lunch box, mini claw machine, puffer tote. The store's own video and its sheet, for a check by eye before any of them is added or edited.",
+  "why": "Daily run 2026-11-20, round 3: 29 items in a row came back without a store video, so this run adds the oil bottle (1005007011405828, whose video was found on 19.11) as a control and records what the store answered in the video field.",
   "photos": false,
   "ids": [
+    "1005007011405828",
     "1005007476801450",
     "1005013178180282",
     "1005013079964969",
@@ -9,23 +10,10 @@
     "1005013183994018",
     "1005009993189606",
     "1005007097015654",
-    "1005011851815241",
-    "1005013392905331",
-    "1005008618921654",
-    "1005012540124890",
-    "1005012735165739",
-    "1005012817400453",
-    "1005012764132491",
-    "1005009384469105",
-    "1005006209654616",
-    "1005012947167825",
-    "1005009973609696",
-    "1005007013528055",
-    "1005013155088573",
-    "1005012971133301",
-    "1005012594256482"
+    "1005011851815241"
   ],
   "keep": [
+    "1005007011405828",
     "1005007476801450",
     "1005013178180282",
     "1005013079964969",
@@ -33,20 +21,6 @@
     "1005013183994018",
     "1005009993189606",
     "1005007097015654",
-    "1005011851815241",
-    "1005013392905331",
-    "1005008618921654",
-    "1005012540124890",
-    "1005012735165739",
-    "1005012817400453",
-    "1005012764132491",
-    "1005009384469105",
-    "1005006209654616",
-    "1005012947167825",
-    "1005009973609696",
-    "1005007013528055",
-    "1005013155088573",
-    "1005012971133301",
-    "1005012594256482"
+    "1005011851815241"
   ]
 }

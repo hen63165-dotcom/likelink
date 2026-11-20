@@ -91,7 +91,8 @@ export async function storeVideo(product, { env = process.env, fetchImpl = globa
   // the store's own gallery, for a person to check by eye (Store videos with "photos": true)
   const small = x.product_small_image_urls?.string;
   const images = [x.product_main_image_url, ...(Array.isArray(small) ? small : small ? [small] : [])].map(https).filter((u, i, a) => /^https:\/\/\S+$/.test(u) && a.indexOf(u) === i).slice(0, 6);
-  if (!STORE_VIDEO.test(video)) return { status: S.NO_SELLER_VIDEO, title, images };
+  // `seen`: what the store answered in the video field (its host and path only), so a host change shows in the report
+  if (!STORE_VIDEO.test(video)) return { status: S.NO_SELLER_VIDEO, title, images, seen: video ? String(video).replace(/\?.*$/, "").slice(0, 160) : "" };
   return { status: "FOUND", video, title, itemId, images };
 }
 
