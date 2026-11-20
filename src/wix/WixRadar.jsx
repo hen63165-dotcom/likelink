@@ -100,6 +100,7 @@ export default function WixRadar({ board, lang }) {
                   <div><b><Num>{pct(r.weekPct)}</Num></b> {L("בשבוע", "a week")}</div>
                   <div className="wr-muted">{L(`${r.ordersBefore ?? "?"} ${arrow} ${r.orders} הזמנות ב־30 יום (${d(r.from)} ${arrow} ${d(r.to)})`, `${r.ordersBefore ?? "?"} ${arrow} ${r.orders} orders in 30 days (${d(r.from)} ${arrow} ${d(r.to)})`)}</div>
                   {r.similar !== null ? <div className="wr-muted">{L(`${r.similar.toLocaleString("he-IL")} מוצרים דומים בחנות`, `${r.similar.toLocaleString("en-US")} similar listings in the store`)}</div> : null}
+                  {r.window ? <div className="wr-muted">{L(`⏳ סיכוי מכויל שבעוד ${r.window.h} ימים יהיו מעל ${r.window.line.toLocaleString("he-IL")} מוצרים דומים: ${r.window.p}%`, `⏳ Calibrated chance of more than ${r.window.line.toLocaleString("en-US")} similar listings in ${r.window.h} days: ${r.window.p}%`)}</div> : null}
                   <a className="wr-btn" href={r.page} target="_blank" rel="noopener noreferrer">{L("לצפייה באליאקספרס", "View on AliExpress")}</a>
                 </div>
               </article>

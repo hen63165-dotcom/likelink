@@ -9,6 +9,7 @@ import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
+import { LEDGER_BOOKS } from "./radarLedger.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -40,9 +41,10 @@ const cleanAnchors = (a) => (a && typeof a === "object" ? {
   pending: Number.isInteger(a.pending) && a.pending >= 0 ? a.pending : 0,
   since: /^\d{4}-\d{2}-\d{2}$/.test(String(a.since || "")) ? a.since : null,
 } : null);
-// Every book of radarLedger.js LEDGER_BOOKS (a test keeps the two equal): on 20.11 the root named
-// brain= and the page dropped the root text, so nobody could recompute it.
-const LEDGER_ROOT = /^(early|stages|luck|fresh|kinds|brain|promise|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|kinds|brain|promise|globe|prices)=[0-9a-f]{64})*$/;
+// Every book of radarLedger.js LEDGER_BOOKS, built from the list itself: on 20.11 a hand-written copy
+// missed brain= and the page dropped the root text, so nobody could recompute it.
+const BOOK_NAMES = LEDGER_BOOKS.join("|");
+const LEDGER_ROOT = new RegExp(`^(?:${BOOK_NAMES})=[0-9a-f]{64}(?:\\n(?:${BOOK_NAMES})=[0-9a-f]{64})*$`);
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
@@ -171,6 +173,8 @@ export function sanitizeBoard(doc) {
     brain: cleanBrain(doc.brain),
     // 📐 The proven range (radarPromise.js): the method's state per horizon and the public coverage record.
     promise: cleanPromise(doc.promise),
+    // ⏳ The window clock (radarWindow.js): the chance a find's listings reach the saturation line, and its record.
+    window: cleanWindow(doc.window),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -323,6 +327,40 @@ function cleanPromise(p) {
   };
 }
 
+// ⏳ The window clock's book (radarWindow.js windowSealText): `key|day|horizon|listings then|line|chance%`.
+const WINDOW_LINE = "(?:c:[a-z0-9][a-z0-9-]{0,79}|p:[a-z0-9']{1,30}(?:\\+[a-z0-9']{1,30}){0,2})\\|\\d{4}-\\d{2}-\\d{2}\\|\\d{1,2}\\|\\d+\\|\\d+\\|\\d{1,2}%";
+const WINDOW_BOOK = new RegExp(`^${WINDOW_LINE}(\\n${WINDOW_LINE})*$`);
+const WINDOW_KEY = /^(?:c:[a-z0-9][a-z0-9-]{0,79}|p:[a-z0-9']{1,30}(?:\+[a-z0-9']{1,30}){0,2})$/;
+const WINDOW_LINE_N = 2000;
+const chanceP = (p) => (Number.isInteger(p) && p >= 1 && p <= 99 ? p : null);
+/** A find's window line: the listings today and the chance only when the clock can speak for it. */
+function cleanCardWindow(w) {
+  if (!w || typeof w !== "object" || num(w.o) === null || w.line !== WINDOW_LINE_N) return null;
+  if (w.state === "CLOSED") return w.o >= WINDOW_LINE_N ? { state: "CLOSED", o: num(w.o), line: WINDOW_LINE_N } : null;
+  if (w.state === "MEASURING") return w.o < WINDOW_LINE_N ? { state: "MEASURING", o: num(w.o), line: WINDOW_LINE_N, since: day(w.since) } : null;
+  if (w.state === "READY" && RANGE_H.includes(w.h) && chanceP(w.p) && w.o < WINDOW_LINE_N) return { state: "READY", h: w.h, o: num(w.o), line: WINDOW_LINE_N, p: w.p, weekPct: num(w.weekPct) };
+  return null;
+}
+function cleanWindow(w) {
+  if (!w || typeof w !== "object" || !Array.isArray(w.record) || w.line !== WINDOW_LINE_N) return null;
+  return {
+    v: num(w.v) ?? 1,
+    at: day(w.at),
+    line: WINDOW_LINE_N,
+    horizons: (Array.isArray(w.horizons) ? w.horizons : []).filter((h) => RANGE_H.includes(h?.h)).map((h) => ({ h: h.h, state: h.state === "READY" ? "READY" : "CALIBRATING", n: Math.max(0, num(h.n) ?? 0), need: num(h.need) ?? 60, small: Math.max(0, num(h.small) ?? 0), smallNeed: num(h.smallNeed) ?? 20 })),
+    record: w.record.filter((c) => RANGE_H.includes(c?.h)).map((c) => ({
+      h: c.h, n: Math.max(0, num(c.n) ?? 0), hits: Math.max(0, num(c.hits) ?? 0),
+      brier: Number.isFinite(c.brier) && c.brier >= 0 && c.brier <= 1 ? c.brier : null, baseRate: pctOrNull(c.baseRate), skill: pctOrNull(c.skill),
+      bins: (Array.isArray(c.bins) ? c.bins : []).slice(0, 10).filter((b) => Number.isFinite(b?.from) && Number.isFinite(b?.to) && num(b.n) > 0).map((b) => ({ from: b.from, to: b.to, n: num(b.n), said: pctOrNull(b.said), happened: pctOrNull(b.happened) })),
+    })),
+    issued: Math.max(0, num(w.issued) ?? 0),
+    open: Math.max(0, num(w.open) ?? 0),
+    nextDue: day(w.nextDue),
+    recent: (Array.isArray(w.recent) ? w.recent : []).slice(0, 12).filter((g) => WINDOW_KEY.test(String(g?.i || "")) && RANGE_H.includes(g?.h) && chanceP(g.p)).map((g) => ({ i: String(g.i), a: day(g.a), h: g.h, o: num(g.o), v: num(g.v), p: g.p, hit: g.hit === 1 ? 1 : g.hit === 0 ? 0 : null })),
+    seal: cleanBook(w.seal, WINDOW_BOOK),
+  };
+}
+
 function cleanFresh(f) {
   if (!f || typeof f !== "object") return null;
   const risers = (Array.isArray(f.risers) ? f.risers : []).slice(0, 12).map((r) => {
@@ -332,7 +370,7 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
     if (!r.known || num(r.known.similar) === null) return null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
@@ -357,7 +395,7 @@ function cleanKinds(k) {
     }).filter(Boolean);
     if (!samples.length) return null;
     if (!x.known || num(x.known.similar) === null) return null; // shown only with its "nobody has heard of it yet" check
-    return { en: x.en, known: { similar: num(x.known.similar) }, learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    return { en: x.en, known: { similar: num(x.known.similar) }, window: cleanCardWindow(x.window), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));

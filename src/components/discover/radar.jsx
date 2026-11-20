@@ -712,6 +712,7 @@ function FreshRisers({ fresh, world = null }) {
                     {r.sure ? <p className="text-[13px] font-black" style={{ color: "#0b0b0b" }}>{L(`🎯 הקול המוכח: לפחות ${r.sure}%`, `🎯 Proven voice: at least ${r.sure}%`)}</p> : null}
                     {r.promise ? <p className="text-[12px] font-bold" style={{ color: "#0f766e" }}>{L(`📐 בעוד ${r.promise.h} יום, ${r.promise.r90 ? `בכיסוי 90%: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `בכיסוי 80%: ${r.promise.r80[0]}–${r.promise.r80[1]}`} הזמנות ב־30 יום (היום ${r.promise.o})${r.promise.clears ? `. כל הטווח מעל קו הפגיעה של +50%` : ""}`, `📐 In ${r.promise.h} days, ${r.promise.r90 ? `at 90% coverage: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `at 80% coverage: ${r.promise.r80[0]}–${r.promise.r80[1]}`} orders in 30 days (today ${r.promise.o})${r.promise.clears ? ". The whole range is above the +50% hit line" : ""}`)}</p> : null}
                     {r.promise?.chance ? <p className="text-[13px] font-black" style={{ color: "#0f766e" }}>{L(`🎯 סיכוי מכויל לעלות ב־${r.promise.chance.line}% תוך ${r.promise.h} יום: ${r.promise.chance.p}%`, `🎯 Calibrated chance to grow ${r.promise.chance.line}% within ${r.promise.h} days: ${r.promise.chance.p}%`)}</p> : null}
+                    <WindowLine w={r.window} />
                     {r.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 מוצרים דומים שהרדאר הצביע עליהם בעבר: ${r.learned.hits} מתוך ${r.learned.n} פגעו`, `🧠 Similar products the radar pointed to before: ${r.learned.hits} of ${r.learned.n} hit`)}</p> : null}
                     <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                     {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
@@ -762,6 +763,7 @@ function NewKinds({ kinds }) {
                   <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${k.medianWeekPct}% בשבוע (החציון של ${k.measured} מודעות)`, `🚀 +${k.medianWeekPct}% a week (the median of ${k.measured} listings)`)}</p>
                   {k.sure ? <p className="text-[13px] font-black">{L(`🎯 הקול המוכח: לפחות ${k.sure}%`, `🎯 Proven voice: at least ${k.sure}%`)}</p> : null}
                   {k.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 סוגים דומים בעבר: ${k.learned.hits} מתוך ${k.learned.n} פגעו`, `🧠 Similar kinds before: ${k.learned.hits} of ${k.learned.n} hit`)}</p> : null}
+                  <WindowLine w={k.window} />
                   <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: ${k.known.similar} מודעות בשם הזה באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Still quiet: ${k.known.similar} listings by this name on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                   <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${k.members} מודעות חדשות · ${k.orders.toLocaleString("he-IL")} הזמנות ב־30 יום, יחד (אליאקספרס)${k.first ? ` · הראשונה נקראה ב־${dm(k.first)}` : ""}`, `${k.members} new listings · ${k.orders.toLocaleString("en-US")} orders in 30 days, together (AliExpress)${k.first ? ` · the first read on ${dm(k.first)}` : ""}`)}</p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
@@ -789,6 +791,56 @@ function NewKinds({ kinds }) {
  * from every graded call that recorded its signals the day it was made — each signal's record with and
  * without it, and the weekly learning curve. History only; its state is sealed every day.
  */
+/** ⏳ A find's window line (radarWindow.js cardWindow): the listings today and, once ready, the calibrated chance. */
+function WindowLine({ w }) {
+  const { L } = useL();
+  if (!w) return null;
+  const line = w.line.toLocaleString("he-IL");
+  if (w.state === "READY") {
+    return <p className="text-[13px] font-black" style={{ color: "#9a3412" }}>{L(`⏳ שעון החלון: היום ${w.o} מודעות, והרדאר קורא רוויה מ־${line}. הסיכוי המכויל שבעוד ${w.h} ימים יעברו את הקו: ${w.p}%`, `⏳ The window clock: ${w.o} listings today; the radar calls saturation at ${line}. Calibrated chance they are past the line in ${w.h} days: ${w.p}%`)}{Number.isFinite(w.weekPct) ? L(` (המודעות ${w.weekPct >= 0 ? "+" : "−"}${Math.abs(w.weekPct)}% בשבוע)`, ` (listings ${w.weekPct >= 0 ? "+" : "−"}${Math.abs(w.weekPct)}% a week)`) : ""}</p>;
+  }
+  if (w.state === "MEASURING") {
+    return <p className="text-[12px] font-bold" style={{ color: "#9a3412" }}>{L(`⏳ שעון החלון: היום ${w.o} מודעות, והרדאר קורא רוויה מ־${line}. הקצב נמדד${w.since ? ` מ־${dm(w.since)}` : ""}, והסיכוי מופיע אחרי 3 ימי מדידה.`, `⏳ The window clock: ${w.o} listings today; the radar calls saturation at ${line}. The pace is measured${w.since ? ` since ${dm(w.since)}` : ""}; the chance shows after 3 days of readings.`)}</p>;
+  }
+  return null;
+}
+
+/** ⏳ The window clock (radarWindow.js): how long a find stays ahead of the crowd, as a graded chance. */
+function WindowClock({ win }) {
+  const { L } = useL();
+  const graded = (win.record || []).filter((c) => c.n > 0);
+  const ready = (win.horizons || []).filter((h) => h.state === "READY");
+  const line = (win.line || 2000).toLocaleString("he-IL");
+  return (
+    <section className="lx-wrap mt-8" id="window">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #c2410c", background: "#fff7ed" }}>
+        <h2 className="text-[22px] font-black">{L("⏳ שעון החלון: כמה זמן נשאר לפני שכולם מוכרים", "⏳ The window clock: how long until everyone sells it")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`לכל מוצר חדש ולכל סוג שהרדאר מוצא, הוא סופר כל בוקר כמה מודעות יש לו באליאקספרס. מ־${line} מודעות הרדאר קורא לזה רוויה: כבר הרבה מוכרים. שעון החלון נותן סיכוי מכויל שהמודעות יעברו את הקו בעוד 3, 7 ו־14 יום, כלומר שהחלון ייסגר. כל סיכוי נחתם בביטקוין ביום שניתן, נבדק ביום שלו ומקבל ציון Brier.`, `For every new product and every new kind it finds, the radar counts its AliExpress listings every morning. From ${line} listings it calls it saturated: many sellers already. The window clock gives a calibrated chance that the listings are past that line in 3, 7 and 14 days: that the window has closed. Every chance is sealed in Bitcoin the day it is given, checked on its day, and given a Brier score.`)}</p>
+        <p className="mt-2 text-[13px] leading-6">{L("איך: אותו מודל של הטווח המוכח, על מספרי המודעות שהרדאר קורא כל יום, והסיכוי נקבע רק מהטעויות של ביטויים באותו גודל, כך שביטוי קטן נמדד מול ביטויים קטנים.", "How: the proven range's own model, on the listing counts the radar reads every day, and the chance comes only from the errors of phrases of the same size, so a small phrase is judged against small phrases.")}</p>
+        <ul className="mt-3 grid gap-1.5">
+          {(win.horizons || []).map((h) => (
+            <li key={h.h} className="text-[13px] font-bold">{h.state === "READY" ? L(`✅ ${h.h} ימים: מוכן, לומד מ־${h.n} דוגמאות (${h.small} בגודל של מוצר חדש)`, `✅ ${h.h} days: ready, learning from ${h.n} examples (${h.small} the size of a new product)`) : L(`⏳ ${h.h} ימים: בכיול, ${h.n} מתוך ${h.need} דוגמאות, ${h.small} מתוך ${h.smallNeed} בגודל של מוצר חדש`, `⏳ ${h.h} days: calibrating, ${h.n} of ${h.need} examples, ${h.small} of ${h.smallNeed} the size of a new product`)}</li>
+          ))}
+        </ul>
+        {graded.length ? (
+          <ul className="mt-3 grid gap-2">
+            {graded.map((c) => (
+              <li key={c.h} className="text-[13px] leading-6">
+                <b>{L(`${c.h} ימים:`, `${c.h} days:`)}</b> {L(`${c.n} סיכויים נבדקו, ציון Brier ${c.brier}`, `${c.n} chances graded, Brier ${c.brier}`)}{c.skill !== null ? L(`, ${c.skill > 0 ? "טוב" : "חלש"} ב־${Math.abs(c.skill)}% מניחוש לפי שיעור הבסיס (${c.baseRate}%)`, `, ${Math.abs(c.skill)}% ${c.skill > 0 ? "better" : "worse"} than guessing the base rate (${c.baseRate}%)`) : ""}.
+                {c.bins.filter((b) => b.n >= 5).length ? <span className="block text-[12px]" style={{ color: "var(--lx-muted)" }}>{c.bins.filter((b) => b.n >= 5).map((b) => L(`כשאמר ${b.from}–${b.to}%: קרה ב־${b.happened}% (${b.n})`, `said ${b.from}–${b.to}%: happened ${b.happened}% (${b.n})`)).join(" · ")}</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-[13px] font-bold">{win.open ? L(`${win.open} סיכויים חתומים מחכים ליום שלהם${win.nextDue ? `. הבדיקה הראשונה ב־${dm(win.nextDue)}` : ""}.`, `${win.open} sealed chances are waiting for their day${win.nextDue ? `. The first check is on ${dm(win.nextDue)}` : ""}.`) : L("הסיכויים הראשונים ניתנים כשאופק אחד מסיים כיול.", "The first chances are given once a horizon finishes calibrating.")}</p>
+        )}
+        {ready.length && win.issued ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`היום ניתנו ${win.issued} סיכויים חדשים, כולם בספר החתימות.`, `Today ${win.issued} new chances were given, all in the sealed ledger.`)}</p> : null}
+        {win.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{win.recent.slice(0, 6).map((g) => `${g.hit === 1 ? "🔒" : "🔓"} ${g.h}${L(" ימים", "d")}: ${g.p}% → ${g.v}`).join(" · ")}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 /** 📐 The proven range (radarPromise.js): what the radar commits to, and how often it held. */
 function ProvenRange({ promise }) {
   const { L } = useL();
@@ -933,8 +985,8 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", brain: "המוח: מה הרדאר למד", promise: "הטווחים המוכחים", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", brain: "the brain: what the radar learned", promise: "the proven ranges", globe: "next-country calls", prices: "store prices" };
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", brain: "המוח: מה הרדאר למד", promise: "הטווחים המוכחים", window: "שעון החלון", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", brain: "the brain: what the radar learned", promise: "the proven ranges", window: "the window clock", globe: "next-country calls", prices: "store prices" };
 
 /**
  * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
@@ -1011,7 +1063,7 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
-function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, promiseBook = null, anchors = null }) {
+function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, promiseBook = null, windowBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
   const anchored = anchors?.list || [];
@@ -1030,6 +1082,7 @@ function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null,
           {kindsBook?.text ? <> · <a className="underline" download={`radar-kinds-${kindsBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(kindsBook.text)}`}>{L(`כל ${kindsBook.count} הסוגים החדשים שהוצגו`, `all ${kindsBook.count} new kinds shown`)}</a></> : null}
           {brainBook?.text ? <> · <a className="underline" download={`radar-brain-${brainBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(brainBook.text)}`}>{L("מה המוח למד", "what the brain learned")}</a></> : null}
           {promiseBook?.text ? <> · <a className="underline" download={`radar-ranges-${promiseBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(promiseBook.text)}`}>{L(`כל ${promiseBook.count} הטווחים של היום`, `all ${promiseBook.count} ranges of the day`)}</a></> : null}
+          {windowBook?.text ? <> · <a className="underline" download={`radar-window-${windowBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(windowBook.text)}`}>{L(`כל ${windowBook.count} הסיכויים של שעון החלון`, `all ${windowBook.count} window-clock chances`)}</a></> : null}
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
@@ -1301,7 +1354,7 @@ const RADAR_TABS = [
 ];
 const TAB_OF = {
   today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", promise: "proof", ledger: "proof", anchors: "proof", luck: "proof", brain: "proof", challenge: "proof",
+  proof: "proof", promise: "proof", window: "proof", ledger: "proof", anchors: "proof", luck: "proof", brain: "proof", challenge: "proof",
   tools: "tools", styles: "tools", waves: "tools", crowd: "tools", globe: "tools", how: "tools",
   plans: "plans", "radar-tiers": "plans",
 };
@@ -1529,8 +1582,9 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
+        {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
-        {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} anchors={board.anchors} /> : null}
+        {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
         {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
         {board?.challenge ? <Challenge ch={board.challenge} /> : null}

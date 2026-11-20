@@ -60,6 +60,8 @@ export function teaserBoard(board) {
     ledger: board.ledger ? { d: board.ledger.d, sha256: board.ledger.sha256, count: board.ledger.count, text: board.ledger.text, ots: board.ledger.ots || [] } : null,
     // The Bitcoin anchors of past days' roots: public for the same reason (block numbers and roots, no call).
     anchors: board.anchors || null,
+    // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.
+    window: board.window ? { v: board.window.v, at: board.window.at, line: board.window.line, horizons: board.window.horizons || [], record: board.window.record || [], issued: board.window.issued || 0, open: board.window.open || 0, nextDue: board.window.nextDue || null, recent: [], seal: board.window.seal ? { d: board.window.seal.d, sha256: board.window.seal.sha256, count: board.window.seal.count, ots: board.window.seal.ots || [] } : null } : null,
     // 📐 The proven range: the method's state and the coverage record are public; the day's ranges
     // (which name items) and the book's text stay behind the lock, its hash and proofs do not.
     promise: board.promise ? { v: board.promise.v, at: board.promise.at, horizons: board.promise.horizons || [], coverage: board.promise.coverage || [], chance: board.promise.chance || [], issued: board.promise.issued || 0, open: board.promise.open || 0, nextDue: board.promise.nextDue || null, recent: [], seal: board.promise.seal ? { d: board.promise.seal.d, sha256: board.promise.seal.sha256, count: board.promise.seal.count, ots: board.promise.seal.ots || [] } : null } : null,

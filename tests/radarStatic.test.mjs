@@ -14,7 +14,7 @@ test("the radar's HTML says what it is, how to check it and the dated sentence, 
   assert.ok(html.includes(RADAR_CLAIM.he) && html.includes(RADAR_CLAIM.en));
   assert.match(RADAR_CLAIM.he, /רדאר טרנדי המוצרים היחיד שמצאנו בעולם/, "product trends, and always 'we found'");
   assert.match(RADAR_CLAIM.en, /only product-trend radar we found/);
-  assert.match(html, /לפי בדיקה עולמית מ־19\.11\.2026/);
+  assert.match(html, /לפי בדיקה עולמית מ־20\.11\.2026/);
   assert.match(html, /opentimestamps\.org/);
   assert.match(html, /הקביעה הבאה נחתמת כשכל 4 הסימנים מסכימים/, "a quiet record says what happens next, never a count it does not have");
   assert.doesNotMatch(html, /היחיד בעולם|מבטיח|guarantee/i);
