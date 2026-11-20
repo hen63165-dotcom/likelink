@@ -47,7 +47,8 @@ import { CLOUD } from "../../src/constants/cloud.js";
 import { aliItemId } from "./sync-aliexpress.mjs";
 import { ENGINES, TRENDS_GEOS, WORLD_MARKETS, addWorld, cjkExtensions, calibrationOf, earlyCall, echoOf, factoryOf, finishLinesOf, leadOf, ledgerOf, parseEngine, productTrend, sealOf, signalsNeeded, stampFirsts, trendingAbroad, trendsRssUrl, worldPulseOf, worldReading } from "../../src/lib/growth/worldPulse.js";
 import { trackRecord } from "../../src/lib/growth/trendRadar.js";
-import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
+import { OTS_CALENDARS, fromBase64, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
+import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
 import { createHash, randomBytes } from "node:crypto";
@@ -851,6 +852,32 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
+  }
+  // ⛓️ From sealed to anchored (otsUpgrade.js; the owner, 20.11): every day's ledger root keeps its
+  // proofs in roots.json; each run asks the calendars for the rest of the path of the days not yet
+  // anchored (a day's own root reaches Bitcoin within hours, so from the next run), then checks the
+  // Merkle root the path arrives at against the block's own at a public explorer. Only a match is
+  // shown: "the ledger of <day> is inside Bitcoin block #N", with the complete proof to download.
+  {
+    const roots = readJson(join(dir, "roots.json"), {});
+    if (board.ledger?.sha256 && board.ledger.ots?.length && !roots[board.ledger.d]) roots[board.ledger.d] = { sha256: board.ledger.sha256, ots: board.ledger.ots };
+    const sha256 = (b) => new Uint8Array(createHash("sha256").update(b).digest());
+    let asked = 0, anchored = 0;
+    for (const d of Object.keys(roots).sort()) {
+      const r = roots[d];
+      if (r.anchor || d >= today || asked >= 7 || env.RADAR_OTS === "0") continue;
+      asked++;
+      for (const o of r.ots || []) {
+        const out = await anchorProof(fromBase64(o.b64), { sha256, fetchImpl, toBase64 });
+        r.lastTry = { d: today, state: out.state };
+        if (out.state === "ANCHORED") { r.anchor = { height: out.height, block: out.block, time: out.time, cal: o.cal, b64: out.b64 }; anchored++; break; }
+      }
+    }
+    for (const d of Object.keys(roots).sort().slice(0, -120)) delete roots[d];
+    writeFileSync(join(dir, "roots.json"), JSON.stringify(roots));
+    board.anchors = anchorsBoard(roots);
+    const last = board.anchors.list[0];
+    log.push(`anchors: ${board.anchors.list.length} days inside Bitcoin${last ? ` (latest ${last.d} in block ${last.height})` : ""} · ${anchored} new today · ${board.anchors.pending} waiting${asked ? ` · asked ${asked}` : ""}`);
   }
   writeFileSync(join(dir, "board.json"), JSON.stringify(board));
   const counts = board.concepts.reduce((m, c) => ((m[c.stage] = (m[c.stage] || 0) + 1), m), {});
