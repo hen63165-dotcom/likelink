@@ -283,11 +283,13 @@ function cleanWaves(w) {
 
 /** New listings that start to run (freshRisers.js): the store's own words, numbers and photo only. */
 // The proven range's book (radarPromise.js promiseSealText): `item|day|horizon|orders|lo-hi|lo-hi` per line.
-const PROMISE_LINE = "\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d{1,2}\\|\\d+\\|(?:\\d+-\\d+|-)\\|(?:\\d+-\\d+|-)";
+const PROMISE_LINE = "\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d{1,2}\\|\\d+\\|(?:\\d+-\\d+|-)\\|(?:\\d+-\\d+|-)\\|(?:\\d{1,2}%|-)";
 const PROMISE_BOOK = new RegExp(`^${PROMISE_LINE}(\\n${PROMISE_LINE})*$`);
 const pair = (p) => (Array.isArray(p) && p.length === 2 && p.every((x) => Number.isFinite(x)) && p[0] <= p[1] ? [p[0], p[1]] : null);
 const RANGE_H = [3, 7, 14];
 const RANGE_L = [80, 90];
+const CHANCE_LINE = { 3: 10, 7: 25, 14: 50 };
+const pctOrNull = (v) => (Number.isFinite(v) && v >= -100 && v <= 100 ? Math.round(v * 10) / 10 : null);
 /** A new product's range on its card: horizon, the orders then, the ranges, and the hit line only when cleared. */
 function cleanCardRange(c) {
   if (!c || typeof c !== "object" || !RANGE_H.includes(c.h) || num(c.o) === null) return null;
@@ -296,7 +298,8 @@ function cleanCardRange(c) {
   const pct80 = pair(c.pct80), pct90 = pair(c.pct90);
   // The hit line (+50% in 14 days) is claimed only when that level's whole range is above it.
   const clears = c.h !== 14 ? null : c.clears === 90 && pct90?.[0] >= 50 ? 90 : c.clears === 80 && pct80?.[0] >= 50 ? 80 : null;
-  return { h: c.h, o: num(c.o), r80, r90, pct80, pct90, clears };
+  const ch = c.chance && CHANCE_LINE[c.h] === c.chance.line && Number.isInteger(c.chance.p) && c.chance.p >= 1 && c.chance.p <= 99 ? { line: c.chance.line, p: c.chance.p } : null;
+  return { h: c.h, o: num(c.o), r80, r90, pct80, pct90, clears, ...(ch ? { chance: ch } : {}) };
 }
 function cleanPromise(p) {
   if (!p || typeof p !== "object" || !Array.isArray(p.coverage)) return null;
@@ -306,10 +309,16 @@ function cleanPromise(p) {
     at: day(p.at),
     horizons: (Array.isArray(p.horizons) ? p.horizons : []).filter((h) => RANGE_H.includes(h?.h)).map((h) => ({ h: h.h, state: h.state === "READY" ? "READY" : "CALIBRATING", n: Math.max(0, num(h.n) ?? 0), need: num(h.need) ?? 60 })),
     coverage: cov,
+    // 🎯 The calibrated chance's record per horizon (radarPromise.js chanceRecord).
+    chance: (Array.isArray(p.chance) ? p.chance : []).filter((c) => RANGE_H.includes(c?.h) && CHANCE_LINE[c.h] === c.line).map((c) => ({
+      h: c.h, line: c.line, n: Math.max(0, num(c.n) ?? 0), hits: Math.max(0, num(c.hits) ?? 0),
+      brier: Number.isFinite(c.brier) && c.brier >= 0 && c.brier <= 1 ? c.brier : null, baseRate: pctOrNull(c.baseRate), skill: pctOrNull(c.skill),
+      bins: (Array.isArray(c.bins) ? c.bins : []).slice(0, 10).filter((b) => Number.isFinite(b?.from) && Number.isFinite(b?.to) && num(b.n) > 0).map((b) => ({ from: b.from, to: b.to, n: num(b.n), said: pctOrNull(b.said), happened: pctOrNull(b.happened) })),
+    })),
     issued: Math.max(0, num(p.issued) ?? 0),
     open: Math.max(0, num(p.open) ?? 0),
     nextDue: day(p.nextDue),
-    recent: (Array.isArray(p.recent) ? p.recent : []).slice(0, 12).filter((g) => ITEM.test(String(g?.i || "")) && RANGE_H.includes(g?.h) && Array.isArray(g.r) && Array.isArray(g.held)).map((g) => ({ i: String(g.i), a: day(g.a), h: g.h, o: num(g.o), v: num(g.v), r80: pair(g.r.slice(0, 2)), r90: pair(g.r.slice(2, 4)), held: g.held.slice(0, 2).map((x) => (x === 1 ? 1 : x === 0 ? 0 : null)) })),
+    recent: (Array.isArray(p.recent) ? p.recent : []).slice(0, 12).filter((g) => ITEM.test(String(g?.i || "")) && RANGE_H.includes(g?.h) && Array.isArray(g.r) && Array.isArray(g.held)).map((g) => ({ i: String(g.i), a: day(g.a), h: g.h, o: num(g.o), v: num(g.v), r80: pair(g.r.slice(0, 2)), r90: pair(g.r.slice(2, 4)), held: g.held.slice(0, 2).map((x) => (x === 1 ? 1 : x === 0 ? 0 : null)), ...(Number.isInteger(g.c) && g.c >= 1 && g.c <= 99 ? { c: g.c, hit: g.hit === 1 ? 1 : g.hit === 0 ? 0 : null } : {}) })),
     seal: cleanBook(p.seal, PROMISE_BOOK),
   };
 }

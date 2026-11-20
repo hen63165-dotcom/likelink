@@ -711,6 +711,7 @@ function FreshRisers({ fresh, world = null }) {
                     <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
                     {r.sure ? <p className="text-[13px] font-black" style={{ color: "#0b0b0b" }}>{L(`🎯 הקול המוכח: לפחות ${r.sure}%`, `🎯 Proven voice: at least ${r.sure}%`)}</p> : null}
                     {r.promise ? <p className="text-[12px] font-bold" style={{ color: "#0f766e" }}>{L(`📐 בעוד ${r.promise.h} יום, ${r.promise.r90 ? `בכיסוי 90%: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `בכיסוי 80%: ${r.promise.r80[0]}–${r.promise.r80[1]}`} הזמנות ב־30 יום (היום ${r.promise.o})${r.promise.clears ? `. כל הטווח מעל קו הפגיעה של +50%` : ""}`, `📐 In ${r.promise.h} days, ${r.promise.r90 ? `at 90% coverage: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `at 80% coverage: ${r.promise.r80[0]}–${r.promise.r80[1]}`} orders in 30 days (today ${r.promise.o})${r.promise.clears ? ". The whole range is above the +50% hit line" : ""}`)}</p> : null}
+                    {r.promise?.chance ? <p className="text-[13px] font-black" style={{ color: "#0f766e" }}>{L(`🎯 סיכוי מכויל לעלות ב־${r.promise.chance.line}% תוך ${r.promise.h} יום: ${r.promise.chance.p}%`, `🎯 Calibrated chance to grow ${r.promise.chance.line}% within ${r.promise.h} days: ${r.promise.chance.p}%`)}</p> : null}
                     {r.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 מוצרים דומים שהרדאר הצביע עליהם בעבר: ${r.learned.hits} מתוך ${r.learned.n} פגעו`, `🧠 Similar products the radar pointed to before: ${r.learned.hits} of ${r.learned.n} hit`)}</p> : null}
                     <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                     {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
@@ -816,6 +817,20 @@ function ProvenRange({ promise }) {
         )}
         {ready.length && promise.issued ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`היום ניתנו ${promise.issued} טווחים חדשים, כולם בספר החתימות.`, `Today ${promise.issued} new ranges were given, all in the sealed ledger.`)}</p> : null}
         {promise.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{promise.recent.slice(0, 6).map((g) => `${g.held[1] === 1 ? "✅" : g.held[1] === 0 ? "❌" : "·"} ${g.h}${L(" ימים", "d")}: ${g.r90 ? `${g.r90[0]}–${g.r90[1]}` : "-"} → ${g.v}`).join(" · ")}</p> : null}
+        <div className="mt-4 rounded-[14px] p-4" style={{ background: "#fff", border: "1px solid #99f6e4" }}>
+          <p className="text-[16px] font-black">{L("🎯 הסיכוי המכויל", "🎯 The calibrated chance")}</p>
+          <p className="mt-1 text-[13px] leading-6">{L("כמו במזג האוויר: כשאומרים 30% גשם, יורד גשם בערך ב־3 ימים מתוך 10. כך כאן: לכל מוצר הרדאר נותן סיכוי לעלות (ב־10% תוך 3 ימים, ב־25% תוך 7, ב־50% תוך 14), וכשהוא אומר 30%, זה צריך לקרות בערך 3 פעמים מתוך 10. כל סיכוי נחתם מראש, נבדק ביום שלו, ומקבל ציון Brier מול ניחוש לפי שיעור הבסיס.", "Like the weather: when it says 30% rain, it rains on about 3 days in 10. Here, for every product the radar gives a chance to grow (10% within 3 days, 25% within 7, 50% within 14). When it says 30%, it should happen about 3 times in 10. Every chance is sealed in advance, checked on its day, and given a Brier score against guessing the base rate.")}</p>
+          {(promise.chance || []).filter((c) => c.n > 0).length ? (
+            <ul className="mt-2 grid gap-2">
+              {(promise.chance || []).filter((c) => c.n > 0).map((c) => (
+                <li key={c.h} className="text-[13px] leading-6">
+                  <b>{L(`${c.h} ימים (+${c.line}%):`, `${c.h} days (+${c.line}%):`)}</b> {L(`${c.n} סיכויים נבדקו, ציון Brier ${c.brier}`, `${c.n} chances graded, Brier ${c.brier}`)}{c.skill !== null ? L(`, ${c.skill > 0 ? "טוב" : "חלש"} ב־${Math.abs(c.skill)}% מניחוש לפי שיעור הבסיס (${c.baseRate}%)`, `, ${Math.abs(c.skill)}% ${c.skill > 0 ? "better" : "worse"} than guessing the base rate (${c.baseRate}%)`) : ""}.
+                  {c.bins.filter((b) => b.n >= 5).length ? <span className="block text-[12px]" style={{ color: "var(--lx-muted)" }}>{c.bins.filter((b) => b.n >= 5).map((b) => L(`כשאמר ${b.from}–${b.to}%: קרה ב־${b.happened}% (${b.n})`, `said ${b.from}–${b.to}%: happened ${b.happened}% (${b.n})`)).join(" · ")}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-2 text-[13px] font-bold">{L(`הסיכויים הראשונים נבדקים יחד עם הטווחים${promise.nextDue ? `, מ־${dm(promise.nextDue)}` : ""}.`, `The first chances are graded with the ranges${promise.nextDue ? `, from ${dm(promise.nextDue)}` : ""}.`)}</p>}
+        </div>
       </div>
     </section>
   );
