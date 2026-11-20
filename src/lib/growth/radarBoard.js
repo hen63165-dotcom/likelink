@@ -32,6 +32,14 @@ const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/
   ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
 } : null);
 const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
+// Only verified anchors: a 64-hex root and block hash, a block height, the complete proof as base64.
+const cleanAnchors = (a) => (a && typeof a === "object" ? {
+  list: (Array.isArray(a.list) ? a.list : []).slice(0, 10)
+    .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(String(x?.d || "")) && /^[0-9a-f]{64}$/.test(String(x?.sha256 || "")) && /^[0-9a-f]{64}$/.test(String(x?.block || "")) && Number.isInteger(x?.height) && x.height > 0 && x.height < 10_000_000)
+    .map((x) => ({ d: x.d, sha256: x.sha256, height: x.height, block: x.block, time: Number.isFinite(x.time) && x.time > 1_200_000_000 ? x.time : null, b64: /^[A-Za-z0-9+/]+=*$/.test(String(x.b64 || "")) && String(x.b64).length <= 20_000 ? x.b64 : null })),
+  pending: Number.isInteger(a.pending) && a.pending >= 0 ? a.pending : 0,
+  since: /^\d{4}-\d{2}-\d{2}$/.test(String(a.since || "")) ? a.since : null,
+} : null);
 const LEDGER_ROOT = /^(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64})*$/;
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
@@ -159,6 +167,8 @@ export function sanitizeBoard(doc) {
     fresh: cleanFresh(doc.fresh),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
+    // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
+    anchors: cleanAnchors(doc.anchors),
     // The stage calls' book (radarLedger.js stagesSealText): names open calls, so the lock keeps it out of teaserBoard.
     stagesSeal: cleanBook(doc.stagesSeal, STAGES_BOOK),
     // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.

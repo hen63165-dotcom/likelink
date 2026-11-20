@@ -32,6 +32,8 @@ export function radarStaticMain(board = null) {
     ? `<li>עד היום ${fmt(graded)} קביעות קיבלו ציון בפומבי, ${fmt(hits)} מהן פגיעות.</li>`
     : `<li>הקביעה הבאה נחתמת כשכל 4 הסימנים מסכימים, והציון שלה מתפרסם אחרי 14 יום.</li>`);
   if (ledger) today.push(`<li>החתימה היומית האחרונה בביטקוין: ${esc(dm(ledger.d))} · SHA-256 <span dir="ltr">${esc(ledger.sha256.slice(0, 16))}…</span></li>`);
+  const anchor = board?.anchors?.list?.[0];
+  if (anchor && /^[0-9a-f]{64}$/.test(String(anchor.block || "")) && Number.isInteger(anchor.height)) today.push(`<li>ספר החתימות של ${esc(dm(anchor.d))} נמצא בתוך בלוק ביטקוין <a href="https://mempool.space/block/${esc(anchor.block)}">#${esc(String(anchor.height))}</a> (נבדק מול שורש המרקל של הבלוק)</li>`);
   return `<main>
           <h1>רדאר הטרנדים של LikeLink2</h1>
           <p>כל בוקר הרדאר קורא את אליאקספרס: את כל 564 הקטגוריות בסבב של כשבוע, ואת כל האופנה בכל יום. הוא מודד את קצב ההזמנות, כמה מוכרים חדשים מצטרפים ואת המחיר, בודק אם כבר מחפשים את המוצר בגוגל וביוטיוב בעברית, ובודק אותו ב־15 מדינות. הוא קובע רק כשכל 4 הסימנים מסכימים: העולם, הביקוש, המוכרים וישראל.</p>

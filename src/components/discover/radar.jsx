@@ -854,9 +854,10 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
-function Ledger({ ledger, freshBook = null, stagesBook = null }) {
+function Ledger({ ledger, freshBook = null, stagesBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
+  const anchored = anchors?.list || [];
   const books = String(ledger.text || "").split("\n").map((l) => l.split("=")[0]).filter((k) => BOOK_HE[k]);
   return (
     <section className="lx-wrap mt-6" id="ledger">
@@ -872,6 +873,23 @@ function Ledger({ ledger, freshBook = null, stagesBook = null }) {
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
+        {anchored.length ? (
+          <div className="mt-3" id="anchors">
+            <p className="text-[15px] font-black">{L("⛓️ בתוך הבלוקצ׳יין של ביטקוין", "⛓️ Inside the Bitcoin blockchain")}</p>
+            <p className="text-[12px] leading-5">{L("כל יום הרדאר בודק שהחתימה של היום הקודם נכנסה לבלוק ביטקוין: הוא משווה את שורש המרקל שההוכחה מגיעה אליו לשורש של הבלוק עצמו, אצל סייר בלוקים ציבורי. רק התאמה מוצגת כאן.", "Every day the radar checks that the previous day's seal entered a Bitcoin block: it compares the Merkle root the proof arrives at with the block's own, at a public block explorer. Only a match is shown here.")}</p>
+            <ul className="mt-1 grid gap-1 text-[12px]">
+              {anchored.map((a) => (
+                <li key={a.d}>
+                  {L(`ספר החתימות של ${dm(a.d)} נמצא בבלוק `, `The ${dm(a.d)} ledger is in block `)}
+                  <a className="underline font-bold" dir="ltr" href={`https://mempool.space/block/${a.block}`} rel="noopener noreferrer" target="_blank">#{a.height.toLocaleString("en-US")}</a>
+                  {a.time ? L(`, שנכרה ב־${new Date(a.time * 1000).toLocaleDateString("he-IL")}`, `, mined ${new Date(a.time * 1000).toLocaleDateString("en-GB")}`) : null}
+                  {a.b64 ? <> · <a className="underline" download={`radar-ledger-${a.d}.txt.ots`} href={`data:application/octet-stream;base64,${a.b64}`}>{L("ההוכחה המלאה", "the complete proof")}</a></> : null}
+                </li>
+              ))}
+            </ul>
+            {anchors.pending ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`עוד ${anchors.pending} ימים בדרך לבלוק (זה לוקח כמה שעות).`, `${anchors.pending} more days on their way into a block (it takes a few hours).`)}</p> : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -1182,7 +1200,7 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
       {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
-      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} /> : null}
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} anchors={board.anchors} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
