@@ -64,6 +64,9 @@ export function waEligible(p = {}) {
 // The group is about the looks (the owner, 19.11: "מועדון הדיופים"): fashion, beauty and accessories first.
 export const LOOK_KINDS = Object.freeze(new Set(["clothing", "fitness", "bags", "hair", "makeup", "beauty", "earrings", "rings", "necklaces", "bracelets", "watches", "men", "shoes"]));
 const isLook = (p) => LOOK_KINDS.has(String(p?.kind || ""));
+// The looks she chose herself (the trend board / her own links), as against the server's daily deals import.
+const OWNER_PICK = /^aliexpress-(trend-board|owner-link)$/;
+export const OWNER_PICK_DAYS = 7;
 
 /**
  * Today's products: the radar's HOT looks, then the looks added in the last `days`, then the radar's other
@@ -81,9 +84,14 @@ export function pickKit({ products = [], keepIds = [], now = Date.now(), days = 
     .filter((p) => Number(p?.createdAt) >= since && /^aliexpress-(trend-board|owner-link|deals)$/.test(String(p?.importSource || "")))
     .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
   if (looksOnly) {
-    // מועדון הדיופים (19.11): the looks she just chose come first, then the radar's HOT looks.
-    for (const p of fresh.filter(isLook)) add(p, "new");
+    // מועדון הדיופים (19.11): the looks she chose come first (a week), then the radar's HOT looks, and the
+    // server's automatic daily imports last (20.11: football socks and basic tees went out before her looks).
+    const chosen = [...byId.values()]
+      .filter((p) => Number(p?.createdAt) >= now - OWNER_PICK_DAYS * DAY_MS && OWNER_PICK.test(String(p?.importSource || "")))
+      .sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+    for (const p of chosen.filter(isLook)) add(p, "new");
     for (const p of hot.filter(isLook)) add(p, "hot");
+    for (const p of fresh.filter(isLook)) add(p, "new");
     return out;
   }
   for (const p of hot.filter(isLook)) add(p, "hot");
