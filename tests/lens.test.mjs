@@ -57,3 +57,15 @@ test("the model runs in the browser from the CDN at an exact version; the labels
   assert.match(page, /trackFunnel\("magic_check", "lens", \{ kind: top\.id \}\)/);
   assert.doesNotMatch(page.slice(page.indexOf("function MagicLens"), page.indexOf("export function MagicPage")), /fetch\([^)]*(image|file|blob)/i, "the picture is never sent");
 });
+
+test("the labels the site ships are this watch list's, made with the same model, centred", async () => {
+  const doc = JSON.parse(readFileSync("public/lens/labels.json", "utf8"));
+  const { concepts } = JSON.parse(readFileSync("scripts/catalog/radar-concepts.json", "utf8"));
+  const { TREND_CATEGORIES } = await import("../src/lib/growth/trendBoard.js");
+  assert.equal(doc.model, LENS.model);
+  assert.deepEqual(doc.labels.map((l) => l.id).sort(), lensLabels(concepts, TREND_CATEGORIES).map((l) => l.id).sort(), "the watch list changed: run Actions → Radar lens labels and commit its labels.json");
+  const vs = doc.labels.map((l) => unpackVec(l.v));
+  const mean = vs[0].map((_, i) => vs.reduce((t, v) => t + v[i], 0) / vs.length);
+  assert.ok(Math.sqrt(mean.reduce((t, x) => t + x * x, 0)) < 0.1, "centred: no kind wins every picture");
+  assert.notEqual(LENS.visionDtype, "q8", "the 8-bit vision model answered wrong on 20.11");
+});

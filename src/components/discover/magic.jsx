@@ -371,9 +371,11 @@ function loadLens() {
       import(/* @vite-ignore */ LENS.lib),
     ]);
     lib.env.allowLocalModels = false;
+    const gpu = typeof navigator !== "undefined" && navigator.gpu;
+    const plain = () => lib.CLIPVisionModelWithProjection.from_pretrained(LENS.model, { dtype: LENS.visionDtype });
     const [processor, vision] = await Promise.all([
       lib.AutoProcessor.from_pretrained(LENS.model),
-      lib.CLIPVisionModelWithProjection.from_pretrained(LENS.model, { dtype: LENS.visionDtype }),
+      gpu ? lib.CLIPVisionModelWithProjection.from_pretrained(LENS.model, { device: "webgpu", dtype: LENS.webgpuDtype }).catch(plain) : plain(),
     ]);
     return { labels: doc.labels || [], lib, processor, vision };
   })();
@@ -420,7 +422,7 @@ function MagicLens() {
       <button type="button" onClick={() => input.current?.click()} className="lx-btn lx-btn-ink" style={{ minHeight: 60, fontSize: 18, justifyContent: "center" }} disabled={st.phase === "loading" || st.phase === "reading"}>
         {st.phase === "loading" || st.phase === "reading" ? <Spinner /> : "📸"} {L("בחירת צילום מסך", "Choose a screenshot")}
       </button>
-      <p className="lx-mute text-[13.5px]">{L("התמונה נבדקת רק בטלפון שלך ונשארת אצלך. לרדאר נרשם רק סוג המוצר, פעם אחת, בלי שום פרט עלייך. בפעם הראשונה הבינה המלאכותית נטענת לטלפון וזה לוקח קצת זמן, ואחר כך זה מהיר.", "The picture is checked only on your phone and stays there. The radar records only the kind of product, once, nothing about you. The first time, the AI loads onto your phone and takes a moment; after that it is fast.")}</p>
+      <p className="lx-mute text-[13.5px]">{L("התמונה נבדקת רק בטלפון שלך ונשארת אצלך. לרדאר נרשם רק סוג המוצר, פעם אחת, בלי שום פרט עלייך. בפעם הראשונה הבינה המלאכותית נטענת לטלפון (עד 45 מגה, עדיף ב־Wi‑Fi), ואחר כך זה מהיר.", "The picture is checked only on your phone and stays there. The radar records only the kind of product, once, nothing about you. The first time, the AI loads onto your phone (up to 45 MB, Wi‑Fi is best); after that it is fast.")}</p>
       {st.preview ? <div style={{ width: 120, height: 160, borderRadius: 14, overflow: "hidden", border: "1px solid var(--lx-line)" }}><Img src={st.preview} alt={L("צילום המסך שבחרת", "Your screenshot")} style={{ width: 120, height: 160, objectFit: "cover" }} /></div> : null}
       {st.phase === "loading" ? <p className="text-[14px] font-bold">{L("טוענת את הבינה המלאכותית לטלפון…", "Loading the AI onto your phone…")}</p> : null}
       {st.phase === "reading" ? <p className="text-[14px] font-bold">{L("מסתכלת על התמונה…", "Looking at the picture…")}</p> : null}

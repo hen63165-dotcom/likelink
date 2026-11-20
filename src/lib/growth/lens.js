@@ -10,7 +10,10 @@
 
 export const LENS = Object.freeze({
   model: "Xenova/mobileclip_s0",
-  visionDtype: "q8",
+  // 20.11 on 16 store photos: the 8-bit vision model (11.8 MB) answered wrong on almost all of them; fp16
+  // (22.9 MB) and fp32 (45.5 MB) gave the same, right answers. fp16 where the browser has WebGPU.
+  visionDtype: "fp32",
+  webgpuDtype: "fp16",
   textDtype: "fp32",
   scale: 100, // CLIP's logit scale
   sure: 0.6, // the top kind's share of the model's belief to say "looks like"

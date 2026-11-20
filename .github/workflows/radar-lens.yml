@@ -10,6 +10,8 @@ on:
       - scripts/catalog/radar-lens.mjs
       - src/lib/growth/lens.js
       - .github/workflows/radar-lens.yml
+      - scripts/audit/lens-ui.mjs
+      - src/components/discover/magic.jsx
 permissions:
   contents: write
 concurrency:
@@ -28,11 +30,27 @@ jobs:
       - name: Labels and the vision check
         run: |
           set -o pipefail
-          LENS_DTYPES=q8,fp16,fp32 node scripts/catalog/radar-lens.mjs lens-out | tee /tmp/lens.txt
+          LENS_DTYPES=fp16,fp32 node scripts/catalog/radar-lens.mjs lens-out | tee /tmp/lens.txt
           { echo "### Radar lens"; echo '```'; cat /tmp/lens.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: The lens in a real browser (this branch built and served here, a store photo given to /magic)
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
+          AUDIT_BASE: http://127.0.0.1:4173
+        run: |
+          set -o pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-core >/dev/null
+          npm install --prefix /tmp/pw --no-audit --no-fund playwright@1.56.1 >/dev/null
+          npm ci --no-audit --no-fund >/dev/null
+          npm run build >/tmp/build.log 2>&1 || { tail -40 /tmp/build.log; exit 1; }
+          nohup npx vite preview --port 4173 --strictPort --host 127.0.0.1 >/tmp/preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          node scripts/audit/lens-ui.mjs lens-ui | tee -a /tmp/lens.txt
+          { echo "### Lens in the browser"; echo '```'; tail -20 /tmp/lens.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep them on the review release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view radar-lens >/dev/null 2>&1 || gh release create radar-lens --prerelease --title "Radar lens labels" --notes "MobileCLIP-S0 text vectors for the kinds the radar measures, for public/lens/labels.json. The site never reads this release."
           gh release upload radar-lens lens-out/labels.json /tmp/lens.txt --clobber
+          ls lens-ui/*.png >/dev/null 2>&1 && gh release upload radar-lens lens-ui/*.png --clobber || true
