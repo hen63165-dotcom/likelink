@@ -18,7 +18,7 @@
 //   4. Every chance is sealed (the book "window" in the daily root) and graded on its day like a
 //      weather forecast: Brier score, base rate, skill and the reliability table, never edited.
 // Pure: the runner reads the store and seals; this file only does the arithmetic.
-import { bandOf, calibrate, featuresAt, predict, targetAt, xOf } from "./radarPromise.js";
+import { bandOf, calibrate, examples, featuresAt, predict, targetAt, xOf } from "./radarPromise.js";
 
 export const WINDOW = Object.freeze({
   version: 1,
@@ -114,7 +114,17 @@ export function readQueue(hist, state, today, { rules = WINDOW } = {}) {
 }
 
 /** This morning's clock: the promise engine's calibration on the listing series. */
-export const calibrateWindow = (series, today) => calibrate(series, today, { rules: WINDOW });
+export function calibrateWindow(series, today, { rules = WINDOW } = {}) {
+  const calib = calibrate(series, today, { rules });
+  // How many held-out errors the small band (under the line) has so far, ready or not: the page
+  // shows the clock's progress honestly ("12 of 20"), never a bare 0 while it is learning.
+  for (const h of rules.horizons) {
+    const ex = examples(series, h, today, { rules });
+    const held = ex.slice(Math.floor(ex.length * rules.trainShare));
+    calib[h].small = held.filter((e) => e.band === 0).length;
+  }
+  return calib;
+}
 
 /**
  * The calibrated chance that the listings are at or above the line on day h: the share of the same
@@ -219,7 +229,7 @@ export function windowBoard(state, calib, issued, today, { rules = WINDOW } = {}
     line: rules.line,
     horizons: rules.horizons.map((h) => {
       const c = calib?.[h] || { state: "CALIBRATING", n: 0 };
-      return { h, state: c.state === "READY" && c.res?.bands?.[0]?.length ? "READY" : "CALIBRATING", n: c.n || 0, need: rules.minCalib, small: c.res?.bands?.[0]?.length || 0, smallNeed: rules.minGroup };
+      return { h, state: c.state === "READY" && c.res?.bands?.[0]?.length ? "READY" : "CALIBRATING", n: c.n || 0, need: rules.minCalib, small: c.small ?? c.res?.bands?.[0]?.length ?? 0, smallNeed: rules.minGroup };
     }),
     record: windowRecord(state, { rules }),
     issued: issued.length,

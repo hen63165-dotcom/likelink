@@ -83,6 +83,9 @@ test("the clock learns from the listing series and speaks only for its own size 
   const calBig = calibrateWindow(big, today);
   assert.equal(closeChance(fast, today, calBig[3]), null);
   assert.equal(windowBoard(newWindowState(), calBig, [], today).horizons[0].state, "CALIBRATING");
+  assert.equal(calBig[3].small, 0, "the small band's progress is counted, ready or not");
+  assert.ok(calib[3].small >= WINDOW.minGroup);
+  assert.equal(windowBoard(newWindowState(), calib, [], today).horizons[0].small, calib[3].small);
 });
 
 test("every chance is graded on its day like a weather forecast, and the record adds up", () => {
