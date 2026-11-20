@@ -114,7 +114,7 @@ export function admitDiscovered(current = [], candidates = [], { concepts = [], 
     if (kept.length >= rules.maxAuto || added >= rules.perDay) break;
     const id = autoId(cand.en);
     if (ids.has(id) || covered(cand.en, [...concepts, ...kept])) continue;
-    kept.push({ id, he: cand.en, en: cand.en, kind: cand.kind || "", hq: [], auto: true, found: today, why: { items: cand.items, orders: cand.orders, category: cand.category } });
+    kept.push({ id, he: cand.en, en: cand.en, kind: cand.kind || "", hq: [], auto: true, found: today, why: { items: cand.items, orders: cand.orders, category: cand.category, ...(cand.via ? { via: cand.via } : {}) } });
     ids.add(id);
     added++;
   }

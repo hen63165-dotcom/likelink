@@ -165,6 +165,7 @@ export function sanitizeBoard(doc) {
     } : null,
     rules: { hitPct: num(doc.rules?.hitPct) ?? 15, gradeDays: num(doc.rules?.gradeDays) ?? 14 },
     fresh: cleanFresh(doc.fresh),
+    kinds: cleanKinds(doc.kinds),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -289,6 +290,30 @@ function cleanFresh(f) {
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
   return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, seal: cleanBook(f.seal, FRESH_BOOK), record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
+}
+
+// The kinds' book (newKinds.js kindsSealText): `name|called on|item+item…|orders then|graded on|grade` per line.
+const KIND_LINE = "[a-z0-9' ]{3,60}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d{6,20}(?:\\+\\d{6,20})*\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
+const KINDS_BOOK = new RegExp(`^${KIND_LINE}(\\n${KIND_LINE})*$`);
+const KIND_NAME = /^[a-z0-9' ]{3,60}$/;
+
+/** New kinds found by meaning (newKinds.js): the store's own words, the measured growth, up to 3 samples. */
+function cleanKinds(k) {
+  if (!k || typeof k !== "object") return null;
+  const list = (Array.isArray(k.list) ? k.list : []).slice(0, 8).map((x) => {
+    if (!KIND_NAME.test(String(x?.en || "")) || num(x.medianWeekPct) === null || num(x.orders) === null || !Array.isArray(x.members)) return null;
+    const samples = (Array.isArray(x.samples) ? x.samples : []).slice(0, 3).map((m) => {
+      const buy = typeof m?.buy === "string" && BUY.test(m.buy) ? m.buy : null;
+      const image = radarImage(m?.image);
+      if (!ITEM.test(String(m?.id || "")) || !buy || !image) return null;
+      return { id: String(m.id), title: str(m.title, 140), image, buy, orders: num(m.orders), weekPct: num(m.weekPct) };
+    }).filter(Boolean);
+    if (!samples.length) return null;
+    return { en: x.en, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+  }).filter(Boolean);
+  const rec = k.record && typeof k.record === "object" ? k.record : {};
+  const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));
+  return { model: str(k.model, 60), tracked: Math.max(0, num(k.tracked) ?? 0), list, seal: cleanBook(k.seal, KINDS_BOOK), record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
 }
 
 /**

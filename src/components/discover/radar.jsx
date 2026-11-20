@@ -732,6 +732,52 @@ function FreshRisers({ fresh, world = null }) {
 }
 
 /**
+ * New kinds found by meaning (src/lib/growth/newKinds.js; the owner, 2026-11-20: "כן לשתיהן"): an open
+ * AI model reads every new listing's title each morning and groups them by meaning, so a new kind
+ * shows here before it has one name. Only what was measured: the median weekly growth of its new
+ * listings, their orders, the store's own words; every kind shown is sealed and graded in public.
+ */
+function NewKinds({ kinds }) {
+  const { L } = useL();
+  if (!kinds) return null;
+  const rec = kinds.record || {};
+  return (
+    <section className="lx-wrap mt-8" id="kinds">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#eef2ff" }}>
+        <h2 className="text-[22px] font-black">{L("🧬 סוגים חדשים שהבינה המלאכותית של הרדאר מצאה", "🧬 New kinds the radar's AI found")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`כל בוקר מודל בינה מלאכותית פתוח קורא את הכותרות של ${(kinds.tracked || 0).toLocaleString("he-IL")} מודעות חדשות של השנה ומקבץ אותן לפי משמעות, גם כשכל מוכר קורא למוצר בשם אחר. סוג חדש מופיע כאן כששלוש מודעות חדשות שלו או יותר גדלות יחד: החציון שלהן עולה ב־25% בשבוע או יותר, והסוג עוד קטן. מודעה אחת שהתפוצצה לבד נשארת בחוץ. השם הוא המילים של המוכרים.`, `Every morning an open AI model reads the titles of ${(kinds.tracked || 0).toLocaleString("en-US")} new listings of the year and groups them by meaning, even when every seller names the product differently. A new kind shows here when three or more of its new listings grow together: their median grows 25% a week or more, and the kind is still small. One listing that took off alone stays out. The name is the sellers' own words.`)}</p>
+        <p className="mt-2 text-[13px] font-bold">{rec.graded ? L(`📏 הציון בפומבי: מתוך ${rec.graded} סוגים שהרדאר הצביע עליהם, ${rec.hits} עלו ב־50% או יותר תוך 14 יום (${rec.accuracy}%).`, `📏 Public grade: of ${rec.graded} kinds the radar pointed to, ${rec.hits} grew 50%+ within 14 days (${rec.accuracy}%).`) : rec.pending ? L(`📏 כל סוג שמוצג כאן נחתם ונבדק אחרי 14 יום על אותן מודעות: פגע אם ההזמנות שלהן יחד עלו ב־50% או יותר. ${rec.pending} מחכים לבדיקה, הראשונה ב־${dm(rec.nextDue)}.`, `📏 Every kind shown here is sealed and graded after 14 days on the same listings: a hit if their orders together grew 50%+. ${rec.pending} waiting, the first on ${dm(rec.nextDue)}.`) : L("📏 כל סוג שיוצג כאן ייחתם וייבדק אחרי 14 יום על אותן מודעות, בפומבי: פגע אם ההזמנות שלהן יחד עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every kind shown here is sealed and graded after 14 days on the same listings, in public: a hit if their orders together grew 50%+; misses stay here too.")}</p>
+        {kinds.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }} dir="ltr">{kinds.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.en} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
+        {kinds.list?.length ? (
+          <>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתורי החנות הם קישורי שותפים", "#ad · the store buttons are affiliate links")}</p>
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              {kinds.list.map((k) => (
+                <li key={k.en} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
+                  <p className="text-[17px] font-black" dir="ltr" style={{ textAlign: "start" }}>{k.en}</p>
+                  <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${k.medianWeekPct}% בשבוע (החציון של ${k.measured} מודעות)`, `🚀 +${k.medianWeekPct}% a week (the median of ${k.measured} listings)`)}</p>
+                  <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${k.members} מודעות חדשות · ${k.orders.toLocaleString("he-IL")} הזמנות ב־30 יום, יחד (אליאקספרס)${k.first ? ` · הראשונה נקראה ב־${dm(k.first)}` : ""}`, `${k.members} new listings · ${k.orders.toLocaleString("en-US")} orders in 30 days, together (AliExpress)${k.first ? ` · the first read on ${dm(k.first)}` : ""}`)}</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {k.samples.map((m) => (
+                      <a key={m.id} href={m.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit(`kind-${k.category || "new"}`, m.buy)} title={m.title} style={{ display: "block", borderRadius: 10, overflow: "hidden", border: "1px solid var(--lx-line)" }}>
+                        <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#fff" }}><Img src={m.image} alt={m.title} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>
+                        <span className="block px-1 py-0.5 text-center text-[11px] font-bold">{m.weekPct !== null ? `+${m.weekPct}%` : ""} <ExternalLink size={10} aria-hidden="true" /></span>
+                      </a>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-3 text-[14px] font-bold">{L(`עוד שקט 🤫 הבינה המלאכותית קוראת ${(kinds.tracked || 0).toLocaleString("he-IL")} מודעות חדשות כל בוקר. סוג חדש יופיע כאן ביום ששלוש מודעות שלו יגדלו יחד.`, `Still quiet 🤫 The AI reads ${(kinds.tracked || 0).toLocaleString("en-US")} new listings every morning. A new kind shows here on the day three of its listings grow together.`)}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
  * The styles radar (the owner, 2026-11-17: "the look everyone wants from the big brands, without
  * the brand's name"): every look is one generic store search, measured every morning like every kind
  * (the top 20 items' orders, the listings, Hebrew searches in Israel) and its calls are sealed and
@@ -776,8 +822,8 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", globe: "next-country calls", prices: "store prices" };
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", globe: "next-country calls", prices: "store prices" };
 
 /**
  * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
@@ -854,7 +900,7 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
-function Ledger({ ledger, freshBook = null, stagesBook = null, anchors = null }) {
+function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
   const anchored = anchors?.list || [];
@@ -870,6 +916,7 @@ function Ledger({ ledger, freshBook = null, stagesBook = null, anchors = null })
           {ledger.text ? <> · <a className="underline" download={`radar-ledger-${ledger.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(ledger.text)}`}>{L("השורש (טקסט)", "the root (text)")}</a></> : null}
           {stagesBook?.text ? <> · <a className="underline" download={`radar-stages-${stagesBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(stagesBook.text)}`}>{L(`כל ${stagesBook.count} קביעות השלב`, `all ${stagesBook.count} stage calls`)}</a></> : null}
           {freshBook?.text ? <> · <a className="underline" download={`radar-fresh-${freshBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(freshBook.text)}`}>{L(`כל ${freshBook.count} המוצרים החדשים שהוצגו`, `all ${freshBook.count} new products shown`)}</a></> : null}
+          {kindsBook?.text ? <> · <a className="underline" download={`radar-kinds-${kindsBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(kindsBook.text)}`}>{L(`כל ${kindsBook.count} הסוגים החדשים שהוצגו`, `all ${kindsBook.count} new kinds shown`)}</a></> : null}
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
@@ -1200,9 +1247,10 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
       {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
-      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} anchors={board.anchors} /> : null}
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} anchors={board.anchors} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
+      {!gated && board?.kinds ? <NewKinds kinds={board.kinds} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
