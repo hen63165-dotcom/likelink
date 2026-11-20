@@ -40,7 +40,9 @@ const cleanAnchors = (a) => (a && typeof a === "object" ? {
   pending: Number.isInteger(a.pending) && a.pending >= 0 ? a.pending : 0,
   since: /^\d{4}-\d{2}-\d{2}$/.test(String(a.since || "")) ? a.since : null,
 } : null);
-const LEDGER_ROOT = /^(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|globe|prices)=[0-9a-f]{64})*$/;
+// Every book of radarLedger.js LEDGER_BOOKS (a test keeps the two equal): on 20.11 the root named
+// brain= and the page dropped the root text, so nobody could recompute it.
+const LEDGER_ROOT = /^(early|stages|luck|fresh|kinds|brain|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|kinds|brain|globe|prices)=[0-9a-f]{64})*$/;
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";

@@ -54,6 +54,19 @@ test("the board keeps the sealed books and drops anything else", () => {
   assert.equal(bad.fresh.seal, null);
 });
 
+test("the page keeps a root over every book, the brain and the new kinds included", () => {
+  // 20.11: the root carried brain= and the sanitizer dropped its text, so the page showed no root to recompute.
+  const books = Object.fromEntries(LEDGER_BOOKS.map((k) => [k, sha(k)]));
+  const root = ledgerText(books);
+  assert.deepEqual(root.split("\n").map((l) => l.split("=")[0]), LEDGER_BOOKS);
+  const board = sanitizeBoard({ v: 2, at: "2026-11-20T06:00:00Z", record: {}, concepts: [], ledger: { d: "2026-11-20", sha256: sha(root), count: LEDGER_BOOKS.length, text: root, ots: [] } });
+  assert.equal(board.ledger.text, root);
+  for (const k of LEDGER_BOOKS) {
+    const one = ledgerText({ [k]: sha(k) });
+    assert.equal(sanitizeBoard({ v: 2, at: "2026-11-20T06:00:00Z", record: {}, concepts: [], ledger: { d: "2026-11-20", sha256: sha(one), count: 1, text: one, ots: [] } }).ledger.text, one, k);
+  }
+});
+
 test("the root is public behind the lock: it names no call", () => {
   const root = ledgerText({ early: sha("e") });
   const teaser = teaserBoard({ v: 2, at: "2026-11-17T06:00:00Z", ledger: { d: "2026-11-17", sha256: sha(root), count: 1, text: root, ots: [] }, fresh: { risers: [{ id: "1005009000000002" }] } });
