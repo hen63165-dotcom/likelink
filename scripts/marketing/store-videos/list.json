@@ -1,15 +1,22 @@
 {
-  "why": "Fashion & beauty 2026-11-19 (the owner: the hottest looks of the brands everyone wants, without the name): the radar's HOT hair/beauty/clothing items today. photos: the store's gallery on one sheet each, to check by eye for logos and the real item before adding.",
-  "photos": true,
+  "why": "Daily run 2026-11-20: the radar's HOT site products today (orders +10%/week or more, 300+ orders) that have no reel yet: the egg mold (+479%), the two cable trays, the men's winter socks, the 6-piece watch set and the two winter sweaters. The store's own video and its sheet, kept for an edit after a check by eye.",
+  "photos": false,
   "ids": [
-    "1005008077506607",
-    "1005008660103911",
-    "1005010001656201",
-    "1005013236635286",
-    "1005012967925438",
-    "1005012333100100",
-    "1005009992728109",
-    "1005010128294875",
-    "1005007856959855"
+    "1005013424006089",
+    "1005012966678990",
+    "1005013205496649",
+    "1005010155293582",
+    "1005011942976222",
+    "1005008077732057",
+    "1005010487233953"
+  ],
+  "keep": [
+    "1005013424006089",
+    "1005012966678990",
+    "1005013205496649",
+    "1005010155293582",
+    "1005011942976222",
+    "1005008077732057",
+    "1005010487233953"
   ]
 }
