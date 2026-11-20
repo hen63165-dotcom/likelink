@@ -710,6 +710,7 @@ function FreshRisers({ fresh, world = null }) {
                     <p className="text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{r.title}</p>
                     <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
                     {r.sure ? <p className="text-[13px] font-black" style={{ color: "#0b0b0b" }}>{L(`🎯 הקול המוכח: לפחות ${r.sure}%`, `🎯 Proven voice: at least ${r.sure}%`)}</p> : null}
+                    {r.promise ? <p className="text-[12px] font-bold" style={{ color: "#0f766e" }}>{L(`📐 בעוד ${r.promise.h} יום, ${r.promise.r90 ? `בכיסוי 90%: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `בכיסוי 80%: ${r.promise.r80[0]}–${r.promise.r80[1]}`} הזמנות ב־30 יום (היום ${r.promise.o})${r.promise.clears ? `. כל הטווח מעל קו הפגיעה של +50%` : ""}`, `📐 In ${r.promise.h} days, ${r.promise.r90 ? `at 90% coverage: ${r.promise.r90[0]}–${r.promise.r90[1]}` : `at 80% coverage: ${r.promise.r80[0]}–${r.promise.r80[1]}`} orders in 30 days (today ${r.promise.o})${r.promise.clears ? ". The whole range is above the +50% hit line" : ""}`)}</p> : null}
                     {r.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 מוצרים דומים שהרדאר הצביע עליהם בעבר: ${r.learned.hits} מתוך ${r.learned.n} פגעו`, `🧠 Similar products the radar pointed to before: ${r.learned.hits} of ${r.learned.n} hit`)}</p> : null}
                     <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                     {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
@@ -787,6 +788,39 @@ function NewKinds({ kinds }) {
  * from every graded call that recorded its signals the day it was made — each signal's record with and
  * without it, and the weekly learning curve. History only; its state is sealed every day.
  */
+/** 📐 The proven range (radarPromise.js): what the radar commits to, and how often it held. */
+function ProvenRange({ promise }) {
+  const { L } = useL();
+  const graded = (promise.coverage || []).filter((c) => c.n > 0);
+  const ready = (promise.horizons || []).filter((h) => h.state === "READY");
+  return (
+    <section className="lx-wrap mt-8" id="promise">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0f766e", background: "#f0fdfa" }}>
+        <h2 className="text-[22px] font-black">{L("📐 הטווח המוכח: מה הרדאר כן מתחייב עליו", "📐 The proven range: what the radar does commit to")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("כל בוקר הרדאר נותן למוצרים שהוא מודד טווח להזמנות שלהם בעוד 3, 7 ו־14 יום, ברמת כיסוי של 80% ו־90%. כל טווח נחתם בביטקוין ביום שניתן, נבדק ביום שלו, ונספר כאן: החזיק או החטיא.", "Every morning the radar gives the products it measures a range for their orders in 3, 7 and 14 days, at 80% and 90% coverage. Every range is sealed in Bitcoin the day it is given, checked on its day, and counted here: held or missed.")}</p>
+        <p className="mt-2 text-[13px] leading-6">{L("איך: מודל שלומד כל בוקר מההיסטוריה של הרדאר עצמו, ו־Conformal Prediction שקובע את רוחב הטווח לפי הטעויות של המודל על נתונים ששמר בצד. כל טווח שנבדק מזיז את הרמה של הטווחים הבאים (ACI), ולכן לאורך זמן אחוז הטווחים שמחזיקים מתכנס לרמה שהוצהרה, גם כשהשוק משתנה.", "How: a model that learns every morning from the radar's own history, and conformal prediction, which sets each range's width from the model's errors on data held aside. Every checked range moves the level of the next ones (ACI), so over time the share of ranges that hold converges to the stated level, even when the market shifts.")}</p>
+        <ul className="mt-3 grid gap-1.5">
+          {(promise.horizons || []).map((h) => (
+            <li key={h.h} className="text-[13px] font-bold">{h.state === "READY" ? L(`✅ ${h.h} ימים: מוכן, לומד מ־${h.n} דוגמאות`, `✅ ${h.h} days: ready, learning from ${h.n} examples`) : L(`⏳ ${h.h} ימים: בכיול, ${h.n} מתוך ${h.need} דוגמאות`, `⏳ ${h.h} days: calibrating, ${h.n} of ${h.need} examples`)}</li>
+          ))}
+        </ul>
+        {graded.length ? (
+          <div className="mt-3">
+            <p className="text-[15px] font-black">{L("הרקורד, כמו שהוא:", "The record, as it is:")}</p>
+            <ul className="mt-1 grid gap-1">
+              {graded.map((c) => <li key={`${c.h}-${c.level}`} className="text-[13px]">{L(`${c.h} ימים, כיסוי ${c.level}%: ${c.held} מתוך ${c.n} טווחים החזיקו (${c.rate}%)`, `${c.h} days, ${c.level}% coverage: ${c.held} of ${c.n} ranges held (${c.rate}%)`)}</li>)}
+            </ul>
+          </div>
+        ) : (
+          <p className="mt-3 text-[13px] font-bold">{promise.nextDue ? L(`${promise.open} טווחים חתומים מחכים ליום שלהם. הבדיקה הראשונה ב־${dm(promise.nextDue)}.`, `${promise.open} sealed ranges are waiting for their day. The first check is on ${dm(promise.nextDue)}.`) : L(`הטווחים הראשונים ניתנים כשאופק אחד מסיים כיול.`, `The first ranges are given once a horizon finishes calibrating.`)}</p>
+        )}
+        {ready.length && promise.issued ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`היום ניתנו ${promise.issued} טווחים חדשים, כולם בספר החתימות.`, `Today ${promise.issued} new ranges were given, all in the sealed ledger.`)}</p> : null}
+        {promise.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{promise.recent.slice(0, 6).map((g) => `${g.held[1] === 1 ? "✅" : g.held[1] === 0 ? "❌" : "·"} ${g.h}${L(" ימים", "d")}: ${g.r90 ? `${g.r90[0]}–${g.r90[1]}` : "-"} → ${g.v}`).join(" · ")}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function Brain({ brain }) {
   const { L } = useL();
   const books = [["fresh", L("מוצרים חדשים", "New products")], ["kinds", L("סוגים חדשים", "New kinds")]].filter(([k]) => brain.books?.[k]);
@@ -884,8 +918,8 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", brain: "המוח: מה הרדאר למד", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", brain: "the brain: what the radar learned", globe: "next-country calls", prices: "store prices" };
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", brain: "המוח: מה הרדאר למד", promise: "הטווחים המוכחים", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", brain: "the brain: what the radar learned", promise: "the proven ranges", globe: "next-country calls", prices: "store prices" };
 
 /**
  * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
@@ -962,7 +996,7 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
-function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, anchors = null }) {
+function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, promiseBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
   const anchored = anchors?.list || [];
@@ -980,6 +1014,7 @@ function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null,
           {freshBook?.text ? <> · <a className="underline" download={`radar-fresh-${freshBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(freshBook.text)}`}>{L(`כל ${freshBook.count} המוצרים החדשים שהוצגו`, `all ${freshBook.count} new products shown`)}</a></> : null}
           {kindsBook?.text ? <> · <a className="underline" download={`radar-kinds-${kindsBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(kindsBook.text)}`}>{L(`כל ${kindsBook.count} הסוגים החדשים שהוצגו`, `all ${kindsBook.count} new kinds shown`)}</a></> : null}
           {brainBook?.text ? <> · <a className="underline" download={`radar-brain-${brainBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(brainBook.text)}`}>{L("מה המוח למד", "what the brain learned")}</a></> : null}
+          {promiseBook?.text ? <> · <a className="underline" download={`radar-ranges-${promiseBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(promiseBook.text)}`}>{L(`כל ${promiseBook.count} הטווחים של היום`, `all ${promiseBook.count} ranges of the day`)}</a></> : null}
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
@@ -1321,11 +1356,12 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
       {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
-      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} anchors={board.anchors} /> : null}
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} anchors={board.anchors} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.kinds ? <NewKinds kinds={board.kinds} /> : null}
       {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
+      {board?.promise ? <ProvenRange promise={board.promise} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}
