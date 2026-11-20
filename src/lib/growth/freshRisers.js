@@ -13,6 +13,7 @@ import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
 import { phrasesOf } from "./radarDiscovery.js";
 import { echoOf } from "./worldPulse.js";
+import { BRAIN, freshFeatures } from "./radarBrain.js";
 
 export const FRESH = Object.freeze({
   minOrders: 30, // under that a week's growth is noise
@@ -101,7 +102,7 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
     if (m.weekPct === null || !(m.orders >= rules.minOrders) || m.orders > rules.maxOrders || m.weekPct < rules.minWeekPct) continue;
     const before = itemMomentum((items?.[e.id] || []).slice(0, -1), { rules: HOT });
     if (before.weekPct === null || before.weekPct < rules.heldWeekPct) continue;
-    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
+    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
   }
   rows.sort((a, b) => b.weekPct - a.weekPct || a.orders - b.orders);
   const since = entries.map((e) => e.first).filter(Boolean).sort()[0] || null;
@@ -126,7 +127,8 @@ export function recordFresh(calls = [], risers = [], today, { rules = FRESH } = 
   const list = Array.isArray(calls) ? [...calls] : [];
   for (const r of risers) {
     if (list.some((c) => c.id === r.id && !c.result)) continue;
-    list.push({ id: r.id, title: r.title, at: today, base: r.orders, due: addDays(today, rules.gradeDays) });
+    // The brain (radarBrain.js) learns from what the call knew the day it was made, under its version.
+    list.push({ id: r.id, title: r.title, at: today, base: r.orders, due: addDays(today, rules.gradeDays), f: freshFeatures(r), v: BRAIN.version });
   }
   return list.slice(-2000);
 }

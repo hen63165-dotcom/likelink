@@ -709,6 +709,7 @@ function FreshRisers({ fresh, world = null }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{r.title}</p>
                     <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
+                    {r.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 מוצרים דומים שהרדאר הצביע עליהם בעבר: ${r.learned.hits} מתוך ${r.learned.n} פגעו`, `🧠 Similar products the radar pointed to before: ${r.learned.hits} of ${r.learned.n} hit`)}</p> : null}
                     <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                     {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
                     <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${r.ordersBefore} הזמנות ב־${dm(r.from)} ← ${r.orders} ב־${dm(r.to)} (30 יום, אליאקספרס)`, `${r.ordersBefore} orders on ${dm(r.from)} → ${r.orders} on ${dm(r.to)} (30 days, AliExpress)`)}{r.price ? L(` · מ־₪${r.price}`, ` · from ₪${r.price}`) : ""}</p>
@@ -756,6 +757,7 @@ function NewKinds({ kinds }) {
                 <li key={k.en} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
                   <p className="text-[17px] font-black" dir="ltr" style={{ textAlign: "start" }}>{k.en}</p>
                   <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${k.medianWeekPct}% בשבוע (החציון של ${k.measured} מודעות)`, `🚀 +${k.medianWeekPct}% a week (the median of ${k.measured} listings)`)}</p>
+                  {k.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 סוגים דומים בעבר: ${k.learned.hits} מתוך ${k.learned.n} פגעו`, `🧠 Similar kinds before: ${k.learned.hits} of ${k.learned.n} hit`)}</p> : null}
                   <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${k.members} מודעות חדשות · ${k.orders.toLocaleString("he-IL")} הזמנות ב־30 יום, יחד (אליאקספרס)${k.first ? ` · הראשונה נקראה ב־${dm(k.first)}` : ""}`, `${k.members} new listings · ${k.orders.toLocaleString("en-US")} orders in 30 days, together (AliExpress)${k.first ? ` · the first read on ${dm(k.first)}` : ""}`)}</p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {k.samples.map((m) => (
@@ -772,6 +774,48 @@ function NewKinds({ kinds }) {
         ) : (
           <p className="mt-3 text-[14px] font-bold">{L(`עוד שקט 🤫 הבינה המלאכותית קוראת ${(kinds.tracked || 0).toLocaleString("he-IL")} מודעות חדשות כל בוקר. סוג חדש יופיע כאן ביום ששלוש מודעות שלו יגדלו יחד.`, `Still quiet 🤫 The AI reads ${(kinds.tracked || 0).toLocaleString("en-US")} new listings every morning. A new kind shows here on the day three of its listings grow together.`)}</p>
         )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The radar's brain (src/lib/growth/radarBrain.js; the owner, 2026-11-20: "כן למוח"): what it learned
+ * from every graded call that recorded its signals the day it was made — each signal's record with and
+ * without it, and the weekly learning curve. History only; its state is sealed every day.
+ */
+function Brain({ brain }) {
+  const { L } = useL();
+  const books = [["fresh", L("מוצרים חדשים", "New products")], ["kinds", L("סוגים חדשים", "New kinds")]].filter(([k]) => brain.books?.[k]);
+  const waiting = books.reduce((t, [k]) => t + (brain.books[k].waiting || 0), 0);
+  const nextDue = books.map(([k]) => brain.books[k].nextDue).filter(Boolean).sort()[0] || null;
+  return (
+    <section className="lx-wrap mt-8" id="brain">
+      <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#f5f3ff" }}>
+        <h2 className="text-[22px] font-black">{L("🧠 המוח של הרדאר: מה הוא למד", "🧠 The radar's brain: what it learned")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("כל קביעה נשמרת עם הסימנים שהיו לה ביום שנעשתה: הקצב, כמה מוכרים, מה קורה ביוטיוב, המחיר. אחרי הציון המוח בודק אילו סימנים הובילו לפגיעה ואילו לטעות, ומסדר לפי זה את מה שעבר את הרף. הרף עצמו נשאר כמו שהוא. כל מספר כאן הוא מה שכבר קרה, עם כמה קביעות הוא נשען עליו.", "Every call is saved with the signals it had the day it was made: the pace, how many sellers, what is happening on YouTube, the price. After the grade, the brain checks which signals led to hits and which to misses, and orders what passed the bar by it. The bar itself stays as it is. Every number here is what already happened, with how many calls it rests on.")}</p>
+        {!brain.ready ? (
+          <p className="mt-3 text-[14px] font-bold">{waiting ? L(`המוח לומד מהציון הראשון: ${waiting} קביעות עם הסימנים שלהן מחכות לציון${nextDue ? `, הראשונה ב־${dm(nextDue)}` : ""}. הוא מסיק מסקנה על סימן אחרי 5 ציונים עם הסימן ו־5 בלעדיו.`, `The brain learns from the first grade: ${waiting} calls with their signals are waiting${nextDue ? `, the first on ${dm(nextDue)}` : ""}. It draws a conclusion about a signal after 5 grades with it and 5 without.`) : L("המוח מתחיל לאסוף מהקביעה הבאה.", "The brain starts collecting from the next call.")}</p>
+        ) : null}
+        {books.map(([k, label]) => {
+          const b = brain.books[k];
+          const ready = b.signals.filter((x) => x.ready);
+          if (!b.graded) return null;
+          return (
+            <div key={k} className="mt-4">
+              <p className="text-[15px] font-black">{L(`${label}: ${b.hits} מתוך ${b.graded} קביעות שקיבלו ציון פגעו`, `${label}: ${b.hits} of ${b.graded} graded calls hit`)}</p>
+              {ready.length ? (
+                <ul className="mt-2 grid gap-1.5">
+                  {ready.map((x) => (
+                    <li key={x.key} className="text-[13px] leading-5">{x.lift > 0 ? "⬆️" : x.lift < 0 ? "⬇️" : "➖"} <b>{L(x.he, x.en)}</b>{L(`: עם הסימן ${x.with.hits} מתוך ${x.with.n} פגעו, בלעדיו ${x.without.hits} מתוך ${x.without.n}.`, `: with it ${x.with.hits} of ${x.with.n} hit, without it ${x.without.hits} of ${x.without.n}.`)}</li>
+                  ))}
+                </ul>
+              ) : <p className="mt-1 text-[13px]">{L("עוד מעט: כל סימן צריך 5 ציונים איתו ו־5 בלעדיו.", "Soon: each signal needs 5 grades with it and 5 without.")}</p>}
+              {b.curve.length ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("עקומת הלמידה, לפי שבוע: ", "Learning curve, by week: ")}{b.curve.map((c) => `${dm(c.week)} ${c.hits}/${c.graded}`).join(" · ")}</p> : null}
+            </div>
+          );
+        })}
+        <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`גרסה ${brain.version} של המוח. כל יום המצב שלו נחתם בביטקוין יחד עם כל הספרים, כדי שכל אחד יראה מה הוא ידע ומתי. גרסה חדשה תפורסם כאן, וכל קביעה שומרת את הגרסה שבה נעשתה.`, `Brain version ${brain.version}. Every day its state is sealed in Bitcoin with all the books, so anyone can see what it knew and when. A new version is announced here, and every call keeps the version it was made under.`)}</p>
       </div>
     </section>
   );
@@ -822,8 +866,8 @@ function Styles({ concepts = [] }) {
  * measured themselves; here every book of calls, misses included, is sealed daily under one root,
  * and anyone can recompute it. Public behind the lock too: the root names no call.
  */
-const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
-const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", globe: "next-country calls", prices: "store prices" };
+const BOOK_HE = { early: "ההתראות המוקדמות", stages: "קביעות השלב (עולה / מתחיל לעלות)", luck: "הבחירות האקראיות (הרדאר מול המזל)", fresh: "המוצרים החדשים שהוצגו", kinds: "הסוגים החדשים שהבינה המלאכותית מצאה", brain: "המוח: מה הרדאר למד", globe: "קביעות המדינה הבאה", prices: "מחירי החנות" };
+const BOOK_EN = { early: "early calls", stages: "stage calls (rising / emerging)", luck: "random draws (the radar vs luck)", fresh: "new products shown", kinds: "new kinds the AI found", brain: "the brain: what the radar learned", globe: "next-country calls", prices: "store prices" };
 
 /**
  * "How do you know it's real?" (the owner, 17.11: "how will people understand there is nothing else
@@ -900,7 +944,7 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
-function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, anchors = null }) {
+function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
   const anchored = anchors?.list || [];
@@ -917,6 +961,7 @@ function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null,
           {stagesBook?.text ? <> · <a className="underline" download={`radar-stages-${stagesBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(stagesBook.text)}`}>{L(`כל ${stagesBook.count} קביעות השלב`, `all ${stagesBook.count} stage calls`)}</a></> : null}
           {freshBook?.text ? <> · <a className="underline" download={`radar-fresh-${freshBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(freshBook.text)}`}>{L(`כל ${freshBook.count} המוצרים החדשים שהוצגו`, `all ${freshBook.count} new products shown`)}</a></> : null}
           {kindsBook?.text ? <> · <a className="underline" download={`radar-kinds-${kindsBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(kindsBook.text)}`}>{L(`כל ${kindsBook.count} הסוגים החדשים שהוצגו`, `all ${kindsBook.count} new kinds shown`)}</a></> : null}
+          {brainBook?.text ? <> · <a className="underline" download={`radar-brain-${brainBook.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(brainBook.text)}`}>{L("מה המוח למד", "what the brain learned")}</a></> : null}
           {(ledger.ots || []).map((o) => <span key={o.cal}> · <a className="underline" download={`radar-ledger-${ledger.d}.txt.ots`} href={`data:application/octet-stream;base64,${o.b64}`}>{L(`הוכחה (${o.cal.split(".")[0]})`, `proof (${o.cal.split(".")[0]})`)}</a></span>)}
         </p>
         <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("לבדיקה: מורידים את השורש ואת ההוכחה וגוררים אותם ל־opentimestamps.org. כל שורה בשורש היא טביעת האצבע של ספר אחד, וכל ספר מתפרסם כאן בטקסט מלא.", "To check: download the root and the proof and drop them on opentimestamps.org. Each line of the root is one book's fingerprint, and each book is published here in full text.")}</p>
@@ -1258,10 +1303,11 @@ export function RadarPage() {
       <Verdict board={board} gated={gated} />
       <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
       {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
-      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} anchors={board.anchors} /> : null}
+      {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} anchors={board.anchors} /> : null}
       {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} /> : null}
       {!gated && board?.kinds ? <NewKinds kinds={board.kinds} /> : null}
+      {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
       {!gated && board?.concepts?.length ? <Styles concepts={board.concepts} /> : null}
       {!gated && board?.waves ? <Waves waves={board.waves} /> : null}
       {!gated && board?.crowd ? <Crowd crowd={board.crowd} /> : null}

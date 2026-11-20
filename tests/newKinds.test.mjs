@@ -61,7 +61,7 @@ test("the kind's name is in the store's own words, shared by at least two of its
 test("each kind shown is a call: graded on the same listings after 14 days, sealed, never edited", () => {
   const kinds = [{ en: "ear cuff", members: ["1001", "1002"], orders: 700, bases: { "1001": 400, "1002": 300 } }];
   let calls = recordKinds([], kinds, "2026-11-20");
-  assert.deepEqual(calls, [{ en: "ear cuff", at: "2026-11-20", bases: { "1001": 400, "1002": 300 }, base: 700, due: "2026-12-04" }]);
+  assert.deepEqual(calls, [{ en: "ear cuff", at: "2026-11-20", bases: { "1001": 400, "1002": 300 }, base: 700, due: "2026-12-04", f: { members: 2, median: null, orders: 700, category: "" }, v: 1 }]);
   assert.equal(recordKinds(calls, kinds, "2026-11-21").length, 1, "one open call per kind");
   const items = { "1001": [["2026-12-04", 700]], "1002": [["2026-12-04", 400]] };
   assert.equal(gradeKinds(calls, items, "2026-12-03")[0].result, undefined, "not before its day");

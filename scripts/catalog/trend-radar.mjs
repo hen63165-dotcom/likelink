@@ -40,6 +40,7 @@ import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReadi
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
 import { poolVectors } from "./radar-embed.mjs";
+import { brainText, freshFeatures, kindFeatures, learn, likeThis } from "../../src/lib/growth/radarBrain.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
@@ -728,6 +729,20 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     if (kindsText) board.kinds.seal = await sealBook({ text: kindsText, count: kindsText.split("\n").length }, prevBoard.kinds?.seal, "kinds");
     log.push(`kinds: ${shownKinds.length} shown · record ${JSON.stringify(board.kinds.record)}`);
   }
+  // 🧠 The brain (radarBrain.js): what the radar learned from every graded call that recorded its
+  // signals the day it was made; for today's risers and kinds, the record of past calls like them.
+  // History only, never a forecast; the bar stays as it is. Sealed every day as the book "brain".
+  {
+    const kindsAll = readJson(join(dir, "kinds-calls.json"), []);
+    const brain = learn({ fresh: freshCalls, kinds: kindsAll }, { today });
+    for (const r of board.fresh.risers) { const l = likeThis(freshFeatures(r), brain.books.fresh, freshCalls, { book: "fresh", today }); if (l) r.learned = l; }
+    for (const k of board.kinds?.list || []) { const l = likeThis(kindFeatures(k), brain.books.kinds, kindsAll, { book: "kinds", today }); if (l) k.learned = l; }
+    if (brain.books.fresh.ready) board.fresh.risers.sort((a, b) => (b.learned?.rate ?? -1) - (a.learned?.rate ?? -1) || b.weekPct - a.weekPct);
+    board.brain = brain;
+    const text = brainText(brain);
+    if (text) board.brain.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.brain?.seal, "brain");
+    log.push(`brain v${brain.version}: new products ${brain.books.fresh.graded} graded, ${brain.books.fresh.waiting} waiting · kinds ${brain.books.kinds.graded} graded, ${brain.books.kinds.waiting} waiting · learned ${brain.ready ? "yes" : "not yet"}`);
+  }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
@@ -888,7 +903,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

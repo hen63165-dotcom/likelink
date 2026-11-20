@@ -15,6 +15,7 @@
 import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
 import { CATEGORY_KIND, covered, phrasesOf } from "./radarDiscovery.js";
+import { BRAIN, kindFeatures } from "./radarBrain.js";
 
 export const KINDS = Object.freeze({
   model: "Xenova/all-MiniLM-L6-v2",
@@ -134,7 +135,7 @@ export function recordKinds(calls = [], kinds = [], today, { rules = KINDS } = {
   for (const k of kinds) {
     if (list.some((c) => c.en === k.en && !c.result)) continue;
     const bases = k.bases && typeof k.bases === "object" ? k.bases : {};
-    list.push({ en: k.en, at: today, bases, base: Object.values(bases).reduce((t, x) => t + (Number(x) || 0), 0), due: addDays(today, rules.gradeDays) });
+    list.push({ en: k.en, at: today, bases, base: Object.values(bases).reduce((t, x) => t + (Number(x) || 0), 0), due: addDays(today, rules.gradeDays), f: kindFeatures(k), v: BRAIN.version });
   }
   return list.slice(-1000);
 }
