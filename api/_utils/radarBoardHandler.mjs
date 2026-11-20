@@ -10,7 +10,7 @@ import { readBody } from "./readBody.mjs";
 import { paypalEnvName } from "./paypal.js";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
 import { RADAR_BOARD_KEY, RADAR_TRIALS_KEY, boardAccess, teaserBoard, userTrialDays, userTrialOf } from "../../src/lib/growth/radarGate.js";
-import { accessOf } from "../../src/lib/growth/radarPlans.js";
+import { accessOf, guaranteeClaims } from "../../src/lib/growth/radarPlans.js";
 import { RADAR_PICKS_KEY, RADAR_PICKS_SEAL_KEY, RECEIPT_ID, addPick, addRadarPick, beatsRadar, duelOf, gradePicks, leaderboard, myPicks, picksSealText, receiptView } from "../../src/lib/growth/radarPicks.js";
 import { OTS_CALENDARS, hexBytes, otsProof, toBase64 } from "../../src/lib/growth/radarSeal.js";
 
@@ -65,9 +65,24 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       if (next.length !== picks.length || next.some((p, i) => p !== picks[i])) await kvSet(RADAR_PICKS_KEY, next);
       // The scouts: every pick sealed in Bitcoin (the day it existed can never be moved).
       if (next.length) await sealPicks(next, { kvGet, kvSet, fetchImpl, today: String(board.at).slice(0, 10) }).catch(() => null);
+      // The guarantee (radarPlans.js RADAR_GUARANTEE): a sniper call graded MISS in a subscriber's paid
+      // month becomes a refund request for the owner to pay in PayPal; never automatic, never twice.
+      let claims = 0;
+      try {
+        const subs = (await kvGet("radar:subscriptions", [])) || [];
+        if (subs.length) {
+          const refunds = (await kvGet("billing:refund_requests", [])) || [];
+          const fresh = guaranteeClaims({ subs, ledger: board.early?.ledger || [], refunds, env: paypalEnvName(), now: now() });
+          if (fresh.length) {
+            await kvSet("billing:refund_requests", [...refunds, ...fresh]);
+            const back = (await kvGet("billing:refund_requests", [])) || [];
+            claims = fresh.filter((r) => back.some((x) => x.id === r.id)).length;
+          }
+        }
+      } catch { /* a failed read never becomes a write (kvReadGuard); the next put tries again */ }
       const back = await kvGet(RADAR_BOARD_KEY, null);
       const ok = back?.at === board.at && Array.isArray(back?.concepts) && back.concepts.length === board.concepts.length;
-      return json({ ok, at: board.at, concepts: board.concepts.length }, ok ? 200 : 502);
+      return json({ ok, at: board.at, concepts: board.concepts.length, claims }, ok ? 200 : 502);
     }
 
     // The crowd sensor (crowdSensor.js): items checked in the magic button in different browser

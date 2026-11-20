@@ -138,7 +138,10 @@ export function radarWaitlistPlan(planId) {
  * wording rule) in the same change that wires the claims job.
  */
 export const RADAR_GUARANTEE = Object.freeze({
-  live: false,
+  // Live since 20.11: the radar's daily board put (api/_utils/radarBoardHandler.mjs) writes the claims
+  // (guaranteeClaims) to billing:refund_requests; the owner pays each one in PayPal. Shown only while
+  // radar billing is on (billingOf), since only a paid month can earn it.
+  live: true,
   he: "קביעת צלף שלא פגעה? החודש הבא עלינו.",
   en: "A sniper call that missed? Next month is on us.",
   termsHe: "אם קביעת צלף של הרדאר שנחתמה בחודש מנוי ששילמת עליו מקבלת ❌ בציון של אחרי 14 יום, מחיר חודש אחד חוזר אלייך. לכל היותר חודש אחד לכל חודש ששולם. ההחזר נשלח ב־PayPal תוך 14 יום מהציון.",
@@ -169,4 +172,29 @@ export function guaranteeCredits({ subs = [], calls = [], now = Date.now() } = {
     }
   }
   return out;
+}
+
+/**
+ * The guarantee's claims job (pure): the sniper calls graded on the board (`board.early.ledger`) against
+ * the radar subscriptions of this PayPal environment, as refund requests the owner pays by hand. One per
+ * subscription per paid month, with a fixed id, so a claim already written is never written again.
+ */
+export function guaranteeClaims({ subs = [], ledger = [], refunds = [], env = "live", now = Date.now() } = {}) {
+  const mine = (Array.isArray(subs) ? subs : []).filter((s) => (s?.env || "live") === env);
+  const calls = (Array.isArray(ledger) ? ledger : []).filter((e) => e?.result === "HIT" || e?.result === "MISS").map((e) => ({ kind: "early", concept: e.concept, at: e.at, result: e.result, gradedAt: e.gradedAt || e.due || null }));
+  const have = new Set((Array.isArray(refunds) ? refunds : []).map((r) => r?.id));
+  return guaranteeCredits({ subs: mine, calls, now })
+    .filter((c) => c.subscriptionId)
+    .map((c) => {
+      const sub = mine.find((s) => (s.id || s.paypalSubscriptionId) === c.subscriptionId) || {};
+      return {
+        id: `rg_${String(c.subscriptionId).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60)}_${c.month}`,
+        product: "radar", reason: "guarantee",
+        subscriptionId: c.subscriptionId, userId: sub.userId || null, paypalSubscriptionId: sub.paypalSubscriptionId || null,
+        planId: sub.planId || null, billingPeriod: sub.billingPeriod || null, env,
+        month: c.month, call: c.call, amount: c.amount, currency: c.currency,
+        requestedAt: new Date(now).toISOString(), status: "pending_owner",
+      };
+    })
+    .filter((r) => !have.has(r.id));
 }

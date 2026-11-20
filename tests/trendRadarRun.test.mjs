@@ -95,6 +95,12 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
     assert.ok(robots >= 0 && robots < firstGoogle, "robots.txt is read before any autocomplete request");
   }
 
+  // 📐 The proven range runs inside the morning run, says where each horizon stands, and never breaks it.
+  assert.equal(r2.sources.promise, "OK");
+  assert.deepEqual(r2.board.promise.horizons.map((h) => h.h), [3, 7, 14]);
+  assert.ok(r2.board.promise.horizons.every((h) => ["READY", "CALIBRATING"].includes(h.state)));
+  assert.ok(sanitizeBoard(r2.board).promise, "the range survives the sanitizer");
+
   const butter = r2.board.concepts.find((c) => c.id === "butter-squishy");
   assert.equal(butter.stage, "EMERGING");
   assert.equal(butter.gap.state, "GAP", "the US searches it, nobody types more than the echo in Hebrew");

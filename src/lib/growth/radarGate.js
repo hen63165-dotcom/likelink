@@ -60,6 +60,9 @@ export function teaserBoard(board) {
     ledger: board.ledger ? { d: board.ledger.d, sha256: board.ledger.sha256, count: board.ledger.count, text: board.ledger.text, ots: board.ledger.ots || [] } : null,
     // The Bitcoin anchors of past days' roots: public for the same reason (block numbers and roots, no call).
     anchors: board.anchors || null,
+    // 📐 The proven range: the method's state and the coverage record are public; the day's ranges
+    // (which name items) and the book's text stay behind the lock, its hash and proofs do not.
+    promise: board.promise ? { v: board.promise.v, at: board.promise.at, horizons: board.promise.horizons || [], coverage: board.promise.coverage || [], issued: board.promise.issued || 0, open: board.promise.open || 0, nextDue: board.promise.nextDue || null, recent: [], seal: board.promise.seal ? { d: board.promise.seal.d, sha256: board.promise.seal.sha256, count: board.promise.seal.count, ots: board.promise.seal.ots || [] } : null } : null,
     // The radar vs luck: the record and the comparison stay public; the day's draw does not.
     luck: board.luck ? { versus: board.luck.versus, draws: board.luck.draws, nextDue: board.luck.nextDue, recent: board.luck.recent || [], today: null, seal: board.luck.seal ? { d: board.luck.seal.d, sha256: board.luck.seal.sha256, count: board.luck.seal.count, ots: board.luck.seal.ots || [] } : null } : null,
     concepts: [],

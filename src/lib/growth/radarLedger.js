@@ -17,7 +17,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ITEM = /^\d{6,20}$/;
 const SHA = /^[0-9a-f]{64}$/;
 const CONCEPT = /^[a-z0-9][a-z0-9-]{0,79}$/;
-export const LEDGER_BOOKS = Object.freeze(["early", "stages", "luck", "fresh", "kinds", "brain", "globe", "prices"]);
+export const LEDGER_BOOKS = Object.freeze(["early", "stages", "luck", "fresh", "kinds", "brain", "promise", "globe", "prices"]);
 
 /**
  * Every ordinary stage call (a concept that turned EMERGING or RISING), one line each:

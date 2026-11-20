@@ -74,7 +74,9 @@ test("/radar-pro: routed, rewritten, its own head, bilingual, no price or promis
   for (const he of ["מחיר: עוד לא נקבע", "נחתמת מראש ונבדקת בפומבי", "רשימת ההמתנה"]) assert.ok(page.includes(he));
   for (const en of ["Price: not set yet", "sealed in advance and graded in public", "Join the waitlist"]) assert.ok(page.includes(en));
   assert.doesNotMatch(page, /(?<!לא )מבטיח(ה)? להיט|יהיה להיט|guaranteed hit/);
-  assert.doesNotMatch(page, /\$\d|היחיד בעולם|only one in the world|guarantee/i);
+  // The word "guarantee" never appears in the copy. The money-back box (RADAR_GUARANTEE, approved by
+  // the owner 15.11, live 20.11) reads its words from radarPlans.js, whose own test keeps them clean.
+  assert.doesNotMatch(page, /\$\d|היחיד בעולם|only one in the world|\bguarantee(d)?\b/i);
   // Shekel signs appear only in the subscriber's own record (MySubscription: a subscription exists only
   // after billing was on) and in the billing.enabled branch (prices from billingOf).
   const mine = page.slice(page.indexOf("function MySubscription()"), page.indexOf("export function RadarProPage()"));
@@ -197,7 +199,7 @@ test("cancelling the radar: the site's lawful terms on the radar's own price", (
 
 test("the guarantee: a missed sniper call in a paid month earns that month back, never shown before it can be kept", async () => {
   const { RADAR_GUARANTEE, guaranteeCredits } = await import("../src/lib/growth/radarPlans.js");
-  assert.equal(RADAR_GUARANTEE.live, false, "not shown until the claims job writes refund requests");
+  assert.equal(RADAR_GUARANTEE.live, true, "the claims job (guaranteeClaims on the daily board put) writes the refund requests");
   assert.doesNotMatch(RADAR_GUARANTEE.he + RADAR_GUARANTEE.termsHe, /מבטיח להיט|תמיד פוגע|100%/);
   const subs = [{ id: "s1", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 29, billingPeriod: "monthly" }, { id: "s2", status: "pending", activatedAt: "2026-12-01T00:00:00Z", price: 29 }];
   const calls = [
@@ -211,4 +213,36 @@ test("the guarantee: a missed sniper call in a paid month earns that month back,
   assert.deepEqual([claims[0].subscriptionId, claims[0].month, claims[0].amount, claims[0].call.concept], ["s1", 1, 29, "a"]);
   const yearly = guaranteeCredits({ subs: [{ id: "y", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 290, billingPeriod: "yearly" }], calls, now: Date.parse("2027-02-15T00:00:00Z") });
   assert.equal(yearly[0].amount, 24.17, "a yearly plan gets a twelfth back");
+});
+
+test("the guarantee's claims job: refund requests for the owner, one per paid month, never twice, never across PayPal environments", async () => {
+  const { guaranteeClaims } = await import("../src/lib/growth/radarPlans.js");
+  const subs = [
+    { id: "s1", userId: "u1", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 29, billingPeriod: "monthly", currency: "ILS", env: "live", paypalSubscriptionId: "I-1" },
+    { id: "s2", userId: "u2", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 29, billingPeriod: "monthly", currency: "ILS", env: "sandbox" },
+  ];
+  const ledger = [{ concept: "a", at: "2026-12-05", due: "2026-12-19", result: "MISS" }, { concept: "b", at: "2026-12-06", due: "2026-12-20", result: null }];
+  const now = Date.parse("2026-12-20T06:00:00Z");
+  const first = guaranteeClaims({ subs, ledger, refunds: [], env: "live", now });
+  assert.equal(first.length, 1);
+  assert.deepEqual([first[0].id, first[0].product, first[0].reason, first[0].status, first[0].amount, first[0].call.concept], ["rg_s1_1", "radar", "guarantee", "pending_owner", 29, "a"]);
+  assert.equal(guaranteeClaims({ subs, ledger, refunds: first, env: "live", now }).length, 0, "a claim already written is never written again");
+  assert.equal(guaranteeClaims({ subs, ledger: [{ concept: "a", at: "2026-12-05", result: "HIT" }], refunds: [], env: "live", now }).length, 0, "a hit earns nothing");
+  assert.equal(guaranteeClaims({ subs, ledger, refunds: [], env: "sandbox", now })[0].subscriptionId, "s2", "each PayPal environment claims only its own subscriptions");
+});
+
+test("the daily board put writes the guarantee's refund requests and reads them back", async () => {
+  const { createRadarBoardHandler } = await import("../api/_utils/radarBoardHandler.mjs");
+  process.env.AUTOPILOT_SECRET = process.env.AUTOPILOT_SECRET || "s3cret-for-test";
+  const store = new Map([["radar:subscriptions", [{ id: "s1", userId: "u1", status: "active", activatedAt: "2026-12-01T00:00:00Z", price: 29, billingPeriod: "monthly", currency: "ILS" }]]]);
+  const kv = { kvGet: async (k, d = null) => (store.has(k) ? JSON.parse(JSON.stringify(store.get(k))) : d), kvSet: async (k, v) => { store.set(k, JSON.parse(JSON.stringify(v))); return true; } };
+  const h = createRadarBoardHandler({ kv, now: () => Date.parse("2026-12-20T06:00:00Z"), fetchImpl: async () => ({ ok: false, status: 503, arrayBuffer: async () => new ArrayBuffer(0) }) });
+  const board = { v: 2, at: "2026-12-20T06:00:00Z", record: {}, concepts: [{ id: "ear-cuff", he: "עגיל", stage: "STEADY" }], early: { need: 4, record: {}, ledger: [{ concept: "ear-cuff", at: "2026-12-05", due: "2026-12-19", result: "MISS" }] } };
+  const out = {};
+  const res = { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.statusCode = c; return this; }, json(o) { out.body = o; return this; }, end(b) { if (b) out.body = JSON.parse(b); return this; } };
+  await h({ method: "POST", url: "/api/store?mode=radar-board&op=put", headers: { authorization: `Bearer ${process.env.AUTOPILOT_SECRET}` }, body: board }, res);
+  assert.equal(out.body?.claims, 1);
+  assert.deepEqual(store.get("billing:refund_requests").map((r) => [r.id, r.status, r.amount]), [["rg_s1_1", "pending_owner", 29]]);
+  await h({ method: "POST", url: "/api/store?mode=radar-board&op=put", headers: { authorization: `Bearer ${process.env.AUTOPILOT_SECRET}` }, body: board }, res);
+  assert.equal(store.get("billing:refund_requests").length, 1, "the next day's put never writes it twice");
 });

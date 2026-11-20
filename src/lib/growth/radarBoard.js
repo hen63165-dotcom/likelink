@@ -42,7 +42,7 @@ const cleanAnchors = (a) => (a && typeof a === "object" ? {
 } : null);
 // Every book of radarLedger.js LEDGER_BOOKS (a test keeps the two equal): on 20.11 the root named
 // brain= and the page dropped the root text, so nobody could recompute it.
-const LEDGER_ROOT = /^(early|stages|luck|fresh|kinds|brain|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|kinds|brain|globe|prices)=[0-9a-f]{64})*$/;
+const LEDGER_ROOT = /^(early|stages|luck|fresh|kinds|brain|promise|globe|prices)=[0-9a-f]{64}(\n(early|stages|luck|fresh|kinds|brain|promise|globe|prices)=[0-9a-f]{64})*$/;
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
@@ -169,6 +169,8 @@ export function sanitizeBoard(doc) {
     fresh: cleanFresh(doc.fresh),
     kinds: cleanKinds(doc.kinds),
     brain: cleanBrain(doc.brain),
+    // 📐 The proven range (radarPromise.js): the method's state per horizon and the public coverage record.
+    promise: cleanPromise(doc.promise),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -280,6 +282,38 @@ function cleanWaves(w) {
 }
 
 /** New listings that start to run (freshRisers.js): the store's own words, numbers and photo only. */
+// The proven range's book (radarPromise.js promiseSealText): `item|day|horizon|orders|lo-hi|lo-hi` per line.
+const PROMISE_LINE = "\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d{1,2}\\|\\d+\\|(?:\\d+-\\d+|-)\\|(?:\\d+-\\d+|-)";
+const PROMISE_BOOK = new RegExp(`^${PROMISE_LINE}(\\n${PROMISE_LINE})*$`);
+const pair = (p) => (Array.isArray(p) && p.length === 2 && p.every((x) => Number.isFinite(x)) && p[0] <= p[1] ? [p[0], p[1]] : null);
+const RANGE_H = [3, 7, 14];
+const RANGE_L = [80, 90];
+/** A new product's range on its card: horizon, the orders then, the ranges, and the hit line only when cleared. */
+function cleanCardRange(c) {
+  if (!c || typeof c !== "object" || !RANGE_H.includes(c.h) || num(c.o) === null) return null;
+  const r80 = pair(c.r80), r90 = pair(c.r90);
+  if (!r80 && !r90) return null;
+  const pct80 = pair(c.pct80), pct90 = pair(c.pct90);
+  // The hit line (+50% in 14 days) is claimed only when that level's whole range is above it.
+  const clears = c.h !== 14 ? null : c.clears === 90 && pct90?.[0] >= 50 ? 90 : c.clears === 80 && pct80?.[0] >= 50 ? 80 : null;
+  return { h: c.h, o: num(c.o), r80, r90, pct80, pct90, clears };
+}
+function cleanPromise(p) {
+  if (!p || typeof p !== "object" || !Array.isArray(p.coverage)) return null;
+  const cov = p.coverage.filter((c) => RANGE_H.includes(c?.h) && RANGE_L.includes(c?.level)).map((c) => ({ h: c.h, level: c.level, n: Math.max(0, num(c.n) ?? 0), held: Math.max(0, num(c.held) ?? 0), rate: num(c.rate) }));
+  return {
+    v: num(p.v) ?? 1,
+    at: day(p.at),
+    horizons: (Array.isArray(p.horizons) ? p.horizons : []).filter((h) => RANGE_H.includes(h?.h)).map((h) => ({ h: h.h, state: h.state === "READY" ? "READY" : "CALIBRATING", n: Math.max(0, num(h.n) ?? 0), need: num(h.need) ?? 60 })),
+    coverage: cov,
+    issued: Math.max(0, num(p.issued) ?? 0),
+    open: Math.max(0, num(p.open) ?? 0),
+    nextDue: day(p.nextDue),
+    recent: (Array.isArray(p.recent) ? p.recent : []).slice(0, 12).filter((g) => ITEM.test(String(g?.i || "")) && RANGE_H.includes(g?.h) && Array.isArray(g.r) && Array.isArray(g.held)).map((g) => ({ i: String(g.i), a: day(g.a), h: g.h, o: num(g.o), v: num(g.v), r80: pair(g.r.slice(0, 2)), r90: pair(g.r.slice(2, 4)), held: g.held.slice(0, 2).map((x) => (x === 1 ? 1 : x === 0 ? 0 : null)) })),
+    seal: cleanBook(p.seal, PROMISE_BOOK),
+  };
+}
+
 function cleanFresh(f) {
   if (!f || typeof f !== "object") return null;
   const risers = (Array.isArray(f.risers) ? f.risers : []).slice(0, 12).map((r) => {
@@ -289,7 +323,7 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
     if (!r.known || num(r.known.similar) === null) return null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));

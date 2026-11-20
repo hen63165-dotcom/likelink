@@ -10,7 +10,7 @@ import { useMarketplace } from "../../context/MarketplaceContext";
 import { getSessionToken } from "../../lib/auth.js";
 import { acceptLegal, joinWaitlist } from "../../lib/legalConsent.js";
 import { cancelRadarSubscription, fetchRadarSubscription, startRadarCheckout } from "../../lib/commerce.js";
-import { RADAR_FEATURES, RADAR_PLANS, RADAR_PRICES, accessOf, billingOf } from "../../lib/growth/radarPlans.js";
+import { RADAR_FEATURES, RADAR_GUARANTEE, RADAR_PLANS, RADAR_PRICES, accessOf, billingOf } from "../../lib/growth/radarPlans.js";
 import { ConceptCard, TrialBanner, loadBoard } from "./radar";
 import { STUDIO_SIGNUP } from "./PublicShell";
 import { Go, Spinner, useL } from "./kit";
@@ -229,6 +229,12 @@ export function RadarProPage() {
             </article>
           ))}
         </div>
+        {billing.enabled && RADAR_GUARANTEE.live ? (
+          <div className="lx-card mt-4 p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fffbeb" }}>
+            <p className="text-[18px] font-extrabold">🛡️ {L(RADAR_GUARANTEE.he, RADAR_GUARANTEE.en)}</p>
+            <p className="mt-1 text-[14px] leading-6">{L(RADAR_GUARANTEE.termsHe, "If a radar sniper call sealed in a month you paid for is graded ❌ after 14 days, one month's price comes back to you. At most one month per paid month. The refund is sent in PayPal within 14 days of the grade.")}</p>
+          </div>
+        ) : null}
       </section>
     </>
   );

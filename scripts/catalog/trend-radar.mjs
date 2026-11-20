@@ -41,6 +41,7 @@ import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/r
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
 import { poolVectors } from "./radar-embed.mjs";
 import { brainText, freshFeatures, kindFeatures, learn, likeThis, matchesPattern, sureState } from "../../src/lib/growth/radarBrain.js";
+import { PROMISE, addIssued, calibrate, cardRange, gradePromises, issuePromises, newPromiseState, promiseBoard, promiseSealText, samplePool } from "../../src/lib/growth/radarPromise.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
@@ -779,6 +780,28 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     if (text) board.brain.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.brain?.seal, "brain");
     log.push(`brain v${brain.version}: new products ${brain.books.fresh.graded} graded, ${brain.books.fresh.waiting} waiting · kinds ${brain.books.kinds.graded} graded, ${brain.books.kinds.waiting} waiting · learned ${brain.ready ? "yes" : "not yet"} · sure voice ${["fresh", "kinds"].map((b) => `${b} ${brain.sure[b].key || "none"} ${brain.sure[b].live.hits}/${brain.sure[b].live.n}${brain.sure[b].level ? ` ≥${brain.sure[b].level}%` : ""}`).join(", ")}`);
   }
+  // 📐 The proven range (radarPromise.js): a model learned this morning from the radar's own item
+  // histories, split conformal widths per size band, and the adaptive level (ACI) moved by every graded
+  // range. Ranges for the new products shown and a fixed daily sample of measured items, at 3, 7 and 14
+  // days, 80% and 90%; every range issued today is sealed as the book "promise"; every range is graded
+  // on its day (HELD inside, never edited) and the coverage record is printed as it is.
+  if (env.RADAR_PROMISE !== "0") {
+    try {
+      const g = gradePromises(readJson(join(dir, "promise.json"), null) || newPromiseState(), items, today);
+      const calib = calibrate(items, today, { alphas: g.state.alphas });
+      const shown = board.fresh.risers.map((r) => r.id);
+      const ids = [...new Set([...shown, ...samplePool(items, today, PROMISE.sample, shown)])];
+      const issued = issuePromises(items, ids, today, calib);
+      const state = addIssued(g.state, issued);
+      writeFileSync(join(dir, "promise.json"), JSON.stringify(state));
+      for (const r of board.fresh.risers) { const c = cardRange(items, r.id, today, calib); if (c) r.promise = c; }
+      board.promise = promiseBoard(state, calib, issued, today);
+      const text = promiseSealText(issued);
+      if (text) board.promise.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.promise?.seal, "promise");
+      sources.promise = "OK";
+      log.push(`promise: ${PROMISE.horizons.map((h) => `${h}d ${calib[h].state === "READY" ? `ready (${calib[h].n} examples, α90 ${calib[h].q[90].alpha})` : `calibrating ${calib[h].n}/${PROMISE.minCalib}`}`).join(" · ")} · issued ${issued.length} · graded ${g.graded} · set aside ${g.setAside} · coverage ${board.promise.coverage.filter((c) => c.n).map((c) => `${c.h}d@${c.level}: ${c.held}/${c.n}`).join(", ") || "first grades pending"}`);
+    } catch (err) { sources.promise = "FAILED"; log.push(`promise: ${String(err?.message || err).slice(0, 80)}`); }
+  }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
@@ -939,7 +962,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
