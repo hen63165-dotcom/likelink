@@ -28,6 +28,13 @@ test("the group gets the looks only; the claim filter keeps what a photo shows",
   assert.deepEqual(kit.posts.map((x) => x.id), ["look1"], "מועדון הדיופים: fashion, beauty, bags, shoes, jewellery");
   const order = kitOf({ products: [P("hotLook"), P("newLook", { createdAt: NOW - 3_600_000, importSource: "aliexpress-trend-board" })], keepIds: ["hotLook"], now: NOW });
   assert.deepEqual(order.posts.map((x) => x.id), ["newLook", "hotLook"], "the looks she just chose come first");
+  // 20.11: the server's own daily import (football socks) went out before her looks.
+  const mixed = kitOf({ products: [
+    P("autoSocks", { createdAt: NOW - 600_000, importSource: "aliexpress-deals" }),
+    P("hotLook"),
+    P("herLook", { createdAt: NOW - 5 * 86_400_000, importSource: "aliexpress-trend-board" }),
+  ], keepIds: ["hotLook"], now: NOW });
+  assert.deepEqual(mixed.posts.map((x) => x.id), ["herLook", "hotLook", "autoSocks"], "her picks (a week), then HOT, then the automatic import");
   const warm = waPost(P("w", { storeTitle: "נעלי בית פרוותיות לנשים, חמות ונעימות לחורף, סוליה רכה, עם פפיון, 100% כותנה" }), { now: NOW });
   assert.match(warm.text, /\nעם פפיון\n/);
   assert.doesNotMatch(warm.text, /חמות|רכה|כותנה|100%/);
