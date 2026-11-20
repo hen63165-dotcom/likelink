@@ -128,6 +128,6 @@ test("only Wix's dashboard may frame /wix/*; every other page keeps X-Frame-Opti
   const rest = v.headers.find((h) => h.source === "/((?!wix/).*)");
   assert.equal(rest.headers.find((x) => x.key === "X-Frame-Options")?.value, "SAMEORIGIN");
   assert.equal(v.headers.some((h) => h.source === "/(.*)"), false, "no catch-all rule adds X-Frame-Options back to /wix/*");
-  const re = new RegExp(`^${rest.source.replace("/(", "/(")}$`);
+  const re = new RegExp(`^${rest.source}$`);
   assert.ok(re.test("/radar") && re.test("/") && re.test("/p/x") && !re.test("/wix/radar"));
 });
