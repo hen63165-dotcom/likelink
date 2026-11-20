@@ -26,14 +26,22 @@ const pack = (v) => {
 
 const tokenizer = await AutoTokenizer.from_pretrained(LENS.model);
 const textModel = await CLIPTextModelWithProjection.from_pretrained(LENS.model, { dtype: LENS.textDtype });
-const rows = [];
-for (let i = 0; i < labels.length; i += 32) {
-  const part = labels.slice(i, i + 32);
-  const inputs = tokenizer(part.map((l) => l.prompt), { padding: "max_length", truncation: true });
+// Each kind is described a few ways and the vectors averaged (prompt ensembling); then the average of
+// all kinds is taken out of each one (centering), so a few generic kinds stop winning every picture.
+const TEMPLATES = ["a photo of {}", "a product photo of {}", "a close-up photo of {}", "{} for sale online"];
+const raw = [];
+for (const l of labels) {
+  const inputs = tokenizer(TEMPLATES.map((t) => t.replace("{}", l.en)), { padding: "max_length", truncation: true });
   const { text_embeds } = await textModel(inputs);
-  const vecs = text_embeds.normalize().tolist();
-  part.forEach((l, k) => rows.push({ id: l.id, he: l.he, en: l.en, v: pack(vecs[k]) }));
+  const vs = text_embeds.normalize().tolist();
+  const avg = vs[0].map((_, d) => vs.reduce((t, v) => t + v[d], 0) / vs.length);
+  raw.push(avg);
 }
+const unitv = (v) => { const n = Math.sqrt(v.reduce((t, x) => t + x * x, 0)) || 1; return v.map((x) => x / n); };
+const mean = raw[0].map((_, d) => raw.reduce((t, v) => t + v[d], 0) / raw.length);
+const plainRows = labels.map((l, k) => ({ id: l.id, he: l.he, en: l.en, v: pack(unitv(raw[k])) }));
+const centredRows = labels.map((l, k) => ({ id: l.id, he: l.he, en: l.en, v: pack(unitv(raw[k].map((x, d) => x - mean[d]))) }));
+const rows = process.env.LENS_CENTER === "0" ? plainRows : centredRows;
 const doc = { model: LENS.model, dims: rows[0] ? Buffer.from(rows[0].v, "base64").length : 0, at: new Date().toISOString().slice(0, 10), labels: rows };
 writeFileSync(join(out, "labels.json"), JSON.stringify(doc));
 console.log(`labels: ${rows.length} kinds · ${doc.dims} dims · ${Math.round(JSON.stringify(doc).length / 1024)} KB`);
@@ -51,9 +59,12 @@ for (const dtype of String(process.env.LENS_DTYPES || LENS.visionDtype).split(",
   console.log(`--- vision ${dtype}`);
   for (const { p, image } of images) {
     const { image_embeds } = await vision(await processor(image));
-    const r = rankKinds(image_embeds.normalize().tolist()[0], rows);
+    const vec = image_embeds.normalize().tolist()[0];
     ok++;
-    console.log(`${dtype} ${p.id} [${p.kind || p.category || "?"}] ${String(p.title || "").slice(0, 40)} → ${r.verdict} ${r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`).join(", ")}`);
+    for (const [name, set] of [["plain", plainRows], ["centred", centredRows]]) {
+      const r = rankKinds(vec, set);
+      console.log(`${dtype}/${name} ${p.id} [${p.kind || p.category || "?"}] ${String(p.title || "").slice(0, 34)} → ${r.verdict} ${r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`).join(", ")}`);
+    }
   }
 }
 const files = [];
