@@ -135,6 +135,8 @@ export function freshOf(board) {
     id: r.id, title: r.title, image: r.image, page: itemPage(r.id),
     orders: r.orders, ordersBefore: r.ordersBefore, from: r.from, to: r.to, weekPct: r.weekPct,
     similar: r.known?.similar ?? null, sure: r.sure ?? null,
+    // ⏳ The window clock (radarWindow.js): shown only once it gives a calibrated chance.
+    window: r.window?.state === "READY" ? { h: r.window.h, p: r.window.p, line: r.window.line } : null,
   })).filter((r) => r.page);
 }
 

@@ -80,7 +80,7 @@ export function targetAt(series, due, { rules = PROMISE } = {}) {
   return null;
 }
 
-const xOf = (f, h) => [1, f.pace * h, f.size];
+export const xOf = (f, h) => [1, f.pace * h, f.size];
 
 /** Every (item, day) the radar can learn from for one horizon: its state then, and what happened h days later. */
 export function examples(items, h, today, { rules = PROMISE } = {}) {

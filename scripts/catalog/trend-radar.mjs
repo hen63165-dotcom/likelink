@@ -64,6 +64,7 @@ import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
+import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -560,6 +561,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
   board.fresh.strict = freshRules.strict;
+  // ⏳ Every listing count read for a phrase today (new products and new kinds, shown or not): the
+  // window clock's data (radarWindow.js).
+  const phraseReads = {};
   {
     const checked = [];
     const counts = {};
@@ -581,6 +585,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         try { suggestions = await suggestList(phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
         await pause(politeMs);
       }
+      if (phrase && Number.isFinite(similar)) phraseReads[phrase] = similar;
       const known = unknownCheck({ phrase, similar, suggestions });
       // YouTube (official Data API, the owner's own key): already many new videos or views = BUZZ.
       let yt = null;
@@ -705,6 +710,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);
+  // Each card says when it was sealed and when it is graded (the call's own dates).
+  for (const r of board.fresh.risers) { const c = freshCalls.find((x) => x.id === r.id && !x.result); if (c) { r.called = c.at; r.due = c.due; } }
   board.fresh.record = freshRecord(freshCalls);
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
@@ -738,6 +745,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         try { suggestions = await suggestList(k.en, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
         await pause(politeMs);
       }
+      if (Number.isFinite(similar)) phraseReads[k.en] = similar;
       const known = unknownCheck({ phrase: k.en, similar, suggestions });
       kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
       if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar } });
@@ -750,6 +758,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     let kindCalls = gradeKinds(readJson(join(dir, "kinds-calls.json"), []), items, today);
     kindCalls = recordKinds(kindCalls, shownKinds, today);
+    for (const k of shownKinds) { const c = kindCalls.find((x) => x.en === k.en && !x.result); if (c) { k.called = c.at; k.due = c.due; } }
     writeFileSync(join(dir, "kinds-calls.json"), JSON.stringify(kindCalls));
     board.kinds = {
       model: KINDS.model, tracked: kindVectors, list: shownKinds.map(({ bases, ...k }) => k), record: kindsRecord(kindCalls),
@@ -801,6 +810,53 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.promise = "OK";
       log.push(`promise: ${PROMISE.horizons.map((h) => `${h}d ${calib[h].state === "READY" ? `ready (${calib[h].n} examples, α90 ${calib[h].q[90].alpha})` : `calibrating ${calib[h].n}/${PROMISE.minCalib}`}`).join(" · ")} · issued ${issued.length} · graded ${g.graded} · set aside ${g.setAside} · coverage ${board.promise.coverage.filter((c) => c.n).map((c) => `${c.h}d@${c.level}: ${c.held}/${c.n}`).join(", ") || "first grades pending"}`);
     } catch (err) { sources.promise = "FAILED"; log.push(`promise: ${String(err?.message || err).slice(0, 80)}`); }
+  }
+  // ⏳ The window clock (radarWindow.js; the owner, 20.11: "if there are still gaps, rise above
+  // everyone"; the tenth check found saturation scores and rules of thumb, and no tool that says how
+  // long a product's window stays open): for every find under the radar's own saturation line (2,000
+  // matching listings), the calibrated chance the listings are at or above it in 3, 7 and 14 days,
+  // from the promise engine's model on the listing counts the radar reads every day (the watch list's
+  // concepts and the phrases of the new products and kinds). Sealed as the book "window", graded on
+  // its day like a weather forecast (Brier, base rate, skill, said vs happened), never edited.
+  if (env.RADAR_WINDOW !== "0") {
+    try {
+      const wfile = join(dir, "window.json");
+      const saved = readJson(wfile, null);
+      let hist = saved?.hist && typeof saved.hist === "object" ? saved.hist : {};
+      // First run: the phrases the new products had on the day they were called (fresh-calls.json f.similar).
+      if (!saved) for (const c of freshCalls) { const k = phraseKey(freshPhrase(c.title)); if (k && Number.isFinite(c.f?.similar) && c.at < today) hist = addWindowReading(hist, k, c.at, c.f.similar); }
+      const shownKeys = new Set([...(board.fresh.risers || []).map((r) => phraseKey(r.known?.phrase)), ...(board.kinds?.list || []).map((k) => phraseKey(k.en))].filter(Boolean));
+      for (const [phrase, n] of Object.entries(phraseReads)) { const k = phraseKey(phrase); if (k) hist = addWindowReading(hist, k, today, n, { shown: shownKeys.has(k) }); }
+      // The phrases shown in the last 16 days and those with a chance due: read again (one search each).
+      let reread = 0;
+      if (store) {
+        const e = aeEnv(env);
+        for (const k of readQueue(hist, saved?.state, today).slice(0, WINDOW.reads)) {
+          try {
+            const res = await aeCall(SEARCH, { keywords: phraseOfKey(k), tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) === 200 && Number.isFinite(Number(rr.result?.total_record_count))) { hist = addWindowReading(hist, k, today, Number(rr.result.total_record_count)); reread++; }
+          } catch { /* not read today: its chance waits, then is set aside */ }
+        }
+      }
+      const series = seriesOf({ readings, hist });
+      const g = gradeWindows(saved?.state || newWindowState(), series, today);
+      const calib = calibrateWindow(series, today);
+      const keys = [
+        ...(board.concepts || []).filter((c) => Number.isFinite(c.today?.listings) && c.today.listings < WINDOW.line).map((c) => conceptKey(c.id)),
+        ...Object.entries(hist).filter(([, v]) => v.shown && v.shown >= new Date(Date.parse(today) - WINDOW.trackDays * 86_400_000).toISOString().slice(0, 10)).map(([k]) => k),
+      ].filter(Boolean);
+      const issued = issueWindows(series, keys, today, calib);
+      const state = addWindows(g.state, issued);
+      writeFileSync(wfile, JSON.stringify({ hist, state }));
+      for (const r of board.fresh.risers || []) { const w = cardWindow(series, phraseKey(r.known?.phrase), today, calib); if (w) r.window = w; }
+      for (const k of board.kinds?.list || []) { const w = cardWindow(series, phraseKey(k.en), today, calib); if (w) k.window = w; }
+      board.window = windowBoard(state, calib, issued, today);
+      const text = windowSealText(issued);
+      if (text) board.window.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.window?.seal, "window");
+      sources.window = "OK";
+      log.push(`window: ${Object.keys(phraseReads).length} phrases read with the checks, ${reread} read again · ${WINDOW.horizons.map((h) => `${h}d ${board.window.horizons.find((x) => x.h === h).state === "READY" ? `ready (${calib[h].n} examples, ${board.window.horizons.find((x) => x.h === h).small} small)` : `calibrating ${calib[h].n}/${WINDOW.minCalib}, small ${board.window.horizons.find((x) => x.h === h).small}/${WINDOW.minGroup}`}`).join(" · ")} · issued ${issued.length} · graded ${g.graded} · set aside ${g.setAside}`);
+    } catch (err) { sources.window = "FAILED"; log.push(`window: ${String(err?.message || err).slice(0, 80)}`); }
   }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
@@ -962,7 +1018,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

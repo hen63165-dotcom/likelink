@@ -100,6 +100,11 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.deepEqual(r2.board.promise.horizons.map((h) => h.h), [3, 7, 14]);
   assert.ok(r2.board.promise.horizons.every((h) => ["READY", "CALIBRATING"].includes(h.state)));
   assert.ok(sanitizeBoard(r2.board).promise, "the range survives the sanitizer");
+  // ⏳ The window clock runs with the morning (radarWindow.js): its state per horizon, and it survives the sanitizer.
+  assert.equal(r2.sources.window, "OK");
+  assert.deepEqual(r2.board.window.horizons.map((h) => h.h), [3, 7, 14]);
+  assert.equal(r2.board.window.line, 2000);
+  assert.ok(sanitizeBoard(r2.board).window, "the window clock survives the sanitizer");
 
   const butter = r2.board.concepts.find((c) => c.id === "butter-squishy");
   assert.equal(butter.stage, "EMERGING");
