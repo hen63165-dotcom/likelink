@@ -4334,6 +4334,48 @@
     },
     "importSource": "aliexpress-trend-board",
     "originalPrice": 232.92
+   },
+   {
+    "id": "ae-1005005522818667",
+    "marketerId": "msd6go4kff49s5",
+    "status": "approved",
+    "title": "עגילים · קריסטלים",
+    "storeTitle": "זוג עגילי מגנט חזקים, מתאימים לגברים ולנשים, ללא צורך בקידוח, עם אבזם לאוזן, משובצים בקריסטלים.",
+    "category": "Accessories",
+    "kind": "earrings",
+    "image": "https://ae-pic-a1.aliexpress-media.com/kf/Sbb1439be04574966a491b42e6ff7a91fK.jpg",
+    "affiliateUrl": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CovLGSQPpFWA9m2MhPUzrvbelMrZUuiMXDuTg6kv8ZhvnBFdWA549yShsjeLkZ6c84AnvKNw7UW2Z1arpuAO1Wl0nJMzTG0aGiU0ufULgH2ji66XZg6MJEbZ08zOSV6REvSmel2PQAvVek6b7bd0uEc1bsBM4D96aQGODqsmVKI2AOieav0vI3Mcviem1OMTmV0jtbdJ9lKrntRZr5QJp40jBmP91A0WhbAN21WDtWlMaoOyogb8oaNFuJTcqaUU9KC2a6hmvEEsapG2mE2f4mz2yOyQ8VDDESf3bqSxz3xvwp45AcEKjAOx4qQK6x9rPMxTJC5G2DD47RHsqIvXHlWHCkhKMw1IWgR2sRRIEo8ETKFYdnCHL0pg763y8kMyKfXMQet29zcrg7GkznjP9j8Q0xveFuTgkeZ5XsgHI5LN3Q7wvDPowNCHo39MorYMKRlDvV8GaDs5qGQOudUlKT9PxaM02vWiQpJXAtxiiFtFXq2ZWMaT2agK5QvqWES6R315BN2XKTdcy3GZxz3ZkR6VFAuBIyRsHLNYrmKf42ZnNOzuodUGNijLcZ9ouLjHQI4Z79g1ZjAl7ZkLemCNasaVO5XSCSycT0fUJtF5UxX9OpGqqpfJ9Ff1w7FHZdQYgAbio9eXZTLTGhlq4AqVq19FvbC7XM4BBcLww4Hw9uXgRgS3mqovcIdSCYgvnSuSBhajE6wxN6Nd5b",
+    "aliexpressId": "1005005522818667",
+    "price": 3.49,
+    "currency": "ILS",
+    "priceFrom": true,
+    "priceSource": "aliexpress_api",
+    "priceCheckedAt": "2026-11-20T09:40:37.732Z",
+    "images": [
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sbb1439be04574966a491b42e6ff7a91fK.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S4956087ec5884c3084695e07e07f8304G.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S453615585c1341e2a4f6b2421ca0bd2du.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sc74bc51426c24ab092cfc14fb7f0367dQ.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/S9c51f97f9ef243f0a7094a0ccea264c9J.jpg",
+     "https://ae-pic-a1.aliexpress-media.com/kf/Sb35d4ba9645f4047a9b64cc86bbd20b44.jpg"
+    ],
+    "createdAt": 1795167637732,
+    "updatedAt": 1795167637732,
+    "clicks": 0,
+    "imageSource": {
+     "via": "aliexpress_affiliate_api",
+     "itemId": "1005005522818667",
+     "itemUrl": "https://he.aliexpress.com/item/1005005522818667.html?pdp_npi=6%40dis%21ILS%217.67%213.49%21%21%2115.09%216.87%21%402140d36217951676404476705e0f39%2112000033407089193%21affd%21%21%21%211%210%21",
+     "provenance": "merchant_photo",
+     "resolvedAt": "2026-11-20T09:40:37.732Z"
+    },
+    "importSource": "aliexpress-trend-board",
+    "originalPrice": 7.67,
+    "sellerVideo": {
+     "url": "https://video.aliexpress-media.com/play/u/ae_sg_item/2671657881/p/1/e/6/t/10301/1100146928720.mp4",
+     "source": "aliexpress_api",
+     "checkedAt": "2026-11-20T09:40:37.732Z"
+    }
    }
   ],
   "marketplace:marketers": [
