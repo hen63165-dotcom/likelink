@@ -287,7 +287,7 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
     if (!r.known || num(r.known.similar) === null) return null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
@@ -311,7 +311,7 @@ function cleanKinds(k) {
       return { id: String(m.id), title: str(m.title, 140), image, buy, orders: num(m.orders), weekPct: num(m.weekPct) };
     }).filter(Boolean);
     if (!samples.length) return null;
-    return { en: x.en, learned: cleanLearned(x.learned), members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    return { en: x.en, learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));
@@ -319,7 +319,7 @@ function cleanKinds(k) {
 }
 
 // The brain (radarBrain.js): its learned record per book and signal, the learning curve, its sealed state.
-const BRAIN_LINE = "v\\d+\\|(?:fresh|kinds)\\|[A-Za-z0-9]+\\|\\d+\\|\\d+(?:\\|\\d+\\|\\d+)?";
+const BRAIN_LINE = "v\\d+\\|(?:fresh|kinds)\\|(?:[A-Za-z0-9]+\\|\\d+\\|\\d+(?:\\|\\d+\\|\\d+)?|sure\\|\\d{4}-\\d{2}-\\d{2}\\|[+\\-A-Za-z0-9_]{2,80}\\|\\d+\\|\\d+)";
 const BRAIN_BOOK = new RegExp(`^${BRAIN_LINE}(\\n${BRAIN_LINE})*$`);
 const cleanLearned = (l) => (l && num(l.rate) !== null && num(l.n) >= 1 ? { rate: num(l.rate), n: num(l.n), hits: num(l.hits) ?? 0 } : null);
 const side = (x) => ({ n: num(x?.n) ?? 0, hits: num(x?.hits) ?? 0, rate: num(x?.rate) });
@@ -335,7 +335,19 @@ function cleanBrain(b) {
       curve: (Array.isArray(x.curve) ? x.curve : []).slice(-12).filter((c) => day(c?.week)).map((c) => ({ week: day(c.week), graded: num(c.graded) ?? 0, hits: num(c.hits) ?? 0 })),
     };
   }
-  return { version: num(b.version) ?? 1, at: day(b.at), ready: Boolean(b.ready), books, seal: cleanBook(b.seal, BRAIN_BOOK) };
+  const sure = {};
+  for (const k of ["fresh", "kinds"]) {
+    const x = b.sure?.[k];
+    if (!x || typeof x !== "object") continue;
+    const toProve = {};
+    for (const l of [99, 95, 90, 80]) if (num(x.toProve?.[l]) !== null) toProve[l] = num(x.toProve[l]);
+    sure[k] = {
+      pattern: Array.isArray(x.pattern) ? x.pattern.slice(0, 3).filter((p) => /^[A-Za-z0-9]{2,20}$/.test(String(p?.key || ""))).map((p) => ({ key: p.key, has: Boolean(p.has) })) : null,
+      since: day(x.since), live: { n: num(x.live?.n) ?? 0, hits: num(x.live?.hits) ?? 0, lower: num(x.live?.lower) ?? 0 },
+      level: [99, 95, 90, 80].includes(num(x.level)) ? num(x.level) : null, toProve,
+    };
+  }
+  return { version: num(b.version) ?? 1, at: day(b.at), ready: Boolean(b.ready), books, sure, seal: cleanBook(b.seal, BRAIN_BOOK) };
 }
 
 /**

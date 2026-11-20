@@ -40,7 +40,7 @@ import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReadi
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
 import { poolVectors } from "./radar-embed.mjs";
-import { brainText, freshFeatures, kindFeatures, learn, likeThis } from "../../src/lib/growth/radarBrain.js";
+import { brainText, freshFeatures, kindFeatures, learn, likeThis, matchesPattern, sureState } from "../../src/lib/growth/radarBrain.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
@@ -737,11 +737,18 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const brain = learn({ fresh: freshCalls, kinds: kindsAll }, { today });
     for (const r of board.fresh.risers) { const l = likeThis(freshFeatures(r), brain.books.fresh, freshCalls, { book: "fresh", today }); if (l) r.learned = l; }
     for (const k of board.kinds?.list || []) { const l = likeThis(kindFeatures(k), brain.books.kinds, kindsAll, { book: "kinds", today }); if (l) k.learned = l; }
-    if (brain.books.fresh.ready) board.fresh.risers.sort((a, b) => (b.learned?.rate ?? -1) - (a.learned?.rate ?? -1) || b.weekPct - a.weekPct);
+    // 🎯 The sure voice: a pattern frozen the day it is chosen, certified only by calls made after it.
+    brain.sure = {
+      fresh: sureState(prevBoard.brain?.sure?.fresh, freshCalls, "fresh", { today }),
+      kinds: sureState(prevBoard.brain?.sure?.kinds, kindsAll, "kinds", { today }),
+    };
+    for (const r of board.fresh.risers) if (matchesPattern(freshFeatures(r), brain.sure.fresh, "fresh")) r.sure = brain.sure.fresh.level;
+    for (const k of board.kinds?.list || []) if (matchesPattern(kindFeatures(k), brain.sure.kinds, "kinds")) k.sure = brain.sure.kinds.level;
+    if (brain.books.fresh.ready) board.fresh.risers.sort((a, b) => (b.sure ?? 0) - (a.sure ?? 0) || (b.learned?.rate ?? -1) - (a.learned?.rate ?? -1) || b.weekPct - a.weekPct);
     board.brain = brain;
     const text = brainText(brain);
     if (text) board.brain.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.brain?.seal, "brain");
-    log.push(`brain v${brain.version}: new products ${brain.books.fresh.graded} graded, ${brain.books.fresh.waiting} waiting · kinds ${brain.books.kinds.graded} graded, ${brain.books.kinds.waiting} waiting · learned ${brain.ready ? "yes" : "not yet"}`);
+    log.push(`brain v${brain.version}: new products ${brain.books.fresh.graded} graded, ${brain.books.fresh.waiting} waiting · kinds ${brain.books.kinds.graded} graded, ${brain.books.kinds.waiting} waiting · learned ${brain.ready ? "yes" : "not yet"} · sure voice ${["fresh", "kinds"].map((b) => `${b} ${brain.sure[b].key || "none"} ${brain.sure[b].live.hits}/${brain.sure[b].live.n}${brain.sure[b].level ? ` ≥${brain.sure[b].level}%` : ""}`).join(", ")}`);
   }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));

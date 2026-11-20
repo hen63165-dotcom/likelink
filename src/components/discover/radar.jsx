@@ -709,6 +709,7 @@ function FreshRisers({ fresh, world = null }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{r.title}</p>
                     <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${r.weekPct}% בשבוע`, `🚀 +${r.weekPct}% a week`)}</p>
+                    {r.sure ? <p className="text-[13px] font-black" style={{ color: "#0b0b0b" }}>{L(`🎯 הקול המוכח: לפחות ${r.sure}%`, `🎯 Proven voice: at least ${r.sure}%`)}</p> : null}
                     {r.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 מוצרים דומים שהרדאר הצביע עליהם בעבר: ${r.learned.hits} מתוך ${r.learned.n} פגעו`, `🧠 Similar products the radar pointed to before: ${r.learned.hits} of ${r.learned.n} hit`)}</p> : null}
                     <p className="text-[12px] font-bold" style={{ color: "#1d4ed8" }}>{L(`🤫 עוד שקט: רק ${r.known.similar} מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביבו`, `🤫 Not saturated: only ${r.known.similar} similar listings on AliExpress, and Google in the US doesn't suggest "tiktok" or "viral" yet`)}</p>
                     {r.known.yt ? <p className="text-[12px]" style={{ color: "#b91c1c" }}>{r.known.yt.level === "EARLY" ? L(`▶️ ביוטיוב: ${r.known.yt.videos} סרטונים חדשים ב־${r.known.yt.days} הימים האחרונים. היוצרים הראשונים כבר מצאו אותו`, `▶️ YouTube: ${r.known.yt.videos} new videos in the last ${r.known.yt.days} days. The first creators found it`) : L(`▶️ ביוטיוב: שקט מוחלט ב־${r.known.yt.days} הימים האחרונים`, `▶️ YouTube: no new video about it in the last ${r.known.yt.days} days`)}</p> : null}
@@ -757,6 +758,7 @@ function NewKinds({ kinds }) {
                 <li key={k.en} className="lx-card p-3" style={{ boxShadow: "none", border: "1px solid var(--lx-line)", background: "#fff" }}>
                   <p className="text-[17px] font-black" dir="ltr" style={{ textAlign: "start" }}>{k.en}</p>
                   <p className="mt-1 text-[15px] font-black" style={{ color: "#166534" }}>{L(`🚀 +${k.medianWeekPct}% בשבוע (החציון של ${k.measured} מודעות)`, `🚀 +${k.medianWeekPct}% a week (the median of ${k.measured} listings)`)}</p>
+                  {k.sure ? <p className="text-[13px] font-black">{L(`🎯 הקול המוכח: לפחות ${k.sure}%`, `🎯 Proven voice: at least ${k.sure}%`)}</p> : null}
                   {k.learned ? <p className="text-[12px] font-bold" style={{ color: "#6d28d9" }}>{L(`🧠 סוגים דומים בעבר: ${k.learned.hits} מתוך ${k.learned.n} פגעו`, `🧠 Similar kinds before: ${k.learned.hits} of ${k.learned.n} hit`)}</p> : null}
                   <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${k.members} מודעות חדשות · ${k.orders.toLocaleString("he-IL")} הזמנות ב־30 יום, יחד (אליאקספרס)${k.first ? ` · הראשונה נקראה ב־${dm(k.first)}` : ""}`, `${k.members} new listings · ${k.orders.toLocaleString("en-US")} orders in 30 days, together (AliExpress)${k.first ? ` · the first read on ${dm(k.first)}` : ""}`)}</p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
@@ -815,6 +817,21 @@ function Brain({ brain }) {
             </div>
           );
         })}
+        <div className="mt-4 rounded-[14px] p-3" style={{ background: "#0b0b0b", color: "#fff" }}>
+          <p className="text-[16px] font-black">{L("🎯 הקול המוכח של הרדאר", "🎯 The radar's proven voice")}</p>
+          <p className="mt-1 text-[13px] leading-6">{L("הרדאר מדבר בקול המוכח רק כשהעבר שלו מוכיח את זה. המוח בוחר תבנית סימנים, נועל וחותם אותה ביום שבחר, ומאותו יום כל פגיעה וכל טעות של קביעות בתבנית הזאת נספרות. רמה (80%, 90%, 95%, 99%) נפתחת רק כשהגבול התחתון של הדיוק, בביטחון של 95%, מגיע אליה. ההגדרה של פגיעה נשארת אותה הגדרה.", "The radar speaks in its proven voice only when its own past proves it. The brain picks a pattern of signals, locks and seals it the day it picks it, and from that day every hit and miss of calls in that pattern counts. A level (80%, 90%, 95%, 99%) opens only when the lower bound of the accuracy, at 95% confidence, reaches it. The definition of a hit stays the same.")}</p>
+          {books.map(([k, label]) => {
+            const x = brain.sure?.[k];
+            if (!x) return null;
+            return (
+              <p key={k} className="mt-2 text-[13px] font-bold">{label}: {x.pattern?.length
+                ? (x.level
+                  ? L(`🎯 מוכח לפחות ${x.level}%: ${x.live.hits} מתוך ${x.live.n} פגעו מאז ${dm(x.since)}.`, `🎯 Proven at least ${x.level}%: ${x.live.hits} of ${x.live.n} hit since ${dm(x.since)}.`)
+                  : L(`התבנית נבחרה ונחתמה ב־${dm(x.since)}. מאז: ${x.live.hits} מתוך ${x.live.n} פגעו. כדי להוכיח 99% צריך ${x.toProve?.[99] ?? 381} פגיעות ברצף, ל־90%: ${x.toProve?.[90] ?? 35}.`, `Pattern chosen and sealed on ${dm(x.since)}. Since then: ${x.live.hits} of ${x.live.n} hit. Proving 99% takes ${x.toProve?.[99] ?? 381} hits in a row; 90% takes ${x.toProve?.[90] ?? 35}.`))
+                : L(`המוח יבחר תבנית אחרי 5 ציונים לכל צד. כדי להוכיח 99% צריך ${x.toProve?.[99] ?? 381} פגיעות ברצף, ל־90%: ${x.toProve?.[90] ?? 35}.`, `The brain picks a pattern after 5 grades on each side. Proving 99% takes ${x.toProve?.[99] ?? 381} hits in a row; 90% takes ${x.toProve?.[90] ?? 35}.`)}</p>
+            );
+          })}
+        </div>
         <p className="mt-3 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`גרסה ${brain.version} של המוח. כל יום המצב שלו נחתם בביטקוין יחד עם כל הספרים, כדי שכל אחד יראה מה הוא ידע ומתי. גרסה חדשה תפורסם כאן, וכל קביעה שומרת את הגרסה שבה נעשתה.`, `Brain version ${brain.version}. Every day its state is sealed in Bitcoin with all the books, so anyone can see what it knew and when. A new version is announced here, and every call keeps the version it was made under.`)}</p>
       </div>
     </section>

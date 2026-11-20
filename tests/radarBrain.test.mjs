@@ -75,3 +75,44 @@ test("wiring: the runner learns after grading, seals the brain in the daily root
   const brain = readFileSync("src/lib/growth/radarBrain.js", "utf8");
   assert.doesNotMatch(brain, /import[^;]*(freshBar|FRESH|KINDS)/, "the brain never touches the bar");
 });
+
+// 🎯 The sure voice (the owner, 2026-11-20: "99% hit exactly"): a level opens only when the radar's own
+// record proves it — the Wilson lower bound at 95% confidence — and only on calls made after the pattern
+// was chosen and sealed, so choosing the best of many patterns never inflates the record.
+import { SURE, hitsToProve, matchesPattern, sureState, wilsonLower } from "../src/lib/growth/radarBrain.js";
+
+test("proving a level takes hits in a row: 99% needs 381, 95% needs 73, 90% needs 35, 80% needs 16", () => {
+  assert.deepEqual(SURE.levels.map((l) => hitsToProve(l)), [381, 73, 35, 16]);
+  assert.equal(wilsonLower(0, 0), 0);
+  assert.ok(wilsonLower(297, 300) < 99, "297 of 300 is not yet proof of 99%");
+});
+
+test("the pattern is chosen on the past, sealed, and certified only by calls made after it", () => {
+  const F = (w) => ({ weekPct: w, heldPct: 50, orders: 300, similar: 100, yt: "NONE", price: 10 });
+  const past = [];
+  for (let i = 0; i < 20; i++) past.push({ id: `a${i}`, at: "2026-11-01", gradedAt: "2026-11-15", result: i < 12 ? "HIT" : "MISS", f: F(i < 10 ? 100 : 50) });
+  const first = sureState(null, past, "fresh", { today: "2026-11-20" });
+  assert.equal(first.key, "+fast");
+  assert.equal(first.since, "2026-11-20");
+  assert.deepEqual(first.live, { n: 0, hits: 0, lower: 0 }, "the past that chose it never counts toward its proof");
+  assert.equal(first.level, null);
+  assert.equal(matchesPattern(F(120), first, "fresh"), false, "no level, no sure voice");
+  const later = [...past];
+  for (let i = 0; i < 40; i++) later.push({ id: `b${i}`, at: "2026-11-21", gradedAt: "2026-12-05", result: "HIT", f: F(100) });
+  const after = sureState(first, later, "fresh", { today: "2026-12-10" });
+  assert.equal(after.since, "2026-11-20", "frozen");
+  assert.deepEqual([after.live.n, after.live.hits, after.level], [40, 40, 90]);
+  assert.equal(matchesPattern(F(120), after, "fresh"), true);
+  assert.equal(matchesPattern(F(50), after, "fresh"), false);
+  // a frozen pattern that turns out poor is replaced, and its count restarts
+  const poor = [...past];
+  for (let i = 0; i < 20; i++) poor.push({ id: `c${i}`, at: "2026-11-21", gradedAt: "2026-12-05", result: i < 4 ? "HIT" : "MISS", f: F(100) });
+  const replaced = sureState(first, poor, "fresh", { today: "2026-12-10" });
+  assert.equal(replaced.since, "2026-12-10");
+  assert.equal(replaced.live.n, 0);
+});
+
+test("before the brain learned anything there is no pattern and no level", () => {
+  const s = sureState(null, [], "fresh", { today: "2026-11-20" });
+  assert.deepEqual([s.pattern, s.level, s.toProve[99]], [null, null, 381]);
+});
