@@ -159,7 +159,9 @@ test("the run reads, grades, issues and seals the clock; the page shows it in th
   assert.match(run, /env\.RADAR_WINDOW !== "0"/);
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
   assert.match(page, /<WindowClock win=\{board\.window\} \/>/);
-  assert.match(page, /<WindowLine w=\{r\.window\} \/>/);
-  assert.match(page, /<WindowLine w=\{k\.window\} \/>/);
-  assert.match(page, /window: "proof"/);
+  // The card line is a row of the one find card (radarCore.js findFacts), on new products and new kinds.
+  assert.match(page, /<FindFacts f=\{r\} kind="fresh"/);
+  assert.match(page, /<FindFacts f=\{k\} kind="kinds"/);
+  assert.match(readFileSync("src/lib/growth/radarCore.js", "utf8"), /add\("window", "שעון החלון"/);
+  assert.match(readFileSync("src/lib/growth/radarCore.js", "utf8"), /id: "window", book: "window", tab: "proof", section: "window"/, "#window opens the proof tab (radarCore.js)");
 });

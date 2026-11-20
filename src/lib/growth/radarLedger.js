@@ -13,11 +13,13 @@
 // text is published, so anyone can recompute every hash and the root, and see that nothing was
 // added, removed or changed after the day. Pure: the runner hashes and stamps.
 
+import { BOOKS } from "./radarCore.js";
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ITEM = /^\d{6,20}$/;
 const SHA = /^[0-9a-f]{64}$/;
 const CONCEPT = /^[a-z0-9][a-z0-9-]{0,79}$/;
-export const LEDGER_BOOKS = Object.freeze(["early", "stages", "luck", "fresh", "kinds", "brain", "promise", "window", "globe", "prices"]);
+// The books come from the radar's one core (radarCore.js INSTRUMENTS), in its fixed order.
+export const LEDGER_BOOKS = BOOKS;
 
 /**
  * Every ordinary stage call (a concept that turned EMERGING or RISING), one line each:

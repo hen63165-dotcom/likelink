@@ -710,6 +710,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);
+  // Each card says when it was sealed and when it is graded (the call's own dates).
+  for (const r of board.fresh.risers) { const c = freshCalls.find((x) => x.id === r.id && !x.result); if (c) { r.called = c.at; r.due = c.due; } }
   board.fresh.record = freshRecord(freshCalls);
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
@@ -756,6 +758,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     let kindCalls = gradeKinds(readJson(join(dir, "kinds-calls.json"), []), items, today);
     kindCalls = recordKinds(kindCalls, shownKinds, today);
+    for (const k of shownKinds) { const c = kindCalls.find((x) => x.en === k.en && !x.result); if (c) { k.called = c.at; k.due = c.due; } }
     writeFileSync(join(dir, "kinds-calls.json"), JSON.stringify(kindCalls));
     board.kinds = {
       model: KINDS.model, tracked: kindVectors, list: shownKinds.map(({ bases, ...k }) => k), record: kindsRecord(kindCalls),
