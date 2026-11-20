@@ -38,23 +38,26 @@ const doc = { model: LENS.model, dims: rows[0] ? Buffer.from(rows[0].v, "base64"
 writeFileSync(join(out, "labels.json"), JSON.stringify(doc));
 console.log(`labels: ${rows.length} kinds · ${doc.dims} dims · ${Math.round(JSON.stringify(doc).length / 1024)} KB`);
 
-// The browser half, checked here on real store photos of known kinds (from the catalog copy).
+// The browser half, checked here on real store photos of known kinds (from the catalog copy), for each
+// vision precision asked (LENS_DTYPES, default the one the site uses): the answers and the file's size.
 const processor = await AutoProcessor.from_pretrained(LENS.model);
-const vision = await CLIPVisionModelWithProjection.from_pretrained(LENS.model, { dtype: LENS.visionDtype });
 const kv = JSON.parse(readFileSync("public/snapshot/kv.json", "utf8"));
-const samples = (kv.keys["marketplace:products"] || []).filter((p) => /^https:\/\//.test(String(p.image || ""))).slice(0, 12);
+const samples = (kv.keys["marketplace:products"] || []).filter((p) => /^https:\/\//.test(String(p.image || ""))).slice(0, 16);
+const images = [];
+for (const p of samples) { try { images.push({ p, image: await RawImage.read(p.image) }); } catch (e) { console.log(`${p.id}: ${String(e?.message || e).slice(0, 80)}`); } }
 let ok = 0;
-for (const p of samples) {
-  try {
-    const image = await RawImage.read(p.image);
+for (const dtype of String(process.env.LENS_DTYPES || LENS.visionDtype).split(",")) {
+  const vision = await CLIPVisionModelWithProjection.from_pretrained(LENS.model, { dtype });
+  console.log(`--- vision ${dtype}`);
+  for (const { p, image } of images) {
     const { image_embeds } = await vision(await processor(image));
     const r = rankKinds(image_embeds.normalize().tolist()[0], rows);
     ok++;
-    console.log(`${p.id} [${p.kind || p.category || "?"}] ${String(p.title || "").slice(0, 40)} → ${r.verdict} ${r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`).join(", ")}`);
-  } catch (e) { console.log(`${p.id}: ${String(e?.message || e).slice(0, 100)}`); }
+    console.log(`${dtype} ${p.id} [${p.kind || p.category || "?"}] ${String(p.title || "").slice(0, 40)} → ${r.verdict} ${r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`).join(", ")}`);
+  }
 }
 const files = [];
 const walk = (d) => { for (const f of readdirSync(d, { withFileTypes: true })) (f.isDirectory() ? walk(join(d, f.name)) : files.push(join(d, f.name))); };
 try { walk(env.cacheDir); } catch { /* no cache dir */ }
 for (const f of files.filter((f) => /\.onnx$/.test(f))) console.log(`model file ${f.replace(env.cacheDir, "")}: ${(statSync(f).size / 1e6).toFixed(1)} MB`);
-console.log(`vision check: ${ok} of ${samples.length} photos read`);
+console.log(`vision check: ${ok} answers on ${images.length} photos`);

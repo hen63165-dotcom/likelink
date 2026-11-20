@@ -1121,6 +1121,17 @@ function Crowd({ crowd }) {
       <div className="lx-card p-5" style={{ boxShadow: "none", border: "2px solid #0b0b0b", background: "#fefce8" }}>
         <h2 className="text-[22px] font-black">{L("👥 מה בודקים בארץ השבוע", "👥 What people in Israel check this week")}</h2>
         <p className="mt-1 text-[14px] leading-6">{L("מי שרואה מוצר ברילס מדביקה את הקישור בכפתור הקסם. כשכמה אנשים שונים בודקים את אותו מוצר באותו שבוע, הוא כנראה מסתובב עכשיו ברשתות בארץ. הרדאר סופר רק את מספר המוצר, והזהות של מי שבדק נשארת פרטית.", "People who see a product in a reel paste its link into the magic button. When several different people check the same item in a week, it is probably going around Israeli feeds right now. The radar counts only the item number, nothing about who checked.")}</p>
+        {crowd.kinds?.length ? (
+          <div className="mt-3">
+            <p className="text-[15px] font-black">{L("📸 מה מצלמים בארץ השבוע", "📸 What people in Israel photograph this week")}</p>
+            <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("צילומי מסך שאנשים שונים העלו לכפתור הקסם. הבינה המלאכותית זיהתה את הסוג בטלפון של כל אחת, והתמונה נשארה אצלה: לרדאר מגיע רק שם הסוג.", "Screenshots different people gave the magic button. The AI recognized the kind on each person's own phone and the picture stayed there: the radar gets only the kind's name.")}</p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {crowd.kinds.map((k) => (
+                <li key={k.id}><Go to={k.id.startsWith("category-") ? `/magic?q=${encodeURIComponent(k.he)}` : `/radar#${k.id}`} className="lx-btn lx-btn-ghost" style={{ minHeight: 34, padding: "4px 12px", fontSize: 13 }}>{L(`${k.he} · ${k.people} אנשים`, `${k.he} · ${k.people} people`)}</Go></li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {crowd.list.length ? (
           <>
             <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות הוא קישור שותפים", "#ad · the store button is an affiliate link")}</p>

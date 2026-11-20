@@ -28,7 +28,7 @@ jobs:
       - name: Labels and the vision check
         run: |
           set -o pipefail
-          node scripts/catalog/radar-lens.mjs lens-out | tee /tmp/lens.txt
+          LENS_DTYPES=q8,fp16,fp32 node scripts/catalog/radar-lens.mjs lens-out | tee /tmp/lens.txt
           { echo "### Radar lens"; echo '```'; cat /tmp/lens.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep them on the review release
         env:

@@ -13,7 +13,7 @@ export const LENS = Object.freeze({
   visionDtype: "q8",
   textDtype: "fp32",
   scale: 100, // CLIP's logit scale
-  sure: 0.5, // the top kind's share of the model's belief to say "looks like"
+  sure: 0.6, // the top kind's share of the model's belief to say "looks like"
   maybe: 0.2, // under this the answer is "unsure"
   labels: "/lens/labels.json",
   lib: "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1/dist/transformers.min.js",

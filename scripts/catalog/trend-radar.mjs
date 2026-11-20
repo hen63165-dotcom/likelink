@@ -695,9 +695,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           if (card) cards.push(card);
         }
       }
-      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show) };
+      // What people photographed in the lens this week (kinds only): named by the watch list or the shop's categories.
+      const kindName = new Map([...watch.map((c) => [c.id, c.he]), ...TREND_CATEGORIES.map((c) => [`category-${c.key}`, c.he])]);
+      const photographed = (Array.isArray(body?.kinds) ? body.kinds : []).filter((k) => kindName.has(k?.kind)).slice(0, CROWD.show).map((k) => ({ id: k.kind, he: kindName.get(k.kind), people: k.people, first: k.first, last: k.last }));
+      board.crowd = { at: today, days: CROWD.days, list: cards.slice(0, CROWD.show), kinds: photographed };
       sources.crowd = "OK";
-      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length}`);
+      log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length} · kinds photographed ${photographed.length}`);
     } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
   } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.

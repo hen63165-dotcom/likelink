@@ -258,7 +258,8 @@ function cleanCrowd(c) {
     const buy = !x.blocked && typeof x.buy === "string" && BUY.test(x.buy) ? x.buy : null;
     return { id: String(x.id), title: str(x.title, 140), image, people: num(x.people), checks: num(x.checks), first: day(x.first), last: day(x.last), orders: num(x.orders), price: num(x.price), buy, blocked: ["BRAND", "TOOL"].includes(x.blocked) ? x.blocked : null, momentum: x.momentum && num(x.momentum.weekPct) !== null ? { weekPct: num(x.momentum.weekPct) } : null, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${x.id}.html`)}` };
   }).filter(Boolean);
-  return { at: day(c.at), days: num(c.days) ?? 7, list };
+  const kinds = (Array.isArray(c.kinds) ? c.kinds : []).slice(0, 8).filter((k) => /^[a-z0-9-]{3,48}$/.test(String(k?.id || "")) && num(k.people) >= 2).map((k) => ({ id: k.id, he: str(k.he, 60), people: num(k.people), first: day(k.first), last: day(k.last) }));
+  return { at: day(c.at), days: num(c.days) ?? 7, list, kinds };
 }
 
 /** Waves the radar measures but never sells (brandWaves.js): counts only; a buy button only for the legal alternative. */
