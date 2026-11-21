@@ -10,7 +10,7 @@ import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
-import { cleanReceipt, cleanScan } from "./runReceipt.js";
+import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -193,6 +193,7 @@ export function sanitizeBoard(doc) {
     sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : worldCounts(v)])) : null,
     receipt: cleanReceipt(doc.receipt),
     scan: cleanScan(doc.scan),
+    sourceHealth: cleanHealth(doc.sourceHealth),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -207,7 +208,24 @@ export function sanitizeBoard(doc) {
     world: doc.world && num(doc.world.categories) !== null ? worldCounts(doc.world) : null,
     globe: cleanGlobe(doc.globe),
     challenge: cleanChallenge(doc.challenge),
+    // 📣 The channels' pool (channelEngine.js radarPool): HOT listings per kind, several sellers compared.
+    pool: cleanPool(doc.pool),
   };
+}
+
+/** 📣 The channels' pool: a store button only to her own tracked links, photos only from the store's hosts. */
+function cleanPool(p) {
+  if (!p || typeof p !== "object" || !Array.isArray(p.list)) return null;
+  const list = p.list.slice(0, 60)
+    .filter((r) => ITEM.test(String(r?.id || "")) && ID.test(String(r?.kind || "")) && BUY.test(String(r?.buy || "")) && radarImage(r?.image))
+    .map((r) => ({
+      id: r.id, kind: r.kind, title: str(r.title, 120), storeTitle: str(r.storeTitle, 200), image: radarImage(r.image), price: num(r.price), buy: r.buy,
+      sat: ["97+", "95+", "low"].includes(r.sat) ? r.sat : null, video: r.video === true, words: num(r.words),
+      visual: ["MATCH", "MISMATCH", "CATEGORY_ONLY"].includes(r.visual) ? r.visual : null,
+      orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), weekPct: num(r.weekPct),
+      compared: num(r.compared), hotSellers: num(r.hotSellers), cheapest: num(r.cheapest), at: day(r.at),
+    }));
+  return { at: str(p.at, 30), kinds: num(p.kinds) ?? 0, list };
 }
 
 /** 🔮 The weekly challenge (radarChallenge.js): the open one never carries the radar's choice or the salt. */

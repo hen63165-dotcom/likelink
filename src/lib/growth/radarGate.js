@@ -66,6 +66,7 @@ export function teaserBoard(board) {
     // 🧾 The run receipt: counts and the run's public log only, never a find; public behind the lock.
     receipt: board.receipt || null,
     scan: board.scan || null,
+    sourceHealth: board.sourceHealth || null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.
     window: board.window ? { v: board.window.v, at: board.window.at, line: board.window.line, horizons: board.window.horizons || [], record: board.window.record || [], issued: board.window.issued || 0, open: board.window.open || 0, nextDue: board.window.nextDue || null, recent: [], seal: board.window.seal ? { d: board.window.seal.d, sha256: board.window.seal.sha256, count: board.window.seal.count, ots: board.window.seal.ots || [] } : null } : null,
     // 📐 The proven range: the method's state and the coverage record are public; the day's ranges

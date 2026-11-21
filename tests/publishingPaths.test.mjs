@@ -80,7 +80,8 @@ test("brand pulse logs through the same gate (a webhook 200 without an id is not
   const src = (await import("node:fs")).readFileSync(new URL("../api/autopilot.mjs", import.meta.url), "utf8");
   assert.match(src, /externalId = await sendWebhook\(ch, \{ text, source: "likelink-brand-pulse", link \}\)/);
   assert.match(src, /PUBLICATION_STATE\[publicationGate\(entry\.status, entry\.externalId\)\]/);
-  assert.equal((src.match(/await sendToChannel\(ch, \{/g) || []).length, 3, "all three creator paths use the one dispatcher");
+  // 21.11: the fourth creator path is the owner's channel engine (runChannelEngine); it sends through the same dispatcher.
+  assert.equal((src.match(/await sendToChannel\(ch, \{/g) || []).length, 4, "all four creator paths use the one dispatcher");
   assert.doesNotMatch(src, /else if \(ch\.type === "wordpress"\) await sendWordPress/, "no copy of the old channel chain is left");
 });
 

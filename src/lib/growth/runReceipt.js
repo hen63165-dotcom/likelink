@@ -381,3 +381,95 @@ export function israelTime(t) {
   if (Number.isNaN(d.getTime())) return "";
   return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 }
+
+/**
+ * 📒 The source health registry (the owner's mission, 21.11, phase 4: "for every source: the last scan
+ * attempt, the last valid data, records kept, success rate, errors and blocks, update frequency, data
+ * quality, reliability"). Built only from the receipts of real runs, kept in receipts.json (the radar's
+ * encrypted state, last HEALTH.keep runs). A source never asked has no row; nothing is filled in.
+ *
+ * What each source measures, kept apart (phase 4: "searches, views, engagement, demand, sales and sales
+ * estimates are never the same metric"): every row names its own measure.
+ */
+export const HEALTH = Object.freeze({ keep: 30, recent: 7, high: 0.9, medium: 0.6 });
+export const MEASURES = Object.freeze({
+  aliexpress: { he: "הזמנות ב־30 יום כפי שהחנות מדווחת, מספר מודעות, מחיר", en: "30-day orders as the store reports them, listing counts, price" },
+  suggest: { he: "השלמות חיפוש (עניין בחיפוש, בלי נפח)", en: "Search suggestions (search interest, never volume)" },
+  youtube: { he: "השלמות חיפוש ביוטיוב", en: "YouTube search suggestions" },
+  worldSearch: { he: "השלמות חיפוש במדינות אחרות", en: "Search suggestions abroad" },
+  trendsIL: { he: "חיפושים חמים ביום (גוגל)", en: "Daily trending searches (Google)" },
+  trendsWorld: { he: "חיפושים חמים ביום (גוגל)", en: "Daily trending searches (Google)" },
+  youtubeApi: { he: "מספר סרטונים חדשים וצפיות בהם", en: "New videos and their views" },
+  pinterest: { he: "מילים שצומחות בפינטרסט", en: "Growing keywords on Pinterest" },
+  instagram: { he: "מספר פוסטים בהאשטג", en: "Posts under a hashtag" },
+  engine_baidu: { he: "השלמות חיפוש", en: "Search suggestions" },
+  engine_naver: { he: "השלמות חיפוש", en: "Search suggestions" },
+  site: { he: "המוצרים והקליקים של LikeLink2 עצמו", en: "LikeLink2's own products and clicks" },
+});
+
+const DAY = 86_400_000;
+const ISO_T = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
+
+/** One run's receipt into the history (newest last, at most HEALTH.keep runs, one entry per run start). */
+export function addHealth(history = [], receipt = null, states = {}, { rules = HEALTH } = {}) {
+  const list = (Array.isArray(history) ? history : []).filter((h) => ISO_T.test(String(h?.at || "")));
+  if (!receipt?.started || !ISO_T.test(receipt.started)) return list.slice(-rules.keep);
+  const sources = {};
+  for (const [k, c] of Object.entries(receipt.sources || {})) {
+    if (!METERED.includes(k) || ["seal", "bitcoin", "rules", "other"].includes(k)) continue;
+    sources[k] = { ...cleanCounts(c), ...(Number.isInteger(c.kept) ? { kept: c.kept } : {}), ...(c.codes ? { codes: cleanCodes(c.codes) || undefined } : {}) };
+  }
+  const entry = { at: receipt.started, run: receipt.run?.id || null, sources, states: Object.fromEntries(Object.entries(states || {}).filter(([, v]) => typeof v === "string").map(([k, v]) => [k, v.slice(0, 40)])) };
+  return [...list.filter((h) => h.at !== entry.at), entry].sort((a, b) => (a.at < b.at ? -1 : 1)).slice(-rules.keep);
+}
+
+/**
+ * Each source over the kept runs: when it was last asked, when it last gave valid data, how much it
+ * kept last time, its share of valid answers, its errors by code, how often it ran in the last week,
+ * and a reliability level from those numbers only (HIGH ≥ 90% valid and data in every recent run it
+ * was asked; MEDIUM ≥ 60%; LOW below; MEASURING with fewer than 3 runs).
+ */
+export function healthOf(history = [], { now = Date.now(), rules = HEALTH } = {}) {
+  const list = (Array.isArray(history) ? history : []).filter((h) => ISO_T.test(String(h?.at || "")));
+  const keys = [...new Set(list.flatMap((h) => Object.keys(h.sources || {})))];
+  const out = {};
+  for (const k of keys) {
+    const runs = list.filter((h) => h.sources?.[k]?.asked);
+    if (!runs.length) continue;
+    const sum = (f) => runs.reduce((s, h) => s + (Number(h.sources[k][f]) || 0), 0);
+    const asked = sum("asked");
+    const valid = sum("answered") + sum("empty");
+    const withData = runs.filter((h) => h.sources[k].answered > 0 || h.sources[k].kept > 0);
+    const last = runs[runs.length - 1];
+    const codes = {};
+    for (const h of runs) for (const [c, n] of Object.entries(h.sources[k].codes || {})) codes[c] = (codes[c] || 0) + n;
+    const recent = runs.filter((h) => Date.parse(h.at) >= now - rules.recent * DAY);
+    const rate = asked ? valid / asked : 0;
+    const level = runs.length < 3 ? "MEASURING" : rate >= rules.high && withData.length === runs.length ? "HIGH" : rate >= rules.medium ? "MEDIUM" : "LOW";
+    out[k] = {
+      runs: runs.length, lastAsked: last.at, lastValid: withData.length ? withData[withData.length - 1].at : null,
+      keptLast: Number.isInteger(last.sources[k].kept) ? last.sources[k].kept : null, answeredLast: last.sources[k].answered,
+      validRate: Math.round(rate * 1000) / 10, errors: Object.fromEntries(Object.entries(codes).sort((a, b) => b[1] - a[1]).slice(0, 6)),
+      runsLastWeek: recent.length, level,
+    };
+  }
+  return { runs: list.length, from: list[0]?.at || null, to: list[list.length - 1]?.at || null, sources: out };
+}
+
+/** The health registry as the board keeps it (known sources, whole numbers, ISO times). */
+export function cleanHealth(doc) {
+  if (!doc || typeof doc !== "object" || !doc.sources || typeof doc.sources !== "object") return null;
+  const n = (x) => (Number.isFinite(x) && x >= 0 ? x : null);
+  const t = (x) => (ISO_T.test(String(x || "")) ? x : null);
+  const sources = {};
+  for (const [k, v] of Object.entries(doc.sources)) {
+    if (!METERED.includes(k) || !v || typeof v !== "object") continue;
+    sources[k] = {
+      runs: n(v.runs) ?? 0, lastAsked: t(v.lastAsked), lastValid: t(v.lastValid), keptLast: n(v.keptLast), answeredLast: n(v.answeredLast),
+      validRate: n(v.validRate) !== null && v.validRate <= 100 ? v.validRate : null,
+      errors: cleanCodes(v.errors) || {}, runsLastWeek: n(v.runsLastWeek) ?? 0,
+      level: ["HIGH", "MEDIUM", "LOW", "MEASURING"].includes(v.level) ? v.level : "MEASURING",
+    };
+  }
+  return { runs: n(doc.runs) ?? 0, from: t(doc.from), to: t(doc.to), sources };
+}

@@ -36,7 +36,7 @@ export const BOOKS = Object.freeze(INSTRUMENTS.filter((i) => i.book).map((i) => 
 /** Every section id on /radar → its tab (deep links like /radar#window open the right tab). */
 export const SECTION_TABS = Object.freeze({
   today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", watch: "today", export: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", record: "proof", sources: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
+  proof: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
   tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools",
   plans: "plans", "radar-tiers": "plans",
   ...Object.fromEntries(INSTRUMENTS.map((i) => [i.section, i.tab]).filter(([s]) => !["verdict", "fresh", "kinds", "ledger"].includes(s))),
@@ -289,4 +289,52 @@ export function byCategory(calls = []) {
     if (c.result === "HIT" || c.result === "MISS") { t.graded++; if (c.result === "HIT") t.hits++; }
   }
   return Object.values(out).sort((a, b) => b.graded - a.graded || b.calls - a.calls || (a.category < b.category ? -1 : 1));
+}
+
+/**
+ * 🗺️ The capability map (the owner's mission, 21.11, phase 2: "build a map: 1. works and verified in
+ * production, 2. in the code but not connected, 3. connected but returns no reliable data, 4. partial
+ * or unstable, 5. missing"). Computed from the latest run's board only, never declared: a source from
+ * its state checked against the run receipt and its share of errors; an instrument from whether its
+ * book is in today's sealed root and whether any of its calls has been graded; the missing ones are
+ * the doors still closed. Pure: the page computes it from the sanitized board.
+ */
+export const CAPABILITY_CLASSES = Object.freeze({
+  LIVE: { n: 1, he: "עובד ומאומת בייצור", en: "Working and verified in production" },
+  NOT_CONNECTED: { n: 2, he: "קיים בקוד, מחכה לחיבור", en: "In the code, waiting for a connection" },
+  UNRELIABLE: { n: 3, he: "מחובר, בלי נתונים אמינים", en: "Connected, no reliable data" },
+  PARTIAL: { n: 4, he: "חלקי, או עם שגיאות", en: "Partial or unstable" },
+  MISSING: { n: 5, he: "חסר ודורש פיתוח", en: "Missing, needs building" },
+});
+export const CAPABILITY = Object.freeze({ errorShare: 0.1 });
+
+export function capabilityMap(board = {}, { rules = CAPABILITY } = {}) {
+  const b = board || {};
+  const rows = [];
+  const receipt = b.receipt || null;
+  for (const s of sourcesView(b.sourcesToday || {}, receipt)) {
+    let cls;
+    let why = null;
+    if (s.state === "REQUIRES_CONNECTION" || s.state === "SKIPPED") cls = "NOT_CONNECTED";
+    else if (s.state === "FAILED" || s.state === "EMPTY" || s.state === "UNUSABLE" || s.state === "CLOSED") { cls = "UNRELIABLE"; why = s.state; }
+    else {
+      const c = s.counts;
+      const errors = c ? (c.refused || 0) + (c.failed || 0) : 0;
+      const share = c?.asked ? errors / c.asked : 0;
+      if (share >= rules.errorShare) { cls = "PARTIAL"; why = { errors, of: c.asked }; } else cls = "LIVE";
+    }
+    rows.push({ kind: "source", key: s.key, he: s.he, en: s.en, cls, why });
+  }
+  const view = recordView(b);
+  const sealedRun = (b.ledger?.text || "").split("\n").some((l) => l.startsWith("run="));
+  for (const r of view.rows) {
+    if (r.daily) { rows.push({ kind: "instrument", key: r.id, he: r.he, en: r.en, cls: r.sealed ? "LIVE" : "PARTIAL", why: r.sealed ? null : "unsealed" }); continue; }
+    const graded = r.result && (r.result.of || r.result.held !== undefined);
+    const cls = !r.sealed && !graded ? "PARTIAL" : graded ? "LIVE" : "PARTIAL";
+    rows.push({ kind: "instrument", key: r.id, he: r.he, en: r.en, cls, why: graded ? null : r.next ? { firstCheck: r.next } : "awaiting" });
+  }
+  if (receipt) rows.push({ kind: "instrument", key: "run", he: "קבלת הריצה", en: "The run receipt", cls: sealedRun ? "LIVE" : "PARTIAL", why: sealedRun ? null : "unsealed" });
+  for (const d of NEXT_DOORS) rows.push({ kind: "door", key: d.key, he: d.he, en: d.en, cls: "MISSING", why: d.door });
+  const counts = Object.fromEntries(Object.keys(CAPABILITY_CLASSES).map((k) => [k, rows.filter((r) => r.cls === k).length]));
+  return { at: b.at || null, run: receipt?.run || null, rows, counts };
 }

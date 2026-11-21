@@ -391,6 +391,52 @@ export async function aliexpressProductInfo(link, { env: rawEnv = {}, fetchImpl 
   };
 }
 
+/**
+ * 📣 The send-time check of one item (channelEngine.js): the store's own facts right before a post —
+ * the Hebrew title, photos, ILS "from" price, 30-day orders and satisfaction as a bucket only (the
+ * number is never returned). null when the store did not answer with this item.
+ */
+export async function aliexpressItemFacts(itemId, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
+  const id = String(itemId || "");
+  if (!aeStatus(env).configured || !/^\d{6,20}$/.test(id)) return null;
+  const json = await aeCall("aliexpress.affiliate.productdetail.get", {
+    product_ids: id, target_currency: "ILS", target_language: "HE", country: "IL", tracking_id: env.ALIEXPRESS_TRACKING_ID,
+  }, { env, fetchImpl, now });
+  const result = json?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+  if (!result || Number(result.resp_code) !== 200) return null;
+  const x = arr(result.result?.products?.product).find((p) => String(p?.product_id) === id);
+  if (!x) return null;
+  const https = (v) => String(v || "").trim().replace(/^\/\//, "https://").replace(/^http:\/\//, "https://");
+  const images = [x.product_main_image_url, ...arr(x.product_small_image_urls?.string)].map(https).filter((v, i, a) => /^https:\/\/\S+$/.test(v) && a.indexOf(v) === i).slice(0, 8);
+  const price = Number(x.target_sale_price);
+  const ils = price > 0 && String(x.target_sale_price_currency || "") === "ILS";
+  const pos = parseFloat(String(x.evaluate_rate ?? "").replace("%", ""));
+  const orders = Number(x.lastest_volume);
+  return {
+    itemId: id,
+    title: String(x.product_title || "").trim().slice(0, 200) || null,
+    image: images[0] || null,
+    images,
+    price: ils ? Math.round(price * 100) / 100 : null,
+    orders: Number.isFinite(orders) && orders >= 0 ? orders : null,
+    sat: Number.isFinite(pos) ? (pos >= 97 ? "97+" : pos >= 95 ? "95+" : "low") : null,
+    video: /^https:\/\//.test(String(x.product_video_url || "")),
+    checkedAt: new Date(now).toISOString(),
+  };
+}
+
+/** Her own short tracked link for one item page (link.generate), or null when the store refused. */
+export async function aliexpressShortLink(itemId, { env: rawEnv = {}, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
+  const env = aeEnv(rawEnv);
+  const id = String(itemId || "");
+  if (!aeStatus(env).configured || !/^\d{6,20}$/.test(id)) return null;
+  const page = `https://www.aliexpress.com/item/${id}.html`;
+  const json = await aeCall("aliexpress.affiliate.link.generate", { tracking_id: env.ALIEXPRESS_TRACKING_ID, promotion_link_type: "0", source_values: page }, { env, fetchImpl, now });
+  const link = String(arr(json?.aliexpress_affiliate_link_generate_response?.resp_result?.result?.promotion_links?.promotion_link)[0]?.promotion_link || "");
+  return /^https:\/\/s\.click\.aliexpress\.com\/[A-Za-z0-9_\-/.?=&%]+$/.test(link) && link.length <= 200 ? link : null;
+}
+
 /** An AliExpress address (the owner's tracked link or a store page). */
 export function isAliExpressLink(link) {
   try {
