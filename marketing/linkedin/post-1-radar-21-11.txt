@@ -1,0 +1,53 @@
+אני בונה לבד רדאר טרנדים למוצרים, ומהיום אני משתפת כאן מה באמת קורה. 🛠️
+
+הבעיה: כשמוצר כבר בכל מקום, זה מאוחר מדי. מוכרות, משווקים ויזמים צריכים לדעת לפני כולם.
+
+מה הרדאר עושה כל בוקר:
+📂 קורא 120 קטגוריות של אליאקספרס, וכל האופנה כל יום
+🆕 עוקב אחרי 6,000 מוצרים חדשים
+🌍 בודק אם כבר מחפשים אותם בגוגל, ב־13 מדינות ובישראל
+
+הכי חשוב לי: כל קביעה שלו נחתמת מראש בביטקוין, גם הטעויות, ומקבלת ציון בפומבי. כל אחד יכול לבדוק בעצמו.
+בבדיקה עולמית שעשיתי, זה רדאר טרנדי המוצרים היחיד שמצאתי שעושה את זה. החברות הגדולות מפרסמות אחוזי דיוק שהן מדדו בעצמן.
+
+מה בניתי היום:
+🧾 קבלה לכל ריצה: כל מספר נספר מתשובות אמיתיות, וכל כשל מופיע עם הקוד שלו
+📣 מנוע אחד ששולח את מה שהרדאר מצא לטלגרם ולוואטסאפ, עם ההוכחות
+
+היום, 21.11:
+🆕 3 מוצרים חדשים מתחילים לרוץ, וכל אחד כבר חתום. הציון הפומבי הראשון: 4.12
+📐 306 טווחים מדודים נחתמו היום. הראשונים מקבלים ציון ב־23.11
+⛓️ ספר החתימות של 20.11 כבר בתוך בלוק 976,711 של ביטקוין, ונבדק מול הבלוק עצמו
+🤫 הקביעה הגדולה, כשכל ארבעת הסימנים מסכימים: עוד שקט
+
+🔮 ומה איתכם, מה לדעתכם יהיה הלהיט הבא?
+likelink2.vercel.app/radar
+
+—
+
+I'm building a product-trend radar on my own, and from today I'm sharing what really happens. 🛠️
+
+The problem: by the time a product is everywhere, it's too late. Sellers, marketers and founders need to know before everyone.
+
+What the radar does every morning:
+📂 Reads 120 AliExpress categories, and all of fashion every day
+🆕 Tracks 6,000 new products
+🌍 Checks whether people already search for them on Google, in 13 countries and Israel
+
+Most important to me: every call is sealed in advance in Bitcoin, misses included, and graded in public. Anyone can check it themselves.
+In a worldwide check I ran, it's the only product-trend radar I found that does this. The big companies publish accuracy they measured themselves.
+
+What I built today:
+🧾 A receipt for every run: every number is counted from real answers, every failure listed with its code
+📣 One engine that sends the radar's finds to Telegram and WhatsApp, with the evidence
+
+Today, Nov 21:
+🆕 3 new products are starting to run, each already sealed. First public grade: Dec 4
+📐 306 measured ranges sealed today. The first are graded on Nov 23
+⛓️ The Nov 20 ledger is already inside Bitcoin block 976,711, checked against the block itself
+🤫 The big call, when all four signals agree: still quiet
+
+🔮 What do you think the next hit will be?
+likelink2.vercel.app/radar
+
+#בונה_בפומבי #buildinpublic #trends #ecommerce #startup
