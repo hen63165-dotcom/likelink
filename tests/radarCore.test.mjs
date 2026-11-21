@@ -101,5 +101,5 @@ test("what the radar read today: the run's own states, mapped once, unknown keys
   const cats = byCategory([{ f: { category: "rings" }, result: "HIT" }, { f: { category: "rings" }, result: "MISS" }, { f: { category: "pets" } }, { category: "" }]);
   assert.deepEqual(cats, [{ category: "rings", calls: 2, graded: 2, hits: 1 }, { category: "pets", calls: 1, graded: 0, hits: 0 }]);
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
-  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} \/>/);
+  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} health=\{board\.sourceHealth \|\| null\} \/>/);
 });

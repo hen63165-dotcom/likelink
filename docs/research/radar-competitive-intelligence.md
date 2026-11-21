@@ -20,7 +20,40 @@ Key: **P** = proven by something outside the vendor (an audit, a reproducible te
 | **Kalodata** | TikTok Shop analytics | Public TikTok commerce data refined by AI models retrained daily (C) | Ranking and trend direction | Its own FAQ: amounts "may vary slightly", not for settlements (C, honest) | Lags on 24–48 h spikes; soft for small shops (third-party reviews) |
 | **Jungle Scout / Helium 10** | Amazon sales estimates, keywords | Reverse-engineered from Best Seller Rank (P: both describe it) | Sales estimates, keyword volume | JS "84%" (own 2019 case study, C); H10 compares itself favourably (C); independent tests 74–89%, samples undisclosed | Amazon only; estimates, not sales |
 | **Pinterest Trends** | Top growing keywords, Pinterest Predicts | Pinterest's own searches (first-party) | Official v5 API `trends/*` (P: public docs); needs an approved app | Predicts "80%" (own, earlier check) | Only Pinterest's own users |
+| **Google Trends** | Search interest by term, country, time; daily "Trending now" | Google's own searches (first-party) | Public Trends pages and RSS; the official **Trends API is a limited alpha** opened July 2025 to a small pilot, 5-year window, consistent scaling, no "Trending now" (P: Google's developer pages) | — | No public API for everyone yet; relative interest, never volume |
+| **Minea** | Ad spy for dropshippers: ads, shops, products | "100M+ ads" from Meta, TikTok, Pinterest (C); reviews disagree on coverage | The user filters ads by engagement to define "winning" (third-party review) | Not published (U) | Reviews: feeds lean to already-saturated products, data can be stale |
 | **TikTok Research API** | Public video data | — | — | — | Academic and non-profit only; commercial use prohibited (third-party summaries of the 2026 Research Terms) |
+
+## Who is strong at what
+
+- **Breadth of data:** WGSN (2,800 sources, C), EDITED (5bn+ SKUs, C), Similarweb (panel + measurement), Brandwatch/Talkwalker (listening at scale).
+- **Seeing products in pictures:** Heuritech (2,000+ attributes from social images, C); Talkwalker (logo/image recognition, C).
+- **Social commerce sales:** FastMoss, Kalodata (TikTok Shop estimates; Kalodata says plainly they are estimates).
+- **Marketplace sales estimates:** Jungle Scout, Helium 10 (reverse-engineered from Amazon's rank; independent tests 74–89%).
+- **Opening data to AI agents:** FastMoss (public MCP server with 45–55 tools).
+- **First-party search interest:** Google Trends, Pinterest Trends.
+
+## What is still missing in the world (as far as these public checks found)
+
+1. Accuracy audited from outside: every figure (72%–94%) is computed by the vendor itself; none is a per-call public record.
+2. Misses published next to hits, sealed before the outcome.
+3. The scan itself shown as evidence: how much was asked, what answered, what failed, today.
+4. A measured window: how long until a find is saturated, as a calibrated, graded chance.
+5. A measured "Israel gap": the same product's state abroad and in Hebrew search, side by side, dated.
+6. Separation of metrics: several dashboards blend searches, views and sales into one index (Spate's index blends platforms); estimates are rarely labelled as estimates.
+
+## Where an original advantage can be built (and what LikeLink2 already has)
+
+| Opportunity | Status in LikeLink2 on 21.11 |
+|---|---|
+| Sealed, graded public record of every call, misses included | Live: the daily root sealed in Bitcoin, books per instrument; first grades due 23.11 (ranges) and 04.12 (new products) |
+| The run receipt and the capability map (evidence of what really ran) | Built 21.11 (PR #233–#235) |
+| Calibrated chance and window clock (Brier, reliability bins) | Live since 20.11; first grades from 23.11 |
+| Luck as a baseline (the radar vs a sealed random draw) | Live; first grade 03.12 |
+| Discovery without a typed name (hot lists, new listings by category, new kinds by meaning, screenshots) | Live; measured in the receipt |
+| Israel gap and next-country clock | Live on Google/YouTube suggestions in Hebrew and abroad; Baidu and Naver closed by their own rules |
+| Source health over time (which source answers, which predicts best per category) | Next: the health registry across runs (this round), then per-source predictive value once grades exist |
+| Social commerce (TikTok Shop), Amazon, Reddit, Shopify | Missing: each needs official access (TikTok Shop Partner, Amazon PA-API / SP-API, Reddit Data API terms, a Shopify app) or a licensed provider (paid, the owner's decision) |
 
 ## What none of them publishes (checked again 21.11)
 
@@ -46,3 +79,5 @@ Base44 is a closed product (bought by Wix in 2025). There is **no access** to it
 - Jungle Scout / Helium 10: [Helium 10 accuracy post](https://www.helium10.com/blog/helium-10-jungle-scout-amazon-sales-data-accuracy/), [BagEngine test](https://bagengine.com/articles/jungle-scout-accuracy), [SmartScout comparison](https://www.smartscout.com/blog/helium-10-vs-jungle-scout)
 - Pinterest: [trends/topics/featured](https://developers.pinterest.com/docs/api/v5/trends_featured_topics-list/), [authentication](https://developers.pinterest.com/docs/getting-started/set-up-authentication-and-authorization/)
 - TikTok: [Research API eligibility](https://apidojo.io/blog/tiktok-api/research-api/), [pricing and commercial use](https://crawlfeed.dev/blog/tiktok-api-pricing)
+- Google Trends API: [announcement](https://developers.google.com/search/blog/2025/07/trends-api), [early access](https://developers.google.com/search/apis/trends), [pilot status](https://www.searchenginejournal.com/google-trends-api-alpha-mueller-confirms-small-pilot-group/554078/)
+- Minea: [ad spy](https://www.minea.com/ad-spy-tool), [dodropshipping review](https://dodropshipping.com/minea-review/), [TrendTrack review](https://www.trendtrack.io/blog-post/minea-review)

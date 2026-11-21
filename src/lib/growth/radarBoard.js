@@ -10,7 +10,7 @@ import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
-import { cleanReceipt, cleanScan } from "./runReceipt.js";
+import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -193,6 +193,7 @@ export function sanitizeBoard(doc) {
     sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : worldCounts(v)])) : null,
     receipt: cleanReceipt(doc.receipt),
     scan: cleanScan(doc.scan),
+    sourceHealth: cleanHealth(doc.sourceHealth),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).

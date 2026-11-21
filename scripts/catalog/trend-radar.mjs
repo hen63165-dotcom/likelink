@@ -26,7 +26,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
-import { hasList, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
+import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
 const codeOf = (x) => {
@@ -1159,6 +1159,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${JSON.stringify(sources[k])} → ${board.sourcesToday[k]})`).join(", ")}`);
     const text = receiptText(receipt);
     board.receipt = { ...receipt, seal: text ? await sealBook({ text, count: text.split("\n").length }, null, "run") : null };
+    // 📒 The source health registry: this run's receipt joins the last runs' (receipts.json, encrypted state).
+    const healthHist = addHealth(readJson(join(dir, "receipts.json"), []), receipt, board.sourcesToday);
+    writeFileSync(join(dir, "receipts.json"), JSON.stringify(healthHist));
+    board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
   const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });

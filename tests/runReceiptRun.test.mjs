@@ -97,4 +97,10 @@ test("partly failing: the category the store refused is counted as failed with i
   assert.ok(board.receipt.sources.suggest.empty > 0 && board.receipt.sources.suggest.kept > 0);
   // The site answered with no rows: its products are never "read".
   assert.notEqual(board.sourcesToday.siteProducts, "OK");
+  // 📒 The health registry starts from this real run: one run, so reliability is still MEASURING.
+  const { readFileSync: rf } = await import("node:fs");
+  assert.equal(JSON.parse(rf(join(dir, "receipts.json"), "utf8")).length, 1);
+  assert.equal(board.sourceHealth.runs, 1);
+  assert.equal(board.sourceHealth.sources.aliexpress.level, "MEASURING");
+  assert.ok(board.sourceHealth.sources.aliexpress.lastValid);
 });

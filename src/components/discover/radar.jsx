@@ -16,7 +16,7 @@ import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
-import { COUNTRY_NAMES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
+import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
@@ -995,6 +995,23 @@ function StageCounts({ c, countryNames }) {
   );
 }
 
+// 📒 One source over the last runs (runReceipt.js healthOf): what it measures, its share of valid
+// answers, when it last gave valid data, and its reliability from those numbers only.
+const HEALTH_LEVELS = { HIGH: ["אמינות גבוהה", "high reliability"], MEDIUM: ["אמינות בינונית", "medium reliability"], LOW: ["אמינות נמוכה", "low reliability"], MEASURING: ["אמינות: נמדדת (פחות מ־3 ריצות)", "reliability: measuring (under 3 runs)"] };
+function SourceHealth({ m, h }) {
+  const { L } = useL();
+  const when = (t) => (t ? `${dm(israelDay(t))} ${israelTime(t)}` : "");
+  return (
+    <span className="block text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>
+      {m ? <span className="block">{L(`מודד: ${m.he}`, `Measures: ${m.en}`)}</span> : null}
+      {h ? <span className="block">{L(
+        `${h.runs} ריצות: ${h.validRate ?? 0}% תשובות תקינות · נתונים תקינים לאחרונה: ${h.lastValid ? when(h.lastValid) : "בהמתנה"} · ${HEALTH_LEVELS[h.level][0]}`,
+        `${h.runs} runs: ${h.validRate ?? 0}% valid answers · last valid data: ${h.lastValid ? when(h.lastValid) : "none yet"} · ${HEALTH_LEVELS[h.level][1]}`,
+      )}</span> : null}
+    </span>
+  );
+}
+
 // Every kind of unit the run scans, its four stages apart, and every failed or empty unit by name.
 function ScanTable({ scan }) {
   const { L } = useL();
@@ -1040,7 +1057,7 @@ function ScanTable({ scan }) {
  * fetch from real answers, the run's public GitHub log prints the same receipt, and its text is sealed
  * in Bitcoin as the book "run". The date is the run's own; "today" only when the run is today's.
  */
-function SourcesToday({ sources, receipt, scan = null }) {
+function SourcesToday({ sources, receipt, scan = null, health = null }) {
   const { L } = useL();
   const list = sourcesView(sources || {}, receipt);
   if (!list.length) return null;
@@ -1082,6 +1099,7 @@ function SourcesToday({ sources, receipt, scan = null }) {
                 <b>{L(x.he, x.en)}</b>
                 <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
                 {x.counts ? <StageCounts c={x.counts} countryNames={countryNames} /> : null}
+                {MEASURES[x.key] || health?.sources?.[x.key] ? <SourceHealth m={MEASURES[x.key]} h={health?.sources?.[x.key] || null} /> : null}
               </span>
               <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
             </li>
@@ -1881,7 +1899,7 @@ export function RadarPage() {
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
-        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} /> : null}
+        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
