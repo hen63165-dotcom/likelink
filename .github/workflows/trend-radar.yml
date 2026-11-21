@@ -34,6 +34,8 @@ on:
       - src/lib/growth/radarBoard.js
       - src/lib/growth/newKinds.js
       - scripts/catalog/radar-embed.mjs
+      - src/lib/growth/channelEngine.js
+      - scripts/marketing/channel-preview.mjs
 permissions:
   contents: write
 concurrency:
@@ -95,6 +97,14 @@ jobs:
           # leave time for the archive, the board, the alert and the encrypted state after it).
           timeout 1800 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: The channels' preview (Telegram + Instagram from this board; nothing is sent)
+        # src/lib/growth/channelEngine.js over the board just measured: the leading candidates checked
+        # at the store (productdetail.get) and by their photo (the lens model on this runner), then
+        # consecutive posts simulated against an in-memory history. No message, no post, no cloud write.
+        continue-on-error: true
+        run: |
+          node scripts/marketing/channel-preview.mjs radar-state | tee -a /tmp/radar.txt
+          { echo "### Channels preview (nothing sent)"; echo '```'; grep -A12 "channel preview:" /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: The hot-only storefront (archive / restore the owner's products the radar decided)
         # src/lib/cloud/catalogArchive.js on the server decides and refuses; from main it applies
         # (RADAR_ARCHIVE=apply), from any other branch it is a dry run. Never fails the job.
@@ -134,6 +144,9 @@ jobs:
           files="radar-state/state.enc radar-state/board-public.json"
           [ -f radar-state/briefs-public.json ] && files="$files radar-state/briefs-public.json"
           [ -f radar-state/prices-public.json ] && files="$files radar-state/prices-public.json"
+          # The channels' preview (no secrets: store facts, links and the simulated posts), from a branch
+          # run only: it names today's picks, which the lock keeps off the public main release.
+          if [ "${GITHUB_REF}" != "refs/heads/main" ] && [ -f radar-state/channel-preview.json ]; then files="$files radar-state/channel-preview.json radar-state/channel-preview.md"; fi
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then rel=radar; else rel=radar-preview; fi
           gh release view $rel >/dev/null 2>&1 || gh release create $rel --prerelease --title "Trend radar (state)" --notes "The trend radar's state, encrypted (state.enc), and the public board (board-public.json). Written by .github/workflows/trend-radar.yml."
           gh release upload $rel $files --clobber

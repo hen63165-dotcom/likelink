@@ -208,7 +208,23 @@ export function sanitizeBoard(doc) {
     world: doc.world && num(doc.world.categories) !== null ? worldCounts(doc.world) : null,
     globe: cleanGlobe(doc.globe),
     challenge: cleanChallenge(doc.challenge),
+    // 📣 The channels' pool (channelEngine.js radarPool): HOT listings per kind, several sellers compared.
+    pool: cleanPool(doc.pool),
   };
+}
+
+/** 📣 The channels' pool: a store button only to her own tracked links, photos only from the store's hosts. */
+function cleanPool(p) {
+  if (!p || typeof p !== "object" || !Array.isArray(p.list)) return null;
+  const list = p.list.slice(0, 60)
+    .filter((r) => ITEM.test(String(r?.id || "")) && ID.test(String(r?.kind || "")) && BUY.test(String(r?.buy || "")) && radarImage(r?.image))
+    .map((r) => ({
+      id: r.id, kind: r.kind, title: str(r.title, 120), storeTitle: str(r.storeTitle, 200), image: radarImage(r.image), price: num(r.price), buy: r.buy,
+      sat: ["97+", "95+", "low"].includes(r.sat) ? r.sat : null, video: r.video === true, words: num(r.words),
+      orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), weekPct: num(r.weekPct),
+      compared: num(r.compared), hotSellers: num(r.hotSellers), cheapest: num(r.cheapest), at: day(r.at),
+    }));
+  return { at: str(p.at, 30), kinds: num(p.kinds) ?? 0, list };
 }
 
 /** 🔮 The weekly challenge (radarChallenge.js): the open one never carries the radar's choice or the salt. */
