@@ -1303,6 +1303,8 @@ function Styles({ concepts = [] }) {
               ) : null}
               {c.factory ? <p className="text-[12px] font-bold" style={{ color: c.factory.weekPct >= 25 ? "#166534" : "var(--lx-muted)" }}>{L(`🏭 מודעות חדשות: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% בשבוע`, `🏭 New listings: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% a week`)}</p> : null}
               {c.wiki ? <WikiLine w={c.wiki} L={L} /> : null}
+              {c.social?.bsky ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`🗣️ בלוסקיי: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} פוסטים השבוע (${c.social.bsky.prev} בשבוע הקודם)`, `🗣️ Bluesky: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} posts this week (${c.social.bsky.prev} the week before)`)}</p> : null}
+              {c.social?.ads ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📢 מודעות חדשות באירופה השבוע: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (ספריית הפרסומות של מטא)`, `📢 New EU ads this week: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (Meta Ad Library)`)}</p> : null}
               {c.gap?.he ? <p className="text-[12px]" style={{ color: "#1d4ed8" }}>{L(`🇮🇱 ${gapHe(c.gap)}`, `🇮🇱 ${gapHe(c.gap)}`)}</p> : null}
             </li>
           ))}

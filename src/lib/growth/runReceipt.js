@@ -43,7 +43,8 @@ export function sourceOf(url) {
   if (host === "trends.google.com") return String(u.searchParams.get("geo") || "").toUpperCase() === "IL" ? "trendsIL" : "trendsWorld";
   if (host === "www.googleapis.com" && u.pathname.startsWith("/youtube/")) return "youtubeApi";
   if (host === "api.pinterest.com") return "pinterest";
-  if (host === "graph.facebook.com") return "instagram";
+  if (host === "graph.facebook.com") return u.pathname.includes("/ads_archive") ? "metaAds" : "instagram";
+  if (host === "public.api.bsky.app") return "bluesky";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";
@@ -255,7 +256,7 @@ const RESTS_ON = Object.freeze({
   aliexpress: "aliexpress", world: "aliexpress", fresh: "aliexpress", discovery: "aliexpress", waves: "aliexpress",
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
-  siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia",
+  siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
 });
 
 /**
@@ -276,7 +277,7 @@ export function measuredStates(claimed = {}, receipt = {}) {
 }
 
 // The rows whose kept count is their own (an area sharing the AliExpress host keeps its own state).
-const OWN_KEEP = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver", "wikipedia"]);
+const OWN_KEEP = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver", "wikipedia", "bluesky", "metaAds"]);
 
 /**
  * One source's state from its counts, the four stages apart: never asked → NOT_ASKED; asked, no
@@ -407,6 +408,8 @@ export const MEASURES = Object.freeze({
   engine_naver: { he: "השלמות חיפוש", en: "Search suggestions" },
   site: { he: "המוצרים והקליקים של LikeLink2 עצמו", en: "LikeLink2's own products and clicks" },
   wikipedia: { he: "קוראים בוויקיפדיה ביום, באנגלית ובעברית, מאז 2016", en: "Daily Wikipedia readers, English and Hebrew, since 2016" },
+  bluesky: { he: "פוסטים שמזכירים את הסוג השבוע (רשת פתוחה)", en: "Posts naming the kind this week (an open network)" },
+  metaAds: { he: "מודעות שהתחילו השבוע באירופה (ספריית הפרסומות של מטא)", en: "Ads started this week in the EU (Meta Ad Library)" },
 });
 
 const DAY = 86_400_000;

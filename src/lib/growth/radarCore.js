@@ -226,6 +226,8 @@ export const SOURCES = Object.freeze([
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
   { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },
+  { key: "bluesky", he: "בלוסקיי: כמה מדברים על כל סוג השבוע", en: "Bluesky: how many posts name each kind this week", door: "חיפוש ציבורי ברשת פתוחה, לפי robots.txt" },
+  { key: "metaAds", he: "ספריית הפרסומות של מטא: מודעות חדשות השבוע", en: "Meta Ad Library: new ads this week", door: "Ad Library API (טוקן של בעלת האתר)" },
   { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt" },
   { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt" },
 ]);

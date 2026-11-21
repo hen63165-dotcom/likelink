@@ -27,6 +27,7 @@ import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
+import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from "../../src/lib/growth/socialSignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
@@ -748,6 +749,62 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     sources.wikipedia = doors.views === "failed" || doors.summary === "failed" ? "FAILED" : doors.views !== true || doors.summary !== true ? "ROBOTS_DISALLOW" : cards.length ? "OK" : "FAILED";
     log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
   }
+  // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving
+  // kind this week against the week before, and how many ads for it started in the EU this week (only
+  // with the owner's own token). robots.txt first; counts only. RADAR_SOCIAL=0 turns both off.
+  if (env.RADAR_SOCIAL !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
+    const kinds = socialKinds(board.concepts);
+    const getJson = async (url) => {
+      const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+      return { status: res.status, json: res.ok ? await res.json().catch(() => null) : null };
+    };
+    let bskyDoor = "failed";
+    try { const r = await getText(`${SOCIAL.bsky.host}/robots.txt`, fetchImpl); bskyDoor = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, SOCIAL.bsky.path) : "failed"; } catch { /* failed */ }
+    let heard = 0, bskyFailed = 0;
+    const weekMs = 7 * 86_400_000;
+    const count = async (phrase, since, until) => {
+      let n = 0, cursor = null;
+      for (let page = 0; page < SOCIAL.maxPages; page++) {
+        const r = await getJson(bskyUrl(phrase, { since, until, cursor }));
+        const got = r.status === 200 ? bskyPage(r.json) : null;
+        if (!got) return null;
+        n += got.n;
+        cursor = got.cursor;
+        await pause(politeMs);
+        if (!cursor || got.n < SOCIAL.pageSize) break;
+      }
+      return n;
+    };
+    if (bskyDoor === true) {
+      for (const c of kinds) {
+        try {
+          const week = await count(c.en, now - weekMs, now);
+          const prev = week === null ? null : await count(c.en, now - 2 * weekMs, now - weekMs);
+          const talk = talkOf(week, prev);
+          if (talk) { c.social = { ...(c.social || {}), bsky: talk }; heard++; keep(meter, "bluesky"); } else bskyFailed++;
+        } catch { bskyFailed++; }
+      }
+    }
+    sources.bluesky = bskyDoor === "failed" ? "FAILED" : bskyDoor !== true ? "ROBOTS_DISALLOW" : heard ? "OK" : "FAILED";
+    log.push(`bluesky: robots ${bskyDoor} · ${kinds.length} moving kinds · ${heard} counted · ${bskyFailed} failed · ${kinds.filter((c) => c.social?.bsky).slice(0, 6).map((c) => `${c.en} ${c.social.bsky.prev}→${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""}`).join(", ") || "none"}`);
+    // 📢 Meta's Ad Library: only with the owner's own token (never logged).
+    const token = String(env.META_ADLIB_TOKEN || "").trim();
+    if (!token) sources.metaAds = "REQUIRES_CONNECTION";
+    else {
+      let ads = 0, adsFailed = 0;
+      for (const c of kinds) {
+        try {
+          const r = await getJson(adsUrl(c.en, { token, since: now - weekMs }));
+          const got = r.status === 200 ? adsPage(r.json) : null;
+          if (got) { c.social = { ...(c.social || {}), ads: { week: got.n, more: got.more } }; ads++; keep(meter, "metaAds"); } else adsFailed++;
+        } catch { adsFailed++; }
+        await pause(politeMs);
+      }
+      sources.metaAds = ads ? "OK" : "FAILED";
+      log.push(`meta ad library: ${ads} kinds counted · ${adsFailed} failed`);
+    }
+  }
+
   // 📣 One pool for Telegram and Instagram (channelEngine.js radarPool): the listings HOT on their own
   // measured momentum (≥ +10% a week, ≥ 300 orders), per kind, with how many sellers were compared.
   if (env.RADAR_POOL !== "0") {
