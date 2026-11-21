@@ -12,7 +12,10 @@
 //      gave, how many were checked, the result as it is, the next check.
 //   3. findFacts(find): one card for every find (a new product or a new kind): the same rows, in the
 //      same order, each one a measurement with its source, and the seal line.
-// Pure and import-free, so the runner, the server, the page, the Wix page and the tests share it.
+// Pure (it imports only the world gap's wording), so the runner, the server, the page, the Wix page
+// and the tests share it.
+
+import { worldGapLine } from "./worldGap.js";
 
 export const INSTRUMENTS = Object.freeze([
   { id: "early", book: "early", tab: "today", section: "verdict", he: "קביעות לפני כולם", en: "Before-everyone calls", whatHe: "כשכל 4 הסימנים מסכימים: העולם, הביקוש, המוכרים וישראל", whatEn: "When all four signals agree: the world, demand, sellers and Israel" },
@@ -149,7 +152,12 @@ export function findFacts(f = {}, { kind = "fresh", day = null } = {}) {
     if (num(f.orders) !== null) add("orders", "הזמנות ב־30 יום", "Orders in 30 days", `${he(f.orders)} יחד, ב־${f.members} מודעות חדשות`, `${en(f.orders)} together, in ${f.members} new listings`);
   }
   const similar = num(f.known?.similar);
-  if (similar !== null) add("sellers", "מודעות דומות", "Similar listings", `${he(similar)} באליאקספרס · שקט בגוגל בארה״ב`, `${en(similar)} on AliExpress · quiet on Google in the US`);
+  // 🌍 The world gap (worldGap.js): the same phrase in Google's suggestions from every country measured.
+  // With it, the world row speaks for Google (the US among the countries), so the listings row does not.
+  const wg = f.known?.world;
+  const wgHe = worldGapLine(wg, "he");
+  if (similar !== null) add("sellers", "מודעות דומות", "Similar listings", wgHe ? `${he(similar)} באליאקספרס` : `${he(similar)} באליאקספרס · שקט בגוגל בארה״ב`, wgHe ? `${en(similar)} on AliExpress` : `${en(similar)} on AliExpress · quiet on Google in the US`);
+  if (wgHe) add("world", "מול העולם", "Against the world", wgHe, worldGapLine(wg, "en"), wg.before ? "up" : null);
   const yt = f.known?.yt;
   if (yt) add("youtube", "יוטיוב השבוע", "YouTube this week", yt.level === "EARLY" ? `${he(yt.videos)} סרטונים חדשים: היוצרים הראשונים` : "שקט מוחלט", yt.level === "EARLY" ? `${en(yt.videos)} new videos: the first creators` : "Silent");
   const p = f.promise;

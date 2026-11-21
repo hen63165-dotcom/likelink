@@ -72,6 +72,7 @@ import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } fr
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
+import { GAP, GAP_CORE, GAP_COUNTRIES, GAP_EXTRA, freshGap, gapSweepOrder, suggestFacts, worldGapOf, worldGapSummary } from "../../src/lib/growth/worldGap.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
@@ -93,6 +94,15 @@ const readJson = (file, fallback) => {
   try { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : fallback; } catch { return fallback; }
 };
 const pause = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+/** Runs async tasks with at most `n` at a time (in order of start; each result at its own index). */
+async function runPool(tasks, n) {
+  const out = new Array(tasks.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(n, tasks.length)) }, async () => {
+    while (next < tasks.length) { const i = next++; out[i] = await tasks[i](); }
+  }));
+  return out;
+}
 
 /** One concept's answer from the store, or why there is none. */
 export async function readConcept(c, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
@@ -810,6 +820,66 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`meta ad library: ${ads} kinds counted · ${adsFailed} failed`);
     }
   }
+  // 🌍 The world gap (worldGap.js; the owner, 21.11: "not only the gap in Israel, the gap against the
+  // whole world"): Google's public suggestions for the English store words from every country of
+  // GAP_COUNTRIES. The watched kinds keep today's 13 countries from the morning reading and get the
+  // other 38 here (the moving ones first, the rest in rotation); every new product and new kind about to
+  // be shown is read from all of them below (`phraseGap`). robots.txt was read before the first
+  // suggestion (sources.suggest). Counts only: no suggestion text is kept. RADAR_GAP=0 turns it off.
+  const gapState = readJson(join(dir, "world-gap.json"), {});
+  for (const k of ["concepts", "phrases"]) {
+    gapState[k] = Object.fromEntries(Object.entries(gapState[k] && typeof gapState[k] === "object" ? gapState[k] : {})
+      .filter(([, v]) => v?.d && (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${v.d}T00:00:00Z`)) / 86_400_000 <= GAP.keepDays));
+  }
+  const gapOn = env.RADAR_GAP !== "0" && sources.suggest === "OK";
+  const gapRun = { started: Date.now(), asked: 0, answered: 0, failRun: 0, stopped: false, concepts: 0, phrases: 0 };
+  const sweepCountries = async (phrase, ids) => {
+    const counts = {};
+    const echo = [];
+    await runPool(ids.map((id) => async () => {
+      if (gapRun.stopped || Date.now() - gapRun.started > GAP.budgetMs) { gapRun.stopped = true; return; }
+      gapRun.asked++;
+      let facts = null;
+      try { facts = suggestFacts(phrase, await suggestList(phrase, { hl: "en", gl: id }, fetchImpl)); } catch { facts = null; }
+      if (facts) { gapRun.answered++; gapRun.failRun = 0; counts[id] = facts.n; if (facts.echo) echo.push(id); }
+      else if (++gapRun.failRun >= GAP.maxFailures) gapRun.stopped = true;
+      await pause(Math.round(politeMs / 2));
+    }), GAP.concurrency);
+    if (Object.keys(counts).length) keep(meter, "worldSearch", Object.keys(counts).length);
+    return { counts, echo };
+  };
+  const israelOf = (gap) => (["ARRIVING", "ARRIVED"].includes(gap?.state) ? true : ["GAP", "QUIET"].includes(gap?.state) ? false : null);
+  if (gapOn && Array.isArray(board.concepts)) {
+    const extraIds = GAP_EXTRA.map((c) => c.id);
+    for (const c of gapSweepOrder(board.concepts, gapState.concepts)) {
+      if (gapRun.stopped) break;
+      const latest = (worldMap[c.id] || []).at(-1);
+      const fresh = latest?.d === today ? latest : null;
+      // Today's 13 countries from the morning reading (the clock's own five are kept apart in `x`).
+      const core = {};
+      for (const x of GAP_CORE) { const v = x.id in (fresh?.x || {}) ? fresh.x[x.id] : fresh?.by?.[x.id]; if (Number.isFinite(v)) core[x.id] = v; }
+      const ask = [...GAP_CORE.map((x) => x.id).filter((id) => !(id in core)), ...extraIds];
+      const got = await sweepCountries(c.en, ask);
+      const usEcho = (fresh?.echo || []).some((k) => k === "tiktok" || k === "amazon") ? ["us"] : [];
+      const g = worldGapOf({ counts: { ...core, ...got.counts }, israel: israelOf(c.gap), echo: [...got.echo, ...usEcho], trends: fresh?.trends || [], d: today });
+      if (g.state !== "UNMEASURED") { gapState.concepts[c.id] = g; gapRun.concepts++; }
+    }
+  }
+  for (const c of Array.isArray(board.concepts) ? board.concepts : []) { const g = freshGap(gapState.concepts[c.id], today); if (g) c.worldGap = g; }
+  // A new product or new kind about to be shown: every country of the world gap (Israel's Hebrew
+  // searches need Hebrew words, which a new listing has none of: Israel stays unmeasured for it).
+  const phraseGap = async (phrase) => {
+    const key = String(phrase || "").toLowerCase().trim();
+    if (!gapOn || !key) return null;
+    if (gapState.phrases[key]?.d === today) return gapState.phrases[key];
+    if (gapRun.stopped || gapRun.phrases >= GAP.maxPhrases) return null;
+    gapRun.phrases++;
+    const got = await sweepCountries(phrase, GAP_COUNTRIES.filter((x) => x.id !== "il").map((x) => x.id));
+    const g = worldGapOf({ counts: got.counts, echo: got.echo, d: today });
+    if (g.state === "UNMEASURED") return null;
+    gapState.phrases[key] = g;
+    return g;
+  };
 
   // 📣 One pool for Telegram and Instagram (channelEngine.js radarPool): the listings HOT on their own
   // measured momentum (≥ +10% a week, ≥ 300 orders), per kind, with how many sellers were compared.
@@ -865,8 +935,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         sources.youtubeApi = yt ? "OK" : sources.youtubeApi === "OK" ? "OK" : "FAILED";
       }
       if (known.unknown && yt?.level === "BUZZ") { counts.BUZZ_YT = (counts.BUZZ_YT || 0) + 1; continue; }
+      // 🌍 Already searched in half the world's countries, or a buzz word in any of them: known, hidden.
+      const world = known.unknown ? await phraseGap(phrase) : null;
+      if (world?.state === "KNOWN") { counts.KNOWN_WORLD = (counts.KNOWN_WORLD || 0) + 1; continue; }
       counts[known.reason] = (counts[known.reason] || 0) + 1;
-      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt } });
+      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt, world } });
     }
     board.fresh.risers = checked.slice(0, FRESH.show);
     log.push(`fresh unknown check: ${JSON.stringify(counts)}`);
@@ -1014,8 +1087,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
       if (Number.isFinite(similar)) phraseReads[k.en] = similar;
       const known = unknownCheck({ phrase: k.en, similar, suggestions });
+      const world = known.unknown ? await phraseGap(k.en) : null;
+      if (world?.state === "KNOWN") { kindCounts.KNOWN_WORLD = (kindCounts.KNOWN_WORLD || 0) + 1; continue; }
       kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
-      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar } });
+      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar, world } });
     }
     log.push(`kinds unknown check: ${JSON.stringify(kindCounts)}`);
     if (shownKinds.length) {
@@ -1034,6 +1109,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const kindsText = kindsSealText(kindCalls);
     if (kindsText) board.kinds.seal = await sealBook({ text: kindsText, count: kindsText.split("\n").length }, prevBoard.kinds?.seal, "kinds");
     log.push(`kinds: ${shownKinds.length} shown · record ${JSON.stringify(board.kinds.record)}`);
+  }
+  // 🌍 The world gap's state and the day's summary.
+  writeFileSync(join(dir, "world-gap.json"), JSON.stringify(gapState));
+  {
+    const todays = [...(board.concepts || []).map((c) => c.worldGap), ...(board.fresh?.risers || []).map((r) => r.known?.world), ...(board.kinds?.list || []).map((k) => k.known?.world)].filter((g) => g?.d === today);
+    board.worldGap = worldGapSummary(todays, { today });
+    sources.worldGap = !gapOn ? (env.RADAR_GAP === "0" ? "OFF" : "NOT_ASKED") : todays.length ? "OK" : "FAILED";
+    log.push(`world gap: ${GAP_COUNTRIES.length} countries · ${gapRun.concepts} watched kinds + ${gapRun.phrases} new phrases measured · ${gapRun.answered}/${gapRun.asked} answers${gapRun.stopped ? " · stopped (budget or failures)" : ""} · states ${JSON.stringify(board.worldGap.states)} · ${(board.concepts || []).filter((c) => c.worldGap?.d === today && c.worldGap.before).slice(0, 6).map((c) => `${c.id} ${c.worldGap.searched}/${c.worldGap.measured}`).join(", ") || "none before the world"}`);
   }
   // 🧠 The brain (radarBrain.js): what the radar learned from every graded call that recorded its
   // signals the day it was made; for today's risers and kinds, the record of past calls like them.

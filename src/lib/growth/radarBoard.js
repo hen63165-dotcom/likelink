@@ -9,6 +9,7 @@ import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
+import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
@@ -179,6 +180,7 @@ function cleanRow(c) {
     explain: cleanExplain(c.explain),
     wiki: cleanWiki(c.wiki),
     social: cleanSocial(c.social),
+    worldGap: cleanWorldGap(c.worldGap),
   };
 }
 
@@ -205,6 +207,7 @@ export function sanitizeBoard(doc) {
     early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 5 ? 5 : 4, open: num(doc.early.open), record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, lead: doc.early.lead && typeof doc.early.lead === "object" ? Object.fromEntries(FINISH.map((k) => { const l = doc.early.lead[k] || {}; return [k, { met: num(l.met) ?? 0, ahead: num(l.ahead) ?? 0, medianDays: num(l.medianDays), waiting: num(l.waiting) ?? 0 }]; })) : null, calibration: doc.early.calibration && typeof doc.early.calibration === "object" ? Object.fromEntries(["signal", "sniper"].map((k) => { const r = doc.early.calibration[k] || {}; return [k, { graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0 }]; })) : null, ledger: (Array.isArray(doc.early.ledger) ? doc.early.ledger : []).slice(0, 40).filter((e) => ID.test(String(e?.concept || ""))).map((e) => ({ concept: e.concept, at: day(e.at), due: day(e.due), result: e.result === "HIT" || e.result === "MISS" ? e.result : null, growth: num(e.growth), progress: num(e.progress), dayN: num(e.dayN), firsts: Object.fromEntries(FINISH.filter((k) => day(e.firsts?.[k])).map((k) => [k, day(e.firsts[k])])) })).filter((e) => e.at), seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0, text: typeof doc.early.seal.text === "string" && doc.early.seal.text.length <= 30_000 && /^[a-z0-9|,\n-]*$/.test(doc.early.seal.text) ? doc.early.seal.text : null, ots: (Array.isArray(doc.early.seal.ots) ? doc.early.seal.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null } : null,
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
+    worldGap: cleanWorldGapSummary(doc.worldGap),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
     site: doc.site && typeof doc.site === "object" ? {
@@ -443,7 +446,7 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
     if (!r.known || num(r.known.similar) === null) return null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), called: day(r.called), due: day(r.due), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
+    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), called: day(r.called), due: day(r.due), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), world: cleanWorldGap(r.known.world), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
@@ -475,7 +478,7 @@ function cleanKinds(k) {
     }).filter(Boolean);
     if (!samples.length) return null;
     if (!x.known || num(x.known.similar) === null) return null; // shown only with its "nobody has heard of it yet" check
-    return { en: x.en, via: x.via === "look" ? "look" : "meaning", known: { similar: num(x.known.similar) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    return { en: x.en, via: x.via === "look" ? "look" : "meaning", known: { similar: num(x.known.similar), world: cleanWorldGap(x.known.world) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));

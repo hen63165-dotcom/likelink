@@ -18,6 +18,7 @@ import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
+import { REGIONS, worldGapLine } from "../../lib/growth/worldGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
@@ -167,6 +168,28 @@ function WorldLine({ world }) {
   );
 }
 
+// 🌍 The world gap under a concept (worldGap.js): the same English store words in Google's suggestions
+// from every country measured, by region, with the day of the reading.
+const WORLD_GAP_STYLE = {
+  WORLD_QUIET: { bg: "#ecfdf3", fg: "#067647" },
+  FIRST_SIGNS: { bg: "#ecfdf3", fg: "#067647" },
+  SPREADING: { bg: "#fffaeb", fg: "#b54708" },
+  KNOWN: { bg: "#fef3f2", fg: "#b42318" },
+};
+function WorldGapLine({ g }) {
+  const { L } = useL();
+  if (!g || !WORLD_GAP_STYLE[g.state]) return null;
+  const st = WORLD_GAP_STYLE[g.state];
+  const regions = Object.entries(g.regions || {}).filter(([k]) => REGIONS[k]);
+  return (
+    <div className="mt-3 rounded-2xl p-3" style={{ background: st.bg, color: st.fg }}>
+      <p className="text-[14px] font-extrabold">🌍 {L("מול העולם:", "Against the world:")} {L(worldGapLine(g, "he"), worldGapLine(g, "en"))}</p>
+      {regions.length ? <p className="mt-1 text-[12px] leading-5" style={{ color: "var(--lx-ink, #101828)" }}>{regions.map(([k, r]) => L(`${REGIONS[k].he}: ${r.searched ? `מחפשים ב־${r.searched} מתוך ${r.measured}` : `שקט ב־${r.measured}`}`, `${REGIONS[k].en}: ${r.searched ? `searched in ${r.searched} of ${r.measured}` : `quiet in ${r.measured}`}`)).join(" · ")}</p> : null}
+      <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L(`נמדד ב־${dm(g.d)} · מילות החנות באנגלית, בהשלמות של גוגל בכל מדינה`, `Measured ${dm(g.d)} · the store's English words, in Google's suggestions in each country`)}</p>
+    </div>
+  );
+}
+
 /** The Israel gap line under a concept: is it already searched in Hebrew here? */
 function IsraelLine({ gap }) {
   const { L } = useL();
@@ -296,6 +319,7 @@ export function ConceptCard({ c }) {
       <EarlyLine early={c.early} />
       <WorldLine world={c.world} />
       <IsraelLine gap={c.gap} />
+      <WorldGapLine g={c.worldGap} />
       <Everywhere q={c.en} />
       <AlphaBlock c={c} />
       {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
@@ -711,7 +735,7 @@ function Verdict({ board, gated = false }) {
 }
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
-function FreshRisers({ fresh, world = null, day = null }) {
+function FreshRisers({ fresh, world = null, gap = null, day = null }) {
   const { L } = useL();
   if (!fresh) return null;
   return (
@@ -721,9 +745,10 @@ function FreshRisers({ fresh, world = null, day = null }) {
         <p className="mt-1 text-[15px] leading-7">{L("מוצרים קטנים שההזמנות שלהם רצות, לפני שכולם מוכרים אותם.", "Small products whose orders run, before everyone sells them.")}</p>
         <details className="lx-rdr-how mt-1">
           <summary>{L("איך הרדאר בוחר", "How the radar picks")}</summary>
-          <p className="mt-2 text-[13px] leading-6">{L("הרדאר מוצא לבד: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושעוד שקט סביבו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביב ״טיקטוק״, ״ויראלי״ ו״אמזון״. כאן מופיעים רק מוצרים טריים. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
+          <p className="mt-2 text-[13px] leading-6">{L("הרדאר מוצא לבד: כל בוקר הוא עובר על המודעות החדשות של השנה בכל הקטגוריות, ומציג רק מוצר שעוד קטן (עד 3,000 הזמנות בחודש), שההזמנות שלו גדלות ב־40% בשבוע או יותר וההאצה החזיקה שתי מדידות ברצף, ושעוד שקט סביבו: פחות מ־2,000 מודעות דומות באליאקספרס, ובגוגל בארה״ב עוד שקט סביב ״טיקטוק״, ״ויראלי״ ו״אמזון״. ואז מול כל העולם: אותן מילים בהשלמות החיפוש של גוגל בכל המדינות שהרדאר קורא, בכל היבשות, ומוצג רק מוצר שבפחות ממחצית מהן מחפשים אותו, ובאף אחת מהן אין סביבו ״טיקטוק״, ״ויראלי״ או ״אמזון״. כאן מופיעים רק מוצרים טריים. המספרים של אליאקספרס, עם תאריכים.", "The radar finds these on its own, with no list: every morning it goes through this year's new listings in every category and shows only a product that is still small (up to 3,000 orders a month), whose orders grow 40% a week or more, with the acceleration held over two readings, and that nobody talks about yet: under 2,000 similar listings on AliExpress and no 'tiktok', 'viral' or 'amazon' in Google's US suggestions. Then against the whole world: the same words in Google's suggestions in every country the radar reads, on every continent, shown only when fewer than half of them search it and none has 'tiktok', 'viral' or 'amazon'. What the market is saturated with never shows here. AliExpress's own numbers, dated.")}</p>
         </details>
         {world?.categories ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 בכל הקטגוריות בעולם: הרדאר עובר על כל ${world.categories.toLocaleString("he-IL")} הקטגוריות של אליאקספרס, ${world.readToday} בכל בוקר${world.fashionDaily ? `: ${world.fashionDaily} קטגוריות האופנה כל יום, והשאר` : ","} בסבב של ${world.fullRoundDays} ימים.`, `🌍 Every category: the radar goes through all ${world.categories.toLocaleString("en-US")} AliExpress categories, ${world.readToday} every morning${world.fashionDaily ? `: the ${world.fashionDaily} fashion categories every day, the rest` : ","} in a ${world.fullRoundDays}-day round.`)}</p> : null}
+        {gap?.measured ? <p className="mt-1 text-[13px] font-bold">{L(`🌍 הפער מול כל העולם: הבוקר נבדקו ${gap.measured} סוגים ומוצרים בהשלמות החיפוש של גוגל, עד ${gap.maxAnswered} מדינות לכל אחד, ב־${gap.regions} אזורים. ${gap.states.WORLD_QUIET + gap.states.FIRST_SIGNS} מהם עוד שקטים כמעט בכל העולם.`, `🌍 The gap against the whole world: this morning ${gap.measured} kinds and products were checked in Google's search suggestions, up to ${gap.maxAnswered} countries each, in ${gap.regions} regions. ${gap.states.WORLD_QUIET + gap.states.FIRST_SIGNS} of them are still quiet almost everywhere.`)}</p> : null}
         <p className="mt-2 text-[13px] font-bold">{fresh.record?.graded ? L(`📏 הציון בפומבי: מתוך ${fresh.record.graded} מוצרים שהרדאר הצביע עליהם, ${fresh.record.hits} עלו ב־50% או יותר תוך 14 יום (${fresh.record.accuracy}%).`, `📏 Public grade: of ${fresh.record.graded} products the radar pointed to, ${fresh.record.hits} grew 50%+ within 14 days (${fresh.record.accuracy}%).`) : fresh.record?.pending ? L(`📏 כל מוצר שמוצג כאן נשמר עם תאריך ונבדק אחרי 14 יום: פגע אם ההזמנות שלו עלו ב־50% או יותר. ${fresh.record.pending} מחכים לבדיקה, הראשונה ב־${dm(fresh.record.nextDue)}.`, `📏 Every product shown is saved with its date and graded after 14 days: a hit if its orders grew 50%+. ${fresh.record.pending} waiting, the first on ${dm(fresh.record.nextDue)}.`) : L("📏 כל מוצר שיוצג כאן יישמר עם תאריך וייבדק אחרי 14 יום, בפומבי: פגע אם ההזמנות שלו עלו ב־50% או יותר, וגם החטאות יישארו כאן.", "📏 Every product shown here is saved with its date and graded after 14 days, in public: a hit if its orders grew 50%+; misses stay here too.")}</p>
         {fresh.recent?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{fresh.recent.map((c) => `${c.result === "HIT" ? "✅" : "❌"} ${c.title.slice(0, 40)} (${dm(c.at)}, ${c.growth > 0 ? "+" : ""}${c.growth}%)`).join(" · ")}</p> : null}
         {fresh.risers.length ? (
@@ -1306,6 +1331,7 @@ function Styles({ concepts = [] }) {
               {c.social?.bsky ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`🗣️ בלוסקיי: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} פוסטים השבוע (${c.social.bsky.prev} בשבוע הקודם)`, `🗣️ Bluesky: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} posts this week (${c.social.bsky.prev} the week before)`)}</p> : null}
               {c.social?.ads ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📢 מודעות חדשות באירופה השבוע: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (ספריית הפרסומות של מטא)`, `📢 New EU ads this week: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (Meta Ad Library)`)}</p> : null}
               {c.gap?.he ? <p className="text-[12px]" style={{ color: "#1d4ed8" }}>{L(`🇮🇱 ${gapHe(c.gap)}`, `🇮🇱 ${gapHe(c.gap)}`)}</p> : null}
+              {worldGapLine(c.worldGap, "he") ? <p className="text-[12px]" style={{ color: c.worldGap.before ? "#067647" : "var(--lx-muted)" }}>{L(`🌍 ${worldGapLine(c.worldGap, "he")}`, `🌍 ${worldGapLine(c.worldGap, "en")}`)}</p> : null}
             </li>
           ))}
         </ul>
@@ -1834,7 +1860,7 @@ export function RadarPage() {
         ) : null}
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
         <Verdict board={board} gated={gated} />
-        {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} day={String(board.at || "").slice(0, 10)} /> : null}
+        {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.kinds ? <NewKinds kinds={board.kinds} day={String(board.at || "").slice(0, 10)} /> : null}
         <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
           {showAll ? <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("כל מה שהרדאר מודד", "Everything the radar measures")}</h2> : null}

@@ -99,7 +99,9 @@ const QUIET_WORLD = new Set(["NONE", "EARLY", "SPREADING"]);
 const ISRAEL_NOT_YET = new Set(["GAP", "QUIET", "UNCERTAIN", "ARRIVING"]);
 /** Before everyone: measured, and no finish line crossed (wide searches, hot searches, buzz, Israel). */
 export function beforeEveryone(c) {
-  return Boolean(c && STAGE_RANK[c.stage] && QUIET_WORLD.has(c.world?.state) && !(Array.isArray(c.early?.buzz) && c.early.buzz.length) && ISRAEL_NOT_YET.has(c.gap?.state));
+  // 🌍 …and never a kind the world gap measured as already known (worldGap.js: searched in half the
+  // countries measured, or a buzz word in any of them).
+  return Boolean(c && STAGE_RANK[c.stage] && QUIET_WORLD.has(c.world?.state) && !(Array.isArray(c.early?.buzz) && c.early.buzz.length) && ISRAEL_NOT_YET.has(c.gap?.state) && c.worldGap?.state !== "KNOWN");
 }
 const ID = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const dayOf = (t) => new Date(t).toISOString().slice(0, 10);

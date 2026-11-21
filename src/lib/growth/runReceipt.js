@@ -13,7 +13,10 @@
 //      receipt is printed line by line by GitHub's own runner, with GitHub's own timestamps.
 //   3. Bitcoin. The receipt's exact text is a book of the daily sealed root (book "run"), so the
 //      numbers cannot be changed after the morning they were read.
-// Pure and import-free: the runner meters and builds it, the board keeps it, the page shows it.
+// Pure (it imports only the world gap's country names): the runner meters and builds it, the board
+// keeps it, the page shows it.
+
+import { GAP_EXTRA } from "./worldGap.js";
 
 export const RECEIPT = Object.freeze({ v: 1, repo: "hen63165-dotcom/likelink", server: "https://github.com" });
 
@@ -30,6 +33,8 @@ export const COUNTRY_NAMES = Object.freeze({
   il: ["ישראל", "Israel"], us: ["ארה״ב", "US"], gb: ["בריטניה", "UK"], ca: ["קנדה", "Canada"], au: ["אוסטרליה", "Australia"],
   de: ["גרמניה", "Germany"], fr: ["צרפת", "France"], jp: ["יפן", "Japan"], kr: ["קוריאה", "Korea"], in: ["הודו", "India"],
   es: ["ספרד", "Spain"], it: ["איטליה", "Italy"], br: ["ברזיל", "Brazil"], mx: ["מקסיקו", "Mexico"], cn: ["סין", "China"],
+  // The world gap's own countries (worldGap.js).
+  ...Object.fromEntries(GAP_EXTRA.map((c) => [c.id, [c.he, c.en]])),
 });
 
 /** The source a request belongs to, from its address alone (null for no address). */
@@ -257,6 +262,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
+  worldGap: "worldSearch",
 });
 
 /**
@@ -348,7 +354,7 @@ export function cleanReceipt(doc) {
       const m = Object.fromEntries(AE_METHODS.filter((x) => c.methods[x]).map((x) => [x, cleanCounts(c.methods[x])]));
       if (Object.keys(m).length) row.methods = m;
     }
-    if (Array.isArray(c.countries)) { const cs = c.countries.filter((x) => Object.hasOwn(COUNTRY_NAMES, x)).slice(0, 20); if (cs.length) row.countries = cs; }
+    if (Array.isArray(c.countries)) { const cs = c.countries.filter((x) => Object.hasOwn(COUNTRY_NAMES, x)).slice(0, 60); if (cs.length) row.countries = cs; }
     sources[key] = row;
   }
   const r = doc.run && typeof doc.run === "object" && RUN_URL.test(String(doc.run.url || "")) && /^\d{1,20}$/.test(String(doc.run.id || "")) ? {

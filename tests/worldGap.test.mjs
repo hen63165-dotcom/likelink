@@ -1,0 +1,113 @@
+// 🌍 The world gap (src/lib/growth/worldGap.js; the owner, 2026-11-21: "not only the gap in Israel,
+// the gap against the whole world"): a state only from countries that really answered, Israel from the
+// Hebrew consensus, a buzz word in any country is the world's echo, the moving kinds are swept first,
+// a sweep is shown only while fresh, the page's wording names what was measured, and the browser keeps
+// known countries and regions only.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { GAP, GAP_COUNTRIES, GAP_CORE, GAP_EXTRA, GAP_IDS, cleanWorldGap, cleanWorldGapSummary, freshGap, gapSweepOrder, suggestFacts, worldGapLine, worldGapOf, worldGapSummary } from "../src/lib/growth/worldGap.js";
+import { CLOCK_COUNTRIES } from "../src/lib/growth/worldClock.js";
+import { WORLD_MARKETS } from "../src/lib/growth/worldPulse.js";
+import { COUNTRY_NAMES } from "../src/lib/growth/runReceipt.js";
+import { beforeEveryone } from "../src/lib/growth/radarPicks.js";
+import { findFacts } from "../src/lib/growth/radarCore.js";
+import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
+
+const all = (v, ids = GAP_IDS.filter((id) => id !== "il")) => Object.fromEntries(ids.map((id) => [id, v]));
+
+test("world gap: every continent, no country twice, the core is what the morning already reads", () => {
+  assert.equal(new Set(GAP_IDS).size, GAP_IDS.length);
+  assert.ok(GAP_COUNTRIES.length >= 50);
+  assert.deepEqual(new Set(GAP_COUNTRIES.map((c) => c.region)).size, 6);
+  // The core is exactly the morning reading's Google countries (the world pulse's + the clock's own), no engine.
+  const morning = new Set([...WORLD_MARKETS.filter((m) => !m.engine).map((m) => m.id), ...CLOCK_COUNTRIES.filter((c) => c.x).map((c) => c.x)]);
+  assert.deepEqual(new Set(GAP_CORE.map((c) => c.id)), morning);
+  assert.ok(GAP_EXTRA.every((c) => !morning.has(c.id) && c.id !== "il"));
+  for (const c of GAP_COUNTRIES) assert.ok(COUNTRY_NAMES[c.id], `${c.id} is named in the run receipt`);
+});
+
+test("world gap: completions counted like everywhere on the radar; any country's buzz word is an echo", () => {
+  assert.deepEqual(suggestFacts("cloud slides", ["cloud slides", "cloud slides women", "cloud slides men"]), { n: 2, echo: false });
+  assert.deepEqual(suggestFacts("cloud slides", ["cloud slides", "cloud slides tiktok"]), { n: 1, echo: true });
+  assert.deepEqual(suggestFacts("cloud slides", ["cloud slides"]), { n: 0, echo: false });
+  assert.equal(suggestFacts("cloud slides", null), null, "no answer is no measurement, never a zero");
+});
+
+test("world gap: quiet everywhere, first signs, spreading, known, and too few answers", () => {
+  const quiet = worldGapOf({ counts: all(0), israel: false, d: "2026-11-21" });
+  assert.equal(quiet.state, "WORLD_QUIET");
+  assert.equal(quiet.measured, GAP_COUNTRIES.length);
+  assert.equal(quiet.regionsMeasured, 6);
+  assert.equal(quiet.before, true);
+  assert.equal(quiet.confidence, "HIGH");
+  const first = worldGapOf({ counts: { ...all(0), jp: 2 }, d: "2026-11-21" });
+  assert.equal(first.state, "FIRST_SIGNS");
+  assert.deepEqual(first.where, ["jp"]);
+  assert.equal(first.regions.asia.searched, 1);
+  assert.ok(!first.quietRegions.includes("asia") && first.quietRegions.includes("europe"));
+  assert.equal(worldGapOf({ counts: { ...all(0), jp: 2, kr: 1, sg: 3 } }).state, "SPREADING");
+  assert.equal(worldGapOf({ counts: all(1) }).state, "KNOWN");
+  assert.equal(worldGapOf({ counts: all(0), echo: ["gb"] }).state, "KNOWN", "a buzz word in one country is the world's echo");
+  assert.equal(worldGapOf({ counts: all(0), trends: ["DE"] }).state, "KNOWN", "Google's trending searches anywhere");
+  assert.equal(worldGapOf({ counts: { us: 0, gb: 0, ca: 0 } }).state, "UNMEASURED", "three countries are not the world");
+  // Israel counts from the Hebrew consensus only; null leaves it out.
+  assert.equal(worldGapOf({ counts: all(0), israel: true }).where.includes("il"), true);
+  assert.equal(worldGapOf({ counts: all(0), israel: null }).measured, GAP_COUNTRIES.length - 1);
+  // Unknown country ids never count.
+  assert.equal(worldGapOf({ counts: { ...all(0), zz: 5 } }).state, "WORLD_QUIET");
+});
+
+test("world gap: the moving kinds are swept first, then the longest unswept", () => {
+  const order = gapSweepOrder([
+    { id: "a", en: "steady thing", stage: "STEADY" },
+    { id: "b", en: "rising thing", stage: "RISING" },
+    { id: "c", en: "never swept", stage: "STEADY" },
+    { id: "d", en: "emerging thing", stage: "EMERGING" },
+    { id: "e", en: "", stage: "EMERGING" },
+  ], { a: { d: "2026-11-20" } });
+  assert.deepEqual(order.map((c) => c.id), ["d", "b", "c", "a"]);
+  assert.ok(gapSweepOrder(Array.from({ length: 80 }, (_, i) => ({ id: `k${i}`, en: `kind ${i}` }))).length <= GAP.maxConcepts);
+});
+
+test("world gap: shown only while fresh; the line says what was measured", () => {
+  const g = worldGapOf({ counts: { ...all(0), jp: 2 }, d: "2026-11-14" });
+  assert.equal(freshGap(g, "2026-11-21"), g);
+  assert.equal(freshGap(g, "2026-11-22"), null);
+  assert.equal(freshGap({ ...g, d: null }, "2026-11-21"), null);
+  assert.match(worldGapLine(g, "he"), /^מחפשים רק ביפן · שקט ב־50 מדינות$/);
+  assert.match(worldGapLine(worldGapOf({ counts: all(0) }), "he"), /^שקט בכל 51 המדינות שנמדדו, ב־6 אזורים בעולם$/);
+  assert.equal(worldGapLine({ state: "UNMEASURED" }, "he"), null);
+  // The day's summary counts only today's gaps, and only what answered.
+  const s = worldGapSummary([worldGapOf({ counts: all(0), d: "2026-11-21" }), worldGapOf({ counts: all(1), d: "2026-11-21" }), worldGapOf({ counts: all(0), d: "2026-11-20" })], { today: "2026-11-21" });
+  assert.equal(s.measured, 2);
+  assert.equal(s.states.WORLD_QUIET, 1);
+  assert.equal(s.states.KNOWN, 1);
+  assert.equal(s.maxAnswered, 51);
+  assert.equal(s.regions, 6);
+});
+
+test("world gap: the radar's own pick is never a kind the world already knows", () => {
+  const c = { stage: "EMERGING", world: { state: "EARLY" }, gap: { state: "GAP" }, early: {} };
+  assert.equal(beforeEveryone(c), true);
+  assert.equal(beforeEveryone({ ...c, worldGap: worldGapOf({ counts: all(0) }) }), true);
+  assert.equal(beforeEveryone({ ...c, worldGap: worldGapOf({ counts: all(1) }) }), false);
+});
+
+test("world gap: the find card's world row; the browser keeps known countries and regions only", () => {
+  const g = worldGapOf({ counts: { ...all(0), jp: 2 }, d: "2026-11-21" });
+  const rows = findFacts({ known: { similar: 640, world: g } }, { kind: "fresh" });
+  assert.deepEqual(rows.map((r) => r.key), ["sellers", "world", "seal"]);
+  assert.equal(rows.find((r) => r.key === "sellers").he, "640 באליאקספרס", "the world row speaks for Google");
+  assert.equal(rows.find((r) => r.key === "world").tone, "up");
+  const dirty = { ...g, where: ["jp", "zz", "<script>"], regions: { ...g.regions, mars: { measured: 9, searched: 9 } }, echo: ["us", "x"], state: "WORLD_QUIET" };
+  const clean = cleanWorldGap(dirty);
+  assert.deepEqual(clean.where, ["jp"]);
+  assert.ok(!clean.regions.mars);
+  assert.deepEqual(clean.echo, ["us"]);
+  assert.equal(cleanWorldGap({ state: "NOPE" }), null);
+  assert.deepEqual(cleanWorldGapSummary({ countries: 52, regions: 6, measured: 3, states: { WORLD_QUIET: 2, BAD: 9 }, maxAnswered: 51 }).states, { WORLD_QUIET: 2, FIRST_SIGNS: 0, SPREADING: 0, KNOWN: 0, UNMEASURED: 0 });
+  const board = sanitizeBoard({ at: "2026-11-21T06:00:00.000Z", record: {}, worldGap: { countries: 52, regions: 6, measured: 1, states: { WORLD_QUIET: 1 }, maxAnswered: 51 },
+    concepts: [{ id: "lip-oil", he: "שמן שפתיים", en: "lip oil", stage: "STEADY", gap: { state: "ARRIVED" }, worldGap: g }] });
+  assert.equal(board.concepts[0].worldGap.state, "FIRST_SIGNS");
+  assert.equal(board.worldGap.states.WORLD_QUIET, 1);
+});

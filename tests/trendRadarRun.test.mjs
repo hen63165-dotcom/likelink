@@ -128,6 +128,17 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.equal(r2.sources.bluesky, "OK");
   assert.deepEqual(r2.board.concepts.find((c) => c.id === "butter-squishy").social?.bsky, { week: 30, prev: 20, weekPct: 50, capped: false });
   assert.equal(r2.sources.wikipedia, "ROBOTS_DISALLOW");
+  // 🌍 The world gap (worldGap.js): the morning's 13 countries + 38 more + Israel's Hebrew consensus.
+  // The US completes "butter stick squishy", every other country and Israel stay quiet: first signs.
+  assert.equal(r2.sources.worldGap, "OK");
+  const bg = r2.board.concepts.find((c) => c.id === "butter-squishy").worldGap;
+  assert.equal(bg.state, "FIRST_SIGNS");
+  assert.deepEqual(bg.where, ["us"]);
+  assert.equal(bg.measured, 52);
+  assert.equal(bg.regionsMeasured, 6);
+  assert.ok(two.requests.some((r) => r.url.includes("/complete/search") && r.url.includes("gl=ng")), "Nigeria is asked too");
+  assert.equal(sanitizeBoard(r2.board).concepts.find((c) => c.id === "butter-squishy").worldGap.state, "FIRST_SIGNS");
+  assert.ok(r2.board.worldGap.measured >= 1);
   assert.ok(!two.requests.some((r) => r.url.startsWith("https://en.wikipedia.org/api/")), "nothing is asked behind a closed door");
   // 🚪 Every earlier find gets its exit signal (radarCore.js exitSignal).
   assert.ok(Array.isArray(r2.board.fresh.watch));

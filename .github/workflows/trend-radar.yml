@@ -36,6 +36,7 @@ on:
       - scripts/catalog/radar-embed.mjs
       - src/lib/growth/wikiSignal.js
       - src/lib/growth/socialSignal.js
+      - src/lib/growth/worldGap.js
       - src/lib/growth/freshRisers.js
       - src/lib/growth/channelEngine.js
       - scripts/marketing/channel-preview.mjs
