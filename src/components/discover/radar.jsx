@@ -56,6 +56,22 @@ const automated = () => {
 };
 
 /** The exit to the store, as one click event (append-only; never blocks the buyer). */
+
+// 📚 A kind's Wikipedia readers (wikiSignal.js): this week against last week, Hebrew too, the history
+// since 2016. Wikimedia's own public numbers: anyone can check them on its pageviews tool.
+function WikiLine({ w, L }) {
+  const n = (x) => Number(x).toLocaleString("he-IL");
+  const pct = (x) => (x > 0 ? `+${x}` : `${x}`);
+  const week = Number.isFinite(w.a.weekPct) ? L(` (${pct(w.a.weekPct)}% מהשבוע הקודם)`, ` (${pct(w.a.weekPct)}% vs the week before)`) : "";
+  const he = w.ah ? L(` · בעברית: ${n(w.ah.last7)}`, ` · Hebrew: ${w.ah.last7}`) : "";
+  const since = w.h?.peak ? L(` · שיא מאז ${w.h.since}: ${w.h.peak.month}`, ` · peak since ${w.h.since}: ${w.h.peak.month}`) : "";
+  return (
+    <p className="text-[12px] font-bold" style={{ color: w.rising ? "#166534" : "var(--lx-muted)" }} dir="rtl">
+      {L(`📚 ויקיפדיה, "${w.en}": ${n(w.a.last7)} קוראים השבוע`, `📚 Wikipedia, "${w.en}": ${w.a.last7} readers this week`)}{week}{he}{since}
+    </p>
+  );
+}
+
 function recordExit(concept, link) {
   if (automated()) return;
   let attr = {};
@@ -769,6 +785,7 @@ function NewKinds({ kinds, day = null }) {
               {kinds.list.map((k) => (
                 <li key={k.en} className="lx-card lx-rdr-item p-3">
                   <p className="text-[17px] font-black" dir="ltr" style={{ textAlign: "start" }}>{k.en}</p>
+                  <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{k.via === "look" ? L("👁️ נמצא לפי המראה בתמונות החנות: אותו עיצוב בכמה מודעות", "👁️ Found by look in the store photos: the same design across listings") : L("🧬 נמצא לפי המשמעות של השמות", "🧬 Found by the meaning of the titles")}</p>
                   <FindFacts f={k} kind="kinds" day={day} />
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {k.samples.map((m) => (
@@ -1285,6 +1302,7 @@ function Styles({ concepts = [] }) {
                 <p className="mt-1 text-[12px] leading-5">{c.evidence[0].text}</p>
               ) : null}
               {c.factory ? <p className="text-[12px] font-bold" style={{ color: c.factory.weekPct >= 25 ? "#166534" : "var(--lx-muted)" }}>{L(`🏭 מודעות חדשות: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% בשבוע`, `🏭 New listings: ${c.factory.weekPct > 0 ? "+" : ""}${c.factory.weekPct}% a week`)}</p> : null}
+              {c.wiki ? <WikiLine w={c.wiki} L={L} /> : null}
               {c.gap?.he ? <p className="text-[12px]" style={{ color: "#1d4ed8" }}>{L(`🇮🇱 ${gapHe(c.gap)}`, `🇮🇱 ${gapHe(c.gap)}`)}</p> : null}
             </li>
           ))}

@@ -49,6 +49,7 @@ export function sourceOf(url) {
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";
   if (host.endsWith(".opentimestamps.org")) return "seal";
   if (host === "mempool.space") return "bitcoin";
+  if (host === "wikimedia.org" || host.endsWith(".wikipedia.org") || host === "www.wikidata.org") return "wikipedia";
   return "other";
 }
 
@@ -254,7 +255,7 @@ const RESTS_ON = Object.freeze({
   aliexpress: "aliexpress", world: "aliexpress", fresh: "aliexpress", discovery: "aliexpress", waves: "aliexpress",
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
-  siteVisitors: "site", siteProducts: "site", crowd: "site",
+  siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia",
 });
 
 /**
@@ -275,7 +276,7 @@ export function measuredStates(claimed = {}, receipt = {}) {
 }
 
 // The rows whose kept count is their own (an area sharing the AliExpress host keeps its own state).
-const OWN_KEEP = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver"]);
+const OWN_KEEP = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver", "wikipedia"]);
 
 /**
  * One source's state from its counts, the four stages apart: never asked → NOT_ASKED; asked, no
@@ -405,6 +406,7 @@ export const MEASURES = Object.freeze({
   engine_baidu: { he: "השלמות חיפוש", en: "Search suggestions" },
   engine_naver: { he: "השלמות חיפוש", en: "Search suggestions" },
   site: { he: "המוצרים והקליקים של LikeLink2 עצמו", en: "LikeLink2's own products and clicks" },
+  wikipedia: { he: "קוראים בוויקיפדיה ביום, באנגלית ובעברית, מאז 2016", en: "Daily Wikipedia readers, English and Hebrew, since 2016" },
 });
 
 const DAY = 86_400_000;

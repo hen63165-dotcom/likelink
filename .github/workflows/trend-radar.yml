@@ -34,6 +34,8 @@ on:
       - src/lib/growth/radarBoard.js
       - src/lib/growth/newKinds.js
       - scripts/catalog/radar-embed.mjs
+      - src/lib/growth/wikiSignal.js
+      - src/lib/growth/freshRisers.js
       - src/lib/growth/channelEngine.js
       - scripts/marketing/channel-preview.mjs
 permissions:
