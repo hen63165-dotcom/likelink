@@ -179,18 +179,42 @@ test("a quiet day: nothing measured hot → no post, and the reason is named", (
   assert.equal(p.instagram.pkg, null);
 });
 
-test("the Telegram post: disclosure first, Hebrew name, dated evidence, both scores, why it won; no promise", () => {
+test("the post looks like the deals groups (photo, short lines, one link, join links), with dated evidence and both scores", () => {
   const pick = plan().telegram.pick;
-  const { text, image, link } = telegramPost(pick, { link: "https://likelink2.vercel.app/p/x" });
-  assert.match(text, /^#פרסומת · קישור שותפים/);
-  assert.match(text, /🛍️ [\u0590-\u05ff]/);
-  assert.match(text, /הזמנות ב־30 יום, כפי שהחנות מדווחת: [\d,]+ ב־\d+\.\d+ ← [\d,]+ ב־\d+\.\d+/);
-  assert.match(text, /מדד טרנד \d+\/100 · מדד קנייה חכמה \d+\/100/);
-  assert.match(text, /נבחר מתוך \d+ מועמדים/);
-  assert.match(text, /נמדד \d+\.\d+ \d\d:\d\d/);
+  const join = { telegram: "https://t.me/likelink_deals", whatsapp: "https://chat.whatsapp.com/abc" };
+  const { text, image, link } = telegramPost(pick, { link: "https://likelink2.vercel.app/p/x", join });
+  assert.match(text, /^#פרסומת · קישור שותפים\n🔥 /);
+  assert.match(text, /✨ [\u0590-\u05ff]/, "a Hebrew name");
+  assert.match(text, /📈 ההזמנות עלו \d+% בשבוע · לפי החנות, \d+\.\d+ ← \d+\.\d+/);
+  assert.match(text, /🧾 [\d,]+ ← [\d,]+ הזמנות ב־30 יום, כפי שהחנות מדווחת/);
+  assert.match(text, /📊 מדד טרנד \d+ · קנייה חכמה \d+ · הכי חזק מתוך \d+/);
+  assert.match(text, /👉 https:\/\/likelink2\.vercel\.app\/p\/x/);
+  assert.match(text, /―+\n🚀 להצטרפות לטלגרם: https:\/\/t\.me\/likelink_deals\n💚 לקבוצת הוואטסאפ: https:\/\/chat\.whatsapp\.com\/abc/);
+  assert.match(text, /🕒 נמדד \d+\.\d+ \d\d:\d\d$/);
   assert.ok(/^https:\/\//.test(image) && link);
-  for (const w of ["בטוח", "מובטח", "תחזית", "היחיד", "לפני כולם", "דירוג"]) assert.ok(!text.includes(w), `no "${w}"`);
-  assert.ok(text.length <= 1024 - 120, "fits a photo caption with a short link");
+  for (const w of ["בטוח", "מובטח", "תחזית", "היחיד", "לפני כולם", "דירוג", "מקורי", "לוגו"]) assert.ok(!text.includes(w), `no "${w}"`);
+  assert.ok(text.length <= 1024 - 150, "fits a photo caption");
+  // Without her join links set, the post has none (never a guessed link).
+  assert.doesNotMatch(telegramPost(pick).text, /להצטרפות|לקבוצת/);
+});
+
+test("WhatsApp gets the same post, ready to send (its API never posts into a group)", async () => {
+  const { whatsappPost } = await import("../src/lib/growth/channelEngine.js");
+  const p = plan();
+  assert.equal(p.whatsapp.pick.itemId, p.telegram.pick.itemId, "one engine, one pick");
+  const w = whatsappPost(p.telegram.pick, { link: "https://likelink2.vercel.app/p/x" });
+  assert.equal(w.state, "READY_TO_SEND");
+  assert.match(w.text, /^#פרסומת · קישור שותפים\n\*🔥 .+\*\n/, "the headline in WhatsApp bold");
+  assert.ok(w.open.startsWith("https://wa.me/?text=") && decodeURIComponent(w.open.slice(20)) === w.text);
+});
+
+test("a brand-name listing never reaches a post, even when it is the hottest (LV, UGG, Nike, Miu Miu…)", () => {
+  const base = candidatesFrom(board(), products(), { now: NOW }).find((c) => c.itemId === "1005007011405828");
+  for (const t of ["Louis Vuitton LV mini bag", "UGG platform boots", "Nike Air socks", "Miu Miu bucket bag", "Zara suede jacket", "Alo yoga set"]) {
+    const r = rankCandidates([{ ...base, title: t, storeTitle: t, evidence: { ...base.evidence, weekPct: 300 } }], { now: NOW });
+    assert.equal(r.ranked.length, 0, t);
+    assert.equal(r.rejected[0].reason, "brand_name", t);
+  }
 });
 
 test("Instagram is fed by the same ranking (prepared only, never published here)", () => {

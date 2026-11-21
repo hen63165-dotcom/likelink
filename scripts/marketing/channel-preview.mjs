@@ -11,7 +11,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { sanitizeBoard } from "../../src/lib/growth/radarBoard.js";
-import { ENGINE, claimOf, hebrewName, instagramPackage, planChannels, rankCandidates, candidatesFrom, selectNext, telegramPost, withClaim } from "../../src/lib/growth/channelEngine.js";
+import { ENGINE, claimOf, instagramPackage, planChannels, rankCandidates, candidatesFrom, selectNext, telegramPost, whatsappPost, withClaim } from "../../src/lib/growth/channelEngine.js";
 import { aliexpressItemFacts, aliexpressShortLink } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { CLOUD } from "../../src/constants/cloud.js";
 import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
@@ -111,7 +111,8 @@ export async function preview(dir, { env = process.env, fetchImpl = fetch, now =
     const sel = selectNext(ranked, history, { channel: "telegram", now: t });
     if (!sel.pick) { out.cycles.push({ run: i + 1, at: new Date(t).toISOString(), post: null, reason: sel.reason, skipped: sel.skipped.slice(0, 8) }); continue; }
     const post = telegramPost(sel.pick);
-    out.cycles.push({ run: i + 1, at: new Date(t).toISOString(), itemId: sel.pick.itemId, productId: sel.pick.productId, trend: sel.pick.trend.key, source: sel.pick.source, heat: sel.pick.heat, buy: sel.pick.buy, confidence: sel.pick.confidence, opportunity: sel.pick.opportunity, alsoListedAs: sel.pick.alsoListedAs, post, instagram: i === 0 ? instagramPackage(sel.pick) : undefined });
+    const whatsapp = whatsappPost(sel.pick);
+    out.cycles.push({ run: i + 1, at: new Date(t).toISOString(), itemId: sel.pick.itemId, productId: sel.pick.productId, trend: sel.pick.trend.key, source: sel.pick.source, heat: sel.pick.heat, buy: sel.pick.buy, confidence: sel.pick.confidence, opportunity: sel.pick.opportunity, alsoListedAs: sel.pick.alsoListedAs, post, whatsapp: { state: whatsapp.state, text: whatsapp.text }, instagram: i === 0 ? instagramPackage(sel.pick) : undefined });
     history = [{ ...claimOf(sel.pick, { now: t }), state: "SENT", providerId: `preview-${i + 1}` }, ...history];
   }
   // Two runs racing for the same slot (the 79-second repeat of 20.11): only the first claim is taken.

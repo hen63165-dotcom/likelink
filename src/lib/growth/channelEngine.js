@@ -229,7 +229,9 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
     out.push({
       source: "site_hot", itemId: itemIdOf(p || r), productId: String(r.id), title: p?.title || r.title, storeTitle: p?.storeTitle || p?.title || r.title, image: p?.image || null,
       link: p ? `${siteOrigin}/p/${encodeURIComponent(String(p.id))}` : null, linkKind: "site", siteStatus: p?.status || "missing", affiliateUrl: p?.affiliateUrl || null,
-      trend: c ? { key: `c:${c.id}`, he: c.he, conceptId: c.id, stage: c.stage, kind: c.kind } : { key: `w:${headWords(p?.title || r.title)}`, he: headWords(p?.title || r.title).replace(/_/g, " "), conceptId: null, stage: null, kind: p?.kind || null },
+      // Without a radar kind, the trend key is the title's first words (for "a different trend every post")
+      // and the post's headline stays plain ("חם עכשיו ברדאר"): store words are never shown as a trend name.
+      trend: c ? { key: `c:${c.id}`, he: c.he, conceptId: c.id, stage: c.stage, kind: c.kind } : { key: `w:${headWords(p?.title || r.title)}`, he: null, conceptId: null, stage: "HOT", kind: p?.kind || null },
       match: { label: isLook ? "DUPE" : "DIRECT", by: found?.match || "none", look: isLook ? c.he : null, words: found?.words ?? null, visual: null },
       evidence: evidenceOf(r, "site_hot"),
       price: p?.priceSource === "aliexpress_api" && num(p.price) > 0 ? { value: p.price, currency: "ILS", checkedAt: Number.isFinite(priceAt) ? new Date(priceAt).toISOString() : null, source: "aliexpress_api" } : null,
@@ -443,29 +445,56 @@ export function hebrewName(c = {}) {
   return null;
 }
 
-/** The Telegram post: photo + Hebrew text with the dated evidence, both scores and the reason it won. */
-export function telegramPost(pick = {}, { link = pick.link } = {}) {
+/** The post's headline: a dupe of a look, a trend the radar measures, or one of its new discoveries. */
+export function headlineOf(pick = {}) {
+  if (pick.match?.label === "DUPE" && pick.match.look) return `הלוק שכולם רוצים עכשיו: ${pick.match.look}`;
+  if (pick.trend?.he) return `טרנד עכשיו: ${pick.trend.he}`;
+  if (pick.source === "fresh_riser") return "מוצר חדש שמתחיל לרוץ";
+  return "חם עכשיו ברדאר";
+}
+
+/**
+ * The deals-group post (the owner, 21.11, with screenshots of a WhatsApp deals group: "it should look
+ * like this, on WhatsApp too"): a big store photo, a few short lines, one link, the join links under a
+ * line. What the radar adds and those groups lack: one dated evidence line and both scores. What it
+ * never copies from them: a brand's name or logo, "original logo and tags", AI photos with a logo —
+ * the look is posted without the name, with the store's own photo. Shared by Telegram and WhatsApp.
+ */
+function dealLines(pick = {}, { link = pick.link, join = {}, bold = (t) => t } = {}) {
   const e = pick.evidence || {};
   const name = hebrewName(pick);
   const price = pick.verified?.price ?? pick.price?.value ?? null;
-  const priceAt = pick.verified?.checkedAt || pick.price?.checkedAt || null;
-  const lines = ["#פרסומת · קישור שותפים"];
-  lines.push(pick.trend?.he ? `🔥 טרנד עכשיו: ${pick.trend.he}` : "🔥 טרנד עכשיו: מוצר חדש שהרדאר מצא");
-  if (name) lines.push(`🛍️ ${name}`);
-  lines.push(`📈 למה עכשיו: ההזמנות של הפריט עלו ${round(e.weekPct, 0)}% בשבוע`);
-  if (Number.isFinite(e.before) && Number.isFinite(e.after)) lines.push(`🧾 ${e.measureHe}: ${n0(e.before)} ב־${dm(e.from)} ← ${n0(e.after)} ב־${dm(e.to)}`);
-  if (pick.match?.label === "DUPE" && pick.match.look) lines.push(`🔁 דיופ ללוק: ${pick.match.look}${pick.match.visual === "MATCH" ? " (שם המוצר והתמונה נבדקו)" : " (לפי שם המוצר בחנות)"}`);
-  else lines.push("🎯 המוצר עצמו בעלייה");
-  if (price > 0) lines.push(`💰 מ־₪${price} באליאקספרס${priceAt ? ` · נבדק ${fmtTime(priceAt.length === 10 ? `${priceAt}T10:00:00Z` : priceAt)}` : ""}`);
+  const lines = ["#פרסומת · קישור שותפים", bold(`🔥 ${headlineOf(pick)}`)];
+  if (name) lines.push(`✨ ${name}`);
+  const dates = e.from && e.to ? ` · לפי החנות, ${dm(e.from)} ← ${dm(e.to)}` : " · לפי החנות";
+  lines.push(`📈 ההזמנות עלו ${round(e.weekPct, 0)}% בשבוע${dates}`);
+  if (Number.isFinite(e.before) && Number.isFinite(e.after)) lines.push(`🧾 ${n0(e.before)} ← ${n0(e.after)} ${e.measureHe || "הזמנות ב־30 יום"}`);
+  if (price > 0) lines.push(`💰 מ־₪${price} באליאקספרס · משלוח לישראל`);
   const sat = pick.verified?.sat || pick.quality?.sat;
   if (sat === "97+" || sat === "95+") lines.push(`✅ שביעות רצון של ${sat === "97+" ? "97%" : "95%"} ומעלה, לפי החנות`);
-  if (pick.israel) lines.push(`🇮🇱 בישראל: ${pick.israel.he} (${dm(pick.israel.at)})`);
-  lines.push(`🌍 ${e.market || "AliExpress, משלוח לישראל"} · נמדד ${fmtTime(e.retrievedAt)}`);
-  lines.push(`📊 מדד טרנד ${pick.heat?.score ?? "?"}/100 · מדד קנייה חכמה ${pick.buy?.score ?? "?"}/100`);
-  if (pick.of > 1) lines.push(`🏆 נבחר מתוך ${pick.of} מועמדים חזקים היום`);
+  if (pick.israel) lines.push(`🇮🇱 בישראל: ${pick.israel.he}`);
+  lines.push(`📊 מדד טרנד ${pick.heat?.score ?? "?"} · קנייה חכמה ${pick.buy?.score ?? "?"}${pick.of > 1 ? ` · הכי חזק מתוך ${pick.of}` : ""}`);
   if (pick.returnReason?.he) lines.push(`🔄 חוזר כי ${pick.returnReason.he}`);
   if (link) lines.push(`👉 ${link}`);
-  return { text: lines.join("\n"), image: pick.verified?.image || pick.image, link };
+  const joins = [join.telegram ? `🚀 להצטרפות לטלגרם: ${join.telegram}` : null, join.whatsapp ? `💚 לקבוצת הוואטסאפ: ${join.whatsapp}` : null].filter(Boolean);
+  if (joins.length) lines.push("―――――――――――", ...joins);
+  lines.push(`🕒 נמדד ${fmtTime(e.retrievedAt)}`);
+  return lines;
+}
+
+/** The Telegram post: the store photo as the image, the deals-group text as its caption. */
+export function telegramPost(pick = {}, { link = pick.link, join = {} } = {}) {
+  return { text: dealLines(pick, { link, join }).join("\n"), image: pick.verified?.image || pick.image, link };
+}
+
+/**
+ * The same post for WhatsApp (*bold* headline). WhatsApp's official API sends to people who wrote
+ * first, never into a large group or a channel, so this is READY_TO_SEND: the photo and the text, and
+ * a wa.me link that opens WhatsApp with the text for her to choose the group.
+ */
+export function whatsappPost(pick = {}, { link = pick.link, join = {} } = {}) {
+  const text = dealLines(pick, { link, join, bold: (t) => `*${t}*` }).join("\n");
+  return { state: "READY_TO_SEND", text, image: pick.verified?.image || pick.image, link, open: `https://wa.me/?text=${encodeURIComponent(text)}` };
 }
 
 /**
@@ -512,6 +541,7 @@ export function planChannels(board = null, products = [], histories = {}, { now 
     counts: { candidates: cands.length, ranked: ranked.length, rejected: rejected.length, bySource: countBy(cands, (c) => c.source) },
     ranked, rejected,
     telegram: { ...tg, post: tg.pick ? telegramPost(tg.pick) : null },
+    whatsapp: { pick: tg.pick, reason: tg.reason, post: tg.pick ? whatsappPost(tg.pick) : null },
     instagram: { ...ig, pkg: ig.pick ? instagramPackage(ig.pick) : null },
   };
 }

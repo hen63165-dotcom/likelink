@@ -1165,7 +1165,9 @@ export async function runChannelEngine(store, marketerId, cfg, origin, board, { 
     if (!held.ok) { note(false, held.error === "slot_taken" ? "another run holds the slot: nothing sent" : held.error); return { ok: false, error: held.error }; }
     const short = pick.linkKind === "store" ? await aliexpressShortLink(pick.itemId, { env }).catch(() => null) : null;
     const link = pick.linkKind === "site" ? trackLink(pick.link, "telegram", pick.productId) : short || pick.link;
-    const post = telegramPost(pick, { link });
+    // The join links at the bottom of every post (her own channel and group), only when she set them.
+    const join = { telegram: /^https:\/\//.test(String(cfg.joinLinks?.telegram || "")) ? cfg.joinLinks.telegram : null, whatsapp: /^https:\/\//.test(String(cfg.joinLinks?.whatsapp || "")) ? cfg.joinLinks.whatsapp : null };
+    const post = telegramPost(pick, { link, join });
     const media = { id: pick.productId || `ae-${pick.itemId}`, title: hebrewName(pick) || pick.title, image: facts.image || pick.image, images: facts.images || [] };
     let providerId = null;
     let error = null;
