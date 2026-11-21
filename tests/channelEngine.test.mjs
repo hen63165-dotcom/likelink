@@ -287,3 +287,15 @@ test("the product name in a post is cut at a whole word (21.11: 'איכות ' an
   assert.ok(s.length <= 60 && t.startsWith(s) && t[s.length] === " ", s);
   assert.equal(shortName("מתקן סבון אוטומטי ללא מגע,"), "מתקן סבון אוטומטי ללא מגע");
 });
+
+test("the WhatsApp group page takes the same engine's picks: one per trend, in rank order", async () => {
+  const { dailyPicks } = await import("../src/lib/growth/channelEngine.js");
+  const { ranked } = rankCandidates(candidatesFrom(board(), products(), { now: NOW }), { now: NOW });
+  const picks = dailyPicks(ranked, { max: 6 });
+  assert.ok(picks.length >= 2);
+  assert.equal(new Set(picks.map((p) => p.trend.key)).size, picks.length, "one per trend");
+  assert.equal(picks[0].itemId, ranked[0].itemId, "the strongest first, as in Telegram");
+  const src = readFileSync(new URL("../scripts/marketing/whatsapp-kit.mjs", import.meta.url), "utf8");
+  assert.match(src, /dailyPicks\(ranked/);
+  assert.match(src, /whatsappPost\(c/);
+});

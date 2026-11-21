@@ -12,6 +12,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { listedFromSnapshot } from "../prerender-products.mjs";
 import { kitOf } from "../../src/lib/growth/whatsappKit.js";
+import { candidatesFrom, dailyPicks, rankCandidates, whatsappPost } from "../../src/lib/growth/channelEngine.js";
+import { PRODUCTION_ORIGIN } from "../../src/constants/domain.js";
 
 const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const SAFE_FILE = /^[a-z0-9-]{1,60}$/i;
@@ -27,7 +29,7 @@ export function kitPage(kit, { groupLink = "" } = {}) {
       <button type="button" class="copy">העתקת הטקסט</button>
       <a class="save" href="${esc(p.file)}" download>שמירת התמונה</a>
     </div>
-    <p class="why">${p.why === "hot" ? "🔥 חם עכשיו לפי הרדאר" : "🆕 נוסף לחנות לאחרונה"}</p>
+    <p class="why">${p.why === "engine" ? "📡 נבחר היום במנוע של הרדאר, כמו בטלגרם" : p.why === "hot" ? "🔥 חם עכשיו לפי הרדאר" : "🆕 נוסף לחנות לאחרונה"}</p>
   </section>`).join("");
   return `<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -89,6 +91,21 @@ export async function writeKit({ dist = "dist", catalog = null, now = Date.now()
   const board = existsSync(boardFile) ? JSON.parse(readFileSync(boardFile, "utf8")) : null;
   const keepIds = (board?.site?.keep || []).map((k) => k?.id).filter(Boolean);
   const kit = kitOf({ products: raw, keepIds, now });
+  // 📡 The same engine as Telegram (channelEngine.js) comes first: the day's strongest radar finds, one
+  // per trend, in the same post format, with the Telegram channel's join link.
+  const enginePosts = [];
+  try {
+    const ranked = rankCandidates(candidatesFrom(board, raw, { now, siteOrigin: PRODUCTION_ORIGIN }), { now }).ranked;
+    for (const c of dailyPicks(ranked, { max: 6 })) {
+      const link = c.linkKind === "site"
+        ? `${c.link}?utm_source=whatsapp&utm_medium=group&utm_campaign=${encodeURIComponent(c.productId || c.itemId)}`
+        : `${PRODUCTION_ORIGIN}/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${c.itemId}.html`)}&utm_source=whatsapp&utm_medium=group`;
+      const post = whatsappPost(c, { link, join: { telegram: process.env.TG_CHANNEL_LINK || "" } });
+      enginePosts.push({ id: `e-${c.itemId || c.productId}`, title: c.title, text: post.text, images: [c.image].filter(Boolean), why: "engine", itemId: c.itemId });
+    }
+  } catch (e) { console.log(`engine posts skipped: ${String(e?.message || e).slice(0, 120)}`); }
+  const engineItems = new Set(enginePosts.map((p) => p.itemId).filter(Boolean));
+  kit.posts = [...enginePosts, ...kit.posts.filter((p) => !engineItems.has(String(p.id || "").replace(/^ae-/, "")))];
   const out = join(dist, "whatsapp");
   rmSync(out, { recursive: true, force: true });
   mkdirSync(join(out, "tmp"), { recursive: true });
@@ -113,7 +130,7 @@ export async function writeKit({ dist = "dist", catalog = null, now = Date.now()
   const final = { day: kit.day, posts: done };
   writeFileSync(join(out, "index.html"), kitPage(final, { groupLink }));
   writeFileSync(join(out, "today.json"), JSON.stringify({ day: final.day, posts: done.map(({ images, safe, ...x }) => x) }, null, 1));
-  return { posts: done.length, hot: done.filter((x) => x.why === "hot").length };
+  return { posts: done.length, hot: done.filter((x) => x.why === "hot").length, engine: done.filter((x) => x.why === "engine").length };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -127,5 +144,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     note = built.live === "ok" ? `copy + ${built.added} live products` : `copy only (live catalog: ${built.live})`;
   }
   const r = await writeKit({ dist, catalog });
-  console.log(r.reason ? `whatsapp-kit: ${r.reason}` : `whatsapp-kit: ${r.posts} post(s), ${r.hot} hot (${note})`);
+  console.log(r.reason ? `whatsapp-kit: ${r.reason}` : `whatsapp-kit: ${r.posts} post(s), ${r.engine} from the channel engine, ${r.hot} hot (${note})`);
 }
