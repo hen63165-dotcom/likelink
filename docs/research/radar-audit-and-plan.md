@@ -53,6 +53,7 @@ Ranked by value to the owner's goal (find the next thing first, prove it), cost 
 | 11 | TikTok Shop / social commerce data | 4 | Missing | TikTok's Research API excludes commercial use; a licensed provider (FastMoss / Kalodata, MCP or API) is a paid subscription | the owner's yes | Social-commerce demand next to AliExpress orders, labelled as estimates |
 | 12 | Amazon | 4 | Missing | PA-API needs an Associates account with sales; estimate vendors are paid | the owner | Amazon demand, labelled |
 | 13 | Reddit | 4 | Missing | Data API: commercial use needs Reddit's agreement | Reddit | Community language shifts |
+| 15 | Version evals (Base44's practice): every instrument records its version on each call; a new version leads only after it beats the old one on sealed grades of the same period | 5, 9, 12 | The brain records `v`; extend to every instrument | Free | 4 | No unmeasured change to how the radar decides |
 | 14 | Agents (discovery, signal, vision, diffusion, prediction, commercial, verification…) | 10 | The instruments already split this way inside one run | Free | — | Kept as instruments in one core (radarCore.js), each with a sealed book; a separate "agent" only where it gives a measured result |
 
 ## 3. What "proven" will mean (success criteria, measured on sealed grades)

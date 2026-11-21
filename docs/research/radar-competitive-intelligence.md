@@ -61,9 +61,29 @@ Key: **P** = proven by something outside the vendor (an audit, a reproducible te
 2. **The run itself as evidence.** No system shows, for each day, how many requests it really sent, which answered with data, which failed and why, with a public log of the run that did it. The radar now does (the run receipt, 21.11).
 3. **A self-built capability map**: which parts work in production today, which are in code but not connected, which answer badly, which are missing, computed from the last real run instead of declared.
 
-## Maor Shlomo / Base44
+## Maor Shlomo / Base44 (built with Claude; public material read 21.11)
 
-Base44 is a closed product (bought by Wix in 2025). There is **no access** to its code or internals from here, so nothing about how it is built is described or guessed. What is public and was used before (CLAUDE.md, "Building in public"): building in public every day with real numbers. To examine more, the owner would need to provide the project's address or materials she has the right to share.
+There is no access to Base44's code, so nothing about its internals is guessed. What its makers and Anthropic published (self-reported, not independently verified):
+
+- **Claude at the centre, several models routed by task.** Anthropic's customer story: Base44 "integrated Claude via API in just a few hours" into a "multi-model pipeline"; Claude Sonnet is the default "creative center" for planning and UI, Opus 4.5 for more complex apps; "smart routing" sends design and UX tasks to Claude while "users maintain full control to override these defaults". Shlomo, in interviews: Claude for UI, Gemini for logic at one point (secondary write-ups).
+- **Every new model is evaluated before it is trusted.** Anthropic's July 2026 article (Yoav Orlev, Base44's head of product): "Base44 runs each new Claude model through evals across different app types, measuring latency, cost, and build errors"; changes are measured with A/B tests; Claude Fable 5 now does their hardest engineering work (rebuilding the system prompt, the agent harness, native mobile), with "the model executes tasks while Orlev's team reviews, tests, and approves the code before shipping it". The model also "flagged a gap in Base44's own evals" (cache hits were not tested).
+- **A codebase built for the model to read.** Shlomo: he structured the repository "so it would be easy for LLMs to navigate and read the code" (secondary accounts).
+- **Vertically integrated.** Every app comes with its database, sign-in, integrations; nothing to wire.
+- **Users vote with their builds.** The customer story: "When you give users real choice, they vote with their builds."
+- **Building in public with real numbers.** Lenny's Podcast: he posted what he built, revenue, retention and costs on LinkedIn and X; from three friends to 400,000 users with no paid marketing; sold to Wix for about $80M six months after starting.
+- **Numbers on Anthropic's page (self-reported):** 2M+ users, 7× growth June–September 2025, 1,000+ new paying subscribers a day, same-day apps instead of multi-day cycles.
+
+### What the radar takes from it (principles only, our own implementation)
+
+| Base44 principle | In the radar |
+|---|---|
+| Route each task to what measured best, let the user override | Choose sources and instruments by their measured record per category (the health registry now; per-source predictive value once grades exist, plan item 5) |
+| Evaluate every new model on fixed evals before trusting it | Every instrument version recorded on each call (the brain's `v`); compare versions on sealed grades before a new one leads (plan item 15) |
+| A codebase the model can read | One core (`radarCore.js`) lists every instrument; CLAUDE.md describes every part |
+| Vertical integration | Find → check → store file → content, inside LikeLink2 |
+| Users vote with their builds | The sixth-sense picks and the crowd sensor are graded by the same rule as the radar |
+| Build in public with real numbers | The daily post uses the board's numbers only; the run receipt is now public evidence |
+| Human review before shipping | Nothing posted, bought or published without the owner's yes |
 
 ## Sources
 
@@ -80,4 +100,5 @@ Base44 is a closed product (bought by Wix in 2025). There is **no access** to it
 - Pinterest: [trends/topics/featured](https://developers.pinterest.com/docs/api/v5/trends_featured_topics-list/), [authentication](https://developers.pinterest.com/docs/getting-started/set-up-authentication-and-authorization/)
 - TikTok: [Research API eligibility](https://apidojo.io/blog/tiktok-api/research-api/), [pricing and commercial use](https://crawlfeed.dev/blog/tiktok-api-pricing)
 - Google Trends API: [announcement](https://developers.google.com/search/blog/2025/07/trends-api), [early access](https://developers.google.com/search/apis/trends), [pilot status](https://www.searchenginejournal.com/google-trends-api-alpha-mueller-confirms-small-pilot-group/554078/)
+- Base44: [Anthropic customer story](https://claude.com/customers/base44), [Working at the frontier (15.07.2026)](https://claude.com/resources/articles/working-at-the-frontier-why-base44-trusts-claude-fable-5-with-their-most-challenging-engineering-work), [Lenny's Podcast episode](https://podwise.ai/episodes/4612372), [Calcalist](https://www.calcalistech.com/ctechnews/article/y0kdgmw7a), [Copy the greats](https://copythegreats.substack.com/p/maor-shlomo-and-base44-the-solo-builder)
 - Minea: [ad spy](https://www.minea.com/ad-spy-tool), [dodropshipping review](https://dodropshipping.com/minea-review/), [TrendTrack review](https://www.trendtrack.io/blog-post/minea-review)
