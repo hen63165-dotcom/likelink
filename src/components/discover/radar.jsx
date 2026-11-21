@@ -13,10 +13,10 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
-import { EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
+import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
-import { COUNTRY_NAMES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
+import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
@@ -881,6 +881,45 @@ function FindFacts({ f, kind, day }) {
  * The radar's whole record in one table (radarCore.js recordView): every instrument, the same
  * columns, the result as it is. Each row opens its own section below.
  */
+/**
+ * 🗺️ The capability map (radarCore.js capabilityMap; the owner's mission, 21.11, phase 2): every source,
+ * instrument and missing door in five classes, computed from the latest run's board, never declared.
+ */
+function CapabilityMap({ board }) {
+  const { L } = useL();
+  const map = capabilityMap(board);
+  if (!map.rows.length) return null;
+  const why = (r) => {
+    if (!r.why) return "";
+    if (typeof r.why === "string") return r.kind === "door" ? r.why : SOURCE_STATES[r.why] ? L(SOURCE_STATES[r.why].he, SOURCE_STATES[r.why].en) : "";
+    if (r.why.firstCheck) return L(`הבדיקה הראשונה ב־${dm(r.why.firstCheck)}`, `first check on ${dm(r.why.firstCheck)}`);
+    if (r.why.errors !== undefined) return L(`${r.why.errors} שגיאות מתוך ${r.why.of} שאלות`, `${r.why.errors} errors of ${r.why.of} requests`);
+    return "";
+  };
+  return (
+    <section className="lx-wrap mt-8" id="capabilities">
+      <div className="lx-card lx-rdr-panel p-5 md:p-6">
+        <h2 className="text-[22px] font-black">{L("🗺️ מפת היכולות, מהריצה האחרונה", "🗺️ The capability map, from the latest run")}</h2>
+        <p className="mt-1 text-[14px] leading-6" style={{ color: "var(--lx-muted)" }}>{L("כל מקור וכל כלי של הרדאר, בחמש קבוצות. המפה מחושבת מהנתונים של הריצה האחרונה: מה ענה, מה נשמר ומה כבר קיבל ציון.", "Every source and instrument of the radar, in five groups, computed from the latest run's data: what answered, what was kept, what has been graded.")}</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {Object.entries(CAPABILITY_CLASSES).map(([k, c]) => {
+            const rows = map.rows.filter((r) => r.cls === k);
+            if (!rows.length) return null;
+            return (
+              <div key={k} className="lx-rdr-item p-3">
+                <p className="text-[14px] font-black">{c.n}. {L(c.he, c.en)} · {rows.length}</p>
+                <ul className="mt-1 grid gap-0.5 text-[12px] leading-5">
+                  {rows.map((r) => <li key={`${r.kind}-${r.key}`}><b>{L(r.he, r.en)}</b>{why(r) ? <span style={{ color: "var(--lx-muted)" }}> · {why(r)}</span> : null}</li>)}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function RecordTable({ board }) {
   const { L } = useL();
   const v = recordView(board || {});
@@ -956,6 +995,23 @@ function StageCounts({ c, countryNames }) {
   );
 }
 
+// 📒 One source over the last runs (runReceipt.js healthOf): what it measures, its share of valid
+// answers, when it last gave valid data, and its reliability from those numbers only.
+const HEALTH_LEVELS = { HIGH: ["אמינות גבוהה", "high reliability"], MEDIUM: ["אמינות בינונית", "medium reliability"], LOW: ["אמינות נמוכה", "low reliability"], MEASURING: ["אמינות: נמדדת (פחות מ־3 ריצות)", "reliability: measuring (under 3 runs)"] };
+function SourceHealth({ m, h }) {
+  const { L } = useL();
+  const when = (t) => (t ? `${dm(israelDay(t))} ${israelTime(t)}` : "");
+  return (
+    <span className="block text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>
+      {m ? <span className="block">{L(`מודד: ${m.he}`, `Measures: ${m.en}`)}</span> : null}
+      {h ? <span className="block">{L(
+        `${h.runs} ריצות: ${h.validRate ?? 0}% תשובות תקינות · נתונים תקינים לאחרונה: ${h.lastValid ? when(h.lastValid) : "בהמתנה"} · ${HEALTH_LEVELS[h.level][0]}`,
+        `${h.runs} runs: ${h.validRate ?? 0}% valid answers · last valid data: ${h.lastValid ? when(h.lastValid) : "none yet"} · ${HEALTH_LEVELS[h.level][1]}`,
+      )}</span> : null}
+    </span>
+  );
+}
+
 // Every kind of unit the run scans, its four stages apart, and every failed or empty unit by name.
 function ScanTable({ scan }) {
   const { L } = useL();
@@ -1001,7 +1057,7 @@ function ScanTable({ scan }) {
  * fetch from real answers, the run's public GitHub log prints the same receipt, and its text is sealed
  * in Bitcoin as the book "run". The date is the run's own; "today" only when the run is today's.
  */
-function SourcesToday({ sources, receipt, scan = null }) {
+function SourcesToday({ sources, receipt, scan = null, health = null }) {
   const { L } = useL();
   const list = sourcesView(sources || {}, receipt);
   if (!list.length) return null;
@@ -1043,6 +1099,7 @@ function SourcesToday({ sources, receipt, scan = null }) {
                 <b>{L(x.he, x.en)}</b>
                 <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
                 {x.counts ? <StageCounts c={x.counts} countryNames={countryNames} /> : null}
+                {MEASURES[x.key] || health?.sources?.[x.key] ? <SourceHealth m={MEASURES[x.key]} h={health?.sources?.[x.key] || null} /> : null}
               </span>
               <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
             </li>
@@ -1841,7 +1898,8 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
-        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} /> : null}
+        {board ? <CapabilityMap board={board} /> : null}
+        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />

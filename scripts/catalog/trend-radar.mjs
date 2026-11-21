@@ -26,7 +26,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
-import { hasList, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
+import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
 const codeOf = (x) => {
@@ -78,6 +78,8 @@ import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, 
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
+import { findResults } from "../../src/lib/growth/findOnAli.js";
+import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
 import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
@@ -329,6 +331,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     } catch (err) { sources.kinds = "FAILED"; log.push(`kinds by meaning: ${String(err?.message || err).slice(0, 120)}`); }
   }
   const concepts = [...watch, ...discovered.filter(validConcept)];
+  const listingsByKind = {};
 
   // 2. AliExpress readings.
   if (!store) {
@@ -347,6 +350,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         for (const [id, v] of reading.top) items[id] = addItemReading(items[id], [today, v]);
         const pick = pickFrom(got.result, { now, concept: c });
         if (pick) picks[c.id] = pick; else delete picks[c.id];
+        // 📣 The channels' pool (channelEngine.js): every seller of this kind that passes the site's
+        // rules and names the kind, kept for today's comparison (several sellers per kind).
+        try {
+          const raw = got.result?.products?.product;
+          const passing = findResults(Array.isArray(raw) ? raw : raw ? [raw] : [], { rules: { ...RADAR.pickRules, max: 20 }, now }).items;
+          const ls = kindListings(got.result, passing, c);
+          if (ls.length) listingsByKind[c.id] = ls;
+        } catch { /* the pool is never worth a failed reading */ }
         const s = signals(readings[c.id]);
         const stage = stageOf(s);
         calls = updateCalls(calls, c.id, stage, readings[c.id], { now });
@@ -653,6 +664,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // counts down from it, never from the cron.
   board.lastDaily = env.GITHUB_EVENT_NAME === "schedule" ? new Date(now).toISOString() : (typeof prevBoard.lastDaily === "string" ? prevBoard.lastDaily : null);
   board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
+  // 📣 One pool for Telegram and Instagram (channelEngine.js radarPool): the listings HOT on their own
+  // measured momentum (≥ +10% a week, ≥ 300 orders), per kind, with how many sellers were compared.
+  if (env.RADAR_POOL !== "0") {
+    board.pool = radarPool(listingsByKind, (id) => itemMomentum(items[id] || [], { rules: HOT_RULES }), board.concepts, { now });
+    log.push(`channel pool: ${board.pool.list.length} hot listings from ${Object.keys(listingsByKind).length} kinds read · ${board.pool.list.slice(0, 6).map((r) => `${r.kind}/${r.id} +${r.weekPct}% (${r.compared} sellers)`).join(", ") || "none"}`);
+  }
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
@@ -1152,13 +1169,20 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     keep(meter, "aliexpress", Object.values(items).filter((series) => (series || []).some((r) => r[0] === today)).length);
     const receipt = receiptOf(meter, { env, started: runStarted, finished: Date.now() });
     board.sourcesToday = measuredStates(sources, receipt);
+    // Only a state the receipt really changed is named (21.11: the world's added state field was named as
+    // "no real answer" in the log, though all 120 categories answered).
+    const changed = Object.keys(sources).filter((k) => typeof sources[k] === "string" && sources[k] !== board.sourcesToday[k]);
+    if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${sources[k]} → ${board.sourcesToday[k]})`).join(", ")}`);
     if (board.sourcesToday.world && typeof board.sourcesToday.world === "object") board.sourcesToday.world = { ...board.sourcesToday.world, state: worldState(board.sourcesToday.world) };
     board.world = board.sourcesToday.world && typeof board.sourcesToday.world === "object" ? board.sourcesToday.world : board.world;
     board.scan = scan;
-    const changed = Object.keys(sources).filter((k) => JSON.stringify(sources[k]) !== JSON.stringify(board.sourcesToday[k]));
-    if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${JSON.stringify(sources[k])} → ${board.sourcesToday[k]})`).join(", ")}`);
+
     const text = receiptText(receipt);
     board.receipt = { ...receipt, seal: text ? await sealBook({ text, count: text.split("\n").length }, null, "run") : null };
+    // 📒 The source health registry: this run's receipt joins the last runs' (receipts.json, encrypted state).
+    const healthHist = addHealth(readJson(join(dir, "receipts.json"), []), receipt, board.sourcesToday);
+    writeFileSync(join(dir, "receipts.json"), JSON.stringify(healthHist));
+    board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
   const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });

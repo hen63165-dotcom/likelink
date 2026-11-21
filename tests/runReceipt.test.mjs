@@ -156,9 +156,38 @@ test("the run meters every request, counts world categories from real answers, a
   assert.match(run, /const scanned = code === 200 \|\| code === 405;/, "a store error is never a category scanned");
   assert.doesNotMatch(run, /read\+\+;\n\s*if \(!rot\.slice/, "the old unconditional count is gone");
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
-  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} \/>/);
+  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} health=\{board\.sourceHealth \|\| null\} \/>/);
   assert.match(page, /היומן הציבורי של הריצה, מ־GitHub:/);
   // No fixed claim of what is read: Baidu and Naver are closed by their own rules today.
   assert.doesNotMatch(page, /באידו בסין|נייבר בקוריאה|גוגל ב־8 מדינות|ב־10 מדינות/);
   assert.doesNotMatch(readFileSync("public/llms.txt", "utf8"), /564 categories|in 15 countries|each of 15 countries/);
+});
+
+test("the source health registry: built from the receipts of real runs only, every measure named", async () => {
+  const { addHealth, healthOf, cleanHealth, MEASURES } = await import("../src/lib/growth/runReceipt.js");
+  const r = (day, ae, sug) => ({ started: `2026-11-${day}T14:19:00.000Z`, run: { id: String(day) }, sources: { aliexpress: ae, suggest: sug, seal: { asked: 4, answered: 4, empty: 0, refused: 0, failed: 0 } } });
+  let h = [];
+  h = addHealth(h, r(18, { asked: 100, answered: 95, empty: 5, refused: 0, failed: 0, kept: 900 }, { asked: 50, answered: 10, empty: 40, refused: 0, failed: 0, kept: 50 }), { aliexpress: "OK" });
+  h = addHealth(h, r(19, { asked: 100, answered: 0, empty: 0, refused: 100, failed: 0, kept: 0, codes: { err_ApiCallLimit: 100 } }, { asked: 50, answered: 0, empty: 0, refused: 0, failed: 50, codes: { http_500: 50 } }), {});
+  h = addHealth(h, r(20, { asked: 100, answered: 96, empty: 4, refused: 0, failed: 0, kept: 910 }, { asked: 50, answered: 12, empty: 38, refused: 0, failed: 0, kept: 50 }), {});
+  h = addHealth(h, r(20, { asked: 100, answered: 96, empty: 4, refused: 0, failed: 0, kept: 910 }, { asked: 50, answered: 12, empty: 38, refused: 0, failed: 0, kept: 50 }), {});
+  assert.equal(h.length, 3, "one entry per run; the same run twice is kept once");
+  assert.ok(h.every((e) => !e.sources.seal), "checks (seal, bitcoin, robots) are never a data source");
+  const v = healthOf(h, { now: Date.parse("2026-11-21T00:00:00Z") });
+  assert.equal(v.sources.aliexpress.runs, 3);
+  assert.equal(v.sources.aliexpress.validRate, 66.7, "200 valid answers of 300 asked");
+  assert.equal(v.sources.aliexpress.lastValid, "2026-11-20T14:19:00.000Z");
+  assert.equal(v.sources.aliexpress.keptLast, 910);
+  assert.equal(v.sources.aliexpress.level, "MEDIUM", "a whole run refused keeps it under HIGH");
+  assert.deepEqual(v.sources.aliexpress.errors, { err_ApiCallLimit: 100 });
+  assert.equal(v.sources.suggest.lastValid, "2026-11-20T14:19:00.000Z", "a valid empty answer the radar kept is valid data");
+  assert.equal(healthOf(h.slice(0, 2)).sources.aliexpress.level, "MEASURING", "under 3 runs: no reliability claimed");
+  assert.equal(healthOf([]).runs, 0);
+  const clean = cleanHealth({ ...v, sources: { ...v.sources, evil: { runs: 9 }, aliexpress: { ...v.sources.aliexpress, lastValid: "<script>", level: "PERFECT" } } });
+  assert.equal(clean.sources.evil, undefined);
+  assert.equal(clean.sources.aliexpress.lastValid, null);
+  assert.equal(clean.sources.aliexpress.level, "MEASURING");
+  for (const m of Object.values(MEASURES)) assert.doesNotMatch(m.he, /(^|\s)(לא|אין)(\s|$)/);
+  assert.match(MEASURES.aliexpress.he, /כפי שהחנות מדווחת/, "orders are the store's own report, never an estimate of ours");
+  assert.match(MEASURES.suggest.he, /בלי נפח/);
 });

@@ -1,7 +1,9 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
-import { hotOnlyPool } from "../src/lib/growth/hotGate.js";
+import { freshForChannel, hotOnlyPool, lookPool } from "../src/lib/growth/hotGate.js";
+import { ENGINE, claimOf, hebrewName, planChannels, selectNext, settleClaim, telegramPost, withClaim } from "../src/lib/growth/channelEngine.js";
+import { aliexpressItemFacts, aliexpressShortLink } from "./_utils/aliexpressAffiliate.mjs";
 import { pitchFor } from "../src/lib/growth/postPitches.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
@@ -1077,6 +1079,125 @@ function pickProduct(cfg, pool) {
   return items[0];
 }
 
+// ─── 📣 the owner's channel: one engine from the latest radar board ──────────
+// src/lib/growth/channelEngine.js decides (candidates from the board only, gates, one identity per
+// product, Trend Heat + Smart Buy, a different trend every post, 14 days without a repeat unless the
+// evidence changed, 90 minutes between posts). Here: the history is read strictly and written with a
+// compare-and-swap (two runs can never both send: 20.11 had a product twice, 79 s apart), the item is
+// checked at the store right before the post, and the plan is kept as the proof of where it came from.
+export const CHANNEL_HISTORY_KEY = (id) => `channel:history:${id}`;
+export const CHANNEL_PLAN_KEY = (id) => `channel:plan:${id}`;
+
+/** One kv row with its version (updated_at), strictly: a failed read is { ok:false }. */
+async function kvReadVersioned(key) {
+  if (!SB_URL || !SB_KEY) return { ok: false };
+  let res;
+  try {
+    res = await fetch(`${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&select=value,updated_at`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }, signal: AbortSignal.timeout(10000) });
+  } catch { noteKvReadFailed(key); return { ok: false }; }
+  const copy = res.clone();
+  const row = await readKvResponse(key, res);
+  if (row.failed) return { ok: false };
+  const version = row.found ? (await copy.json().catch(() => []))?.[0]?.updated_at || null : null;
+  return { ok: true, found: row.found, value: row.found ? row.value : null, version };
+}
+
+/** Compare-and-swap: written only while the row is still at `version` (or, with none, still missing). */
+async function kvSwapVersioned(key, value, version) {
+  assertKvWritable(key);
+  const h = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "content-type": "application/json" };
+  const res = version
+    ? await fetch(`${SB_URL}/rest/v1/kv?key=eq.${encodeURIComponent(key)}&updated_at=eq.${encodeURIComponent(version)}`, { method: "PATCH", headers: { ...h, Prefer: "return=representation" }, body: JSON.stringify({ value: JSON.stringify(value) }), signal: AbortSignal.timeout(10000) })
+    // No row yet: a row another run inserted first wins (ignore-duplicates answers with no row).
+    : await fetch(`${SB_URL}/rest/v1/kv?on_conflict=key`, { method: "POST", headers: { ...h, Prefer: "resolution=ignore-duplicates,return=representation" }, body: JSON.stringify({ key, value: JSON.stringify(value) }), signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`kv_write_failed_${res.status}`);
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) && rows.length === 1;
+}
+
+/** Read, change, compare-and-swap; `change` returning null means the slot is taken. */
+export async function updateChannelHistory(key, change, { attempts = 4, read = kvReadVersioned, swap = kvSwapVersioned } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    const cur = await read(key);
+    if (!cur.ok) return { ok: false, error: "history_unreadable" };
+    const next = change(Array.isArray(cur.value) ? cur.value : []);
+    if (next === null) return { ok: false, error: "slot_taken" };
+    if (await swap(key, next, cur.version)) return { ok: true, value: next };
+  }
+  return { ok: false, error: "history_changed_during_write" };
+}
+
+/** What the plan keeps as proof (server-only): the board it read, the ranking and every named rejection. */
+function planProof(plan, extra = {}) {
+  const row = (c) => ({ rank: c.rank, source: c.source, itemId: c.itemId, productId: c.productId, title: String(c.title || "").slice(0, 80), trend: c.trend?.key, label: c.match?.label, heat: c.heat?.score, buy: c.buy?.score, opportunity: c.opportunity, confidence: c.confidence, weekPct: c.evidence?.weekPct, orders: c.evidence?.after, from: c.evidence?.from, to: c.evidence?.to });
+  return { engine: plan.engine, at: plan.at, boardAt: plan.boardAt, counts: plan.counts, top: plan.ranked.slice(0, 15).map(row), rejected: plan.rejected.slice(0, 60), telegram: { reason: plan.telegram.reason, pick: plan.telegram.pick ? row(plan.telegram.pick) : null, skipped: (plan.telegram.skipped || []).slice(0, 20) }, instagram: plan.instagram.pkg ? { state: plan.instagram.pkg.state, pick: row(plan.instagram.pick), caption: plan.instagram.pkg.caption } : { reason: plan.instagram.reason }, ...extra };
+}
+
+export async function runChannelEngine(store, marketerId, cfg, origin, board, { now = Date.now(), env = process.env } = {}) {
+  const note = (ok, detail, extra = {}) => {
+    cfg.logs = [{ ts: Date.now(), ok, channel: "telegram", detail: `engine: ${detail}`.slice(0, 400), text: extra.text || "", productId: extra.productId || null }, ...(cfg.logs || [])].slice(0, MAX_LOGS_PER_CREATOR);
+  };
+  const channels = (cfg.channels || []).filter((ch) => ch.type === "telegram");
+  if (!channels.length) { note(false, "no_telegram_channel"); return { ok: false, error: "no_telegram_channel" }; }
+  if (!board || !Array.isArray(board.concepts)) { note(false, "radar_board_missing: nothing sent"); return { ok: false, error: "radar_board_missing" }; }
+  const historyKey = CHANNEL_HISTORY_KEY(marketerId);
+  const hist = await kvReadVersioned(historyKey);
+  if (!hist.ok) { note(false, "history_unreadable: nothing sent (never a repeat by accident)"); return { ok: false, error: "history_unreadable" }; }
+  const products = (store.__products || []).filter((p) => p.marketerId === marketerId);
+  const plan = planChannels(board, products, { telegram: Array.isArray(hist.value) ? hist.value : [] }, { now, siteOrigin: origin });
+  const tried = [];
+  let ranked = plan.ranked;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const sel = attempt === 0 ? plan.telegram : selectNext(ranked, Array.isArray(hist.value) ? hist.value : [], { channel: "telegram", now });
+    if (!sel.pick) {
+      await kvSet(CHANNEL_PLAN_KEY(marketerId), planProof(plan, { tried, sent: null })).catch(() => {});
+      note(false, `${sel.reason}${sel.lastAt ? ` (last ${sel.lastAt})` : ""} · ${plan.counts.ranked} strong of ${plan.counts.candidates} from the board of ${String(board.at || "").slice(0, 16)}`);
+      return { ok: false, error: sel.reason };
+    }
+    const pick = sel.pick;
+    // The store's own facts right before the post: the item must still be there, priced in shekels, ≥95%.
+    const facts = pick.itemId ? await aliexpressItemFacts(pick.itemId, { env }).catch(() => null) : null;
+    const bad = !facts ? "store_check_failed" : facts.sat === "low" ? "low_satisfaction_at_send" : !(facts.price > 0) ? "no_store_price_at_send" : null;
+    if (bad) { tried.push({ itemId: pick.itemId, reason: bad }); ranked = ranked.filter((c) => c !== pick && !c.keys.some((k) => pick.keys.includes(k))); continue; }
+    pick.verified = facts;
+    const claim = claimOf(pick, { channel: "telegram", now: Date.now() });
+    const held = await updateChannelHistory(historyKey, (list) => withClaim(list, claim, { now: Date.now() }));
+    if (!held.ok) { note(false, held.error === "slot_taken" ? "another run holds the slot: nothing sent" : held.error); return { ok: false, error: held.error }; }
+    const short = pick.linkKind === "store" ? await aliexpressShortLink(pick.itemId, { env }).catch(() => null) : null;
+    const link = pick.linkKind === "site" ? trackLink(pick.link, "telegram", pick.productId) : short || pick.link;
+    // The join links at the bottom of every post (her own channel and group), only when she set them.
+    const join = { telegram: /^https:\/\//.test(String(cfg.joinLinks?.telegram || "")) ? cfg.joinLinks.telegram : null, whatsapp: /^https:\/\//.test(String(cfg.joinLinks?.whatsapp || "")) ? cfg.joinLinks.whatsapp : null };
+    const post = telegramPost(pick, { link, join });
+    const media = { id: pick.productId || `ae-${pick.itemId}`, title: hebrewName(pick) || pick.title, image: facts.image || pick.image, images: facts.images || [] };
+    let providerId = null;
+    let error = null;
+    for (const ch of channels) {
+      const conn = await checkChannelConnection(store, ch.type, ch);
+      if (conn === "BLOCKED" || conn === "DEGRADED") { error = `connection_${conn.toLowerCase()}`; continue; }
+      try {
+        providerId = await sendToChannel(ch, { text: post.text, link, product: media, mediaProduct: media });
+        await markChannelVerified(ch.type);
+      } catch (e) { error = String(e?.message || e); }
+      await recordCreatorAttempt({ contentType: "creator_autopilot", marketerId, productId: media.id, channel: ch.type, providerId, error: providerId ? null : error, text: post.text, link });
+    }
+    await updateChannelHistory(historyKey, (list) => settleClaim(list, claim.id, { providerId, error, now: Date.now() }));
+    await kvSet(CHANNEL_PLAN_KEY(marketerId), planProof(plan, { tried, sent: { claim: claim.id, providerId, error, link, text: post.text } })).catch(() => {});
+    if (providerId) {
+      cfg.lastRunAt = Date.now();
+      cfg.nextRunAt = Math.max(nextSmartRun(cfg.intervalMinutes), Date.now() + ENGINE.minGapMinutes * 60_000);
+      cfg.runCount = (cfg.runCount || 0) + 1;
+      cfg.history = [{ productId: media.id, ts: Date.now() }, ...(cfg.history || [])].slice(0, 500);
+    } else {
+      cfg.nextRunAt = Date.now() + 60 * 60_000;
+    }
+    note(Boolean(providerId), providerId ? `sent ${pick.source} ${pick.trend.key} · heat ${pick.heat.score} · buy ${pick.buy.score} · rank 1 of ${pick.of}${pick.returnReason ? ` · back: ${pick.returnReason.code}` : ""}` : `failed: ${error}`, { text: post.text, productId: media.id });
+    return { ok: Boolean(providerId), text: post.text, results: [{ channel: "telegram", ok: Boolean(providerId), providerId, status: publicationGate(providerId ? "PUBLISHED" : "FAILED", providerId) }] };
+  }
+  await kvSet(CHANNEL_PLAN_KEY(marketerId), planProof(plan, { tried, sent: null })).catch(() => {});
+  note(false, `the store check failed for the top candidates: ${tried.map((t) => `${t.itemId} ${t.reason}`).join(", ")}`);
+  return { ok: false, error: "store_check_failed" };
+}
+
 export async function runOne(store, marketerId, cfg, origin) {
   const marketer = (store.__marketers || []).find((m) => m.id === marketerId);
   const allProducts = store.__products || [];
@@ -1087,10 +1208,27 @@ export async function runOne(store, marketerId, cfg, origin) {
   // Hot-only (src/lib/growth/hotGate.js): the owner's channel posts only products the radar keeps today
   // (all 8 criteria: hot now, rising, not saturated in Israel …); none → nothing is posted.
   let hotReason = null;
-  if (cfg.hotOnly === true || marketerId === (process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5")) {
-    const gate = hotOnlyPool(pool, await kvGet("radar:board", null).catch(() => null));
+  const ownerChannel = marketerId === (process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5");
+  if (cfg.hotOnly === true || ownerChannel) {
+    const board = await kvGet("radar:board", null).catch(() => null);
+    // The owner's channel (21.11): the one engine over the latest radar board (runChannelEngine);
+    // cfg.channelMode "hot" keeps the earlier KEEP-list path, "looks" the looks-only path.
+    if (ownerChannel && cfg.channelMode !== "hot" && cfg.channelMode !== "looks") return runChannelEngine(store, marketerId, cfg, origin, board);
+    // The owner's channel (21.11): her dupes rising on the radar today, never twice, never in a burst
+    // (src/lib/growth/hotGate.js lookPool + freshForChannel). Another studio with hotOnly keeps the
+    // radar's KEEP list (hotOnlyPool); cfg.channelMode "hot" gives the owner that list again.
+    const gate = ownerChannel && cfg.channelMode !== "hot" ? lookPool(pool, board) : hotOnlyPool(pool, board);
     pool = gate.pool;
-    hotReason = gate.reason;
+    hotReason = gate.reason ? `${gate.reason}${gate.looks?.length ? ` (${gate.looks.map((l) => l.id).join(", ")})` : ""}` : null;
+    if (pool.length) {
+      // The publish log is the memory of what was sent: unreadable → nothing is sent (never a repeat by accident).
+      const sentLog = await kvGet(PUBLISH_LOG_KEY).catch(() => null);
+      const fresh = Array.isArray(sentLog) ? freshForChannel(pool, sentLog, { brandId: marketerId, now: Date.now() }) : { pool: [], tooSoon: false, unreadable: true };
+      pool = fresh.pool;
+      if (fresh.unreadable) hotReason = "publish_log_unreadable";
+      else if (fresh.tooSoon) hotReason = `too_soon_after ${fresh.lastAt}`;
+      else if (!pool.length) hotReason = "every_rising_look_was_posted_in_the_last_14_days";
+    }
   }
   const product = pickProduct(cfg, pool);
 
