@@ -221,6 +221,7 @@ function cleanPool(p) {
     .map((r) => ({
       id: r.id, kind: r.kind, title: str(r.title, 120), storeTitle: str(r.storeTitle, 200), image: radarImage(r.image), price: num(r.price), buy: r.buy,
       sat: ["97+", "95+", "low"].includes(r.sat) ? r.sat : null, video: r.video === true, words: num(r.words),
+      visual: ["MATCH", "MISMATCH", "CATEGORY_ONLY"].includes(r.visual) ? r.visual : null,
       orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), weekPct: num(r.weekPct),
       compared: num(r.compared), hotSellers: num(r.hotSellers), cheapest: num(r.cheapest), at: day(r.at),
     }));

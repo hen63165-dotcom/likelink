@@ -39,6 +39,20 @@ async function photoAnswers(src, fetchImpl = fetch) {
   } catch { return false; }
 }
 
+/**
+ * The lens's answer for a claimed kind: MATCH when the kind is the model's first answer, or in its top
+ * three with at least 15% of its belief; CATEGORY_ONLY when the first answer is only a shop category
+ * (the photo shows the area, the model has no word for the exact kind); MISMATCH otherwise (21.11's run:
+ * a car seat gap filler read "category-car 100%" with its own kind at 0%, which counted as a match).
+ */
+export function visualVerdict(kinds = [], kindId = "") {
+  if (!kindId) return { verdict: "NO_KIND", rank: null };
+  const at = kinds.findIndex((k) => k.id === kindId);
+  if (at === 0 || (at > 0 && kinds[at].p >= 0.15)) return { verdict: "MATCH", rank: at + 1 };
+  if (String(kinds[0]?.id || "").startsWith("category-")) return { verdict: "CATEGORY_ONLY", rank: at >= 0 ? at + 1 : null };
+  return { verdict: "MISMATCH", rank: at >= 0 ? at + 1 : null };
+}
+
 /** The lens (MobileCLIP-S0) on this runner: does the photo look like the kind the candidate claims? */
 async function visionChecker() {
   if (process.env.CHANNEL_VISION === "0") return null;
@@ -52,8 +66,7 @@ async function visionChecker() {
       const image = await RawImage.read(src);
       const { image_embeds } = await vision(await processor(image));
       const r = rankKinds(image_embeds.normalize().tolist()[0], labels, { top: 3 });
-      const at = r.kinds.findIndex((k) => k.id === kindId);
-      return { verdict: kindId ? (at >= 0 ? "MATCH" : "MISMATCH") : "NO_KIND", top: r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`), rank: at >= 0 ? at + 1 : null };
+      return { ...visualVerdict(r.kinds, kindId), top: r.kinds.map((k) => `${k.id} ${Math.round(k.p * 100)}%`) };
     };
   } catch (e) {
     console.log(`vision: not run (${String(e?.message || e).slice(0, 100)})`);
@@ -63,6 +76,17 @@ async function visionChecker() {
 
 export async function preview(dir, { env = process.env, fetchImpl = fetch, now = Date.now(), verifyTop = 10, cycles = 8, gapHours = 3 } = {}) {
   const raw = readJson(join(dir, "board.json"), null);
+  // The lens checks every pool listing's photo against its kind, and the verdict goes into the run's
+  // board, so the server's engine (which runs no model) rejects a photo of another kind too.
+  const look = raw?.pool?.list?.length ? await visionChecker() : null;
+  let annotated = 0;
+  if (look) {
+    for (const r of raw.pool.list.slice(0, 40)) {
+      if (!r?.image || !r?.kind) continue;
+      try { const v = await look(r.image, r.kind); r.visual = v.verdict; annotated++; } catch { /* unread stays unchecked */ }
+    }
+    if (annotated) writeFileSync(join(dir, "board.json"), JSON.stringify(raw));
+  }
   const board = sanitizeBoard(raw);
   const out = { engine: ENGINE.version, at: new Date(now).toISOString(), boardAt: board?.at || null, sent: "NOTHING (preview only)", sources: {}, checks: [], cycles: [], race: null };
   if (!board) { out.error = "no_board"; return out; }
@@ -73,14 +97,14 @@ export async function preview(dir, { env = process.env, fetchImpl = fetch, now =
   out.sources.board = { pool: board.pool?.list?.length ?? 0, siteHot: board.site?.hot?.length ?? 0, fresh: board.fresh?.risers?.length ?? 0, candidates: cands.length };
   // Check the strongest at the store, their photos, and (when it loads) what the photo shows.
   const first = rankCandidates(cands, { now });
-  const look = await visionChecker();
-  out.sources.vision = look ? `MobileCLIP-S0 (${LENS.model}) on this runner` : "NOT_RUN";
+  out.sources.vision = look ? `MobileCLIP-S0 (${LENS.model}) on this runner · ${annotated} pool photos checked` : "NOT_RUN";
   const checked = new Map();
   for (const c of first.ranked.slice(0, verifyTop)) {
     const facts = c.itemId ? await aliexpressItemFacts(c.itemId, { env, fetchImpl, now }).catch((e) => ({ error: String(e?.message || e).slice(0, 80) })) : null;
     const photo = c.image ? await photoAnswers(c.image, fetchImpl) : false;
     let visual = null;
-    if (look && c.image && c.trend?.conceptId) { try { visual = await look(c.image, c.trend.conceptId); } catch (e) { visual = { verdict: "ERROR", error: String(e?.message || e).slice(0, 80) }; } }
+    if (c.source === "radar_listing") visual = c.match?.visual ? { verdict: c.match.visual } : null;
+    else if (look && c.image && c.trend?.conceptId) { try { visual = await look(c.image, c.trend.conceptId); } catch (e) { visual = { verdict: "ERROR", error: String(e?.message || e).slice(0, 80) }; } }
     const short = c.linkKind === "store" ? await aliexpressShortLink(c.itemId, { env, fetchImpl, now }).catch(() => null) : null;
     checked.set(c.itemId, { facts, photo, visual, short });
     out.checks.push({ itemId: c.itemId, title: String(c.title || "").slice(0, 80), store: facts && !facts.error ? { titleHe: facts.title, price: facts.price, orders: facts.orders, sat: facts.sat, video: facts.video, at: facts.checkedAt } : facts || "no_item_id", photoAnswers: photo, visual, shortLink: short });

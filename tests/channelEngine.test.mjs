@@ -264,3 +264,18 @@ test("the owner's autopilot runs the engine before any older path, with a strict
   assert.equal(ENGINE.repeatDays, 14);
   assert.equal(ENGINE.minGapMinutes, 90);
 });
+
+test("the photo check (lens on the runner): its own kind first, or top three with 15%; a 0% kind is never a match", async () => {
+  const { visualVerdict } = await import("../scripts/marketing/channel-preview.mjs");
+  // The real answers of 21.11's run.
+  assert.equal(visualVerdict([{ id: "category-car", p: 1 }, { id: "car-seat-gap-filler", p: 0 }, { id: "bag-charm", p: 0 }], "car-seat-gap-filler").verdict, "CATEGORY_ONLY");
+  assert.equal(visualVerdict([{ id: "butter-squishy", p: 0.6 }, { id: "mini-food-squishy-set", p: 0.17 }, { id: "fruit-squishy", p: 0.12 }], "crunchy-squishy").verdict, "MISMATCH");
+  assert.equal(visualVerdict([{ id: "oil-sprayer", p: 1 }, { id: "bag-charm", p: 0 }], "oil-sprayer").verdict, "MATCH");
+  assert.equal(visualVerdict([{ id: "category-mensocks", p: 0.84 }, { id: "leg-warmers", p: 0.13 }, { id: "ribbed-crew-socks", p: 0.02 }], "ribbed-crew-socks").verdict, "CATEGORY_ONLY");
+  // The verdict travels on the board, and a photo of another kind is rejected by the server's engine too.
+  const listing = { id: "1005000000000001", kind: "platform-fur-slippers", title: "נעלי בית פרווה", image: IMG("Sa1aaaaaaaaaaaaaaaaaaaaaa"), price: 31.6, buy: BUY("c"), sat: "97+", words: 2, orders: 4200, ordersBefore: 3300, from: "2026-11-14", to: "2026-11-21", weekPct: 31, compared: 3, cheapest: 24.9, at: "2026-11-21" };
+  const clean = sanitizeBoard({ ...board(), record: { calls: 0 }, pool: { at: "x", kinds: 1, list: [{ ...listing, visual: "MISMATCH" }] } });
+  assert.equal(clean.pool.list[0].visual, "MISMATCH");
+  const r = rankCandidates(candidatesFrom({ ...board(), site: { hot: [] }, fresh: { risers: [] }, pool: clean.pool }, products(), { now: NOW }), { now: NOW });
+  assert.equal(r.rejected[0].reason, "photo_shows_another_kind");
+});
