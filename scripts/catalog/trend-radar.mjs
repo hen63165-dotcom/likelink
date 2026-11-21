@@ -674,6 +674,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
   board.fresh.strict = freshRules.strict;
+  {
+    const n = board.fresh.noise || {};
+    log.push(`fresh noise check: ${n.tested ?? 0} small listings tested, ${n.fast ?? 0} looked fast, ${n.real ?? 0} beat counting noise (false discoveries held at ${Math.round((n.fdr ?? 0) * 100)}%), ${board.fresh.risers.length} candidates`);
+  }
   // ⏳ Every listing count read for a phrase today (new products and new kinds, shown or not): the
   // window clock's data (radarWindow.js).
   const phraseReads = {};
