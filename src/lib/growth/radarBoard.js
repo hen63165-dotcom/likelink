@@ -10,6 +10,7 @@ import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
+import { cleanReceipt } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -148,6 +149,17 @@ function cleanRow(c) {
 }
 
 /** The board as the pages may use it, or null when it is not a radar board. */
+// The world categories as the run counted them: asked, answered with listings, answered empty, failed
+// (older boards carry only readToday; nothing is filled in that the run did not count).
+function worldCounts(v = {}) {
+  const n = (x) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.round(x) : null);
+  return {
+    categories: n(v.categories) ?? 0, readToday: n(v.readToday) ?? 0, fullRoundDays: n(v.fullRoundDays),
+    ...(n(v.fashionDaily) ? { fashionDaily: n(v.fashionDaily) } : {}),
+    ...(n(v.asked) !== null ? { asked: n(v.asked), withItems: n(v.withItems) ?? 0, empty: n(v.empty) ?? 0, failed: n(v.failed) ?? 0 } : {}),
+  };
+}
+
 export function sanitizeBoard(doc) {
   if (!doc || typeof doc !== "object" || !Array.isArray(doc.concepts) || typeof doc.at !== "string" || !doc.record || typeof doc.record !== "object") return null;
   const r = doc.record;
@@ -178,7 +190,8 @@ export function sanitizeBoard(doc) {
     // When the last scheduled daily reading really ran (the countdown's anchor).
     lastDaily: typeof doc.lastDaily === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(doc.lastDaily) ? doc.lastDaily : null,
     // 📡 What the run read today, as it reported it (radarCore.js sourcesView): states only, no numbers.
-    sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : { readToday: num(v.readToday) ?? 0, categories: num(v.categories) ?? 0 }])) : null,
+    sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : worldCounts(v)])) : null,
+    receipt: cleanReceipt(doc.receipt),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -190,7 +203,7 @@ export function sanitizeBoard(doc) {
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
-    world: doc.world && num(doc.world.categories) !== null ? { categories: num(doc.world.categories), readToday: num(doc.world.readToday) ?? 0, fullRoundDays: num(doc.world.fullRoundDays), ...(num(doc.world.fashionDaily) ? { fashionDaily: num(doc.world.fashionDaily) } : {}) } : null,
+    world: doc.world && num(doc.world.categories) !== null ? worldCounts(doc.world) : null,
     globe: cleanGlobe(doc.globe),
     challenge: cleanChallenge(doc.challenge),
   };

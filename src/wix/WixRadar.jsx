@@ -2,6 +2,7 @@
 // only what sanitizeBoard kept from the public board; links open in a new tab, outside the Wix frame.
 import React, { useEffect, useMemo, useState } from "react";
 import { nextReadingAt } from "../lib/growth/worldPulse.js";
+import { israelDay } from "../lib/growth/runReceipt.js";
 import { EXIT_LABELS, EXIT_WHY } from "../lib/growth/radarCore.js";
 import { EXPORT, exportable, wixCsv } from "../lib/growth/radarExport.js";
 import {
@@ -54,6 +55,9 @@ export default function WixRadar({ board, lang }) {
     saveKinds(next);
   };
   const d = (x) => shortDay(x, lang);
+  // "Today" only when the reading is today's (Israel day); otherwise its own date (21.11: the daily
+  // run starts hours late, so a page opened in the morning shows the previous reading).
+  const readingIsToday = Boolean(verdict.day) && verdict.day === israelDay(now);
   const arrow = he ? "←" : "→"; // from the earlier reading to the later one, in reading order
 
   return (
@@ -70,9 +74,9 @@ export default function WixRadar({ board, lang }) {
       </header>
 
       <section className="wr-card">
-        <h2>{L("📣 מה הרדאר קבע היום", "📣 Today's call")}</h2>
+        <h2>{readingIsToday ? L("📣 מה הרדאר קבע היום", "📣 Today's call") : L(`📣 מה הרדאר קבע ב־${d(verdict.day)}`, `📣 The call of ${d(verdict.day)}`)}</h2>
         {verdict.quiet ? (
-          <p className="wr-quiet">{L("עוד שקט. הקביעה הבאה נחתמת כשכל 4 האותות מסכימים.", "All quiet today. The next call is sealed when all 4 signals agree.")}</p>
+          <p className="wr-quiet">{L("עוד שקט. הקביעה הבאה נחתמת כשכל 4 האותות מסכימים.", readingIsToday ? "All quiet today. The next call is sealed when all 4 signals agree." : "All quiet. The next call is sealed when all 4 signals agree.")}</p>
         ) : (
           <ul className="wr-list">
             {verdict.calls.map((c) => (
@@ -120,7 +124,7 @@ export default function WixRadar({ board, lang }) {
             ))}
           </div>
         ) : (
-          <p className="wr-quiet">{L("היום שקט. מוצר חדש מופיע כאן כשהוא עובר את כל הבדיקות.", "Quiet today. A new product shows here once it passes every check.")}</p>
+          <p className="wr-quiet">{L(readingIsToday ? "היום שקט. מוצר חדש מופיע כאן כשהוא עובר את כל הבדיקות." : "עוד שקט. מוצר חדש מופיע כאן כשהוא עובר את כל הבדיקות.", "Quiet. A new product shows here once it passes every check.")}</p>
         )}
         {newKinds.length ? (
           <div className="wr-kinds">

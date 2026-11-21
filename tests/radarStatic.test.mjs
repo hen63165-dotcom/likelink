@@ -24,8 +24,13 @@ test("the radar's HTML says what it is, how to check it and the dated sentence, 
 
 test("today's numbers come from the public board only, escaped", () => {
   const sha = "a".repeat(64);
-  const html = radarStaticMain({ world: { categories: 564, readToday: 120, fashionDaily: 48 }, fresh: { tracking: 6000 }, record: { graded: 3, hits: 2 }, ledger: { d: "2026-11-19", sha256: sha } });
-  assert.match(html, /הרדאר קרא 120 קטגוריות של אליאקספרס מתוך 564, ומתוכן 48 של אופנה בכל יום/);
+  const html = radarStaticMain({ world: { categories: 564, asked: 120, readToday: 117, withItems: 96, empty: 21, failed: 3, fashionDaily: 48 }, fresh: { tracking: 6000 }, record: { graded: 3, hits: 2 }, ledger: { d: "2026-11-19", sha256: sha },
+    receipt: { started: "2026-11-21T14:19:00.000Z", run: { id: "44847192706", url: "https://github.com/hen63165-dotcom/likelink/actions/runs/44847192706" }, sources: { aliexpress: { asked: 900, answered: 850, empty: 40, refused: 6, failed: 4 }, seal: { asked: 20, answered: 20, empty: 0, refused: 0, failed: 0 } } } });
+  // Only the counts the run made from real answers (21.11: a store error was counted as "read").
+  assert.match(html, /אליאקספרס ענתה על 117 מתוך 120 הקטגוריות שהרדאר שאל \(96 עם מוצרים חדשים\), מתוך 564/);
+  assert.match(html, /קבלת הריצה של 21\.11\.2026: הרדאר שלח 900 שאלות, 850 ענו עם נתונים\. היומן הציבורי של הריצה: <a href="https:\/\/github\.com\/hen63165-dotcom\/likelink\/actions\/runs\/44847192706">/);
+  assert.doesNotMatch(radarStaticMain({ world: { categories: 564, readToday: 120 } }), /120/, "an old board's count (errors counted as read) is never printed");
+  assert.doesNotMatch(html, /564 הקטגוריות בסבב|15 מדינות/, "no fixed claim of what is read");
   assert.match(html, /6,000 מוצרים חדשים במעקב יומי/);
   assert.match(html, /עד היום 3 קביעות קיבלו ציון בפומבי, 2 מהן פגיעות/);
   assert.match(html, /19\.11\.2026 · SHA-256 <span dir="ltr">aaaaaaaaaaaaaaaa…<\/span>/);

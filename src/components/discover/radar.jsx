@@ -16,6 +16,7 @@ import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
+import { COUNTRY_NAMES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
@@ -935,21 +936,57 @@ function RecordTable({ board }) {
  * 📡 What the radar read today (radarCore.js sourcesView): every source the run asked, its state as
  * the run reported it and the official door it goes through; then the doors the radar opens next.
  */
-function SourcesToday({ sources }) {
+/**
+ * 📡 What the radar read, and 🧾 the run receipt (runReceipt.js; the owner, 21.11: "the transparency
+ * area must show real data from actual runs"): every number here was counted by the run's one metered
+ * fetch from real answers, the run's public GitHub log prints the same receipt, and its text is sealed
+ * in Bitcoin as the book "run". The date is the run's own; "today" only when the run is today's.
+ */
+function SourcesToday({ sources, receipt }) {
   const { L } = useL();
-  const list = sourcesView(sources || {});
+  const list = sourcesView(sources || {}, receipt);
   if (!list.length) return null;
-  const ok = list.filter((x) => x.state === "OK").length;
   const tone = { run: "is-run", slow: "is-slow", exit: "is-exit" };
+  const day = receipt?.started ? israelDay(receipt.started) : null;
+  const isToday = day && day === israelDay(Date.now());
+  const when = day ? `${dm(day)}, ${israelTime(receipt.started)}–${israelTime(receipt.finished || receipt.started)}` : "";
+  const t = receipt ? receiptTotals(receipt) : null;
+  const n = (v) => Number(v || 0).toLocaleString("he-IL");
+  const run = receipt?.run;
+  const countryNames = (cs) => (cs || []).map((c) => L(COUNTRY_NAMES[c]?.[0] || c.toUpperCase(), COUNTRY_NAMES[c]?.[1] || c.toUpperCase())).join(", ");
   return (
     <section className="lx-wrap mt-8" id="sources">
       <div className="lx-card lx-rdr-panel p-5 md:p-6">
-        <h2 className="text-[22px] font-black">{L("📡 מה הרדאר קרא היום", "📡 What the radar read today")}</h2>
-        <p className="mt-1 text-[14px] leading-6" style={{ color: "var(--lx-muted)" }}>{L(`${ok} מתוך ${list.length} מקורות נקראו בבוקר הזה, כולם דרך דלת רשמית. כך כל אחד רואה על מה כל קביעה עומדת.`, `${ok} of ${list.length} sources were read this morning, all through an official door. So anyone sees what each call stands on.`)}</p>
+        <h2 className="text-[22px] font-black">{receipt ? L(`📡 מה הרדאר קרא ${isToday ? "היום" : `ב־${dm(day)}`}`, `📡 What the radar read ${isToday ? "today" : `on ${dm(day)}`}`) : L("📡 המקורות של הרדאר", "📡 The radar's sources")}</h2>
+        {receipt && t ? (
+          <div className="mt-2 rounded-2xl p-3 text-[14px] leading-6" style={{ border: "1px solid var(--lx-line)" }}>
+            <p className="font-black">{L("🧾 קבלת הריצה", "🧾 The run receipt")} · <span dir="ltr">{when}</span> {L("(שעון ישראל)", "(Israel time)")}</p>
+            {!isToday ? <p className="font-bold">{L(`זו הריצה האחרונה שהסתיימה. הריצה של היום מתעדכנת כאן כשהיא מסתיימת.`, `This is the latest finished run. Today's run shows here once it finishes.`)}</p> : null}
+            <p>{L(`הרדאר שלח ${n(t.asked)} שאלות למקורות. ${n(t.answered)} ענו עם נתונים, ${n(t.empty)} ענו ריק, ${n(t.refused)} סירבו, ${n(t.failed)} נשארו בלי תשובה.`, `The radar sent ${n(t.asked)} requests to its sources: ${n(t.answered)} answered with data, ${n(t.empty)} answered empty, ${n(t.refused)} refused, ${n(t.failed)} never arrived.`)}</p>
+            <p className="text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("כל המספרים כאן נספרו מהתשובות שבאמת הגיעו בריצה. מקור שלא ענה מסומן ככה, גם אם התוכנה ציפתה לו.", "Every number here was counted from the answers that really arrived in the run. A source that gave no answer is marked so, whatever the code expected.")}</p>
+            <ul className="mt-2 grid gap-1 text-[13px]">
+              {run ? <li>{L("היומן הציבורי של הריצה, מ־GitHub:", "The run's public log, by GitHub:")} <a className="underline" href={run.url} target="_blank" rel="noopener noreferrer">{L("ריצה", "run")} <bdi dir="ltr">#{run.id}</bdi></a>{run.sha ? <>{L(" · הקוד שרץ: ", " · the code that ran: ")}<a className="underline" href={`https://github.com/hen63165-dotcom/likelink/commit/${run.sha}`} target="_blank" rel="noopener noreferrer"><bdi dir="ltr">{run.sha.slice(0, 7)}</bdi></a></> : null}</li> : <li>{L("הריצה הזו רצה מחוץ ל־GitHub, ולכן בלי יומן ציבורי.", "This run ran outside GitHub, so it has no public log.")}</li>}
+              {receipt.seal ? <li>{L("טביעת האצבע של הקבלה, חתומה בביטקוין עם שאר הספרים:", "The receipt's fingerprint, sealed in Bitcoin with the other books:")} <span dir="ltr" className="font-mono text-[12px]">SHA-256 {receipt.seal.sha256.slice(0, 16)}…</span></li> : null}
+            </ul>
+            {receipt.seal?.text ? (
+              <details className="lx-rdr-how mt-2">
+                <summary>{L("הטקסט המדויק של הקבלה (אותו טקסט ביומן של GitHub)", "The receipt's exact text (the same text is in GitHub's log)")}</summary>
+                <pre dir="ltr" className="mt-2 overflow-x-auto whitespace-pre text-[11px] leading-5">{receipt.seal.text}</pre>
+                <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("כל שורה: מקור | נשאל | ענה עם נתונים | ענה ריק | סירב | בלי תשובה. SHA-256 של הטקסט הזה הוא טביעת האצבע שלמעלה.", "Each line: source | asked | answered with data | answered empty | refused | never arrived. The SHA-256 of this text is the fingerprint above.")}</p>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
         <ul className="mt-3 grid gap-1.5 md:grid-cols-2">
           {list.map((x) => (
             <li key={x.key} className="flex items-center justify-between gap-3 border-b py-1.5 text-[13px]" style={{ borderColor: "var(--lx-line)" }}>
-              <span><b>{L(x.he, x.en)}</b><span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span></span>
+              <span>
+                <b>{L(x.he, x.en)}</b>
+                <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
+                {x.counts ? <span className="block text-[11px]">{x.counts.unit === "categories"
+                  ? L(`${n(x.counts.answered)} קטגוריות ענו עם מוצרים, ${n(x.counts.empty)} ריק, ${n(x.counts.failed)} בלי תשובה, מתוך ${n(x.counts.asked)}`, `${n(x.counts.answered)} categories answered with items, ${n(x.counts.empty)} empty, ${n(x.counts.failed)} no answer, of ${n(x.counts.asked)}`)
+                  : L(`${n(x.counts.answered)} מתוך ${n(x.counts.asked)} שאלות ענו${x.counts.empty ? `, ${n(x.counts.empty)} ריק` : ""}`, `${n(x.counts.answered)} of ${n(x.counts.asked)} requests answered${x.counts.empty ? `, ${n(x.counts.empty)} empty` : ""}`)}{x.counts.countries?.length ? L(` · ענו מ: ${countryNames(x.counts.countries)}`, ` · answered from: ${countryNames(x.counts.countries)}`) : null}</span> : null}
+              </span>
               <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
             </li>
           ))}
@@ -1380,7 +1417,7 @@ function Globe({ globe }) {
           {globe.calls?.graded ? <p className="mt-1 text-[12px] font-bold">{L(`${globe.calls.hits} מתוך ${globe.calls.graded} קביעות פגעו`, `${globe.calls.hits} of ${globe.calls.graded} calls hit`)}</p> : null}
           {globe.seal ? <p className="mt-1 text-[11px]" style={{ color: "var(--lx-muted)" }} dir="ltr">SHA-256 {globe.seal.sha256.slice(0, 16)}… · {dm(globe.seal.d)}</p> : null}
         </div>
-        <p className="mt-2 text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("המקורות: ההשלמות הציבוריות של גוגל בכל מדינה (השם באנגלית מהחנות), באידו בסינית, נייבר בקוריאנית, וחיפוש בעברית בגוגל וביוטיוב בישראל. נמדדות רמות (כמה השלמות לחיפוש), וכל מדידה עם תאריך.", "Sources: Google's public suggestions in each country (the store's English words), Baidu in Chinese, Naver in Korean, and Hebrew search on Google and YouTube in Israel. Levels (how many search suggestions), every measurement dated.")}</p>
+        <p className="mt-2 text-[11px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("המקורות: ההשלמות הציבוריות של גוגל בכל מדינה (השם באנגלית מהחנות), באידו ונייבר כשהכללים שלהם מאפשרים, וחיפוש בעברית בגוגל וביוטיוב בישראל. נמדדות רמות (כמה השלמות לחיפוש), וכל מדידה עם תאריך. מה ענה בכל ריצה: בקבלת הריצה, בלשונית ההוכחה.", "Sources: Google's public suggestions in each country (the store's English words), Baidu and Naver when their rules allow, and Hebrew search on Google and YouTube in Israel. Levels (how many search suggestions), every measurement dated. What answered in each run: the run receipt, in the proof tab.")}</p>
       </div>
     </section>
   );
@@ -1615,6 +1652,10 @@ export function RadarPage() {
   const showAll = typeof location !== "undefined" && /[?&]all=1\b/.test(location.search);
 
   const callsToday = (board?.early?.ledger || []).filter((e) => e.at === String(board?.at || "").slice(0, 10) && !e.result).length;
+  // 🧾 What the latest run really asked and got back (runReceipt.js), for the hero and "how it works".
+  const howCountries = searchCountries(board?.receipt);
+  const receiptSum = board?.receipt ? receiptTotals(board.receipt) : null;
+  const boardIsToday = board?.at ? israelDay(board.at) === israelDay(Date.now()) : false;
   const press = () => {
     setShown(true);
     setTab("today");
@@ -1632,7 +1673,8 @@ export function RadarPage() {
             <p className="mt-3 max-w-2xl text-[17px] leading-7">{L("מה מתחיל לרוץ באליאקספרס, לפני שכולם מכירים. נמדד כל בוקר, נחתם מראש בביטקוין ומקבל ציון בפומבי.", "What starts to run on AliExpress, before everyone knows it. Measured every morning, sealed in advance in Bitcoin and graded in public.")}</p>
             {board ? (
               <dl className="lx-rdr-facts" aria-label={L("הרדאר עכשיו", "The radar now")}>
-                <div><dt>{L(`הקריאה של ${dm(String(board.at).slice(0, 10))}`, `The reading of ${dm(String(board.at).slice(0, 10))}`)}</dt><dd>{callsToday ? L(`${callsToday} קביעות חדשות, חתומות`, `${callsToday} new calls, sealed`) : L("עוד שקט היום", "All quiet today")}</dd></div>
+                <div><dt>{L(`הקריאה של ${dm(String(board.at).slice(0, 10))}`, `The reading of ${dm(String(board.at).slice(0, 10))}`)}</dt><dd>{callsToday ? L(`${callsToday} קביעות חדשות, חתומות`, `${callsToday} new calls, sealed`) : boardIsToday ? L("עוד שקט היום", "All quiet today") : L("עוד שקט", "All quiet")}</dd></div>
+                {receiptSum?.asked ? <div><dt>{L("קבלת הריצה", "The run receipt")}</dt><dd><a className="underline" href="#sources" onClick={(e) => { e.preventDefault(); pick("proof", { scroll: false }); setTimeout(() => document.getElementById("sources")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>{L(`${receiptSum.answered.toLocaleString("he-IL")} מתוך ${receiptSum.asked.toLocaleString("he-IL")} ענו`, `${receiptSum.answered.toLocaleString("en-US")} of ${receiptSum.asked.toLocaleString("en-US")} answered`)}</a></dd></div> : null}
                 {board.fresh?.tracking ? <div><dt>{L("מוצרים חדשים במעקב יומי", "New products tracked daily")}</dt><dd>{board.fresh.tracking.toLocaleString("en-US")}</dd></div> : null}
                 {board.fresh?.risers?.length ? <div><dt>{L("מתחילים לרוץ עכשיו", "Starting to run now")}</dt><dd>{board.fresh.risers.length}</dd></div> : null}
                 {board.ledger?.sha256 ? <div><dt>{L("חתום בביטקוין", "Sealed in Bitcoin")}</dt><dd>{board.anchors?.list?.[0] ? L(`בלוק ${board.anchors.list[0].height}`, `block ${board.anchors.list[0].height}`) : dm(board.ledger.d)}</dd></div> : null}
@@ -1711,7 +1753,7 @@ export function RadarPage() {
                 return (
                   <div className="lx-card mt-5 p-4" style={{ boxShadow: "none", border: "2px solid #0b0b0b" }}>
                     <h3 className="text-[20px] font-extrabold">{L("🎯 התראות מוקדמות", "🎯 Early calls")}</h3>
-                    <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (גוגל ב־8 מדינות כולל יפן וקוריאה, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים ב־10 מדינות), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד שקט, והסימנים חייבים להחזיק שתי מדידות ברצף (רק מה שמחזיק נחשב). פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (Google in 8 countries incl. Japan and Korea, Baidu in China, Naver in Korea, YouTube, trending searches in 10), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
+                    <p className="mt-1 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("הרדאר קורא טרנד רק כשכמה סימנים עצמאיים מסכימים: חיפושים שמתפשטים בעולם (ההשלמות של גוגל ויוטיוב במדינות שהרדאר מודד והחיפושים החמים של גוגל; מה ענה בכל ריצה מופיע בקבלת הריצה), קונים יותר מהר באליאקספרס, מוכרים חדשים שנכנסים, ובעברית עוד שקט, והסימנים חייבים להחזיק שתי מדידות ברצף (רק מה שמחזיק נחשב). פחות קריאות, יותר פגיעות. כל קריאה נבדקת אחרי 14 יום, בפומבי.", "The radar calls a trend only when independent signals agree: searches spreading worldwide (Google's and YouTube's suggestions in the countries the radar measures and Google's trending searches; what answered in each run is in the run receipt), faster AliExpress orders, new sellers rushing in, and no Hebrew searches yet. Fewer calls, more hits. Every call is graded after 14 days, in public.")}</p>
                     {calls.length ? <ul className="mt-3 grid gap-3 md:grid-cols-2">{calls.map((c) => <ConceptCard key={c.id} c={c} />)}</ul> : <p className="mt-3 text-[14px] font-bold">{L("היום הרדאר במעקב: מוצר יופיע כאן ברגע ש־3 סימנים יסכימו עליו.", "No product passed the three-signal bar today. The radar doesn't guess; it waits for the signals.")}</p>}
                     {board.early ? (
                       <p className="mt-3 text-[13px] leading-5" style={{ color: "var(--lx-muted)" }}>
@@ -1741,7 +1783,7 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
-        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} /> : null}
+        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
@@ -1761,7 +1803,7 @@ export function RadarPage() {
             <summary className="cursor-pointer text-[16px] font-extrabold">{L("❓ איך הרדאר עובד? (4 צעדים, דקה קריאה)", "❓ How does the radar work? (4 steps, one minute)")}</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             {[
-              [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L("גוגל ב־8 מדינות, באידו בסין, נייבר בקוריאה, יוטיוב, והחיפושים החמים של גוגל ב־10 מדינות. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר.", "Google in 8 countries, Baidu in China, Naver in Korea, YouTube and Google's trending searches in 10 countries; what starts rising there is found on AliExpress: the top 20 items' orders, the listings and the price.")],
+              [L("1. מודדים כל יום, בכל העולם", "1. Measured daily, worldwide"), L(`${howCountries.length ? `בריצה האחרונה גוגל ענה מ־${howCountries.length} מדינות` : "ההשלמות של גוגל ויוטיוב במדינות שהרדאר מודד"}, וגם החיפושים החמים של גוגל. מה שמתחיל לעלות שם, הרדאר מוצא באליאקספרס: ההזמנות של 20 הפריטים המובילים, מספר המודעות והמחיר. מה ענה בכל ריצה: בקבלת הריצה.`, `${howCountries.length ? `In the latest run Google answered from ${howCountries.length} countries` : "Google's and YouTube's suggestions in the countries the radar measures"}, and Google's trending searches; what starts rising there is found on AliExpress: the top 20 items' orders, the listings and the price. What answered in each run: the run receipt.`)],
               [L("2. מהירות לפני גודל", "2. Speed, not size"), L("להיט מתחיל כשההזמנות מאיצות ברוב הפריטים, ומוכרים חדשים ממהרים להציע את אותו מוצר. צריך שרוב הפריטים יאיצו יחד.", "A hit starts when orders speed up across most items and new sellers rush to list it. One viral item is not enough.")],
               [L("3. פער ישראל", "3. The Israel gap"), L("כל יום בודקים בגוגל אם ישראלים כבר מחפשים את זה בעברית. עולה בעולם ובארץ עוד שקט? זה חלון פתוח.", "Every day we check on Google whether Israelis already search for it in Hebrew. Rising abroad and not searched here yet? That's an open window.")],
               [L("4. הרדאר בודק את עצמו", "4. The radar grades itself"), L("כל סימון נשמר עם תאריך, ואחרי 14 יום בודקים אם באמת עלה. הדיוק מוצג כאן לכולם.", "Every call is saved with its date; 14 days later we check whether it really rose. The accuracy is shown here to everyone.")],

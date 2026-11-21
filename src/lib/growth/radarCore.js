@@ -25,6 +25,9 @@ export const INSTRUMENTS = Object.freeze([
   { id: "window", book: "window", tab: "proof", section: "window", he: "שעון החלון", en: "The window clock", whatHe: "הסיכוי שמוצר יגיע ל־2,000 מודעות, כלומר שכולם כבר מוכרים", whatEn: "The chance a product reaches 2,000 listings: everyone sells it" },
   { id: "globe", book: "globe", tab: "tools", section: "globe", he: "המדינה הבאה", en: "The next country", whatHe: "באיזו מדינה טרנד יגיע בהמשך", whatEn: "Which country a trend reaches next" },
   { id: "prices", book: "prices", tab: "proof", section: "ledger", he: "מחירי החנות", en: "Store prices", whatHe: "המחיר של כל מוצר שנקרא, פעם ביום", whatEn: "The price of every item read, once a day" },
+  // 🧾 The run receipt (runReceipt.js): what the radar really asked this run and what came back. It
+  // makes no call of its own, so it has no row in the record; its text is sealed like every book.
+  { id: "run", book: "run", tab: "proof", section: "sources", he: "קבלת הריצה", en: "The run receipt", whatHe: "כמה שאלות הרדאר שלח, לאן, ומה ענו לו", whatEn: "How many questions the radar sent, where, and what came back" },
 ]);
 
 /** The sealed books in the root's fixed order (radarLedger.js LEDGER_BOOKS is this list). */
@@ -210,7 +213,7 @@ export const SOURCES = Object.freeze([
   { key: "kinds", he: "קיבוץ לפי משמעות (בינה מלאכותית)", en: "Grouping by meaning (AI)", door: "מודל פתוח על השרת שלנו" },
   { key: "suggest", he: "הצעות החיפוש של גוגל", en: "Google search suggestions", door: "שירות ציבורי, לפי robots.txt" },
   { key: "youtube", he: "הצעות החיפוש של יוטיוב", en: "YouTube search suggestions", door: "שירות ציבורי, לפי robots.txt" },
-  { key: "worldSearch", he: "חיפוש ב־15 מדינות", en: "Search in 15 countries", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "worldSearch", he: "חיפוש בגוגל במדינות אחרות", en: "Google search in other countries", door: "שירות ציבורי, לפי robots.txt" },
   { key: "trendsIL", he: "גוגל טרנדים בישראל", en: "Google Trends Israel", door: "RSS ציבורי" },
   { key: "trendsWorld", he: "גוגל טרנדים בעולם", en: "Google Trends worldwide", door: "RSS ציבורי" },
   { key: "siteVisitors", he: "המבקרים של LikeLink2", en: "LikeLink2's own visitors", door: "הנתונים שלנו" },
@@ -221,8 +224,8 @@ export const SOURCES = Object.freeze([
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
-  { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "סגור לפי robots.txt שלהם" },
-  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "סגור לפי robots.txt שלהם" },
+  { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt" },
 ]);
 // The doors the radar reads next, each only through official access (never scraping).
 export const NEXT_DOORS = Object.freeze([
@@ -231,21 +234,32 @@ export const NEXT_DOORS = Object.freeze([
   { key: "reddit", he: "רדיט", en: "Reddit", door: "Reddit Data API, לשימוש מסחרי באישור של רדיט" },
   { key: "shopify", he: "חנויות Shopify", en: "Shopify stores", door: "אפליקציה רשמית בחנויות שמתקינות אותה" },
 ]);
+// The states say what happened in the run the receipt names (its date heads the panel).
 export const SOURCE_STATES = Object.freeze({
-  OK: { he: "נקרא היום", en: "Read today", tone: "run" },
+  OK: { he: "ענה", en: "Answered", tone: "run" },
   REQUIRES_CONNECTION: { he: "מחכה לחיבור", en: "Waiting for a connection", tone: "slow" },
-  FAILED: { he: "נכשל היום", en: "Failed today", tone: "exit" },
+  FAILED: { he: "נשאל, בלי תשובה", en: "Asked, no answer", tone: "exit" },
   CLOSED: { he: "סגור לפי כללי האתר", en: "Closed by the site's rules", tone: "slow" },
-  SKIPPED: { he: "דילג היום", en: "Skipped today", tone: "slow" },
+  SKIPPED: { he: "דילג בריצה הזו", en: "Skipped this run", tone: "slow" },
 });
-/** The run's own `sources` object → one public state per known source (unknown keys dropped). */
-export function sourcesView(sources = {}) {
+// The rows whose own host the receipt counts (the AliExpress areas share one host, so only the
+// AliExpress row carries its counts; "world" carries its own category counts).
+const OWN_HOST = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver"]);
+/**
+ * The run's own `sources` object → one public state per known source (unknown keys dropped), with
+ * the receipt's counted answers on each row that has its own host (`counts`, null without a receipt).
+ */
+export function sourcesView(sources = {}, receipt = null) {
   const s = sources && typeof sources === "object" ? sources : {};
   return SOURCES.filter((x) => Object.hasOwn(s, x.key)).map((x) => {
     const v = s[x.key];
     const state = x.key === "world" ? (v && typeof v === "object" && Number.isFinite(v.readToday) && v.readToday > 0 ? "OK" : "FAILED")
       : v === "OK" ? "OK" : v === "REQUIRES_CONNECTION" ? "REQUIRES_CONNECTION" : /ROBOTS/.test(String(v)) ? "CLOSED" : v === "FAILED" ? "FAILED" : "SKIPPED";
-    return { key: x.key, he: x.he, en: x.en, door: x.door, state };
+    const c = OWN_HOST.has(x.key) ? receipt?.sources?.[x.key] : null;
+    const counts = x.key === "world" && v && typeof v === "object" && Number.isFinite(v.asked)
+      ? { asked: v.asked, answered: v.withItems ?? 0, empty: v.empty ?? 0, failed: v.failed ?? 0, refused: 0, unit: "categories" }
+      : c ? { asked: c.asked, answered: c.answered, empty: c.empty, refused: c.refused, failed: c.failed, unit: "requests", countries: c.countries || null } : null;
+    return { key: x.key, he: x.he, en: x.en, door: x.door, state, counts };
   });
 }
 
