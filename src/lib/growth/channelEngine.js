@@ -24,6 +24,7 @@
 // are labelled unavailable, never guessed. No "before everyone" claim, no promise of a hit.
 import { pickMatches } from "./trendRadar.js";
 import { hasBrandName, isNotListedKind } from "./deals.js";
+import { growthEvidence } from "./freshRisers.js";
 
 export const ENGINE = Object.freeze({
   version: "engine-1.0",
@@ -32,6 +33,7 @@ export const ENGINE = Object.freeze({
   maxAgeDays: 3, // a measurement older than this is stale and never posted
   priceMaxAgeHours: 72, // a price older than this is not "verified" (the line is left out)
   bar: Object.freeze({ heat: 35, buy: 55, confidence: 0.55, opportunity: 50 }),
+  noiseP: 0.05, // the growth shown must beat counting noise at this level
   repeatDays: 14, // a product never returns within this, unless its evidence materially changed
   trendHours: 48, // a trend posted within this is skipped: every post a different trend
   minGapMinutes: 90, // never two posts closer than this
@@ -277,6 +279,12 @@ export function rejectionOf(c = {}, { now = Date.now(), rules = ENGINE } = {}) {
   if (!(e.weekPct >= rules.hot.minWeekPct)) return "not_rising";
   const min = c.source === "fresh_riser" ? rules.fresh.minOrders : rules.hot.minOrders;
   if (!(e.after >= min)) return "too_few_orders";
+  // The noise check (freshRisers.js growthEvidence, 21.11): the growth in the post must be more than
+  // counting noise explains (p ≤ 5% against a flat week); a reading without both counts and dates is
+  // never taken as growth.
+  const ev = growthEvidence({ ordersBefore: e.before, orders: e.after, from: e.from, to: e.to }, { nullWeekPct: 0 });
+  if (!ev) return "growth_unmeasured";
+  if (!(ev.p <= rules.noiseP)) return "growth_within_noise";
   if (c.quality?.sat === "low") return "low_satisfaction";
   if (c.match?.visual === "MISMATCH") return "photo_shows_another_kind";
   return null;

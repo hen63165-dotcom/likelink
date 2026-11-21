@@ -168,3 +168,20 @@ test("looks: the photo vectors are kept between runs; a photo that fails is skip
   assert.equal(again.embedded, 0);
   assert.equal(asked.length, 2);
 });
+
+test("kinds: the members' orders together must grow beyond counting noise (21.11)", async () => {
+  const { KINDS, newKinds } = await import("../src/lib/growth/newKinds.js");
+  const pool = {};
+  const items = {};
+  const add = (id, title, before, now) => {
+    pool[id] = { id, title, image: `https://ae01.alicdn.com/kf/${id}.jpg`, link: `https://s.click.aliexpress.com/e/_${id}`, category: "home", first: "2026-11-10", orders: now };
+    items[id] = [["2026-11-14", before], ["2026-11-21", now]];
+  };
+  // Three tiny listings at +50% each and one big flat one: the median says +50%, together it is noise.
+  add("1005006000001", "Ripple Glass Vase Wavy", 4, 6);
+  add("1005006000002", "Wavy Ripple Glass Vase", 4, 6);
+  add("1005006000003", "Ripple Glass Vase Bud", 4, 6);
+  add("1005006000004", "Ripple Glass Vase Big", 300, 300);
+  const v = { "1005006000001": [1, 0.1], "1005006000002": [1, 0.11], "1005006000003": [1, 0.09], "1005006000004": [1, 0.1] };
+  assert.equal(newKinds(pool, items, v, { rules: { ...KINDS, minOrders: 100 } }).length, 0);
+});

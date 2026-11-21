@@ -54,9 +54,15 @@ function upperTail(z) {
  * read days apart overlap, so it is a noise check, never a forecast. null without two readings.
  */
 export function growthEvidence(m, { nullWeekPct = FRESH.nullWeekPct } = {}) {
-  if (!m || !(m.orders > 0) || !(m.ordersBefore > 0) || !m.from || !m.to) return null;
-  const span = dayGap(m.from, m.to);
-  if (!(span > 0)) return null;
+  if (!m || !m.from || !m.to) return null;
+  return growthOverDays({ before: m.ordersBefore, after: m.orders, days: dayGap(m.from, m.to) }, { nullWeekPct });
+}
+
+/** The same noise check for counts read `days` apart (a kind's members together, newKinds.js). */
+export function growthOverDays({ before, after, days } = {}, { nullWeekPct = FRESH.nullWeekPct } = {}) {
+  if (!(after > 0) || !(before > 0) || !(days > 0)) return null;
+  const m = { orders: after, ordersBefore: before };
+  const span = days;
   const lr = Math.log(m.orders / m.ordersBefore);
   const se = Math.sqrt(1 / m.orders + 1 / m.ordersBefore);
   const z = (lr - Math.log(1 + nullWeekPct / 100) * (span / 7)) / se;

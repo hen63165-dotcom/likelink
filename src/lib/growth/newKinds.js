@@ -16,6 +16,7 @@ import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
 import { CATEGORY_KIND, covered, phrasesOf } from "./radarDiscovery.js";
 import { BRAIN, kindFeatures } from "./radarBrain.js";
+import { growthOverDays } from "./freshRisers.js";
 
 export const KINDS = Object.freeze({
   model: "Xenova/all-MiniLM-L6-v2",
@@ -33,6 +34,10 @@ export const KINDS = Object.freeze({
   // factories list before anyone wears it). The store photos of the fast new listings, through the
   // lens model (MobileCLIP-S0) on the runner, grouped when they look alike: one design spreading
   // across listings. Same rules and calls as the kinds by meaning.
+  // The noise check on the members together (freshRisers.js, 21.11): their summed orders must grow
+  // beyond counting noise against a +10% week (p ≤ 1%: many groups are tested every morning).
+  noiseNullWeekPct: 10,
+  noiseP: 0.01,
   lookSim: 0.9, // cosine of two store photos to count as the same look
   lookMax: 500, // photos read a run (vectors are kept between runs)
   lookMinWeekPct: 10, // only listings already growing are looked at
@@ -109,6 +114,9 @@ export function newKinds(pool = {}, items = {}, vectors = {}, { concepts = [], r
     const orders = measured.reduce((s, x) => s + x.mom.orders, 0);
     const ordersBefore = measured.reduce((s, x) => s + (Number(x.mom.ordersBefore) || 0), 0);
     if (!(med >= rules.minMedianWeekPct) || orders < rules.minOrders || orders > rules.maxOrders) continue;
+    const spans = measured.map((x) => (Date.parse(`${x.mom.to}T00:00:00Z`) - Date.parse(`${x.mom.from}T00:00:00Z`)) / 86_400_000).filter((d) => d > 0);
+    const ev = growthOverDays({ before: ordersBefore, after: orders, days: spans.length ? spans.reduce((s, d) => s + d, 0) / spans.length : 0 }, { nullWeekPct: rules.noiseNullWeekPct ?? KINDS.noiseNullWeekPct });
+    if (!ev || !(ev.p <= (rules.noiseP ?? KINDS.noiseP))) continue;
     const cats = new Map();
     for (const m of members) cats.set(m.category, (cats.get(m.category) || 0) + 1);
     const category = [...cats.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
