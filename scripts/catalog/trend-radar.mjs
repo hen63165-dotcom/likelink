@@ -64,6 +64,7 @@ import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
+import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
@@ -713,6 +714,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Each card says when it was sealed and when it is graded (the call's own dates).
   for (const r of board.fresh.risers) { const c = freshCalls.find((x) => x.id === r.id && !x.result); if (c) { r.called = c.at; r.due = c.due; } }
   board.fresh.record = freshRecord(freshCalls);
+  board.fresh.byCategory = byCategory(freshCalls).slice(0, 30);
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
   log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
@@ -818,6 +820,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // from the promise engine's model on the listing counts the radar reads every day (the watch list's
   // concepts and the phrases of the new products and kinds). Sealed as the book "window", graded on
   // its day like a weather forecast (Brier, base rate, skill, said vs happened), never edited.
+  let windowCtx = null;
   if (env.RADAR_WINDOW !== "0") {
     try {
       const wfile = join(dir, "window.json");
@@ -842,6 +845,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const series = seriesOf({ readings, hist });
       const g = gradeWindows(saved?.state || newWindowState(), series, today);
       const calib = calibrateWindow(series, today);
+      windowCtx = { series, calib };
       const keys = [
         ...(board.concepts || []).filter((c) => Number.isFinite(c.today?.listings) && c.today.listings < WINDOW.line).map((c) => conceptKey(c.id)),
         ...Object.entries(hist).filter(([, v]) => v.shown && v.shown >= new Date(Date.parse(today) - WINDOW.trackDays * 86_400_000).toISOString().slice(0, 10)).map(([k]) => k),
@@ -857,6 +861,31 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.window = "OK";
       log.push(`window: ${Object.keys(phraseReads).length} phrases read with the checks, ${reread} read again · ${WINDOW.horizons.map((h) => `${h}d ${board.window.horizons.find((x) => x.h === h).state === "READY" ? `ready (${calib[h].n} examples, ${board.window.horizons.find((x) => x.h === h).small} small)` : `calibrating ${calib[h].n}/${WINDOW.minCalib}, small ${board.window.horizons.find((x) => x.h === h).small}/${WINDOW.minGroup}`}`).join(" · ")} · issued ${issued.length} · graded ${g.graded} · set aside ${g.setAside}`);
     } catch (err) { sources.window = "FAILED"; log.push(`window: ${String(err?.message || err).slice(0, 80)}`); }
+  }
+  // 🚪 The exit signal (radarCore.js exitSignal; the owner, 20.11: "go around Modalyst and everyone"):
+  // every earlier find still in its 14 days, read again today: its orders since the sealed base, its
+  // own weekly pace and its window, and one state — still running, slowing, or time to exit.
+  {
+    const ITEM_ID = /^\d{6,20}$/;
+    const dayN = (a) => Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+    board.fresh.watch = freshCalls
+      .filter((c) => !c.result && c.at < today && ITEM_ID.test(String(c.id)) && c.base > 0)
+      .slice(-20).reverse()
+      .map((c) => {
+        const series = items[c.id] || [];
+        const last = series.at(-1);
+        const momentum = itemMomentum(series, { rules: HOT_RULES });
+        const window = windowCtx ? cardWindow(windowCtx.series, phraseKey(freshPhrase(c.title)), today, windowCtx.calib) : null;
+        const exit = exitSignal({ momentum, window });
+        const pool = freshPool[c.id] || {};
+        return {
+          id: String(c.id), title: c.title, image: pool.image || null, buy: pool.link || null, price: Number.isFinite(pool.price) ? pool.price : null,
+          called: c.at, due: c.due, dayN: dayN(c.at), base: c.base, orders: last ? last[1] : null, on: last ? last[0] : null,
+          progress: last ? Math.round(((last[1] - c.base) / c.base) * 1000) / 10 : null,
+          weekPct: Number.isFinite(momentum.weekPct) ? momentum.weekPct : null, window, exit: exit.state, why: exit.why,
+        };
+      });
+    log.push(`exit signal: ${board.fresh.watch.length} earlier finds · ${JSON.stringify(board.fresh.watch.reduce((t, w) => ({ ...t, [w.exit]: (t[w.exit] || 0) + 1 }), {}))}`);
   }
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));

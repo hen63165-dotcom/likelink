@@ -2,9 +2,11 @@
 // only what sanitizeBoard kept from the public board; links open in a new tab, outside the Wix frame.
 import React, { useEffect, useMemo, useState } from "react";
 import { nextReadingAt } from "../lib/growth/worldPulse.js";
+import { EXIT_LABELS, EXIT_WHY } from "../lib/growth/radarCore.js";
+import { EXPORT, exportable, wixCsv } from "../lib/growth/radarExport.js";
 import {
   WIX_RADAR, KIND_LABELS, SIGNAL_LABELS, WORLD_LABELS, conceptName, freshOf, kindLabel, kindsOf, newKindsOf,
-  pct, proofOf, recordOf, rowsFor, shortDay, stageLabel, untilText, verdictOf,
+  pct, proofOf, recordOf, rowsFor, shortDay, stageLabel, untilText, verdictOf, watchOf, searchWords, MODALYST_URL, WIX_PRODUCTS_URL,
 } from "../lib/growth/wixRadar.js";
 
 const KINDS_KEY = "likelink:wix-radar:kinds";
@@ -37,6 +39,9 @@ export default function WixRadar({ board, lang }) {
 
   const verdict = useMemo(() => verdictOf(board), [board]);
   const fresh = useMemo(() => freshOf(board), [board]);
+  const watch = useMemo(() => watchOf(board), [board]);
+  const [markup, setMarkup] = useState(EXPORT.markup);
+  const exportList = useMemo(() => [...fresh, ...watch.filter((w) => w.exit !== "EXIT")].filter(exportable), [fresh, watch]);
   const newKinds = useMemo(() => newKindsOf(board), [board]);
   const kindList = useMemo(() => kindsOf(board), [board]);
   const { rows, total } = useMemo(() => rowsFor(board, kinds, { limit: all ? 500 : WIX_RADAR.rows }), [board, kinds, all]);
@@ -101,7 +106,15 @@ export default function WixRadar({ board, lang }) {
                   <div className="wr-muted">{L(`${r.ordersBefore ?? "?"} ${arrow} ${r.orders} הזמנות ב־30 יום (${d(r.from)} ${arrow} ${d(r.to)})`, `${r.ordersBefore ?? "?"} ${arrow} ${r.orders} orders in 30 days (${d(r.from)} ${arrow} ${d(r.to)})`)}</div>
                   {r.similar !== null ? <div className="wr-muted">{L(`${r.similar.toLocaleString("he-IL")} מוצרים דומים בחנות`, `${r.similar.toLocaleString("en-US")} similar listings in the store`)}</div> : null}
                   {r.window ? <div className="wr-muted">{L(`⏳ סיכוי מכויל שבעוד ${r.window.h} ימים יהיו מעל ${r.window.line.toLocaleString("he-IL")} מוצרים דומים: ${r.window.p}%`, `⏳ Calibrated chance of more than ${r.window.line.toLocaleString("en-US")} similar listings in ${r.window.h} days: ${r.window.p}%`)}</div> : null}
-                  <a className="wr-btn" href={r.page} target="_blank" rel="noopener noreferrer">{L("לצפייה באליאקספרס", "View on AliExpress")}</a>
+                  <div className="wr-actions">
+                    <a className="wr-btn" href={r.page} target="_blank" rel="noopener noreferrer">{L("לצפייה באליאקספרס", "View on AliExpress")}</a>
+                    <button type="button" className="wr-btn wr-btn-ghost" onClick={() => {
+                      // The search words go to the clipboard (when the frame allows it) and stay printed below.
+                      try { navigator.clipboard?.writeText(searchWords(r))?.catch?.(() => {}); } catch { /* printed below */ }
+                      window.open(MODALYST_URL, "_blank", "noopener");
+                    }}>{L("🔎 לחפש בדרופשיפינג של Wix (Modalyst)", "🔎 Search Wix dropshipping (Modalyst)")}</button>
+                  </div>
+                  <div className="wr-muted">{L("מילים לחיפוש: ", "Search words: ")}<b dir="ltr">{searchWords(r)}</b></div>
                 </div>
               </article>
             ))}
@@ -120,6 +133,50 @@ export default function WixRadar({ board, lang }) {
           </div>
         ) : null}
       </section>
+
+      {watch.length || exportList.length ? (
+        <section className="wr-card">
+          {watch.length ? (
+            <>
+              <h2>{L("🚪 אחרי שהרדאר מצא: מתי לעצור", "🚪 After the radar found it: when to stop")}</h2>
+              <p className="wr-muted">{L("כל מוצר שהרדאר מצא נקרא שוב כל יום, 14 יום: עדיין רץ, מאט, או זמן לצאת.", "Every product the radar found is read again every day for 14 days: still running, slowing, or time to exit.")}</p>
+              <ul className="wr-list">
+                {watch.map((w) => (
+                  <li key={w.id}>
+                    <b className={`wr-exit wr-exit-${w.exit.toLowerCase()}`}>{L(EXIT_LABELS[w.exit].he, EXIT_LABELS[w.exit].en)}</b>{" "}
+                    <a href={w.page} target="_blank" rel="noopener noreferrer" dir="ltr">{w.title}</a>
+                    <span className="wr-muted"> · {L(`יום ${w.dayN} מתוך 14`, `day ${w.dayN} of 14`)}{w.progress !== null ? <> · <Num>{pct(w.progress)}</Num>{L(" מאז", " since")}</> : null}{w.why ? ` · ${L(EXIT_WHY[w.why].he, EXIT_WHY[w.why].en)}` : ""}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {exportList.length ? (
+            <div className="wr-export">
+              <h3>{L("⬇️ לייבא לחנות שלכם בקובץ אחד", "⬇️ Import into your store in one file")}</h3>
+              <p className="wr-muted">{L(`${exportList.length} מוצרים בפורמט הייבוא של Wix, כולם מוסתרים עד שתבדקו. המחיר: המחיר בחנות היום כפול המכפיל. מוצרים בחנות ← פעולות נוספות ← ייבוא.`, `${exportList.length} products in Wix's import format, all hidden until you check them. Price: today's store price times the markup. Store Products → More Actions → Import.`)}</p>
+              <p className="wr-muted"><a href={WIX_PRODUCTS_URL} target="_blank" rel="noopener noreferrer">{L("לפתוח את המוצרים בחנות שלכם", "Open your store's products")}</a></p>
+              <label className="wr-muted" htmlFor="wr-markup">{L("מכפיל", "Markup")} </label>
+              <select id="wr-markup" value={markup} onChange={(e) => setMarkup(Number(e.target.value))}>
+                {[1.5, 2, 2.5, 3].map((m) => <option key={m} value={m}>×{m}</option>)}
+              </select>{" "}
+              <button type="button" className="wr-btn" onClick={() => {
+                const { csv } = wixCsv(exportList, { markup });
+                try {
+                  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `radar-wix-${new Date().toISOString().slice(0, 10)}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                } catch { /* the page stays as it is */ }
+              }}>{L("להוריד את הקובץ", "Download the file")}</button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="wr-card">
         <h2>{L("📊 הקטגוריות שלכם", "📊 Your categories")}</h2>

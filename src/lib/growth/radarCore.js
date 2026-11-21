@@ -32,8 +32,8 @@ export const BOOKS = Object.freeze(INSTRUMENTS.filter((i) => i.book).map((i) => 
 
 /** Every section id on /radar → its tab (deep links like /radar#window open the right tab). */
 export const SECTION_TABS = Object.freeze({
-  today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", record: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
+  today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", watch: "today", export: "today", kinds: "today", "radar-results": "today",
+  proof: "proof", record: "proof", sources: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
   tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools",
   plans: "plans", "radar-tiers": "plans",
   ...Object.fromEntries(INSTRUMENTS.map((i) => [i.section, i.tab]).filter(([s]) => !["verdict", "fresh", "kinds", "ledger"].includes(s))),
@@ -164,4 +164,100 @@ export function findFacts(f = {}, { kind = "fresh", day = null } = {}) {
   if (dm(f.called) && dm(f.due)) add("seal", "נחתם", "Sealed", `ב־${dm(f.called)} · הציון בפומבי ב־${dm(f.due)}`, `On ${dm(f.called)} · graded in public on ${dm(f.due)}`, "seal");
   else add("seal", "נחתם", "Sealed", `בספר החתימות${day ? ` של ${dm(day)}` : ""} · הציון אחרי 14 יום`, `In the sealed book${day ? ` of ${dm(day)}` : ""} · graded after 14 days`, "seal");
   return rows;
+}
+
+/**
+ * 🚪 The exit signal (the owner, 20.11: "go around Modalyst and everyone"; the check that day found
+ * saturation scores and blog advice on when to stop, and no tool that tracks each find after it
+ * showed it and says when to stop): every find the radar showed is read again every day for its 14
+ * days, and its own numbers decide one state. EXIT when its orders cool (≤ −5% a week), its listings
+ * passed the saturation line, or the window clock gives ≥ 50% that they pass it within days;
+ * RUNNING while its orders still grow ≥ 10% a week; SLOWING in between; MEASURING until it has a
+ * pace. Measured only, never a forecast of sales.
+ */
+export const EXIT = Object.freeze({ runningWeekPct: 10, closeChance: 50 });
+export const EXIT_LABELS = Object.freeze({
+  RUNNING: { he: "עדיין רץ", en: "Still running" },
+  SLOWING: { he: "מאט: כדאי לשקול לעצור פרסום", en: "Slowing: consider pausing ads" },
+  EXIT: { he: "זמן לצאת", en: "Time to exit" },
+  MEASURING: { he: "נמדד", en: "Measuring" },
+});
+export const EXIT_WHY = Object.freeze({
+  cooling: { he: "ההזמנות יורדות", en: "orders are cooling" },
+  window: { he: "כבר מעל 2,000 מודעות דומות", en: "already over 2,000 similar listings" },
+  closing: { he: "שעון החלון: רוב הסיכוי שהמודעות יעברו את הקו", en: "window clock: listings likely pass the line" },
+});
+export function exitSignal({ momentum = null, window = null } = {}, { rules = EXIT } = {}) {
+  if (window?.state === "CLOSED") return { state: "EXIT", why: "window" };
+  if (momentum?.state === "COOLING") return { state: "EXIT", why: "cooling" };
+  if (window?.state === "READY" && Number.isFinite(window.p) && window.p >= rules.closeChance) return { state: "EXIT", why: "closing" };
+  const w = momentum?.weekPct;
+  if (!momentum || momentum.state === "UNVERIFIED" || !Number.isFinite(w)) return { state: "MEASURING", why: null };
+  return { state: w >= rules.runningWeekPct ? "RUNNING" : "SLOWING", why: null };
+}
+
+/**
+ * 📡 What the radar read today (the owner's plan, 21.11: "first make sure the existing brain really
+ * works: every data source, which are waiting for a connection"): every source the run asked, as the
+ * run itself reported it, with the official door it goes through. Nothing here is a claim about data
+ * the radar did not read; the doors still closed are named with what opens them.
+ */
+export const SOURCES = Object.freeze([
+  { key: "aliexpress", he: "אליאקספרס: מוצרים, הזמנות, מחירים", en: "AliExpress: items, orders, prices", door: "API השותפים הרשמי" },
+  { key: "world", he: "כל הקטגוריות של אליאקספרס", en: "Every AliExpress category", door: "API השותפים הרשמי" },
+  { key: "fresh", he: "מוצרים חדשים של השנה", en: "This year's new listings", door: "API השותפים הרשמי" },
+  { key: "discovery", he: "רשימות המוצרים החמים", en: "Hot product lists", door: "API השותפים הרשמי" },
+  { key: "kinds", he: "קיבוץ לפי משמעות (בינה מלאכותית)", en: "Grouping by meaning (AI)", door: "מודל פתוח על השרת שלנו" },
+  { key: "suggest", he: "הצעות החיפוש של גוגל", en: "Google search suggestions", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "youtube", he: "הצעות החיפוש של יוטיוב", en: "YouTube search suggestions", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "worldSearch", he: "חיפוש ב־15 מדינות", en: "Search in 15 countries", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "trendsIL", he: "גוגל טרנדים בישראל", en: "Google Trends Israel", door: "RSS ציבורי" },
+  { key: "trendsWorld", he: "גוגל טרנדים בעולם", en: "Google Trends worldwide", door: "RSS ציבורי" },
+  { key: "siteVisitors", he: "המבקרים של LikeLink2", en: "LikeLink2's own visitors", door: "הנתונים שלנו" },
+  { key: "crowd", he: "מה בודקים בכפתור הקסם", en: "What people check with the magic button", door: "הנתונים שלנו" },
+  { key: "waves", he: "גלים של מותגים ודמויות", en: "Brand and character waves", door: "API השותפים הרשמי" },
+  { key: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "Proven range and calibrated chance", door: "החישוב של הרדאר" },
+  { key: "window", he: "שעון החלון", en: "Window clock", door: "החישוב של הרדאר" },
+  { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
+  { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
+  { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
+  { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "סגור לפי robots.txt שלהם" },
+  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "סגור לפי robots.txt שלהם" },
+]);
+// The doors the radar reads next, each only through official access (never scraping).
+export const NEXT_DOORS = Object.freeze([
+  { key: "tiktok", he: "טיקטוק ו־TikTok Shop", en: "TikTok and TikTok Shop", door: "TikTok Shop Partner API / Research API, באישור של טיקטוק" },
+  { key: "amazon", he: "אמזון", en: "Amazon", door: "Product Advertising API, או ספק נתונים מורשה בתשלום (באישורך)" },
+  { key: "reddit", he: "רדיט", en: "Reddit", door: "Reddit Data API, לשימוש מסחרי באישור של רדיט" },
+  { key: "shopify", he: "חנויות Shopify", en: "Shopify stores", door: "אפליקציה רשמית בחנויות שמתקינות אותה" },
+]);
+export const SOURCE_STATES = Object.freeze({
+  OK: { he: "נקרא היום", en: "Read today", tone: "run" },
+  REQUIRES_CONNECTION: { he: "מחכה לחיבור", en: "Waiting for a connection", tone: "slow" },
+  FAILED: { he: "נכשל היום", en: "Failed today", tone: "exit" },
+  CLOSED: { he: "סגור לפי כללי האתר", en: "Closed by the site's rules", tone: "slow" },
+  SKIPPED: { he: "דילג היום", en: "Skipped today", tone: "slow" },
+});
+/** The run's own `sources` object → one public state per known source (unknown keys dropped). */
+export function sourcesView(sources = {}) {
+  const s = sources && typeof sources === "object" ? sources : {};
+  return SOURCES.filter((x) => Object.hasOwn(s, x.key)).map((x) => {
+    const v = s[x.key];
+    const state = x.key === "world" ? (v && typeof v === "object" && Number.isFinite(v.readToday) && v.readToday > 0 ? "OK" : "FAILED")
+      : v === "OK" ? "OK" : v === "REQUIRES_CONNECTION" ? "REQUIRES_CONNECTION" : /ROBOTS/.test(String(v)) ? "CLOSED" : v === "FAILED" ? "FAILED" : "SKIPPED";
+    return { key: x.key, he: x.he, en: x.en, door: x.door, state };
+  });
+}
+
+/** The new-product record per category (each call carries the category it had): graded, hits. */
+export function byCategory(calls = []) {
+  const out = {};
+  for (const c of Array.isArray(calls) ? calls : []) {
+    const cat = String(c?.f?.category || c?.category || "").trim();
+    if (!cat) continue;
+    const t = (out[cat] ||= { category: cat, calls: 0, graded: 0, hits: 0 });
+    t.calls++;
+    if (c.result === "HIT" || c.result === "MISS") { t.graded++; if (c.result === "HIT") t.hits++; }
+  }
+  return Object.values(out).sort((a, b) => b.graded - a.graded || b.calls - a.calls || (a.category < b.category ? -1 : 1));
 }

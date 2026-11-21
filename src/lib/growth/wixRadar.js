@@ -134,10 +134,32 @@ export function freshOf(board) {
   return (board?.fresh?.risers || []).map((r) => ({
     id: r.id, title: r.title, image: r.image, page: itemPage(r.id),
     orders: r.orders, ordersBefore: r.ordersBefore, from: r.from, to: r.to, weekPct: r.weekPct,
-    similar: r.known?.similar ?? null, sure: r.sure ?? null,
+    similar: r.known?.similar ?? null, sure: r.sure ?? null, price: Number.isFinite(r.price) ? r.price : null, phrase: r.known?.phrase || null,
     // ⏳ The window clock (radarWindow.js): shown only once it gives a calibrated chance.
     window: r.window?.state === "READY" ? { h: r.window.h, p: r.window.p, line: r.window.line } : null,
   })).filter((r) => r.page);
+}
+
+// 🔎 The radar says WHAT to sell before everyone; Wix's own dropshipping (Modalyst, bought by Wix in
+// 2021) sells it. Both addresses are the ones Wix's Help Center links to (support.wix.com, "Setting
+// Up Dropshipping with Modalyst", 2025-12-29, and "Importing Products to Wix Stores", 2026-02-09).
+export const MODALYST_URL = "https://www.modalyst.co/";
+export const WIX_PRODUCTS_URL = "https://www.wix.com/my-account/site-selector/?buttonText=Manage%20Products&title=Select%20a%20Site&autoSelectOnSingleSite=true&actionUrl=https:%2F%2Fwww.wix.com%2Fdashboard%2F%7B%7BmetaSiteId%7D%7D%2Fstore%2Fproducts%3FreferralInfo%3Dsidebar";
+const SEARCH_SKIP = new Set(["new", "2024", "2025", "2026", "2027", "women", "womens", "women's", "men", "mens", "men's", "for", "and", "the", "with", "fashion", "style", "hot", "sale", "high", "quality", "1pc", "1pcs", "pcs"]);
+/** The words a merchant types into a supplier search for this find: its measured phrase, else the store title's first plain words. */
+export function searchWords(f) {
+  const phrase = String(f?.phrase || "").trim();
+  if (/^[a-z0-9' ]{3,40}$/i.test(phrase)) return phrase.toLowerCase();
+  const words = String(f?.title || "").toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).filter((w) => w.length > 1 && !SEARCH_SKIP.has(w));
+  return words.slice(0, 4).join(" ");
+}
+
+/** 🚪 Every earlier find still in its 14 days, with its exit signal (radarCore.js exitSignal); the plain item page only. */
+export function watchOf(board) {
+  return (board?.fresh?.watch || []).map((w) => ({
+    id: w.id, title: w.title, image: w.image, page: itemPage(w.id), price: Number.isFinite(w.price) ? w.price : null,
+    called: w.called, dayN: w.dayN, progress: w.progress, weekPct: w.weekPct, exit: w.exit, why: w.why,
+  })).filter((w) => w.page);
 }
 
 /** New kinds found by meaning (newKinds.js), each with up to 3 of its listings. */

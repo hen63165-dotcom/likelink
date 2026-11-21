@@ -175,6 +175,8 @@ export function sanitizeBoard(doc) {
     promise: cleanPromise(doc.promise),
     // ⏳ The window clock (radarWindow.js): the chance a find's listings reach the saturation line, and its record.
     window: cleanWindow(doc.window),
+    // 📡 What the run read today, as it reported it (radarCore.js sourcesView): states only, no numbers.
+    sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : { readToday: num(v.readToday) ?? 0, categories: num(v.categories) ?? 0 }])) : null,
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
     ledger: cleanBook(doc.ledger, LEDGER_ROOT),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
@@ -361,6 +363,8 @@ function cleanWindow(w) {
   };
 }
 
+const EXIT_STATES = new Set(["RUNNING", "SLOWING", "EXIT", "MEASURING"]);
+const EXIT_WHY_KEYS = new Set(["cooling", "window", "closing"]);
 function cleanFresh(f) {
   if (!f || typeof f !== "object") return null;
   const risers = (Array.isArray(f.risers) ? f.risers : []).slice(0, 12).map((r) => {
@@ -374,7 +378,14 @@ function cleanFresh(f) {
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
-  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, seal: cleanBook(f.seal, FRESH_BOOK), record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
+  // 🚪 Every earlier find still in its 14 days, read again today, with its exit signal (radarCore.js exitSignal).
+  const watch = (Array.isArray(f.watch) ? f.watch : []).slice(0, 20).map((w) => {
+    if (!ITEM.test(String(w?.id || "")) || !EXIT_STATES.has(w.exit) || !day(w.called)) return null;
+    const buy = typeof w.buy === "string" && BUY.test(w.buy) ? w.buy : null;
+    return { id: String(w.id), title: str(w.title, 140), image: radarImage(w.image), buy, price: num(w.price), called: day(w.called), due: day(w.due), dayN: num(w.dayN), base: num(w.base), orders: num(w.orders), on: day(w.on), progress: num(w.progress), weekPct: num(w.weekPct), window: cleanCardWindow(w.window), exit: w.exit, why: EXIT_WHY_KEYS.has(w.why) ? w.why : null };
+  }).filter(Boolean);
+  const byCategory = (Array.isArray(f.byCategory) ? f.byCategory : []).slice(0, 30).filter((c) => /^[\w-]{2,40}$/.test(String(c?.category || ""))).map((c) => ({ category: String(c.category), calls: Math.max(0, num(c.calls) ?? 0), graded: Math.max(0, num(c.graded) ?? 0), hits: Math.max(0, num(c.hits) ?? 0) }));
+  return { tracking: Math.max(0, num(f.tracking) ?? 0), since: day(f.since), risers, watch, byCategory, seal: cleanBook(f.seal, FRESH_BOOK), record: { calls: num(rec.calls) ?? 0, graded: num(rec.graded) ?? 0, hits: num(rec.hits) ?? 0, accuracy: num(rec.accuracy), pending: num(rec.pending) ?? 0, nextDue: day(rec.nextDue) }, recent };
 }
 
 // The kinds' book (newKinds.js kindsSealText): `name|called on|item+item…|orders then|graded on|grade` per line.

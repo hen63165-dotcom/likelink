@@ -68,3 +68,11 @@ body { font: 15px/1.5 "Madefor Text", "Helvetica Neue", Helvetica, Arial, "Noto 
   .wr-card { animation: wr-in 0.35s ease-out both; }
   @keyframes wr-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 }
+
+.wr-exit { padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+.wr-exit-running { background: #e3f4ee; color: #0f7a5c; }
+.wr-exit-slowing, .wr-exit-measuring { background: #ececf4; color: #34313f; }
+.wr-exit-exit { background: #fde8ee; color: #a51f47; }
+.wr-export { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(16, 12, 40, 0.09); }
+.wr-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.wr-btn-ghost { background: transparent; color: inherit; border: 1px solid rgba(16, 12, 40, 0.18); cursor: pointer; font: inherit; }

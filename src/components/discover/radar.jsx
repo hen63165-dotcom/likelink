@@ -13,7 +13,9 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
-import { INSTRUMENTS, SECTION_TABS, findFacts, recordView, resultText } from "../../lib/growth/radarCore.js";
+import { EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
+import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
+import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
@@ -728,6 +730,8 @@ function FreshRisers({ fresh, world = null, day = null }) {
         ) : (
           <p className="mt-3 text-[14px] font-bold">{fresh.tracking ? L(`הרדאר עוקב מ־${dm(fresh.since)} אחרי ${fresh.tracking} מודעות חדשות של השנה. מוצר יופיע כאן רק כשההאצה שלו תחזיק שתי מדידות ברצף, אז הראשונים יופיעו בעוד כמה ימים. עד אז הרדאר מודד.`, `Tracking ${fresh.tracking} new listings since ${dm(fresh.since)}. Fast risers show here once two readings are at least 3 days apart.`) : L("הרדאר מתחיל לעקוב אחרי מודעות חדשות של השנה מהבדיקה הבאה.", "The radar starts tracking this year's new listings from the next reading.")}</p>
         )}
+        <FindsWatch watch={fresh.watch || []} />
+        <StoreExport finds={[...(fresh.risers || []), ...(fresh.watch || []).filter((w) => w.exit !== "EXIT")]} />
       </div>
     </section>
   );
@@ -787,6 +791,73 @@ function NewKinds({ kinds, day = null }) {
  * from every graded call that recorded its signals the day it was made — each signal's record with and
  * without it, and the weekly learning curve. History only; its state is sealed every day.
  */
+/**
+ * 🚪 After the radar found it (radarCore.js exitSignal): every earlier find still in its 14 days, read
+ * again today, with its own numbers and one state — still running, slowing, or time to exit.
+ */
+function FindsWatch({ watch = [] }) {
+  const { L } = useL();
+  if (!watch.length) return null;
+  const tone = { RUNNING: "is-run", SLOWING: "is-slow", EXIT: "is-exit", MEASURING: "is-slow" };
+  return (
+    <div className="mt-6" id="watch">
+      <h3 className="text-[18px] font-black">{L("🚪 אחרי שהרדאר מצא: מתי לעצור", "🚪 After the radar found it: when to stop")}</h3>
+      <p className="mt-1 text-[13px] leading-6" style={{ color: "var(--lx-muted)" }}>{L("הרדאר ממשיך לקרוא כל מוצר שמצא, כל יום, 14 יום, ואומר לפי המספרים שלו: עדיין רץ, מאט, או זמן לצאת.", "The radar keeps reading every product it found, every day for 14 days, and says from its own numbers: still running, slowing, or time to exit.")}</p>
+      <ul className="mt-3 grid gap-2">
+        {watch.map((w) => (
+          <li key={w.id} className="lx-card lx-rdr-item flex items-center gap-3 p-3">
+            {w.image ? <div style={{ width: 48, height: 48, flex: "0 0 48px", borderRadius: 10, overflow: "hidden" }}><Img src={w.image} alt={w.title} loading="lazy" style={{ width: 48, height: 48, objectFit: "cover" }} /></div> : null}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold" dir="ltr" style={{ textAlign: "start" }}>{w.title}</p>
+              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נמצא ב־${dm(w.called)} · יום ${w.dayN} מתוך 14`, `Found ${dm(w.called)} · day ${w.dayN} of 14`)}{w.progress !== null ? L(` · הזמנות \u2066${w.progress > 0 ? "+" : ""}${w.progress}%\u2069 מאז`, ` · orders ${w.progress > 0 ? "+" : ""}${w.progress}% since`) : ""}{w.weekPct !== null ? L(` · קצב \u2066${w.weekPct > 0 ? "+" : ""}${w.weekPct}%\u2069 בשבוע`, ` · pace ${w.weekPct > 0 ? "+" : ""}${w.weekPct}% a week`) : ""}</p>
+            </div>
+            <span className={`lx-rdr-pill ${tone[w.exit]}`} data-tip={w.why ? L(EXIT_WHY[w.why].he, EXIT_WHY[w.why].en) : undefined}>{L(EXIT_LABELS[w.exit].he, EXIT_LABELS[w.exit].en)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * ⬇️ The radar's finds into a Wix store in one file (radarExport.js): Wix's own import format,
+ * every product hidden until the merchant checks it, the store's price × her markup.
+ */
+function StoreExport({ finds = [] }) {
+  const { L } = useL();
+  const [markup, setMarkup] = useState(EXPORT.markup);
+  const ok = finds.filter(exportable);
+  if (!ok.length) return null;
+  const download = () => {
+    const { csv } = wixCsv(ok, { markup });
+    try {
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `radar-wix-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { /* a browser without Blob downloads keeps the page as it is */ }
+  };
+  return (
+    <div className="lx-card lx-rdr-item mt-6 p-4" id="export">
+      <h3 className="text-[17px] font-black">{L("⬇️ מהרדאר לחנות Wix שלך, בקובץ אחד", "⬇️ From the radar to your Wix store, in one file")}</h3>
+      <p className="mt-1 text-[13px] leading-6">{L(`${ok.length} מוצרים בפורמט הייבוא של Wix. כולם נכנסים מוסתרים, כך ששום דבר עולה לאוויר לפני שבדקת. בעלות: המחיר בחנות היום; במחיר: כפול המכפיל שבחרת.`, `${ok.length} products in Wix's import format. All are imported hidden, so nothing goes live before you check. Cost: today's store price; price: times the markup you choose.`)}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="text-[13px] font-bold" htmlFor="rdr-markup">{L("מכפיל מחיר", "Markup")}</label>
+        <select id="rdr-markup" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} className="rounded-lg border px-2 py-1 text-[13px]" style={{ borderColor: "var(--lx-line-strong)", background: "var(--lx-paper)" }}>
+          {[1.5, 2, 2.5, 3].map((m) => <option key={m} value={m}>×{m}</option>)}
+        </select>
+        <button type="button" onClick={download} className="lx-btn lx-btn-ink" style={{ minHeight: 40, padding: "6px 16px", fontSize: 14 }}>{L("להוריד קובץ ל־Wix", "Download the Wix file")}</button>
+        <a href={WIX_PRODUCTS_URL} target="_blank" rel="noopener noreferrer" className="lx-btn lx-btn-ghost" style={{ minHeight: 40, padding: "6px 16px", fontSize: 14 }}>{L("למוצרים בחנות Wix", "Your Wix products")}</a>
+      </div>
+      <p className="mt-2 text-[12px] leading-5" style={{ color: "var(--lx-muted)" }}>{L("ב־Wix: מוצרים בחנות ← פעולות נוספות ← ייבוא ← העלאת קובץ. המחירים בשקלים, ו־Wix מציגים את המספר במטבע של החנות שלך. השם והתמונות הם של המוכר באליאקספרס.", "In Wix: Store Products → More Actions → Import → Upload CSV File. Prices are in shekels, and Wix shows the number in your store's currency. The name and photos are the seller's on AliExpress.")}</p>
+    </div>
+  );
+}
+
 /** One card body for every find (radarCore.js findFacts): the same rows in the same order, each a measurement with its source. */
 function FindFacts({ f, kind, day }) {
   const { L } = useL();
@@ -843,7 +914,47 @@ function RecordTable({ board }) {
             </tbody>
           </table>
         </div>
+        {(board?.fresh?.byCategory || []).some((c) => c.graded > 0) ? (
+          <div className="mt-4">
+            <p className="text-[14px] font-black">{L("מוצרים חדשים, לפי קטגוריה", "New products, by category")}</p>
+            <ul className="mt-1 grid gap-1 text-[13px] md:grid-cols-2">
+              {board.fresh.byCategory.filter((c) => c.graded > 0).map((c) => <li key={c.category} className="flex justify-between gap-3"><span dir="ltr">{c.category}</span><span className="tabular-nums font-bold">{L(`פגעו ${c.hits} מתוך ${c.graded}`, `${c.hits} of ${c.graded} hit`)}</span></li>)}
+            </ul>
+          </div>
+        ) : null}
         {v.root ? <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`🔏 החתימה של ${dm(v.day)}: ${v.books} ספרים תחת שורש אחד`, `🔏 The ${dm(v.day)} seal: ${v.books} books under one root`)} <span dir="ltr">SHA-256 {v.root.slice(0, 16)}…</span>{v.block ? L(` · בתוך בלוק ביטקוין #${v.block.height.toLocaleString("he-IL")}`, ` · inside Bitcoin block #${v.block.height}`) : ""} · <a className="underline" href="#ledger">{L("לבדיקה בעצמך", "Check it yourself")}</a></p> : null}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 📡 What the radar read today (radarCore.js sourcesView): every source the run asked, its state as
+ * the run reported it and the official door it goes through; then the doors the radar opens next.
+ */
+function SourcesToday({ sources }) {
+  const { L } = useL();
+  const list = sourcesView(sources || {});
+  if (!list.length) return null;
+  const ok = list.filter((x) => x.state === "OK").length;
+  const tone = { run: "is-run", slow: "is-slow", exit: "is-exit" };
+  return (
+    <section className="lx-wrap mt-8" id="sources">
+      <div className="lx-card lx-rdr-panel p-5 md:p-6">
+        <h2 className="text-[22px] font-black">{L("📡 מה הרדאר קרא היום", "📡 What the radar read today")}</h2>
+        <p className="mt-1 text-[14px] leading-6" style={{ color: "var(--lx-muted)" }}>{L(`${ok} מתוך ${list.length} מקורות נקראו בבוקר הזה, כולם דרך דלת רשמית. כך כל אחד רואה על מה כל קביעה עומדת.`, `${ok} of ${list.length} sources were read this morning, all through an official door. So anyone sees what each call stands on.`)}</p>
+        <ul className="mt-3 grid gap-1.5 md:grid-cols-2">
+          {list.map((x) => (
+            <li key={x.key} className="flex items-center justify-between gap-3 border-b py-1.5 text-[13px]" style={{ borderColor: "var(--lx-line)" }}>
+              <span><b>{L(x.he, x.en)}</b><span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span></span>
+              <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-[14px] font-black">{L("הדלתות הבאות", "The next doors")}</p>
+        <ul className="mt-1 grid gap-1 text-[13px]">
+          {NEXT_DOORS.map((d) => <li key={d.key}><b>{L(d.he, d.en)}</b> · <span style={{ color: "var(--lx-muted)" }}>{d.door}</span></li>)}
+        </ul>
       </div>
     </section>
   );
@@ -1627,6 +1738,7 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
+        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
