@@ -16,6 +16,7 @@ import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
 import { CATEGORY_KIND, covered, phrasesOf } from "./radarDiscovery.js";
 import { BRAIN, kindFeatures } from "./radarBrain.js";
+import { growthOverDays } from "./freshRisers.js";
 
 export const KINDS = Object.freeze({
   model: "Xenova/all-MiniLM-L6-v2",
@@ -29,6 +30,17 @@ export const KINDS = Object.freeze({
   admit: 3, // kinds offered to discovery a day (its own caps still apply)
   gradeDays: 14,
   hitPct: 50,
+  // 👁️ The same look (21.11, past Heuritech: it reads what people already post; the radar reads what
+  // factories list before anyone wears it). The store photos of the fast new listings, through the
+  // lens model (MobileCLIP-S0) on the runner, grouped when they look alike: one design spreading
+  // across listings. Same rules and calls as the kinds by meaning.
+  // The noise check on the members together (freshRisers.js, 21.11): their summed orders must grow
+  // beyond counting noise against a +10% week (p ≤ 1%: many groups are tested every morning).
+  noiseNullWeekPct: 10,
+  noiseP: 0.01,
+  lookSim: 0.9, // cosine of two store photos to count as the same look
+  lookMax: 500, // photos read a run (vectors are kept between runs)
+  lookMinWeekPct: 10, // only listings already growing are looked at
 });
 
 const dot = (a, b) => {
@@ -102,6 +114,9 @@ export function newKinds(pool = {}, items = {}, vectors = {}, { concepts = [], r
     const orders = measured.reduce((s, x) => s + x.mom.orders, 0);
     const ordersBefore = measured.reduce((s, x) => s + (Number(x.mom.ordersBefore) || 0), 0);
     if (!(med >= rules.minMedianWeekPct) || orders < rules.minOrders || orders > rules.maxOrders) continue;
+    const spans = measured.map((x) => (Date.parse(`${x.mom.to}T00:00:00Z`) - Date.parse(`${x.mom.from}T00:00:00Z`)) / 86_400_000).filter((d) => d > 0);
+    const ev = growthOverDays({ before: ordersBefore, after: orders, days: spans.length ? spans.reduce((s, d) => s + d, 0) / spans.length : 0 }, { nullWeekPct: rules.noiseNullWeekPct ?? KINDS.noiseNullWeekPct });
+    if (!ev || !(ev.p <= (rules.noiseP ?? KINDS.noiseP))) continue;
     const cats = new Map();
     for (const m of members) cats.set(m.category, (cats.get(m.category) || 0) + 1);
     const category = [...cats.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
@@ -125,7 +140,28 @@ export function newKinds(pool = {}, items = {}, vectors = {}, { concepts = [], r
 
 /** Kinds offered to discovery as trial concepts (the same shape discover() returns). */
 export const kindCandidates = (kinds = [], { rules = KINDS } = {}) =>
-  kinds.slice(0, rules.admit).map((k) => ({ en: k.en, items: k.members.length, orders: k.orders, category: k.category, kind: k.kind, via: "meaning" }));
+  kinds.slice(0, rules.admit).map((k) => ({ en: k.en, items: k.members.length, orders: k.orders, category: k.category, kind: k.kind, via: k.via === "look" ? "look" : "meaning" }));
+
+/** The pool listings whose photos are worth looking at today: already growing, fastest first. */
+export function lookCandidates(pool = {}, items = {}, { rules = KINDS } = {}) {
+  return Object.values(pool || {})
+    .filter((e) => e?.id && typeof e.image === "string" && e.image)
+    .map((e) => ({ e, m: itemMomentum(items?.[e.id] || [], { rules: HOT }) }))
+    .filter(({ m }) => m.weekPct !== null && m.weekPct >= rules.lookMinWeekPct && m.orders >= 30)
+    .sort((a, b) => b.m.weekPct - a.m.weekPct || (a.e.id < b.e.id ? -1 : 1))
+    .slice(0, rules.lookMax)
+    .map(({ e }) => e);
+}
+
+/** The kinds by look join the kinds by meaning unless they name or hold the same thing (half the members). */
+export function mergeLooks(kinds = [], looks = []) {
+  const out = kinds.map((k) => ({ ...k, via: k.via || "meaning" }));
+  for (const l of looks) {
+    const dup = out.some((k) => k.en === l.en || l.members.filter((id) => k.members.includes(id)).length * 2 >= Math.min(k.members.length, l.members.length));
+    if (!dup) out.push({ ...l, via: "look" });
+  }
+  return out.sort((a, b) => b.medianWeekPct - a.medianWeekPct || b.members.length - a.members.length || (a.en < b.en ? -1 : 1));
+}
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 

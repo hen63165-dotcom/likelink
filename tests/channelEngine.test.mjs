@@ -299,3 +299,14 @@ test("the WhatsApp group page takes the same engine's picks: one per trend, in r
   assert.match(src, /dailyPicks\(ranked/);
   assert.match(src, /whatsappPost\(c/);
 });
+
+test("a post's growth must beat counting noise (21.11): 300 → 330 orders is not 'rising', whatever the percent", () => {
+  const all = candidatesFrom(board(), products(), { now: NOW });
+  const okId = rankCandidates(all, { now: NOW }).ranked[0].itemId;
+  const base = all.find((c) => c.itemId === okId);
+  assert.ok(base.evidence.before > 0);
+  const noisy = { ...base, evidence: { ...base.evidence, before: 300, after: 330, weekPct: 10 } };
+  assert.equal(rankCandidates([noisy], { now: NOW }).rejected[0].reason, "growth_within_noise");
+  const unmeasured = { ...base, evidence: { ...base.evidence, before: null } };
+  assert.equal(rankCandidates([unmeasured], { now: NOW }).rejected[0].reason, "growth_unmeasured");
+});

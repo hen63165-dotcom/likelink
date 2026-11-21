@@ -113,3 +113,47 @@ test("an area whose long search finds nothing is tried again with shorter words 
   const run = (await import("node:fs")).readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
   assert.match(run, /for \(const q of freshQueries\(cat, now\)\)/);
 });
+
+// The noise check (21.11, the owner: "hit almost absolutely, no room for errors"). The day's real
+// risers were 82 → 178, 20 → 30 and 135 → 177 orders: the second is ten orders, the third a fake
+// "2026 New Intel Core i9" laptop. Picking the fastest of thousands picks luck too.
+test("fresh: growth that counting noise explains is never a riser (21.11's real numbers)", async () => {
+  const { growthEvidence, fdrKeep } = await import("../src/lib/growth/freshRisers.js");
+  const real = growthEvidence({ ordersBefore: 82, orders: 178, from: "2026-11-16", to: "2026-11-21" });
+  const tiny = growthEvidence({ ordersBefore: 20, orders: 30, from: "2026-11-17", to: "2026-11-21" });
+  const weak = growthEvidence({ ordersBefore: 135, orders: 177, from: "2026-11-17", to: "2026-11-21" });
+  assert.ok(real.p < 1e-5 && real.lowWeekPct > 100, JSON.stringify(real));
+  assert.ok(tiny.p > 0.1 && tiny.lowWeekPct < 0, JSON.stringify(tiny));
+  assert.ok(weak.p > 0.05, JSON.stringify(weak));
+  assert.equal(growthEvidence({ ordersBefore: 0, orders: 30, from: "2026-11-17", to: "2026-11-21" }), null);
+  // Benjamini–Hochberg: among 3,000 listings tested, a p of 0.07 is luck; 6.8e-7 holds.
+  const ps = [real.p, tiny.p, weak.p, ...Array.from({ length: 2997 }, (_, i) => 0.2 + (i % 80) / 100)];
+  assert.deepEqual([...fdrKeep(ps, 0.1)], [0]);
+  assert.deepEqual([...fdrKeep([0.001, 0.002, 0.5], 0.1)].sort(), [0, 1]);
+});
+
+test("fresh: a riser must beat the noise among everything tested that day; a low satisfaction share is out", () => {
+  const today = "2026-11-21";
+  const listing = (id, title, sat) => freshEntry(p(id, title, 100, sat ? { evaluate_rate: sat } : {}), { category: "home", today });
+  const pool = mergeFreshPool({}, [listing("1005004444441", "Cloud Night Light"), listing("1005004444442", "Tiny Desk Fan"), listing("1005004444443", "Soft Slippers", "82.0%"), listing("1005004444444", "Mini Grater", "97.1%")], { today });
+  const items = {
+    "1005004444441": [["2026-11-11", 60], ["2026-11-14", 82], ["2026-11-21", 178]], // real: +117%/week at the low end
+    "1005004444442": [["2026-11-17", 20], ["2026-11-21", 30]], // ten orders: noise, whatever else was tested
+    "1005004444443": [["2026-11-11", 60], ["2026-11-14", 82], ["2026-11-21", 178]], // fast, but 82% satisfied
+    "1005004444444": [["2026-11-11", 60], ["2026-11-14", 82], ["2026-11-21", 176]], // fast, 97% satisfied
+  };
+  const f = freshRisers(pool, items);
+  assert.deepEqual(f.risers.map((r) => r.id).sort(), ["1005004444441", "1005004444444"]);
+  assert.ok(f.risers.every((r) => r.lowPct > 0));
+  assert.equal(f.noise.tested, 4);
+  assert.equal(f.noise.fdr, FRESH.fdr);
+  assert.equal(pool["1005004444443"].sat, 82);
+});
+
+test("a component brand on a cheap laptop is a brand name (21.11: '2026 New Ultra Intel Core i9')", async () => {
+  const { hasBrandName } = await import("../src/lib/growth/deals.js");
+  assert.equal(hasBrandName("2026 New Ultra Intel Core i9 10980HK, 4K UHD, WiFi 6"), true);
+  assert.equal(hasBrandName("Gaming laptop RTX 4060"), true);
+  assert.equal(hasBrandName("Ceramic Mug Set"), false);
+  assert.equal(freshEntry(p("1005004444449", "2026 New Ultra Intel Core i9 Laptop", 150)), null);
+});

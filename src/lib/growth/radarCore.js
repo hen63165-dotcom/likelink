@@ -211,6 +211,7 @@ export const SOURCES = Object.freeze([
   { key: "fresh", he: "מוצרים חדשים של השנה", en: "This year's new listings", door: "API השותפים הרשמי" },
   { key: "discovery", he: "רשימות המוצרים החמים", en: "Hot product lists", door: "API השותפים הרשמי" },
   { key: "kinds", he: "קיבוץ לפי משמעות (בינה מלאכותית)", en: "Grouping by meaning (AI)", door: "מודל פתוח על השרת שלנו" },
+  { key: "looks", he: "קיבוץ לפי מראה בתמונות החנות (בינה מלאכותית)", en: "Grouping by look in the store photos (AI)", door: "מודל פתוח על השרת שלנו" },
   { key: "suggest", he: "הצעות החיפוש של גוגל", en: "Google search suggestions", door: "שירות ציבורי, לפי robots.txt" },
   { key: "youtube", he: "הצעות החיפוש של יוטיוב", en: "YouTube search suggestions", door: "שירות ציבורי, לפי robots.txt" },
   { key: "worldSearch", he: "חיפוש בגוגל במדינות אחרות", en: "Google search in other countries", door: "שירות ציבורי, לפי robots.txt" },
@@ -224,6 +225,7 @@ export const SOURCES = Object.freeze([
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
+  { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },
   { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt" },
   { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt" },
 ]);

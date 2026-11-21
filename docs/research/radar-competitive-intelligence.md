@@ -85,6 +85,22 @@ There is no access to Base44's code, so nothing about its internals is guessed. 
 | Build in public with real numbers | The daily post uses the board's numbers only; the run receipt is now public evidence |
 | Human review before shipping | Nothing posted, bought or published without the owner's yes |
 
+## The noise check (21.11, after the owner's "hit almost absolutely")
+
+A second worldwide search the same evening found no trend tool with a public, timestamped log of its
+calls including misses ([search results](https://trendalytics.co/trend-insights/pinterest-predicts-2026-what-trends-mean-for-your-brand),
+[roundup](https://axiobench.com/best/trend-forecasting-software/)): Pinterest's "88% over six years" and WGSN's "90–91%" are
+self-reported, with no list of calls. Statistics literature on detection in counts warns that small
+samples and many simultaneous tests inflate false positives ([Poisson false alarms](https://arxiv.org/pdf/2611.05510),
+[multiple comparisons](https://statsig.com/perspectives/a-guide-to-statistical-significance-in-product-analytics)).
+
+The radar's own audit that day: of the three new products it sealed, one grew 82 → 178 orders (beyond
+noise at p ≈ 7·10⁻⁷), one grew 20 → 30 (p ≈ 0.15: ten orders) and one was a "2026 New Intel Core i9"
+laptop at 135 → 177 (p ≈ 0.07, a fake-spec listing). Picking the fastest of ~6,000 small listings picks
+luck. From now on every small listing with two readings is a test, a riser needs Benjamini–Hochberg at
+a 10% false-discovery rate across all of them, a satisfaction share ≥ 90% when the store sent one, and
+component brands count as brand names. The two weak calls stay sealed in the record, misses included.
+
 ## Sources
 
 - WGSN: [AI and data](https://www.wgsn.com/en/what-we-do/ai-data), [Fashion buying](https://www.wgsn.com/en/wgsn-fashion-buying), [Fashion forecasting](https://www.wgsn.com/en/products/fashion-design), [comparison](https://ai-in-fashion.com/en/trend-forecasting-tools-compared/)

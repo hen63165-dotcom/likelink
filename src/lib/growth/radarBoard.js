@@ -104,6 +104,30 @@ const cleanSiteRow = (r) => (r && /^[\w-]{2,60}$/.test(String(r.id || "")) && HO
   ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to) }
   : null);
 
+// 📚 A kind's Wikipedia attention (wikiSignal.js): article titles, readers this week and the week
+// before, the last 30 days, and the monthly history. Numbers only; titles capped.
+const WIKI_TITLE = /^[^<>{}\[\]|#\n]{1,120}$/;
+function cleanAttention(a) {
+  if (!a || typeof a !== "object" || num(a.last7) === null || num(a.last30) === null) return null;
+  return { last7: num(a.last7), prev7: num(a.prev7), last30: num(a.last30), weekPct: num(a.weekPct), to: day(a.to) };
+}
+const MONTH = /^\d{4}-\d{2}$/;
+function cleanWikiHistory(h) {
+  if (!h || typeof h !== "object" || !MONTH.test(String(h.since || ""))) return null;
+  const m = (x) => (x && MONTH.test(String(x.month || "")) && num(x.views) !== null ? { month: x.month, views: num(x.views) } : null);
+  return { since: h.since, peak: m(h.peak), month: m(h.month), yoyPct: num(h.yoyPct), months: num(h.months) };
+}
+function cleanWiki(w) {
+  if (!w || typeof w !== "object" || !WIKI_TITLE.test(String(w.en || ""))) return null;
+  const a = cleanAttention(w.a);
+  if (!a) return null;
+  return { en: String(w.en), he: WIKI_TITLE.test(String(w.he || "")) ? String(w.he) : null, a, ah: cleanAttention(w.ah), h: cleanWikiHistory(w.h), rising: w.rising === true && Number.isFinite(a.weekPct) && a.weekPct >= 25 };
+}
+function cleanWikiSummary(s) {
+  if (!s || typeof s !== "object") return null;
+  return { articles: Math.max(0, num(s.articles) ?? 0), hebrew: Math.max(0, num(s.hebrew) ?? 0), rising: Math.max(0, num(s.rising) ?? 0), since: MONTH.test(String(s.since || "")) ? s.since : null };
+}
+
 function cleanRow(c) {
   if (!c || typeof c !== "object" || !ID.test(String(c.id || ""))) return null;
   const stage = STAGE_KEYS.has(c.stage) ? c.stage : "UNVERIFIED";
@@ -145,6 +169,7 @@ function cleanRow(c) {
     lifecycleHe: Object.hasOwn(LIFECYCLE, c.lifecycle) ? LIFECYCLE[c.lifecycle].he : null,
     alpha: cleanAlpha(c.alpha),
     explain: cleanExplain(c.explain),
+    wiki: cleanWiki(c.wiki),
   };
 }
 
@@ -170,6 +195,7 @@ export function sanitizeBoard(doc) {
     at: str(doc.at, 30),
     early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 5 ? 5 : 4, open: num(doc.early.open), record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, lead: doc.early.lead && typeof doc.early.lead === "object" ? Object.fromEntries(FINISH.map((k) => { const l = doc.early.lead[k] || {}; return [k, { met: num(l.met) ?? 0, ahead: num(l.ahead) ?? 0, medianDays: num(l.medianDays), waiting: num(l.waiting) ?? 0 }]; })) : null, calibration: doc.early.calibration && typeof doc.early.calibration === "object" ? Object.fromEntries(["signal", "sniper"].map((k) => { const r = doc.early.calibration[k] || {}; return [k, { graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0 }]; })) : null, ledger: (Array.isArray(doc.early.ledger) ? doc.early.ledger : []).slice(0, 40).filter((e) => ID.test(String(e?.concept || ""))).map((e) => ({ concept: e.concept, at: day(e.at), due: day(e.due), result: e.result === "HIT" || e.result === "MISS" ? e.result : null, growth: num(e.growth), progress: num(e.progress), dayN: num(e.dayN), firsts: Object.fromEntries(FINISH.filter((k) => day(e.firsts?.[k])).map((k) => [k, day(e.firsts[k])])) })).filter((e) => e.at), seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0, text: typeof doc.early.seal.text === "string" && doc.early.seal.text.length <= 30_000 && /^[a-z0-9|,\n-]*$/.test(doc.early.seal.text) ? doc.early.seal.text : null, ots: (Array.isArray(doc.early.seal.ots) ? doc.early.seal.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null } : null,
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
+    wiki: cleanWikiSummary(doc.wiki),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
     site: doc.site && typeof doc.site === "object" ? {
@@ -440,7 +466,7 @@ function cleanKinds(k) {
     }).filter(Boolean);
     if (!samples.length) return null;
     if (!x.known || num(x.known.similar) === null) return null; // shown only with its "nobody has heard of it yet" check
-    return { en: x.en, known: { similar: num(x.known.similar) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    return { en: x.en, via: x.via === "look" ? "look" : "meaning", known: { similar: num(x.known.similar) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));

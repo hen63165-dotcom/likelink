@@ -27,6 +27,7 @@ import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
+import { WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
 const codeOf = (x) => {
@@ -50,8 +51,8 @@ async function aeCall(method, biz, opts) {
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
-import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
-import { poolVectors } from "./radar-embed.mjs";
+import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, lookCandidates, mergeLooks, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
+import { poolImageVectors, poolVectors } from "./radar-embed.mjs";
 import { brainText, freshFeatures, kindFeatures, learn, likeThis, matchesPattern, sureState } from "../../src/lib/growth/radarBrain.js";
 import { PROMISE, addIssued, calibrate, cardRange, gradePromises, issuePromises, newPromiseState, promiseBoard, promiseSealText, samplePool } from "../../src/lib/growth/radarPromise.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
@@ -329,6 +330,22 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.kinds = "OK";
       log.push(`kinds by meaning: ${embedded} new titles embedded · ${kindVectors} listings · ${kindsToday.length} candidate kinds (${kindsToday.slice(0, 5).map((k) => `${k.en} ×${k.members.length} +${k.medianWeekPct}%`).join(", ") || "none"})`);
     } catch (err) { sources.kinds = "FAILED"; log.push(`kinds by meaning: ${String(err?.message || err).slice(0, 120)}`); }
+    // 👁️ The same look: the photos of the fast new listings, grouped when they look alike (newKinds.js
+    // lookCandidates / mergeLooks, the lens model on this runner). RADAR_LOOKS=0 turns it off.
+    sources.looks = "OFF";
+    if (env.RADAR_LOOKS !== "0" && sources.kinds === "OK") {
+      try {
+        const cands = lookCandidates(poolBefore, items);
+        const { vectors, cache, embedded, failed } = await poolImageVectors(cands, readJson(join(dir, "look-embeds.json"), {}), { fetchImpl, poolIds: new Set(Object.keys(poolBefore)) });
+        writeFileSync(join(dir, "look-embeds.json"), JSON.stringify(cache));
+        const sub = Object.fromEntries(cands.filter((e) => vectors[e.id]).map((e) => [e.id, e]));
+        const looks = newKinds(sub, items, vectors, { concepts: watch, rules: { ...KINDS, sim: KINDS.lookSim } });
+        const before = kindsToday.length;
+        kindsToday = mergeLooks(kindsToday, looks);
+        sources.looks = Object.keys(vectors).length ? "OK" : "FAILED";
+        log.push(`kinds by look: ${cands.length} fast listings · ${embedded} photos read today (${failed} failed) · ${Object.keys(vectors).length} with a vector · ${looks.length} look groups · ${kindsToday.length - before} new after merging (${looks.slice(0, 5).map((k) => `${k.en} ×${k.members.length} +${k.medianWeekPct}%`).join(", ") || "none"})`);
+      } catch (err) { sources.looks = "FAILED"; log.push(`kinds by look: ${String(err?.message || err).slice(0, 120)}`); }
+    }
   }
   const concepts = [...watch, ...discovered.filter(validConcept)];
   const listingsByKind = {};
@@ -664,6 +681,73 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // counts down from it, never from the cron.
   board.lastDaily = env.GITHUB_EVENT_NAME === "schedule" ? new Date(now).toISOString() : (typeof prevBoard.lastDaily === "string" ? prevBoard.lastDaily : null);
   board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
+  // 📚 Wikipedia attention (wikiSignal.js): every watched kind that has its own article, in English and
+  // in Hebrew: this week against last week, the last 30 days, and the history by month since 2016,
+  // from Wikimedia's free official Pageviews API. robots.txt first for every host; RADAR_WIKI=0 off.
+  if (env.RADAR_WIKI !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
+    const wikiState = readJson(join(dir, "wiki.json"), {});
+    const getJson = async (url) => {
+      const res = await fetchImpl(url, { headers: { "user-agent": WIKI.ua, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+      return { status: res.status, json: res.ok ? await res.json().catch(() => null) : null };
+    };
+    const doors = {};
+    for (const [k, d] of Object.entries({ summary: WIKI.summary, views: WIKI.views, data: WIKI.data })) {
+      try {
+        const r = await getText(`${d.host}/robots.txt`, fetchImpl);
+        doors[k] = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, d.path) : "failed";
+      } catch { doors[k] = "failed"; }
+    }
+    const ageDays = (d) => (d ? (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${d}T00:00:00Z`)) / 86_400_000 : Infinity);
+    let lookups = 0, failed = 0;
+    if (doors.summary === true) {
+      for (const c of board.concepts) {
+        if (!c.en || ageDays(wikiState[c.id]?.at) < WIKI.resolveEveryDays) continue;
+        if (lookups >= WIKI.maxLookups) break;
+        let found = null;
+        for (const title of candidateTitles(c.en)) {
+          lookups++;
+          try {
+            const r = await getJson(summaryUrl(title));
+            const s = r.status === 200 ? summaryOf(r.json) : null;
+            if (s && acceptTitle(c.en, title, s.title)) { found = s; break; }
+            if (r.status >= 500 || r.status === 429) failed++;
+          } catch { failed++; }
+          await pause(politeMs);
+        }
+        let he = null;
+        if (found?.q && doors.data === true) {
+          try { const r = await getJson(entityUrl(found.q)); he = r.status === 200 ? hebrewTitleOf(r.json, found.q) : null; } catch { failed++; }
+          await pause(politeMs);
+        }
+        wikiState[c.id] = { at: today, en: found?.title || null, q: found?.q || null, he };
+      }
+    }
+    const cards = [];
+    if (doors.views === true) {
+      const from = new Date(now - 60 * 86_400_000).toISOString().slice(0, 10);
+      const to = new Date(now - 86_400_000).toISOString().slice(0, 10);
+      const lastMonth = new Date(Date.parse(`${today.slice(0, 7)}-01T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+      for (const c of board.concepts) {
+        const st = wikiState[c.id];
+        if (!st?.en) continue;
+        try {
+          const a = attentionOf((await getJson(viewsUrl("en.wikipedia", st.en, { from, to }))).json);
+          await pause(politeMs);
+          const ah = st.he ? attentionOf((await getJson(viewsUrl("he.wikipedia", st.he, { from, to }))).json) : null;
+          if (ageDays(st.hAt) >= WIKI.historyEveryDays) {
+            const h = historyOf((await getJson(viewsUrl("en.wikipedia", st.en, { from: WIKI.since, to: lastMonth, granularity: "monthly" }))).json);
+            if (h) { st.h = h; st.hAt = today; }
+          }
+          if (a) { keep(meter, "wikipedia"); c.wiki = wikiCard({ en: st.en, he: st.he, a, ah, h: st.h || null }); cards.push(c.wiki); }
+        } catch { failed++; }
+        await pause(politeMs);
+      }
+    }
+    writeFileSync(join(dir, "wiki.json"), JSON.stringify(wikiState));
+    board.wiki = { ...wikiSummary(cards), doors };
+    sources.wikipedia = doors.views === "failed" || doors.summary === "failed" ? "FAILED" : doors.views !== true || doors.summary !== true ? "ROBOTS_DISALLOW" : cards.length ? "OK" : "FAILED";
+    log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
+  }
   // 📣 One pool for Telegram and Instagram (channelEngine.js radarPool): the listings HOT on their own
   // measured momentum (≥ +10% a week, ≥ 300 orders), per kind, with how many sellers were compared.
   if (env.RADAR_POOL !== "0") {
@@ -674,6 +758,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
   board.fresh.strict = freshRules.strict;
+  {
+    const n = board.fresh.noise || {};
+    log.push(`fresh noise check: ${n.tested ?? 0} small listings tested, ${n.fast ?? 0} looked fast, ${n.real ?? 0} beat counting noise (false discoveries held at ${Math.round((n.fdr ?? 0) * 100)}%), ${board.fresh.risers.length} candidates`);
+  }
   // ⏳ Every listing count read for a phrase today (new products and new kinds, shown or not): the
   // window clock's data (radarWindow.js).
   const phraseReads = {};

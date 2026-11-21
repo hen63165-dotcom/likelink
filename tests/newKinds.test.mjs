@@ -123,3 +123,65 @@ test("a kind reaches the page only with its 'nobody heard of it yet' check (20.1
   const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
   assert.match(run, /unknownCheck\(\{ phrase: k\.en, similar, suggestions \}\)/);
 });
+
+// 👁️ The same look (21.11, past Heuritech: it reads what people already post; the radar reads the
+// store photos of new listings before anyone wears them). Fast listings only, photos grouped when
+// they look alike, the same rules as the kinds by meaning, merged without repeating a kind.
+test("looks: only growing listings are looked at; look groups join the kinds without repeating one", async () => {
+  const { KINDS, lookCandidates, mergeLooks, newKinds } = await import("../src/lib/growth/newKinds.js");
+  const pool = {};
+  const items = {};
+  const add = (id, title, before, now) => {
+    pool[id] = { id, title, image: `https://ae01.alicdn.com/kf/${id}.jpg`, link: `https://s.click.aliexpress.com/e/_${id}`, category: "home", first: "2026-11-10", orders: now };
+    items[id] = [["2026-11-14", before], ["2026-11-21", now]];
+  };
+  add("1005005000001", "Ripple Glass Vase Wavy Flower", 40, 80);
+  add("1005005000002", "Wavy Ripple Glass Vase Modern", 50, 90);
+  add("1005005000003", "Ripple Glass Vase Bud Wavy", 60, 100);
+  add("1005005000004", "Desk Organizer Plain", 100, 101); // slow: never looked at
+  const cands = lookCandidates(pool, items);
+  assert.deepEqual(cands.map((e) => e.id).sort(), ["1005005000001", "1005005000002", "1005005000003"]);
+  // Three photos that look alike (cosine ≥ lookSim), whatever their titles say.
+  const v = (x) => [1, x, 0, 0];
+  const vectors = { "1005005000001": v(0.1), "1005005000002": v(0.12), "1005005000003": v(0.08) };
+  const looks = newKinds(Object.fromEntries(cands.map((e) => [e.id, e])), items, vectors, { rules: { ...KINDS, sim: KINDS.lookSim, minOrders: 200 } });
+  assert.equal(looks.length, 1);
+  assert.equal(looks[0].en, "glass vase");
+  const merged = mergeLooks([], looks);
+  assert.equal(merged[0].via, "look");
+  // The same thing found by meaning first is kept once, as meaning.
+  assert.deepEqual(mergeLooks([{ ...looks[0], via: undefined }], looks).map((k) => k.via), ["meaning"]);
+});
+
+test("looks: the photo vectors are kept between runs; a photo that fails is skipped, never guessed", async () => {
+  const { poolImageVectors, thumbUrl } = await import("../scripts/catalog/radar-embed.mjs");
+  assert.equal(thumbUrl("https://ae01.alicdn.com/kf/S1.jpg"), "https://ae01.alicdn.com/kf/S1.jpg_350x350.jpg");
+  assert.equal(thumbUrl("https://ae01.alicdn.com/kf/S1.jpg_220x220.jpg"), "https://ae01.alicdn.com/kf/S1.jpg_220x220.jpg");
+  const asked = [];
+  const load = async () => async (url) => { asked.push(url); if (url.includes("bad")) throw new Error("photo 404"); return [0.6, 0.8]; };
+  const entries = [{ id: "1", image: "https://ae01.alicdn.com/kf/a.jpg" }, { id: "2", image: "https://ae01.alicdn.com/kf/bad.jpg" }];
+  const first = await poolImageVectors(entries, {}, { load, model: "m" });
+  assert.equal(first.embedded, 1);
+  assert.equal(first.failed, 1);
+  assert.deepEqual(Object.keys(first.vectors), ["1"]);
+  const again = await poolImageVectors(entries.slice(0, 1), first.cache, { load, model: "m" });
+  assert.equal(again.embedded, 0);
+  assert.equal(asked.length, 2);
+});
+
+test("kinds: the members' orders together must grow beyond counting noise (21.11)", async () => {
+  const { KINDS, newKinds } = await import("../src/lib/growth/newKinds.js");
+  const pool = {};
+  const items = {};
+  const add = (id, title, before, now) => {
+    pool[id] = { id, title, image: `https://ae01.alicdn.com/kf/${id}.jpg`, link: `https://s.click.aliexpress.com/e/_${id}`, category: "home", first: "2026-11-10", orders: now };
+    items[id] = [["2026-11-14", before], ["2026-11-21", now]];
+  };
+  // Three tiny listings at +50% each and one big flat one: the median says +50%, together it is noise.
+  add("1005006000001", "Ripple Glass Vase Wavy", 4, 6);
+  add("1005006000002", "Wavy Ripple Glass Vase", 4, 6);
+  add("1005006000003", "Ripple Glass Vase Bud", 4, 6);
+  add("1005006000004", "Ripple Glass Vase Big", 300, 300);
+  const v = { "1005006000001": [1, 0.1], "1005006000002": [1, 0.11], "1005006000003": [1, 0.09], "1005006000004": [1, 0.1] };
+  assert.equal(newKinds(pool, items, v, { rules: { ...KINDS, minOrders: 100 } }).length, 0);
+});

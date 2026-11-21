@@ -27,7 +27,58 @@ export const FRESH = Object.freeze({
   show: 12,
   maxSimilar: 2000, // more matching listings than this = many sellers already copy it: saturated
   checkUpTo: 24, // candidates checked a day (two reads each)
+  // The noise check (21.11, the owner: "hit almost absolutely, no room for errors"). Picking the
+  // fastest of ~6,000 small listings picks luck too: 20 → 30 orders reads "+103% a week" and is ten
+  // orders. A riser is shown only when its growth beats a modest rise (nullWeekPct) beyond what
+  // counting noise explains, with the false discoveries among all the listings tested that day held
+  // at fdr (Benjamini–Hochberg).
+  nullWeekPct: 20,
+  fdr: 0.1,
+  minSat: 90, // the store's own satisfaction share, when it sent one (used to choose only, never shown)
 });
+
+const dayGap = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000;
+// The standard normal's upper tail (Abramowitz–Stegun 7.1.26, |error| < 1.5e-7).
+function upperTail(z) {
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const erfc = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) * Math.exp(-x * x);
+  return z >= 0 ? erfc / 2 : 1 - erfc / 2;
+}
+
+/**
+ * How sure the growth is beyond counting noise (pure): the orders then and now treated as counts
+ * (Poisson), the log of their ratio against a weekly rise of nullWeekPct over the same span.
+ * `p`: the chance noise alone shows this much growth on an item that rose only nullWeekPct a week;
+ * `lowWeekPct`: the weekly growth at the low end (one-sided 95%). An approximation: 30-day counts
+ * read days apart overlap, so it is a noise check, never a forecast. null without two readings.
+ */
+export function growthEvidence(m, { nullWeekPct = FRESH.nullWeekPct } = {}) {
+  if (!m || !m.from || !m.to) return null;
+  return growthOverDays({ before: m.ordersBefore, after: m.orders, days: dayGap(m.from, m.to) }, { nullWeekPct });
+}
+
+/** The same noise check for counts read `days` apart (a kind's members together, newKinds.js). */
+export function growthOverDays({ before, after, days } = {}, { nullWeekPct = FRESH.nullWeekPct } = {}) {
+  if (!(after > 0) || !(before > 0) || !(days > 0)) return null;
+  const m = { orders: after, ordersBefore: before };
+  const span = days;
+  const lr = Math.log(m.orders / m.ordersBefore);
+  const se = Math.sqrt(1 / m.orders + 1 / m.ordersBefore);
+  const z = (lr - Math.log(1 + nullWeekPct / 100) * (span / 7)) / se;
+  const lowWeekPct = Math.round((Math.exp(((lr - 1.6449 * se) * 7) / span) - 1) * 1000) / 10;
+  return { p: upperTail(z), z: Math.round(z * 100) / 100, lowWeekPct };
+}
+
+/** Benjamini–Hochberg (pure): the indices kept among the p-values at false-discovery rate q. */
+export function fdrKeep(ps = [], q = FRESH.fdr) {
+  const order = ps.map((p, i) => [p, i]).filter(([p]) => Number.isFinite(p)).sort((a, b) => a[0] - b[0]);
+  let k = 0;
+  order.forEach(([p], r) => { if (p <= ((r + 1) / order.length) * q) k = r + 1; });
+  return new Set(order.slice(0, k).map(([, i]) => i));
+}
+
+const satOf = (v) => { const n = Number.parseFloat(String(v ?? "").replace("%", "")); return Number.isFinite(n) && n > 0 && n <= 100 ? n : null; };
 
 /**
  * "Nobody has heard of it yet" (the owner, 2026-11-16: "only things nobody in Israel or the world
@@ -86,7 +137,8 @@ export function freshEntry(p, { category = "", today = "" } = {}) {
   if (!/^\d{6,20}$/.test(id) || !BUY.test(link) || !IMG.test(image) || !title || !Number.isFinite(orders)) return null;
   if (hasBrandName(title) || isNotListedKind(title)) return null;
   const price = Number(p.target_sale_price ?? p.sale_price);
-  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders };
+  const sat = satOf(p.evaluate_rate);
+  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders, ...(sat !== null ? { sat } : {}) };
 }
 
 /** The pool after today's answers: new ids join, known ones refresh, unseen ones leave after keepDays. */
@@ -106,17 +158,27 @@ export function mergeFreshPool(pool = {}, entries = [], { today, rules = FRESH }
 /** Today's fresh risers from the pool and the item histories (items.json), fastest first. */
 export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
   const entries = Object.values(pool || {});
-  const rows = [];
+  // Every small listing with two readings is one test, whether or not it looks fast: the noise check
+  // counts all of them, so taking the fastest of thousands cannot pass luck as a trend.
+  const tested = [];
   for (const e of entries) {
     const m = itemMomentum(items?.[e.id] || [], { rules: HOT });
-    if (m.weekPct === null || !(m.orders >= rules.minOrders) || m.orders > rules.maxOrders || m.weekPct < rules.minWeekPct) continue;
-    const before = itemMomentum((items?.[e.id] || []).slice(0, -1), { rules: HOT });
-    if (before.weekPct === null || before.weekPct < rules.heldWeekPct) continue;
-    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
+    if (m.weekPct === null || !(m.orders >= rules.minOrders) || m.orders > rules.maxOrders) continue;
+    tested.push({ e, m, ev: growthEvidence(m, { nullWeekPct: rules.nullWeekPct ?? FRESH.nullWeekPct }) });
   }
-  rows.sort((a, b) => b.weekPct - a.weekPct || a.orders - b.orders);
+  const real = fdrKeep(tested.map((x) => x.ev?.p), rules.fdr ?? FRESH.fdr);
+  const rows = [];
+  tested.forEach(({ e, m, ev }, i) => {
+    if (m.weekPct < rules.minWeekPct || !real.has(i)) return;
+    if (Number.isFinite(e.sat) && e.sat < (rules.minSat ?? FRESH.minSat)) return;
+    const before = itemMomentum((items?.[e.id] || []).slice(0, -1), { rules: HOT });
+    if (before.weekPct === null || before.weekPct < rules.heldWeekPct) return;
+    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
+  });
+  rows.sort((a, b) => b.lowPct - a.lowPct || b.weekPct - a.weekPct || a.orders - b.orders);
   const since = entries.map((e) => e.first).filter(Boolean).sort()[0] || null;
-  return { tracking: entries.length, since, risers: rows.slice(0, rules.show) };
+  const fastRaw = tested.filter(({ m }) => m.weekPct >= rules.minWeekPct).length;
+  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
 }
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
@@ -129,7 +191,7 @@ const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000
  */
 export function freshBar(record, { rules = FRESH } = {}) {
   const strict = Number(record?.graded) >= 10 && Number.isFinite(record?.accuracy) && record.accuracy < 80;
-  return strict ? { ...rules, minWeekPct: rules.minWeekPct * 1.5, heldWeekPct: rules.heldWeekPct * 2, strict: true } : { ...rules, strict: false };
+  return strict ? { ...rules, minWeekPct: rules.minWeekPct * 1.5, heldWeekPct: rules.heldWeekPct * 2, fdr: (rules.fdr ?? FRESH.fdr) / 2, strict: true } : { ...rules, strict: false };
 }
 
 /** Today's risers saved as calls (one open call per item), each due 14 days later. */
