@@ -60,6 +60,9 @@ export function teaserBoard(board) {
     ledger: board.ledger ? { d: board.ledger.d, sha256: board.ledger.sha256, count: board.ledger.count, text: board.ledger.text, ots: board.ledger.ots || [] } : null,
     // The Bitcoin anchors of past days' roots: public for the same reason (block numbers and roots, no call).
     anchors: board.anchors || null,
+    // 📡 What the run read today: states only, never a find, so it stays public.
+    sourcesToday: board.sourcesToday || null,
+    lastDaily: board.lastDaily || null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.
     window: board.window ? { v: board.window.v, at: board.window.at, line: board.window.line, horizons: board.window.horizons || [], record: board.window.record || [], issued: board.window.issued || 0, open: board.window.open || 0, nextDue: board.window.nextDue || null, recent: [], seal: board.window.seal ? { d: board.window.seal.d, sha256: board.window.seal.sha256, count: board.window.seal.count, ots: board.window.seal.ots || [] } : null } : null,
     // 📐 The proven range: the method's state and the coverage record are public; the day's ranges

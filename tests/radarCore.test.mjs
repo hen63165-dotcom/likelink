@@ -85,3 +85,21 @@ test("the core's words say what IS: no promise, no certainty, no 'לא'/'אין'
   assert.doesNotMatch(hebrew, /יהיה להיט|בטוח|מובטח|הכי נמכר|תחזית|היחיד/);
   assert.doesNotMatch(src, /guarantee|the only one|sure hit/i);
 });
+
+test("what the radar read today: the run's own states, mapped once, unknown keys dropped, public behind the lock", async () => {
+  const { sourcesView, byCategory, SOURCE_STATES, NEXT_DOORS } = await import("../src/lib/growth/radarCore.js");
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const { teaserBoard } = await import("../src/lib/growth/radarGate.js");
+  const board = sanitizeBoard({ v: 2, at: "2026-11-21T06:00:00Z", record: {}, concepts: [], sourcesToday: { aliexpress: "OK", pinterest: "REQUIRES_CONNECTION", engine_naver: "ROBOTS_DISALLOW_OR_FAILED", youtubeApi: "NOT_ASKED", kinds: "FAILED", world: { categories: 564, readToday: 120 }, "<script>": "OK", fresh: "<img>" } });
+  assert.deepEqual(Object.keys(board.sourcesToday).sort(), ["aliexpress", "engine_naver", "kinds", "pinterest", "world", "youtubeApi"]);
+  const v = Object.fromEntries(sourcesView(board.sourcesToday).map((x) => [x.key, x.state]));
+  assert.deepEqual(v, { aliexpress: "OK", world: "OK", kinds: "FAILED", youtubeApi: "SKIPPED", pinterest: "REQUIRES_CONNECTION", engine_naver: "CLOSED" });
+  for (const s of Object.values(SOURCE_STATES)) assert.doesNotMatch(s.he, /(^|\s)(לא|אין)(\s|$)/);
+  assert.ok(NEXT_DOORS.every((d) => d.door && d.he));
+  assert.deepEqual(teaserBoard(board).sourcesToday, board.sourcesToday);
+  // The record per category, from the category each call carried the day it was made.
+  const cats = byCategory([{ f: { category: "rings" }, result: "HIT" }, { f: { category: "rings" }, result: "MISS" }, { f: { category: "pets" } }, { category: "" }]);
+  assert.deepEqual(cats, [{ category: "rings", calls: 2, graded: 2, hits: 1 }, { category: "pets", calls: 1, graded: 0, hits: 0 }]);
+  const page = readFileSync("src/components/discover/radar.jsx", "utf8");
+  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} \/>/);
+});

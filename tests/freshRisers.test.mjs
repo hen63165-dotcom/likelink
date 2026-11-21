@@ -104,3 +104,12 @@ test("fashion pieces are read every day with the categories (the owner, 2026-11-
   const run = (await import("node:fs")).readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
   assert.match(run, /\.\.\.WAVE_AREAS, \.\.\.FASHION_AREAS\]/);
 });
+
+test("an area whose long search finds nothing is tried again with shorter words (audit, 21.11)", async () => {
+  const { freshQueries } = await import("../src/lib/growth/freshRisers.js");
+  const now = Date.parse("2026-11-21T06:00:00Z");
+  assert.deepEqual(freshQueries({ keywords: "handheld electronic gadget screen" }, now), ["handheld electronic gadget screen 2026 new", "handheld electronic 2026 new", "handheld electronic new"]);
+  assert.deepEqual(freshQueries({ keywords: "rings" }, now), ["rings 2026 new", "rings new"]);
+  const run = (await import("node:fs")).readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /for \(const q of freshQueries\(cat, now\)\)/);
+});

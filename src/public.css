@@ -1245,6 +1245,10 @@ html body .lx img {
 .lx-rdr-record a { color: inherit; text-decoration: none; }
 .lx-rdr-record a:hover, .lx-rdr-record a:focus-visible { text-decoration: underline; }
 .lx-rdr-seal { margin-inline-end: 6px; }
+.lx-rdr-pill { flex: 0 0 auto; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.lx-rdr-pill.is-run { background: var(--lx-mint-soft); color: var(--lx-mint); }
+.lx-rdr-pill.is-slow { background: var(--lx-sunk); color: var(--lx-ink-2); }
+.lx-rdr-pill.is-exit { background: var(--lx-rose-soft); color: var(--lx-rose-ink); }
 .lx-rdr-how > summary { cursor: pointer; width: fit-content; font-size: 13px; font-weight: 800; color: var(--lx-mute); }
 .lx-rdr-how > summary:hover, .lx-rdr-how > summary:focus-visible { color: var(--lx-ink); }
 .lx-rdr-how[open] > summary { color: var(--lx-ink); }

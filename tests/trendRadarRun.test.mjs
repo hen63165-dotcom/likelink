@@ -105,6 +105,8 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.deepEqual(r2.board.window.horizons.map((h) => h.h), [3, 7, 14]);
   assert.equal(r2.board.window.line, 2000);
   assert.ok(sanitizeBoard(r2.board).window, "the window clock survives the sanitizer");
+  // 🚪 Every earlier find gets its exit signal (radarCore.js exitSignal).
+  assert.ok(Array.isArray(r2.board.fresh.watch));
 
   const butter = r2.board.concepts.find((c) => c.id === "butter-squishy");
   assert.equal(butter.stage, "EMERGING");
