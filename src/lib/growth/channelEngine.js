@@ -439,9 +439,22 @@ const fmtTime = (iso) => {
   return `${d.getUTCDate()}.${d.getUTCMonth() + 1} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 };
 
+/** A store title cut at a whole word (≤ 60 characters), never mid-word or after a comma. */
+export function shortName(t = "", max = 60) {
+  const s = String(t || "").replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s.replace(/[,\s·-]+$/u, "");
+  const cut = s.slice(0, max + 1);
+  const at = cut.lastIndexOf(" ");
+  let out = (at > 20 ? cut.slice(0, at) : s.slice(0, max)).replace(/[,\s·-]+$/u, "");
+  // Never end on a word that needs the next one ("עם דמויות של").
+  const DANGLING = /\s(?:של|עם|על|את|בין|או|גם|לכל|עבור|כמו|ל|ב|מ|ו|ה)$/u;
+  while (DANGLING.test(out)) out = out.replace(DANGLING, "").replace(/[,\s·-]+$/u, "");
+  return out;
+}
+
 /** The Hebrew name shown: the store's Hebrew title, or the verified Hebrew title from the send-time check. */
 export function hebrewName(c = {}) {
-  for (const t of [c.verified?.title, c.title, c.storeTitle]) if (isHebrew(t)) return String(t).replace(/\s+/g, " ").trim().slice(0, 90);
+  for (const t of [c.verified?.title, c.title, c.storeTitle]) if (isHebrew(t)) return shortName(t);
   return null;
 }
 

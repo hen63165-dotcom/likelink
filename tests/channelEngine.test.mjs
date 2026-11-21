@@ -279,3 +279,11 @@ test("the photo check (lens on the runner): its own kind first, or top three wit
   const r = rankCandidates(candidatesFrom({ ...board(), site: { hot: [] }, fresh: { risers: [] }, pool: clean.pool }, products(), { now: NOW }), { now: NOW });
   assert.equal(r.rejected[0].reason, "photo_shows_another_kind");
 });
+
+test("the product name in a post is cut at a whole word (21.11: 'איכות ' and 'אביזרי' cut mid-sentence)", async () => {
+  const { shortName } = await import("../src/lib/growth/channelEngine.js");
+  const t = "מדבקות ציפורניים אטמוספירה לחג החורף ולחג המולד עם דמויות של איש שלג, שלג ווואפיטי, איכות גבוהה";
+  const s = shortName(t);
+  assert.ok(s.length <= 60 && t.startsWith(s) && t[s.length] === " ", s);
+  assert.equal(shortName("מתקן סבון אוטומטי ללא מגע,"), "מתקן סבון אוטומטי ללא מגע");
+});
