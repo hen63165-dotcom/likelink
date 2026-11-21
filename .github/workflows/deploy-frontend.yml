@@ -216,6 +216,8 @@ jobs:
         env:
           # The owner's group (19.11, "מועדון הדיופים של הדיופרית"): its public invite link, shown on the page.
           WA_GROUP_LINK: https://chat.whatsapp.com/B7A3mtIPiiE4NEpJDLdGtU
+          # Her Telegram channel, for the join line under each engine post (the same as in Telegram).
+          TG_CHANNEL_LINK: https://t.me/likelink_deals
         run: |
           python3 -c 'import PIL' 2>/dev/null || python3 -m pip install --quiet --break-system-packages pillow || python3 -m pip install --quiet pillow
           node scripts/marketing/whatsapp-kit.mjs dist || echo "::warning::whatsapp kit skipped"

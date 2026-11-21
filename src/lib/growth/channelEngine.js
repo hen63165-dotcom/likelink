@@ -541,6 +541,22 @@ export function instagramPackage(pick = {}, { link = pick.link } = {}) {
 }
 
 /**
+ * The day's posts for a channel she sends by hand (the WhatsApp group page): the strongest ranked
+ * candidates, one per trend, in rank order — the same engine as Telegram, never a second selection.
+ */
+export function dailyPicks(ranked = [], { max = 6 } = {}) {
+  const seen = new Set();
+  const out = [];
+  for (const c of Array.isArray(ranked) ? ranked : []) {
+    if (seen.has(c.trend?.key)) continue;
+    seen.add(c.trend?.key);
+    out.push(c);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/**
  * The full plan for one moment: candidates → ranking → each channel's pick (Telegram and Instagram
  * from the same ranking), with every rejection and skip named. Used by the server and the preview.
  */
