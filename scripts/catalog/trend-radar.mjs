@@ -26,6 +26,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
+import { measuredStates, meterFetch, newMeter, receiptOf, receiptText } from "../../src/lib/growth/runReceipt.js";
 
 // 🏷️ המבצע האמיתי (realDeal.js): every AliExpress answer this run reads also leaves each item's
 // shekel "from" price for today in the price ledger (prices.json), sealed per day below.
@@ -158,6 +159,11 @@ async function suggestCount(phrase, opts, fetchImpl) {
 
 export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now(), budgetMs = 240_000, suggestBudgetMs = 1_200_000, politeMs = 300 } = {}) {
   mkdirSync(dir, { recursive: true });
+  // 🧾 The run receipt (runReceipt.js): every request of this run goes through one metered fetch, so a
+  // source is "read" only when its host really answered, and the page shows those counts, not claims.
+  const meter = newMeter();
+  const runStarted = Date.now();
+  fetchImpl = meterFetch(fetchImpl, meter);
   const { concepts: listed = [] } = readJson("scripts/catalog/radar-concepts.json", {});
   const watch = listed.filter(validConcept);
   const readings = readJson(join(dir, "readings.json"), {});
@@ -509,14 +515,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
       const rot = worldSlice(world.list || [], world.cursor);
       const wStarted = Date.now();
-      let read = 0;
-      let restRead = 0;
+      let read = 0; // categories the store answered (with listings or empty), never an error
+      let withItems = 0;
+      let empty = 0;
+      let failed = 0;
+      let restRead = 0; // asked, for the rotation's cursor
+      let restAnswered = 0;
       for (const cat of rot.slice) {
         if (Date.now() - wStarted > WORLD.budgetMs) { log.push(`world: budget over at ${cat.id}`); break; }
         try {
           const res = await aeCall(SEARCH, { category_ids: cat.id, keywords: `${new Date(now).getUTCFullYear()} new`, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
           const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
-          const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+          const code = Number(r?.resp_code);
+          const raw = code === 200 ? r.result?.products?.product : null;
+          const answered = code === 200 || code === 405;
+          if (code === 200 && raw) withItems++;
+          else if (answered) empty++;
+          else { failed++; log.push(`world ${cat.id}: resp ${r?.resp_code ?? "none"}`); }
+          if (answered) { read++; if (!rot.slice.slice(0, rot.fashion).includes(cat)) restAnswered++; }
           for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
             const entry = freshEntry(p, { category: `world-${cat.id}`, today });
             if (!entry) continue;
@@ -529,9 +545,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
             const hraw = Number(hr?.resp_code) === 200 ? hr.result?.products?.product : null;
             waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
           }
-          read++;
           if (!rot.slice.slice(0, rot.fashion).includes(cat)) restRead++;
         } catch (err) {
+          failed++;
           const msg = String(err?.message || err);
           log.push(`world ${cat.id}: ${msg.slice(0, 60)}`);
           // The store's own limit: stop for today, the cursor keeps the place.
@@ -544,8 +560,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         world.cursor = done.next;
         writeFileSync(join(dir, "world-categories.json"), JSON.stringify(world));
       }
-      sources.world = rot.total ? { categories: rot.total, readToday: read, fashionDaily: rot.fashion, fullRoundDays: rot.days } : "FAILED";
-      log.push(`world: ${read}/${rot.slice.length} categories read today (${rot.fashion} fashion, every day) · ${rot.total} in the tree · the rest every ${rot.days} days`);
+      // A full round in days at the pace the store really answered today (null when none answered).
+      const restTotal = Math.max(0, rot.total - rot.fashion);
+      const roundDays = restAnswered ? Math.ceil(restTotal / restAnswered) : null;
+      sources.world = rot.total ? { categories: rot.total, asked: withItems + empty + failed, readToday: read, withItems, empty, failed, fashionDaily: rot.fashion, fullRoundDays: roundDays } : "FAILED";
+      log.push(`world: ${read}/${rot.slice.length} categories answered today (${withItems} with listings, ${empty} empty, ${failed} failed; ${rot.fashion} fashion every day) · ${rot.total} in the tree · at today's pace a full round every ${roundDays ?? "?"} days`);
     }
     freshPool = mergeFreshPool(freshPool, entries, { today });
     sources.fresh = entries.length ? "OK" : "FAILED";
@@ -1059,7 +1078,19 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
-  const rootText = ledgerText({ early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  // 🧾 The receipt, taken here (every reading and every book's seal are in it; the root's own seal and
+  // the Bitcoin check come after). The page's source states are the run's claims checked against it,
+  // the exact text is printed in the public GitHub log and sealed as the book "run".
+  {
+    const receipt = receiptOf(meter, { env, started: runStarted, finished: Date.now() });
+    board.sourcesToday = measuredStates(sources, receipt);
+    const changed = Object.keys(sources).filter((k) => JSON.stringify(sources[k]) !== JSON.stringify(board.sourcesToday[k]));
+    if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${JSON.stringify(sources[k])} → ${board.sourcesToday[k]})`).join(", ")}`);
+    const text = receiptText(receipt);
+    board.receipt = { ...receipt, seal: text ? await sealBook({ text, count: text.split("\n").length }, null, "run") : null };
+    log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
+  }
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

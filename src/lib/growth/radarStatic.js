@@ -6,6 +6,8 @@
 // ledger and today's record), never crawler-only text or links. Pure: the build passes the public
 // board when it could read it; without one, only the fixed facts are written.
 
+import { receiptTotals } from "./runReceipt.js";
+
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const fmt = (n) => Number(n).toLocaleString("en-US");
@@ -26,7 +28,14 @@ export function radarStaticMain(board = null) {
   const hits = num(rec?.hits) ?? 0;
   const ledger = board?.ledger && /^[0-9a-f]{64}$/.test(String(board.ledger.sha256 || "")) ? board.ledger : null;
   const today = [];
-  if (world) today.push(`<li>הרדאר קרא ${fmt(world.readToday ?? 0)} קטגוריות של אליאקספרס מתוך ${fmt(world.categories)}${num(world.fashionDaily) ? `, ומתוכן ${fmt(world.fashionDaily)} של אופנה בכל יום` : ""}.</li>`);
+  // Only counts the run made from real answers (boards before 21.11 counted a store error as "read").
+  if (world && num(world.asked)) today.push(`<li>אליאקספרס ענתה על ${fmt(world.readToday ?? 0)} מתוך ${fmt(world.asked)} הקטגוריות שהרדאר שאל (${fmt(world.withItems ?? 0)} עם מוצרים חדשים), מתוך ${fmt(world.categories)} בעץ הקטגוריות שלה.</li>`);
+  const receipt = board?.receipt && /^\d{4}-\d{2}-\d{2}T/.test(String(board.receipt.started || "")) ? board.receipt : null;
+  if (receipt) {
+    const t = receiptTotals(receipt);
+    const run = receipt.run && /^https:\/\/github\.com\/hen63165-dotcom\/likelink\/actions\/runs\/\d+$/.test(String(receipt.run.url || "")) ? receipt.run : null;
+    today.push(`<li>קבלת הריצה של ${esc(dm(receipt.started.slice(0, 10)))}: הרדאר שלח ${fmt(t.asked)} שאלות, ${fmt(t.answered)} ענו עם נתונים${run ? `. היומן הציבורי של הריצה: <a href="${esc(run.url)}">GitHub, ריצה ${esc(run.id)}</a>` : ""}.</li>`);
+  }
   if (num(board?.fresh?.tracking)) today.push(`<li>${fmt(board.fresh.tracking)} מוצרים חדשים במעקב יומי.</li>`);
   today.push(graded
     ? `<li>עד היום ${fmt(graded)} קביעות קיבלו ציון בפומבי, ${fmt(hits)} מהן פגיעות.</li>`
@@ -36,7 +45,7 @@ export function radarStaticMain(board = null) {
   if (anchor && /^[0-9a-f]{64}$/.test(String(anchor.block || "")) && Number.isInteger(anchor.height)) today.push(`<li>ספר החתימות של ${esc(dm(anchor.d))} נמצא בתוך בלוק ביטקוין <a href="https://mempool.space/block/${esc(anchor.block)}">#${esc(String(anchor.height))}</a> (נבדק מול שורש המרקל של הבלוק)</li>`);
   return `<main>
           <h1>רדאר הטרנדים של LikeLink2</h1>
-          <p>כל בוקר הרדאר קורא את אליאקספרס: את כל 564 הקטגוריות בסבב של כשבוע, ואת כל האופנה בכל יום. הוא מודד את קצב ההזמנות, כמה מוכרים חדשים מצטרפים ואת המחיר, בודק אם כבר מחפשים את המוצר בגוגל וביוטיוב בעברית, ובודק אותו ב־15 מדינות. הוא קובע רק כשכל 4 הסימנים מסכימים: העולם, הביקוש, המוכרים וישראל.</p>
+          <p>כל בוקר הרדאר שואל את אליאקספרס על הקטגוריות שלה: את האופנה בכל יום ואת השאר בסבב. הוא מודד את קצב ההזמנות, כמה מוכרים חדשים מצטרפים ואת המחיר, בודק אם כבר מחפשים את המוצר בגוגל וביוטיוב בעברית, ובודק את החיפוש בגוגל במדינות אחרות. כמה שאלות נשלחו וכמה ענו בכל ריצה: בקבלת הריצה, עם היומן הציבורי שלה. הוא קובע רק כשכל 4 הסימנים מסכימים: העולם, הביקוש, המוכרים וישראל.</p>
           <h2>איך יודעים שזה אמיתי?</h2>
           <p><strong>${esc(RADAR_CLAIM.he)}</strong> (לפי בדיקה עולמית מ־${esc(dm(RADAR_CLAIM.checked))})</p>
           <ul>
@@ -52,7 +61,7 @@ export function radarStaticMain(board = null) {
           <h2>מה הרדאר מודד</h2>
           <ul>
             <li>פער ישראל: האם כבר מחפשים את זה בעברית, בגוגל וביוטיוב, מול מה שקורה בעולם.</li>
-            <li>השעון העולמי: באיזה יום טרנד הגיע לכל אחת מ־15 מדינות, והקביעה החתומה איזו מדינה הבאה.</li>
+            <li>השעון העולמי: באיזה יום טרנד הגיע לכל מדינה שהשעון מודד, והקביעה החתומה איזו מדינה הבאה.</li>
             <li>מוצרים חדשים שמתחילים לרוץ: מוצרים קטנים שההזמנות שלהם גדלות מהר, עם מעט מוכרים ובלי באז ברשתות.</li>
             <li>המבצע האמיתי: מחיר החנות של כל מוצר נרשם ונחתם כל יום, כדי לבדוק אם "מבצע" הוא באמת מבצע.</li>
             <li>החוש השישי: כל אחד יכול לבחור מוצר מול הרדאר, עם קבלה חתומה וציון באותו כלל בדיוק.</li>
@@ -63,7 +72,7 @@ export function radarStaticMain(board = null) {
             ${today.join("\n            ")}
           </ul>
           <h2 lang="en" dir="ltr">In English</h2>
-          <p lang="en" dir="ltr">Every morning the LikeLink2 radar reads AliExpress (all 564 categories in about a week, all of fashion daily), checks Google and YouTube searches in Hebrew and in 15 countries, and makes a call only when all four signals agree. ${esc(RADAR_CLAIM.en)} (Per a worldwide check on ${esc(dm(RADAR_CLAIM.checked))}.) Each day's books are hashed with SHA-256 and timestamped in Bitcoin through OpenTimestamps, so anyone can check that nothing was added, removed or changed later. Beside the calls, one kind is drawn at random each day (seeded by the hash of that day's sealed store prices) and graded by the same rule, so the record shows the radar against luck.</p>
+          <p lang="en" dir="ltr">Every morning the LikeLink2 radar asks AliExpress about its categories (fashion every day, the rest in rotation), checks Google and YouTube searches in Hebrew and Google searches in other countries, and makes a call only when all four signals agree. How many requests each run sent and how many were answered is in its run receipt, with the run's public log. ${esc(RADAR_CLAIM.en)} (Per a worldwide check on ${esc(dm(RADAR_CLAIM.checked))}.) Each day's books are hashed with SHA-256 and timestamped in Bitcoin through OpenTimestamps, so anyone can check that nothing was added, removed or changed later. Beside the calls, one kind is drawn at random each day (seeded by the hash of that day's sealed store prices) and graded by the same rule, so the record shows the radar against luck.</p>
           <nav aria-label="הרדאר">
             <a href="/radar#proof">איך יודעים שזה אמיתי</a> · <a href="/radar#ledger">ספר החתימות המלא</a> · <a href="/magic">כפתור הקסם</a> · <a href="/radar-pro">המסלולים</a>
           </nav>

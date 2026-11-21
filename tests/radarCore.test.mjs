@@ -14,7 +14,7 @@ const PDI = "⁩";
 
 test("one list of instruments: the root's books, the page's tabs and labels all come from it", () => {
   assert.deepEqual([...LEDGER_BOOKS], [...BOOKS], "the sealed root's order is the core's");
-  assert.deepEqual([...BOOKS], ["early", "stages", "luck", "fresh", "kinds", "brain", "promise", "window", "globe", "prices"]);
+  assert.deepEqual([...BOOKS], ["early", "stages", "luck", "fresh", "kinds", "brain", "promise", "window", "globe", "prices", "run"]);
   assert.equal(new Set(INSTRUMENTS.map((i) => i.id)).size, INSTRUMENTS.length);
   for (const i of INSTRUMENTS) {
     assert.ok(i.he && i.en && i.whatHe && i.whatEn, i.id);
@@ -101,5 +101,5 @@ test("what the radar read today: the run's own states, mapped once, unknown keys
   const cats = byCategory([{ f: { category: "rings" }, result: "HIT" }, { f: { category: "rings" }, result: "MISS" }, { f: { category: "pets" } }, { category: "" }]);
   assert.deepEqual(cats, [{ category: "rings", calls: 2, graded: 2, hits: 1 }, { category: "pets", calls: 1, graded: 0, hits: 0 }]);
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
-  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} \/>/);
+  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} \/>/);
 });
