@@ -1152,11 +1152,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     keep(meter, "aliexpress", Object.values(items).filter((series) => (series || []).some((r) => r[0] === today)).length);
     const receipt = receiptOf(meter, { env, started: runStarted, finished: Date.now() });
     board.sourcesToday = measuredStates(sources, receipt);
+    // Only a state the receipt really changed is named (21.11: the world's added state field was named as
+    // "no real answer" in the log, though all 120 categories answered).
+    const changed = Object.keys(sources).filter((k) => typeof sources[k] === "string" && sources[k] !== board.sourcesToday[k]);
+    if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${sources[k]} → ${board.sourcesToday[k]})`).join(", ")}`);
     if (board.sourcesToday.world && typeof board.sourcesToday.world === "object") board.sourcesToday.world = { ...board.sourcesToday.world, state: worldState(board.sourcesToday.world) };
     board.world = board.sourcesToday.world && typeof board.sourcesToday.world === "object" ? board.sourcesToday.world : board.world;
     board.scan = scan;
-    const changed = Object.keys(sources).filter((k) => JSON.stringify(sources[k]) !== JSON.stringify(board.sourcesToday[k]));
-    if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${JSON.stringify(sources[k])} → ${board.sourcesToday[k]})`).join(", ")}`);
+
     const text = receiptText(receipt);
     board.receipt = { ...receipt, seal: text ? await sealBook({ text, count: text.split("\n").length }, null, "run") : null };
     // 📒 The source health registry: this run's receipt joins the last runs' (receipts.json, encrypted state).
