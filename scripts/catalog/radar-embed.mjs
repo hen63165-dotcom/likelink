@@ -72,7 +72,7 @@ export async function loadVision(model = LENS.model, { fetchImpl = globalThis.fe
 }
 
 /** One vector per candidate's photo: kept ones reused, new ones embedded within the budget. */
-export async function poolImageVectors(entries = [], cache = {}, { load = loadVision, fetchImpl = globalThis.fetch, model = LENS.model, max = KINDS.lookMax, budgetMs = 240_000, poolIds = null } = {}) {
+export async function poolImageVectors(entries = [], cache = {}, { load = loadVision, fetchImpl = globalThis.fetch, model = LENS.model, max = KINDS.lookMax, budgetMs = 480_000, poolIds = null } = {}) {
   const kept = cache?.model === model && cache.vecs && typeof cache.vecs === "object" ? cache.vecs : {};
   const vecs = {};
   const todo = [];

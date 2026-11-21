@@ -39,7 +39,7 @@ export const KINDS = Object.freeze({
   noiseNullWeekPct: 10,
   noiseP: 0.01,
   lookSim: 0.9, // cosine of two store photos to count as the same look
-  lookMax: 500, // photos read a run (vectors are kept between runs)
+  lookMax: 1500, // photos read a run, within 8 minutes (vectors are kept between runs)
   lookMinWeekPct: 10, // only listings already growing are looked at
 });
 
