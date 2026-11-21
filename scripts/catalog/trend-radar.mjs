@@ -26,7 +26,18 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
-import { measuredStates, meterFetch, newMeter, receiptOf, receiptText } from "../../src/lib/growth/runReceipt.js";
+import { hasList, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
+
+// An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
+const codeOf = (x) => {
+  const t = String(x?.message || x || "");
+  let m;
+  if ((m = t.match(/resp (\w+)/))) return `resp_${m[1]}`;
+  if ((m = t.match(/aliexpress_provider_http_(\d+)/))) return `http_${m[1]}`;
+  if ((m = t.match(/aliexpress_provider_([A-Za-z0-9_.]+)/))) return `err_${m[1].slice(0, 30)}`;
+  if (/timeout|abort/i.test(t) || /Timeout|Abort/.test(String(x?.name || ""))) return "timeout";
+  return "error";
+};
 
 // 🏷️ המבצע האמיתי (realDeal.js): every AliExpress answer this run reads also leaves each item's
 // shekel "from" price for today in the price ledger (prices.json), sealed per day below.
@@ -202,6 +213,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const stagesBefore = Object.fromEntries((prevBoard.concepts || []).map((c) => [c.id, c.stage]));
   let calls = readJson(join(dir, "calls.json"), []);
   const log = [];
+  // The four stages of every scan, counted apart per kind of unit (runReceipt.js tallyUnit): asked,
+  // scanned (a valid answer), with data, kept after the radar's own checks; every failure named.
+  const scan = { concepts: newTally(), fresh: newTally(), world: newTally(), siteItems: newTally() };
   const sources = { aliexpress: "REQUIRES_CONNECTION", discovery: "OFF", suggest: "OFF", youtube: "OFF", trendsIL: "OFF", trendsWorld: "OFF", worldSearch: "OFF", trendsDiscovery: "OFF", siteVisitors: "OFF", siteProducts: "OFF", fresh: "OFF" };
   const store = aeStatus(env).configured;
 
@@ -215,11 +229,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         for (const geo of TRENDS_GEOS) {
           try {
             const rss = await getText(trendsRssUrl(geo), fetchImpl);
-            if (rss.status === 200) abroadTerms[geo] = parseTrendsRss(rss.text).map((t) => (typeof t === "string" ? t : t?.term)).filter(Boolean).slice(0, 40);
+            if (rss.status === 200) { abroadTerms[geo] = parseTrendsRss(rss.text).map((t) => (typeof t === "string" ? t : t?.term)).filter(Boolean).slice(0, 40); keep(meter, "trendsWorld", abroadTerms[geo].length); }
           } catch (err) { log.push(`google trends ${geo}: ${String(err?.message || err).slice(0, 60)}`); }
           await pause(politeMs);
         }
-        sources.trendsWorld = Object.keys(abroadTerms).length ? "OK" : "FAILED";
+        sources.trendsWorld = Object.values(abroadTerms).some((t) => t.length) ? "OK" : Object.keys(abroadTerms).length ? "EMPTY" : "FAILED";
       } else sources.trendsWorld = "ROBOTS_DISALLOW";
     } catch (err) { sources.trendsWorld = "FAILED"; log.push(`google trends robots: ${String(err?.message || err).slice(0, 60)}`); }
     log.push(`google trends abroad: ${Object.entries(abroadTerms).map(([g, t]) => `${g} ${t.length}`).join(", ") || "none"}`);
@@ -236,6 +250,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         const terms = pinterestTerms(await res.json());
         pinTerms = terms.map((t) => t.term);
         sources.pinterest = terms.length ? "OK" : "EMPTY";
+        keep(meter, "pinterest", terms.length);
         log.push(`pinterest trends: ${terms.length} growing fashion and beauty keywords`);
       } else { sources.pinterest = `HTTP_${res.status}`; log.push(`pinterest trends: HTTP ${res.status}`); }
     } catch (err) { sources.pinterest = "FAILED"; log.push(`pinterest trends: ${String(err?.message || err).slice(0, 60)}`); }
@@ -262,7 +277,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const before = new Set(discovered.map((c) => c.id));
     discovered = admitDiscovered(discovered, candidates, { concepts: watch, stages: stagesBefore, now });
     const added = discovered.filter((c) => !before.has(c.id));
-    sources.discovery = Object.keys(lists).length ? "OK" : "FAILED";
+    sources.discovery = Object.values(lists).some((l) => l.length) ? "OK" : Object.keys(lists).length ? "EMPTY" : "FAILED";
     log.push(`discovery: ${Object.keys(lists).length} hot lists · ${candidates.length} candidates · added ${added.map((c) => c.en).join(", ") || "none"} · on trial ${discovered.length}`);
     // Found in the world first, then on AliExpress: a term trending today in a country's Google
     // searches joins the radar when AliExpress sells it (productTrend: matching items and orders).
@@ -319,15 +334,15 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (!store) {
     log.push("AliExpress affiliate account not connected here (REQUIRES_CONNECTION): no reading today");
   } else {
-    sources.aliexpress = "OK";
     const started = Date.now();
     for (const c of concepts) {
-      if (Date.now() - started > budgetMs) { log.push(`${c.id}: budget over, not read today`); continue; }
+      if (Date.now() - started > budgetMs) { log.push(`${c.id}: budget over, not read today`); tallyUnit(scan.concepts, { id: c.id, code: "budget_over" }); continue; }
       try {
         const got = await readConcept(c, { env, fetchImpl, now });
-        if (!got.ok) { log.push(`${c.id}: ${got.reason}`); continue; }
+        if (!got.ok) { log.push(`${c.id}: ${got.reason}`); tallyUnit(scan.concepts, { id: c.id, code: codeOf(got.reason), scanned: /^resp 405/.test(got.reason) }); continue; }
         const reading = readingFrom(got.result, { now });
-        if (!reading.top.length) { log.push(`${c.id}: no item with orders`); continue; }
+        if (!reading.top.length) { log.push(`${c.id}: no item with orders`); tallyUnit(scan.concepts, { id: c.id, scanned: true, withData: hasList(got.result) }); continue; }
+        tallyUnit(scan.concepts, { id: c.id, scanned: true, withData: true, kept: reading.top.length });
         readings[c.id] = addReading(readings[c.id], reading);
         for (const [id, v] of reading.top) items[id] = addItemReading(items[id], [today, v]);
         const pick = pickFrom(got.result, { now, concept: c });
@@ -338,8 +353,12 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         log.push(`${c.id}: ${reading.listings ?? "?"} listings · top orders ${reading.sum} · ${stage}${s.ok ? ` (${s.demandWeek}%/wk over ${s.span}d, breadth ${s.breadth})` : ""}${pick ? "" : " · no pick passes the rules"}`);
       } catch (err) {
         log.push(`${c.id}: ${String(err?.message || err).slice(0, 100)}`);
+        tallyUnit(scan.concepts, { id: c.id, code: codeOf(err) });
       }
     }
+    // OK only when kinds were really read and kept; the meter checks it again before the page.
+    sources.aliexpress = scan.concepts.kept ? "OK" : scan.concepts.scanned ? "EMPTY" : "FAILED";
+    log.push(`aliexpress kinds: ${scan.concepts.kept} kept of ${scan.concepts.asked} asked (${scan.concepts.scanned} answered, ${scan.concepts.withData} with items)`);
   }
 
   // 4 (read first). The site's own products and LikeLink2's visitors (public rows, anon read).
@@ -360,15 +379,22 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const ids = [...new Set(siteProducts.map((p) => p.itemId))];
     let read = 0;
     for (let i = 0; i < ids.length; i += 20) {
+      const batch = ids.slice(i, i + 20);
       try {
-        const got = await itemOrders(ids.slice(i, i + 20), { env, fetchImpl, now });
+        const got = await itemOrders(batch, { env, fetchImpl, now });
         for (const [id, f] of got) {
           if (Number.isFinite(f.orders)) items[id] = addItemReading(items[id], [today, f.orders]);
           facts[id] = { d: today, ...f };
           read++;
         }
-      } catch (err) { log.push(`site items ${i}: ${String(err?.message || err).slice(0, 80)}`); }
+        // Each item of the batch: answered by the store with its orders (kept), without them, or absent.
+        for (const id of batch) tallyUnit(scan.siteItems, { id, scanned: true, withData: got.has(id), kept: Number.isFinite(got.get(id)?.orders) ? 1 : 0 });
+      } catch (err) {
+        log.push(`site items ${i}: ${String(err?.message || err).slice(0, 80)}`);
+        for (const id of batch) tallyUnit(scan.siteItems, { id, code: codeOf(err) });
+      }
     }
+    keep(meter, "site", siteProducts.length);
     sources.siteProducts = "OK";
     log.push(`site: ${siteProducts.length} listed products with an AliExpress item · ${read} read today`);
   }
@@ -388,8 +414,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       if (robotsAllows(robots.status, robots.text, "/trending/rss")) {
         const rss = await getText(TRENDS_IL_RSS, fetchImpl);
         if (rss.status === 200) {
-          trendIds = trendingInIsrael(concepts, parseTrendsRss(rss.text));
-          sources.trendsIL = "OK";
+          const ilTerms = parseTrendsRss(rss.text);
+          trendIds = trendingInIsrael(concepts, ilTerms);
+          keep(meter, "trendsIL", ilTerms.length);
+          sources.trendsIL = ilTerms.length ? "OK" : "EMPTY";
         } else sources.trendsIL = `HTTP_${rss.status}`;
       } else sources.trendsIL = "ROBOTS_DISALLOW";
     } catch (err) { sources.trendsIL = "FAILED"; log.push(`google trends IL: ${String(err?.message || err).slice(0, 80)}`); }
@@ -442,7 +470,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
               const got = await getText(ENGINES[m.engine].url(q), fetchImpl);
               const list = got.status === 200 ? parseEngine(m.engine, got.text) : null;
               by[m.id] = list ? cjkExtensions(q, list) : null;
-              if (list) echoLists[m.engine === "baidu" ? "zh" : "ko"] = list;
+              if (list) { echoLists[m.engine === "baidu" ? "zh" : "ko"] = list; keep(meter, `engine_${m.engine}`); }
             } catch { by[m.id] = null; }
             await pause(politeMs);
           }
@@ -454,6 +482,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           // The social echo (late: the finish line a call is timed against): the US suggestions as text.
           echoLists.en = (await suggestList(c.en, { hl: "en", gl: "us" }, fetchImpl)) || [];
           await pause(politeMs);
+          // Kept measurements per source (a valid answer, even with no suggestion, is a measurement: 0).
+          keep(meter, "suggest", he.filter((v) => v !== null).length);
+          keep(meter, "youtube", yt.filter((v) => v !== null).length + (ytWorld !== null ? 1 : 0));
+          keep(meter, "worldSearch", [...Object.entries(by).filter(([id]) => !WORLD_MARKETS.find((m) => m.id === id)?.engine).map(([, v]) => v), ...Object.values(x)].filter((v) => v !== null && v !== undefined).length);
           worldMap[c.id] = addWorld(worldMap[c.id], worldReading({ by, yt: ytWorld, trends: abroadIds[c.id] || [], echo: echoOf(echoLists), x: env.RADAR_CLOCK !== "0" ? x : null }, { now }));
           const answered = [...he, ...yt, world].filter((n) => n !== null).length;
           if (!answered) { failures++; log.push(`${c.id}: autocomplete gave no usable answer`); continue; }
@@ -475,8 +507,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (store && env.RADAR_FRESH !== "0") {
     const started = Date.now();
     const entries = [];
-    for (const cat of [...TREND_CATEGORIES, ...WAVE_AREAS, ...FASHION_AREAS]) {
-      if (Date.now() - started > 100_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
+    const areas = [...TREND_CATEGORIES, ...WAVE_AREAS, ...FASHION_AREAS];
+    for (const [ai, cat] of areas.entries()) {
+      if (Date.now() - started > 100_000) {
+        log.push(`fresh: budget over at ${cat.key}`);
+        for (const rest of areas.slice(ai)) tallyUnit(scan.fresh, { id: rest.key, code: "budget_over" });
+        break;
+      }
       try {
         const e = aeEnv(env);
         // The full words first; an empty answer (resp 405) tries the shorter searches (freshQueries).
@@ -489,16 +526,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           r = res?.aliexpress_affiliate_product_query_response?.resp_result;
           if (Number(r?.resp_code) === 200 || Number(r?.resp_code) !== 405) break;
         }
-        if (Number(r?.resp_code) !== 200) { log.push(`fresh ${cat.key}: resp ${r?.resp_code ?? "none"} after ${tried} searches`); continue; }
+        if (Number(r?.resp_code) !== 200) {
+          log.push(`fresh ${cat.key}: resp ${r?.resp_code ?? "none"} after ${tried} searches`);
+          tallyUnit(scan.fresh, { id: cat.key, scanned: Number(r?.resp_code) === 405, code: `resp_${r?.resp_code ?? "none"}` });
+          continue;
+        }
         if (tried > 1) log.push(`fresh ${cat.key}: found with search ${tried}`);
         const raw = r.result?.products?.product;
-        for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+        const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+        let kept = 0;
+        for (const p of list) {
           const entry = freshEntry(p, { category: cat.key, today });
           if (!entry) continue;
           entries.push(entry);
           items[entry.id] = addItemReading(items[entry.id], [today, entry.orders]);
+          kept++;
         }
-      } catch (err) { log.push(`fresh ${cat.key}: ${String(err?.message || err).slice(0, 60)}`); }
+        tallyUnit(scan.fresh, { id: cat.key, scanned: true, withData: list.length > 0, kept });
+      } catch (err) { log.push(`fresh ${cat.key}: ${String(err?.message || err).slice(0, 60)}`); tallyUnit(scan.fresh, { id: cat.key, code: codeOf(err) }); }
       await pause(politeMs);
     }
     // Every category in the world (worldCategories.js): AliExpress's whole category tree, a slice a
@@ -515,43 +560,60 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
       const rot = worldSlice(world.list || [], world.cursor);
       const wStarted = Date.now();
-      let read = 0; // categories the store answered (with listings or empty), never an error
-      let withItems = 0;
-      let empty = 0;
-      let failed = 0;
       let restRead = 0; // asked, for the rotation's cursor
-      let restAnswered = 0;
-      for (const cat of rot.slice) {
-        if (Date.now() - wStarted > WORLD.budgetMs) { log.push(`world: budget over at ${cat.id}`); break; }
+      let restAnswered = 0; // answered, for today's real pace
+      for (const [ci, cat] of rot.slice.entries()) {
+        const isRest = !rot.slice.slice(0, rot.fashion).includes(cat);
+        if (Date.now() - wStarted > WORLD.budgetMs) {
+          log.push(`world: budget over at ${cat.id}`);
+          for (const c of rot.slice.slice(ci)) tallyUnit(scan.world, { id: c.id, name: c.name, code: "budget_over" });
+          break;
+        }
+        let stop = false;
+        let thrown = false;
         try {
           const res = await aeCall(SEARCH, { category_ids: cat.id, keywords: `${new Date(now).getUTCFullYear()} new`, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
           const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
           const code = Number(r?.resp_code);
           const raw = code === 200 ? r.result?.products?.product : null;
-          const answered = code === 200 || code === 405;
-          if (code === 200 && raw) withItems++;
-          else if (answered) empty++;
-          else { failed++; log.push(`world ${cat.id}: resp ${r?.resp_code ?? "none"}`); }
-          if (answered) { read++; if (!rot.slice.slice(0, rot.fashion).includes(cat)) restAnswered++; }
-          for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
+          const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+          // Scanned only on a valid answer: 200 (with or without listings) or 405 (none); any other
+          // code is a failed scan, named on the page with its code.
+          const scanned = code === 200 || code === 405;
+          if (!scanned) log.push(`world ${cat.id}: resp ${r?.resp_code ?? "none"}`);
+          let kept = 0;
+          for (const p of list) {
             const entry = freshEntry(p, { category: `world-${cat.id}`, today });
             if (!entry) continue;
             entries.push(entry);
             items[entry.id] = addItemReading(items[entry.id], [today, entry.orders]);
+            kept++;
           }
-          if (waveLists) {
+          tallyUnit(scan.world, { id: cat.id, name: cat.name, scanned, withData: list.length > 0, kept, code: `resp_${r?.resp_code ?? "none"}` });
+          if (scanned && isRest) restAnswered++;
+        } catch (err) {
+          thrown = true;
+          const msg = String(err?.message || err);
+          log.push(`world ${cat.id}: ${msg.slice(0, 60)}`);
+          tallyUnit(scan.world, { id: cat.id, name: cat.name, code: codeOf(err) });
+          // The store's own limit: stop for today, the cursor keeps the place.
+          if (/limit|frequen|flow control|isv\.|throttl/i.test(msg)) {
+            log.push("world: the store's limit reached, the rest tomorrow");
+            for (const c of rot.slice.slice(ci + 1)) tallyUnit(scan.world, { id: c.id, name: c.name, code: "store_limit" });
+            stop = true;
+          }
+        }
+        // The cursor moves past what was asked without an exception (as before), so a thrown one is asked again.
+        if (isRest && !thrown) restRead++;
+        if (stop) break;
+        // The category's hot list feeds the waves; its own failure never marks the scan above as failed.
+        if (waveLists) {
+          try {
             const hot = await aeCall(HOT, { category_ids: cat.id, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
             const hr = hot?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
             const hraw = Number(hr?.resp_code) === 200 ? hr.result?.products?.product : null;
             waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
-          }
-          if (!rot.slice.slice(0, rot.fashion).includes(cat)) restRead++;
-        } catch (err) {
-          failed++;
-          const msg = String(err?.message || err);
-          log.push(`world ${cat.id}: ${msg.slice(0, 60)}`);
-          // The store's own limit: stop for today, the cursor keeps the place.
-          if (/limit|frequen|flow control|isv\.|throttl/i.test(msg)) { log.push("world: the store's limit reached, the rest tomorrow"); break; }
+          } catch (err) { log.push(`world hot ${cat.id}: ${String(err?.message || err).slice(0, 60)}`); }
         }
         await pause(politeMs);
       }
@@ -563,11 +625,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       // A full round in days at the pace the store really answered today (null when none answered).
       const restTotal = Math.max(0, rot.total - rot.fashion);
       const roundDays = restAnswered ? Math.ceil(restTotal / restAnswered) : null;
-      sources.world = rot.total ? { categories: rot.total, asked: withItems + empty + failed, readToday: read, withItems, empty, failed, fashionDaily: rot.fashion, fullRoundDays: roundDays } : "FAILED";
-      log.push(`world: ${read}/${rot.slice.length} categories answered today (${withItems} with listings, ${empty} empty, ${failed} failed; ${rot.fashion} fashion every day) · ${rot.total} in the tree · at today's pace a full round every ${roundDays ?? "?"} days`);
+      const w = scan.world;
+      sources.world = rot.total ? { categories: rot.total, asked: w.asked, readToday: w.scanned, withItems: w.withData, verified: w.kept, empty: w.scanned - w.withData, failed: w.asked - w.scanned, fashionDaily: rot.fashion, fullRoundDays: roundDays } : "FAILED";
+      log.push(`world: ${w.asked} categories asked · ${w.scanned} scanned · ${w.withData} with listings · ${w.kept} kept · ${w.asked - w.scanned} failed (${rot.fashion} fashion every day) · ${rot.total} in the tree · at today's pace a full round every ${roundDays ?? "?"} days`);
     }
     freshPool = mergeFreshPool(freshPool, entries, { today });
-    sources.fresh = entries.length ? "OK" : "FAILED";
+    // OK only with listings that passed the radar's checks (freshEntry); explicit EMPTY / FAILED otherwise.
+    sources.fresh = entries.length ? "OK" : scan.fresh.scanned + scan.world.scanned ? "EMPTY" : "FAILED";
     log.push(`fresh: ${entries.length} new listings read today · pool ${Object.keys(freshPool).length}`);
   }
 
@@ -628,6 +692,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           const ids = ytIdsOf(search);
           const views = ids === null ? null : ids.length ? ytViewsOf(await (await fetchImpl(ytVideosUrl(ids, { key: env.YOUTUBE_API_KEY }), { signal: AbortSignal.timeout(15_000) })).json()) : 0;
           yt = ytSignal({ videos: ids === null ? null : ids.length, views });
+          if (yt) keep(meter, "youtubeApi");
         } catch { yt = null; }
         sources.youtubeApi = yt ? "OK" : sources.youtubeApi === "OK" ? "OK" : "FAILED";
       }
@@ -687,6 +752,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           igs = hid ? igSignal(await (await fetchImpl(igRecentUrl(hid, ig), { signal: AbortSignal.timeout(15_000) })).json(), { now }) : null;
           if (!igs && found?.error?.code) log.push(`instagram hashtag: error ${Number(found.error.code)}`);
         } catch { igs = null; } // never logs the request: it carries the token
+        if (igs) keep(meter, "instagram");
         sources.instagram = igs ? "OK" : sources.instagram === "OK" ? "OK" : "FAILED";
       }
       let alt = null;
@@ -1082,8 +1148,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // the Bitcoin check come after). The page's source states are the run's claims checked against it,
   // the exact text is printed in the public GitHub log and sealed as the book "run".
   {
+    // The fourth stage for AliExpress: the distinct items whose reading of today passed the checks and was kept.
+    keep(meter, "aliexpress", Object.values(items).filter((series) => (series || []).some((r) => r[0] === today)).length);
     const receipt = receiptOf(meter, { env, started: runStarted, finished: Date.now() });
     board.sourcesToday = measuredStates(sources, receipt);
+    if (board.sourcesToday.world && typeof board.sourcesToday.world === "object") board.sourcesToday.world = { ...board.sourcesToday.world, state: worldState(board.sourcesToday.world) };
+    board.world = board.sourcesToday.world && typeof board.sourcesToday.world === "object" ? board.sourcesToday.world : board.world;
+    board.scan = scan;
     const changed = Object.keys(sources).filter((k) => JSON.stringify(sources[k]) !== JSON.stringify(board.sourcesToday[k]));
     if (changed.length) log.push(`receipt: no real answer for ${changed.map((k) => `${k} (${JSON.stringify(sources[k])} → ${board.sourcesToday[k]})`).join(", ")}`);
     const text = receiptText(receipt);
@@ -1131,7 +1202,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
   const dir = process.argv[2] || "radar-state";
   const { log, counts, gapCounts, sources, board } = await run(dir);
   console.log(log.join("\n"));
-  console.log("sources:", JSON.stringify(sources));
+  console.log("sources (as the run claimed):", JSON.stringify(sources));
+  console.log("sources (checked against the receipt):", JSON.stringify(board.sourcesToday));
+  console.log("scan:", JSON.stringify(Object.fromEntries(Object.entries(board.scan || {}).map(([k, t]) => [k, { asked: t.asked, scanned: t.scanned, withData: t.withData, kept: t.kept, failed: t.failed.length, empty: (t.empty || []).length }]))));
   console.log("stages:", JSON.stringify(counts), "· israel:", JSON.stringify(gapCounts), "· record:", JSON.stringify(board.record), "· clock:", JSON.stringify(board.clock));
   console.log("rules:", JSON.stringify(RADAR.pickRules));
 }

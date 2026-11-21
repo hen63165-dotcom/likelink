@@ -936,13 +936,72 @@ function RecordTable({ board }) {
  * 📡 What the radar read today (radarCore.js sourcesView): every source the run asked, its state as
  * the run reported it and the official door it goes through; then the doors the radar opens next.
  */
+// The four stages of one source, apart (the owner, 21.11): asked → a valid answer → with data → kept
+// after the radar's checks; then every refusal and failure with its code.
+function StageCounts({ c, countryNames }) {
+  const { L } = useL();
+  const n = (v) => Number(v || 0).toLocaleString("he-IL");
+  const cat = c.unit === "categories";
+  const errors = (c.refused || 0) + (c.failed || 0);
+  const codes = c.codes ? Object.entries(c.codes).map(([k, v]) => `${k} ×${v}`).join(", ") : "";
+  return (
+    <span className="block text-[11px] leading-5">
+      <span className="block">{L(
+        `${cat ? "נשאלו" : "שאלות"} ${n(c.asked)} · ${cat ? "נסרקו" : "ענו תקין"} ${n(c.scanned)} · ${cat ? "עם מוצרים" : "עם נתונים"} ${n(c.withData)}${c.kept !== null && c.kept !== undefined ? ` · נקלטו אחרי בדיקה ${n(c.kept)}` : ""}`,
+        `${cat ? "asked" : "requests"} ${n(c.asked)} · ${cat ? "scanned" : "valid answers"} ${n(c.scanned)} · ${cat ? "with items" : "with data"} ${n(c.withData)}${c.kept !== null && c.kept !== undefined ? ` · kept after checks ${n(c.kept)}` : ""}`,
+      )}</span>
+      {errors ? <span className="block font-bold" style={{ color: "#b42318" }}>{L(`שגיאות: ${cat ? `${n(c.failed)} נכשלו` : `${n(c.refused)} סירובים, ${n(c.failed)} בלי תשובה`}`, `Errors: ${cat ? `${n(c.failed)} failed` : `${n(c.refused)} refused, ${n(c.failed)} no answer`}`)}{codes ? <> (<bdi dir="ltr">{codes}</bdi>)</> : null}</span> : null}
+      {c.countries?.length ? <span className="block">{L(`ענו מ: ${countryNames(c.countries)}`, `answered from: ${countryNames(c.countries)}`)}</span> : null}
+    </span>
+  );
+}
+
+// Every kind of unit the run scans, its four stages apart, and every failed or empty unit by name.
+function ScanTable({ scan }) {
+  const { L } = useL();
+  const n = (v) => Number(v || 0).toLocaleString("he-IL");
+  const LABELS = { concepts: ["סוגים ברשימת המדידה", "Kinds on the measuring list"], fresh: ["תחומי מוצרים חדשים", "New-product areas"], world: ["קטגוריות העולם", "World categories"], siteItems: ["מוצרי האתר", "The site's products"] };
+  const rows = Object.keys(LABELS).filter((k) => scan[k]?.asked);
+  if (!rows.length) return null;
+  return (
+    <div className="mt-4">
+      <p className="text-[14px] font-black">{L("🔎 הסריקה בארבעה שלבים", "🔎 The scan in four stages")}</p>
+      <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("ניסיון ← תשובה תקינה ← נתונים ← נקלט אחרי הבדיקות של הרדאר. יחידה נספרת כנסרקה רק כשהתשובה שלה תקינה.", "Attempt → a valid answer → data → kept after the radar's checks. A unit counts as scanned only when its answer is valid.")}</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full text-[12px]" style={{ borderCollapse: "collapse" }}>
+          <thead><tr style={{ color: "var(--lx-muted)" }}>{[L("מה", "What"), L("נוסו", "Asked"), L("נסרקו", "Scanned"), L("עם נתונים", "With data"), L("נקלטו", "Kept"), L("נכשלו", "Failed")].map((h) => <th key={h} className="py-1 text-start font-bold">{h}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((k) => {
+              const t = scan[k];
+              return (
+                <tr key={k} className="border-t" style={{ borderColor: "var(--lx-line)" }}>
+                  <td className="py-1 font-bold">{L(LABELS[k][0], LABELS[k][1])}</td>
+                  <td>{n(t.asked)}</td><td>{n(t.scanned)}</td><td>{n(t.withData)}</td><td>{n(t.kept)}</td>
+                  <td style={t.asked - t.scanned ? { color: "#b42318", fontWeight: 700 } : null}>{n(t.asked - t.scanned)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rows.filter((k) => scan[k].failed?.length || scan[k].empty?.length).map((k) => (
+        <details key={k} className="lx-rdr-how mt-1">
+          <summary>{L(`${LABELS[k][0]}: מה נכשל ומה חזר ריק`, `${LABELS[k][1]}: what failed and what came back empty`)}</summary>
+          {scan[k].failed?.length ? <p className="mt-1 text-[12px]" style={{ color: "#b42318" }}>{L("נכשלו: ", "Failed: ")}<span dir="ltr">{scan[k].failed.map((f) => `${f.name || f.id} (${f.code})`).join(" · ")}</span></p> : null}
+          {scan[k].empty?.length ? <p className="mt-1 text-[12px]">{L("ענו ריק: ", "Answered empty: ")}<span dir="ltr">{scan[k].empty.map((f) => f.name || f.id).join(" · ")}</span></p> : null}
+        </details>
+      ))}
+    </div>
+  );
+}
+
 /**
  * 📡 What the radar read, and 🧾 the run receipt (runReceipt.js; the owner, 21.11: "the transparency
  * area must show real data from actual runs"): every number here was counted by the run's one metered
  * fetch from real answers, the run's public GitHub log prints the same receipt, and its text is sealed
  * in Bitcoin as the book "run". The date is the run's own; "today" only when the run is today's.
  */
-function SourcesToday({ sources, receipt }) {
+function SourcesToday({ sources, receipt, scan = null }) {
   const { L } = useL();
   const list = sourcesView(sources || {}, receipt);
   if (!list.length) return null;
@@ -983,14 +1042,13 @@ function SourcesToday({ sources, receipt }) {
               <span>
                 <b>{L(x.he, x.en)}</b>
                 <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
-                {x.counts ? <span className="block text-[11px]">{x.counts.unit === "categories"
-                  ? L(`${n(x.counts.answered)} קטגוריות ענו עם מוצרים, ${n(x.counts.empty)} ריק, ${n(x.counts.failed)} בלי תשובה, מתוך ${n(x.counts.asked)}`, `${n(x.counts.answered)} categories answered with items, ${n(x.counts.empty)} empty, ${n(x.counts.failed)} no answer, of ${n(x.counts.asked)}`)
-                  : L(`${n(x.counts.answered)} מתוך ${n(x.counts.asked)} שאלות ענו${x.counts.empty ? `, ${n(x.counts.empty)} ריק` : ""}`, `${n(x.counts.answered)} of ${n(x.counts.asked)} requests answered${x.counts.empty ? `, ${n(x.counts.empty)} empty` : ""}`)}{x.counts.countries?.length ? L(` · ענו מ: ${countryNames(x.counts.countries)}`, ` · answered from: ${countryNames(x.counts.countries)}`) : null}</span> : null}
+                {x.counts ? <StageCounts c={x.counts} countryNames={countryNames} /> : null}
               </span>
               <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
             </li>
           ))}
         </ul>
+        {scan ? <ScanTable scan={scan} /> : null}
         <p className="mt-4 text-[14px] font-black">{L("הדלתות הבאות", "The next doors")}</p>
         <ul className="mt-1 grid gap-1 text-[13px]">
           {NEXT_DOORS.map((d) => <li key={d.key}><b>{L(d.he, d.en)}</b> · <span style={{ color: "var(--lx-muted)" }}>{d.door}</span></li>)}
@@ -1783,7 +1841,7 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
-        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} /> : null}
+        {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
