@@ -241,7 +241,22 @@ export const SOURCE_STATES = Object.freeze({
   FAILED: { he: "נשאל, בלי תשובה", en: "Asked, no answer", tone: "exit" },
   CLOSED: { he: "סגור לפי כללי האתר", en: "Closed by the site's rules", tone: "slow" },
   SKIPPED: { he: "דילג בריצה הזו", en: "Skipped this run", tone: "slow" },
+  EMPTY: { he: "ענה ריק", en: "Answered empty", tone: "slow" },
+  UNUSABLE: { he: "הנתונים נפסלו בבדיקה", en: "Data failed the checks", tone: "exit" },
 });
+// The run's own words for a state → the page's state (every error, block and missing connection by name).
+const STATE_OF = (v) => (v === "OK" ? "OK" : v === "REQUIRES_CONNECTION" ? "REQUIRES_CONNECTION" : /ROBOTS/.test(String(v)) ? "CLOSED"
+  : v === "FAILED" || v === "FAILING" || /^HTTP_\d+$/.test(String(v)) ? "FAILED" : v === "EMPTY" ? "EMPTY" : v === "UNUSABLE" ? "UNUSABLE" : "SKIPPED");
+// The world categories' state from their own four counts (as runReceipt.js worldState; import-free here).
+const WORLD_STATE = (v) => {
+  if (!v || typeof v !== "object") return "FAILED";
+  if (!Number.isFinite(v.asked)) return v.readToday > 0 ? "OK" : "FAILED";
+  if (!v.asked) return "SKIPPED";
+  if (!v.readToday) return "FAILED";
+  if (!v.withItems) return "EMPTY";
+  if (Number.isFinite(v.verified) && !v.verified) return "UNUSABLE";
+  return "OK";
+};
 // The rows whose own host the receipt counts (the AliExpress areas share one host, so only the
 // AliExpress row carries its counts; "world" carries its own category counts).
 const OWN_HOST = new Set(["aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram", "engine_baidu", "engine_naver"]);
@@ -253,12 +268,12 @@ export function sourcesView(sources = {}, receipt = null) {
   const s = sources && typeof sources === "object" ? sources : {};
   return SOURCES.filter((x) => Object.hasOwn(s, x.key)).map((x) => {
     const v = s[x.key];
-    const state = x.key === "world" ? (v && typeof v === "object" && Number.isFinite(v.readToday) && v.readToday > 0 ? "OK" : "FAILED")
-      : v === "OK" ? "OK" : v === "REQUIRES_CONNECTION" ? "REQUIRES_CONNECTION" : /ROBOTS/.test(String(v)) ? "CLOSED" : v === "FAILED" ? "FAILED" : "SKIPPED";
+    const state = x.key === "world" ? WORLD_STATE(v) : STATE_OF(v);
     const c = OWN_HOST.has(x.key) ? receipt?.sources?.[x.key] : null;
+    // The four stages apart: asked → a valid answer (scanned) → with data → kept after the radar's checks.
     const counts = x.key === "world" && v && typeof v === "object" && Number.isFinite(v.asked)
-      ? { asked: v.asked, answered: v.withItems ?? 0, empty: v.empty ?? 0, failed: v.failed ?? 0, refused: 0, unit: "categories" }
-      : c ? { asked: c.asked, answered: c.answered, empty: c.empty, refused: c.refused, failed: c.failed, unit: "requests", countries: c.countries || null } : null;
+      ? { unit: "categories", asked: v.asked, scanned: v.readToday ?? 0, withData: v.withItems ?? 0, kept: Number.isFinite(v.verified) ? v.verified : null, failed: v.failed ?? 0, refused: 0, codes: null }
+      : c ? { unit: "requests", asked: c.asked, scanned: (c.answered || 0) + (c.empty || 0), withData: c.answered, kept: Number.isInteger(c.kept) ? c.kept : null, refused: c.refused, failed: c.failed, codes: c.codes || null, countries: c.countries || null } : null;
     return { key: x.key, he: x.he, en: x.en, door: x.door, state, counts };
   });
 }

@@ -18,7 +18,8 @@ const SECRET_SUGGESTION = "מרסק שום של מותג סודי";
 
 function fakeNet({ week }) {
   const requests = [];
-  const json = (body, status = 200) => ({ ok: status === 200, status, json: async () => body, text: async () => (typeof body === "string" ? body : JSON.stringify(body)) });
+  // Like a real Response (clone included): the run's receipt reads every answer from a copy.
+  const json = (body, status = 200) => ({ ok: status === 200, status, json: async () => body, text: async () => (typeof body === "string" ? body : JSON.stringify(body)), clone: () => json(body, status) });
   const items = (ids, base, extra = {}) => ({ total_record_count: 1000 + week * 300, products: { product: ids.map((id, i) => ({ product_id: String(id), product_title: `סקווישי מקל חמאה ${i}`, lastest_volume: Math.round(base * (1 - i * 0.1)), target_sale_price: "9.90", target_sale_price_currency: "ILS", evaluate_rate: "98.0%", promotion_link: `https://s.click.aliexpress.com/e/_x${id}`, product_main_image_url: `https://ae-pic-a1.aliexpress-media.com/kf/${id}.jpg`, ...extra })) } });
   const fetchImpl = async (url, opts = {}) => {
     const u = String(url);
@@ -87,6 +88,13 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.ok(r1.board.concepts.some((c) => c.auto && c.he === "cloud slides"), "discovery added a trial concept");
   const two = fakeNet({ week: 1 });
   const r2 = await run(dir, { env: ENV, fetchImpl: two.fetchImpl, now: at("2026-11-21"), politeMs: 0 });
+  // 🧾 The run's states are checked against what really answered (runReceipt.js): the store answered
+  // with listings, so AliExpress is read; the drawer organizer's 405 is an empty answer, never data.
+  assert.equal(r2.board.sourcesToday.aliexpress, "OK");
+  assert.ok(r2.board.receipt.sources.aliexpress.kept > 0);
+  assert.ok(r2.board.receipt.sources.aliexpress.codes?.resp_405 >= 1);
+  assert.ok(r2.board.scan.concepts.scanned <= r2.board.scan.concepts.asked);
+  assert.ok(r2.board.scan.concepts.failed.every((f) => f.code !== "unknown"));
 
   for (const net of [one, two]) {
     assert.ok(net.requests.every((r) => r.method === "GET" || new URL(r.url).origin === "https://api-sg.aliexpress.com" || (/^https:\/\/[ab]\.pool\.opentimestamps\.org$/.test(new URL(r.url).origin) && r.bytes === 32)), "only reads: GETs, the store's signed query calls, and the seal's bare 32-byte hash to OpenTimestamps");

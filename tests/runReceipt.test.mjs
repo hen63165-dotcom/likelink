@@ -16,7 +16,7 @@ import { teaserBoard } from "../src/lib/growth/radarGate.js";
 import { sourcesView } from "../src/lib/growth/radarCore.js";
 
 const AE = "https://api-sg.aliexpress.com/sync";
-const aeBody = (code) => JSON.stringify({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: code, result: { products: { product: [] } } } } });
+const aeBody = (code, products = [{ product_id: "1005000000000001" }]) => JSON.stringify({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: code, result: { products: { product: products } } } } });
 const form = (method) => new URLSearchParams({ method: `aliexpress.affiliate.${method}` }).toString();
 
 test("every request belongs to one source, read from its address alone", () => {
@@ -36,6 +36,7 @@ test("every request belongs to one source, read from its address alone", () => {
 
 test("an AliExpress answer is counted by the store's own code: HTTP 200 carries its errors too", () => {
   assert.equal(aeOutcome(JSON.parse(aeBody(200))), "answered");
+  assert.equal(aeOutcome(JSON.parse(aeBody(200, []))), "empty", "a 200 with no listing is an empty answer, never data");
   assert.equal(aeOutcome(JSON.parse(aeBody(405))), "empty");
   assert.equal(aeOutcome(JSON.parse(aeBody(402))), "refused");
   assert.equal(aeOutcome({ error_response: { code: "ApiCallLimit" } }), "refused");
@@ -49,7 +50,7 @@ test("the metered fetch returns the same answer and counts what really came back
     () => new Response(aeBody(405), { status: 200 }),
     () => new Response(JSON.stringify({ error_response: { code: "x" } }), { status: 200 }),
     () => { throw new Error("network"); },
-    () => new Response("[]", { status: 200 }),
+    () => new Response(JSON.stringify(["a", ["a b", "a c"]]), { status: 200 }),
     () => new Response("", { status: 429 }),
     () => new Response("User-agent: *", { status: 200 }),
   ];
@@ -59,6 +60,7 @@ test("the metered fetch returns the same answer and counts what really came back
   assert.equal(JSON.parse(await r1.text()).aliexpress_affiliate_product_query_response.resp_result.resp_code, 200, "the caller still reads the whole body");
   await f(AE, { method: "POST", body: form("product.query") });
   await f(AE, { method: "POST", body: form("hotproduct.query") });
+  // (the error_response answer above is a refusal with its code)
   await assert.rejects(f(AE, { method: "POST", body: form("productdetail.get") }), /network/);
   await f("https://suggestqueries.google.com/complete/search?hl=ja&gl=jp&q=a");
   await f("https://suggestqueries.google.com/complete/search?hl=ko&gl=kr&q=a");
@@ -66,17 +68,18 @@ test("the metered fetch returns the same answer and counts what really came back
   const env = { GITHUB_RUN_ID: "44847192706", GITHUB_RUN_ATTEMPT: "1", GITHUB_REPOSITORY: "hen63165-dotcom/likelink", GITHUB_SERVER_URL: "https://github.com", GITHUB_SHA: "a".repeat(40), GITHUB_EVENT_NAME: "schedule" };
   const receipt = receiptOf(meter, { env, started: Date.parse("2026-11-21T14:19:00Z"), finished: Date.parse("2026-11-21T14:50:00Z") });
   assert.deepEqual(receipt.sources.aliexpress, {
-    asked: 4, answered: 1, empty: 1, refused: 1, failed: 1,
+    asked: 4, answered: 1, empty: 1, refused: 1, failed: 1, codes: { resp_405: 1, err_x: 1, network: 1 },
     methods: { "product.query": { asked: 2, answered: 1, empty: 1, refused: 0, failed: 0 }, "hotproduct.query": { asked: 1, answered: 0, empty: 0, refused: 1, failed: 0 }, "productdetail.get": { asked: 1, answered: 0, empty: 0, refused: 0, failed: 1 } },
   });
-  assert.deepEqual(receipt.sources.worldSearch, { asked: 2, answered: 1, empty: 0, refused: 1, failed: 0, countries: ["jp"] }, "a country counts only when it answered");
+  assert.deepEqual(receipt.sources.worldSearch, { asked: 2, answered: 1, empty: 0, refused: 1, failed: 0, codes: { http_429: 1 }, countries: ["jp"] }, "a country counts only when it answered");
   assert.deepEqual(searchCountries(receipt), ["jp"]);
   assert.equal(receipt.sources.rules.answered, 1);
   assert.deepEqual(receiptTotals(receipt), { asked: 6, answered: 2, empty: 1, refused: 2, failed: 1 }, "robots.txt, the seal and Bitcoin are checks, counted apart");
   assert.equal(receipt.run.url, "https://github.com/hen63165-dotcom/likelink/actions/runs/44847192706");
   const text = receiptText(receipt);
   assert.equal(text.split("\n")[0], `run|44847192706|1|${"a".repeat(40)}|schedule|2026-11-21T14:19:00.000Z|2026-11-21T14:50:00.000Z`);
-  assert.match(text, /^aliexpress\|4\|1\|1\|1\|1$/m);
+  assert.match(text, /^aliexpress\|4\|1\|1\|1\|1\|-$/m, "no kept count was reported: '-', never a guess");
+  assert.match(text, /^aliexpress\.codes\|resp_405:1,err_x:1,network:1$/m);
   assert.match(text, /^aliexpress\.product\.query\|2\|1\|1\|0\|0$/m);
   assert.match(text, /^worldSearch\.countries\|jp$/m);
   assert.equal(receiptText(receipt), text, "the same counts always give the same text (and so the same hash)");
@@ -86,7 +89,7 @@ test("a claimed state stands only on a real answer from its own host", () => {
   const receipt = { sources: { aliexpress: { asked: 10, answered: 0, empty: 0, refused: 10, failed: 0 }, rules: { asked: 1, answered: 1 }, trendsIL: { asked: 1, answered: 1 } } };
   const claimed = { aliexpress: "OK", world: { categories: 564, readToday: 120 }, fresh: "OK", suggest: "OK", youtube: "OK", trendsIL: "OK", kinds: "OK", promise: "OK", pinterest: "REQUIRES_CONNECTION", engine_baidu: "ROBOTS_DISALLOW_OR_FAILED" };
   assert.deepEqual(measuredStates(claimed, receipt), {
-    aliexpress: "FAILED", world: "FAILED", fresh: "FAILED", // asked, the store refused every request
+    aliexpress: "FAILED", world: { categories: 564, readToday: 120 }, fresh: "FAILED", // asked, the store refused every request; the world's own counts decide (worldState)
     suggest: "NOT_ASKED", youtube: "NOT_ASKED", // only its robots.txt was read
     trendsIL: "OK", kinds: "OK", promise: "OK", // a real answer; the radar's own computations
     pinterest: "REQUIRES_CONNECTION", engine_baidu: "ROBOTS_DISALLOW_OR_FAILED",
@@ -94,6 +97,34 @@ test("a claimed state stands only on a real answer from its own host", () => {
   const view = Object.fromEntries(sourcesView(measuredStates(claimed, receipt), receipt).map((x) => [x.key, x.state]));
   assert.equal(view.aliexpress, "FAILED");
   assert.equal(view.suggest, "SKIPPED");
+});
+
+test("the four stages decide a state: asked → a valid answer → data → kept after the radar's checks", async () => {
+  const { stateOf, worldState, newTally, tallyUnit, keep, bodyAnswer } = await import("../src/lib/growth/runReceipt.js");
+  assert.equal(stateOf(null), "NOT_ASKED");
+  assert.equal(stateOf({ asked: 5, answered: 0, empty: 0, refused: 4, failed: 1 }), "FAILED");
+  assert.equal(stateOf({ asked: 5, answered: 0, empty: 5, refused: 0, failed: 0 }), "EMPTY");
+  assert.equal(stateOf({ asked: 5, answered: 3, empty: 0, refused: 2, failed: 0, kept: 0 }), "UNUSABLE", "data arrived, none passed the checks");
+  assert.equal(stateOf({ asked: 5, answered: 3, empty: 0, refused: 2, failed: 0, kept: 3 }), "OK");
+  assert.equal(stateOf({ asked: 5, answered: 0, empty: 5, refused: 0, failed: 0, kept: 5 }), "OK", "valid zero answers that the radar keeps as measurements");
+  assert.equal(worldState({ asked: 120, readToday: 0, withItems: 0 }), "FAILED");
+  assert.equal(worldState({ asked: 120, readToday: 110, withItems: 0 }), "EMPTY");
+  assert.equal(worldState({ asked: 120, readToday: 110, withItems: 90, verified: 0 }), "UNUSABLE");
+  assert.equal(worldState({ asked: 120, readToday: 110, withItems: 90, verified: 80 }), "OK");
+  const t = newTally();
+  tallyUnit(t, { id: "1", name: "Rings", scanned: true, withData: true, kept: 12 });
+  tallyUnit(t, { id: "2", name: "Bags", scanned: false, code: "resp_402" });
+  tallyUnit(t, { id: "3", name: "Lamps", scanned: true, withData: false });
+  tallyUnit(t, { id: "4", scanned: true, withData: true, kept: 0 });
+  assert.deepEqual({ asked: t.asked, scanned: t.scanned, withData: t.withData, kept: t.kept }, { asked: 4, scanned: 3, withData: 2, kept: 1 });
+  assert.deepEqual(t.failed, [{ id: "2", name: "Bags", code: "resp_402" }]);
+  assert.deepEqual(t.empty, [{ id: "3", name: "Lamps" }]);
+  const m = newMeter();
+  keep(m, "aliexpress", 7);
+  assert.equal(m.counts.aliexpress.kept, 7);
+  assert.deepEqual(bodyAnswer("suggest", "<html>"), { outcome: "failed", code: "bad_body" }, "an answer the radar cannot read is a failure");
+  assert.deepEqual(bodyAnswer("trendsIL", "<rss><channel></channel></rss>"), { outcome: "empty", code: "no_items" });
+  assert.deepEqual(bodyAnswer("site", "[]"), { outcome: "empty", code: "no_rows" });
 });
 
 test("the board keeps only the receipt's counts, a strict run link and a sealed text; public behind the lock", () => {
@@ -122,10 +153,10 @@ test("the run meters every request, counts world categories from real answers, a
   assert.match(run, /fetchImpl = meterFetch\(fetchImpl, meter\);/);
   assert.match(run, /board\.sourcesToday = measuredStates\(sources, receipt\);/);
   assert.match(run, /const rootText = ledgerText\(\{ run: board\.receipt\?\.seal\?\.sha256,/);
-  assert.match(run, /const answered = code === 200 \|\| code === 405;/, "a store error is never a category read");
+  assert.match(run, /const scanned = code === 200 \|\| code === 405;/, "a store error is never a category scanned");
   assert.doesNotMatch(run, /read\+\+;\n\s*if \(!rot\.slice/, "the old unconditional count is gone");
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
-  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} \/>/);
+  assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} \/>/);
   assert.match(page, /היומן הציבורי של הריצה, מ־GitHub:/);
   // No fixed claim of what is read: Baidu and Naver are closed by their own rules today.
   assert.doesNotMatch(page, /באידו בסין|נייבר בקוריאה|גוגל ב־8 מדינות|ב־10 מדינות/);
