@@ -128,6 +128,14 @@ function cleanWikiSummary(s) {
   return { articles: Math.max(0, num(s.articles) ?? 0), hebrew: Math.max(0, num(s.hebrew) ?? 0), rising: Math.max(0, num(s.rising) ?? 0), since: MONTH.test(String(s.since || "")) ? s.since : null };
 }
 
+// 🗣️📢 A kind's talk on Bluesky and its new ads in Meta's Ad Library (socialSignal.js): counts only.
+function cleanSocial(s) {
+  if (!s || typeof s !== "object") return null;
+  const b = s.bsky && num(s.bsky.week) !== null && num(s.bsky.prev) !== null ? { week: num(s.bsky.week), prev: num(s.bsky.prev), weekPct: num(s.bsky.weekPct), capped: s.bsky.capped === true } : null;
+  const a = s.ads && num(s.ads.week) !== null ? { week: num(s.ads.week), more: s.ads.more === true } : null;
+  return b || a ? { bsky: b, ads: a } : null;
+}
+
 function cleanRow(c) {
   if (!c || typeof c !== "object" || !ID.test(String(c.id || ""))) return null;
   const stage = STAGE_KEYS.has(c.stage) ? c.stage : "UNVERIFIED";
@@ -170,6 +178,7 @@ function cleanRow(c) {
     alpha: cleanAlpha(c.alpha),
     explain: cleanExplain(c.explain),
     wiki: cleanWiki(c.wiki),
+    social: cleanSocial(c.social),
   };
 }
 

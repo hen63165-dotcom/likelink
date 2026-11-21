@@ -101,6 +101,25 @@ luck. From now on every small listing with two readings is a test, a riser needs
 a 10% false-discovery rate across all of them, a satisfaction share ≥ 90% when the store sent one, and
 component brands count as brand names. The two weak calls stay sealed in the record, misses included.
 
+## Company by company after the 21.11 upgrades (what the radar does against each one's edge)
+
+| System | Its edge | What the radar has now (verified in a real run where noted) | Still theirs, and the legal door |
+|---|---|---|---|
+| WGSN | years of history, 2,800 sources, human review | Wikipedia attention by month since 2016, English and Hebrew, publicly checkable (new); every call sealed | proprietary panels and catwalk tagging; no public door |
+| Exploding Topics | topics before they peak | lead time measured against four finish lines and sealed (since 15.11); new kinds by meaning and by look | breadth of scraped sources; the radar reads only official/open doors |
+| Heuritech | 3M social images a day | new listings grouped by their store photos before anyone wears them (new) | social-image volume; Instagram Graph API needs the owner's connection |
+| Spate | an index blending platforms | every measure kept apart, each with its source and the run receipt | its search panel; Google Trends API is alpha by application |
+| Trendalytics | supply vs demand saturation | the window clock: a calibrated, graded chance of saturation | retail crawl of 20k brands |
+| EDITED | prices across 5bn SKUs | a sealed daily price ledger (54k+ items, 21.11) and the "real deal" check | retail-side breadth (late by design) |
+| Brandwatch / Talkwalker / Sprinklr | social listening at scale | Bluesky posts per moving kind, week over week (new) | scale on closed networks (X paid, Reddit commercial terms, Meta) |
+| Similarweb | traffic panel | Wikipedia attention as public, checkable interest (new); own visitors | its panel |
+| FastMoss / Kalodata | TikTok Shop sales | YouTube new videos (live 21.11, 16/16 answered) and the TikTok echo in search | TikTok Shop data: partner API (TikTok Shop is not open in Israel) |
+| Jungle Scout / Helium 10 | Amazon sales estimates | the Amazon echo in search; AliExpress's own order counts | Amazon Creators/PA-API needs an Associates account with sales |
+| Pinterest Trends | first-party searches | code ready (REQUIRES_CONNECTION) | the owner's approved Pinterest app token |
+| Google Trends | first-party searches | daily trending RSS in 15 countries | Trends API alpha: an application by the owner |
+| Minea | ad spy | Meta Ad Library adapter (new, REQUIRES_CONNECTION) | the owner's Ad Library token after Meta's identity check |
+| All of them | self-reported accuracy | every call sealed in Bitcoin before the outcome, misses included; the noise check (Benjamini–Hochberg) before any find is shown | — |
+
 ## Sources
 
 - WGSN: [AI and data](https://www.wgsn.com/en/what-we-do/ai-data), [Fashion buying](https://www.wgsn.com/en/wgsn-fashion-buying), [Fashion forecasting](https://www.wgsn.com/en/products/fashion-design), [comparison](https://ai-in-fashion.com/en/trend-forecasting-tools-compared/)
