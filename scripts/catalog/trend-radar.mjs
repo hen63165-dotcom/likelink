@@ -677,6 +677,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  // The store words, before the Wikipedia and Bluesky doors below need them (the early-call loop sets
+  // them again later; on 21.11 the first real run asked Bluesky about 0 kinds for want of them).
+  const enOf = new Map(concepts.map((x) => [x.id, x.en || ""]));
+  for (const c of Array.isArray(board.concepts) ? board.concepts : []) if (!c.en) c.en = enOf.get(c.id) || "";
   // When the daily reading really ran (GitHub starts scheduled runs late, 17–20.11: about 9 hours after
   // the 05:37 cron): a scheduled run records its own time, any other run keeps the last one. The page
   // counts down from it, never from the cron.
@@ -746,7 +750,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     writeFileSync(join(dir, "wiki.json"), JSON.stringify(wikiState));
     board.wiki = { ...wikiSummary(cards), doors };
-    sources.wikipedia = doors.views === "failed" || doors.summary === "failed" ? "FAILED" : doors.views !== true || doors.summary !== true ? "ROBOTS_DISALLOW" : cards.length ? "OK" : "FAILED";
+    // A door the site's own rules close is CLOSED, never FAILED (21.11: en.wikipedia.org's robots.txt
+    // disallows /api/ for every automatic reader, so the radar reads none of it).
+    sources.wikipedia = doors.summary === false || doors.views === false ? "ROBOTS_DISALLOW" : doors.views === "failed" || doors.summary === "failed" ? "FAILED" : cards.length ? "OK" : "FAILED";
     log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
   }
   // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving

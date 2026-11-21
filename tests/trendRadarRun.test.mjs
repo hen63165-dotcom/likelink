@@ -51,6 +51,16 @@ function fakeNet({ week }) {
       }
       return json({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: items([3000001, 3000002, 3000003], 500, { promotion_link: "javascript:alert(1)" }) } } });
     }
+    // 🗣️ Bluesky's open search: the butter squishy is talked about more this week than the week before.
+    if (u === "https://public.api.bsky.app/robots.txt") return json("not found", 404);
+    if (origin === "https://public.api.bsky.app" && pathname === "/xrpc/app.bsky.feed.searchPosts") {
+      const sp = new URL(u).searchParams;
+      const runDay = week ? "2026-11-21" : "2026-11-14";
+      const n = sp.get("q") === '"butter stick squishy"' ? (sp.get("until").startsWith(runDay) ? 30 : 20) : 0;
+      return json({ posts: Array.from({ length: n }, () => ({})) });
+    }
+    // 📚 Wikipedia's own rules file closes its API to automatic readers: the radar reads none of it.
+    if (u === "https://en.wikipedia.org/robots.txt") return json("User-agent: *\nAllow: /api/rest_v1/?doc\nDisallow: /w/\nDisallow: /api/\n");
     if (u === "https://suggestqueries.google.com/robots.txt") return json("not found", 404);
     if (u === "https://trends.google.com/robots.txt") return json("User-agent: *\nDisallow: /trends/api\n");
     if (origin === "https://trends.google.com" && pathname === "/trending/rss") return json("<rss><channel><item><title>מכבי תל אביב</title></item></channel></rss>");
@@ -113,6 +123,12 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   assert.deepEqual(r2.board.window.horizons.map((h) => h.h), [3, 7, 14]);
   assert.equal(r2.board.window.line, 2000);
   assert.ok(sanitizeBoard(r2.board).window, "the window clock survives the sanitizer");
+  // 🗣️ Bluesky is asked with each moving kind's own store words (21.11: the first real run asked about
+  // 0 kinds, the words were set later in the run); 📚 Wikipedia's rules file closes its API: CLOSED.
+  assert.equal(r2.sources.bluesky, "OK");
+  assert.deepEqual(r2.board.concepts.find((c) => c.id === "butter-squishy").social?.bsky, { week: 30, prev: 20, weekPct: 50, capped: false });
+  assert.equal(r2.sources.wikipedia, "ROBOTS_DISALLOW");
+  assert.ok(!two.requests.some((r) => r.url.startsWith("https://en.wikipedia.org/api/")), "nothing is asked behind a closed door");
   // 🚪 Every earlier find gets its exit signal (radarCore.js exitSignal).
   assert.ok(Array.isArray(r2.board.fresh.watch));
 
