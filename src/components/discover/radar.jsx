@@ -13,7 +13,7 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
-import { EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
+import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
@@ -881,6 +881,45 @@ function FindFacts({ f, kind, day }) {
  * The radar's whole record in one table (radarCore.js recordView): every instrument, the same
  * columns, the result as it is. Each row opens its own section below.
  */
+/**
+ * 🗺️ The capability map (radarCore.js capabilityMap; the owner's mission, 21.11, phase 2): every source,
+ * instrument and missing door in five classes, computed from the latest run's board, never declared.
+ */
+function CapabilityMap({ board }) {
+  const { L } = useL();
+  const map = capabilityMap(board);
+  if (!map.rows.length) return null;
+  const why = (r) => {
+    if (!r.why) return "";
+    if (typeof r.why === "string") return r.kind === "door" ? r.why : SOURCE_STATES[r.why] ? L(SOURCE_STATES[r.why].he, SOURCE_STATES[r.why].en) : "";
+    if (r.why.firstCheck) return L(`הבדיקה הראשונה ב־${dm(r.why.firstCheck)}`, `first check on ${dm(r.why.firstCheck)}`);
+    if (r.why.errors !== undefined) return L(`${r.why.errors} שגיאות מתוך ${r.why.of} שאלות`, `${r.why.errors} errors of ${r.why.of} requests`);
+    return "";
+  };
+  return (
+    <section className="lx-wrap mt-8" id="capabilities">
+      <div className="lx-card lx-rdr-panel p-5 md:p-6">
+        <h2 className="text-[22px] font-black">{L("🗺️ מפת היכולות, מהריצה האחרונה", "🗺️ The capability map, from the latest run")}</h2>
+        <p className="mt-1 text-[14px] leading-6" style={{ color: "var(--lx-muted)" }}>{L("כל מקור וכל כלי של הרדאר, בחמש קבוצות. המפה מחושבת מהנתונים של הריצה האחרונה: מה ענה, מה נשמר ומה כבר קיבל ציון.", "Every source and instrument of the radar, in five groups, computed from the latest run's data: what answered, what was kept, what has been graded.")}</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {Object.entries(CAPABILITY_CLASSES).map(([k, c]) => {
+            const rows = map.rows.filter((r) => r.cls === k);
+            if (!rows.length) return null;
+            return (
+              <div key={k} className="lx-rdr-item p-3">
+                <p className="text-[14px] font-black">{c.n}. {L(c.he, c.en)} · {rows.length}</p>
+                <ul className="mt-1 grid gap-0.5 text-[12px] leading-5">
+                  {rows.map((r) => <li key={`${r.kind}-${r.key}`}><b>{L(r.he, r.en)}</b>{why(r) ? <span style={{ color: "var(--lx-muted)" }}> · {why(r)}</span> : null}</li>)}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function RecordTable({ board }) {
   const { L } = useL();
   const v = recordView(board || {});
@@ -1841,6 +1880,7 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
+        {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
