@@ -1,0 +1,23 @@
+# LikeLink
+
+> LikeLink is a Hebrew-first studio for creators: product pages, tracking links and content drafts (hooks, scripts, captions) for products they recommend. It does not promise sales, income or traffic, and it does not post to social networks on a creator's behalf without explicit approval per post.
+
+## Public pages
+
+- [Plans and prices](https://likelink2.vercel.app/pricing): Free, Starter (₪29/month), Professional (₪79/month); Elite is coming soon (waitlist only).
+- [Legal documents](https://likelink2.vercel.app/legal): terms, privacy, cancellations, affiliate disclosure, accessibility.
+- [Affiliate disclosure](https://likelink2.vercel.app/legal/affiliate-disclosure): some links are affiliate links; creators must disclose them.
+- Product pages: https://likelink2.vercel.app/p/{productId}
+- Creator pages: https://likelink2.vercel.app/u/{slug}
+
+## The trend radar
+
+- [The trend radar](https://likelink2.vercel.app/radar): every morning it asks AliExpress about its categories (fashion every day, the rest in rotation), Google and YouTube searches in Hebrew, and Google searches in other countries, and makes a call only when all four signals agree (the world, demand, sellers, Israel). Each run publishes a receipt counted from the answers that really arrived (requests sent, answered with data, empty, refused, no answer, per source), with the link to the run's public GitHub log and its SHA-256 sealed in Bitcoin with the day's books ([what the radar read](https://likelink2.vercel.app/radar#sources)).
+- The only product-trend radar we found in the world that seals every call in advance, misses included, and grades it in public. (Per a worldwide check on 20.11.2026; the trend companies we found publish accuracy they measured themselves; sealed, graded forecasts we found were in sports, elections, markets and AI-search visibility, not consumer products.)
+- How to check it: each day's books (early calls, stage calls, every new product shown, next-country calls, store prices) are hashed with SHA-256 under one root and timestamped in Bitcoin through OpenTimestamps; the texts and the .ots proofs are on [the ledger](https://likelink2.vercel.app/radar#ledger), and anyone can verify them at opentimestamps.org. A call is graded after 14 days, hit or miss, and never edited.
+- The radar vs luck: a timestamp proves a call was not changed, not that it was good. So each day one kind is drawn at random from the kinds read that day (seeded by the SHA-256 of that day's sealed store prices, so nobody chooses it) and graded by the same rule; [the page](https://likelink2.vercel.app/radar#luck) prints both records, and the difference once both sides have three grades.
+- Also measured: the Israel gap (is it already searched in Hebrew), the global trend clock (the day a trend reached each country the clock measures, and a sealed "next country" call), a sealed daily store-price ledger behind [the real-deal check](https://likelink2.vercel.app/magic), and the sixth-sense table where people pick against the radar with sealed receipts.
+
+## Usage
+
+Quoting short passages with a link back is welcome. Bulk collection, copying the catalog, the scores or the design, and using the content to build a competing service are not permitted — see [Acceptable use](https://likelink2.vercel.app/legal/acceptable-use).

@@ -1,0 +1,22 @@
+{
+  "day": "2026-11-21",
+  "kind": "quiet",
+  "kicker": "📡 הבדיקה של הבוקר",
+  "title": "🔎 היום הרדאר במעקב צמוד",
+  "sub": "הקביעה הבאה תיחתם כשכל 4 הסימנים יסכימו.",
+  "items": [
+    {
+      "icon": "👀",
+      "text": "במעקב צמוד: סוג אחד עם 2 סימנים ומעלה"
+    },
+    {
+      "icon": "🔎",
+      "text": "נבדקו היום 139 סוגי מוצרים"
+    }
+  ],
+  "cta": "👇 כל הפרטים בקישור",
+  "disclosure": "#פרסומת · באתר יש קישורי שותפים",
+  "link": "https://likelink2.vercel.app/radar?utm_source=instagram&utm_medium=story&utm_campaign=radar_20261121",
+  "sticker": "לרדאר",
+  "image": "story-2026-11-21.png"
+}
