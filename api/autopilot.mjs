@@ -1,7 +1,7 @@
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { createPrivateKv } from "../src/lib/cloud/marketerPrivacy.js";
 import { isPromotable, sharedAffiliateLinks, isRealProductPhoto } from "../src/lib/discovery/catalogIntegrity.js";
-import { hotOnlyPool } from "../src/lib/growth/hotGate.js";
+import { freshForChannel, hotOnlyPool, lookPool } from "../src/lib/growth/hotGate.js";
 import { pitchFor } from "../src/lib/growth/postPitches.js";
 import { publicationGate } from "../src/lib/publishing/adapters.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
@@ -1087,10 +1087,24 @@ export async function runOne(store, marketerId, cfg, origin) {
   // Hot-only (src/lib/growth/hotGate.js): the owner's channel posts only products the radar keeps today
   // (all 8 criteria: hot now, rising, not saturated in Israel …); none → nothing is posted.
   let hotReason = null;
-  if (cfg.hotOnly === true || marketerId === (process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5")) {
-    const gate = hotOnlyPool(pool, await kvGet("radar:board", null).catch(() => null));
+  const ownerChannel = marketerId === (process.env.MARKETPLACE_SINGLE_OWNER_ID || "msd6go4kff49s5");
+  if (cfg.hotOnly === true || ownerChannel) {
+    const board = await kvGet("radar:board", null).catch(() => null);
+    // The owner's channel (21.11): her dupes rising on the radar today, never twice, never in a burst
+    // (src/lib/growth/hotGate.js lookPool + freshForChannel). Another studio with hotOnly keeps the
+    // radar's KEEP list (hotOnlyPool); cfg.channelMode "hot" gives the owner that list again.
+    const gate = ownerChannel && cfg.channelMode !== "hot" ? lookPool(pool, board) : hotOnlyPool(pool, board);
     pool = gate.pool;
-    hotReason = gate.reason;
+    hotReason = gate.reason ? `${gate.reason}${gate.looks?.length ? ` (${gate.looks.map((l) => l.id).join(", ")})` : ""}` : null;
+    if (pool.length) {
+      // The publish log is the memory of what was sent: unreadable → nothing is sent (never a repeat by accident).
+      const sentLog = await kvGet(PUBLISH_LOG_KEY).catch(() => null);
+      const fresh = Array.isArray(sentLog) ? freshForChannel(pool, sentLog, { brandId: marketerId, now: Date.now() }) : { pool: [], tooSoon: false, unreadable: true };
+      pool = fresh.pool;
+      if (fresh.unreadable) hotReason = "publish_log_unreadable";
+      else if (fresh.tooSoon) hotReason = `too_soon_after ${fresh.lastAt}`;
+      else if (!pool.length) hotReason = "every_rising_look_was_posted_in_the_last_14_days";
+    }
   }
   const product = pickProduct(cfg, pool);
 
