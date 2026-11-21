@@ -73,6 +73,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
 import { GAP, GAP_CORE, GAP_COUNTRIES, GAP_EXTRA, freshGap, gapSweepOrder, suggestFacts, worldGapOf, worldGapSummary } from "../../src/lib/growth/worldGap.js";
+import { supplyBoard, supplyGapOf } from "../../src/lib/growth/supplyGap.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
@@ -833,20 +834,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   }
   const gapOn = env.RADAR_GAP !== "0" && sources.suggest === "OK";
   const gapRun = { started: Date.now(), asked: 0, answered: 0, failRun: 0, stopped: false, concepts: 0, phrases: 0 };
-  const sweepCountries = async (phrase, ids) => {
+  // `withYt`: YouTube's own suggestions from each country too (ds=yt; the radar's finds).
+  const sweepCountries = async (phrase, ids, { withYt = false } = {}) => {
     const counts = {};
+    const yt = {};
     const echo = [];
-    await runPool(ids.map((id) => async () => {
+    const jobs = ids.flatMap((id) => (withYt ? [[id, false], [id, true]] : [[id, false]]));
+    await runPool(jobs.map(([id, isYt]) => async () => {
       if (gapRun.stopped || Date.now() - gapRun.started > GAP.budgetMs) { gapRun.stopped = true; return; }
       gapRun.asked++;
       let facts = null;
-      try { facts = suggestFacts(phrase, await suggestList(phrase, { hl: "en", gl: id }, fetchImpl)); } catch { facts = null; }
-      if (facts) { gapRun.answered++; gapRun.failRun = 0; counts[id] = facts.n; if (facts.echo) echo.push(id); }
+      try { facts = suggestFacts(phrase, await suggestList(phrase, isYt ? { hl: "en", gl: id, ds: "yt" } : { hl: "en", gl: id }, fetchImpl)); } catch { facts = null; }
+      if (facts) { gapRun.answered++; gapRun.failRun = 0; (isYt ? yt : counts)[id] = facts.n; if (facts.echo && !echo.includes(id)) echo.push(id); }
       else if (++gapRun.failRun >= GAP.maxFailures) gapRun.stopped = true;
       await pause(Math.round(politeMs / 2));
     }), GAP.concurrency);
     if (Object.keys(counts).length) keep(meter, "worldSearch", Object.keys(counts).length);
-    return { counts, echo };
+    if (Object.keys(yt).length) keep(meter, "youtube", Object.keys(yt).length);
+    return { counts, yt, echo };
   };
   const israelOf = (gap) => (["ARRIVING", "ARRIVED"].includes(gap?.state) ? true : ["GAP", "QUIET"].includes(gap?.state) ? false : null);
   if (gapOn && Array.isArray(board.concepts)) {
@@ -874,8 +879,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     if (gapState.phrases[key]?.d === today) return gapState.phrases[key];
     if (gapRun.stopped || gapRun.phrases >= GAP.maxPhrases) return null;
     gapRun.phrases++;
-    const got = await sweepCountries(phrase, GAP_COUNTRIES.filter((x) => x.id !== "il").map((x) => x.id));
-    const g = worldGapOf({ counts: got.counts, echo: got.echo, d: today });
+    const got = await sweepCountries(phrase, GAP_COUNTRIES.filter((x) => x.id !== "il").map((x) => x.id), { withYt: true });
+    const g = worldGapOf({ counts: got.counts, yt: got.yt, echo: got.echo, d: today });
     if (g.state === "UNMEASURED") return null;
     gapState.phrases[key] = g;
     return g;
@@ -1251,7 +1256,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
     c.factory = factoryOf(c.listings); // the factory signal: sellers rushing in before buyers
+    c.supply = supplyGapOf({ series: c.series, listings: c.listings }); // 🏭 sellers against demand (supplyGap.js)
   }
+  board.supply = supplyBoard(board.concepts);
+  log.push(`supply: ${board.supply.measured} kinds measured · ${board.supply.under} under-supplied (demand outruns sellers) · ${board.supply.over} over-supplied · ${board.supply.top.map((id) => { const c = board.concepts.find((x) => x.id === id); return `${id} orders ${c.supply.demandWeekPct}% vs listings ${c.supply.supplyWeekPct}%`; }).join(", ") || "none"}`);
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
   // on its call, so the page can say how many days the call came first.

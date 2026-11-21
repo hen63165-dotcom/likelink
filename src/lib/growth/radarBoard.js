@@ -10,6 +10,7 @@ import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
+import { cleanSupply, cleanSupplyBoard } from "./supplyGap.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
@@ -181,6 +182,7 @@ function cleanRow(c) {
     wiki: cleanWiki(c.wiki),
     social: cleanSocial(c.social),
     worldGap: cleanWorldGap(c.worldGap),
+    supply: cleanSupply(c.supply),
   };
 }
 
@@ -208,6 +210,7 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
+    supply: cleanSupplyBoard(doc.supply),
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
     site: doc.site && typeof doc.site === "object" ? {

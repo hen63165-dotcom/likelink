@@ -19,6 +19,7 @@ import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
 import { GAP_STATES } from "../../lib/growth/israelGap.js";
 import { REGIONS, worldGapLine } from "../../lib/growth/worldGap.js";
+import { supplyLine } from "../../lib/growth/supplyGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
@@ -320,6 +321,7 @@ export function ConceptCard({ c }) {
       <WorldLine world={c.world} />
       <IsraelLine gap={c.gap} />
       <WorldGapLine g={c.worldGap} />
+      {c.supply ? <p className="mt-2 text-[13px] font-bold" style={{ color: c.supply.state === "UNDERSUPPLIED" ? "#067647" : "var(--lx-muted)" }}>{L(supplyLine(c.supply, "he"), supplyLine(c.supply, "en"))}</p> : null}
       <Everywhere q={c.en} />
       <AlphaBlock c={c} />
       {c.actionHe ? <p className="mt-3 text-[15px] font-extrabold">👉 {c.actionHe}{c.action === "WAIT" && c.measured ? L(` (${dm(nextDay(c.since))})`, "") : ""}</p> : null}
@@ -735,6 +737,30 @@ function Verdict({ board, gated = false }) {
 }
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
+// 🏭 For factories and sellers (supplyGap.js): the kinds whose orders grow faster than the listings.
+function SupplyList({ board }) {
+  const { L } = useL();
+  const top = (board?.supply?.top || []).map((id) => (board.concepts || []).find((c) => c.id === id)).filter((c) => c?.supply);
+  if (!top.length) return null;
+  return (
+    <section className="lx-wrap mt-8" id="supply">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🏭 איפה הביקוש רץ מהר מהמוכרים", "🏭 Where demand outruns the sellers")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`למפעלים ולמוכרים: מתוך ${board.supply.measured} סוגים שנמדדו הבוקר, ב־${board.supply.under} ההזמנות גדלות מהר יותר ממספר המודעות. המספרים של אליאקספרס, עם תאריכים.`, `For factories and sellers: of ${board.supply.measured} kinds measured this morning, in ${board.supply.under} the orders grow faster than the listings. AliExpress's own numbers, dated.`)}</p>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {top.map((c) => (
+            <li key={c.id} className="lx-card lx-rdr-item p-3">
+              <p className="text-[15px] font-extrabold">{c.he}</p>
+              <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(supplyLine(c.supply, "he"), supplyLine(c.supply, "en"))}</p>
+              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${c.supply.orders?.toLocaleString("he-IL")} הזמנות ב־30 יום · ${c.supply.listings?.toLocaleString("he-IL")} מודעות · על פני ${c.supply.days} ימים`, `${c.supply.orders?.toLocaleString("en-US")} orders in 30 days · ${c.supply.listings?.toLocaleString("en-US")} listings · over ${c.supply.days} days`)}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function FreshRisers({ fresh, world = null, gap = null, day = null }) {
   const { L } = useL();
   if (!fresh) return null;
@@ -1331,6 +1357,7 @@ function Styles({ concepts = [] }) {
               {c.social?.bsky ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`🗣️ בלוסקיי: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} פוסטים השבוע (${c.social.bsky.prev} בשבוע הקודם)`, `🗣️ Bluesky: ${c.social.bsky.week}${c.social.bsky.capped ? "+" : ""} posts this week (${c.social.bsky.prev} the week before)`)}</p> : null}
               {c.social?.ads ? <p className="text-[12px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📢 מודעות חדשות באירופה השבוע: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (ספריית הפרסומות של מטא)`, `📢 New EU ads this week: ${c.social.ads.week}${c.social.ads.more ? "+" : ""} (Meta Ad Library)`)}</p> : null}
               {c.gap?.he ? <p className="text-[12px]" style={{ color: "#1d4ed8" }}>{L(`🇮🇱 ${gapHe(c.gap)}`, `🇮🇱 ${gapHe(c.gap)}`)}</p> : null}
+              {c.supply?.state === "UNDERSUPPLIED" ? <p className="text-[12px] font-bold" style={{ color: "#067647" }}>{L(supplyLine(c.supply, "he"), supplyLine(c.supply, "en"))}</p> : null}
               {worldGapLine(c.worldGap, "he") ? <p className="text-[12px]" style={{ color: c.worldGap.before ? "#067647" : "var(--lx-muted)" }}>{L(`🌍 ${worldGapLine(c.worldGap, "he")}`, `🌍 ${worldGapLine(c.worldGap, "en")}`)}</p> : null}
             </li>
           ))}
@@ -1861,6 +1888,7 @@ export function RadarPage() {
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
         <Verdict board={board} gated={gated} />
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
+        {!gated && board?.supply ? <SupplyList board={board} /> : null}
         {!gated && board?.kinds ? <NewKinds kinds={board.kinds} day={String(board.at || "").slice(0, 10)} /> : null}
         <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
           {showAll ? <h2 id="radar-results" className="lx-display text-[26px] md:text-[34px]">{L("כל מה שהרדאר מודד", "Everything the radar measures")}</h2> : null}

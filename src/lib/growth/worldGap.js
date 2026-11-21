@@ -131,10 +131,15 @@ export function suggestFacts(phrase, suggestions) {
  * Hebrew presence (true / false / null), the countries whose completions held an echo word, and the
  * countries where Google's trending searches had it today.
  */
-export function worldGapOf({ counts = {}, israel = null, echo = [], trends = [], d = null } = {}, { rules = GAP } = {}) {
+export function worldGapOf({ counts = {}, yt = null, israel = null, echo = [], trends = [], d = null } = {}, { rules = GAP } = {}) {
   const per = [];
+  // YouTube's suggestions from the same country (the biggest video network, `yt`): searched when
+  // Google OR YouTube completes the phrase there; a country with neither answer is not measured.
+  const both = (id) => { const xs = [counts?.[id], yt?.[id]].filter((x) => Number.isFinite(x)); return xs.length ? Math.max(...xs) : null; };
+  let ytMeasured = 0, ytSearched = 0;
+  for (const [id, v] of Object.entries(yt && typeof yt === "object" ? yt : {})) if (BY_ID.has(id) && Number.isFinite(v)) { ytMeasured++; if (v >= rules.faint) ytSearched++; }
   for (const c of GAP_COUNTRIES) {
-    const v = c.id === "il" ? (israel === true ? rules.faint : israel === false ? 0 : null) : counts?.[c.id];
+    const v = c.id === "il" ? (israel === true ? rules.faint : israel === false ? 0 : null) : both(c.id);
     if (!Number.isFinite(v)) continue;
     per.push({ id: c.id, region: c.region, searched: v >= rules.faint });
   }
@@ -167,6 +172,7 @@ export function worldGapOf({ counts = {}, israel = null, echo = [], trends = [],
     echo: echoIn,
     trends: trendsIn,
     before: state === "WORLD_QUIET" || state === "FIRST_SIGNS",
+    yt: ytMeasured ? { measured: ytMeasured, searched: ytSearched } : null,
     confidence: measured >= 40 && regionsMeasured >= 6 ? "HIGH" : measured >= 25 && regionsMeasured >= 5 ? "MEDIUM" : "LOW",
   };
 }
@@ -178,7 +184,8 @@ export function worldGapLine(g, lang = "he") {
   if (!g || !STATES.has(g.state) || g.state === "UNMEASURED") return null;
   const he = lang === "he";
   const quiet = g.measured - g.searched;
-  if (g.state === "WORLD_QUIET") return he ? `שקט בכל ${g.measured} המדינות שנמדדו, ב־${g.regionsMeasured} אזורים בעולם` : `Quiet in all ${g.measured} countries measured, in ${g.regionsMeasured} regions`;
+  const net = g.yt?.measured ? (he ? " (גוגל ויוטיוב)" : " (Google and YouTube)") : "";
+  if (g.state === "WORLD_QUIET") return he ? `שקט בכל ${g.measured} המדינות שנמדדו${net}, ב־${g.regionsMeasured} אזורים בעולם` : `Quiet in all ${g.measured} countries measured${net}, in ${g.regionsMeasured} regions`;
   if (g.state === "FIRST_SIGNS") return he ? `מחפשים רק ב${names(g.where, "he")} · שקט ב־${quiet} מדינות` : `Searched only in ${names(g.where, "en")} · quiet in ${quiet} countries`;
   const echo = g.echo.length ? (he ? ` · באז ב${names(g.echo, "he")}` : ` · buzz in ${names(g.echo, "en")}`) : "";
   const trends = g.trends.length ? (he ? ` · בחיפושים החמים ב${names(g.trends, "he")}` : ` · trending in ${names(g.trends, "en")}`) : "";
@@ -236,6 +243,7 @@ export function cleanWorldGap(g) {
     echo: ids(g.echo),
     trends: ids(g.trends),
     before: g.state === "WORLD_QUIET" || g.state === "FIRST_SIGNS",
+    yt: g.yt && typeof g.yt === "object" ? { measured: n(g.yt.measured), searched: Math.min(n(g.yt.searched), n(g.yt.measured)) } : null,
     confidence: ["HIGH", "MEDIUM", "LOW"].includes(g.confidence) ? g.confidence : "LOW",
   };
 }

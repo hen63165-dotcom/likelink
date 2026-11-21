@@ -111,3 +111,33 @@ test("world gap: the find card's world row; the browser keeps known countries an
   assert.equal(board.concepts[0].worldGap.state, "FIRST_SIGNS");
   assert.equal(board.worldGap.states.WORLD_QUIET, 1);
 });
+
+// 🏭 Sellers against demand (supplyGap.js) and YouTube per country in the world gap.
+import { cleanSupply, supplyBoard, supplyGapOf, supplyLine } from "../src/lib/growth/supplyGap.js";
+
+test("supply: demand outrunning the sellers is room to make it; sellers rushing in is over-supply", () => {
+  const under = supplyGapOf({ series: [["2026-11-14", 1000], ["2026-11-21", 1500]], listings: [["2026-11-14", 400], ["2026-11-21", 420]] });
+  assert.equal(under.state, "UNDERSUPPLIED");
+  assert.equal(under.demandWeekPct, 50);
+  assert.equal(under.supplyWeekPct, 5);
+  assert.equal(under.perListing, 3.57);
+  const over = supplyGapOf({ series: [["2026-11-14", 1000], ["2026-11-21", 1020]], listings: [["2026-11-14", 400], ["2026-11-21", 600]] });
+  assert.equal(over.state, "OVERSUPPLIED");
+  assert.equal(supplyGapOf({ series: [["2026-11-21", 1000]], listings: [["2026-11-21", 400]] }), null, "one reading is no pace");
+  assert.match(supplyLine(under, "he"), /מקום לייצר · הזמנות \+50% בשבוע, מודעות \+5%/);
+  const b = supplyBoard([{ id: "kind-a", supply: under }, { id: "kind-b", supply: over }, { id: "kind-c" }]);
+  assert.deepEqual(b, { measured: 2, under: 1, over: 1, top: ["kind-a"] });
+  assert.equal(cleanSupply({ state: "NOPE" }), null);
+  const board = sanitizeBoard({ at: "2026-11-21T06:00:00.000Z", record: {}, supply: b, concepts: [{ id: "lip-oil", he: "שמן שפתיים", en: "lip oil", stage: "STEADY", gap: { state: "ARRIVED" }, supply: under }] });
+  assert.equal(board.concepts[0].supply.state, "UNDERSUPPLIED");
+  assert.deepEqual(board.supply.top, ["kind-a"]);
+});
+
+test("world gap: YouTube from the same country counts as searching it there", () => {
+  const g = worldGapOf({ counts: all(0), yt: { ...all(0), br: 2 }, d: "2026-11-21" });
+  assert.equal(g.state, "FIRST_SIGNS");
+  assert.deepEqual(g.where, ["br"]);
+  assert.deepEqual(g.yt, { measured: 51, searched: 1 });
+  assert.match(worldGapLine(worldGapOf({ counts: all(0), yt: all(0) }), "he"), /\(גוגל ויוטיוב\)/);
+  assert.deepEqual(cleanWorldGap(g).yt, { measured: 51, searched: 1 });
+});
