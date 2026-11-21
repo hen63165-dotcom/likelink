@@ -187,6 +187,11 @@ test("the countdown points at the next 05:37 UTC reading", async () => {
   const { nextReadingAt } = await import("../src/lib/growth/worldPulse.js");
   assert.equal(new Date(nextReadingAt(Date.parse("2026-11-15T18:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
   assert.equal(new Date(nextReadingAt(Date.parse("2026-11-16T05:00:00Z"))).toISOString(), "2026-11-16T05:37:00.000Z");
+  // 17–20.11: GitHub started the 05:37 run about 9 hours late every day, so the page counts from when
+  // the last daily reading really ran (board.lastDaily), and says it is on its way once that passed.
+  assert.equal(new Date(nextReadingAt(Date.parse("2026-11-21T10:00:00Z"), { lastDaily: "2026-11-20T14:19:35.000Z" })).toISOString(), "2026-11-21T14:19:35.000Z");
+  assert.equal(nextReadingAt(Date.parse("2026-11-21T15:00:00Z"), { lastDaily: "2026-11-20T14:19:35.000Z" }), null);
+  assert.equal(nextReadingAt(Date.parse("2026-11-21T15:00:00Z"), { lastDaily: null }), null);
 });
 
 test("the factory signal: sellers rushing into a small kind of product before buyers", async () => {

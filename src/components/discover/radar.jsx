@@ -407,18 +407,21 @@ export function TrialBanner() {
  * grade and the days it was ahead. Shareable as text that only states what was sealed (never a promise).
  */
 const RESULT_HE = { HIT: "✅ פגע", MISS: "❌ לא פגע" };
-function Countdown() {
+function Countdown({ lastDaily = null }) {
   const { L } = useL();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const left = Math.max(0, nextReadingAt(now) - now);
+  // Anchored on when the last daily reading really ran (GitHub starts scheduled runs hours late).
+  const next = nextReadingAt(now, { lastDaily });
+  if (next === null) return <p className="text-[13px] font-bold">{L("⏰ הקריאה של היום בדרך", "⏰ Today's reading is on its way")}</p>;
+  const left = Math.max(0, next - now);
   const hh = String(Math.floor(left / 3_600_000)).padStart(2, "0");
   const mm = String(Math.floor((left % 3_600_000) / 60_000)).padStart(2, "0");
   const ss = String(Math.floor((left % 60_000) / 1000)).padStart(2, "0");
-  return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הבדיקה הבאה של הרדאר בעוד ", "⏰ The radar's next reading in ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
+  return <p className="text-[13px] font-bold" dir="rtl">{L("⏰ הקריאה הבאה של הרדאר בעוד כ־", "⏰ The radar's next reading in about ")}<span dir="ltr" style={{ fontVariantNumeric: "tabular-nums" }}>{hh}:{mm}:{ss}</span></p>;
 }
 
 /** The card for a visitor without access: sign in for her own free trial, or subscribe. */
@@ -611,7 +614,7 @@ function Verdict({ board, gated = false }) {
       <div className="lx-card lx-rdr-panel p-5 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-[13px] font-bold" style={{ color: "var(--lx-muted)" }}>{L(`📣 מה הרדאר קבע היום · ${dm(day)}`, `📣 What the radar called today · ${dm(day)}`)}</p>
-          <Countdown />
+          <Countdown lastDaily={board.lastDaily || null} />
         </div>
         {v.calls.length ? (
           <ul className="mt-3 grid gap-3">

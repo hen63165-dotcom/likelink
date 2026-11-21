@@ -347,8 +347,18 @@ export function calibrationOf(calls = [], record) {
   return { signal: pick(record(list.filter((c) => c?.kind !== "early"))), sniper: pick(record(list.filter((c) => c?.kind === "early"))) };
 }
 
-/** The next daily reading (the page's countdown): the radar runs at 05:37 UTC (Actions → "Trend radar"). */
-export function nextReadingAt(now = Date.now()) {
+/**
+ * The next daily reading (the page's countdown). With `lastDaily` (when the last scheduled reading
+ * really ran, board.lastDaily): about 24 hours after it, or null once that time has passed (today's
+ * reading is on its way). Without it: the 05:37 UTC schedule (Actions → "Trend radar").
+ */
+export function nextReadingAt(now = Date.now(), { lastDaily = undefined } = {}) {
+  if (lastDaily !== undefined) {
+    const t = Date.parse(String(lastDaily || ""));
+    if (!Number.isFinite(t)) return null;
+    const next = t + 86_400_000;
+    return next > now ? next : null;
+  }
   const d = new Date(now);
   const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 5, 37);
   return t > now ? t : t + 86_400_000;

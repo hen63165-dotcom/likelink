@@ -65,7 +65,7 @@ export default function WixRadar({ board, lang }) {
         </div>
         <div className="wr-clock">
           <div>{L(`הקריאה של ${d(verdict.day)}`, `Reading of ${d(verdict.day)}`)}</div>
-          <div className="wr-muted">{L(`הקריאה הבאה בעוד ${untilText(nextReadingAt(now) - now, lang)}`, `Next reading in ${untilText(nextReadingAt(now) - now, lang)}`)}</div>
+          <div className="wr-muted">{nextReadingAt(now, { lastDaily: board?.lastDaily || null }) === null ? L("הקריאה של היום בדרך", "Today's reading is on its way") : L(`הקריאה הבאה בעוד כ־${untilText(nextReadingAt(now, { lastDaily: board?.lastDaily || null }) - now, lang)}`, `Next reading in about ${untilText(nextReadingAt(now, { lastDaily: board?.lastDaily || null }) - now, lang)}`)}</div>
         </div>
       </header>
 

@@ -175,6 +175,8 @@ export function sanitizeBoard(doc) {
     promise: cleanPromise(doc.promise),
     // ⏳ The window clock (radarWindow.js): the chance a find's listings reach the saturation line, and its record.
     window: cleanWindow(doc.window),
+    // When the last scheduled daily reading really ran (the countdown's anchor).
+    lastDaily: typeof doc.lastDaily === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(doc.lastDaily) ? doc.lastDaily : null,
     // 📡 What the run read today, as it reported it (radarCore.js sourcesView): states only, no numbers.
     sourcesToday: doc.sourcesToday && typeof doc.sourcesToday === "object" ? Object.fromEntries(Object.entries(doc.sourcesToday).filter(([k, v]) => /^[a-zA-Z_]{2,30}$/.test(k) && (typeof v === "string" ? /^[A-Z_0-9]{2,40}$/.test(v) : k === "world" && v && typeof v === "object")).map(([k, v]) => [k, typeof v === "string" ? v : { readToday: num(v.readToday) ?? 0, categories: num(v.categories) ?? 0 }])) : null,
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.

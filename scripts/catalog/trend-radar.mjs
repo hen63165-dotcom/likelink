@@ -66,7 +66,7 @@ import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, 
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
-import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -473,10 +473,18 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       if (Date.now() - started > 100_000) { log.push(`fresh: budget over at ${cat.key}`); break; }
       try {
         const e = aeEnv(env);
-        const biz = { keywords: freshKeywords(cat, now), tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" };
-        const res = await aeCall(SEARCH, biz, { env: e, fetchImpl, now });
-        const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
-        if (Number(r?.resp_code) !== 200) { log.push(`fresh ${cat.key}: resp ${r?.resp_code ?? "none"}`); continue; }
+        // The full words first; an empty answer (resp 405) tries the shorter searches (freshQueries).
+        let r = null;
+        let tried = 0;
+        for (const q of freshQueries(cat, now)) {
+          tried++;
+          const biz = { keywords: q, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" };
+          const res = await aeCall(SEARCH, biz, { env: e, fetchImpl, now });
+          r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(r?.resp_code) === 200 || Number(r?.resp_code) !== 405) break;
+        }
+        if (Number(r?.resp_code) !== 200) { log.push(`fresh ${cat.key}: resp ${r?.resp_code ?? "none"} after ${tried} searches`); continue; }
+        if (tried > 1) log.push(`fresh ${cat.key}: found with search ${tried}`);
         const raw = r.result?.products?.product;
         for (const p of Array.isArray(raw) ? raw : raw ? [raw] : []) {
           const entry = freshEntry(p, { category: cat.key, today });
@@ -557,6 +565,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  // When the daily reading really ran (GitHub starts scheduled runs late, 17–20.11: about 9 hours after
+  // the 05:37 cron): a scheduled run records its own time, any other run keeps the last one. The page
+  // counts down from it, never from the cron.
+  board.lastDaily = env.GITHUB_EVENT_NAME === "schedule" ? new Date(now).toISOString() : (typeof prevBoard.lastDaily === "string" ? prevBoard.lastDaily : null);
   board.world = sources.world && typeof sources.world === "object" ? sources.world : null;
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));

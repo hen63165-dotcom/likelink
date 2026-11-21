@@ -64,6 +64,16 @@ const IMG = /^https:\/\/[^/]*(aliexpress-media\.com|alicdn\.com|aliexpress\.com)
 
 /** The search words for a category's new listings this year. */
 export const freshKeywords = (category, now = Date.now()) => `${category.keywords} ${new Date(now).getUTCFullYear()} new`;
+/**
+ * The searches tried in order for one area (the audit of 21.11: tech, gadgets and handheld answered
+ * resp 405, no result, on every run since 17.11, because their long words plus "<year> new" match
+ * nothing): the full words, then their first two words with the year, then the first two words alone.
+ */
+export function freshQueries(category, now = Date.now()) {
+  const year = new Date(now).getUTCFullYear();
+  const two = String(category?.keywords || "").split(/\s+/).filter(Boolean).slice(0, 2).join(" ");
+  return [...new Set([freshKeywords(category, now), `${two} ${year} new`, `${two} new`].filter((q) => q.trim().length > 4))];
+}
 
 /** A store answer's product as a pool entry, or null (no own link, no photo, a brand, an unlisted kind). */
 export function freshEntry(p, { category = "", today = "" } = {}) {
