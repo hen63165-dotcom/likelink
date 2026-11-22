@@ -67,6 +67,8 @@ export function teaserBoard(board) {
     receipt: board.receipt || null,
     scan: board.scan || null,
     sourceHealth: board.sourceHealth || null,
+    // 📦 "Room to make it": the record and the seal's fingerprint are public; the kinds stay behind the lock.
+    supply: board.supply ? { measured: board.supply.measured || 0, under: board.supply.under || 0, over: board.supply.over || 0, top: [], record: board.supply.record || null, seal: board.supply.seal ? { d: board.supply.seal.d, sha256: board.supply.seal.sha256, count: board.supply.seal.count, ots: board.supply.seal.ots || [] } : null } : null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.
     window: board.window ? { v: board.window.v, at: board.window.at, line: board.window.line, horizons: board.window.horizons || [], record: board.window.record || [], issued: board.window.issued || 0, open: board.window.open || 0, nextDue: board.window.nextDue || null, recent: [], seal: board.window.seal ? { d: board.window.seal.d, sha256: board.window.seal.sha256, count: board.window.seal.count, ots: board.window.seal.ots || [] } : null } : null,
     // 📐 The proven range: the method's state and the coverage record are public; the day's ranges

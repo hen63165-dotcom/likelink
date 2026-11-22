@@ -102,3 +102,13 @@ test("who spotted it first: only a user with access picks; the table is public a
   assert.equal(mine.body.picks[0].concept, "tofu-squishy");
   assert.equal(mine.body.picks[0].userId, undefined);
 });
+
+test("the lock: 'room to make it' shows its record and fingerprint, never the kinds it named", async () => {
+  const { teaserBoard: teaser } = await import("../src/lib/growth/radarGate.js");
+  const t = teaser({ at: "2026-11-22T06:00:00Z", supply: { measured: 125, under: 14, over: 2, top: ["cable-knit-scarf"], record: { calls: 14, graded: 0, followed: 0 }, seal: { d: "2026-11-22", sha256: "a".repeat(64), count: 30, text: "cable-knit-scarf|2026-11-22|call|400|2026-12-06|-", ots: [] } } });
+  assert.deepEqual(t.supply.top, []);
+  assert.equal(t.supply.record.calls, 14);
+  assert.equal(t.supply.seal.sha256, "a".repeat(64));
+  assert.equal(t.supply.seal.text, undefined);
+  assert.ok(!JSON.stringify(t).includes("cable-knit-scarf"));
+});

@@ -751,9 +751,9 @@ function SupplyList({ board }) {
           <p className="mt-2 text-[13px] font-bold leading-6">
             {(() => {
               const r = board.supply.record;
-              const head = L(`📦 כל "מקום לייצר" נחתם מראש בביטקוין, ואחרי ${r.gradeDays} יום בודקים אם מוכרים חדשים נכנסו בעקבות הרדאר (מודעות +${r.followPct}%).`, `📦 Every "room to make it" is sealed in Bitcoin in advance; after ${r.gradeDays} days we check whether new sellers followed the radar (listings +${r.followPct}%).`);
+              const head = L(`📦 כל "מקום לייצר" נחתם מראש בביטקוין, ואחרי ${r.gradeDays} יום בודקים אם מוכרים ומפעלים חדשים נכנסו בעקבות הרדאר (מודעות +${r.followPct}%).`, `📦 Every "room to make it" is sealed in Bitcoin in advance; after ${r.gradeDays} days we check whether new sellers and factories followed the radar (listings +${r.followPct}%).`);
               const rec = r.graded
-                ? L(` עד היום: ב־${r.followed} מתוך ${r.graded} נכנסו מוכרים חדשים${r.control.graded ? `, לעומת ${r.control.followed} מתוך ${r.control.graded} בסוגים המאוזנים` : ""}.`, ` So far: new sellers came in ${r.followed} of ${r.graded}${r.control.graded ? `, against ${r.control.followed} of ${r.control.graded} in the balanced kinds` : ""}.`)
+                ? L(` עד היום: ב־${r.followed} מתוך ${r.graded} נכנסו מוכרים ומפעלים חדשים${r.control.graded ? `, לעומת ${r.control.followed} מתוך ${r.control.graded} בסוגים המאוזנים` : ""}.`, ` So far: new sellers came in ${r.followed} of ${r.graded}${r.control.graded ? `, against ${r.control.followed} of ${r.control.graded} in the balanced kinds` : ""}.`)
                 : r.nextDue ? L(` הבדיקה הראשונה: ${dm(r.nextDue)}.`, ` The first check: ${dm(r.nextDue)}.`) : "";
               return head + rec;
             })()}
