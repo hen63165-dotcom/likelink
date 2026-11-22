@@ -36,3 +36,9 @@ test("hauls: a phrase more channels started to show joins; a known kind, a brand
   assert.equal(haulOnStore("mochi stretch", [{ title: "mochi stretch", orders: 10 }]).ok, false);
   assert.equal(HAULS.minChannels, 3);
 });
+
+test("hauls: Asia's finds first — where the squishy came from — and the place names never become a product", () => {
+  assert.ok(HAULS.queries.includes("daiso haul") && HAULS.queries.includes("douyin finds"));
+  assert.ok(HAULS.queries.length * 100 <= 1500, "within a small share of the free daily quota");
+  assert.deepEqual(videoPhrases("KOREA DAISO HAUL: mochi stretch toy"), ["mochi stretch"], "\"toy\" is filler, the place and the store never a product");
+});

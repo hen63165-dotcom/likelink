@@ -16,7 +16,10 @@ import { covered, phrasesOf } from "./radarDiscovery.js";
 import { isSeasonal } from "./freshRisers.js";
 
 export const HAULS = Object.freeze({
-  queries: Object.freeze(["aliexpress haul", "temu haul", "aliexpress finds", "temu finds", "amazon finds", "tiktok made me buy it"]),
+  // The squishy came from China and exploded in Korea before the West knew it: the first English videos
+  // about Asia's finds are the earliest window the radar can read (22.11). 12 searches = 1,200 quota units.
+  queries: Object.freeze(["aliexpress haul", "temu haul", "aliexpress finds", "temu finds", "amazon finds", "tiktok made me buy it",
+    "daiso haul", "korea haul", "olive young haul", "japan haul", "taobao haul", "douyin finds"]),
   days: 2, // each morning reads the videos of the last two days (the windows overlap; channels are counted once)
   minChannels: 3, // different channels that showed the phrase in the last 7 days
   keepDays: 21,
@@ -43,7 +46,8 @@ export function haulVideos(answer) {
 }
 
 // The haul's own vocabulary: says how the video was made, never what was bought.
-const HAUL_WORDS = new Set(`haul hauls aliexpress temu amazon shein finds find tiktok made buy bought buying unboxing review reviews
+const HAUL_WORDS = new Set(`haul hauls aliexpress temu amazon shein daiso olive young korea korean japan japanese taobao douyin china chinese seoul tokyo
+finds find tiktok made buy bought buying unboxing review reviews
 must have haves worth viral products links link part episode shopping order ordered orders try trying tried test testing honest
 cheap dupes dupe under dollar dollars things stuff favorites favourites wishlist storefront code coupon discount affiliate
 subscribe channel video videos shorts short vlog today week month 2025 2026 2027 here what this that these those you your`.split(/\s+/));
