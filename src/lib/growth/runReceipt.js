@@ -50,6 +50,7 @@ export function sourceOf(url) {
   if (host === "api.pinterest.com") return "pinterest";
   if (host === "graph.facebook.com") return u.pathname.includes("/ads_archive") ? "metaAds" : "instagram";
   if (host === "api.bsky.app" || host === "public.api.bsky.app") return "bluesky";
+  if (host === "www.whoisds.com") return "shops";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";
@@ -262,7 +263,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
-  worldGap: "worldSearch", hauls: "youtubeApi",
+  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops",
 });
 
 /**

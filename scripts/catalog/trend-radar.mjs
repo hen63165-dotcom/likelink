@@ -28,7 +28,10 @@ import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpres
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from "../../src/lib/growth/socialSignal.js";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
+import { SHOPS, mergeShops, nrdUrl, shopsOf, shopsToday } from "../../src/lib/growth/shopSignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
@@ -913,6 +916,42 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`meta ad library: ${ads} kinds counted · ${adsFailed} failed`);
     }
   }
+  // 🏪 The shops opening (shopSignal.js; the owner, 22.11: "for every door that closes, ten open"): the
+  // free public list of every domain registered in the world yesterday (WhoisDS; reuse allowed, also
+  // commercial; robots.txt read first), counted per watched kind by its own names. No key, one download.
+  if (env.RADAR_SHOPS !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
+    const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    const kinds = board.concepts.filter((c) => c.id && c.en);
+    let domains = null;
+    let door = "failed";
+    try {
+      const r = await getRobots("https://www.whoisds.com/robots.txt", fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, "/whois-database/") : "failed";
+      if (door === true) {
+        const res = await fetchImpl(nrdUrl(yesterday), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60_000) });
+        if (res.ok) {
+          const tmp = join(tmpdir(), `nrd-${yesterday}.zip`);
+          writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+          domains = execFileSync("unzip", ["-p", tmp], { maxBuffer: 64 * 1024 * 1024 }).toString("utf8").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+        }
+      }
+    } catch { /* counted by the meter; a failed day is no zero */ }
+    if (domains && domains.length) {
+      keep(meter, "shops", domains.length);
+      const counts = shopsToday(domains, kinds);
+      const shopState = mergeShops(readJson(join(dir, "shops.json"), {}), counts, yesterday, kinds.map((c) => c.id));
+      writeFileSync(join(dir, "shops.json"), JSON.stringify(shopState));
+      for (const c of kinds) { const s = shopsOf(shopState[c.id], yesterday); if (s) c.shops = s; }
+      const rising = kinds.filter((c) => c.shops?.rising).sort((a, b) => b.shops.week - a.shops.week);
+      board.shops = { day: yesterday, domains: domains.length, kinds: kinds.length, withShops: kinds.filter((c) => c.shops?.week > 0).length, rising: rising.length, top: rising.slice(0, SHOPS.top).map((c) => c.id) };
+      sources.shops = "OK";
+      log.push(`shops: ${domains.length} domains registered on ${yesterday} · ${board.shops.withShops} kinds with new shops this week · rising ${rising.slice(0, 6).map((c) => `${c.id} ${c.shops.prev}→${c.shops.week}`).join(", ") || "none"}`);
+    } else {
+      sources.shops = door === true || door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`shops: no list read (${sources.shops})`);
+    }
+  }
+
   // 🌍 The world gap (worldGap.js; the owner, 21.11: "not only the gap in Israel, the gap against the
   // whole world"): Google's public suggestions for the English store words from every country of
   // GAP_COUNTRIES. The watched kinds keep today's 13 countries from the morning reading and get the

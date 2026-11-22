@@ -11,6 +11,7 @@ import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
 import { cleanSupply, cleanSupplyBoard } from "./supplyGap.js";
+import { cleanShops } from "./shopSignal.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
@@ -184,6 +185,7 @@ function cleanRow(c) {
     explain: cleanExplain(c.explain),
     wiki: cleanWiki(c.wiki),
     social: cleanSocial(c.social),
+    shops: cleanShops(c.shops),
     worldGap: cleanWorldGap(c.worldGap),
     supply: cleanSupply(c.supply),
   };
@@ -213,6 +215,8 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
+    // 🏪 The shops opening (shopSignal.js): counts and kind ids only, never a domain.
+    shops: doc.shops && typeof doc.shops === "object" && day(doc.shops.day) ? { day: day(doc.shops.day), domains: num(doc.shops.domains) ?? 0, kinds: num(doc.shops.kinds) ?? 0, withShops: num(doc.shops.withShops) ?? 0, rising: num(doc.shops.rising) ?? 0, top: (Array.isArray(doc.shops.top) ? doc.shops.top : []).filter((id) => ID.test(String(id))).slice(0, 8) } : null,
     // ✉️ The sealed envelopes of the locked board (radarGate.envelopesOf): never a name, only the facts of the seal.
     envelopes: (Array.isArray(doc.envelopes) ? doc.envelopes : []).slice(0, 12).filter((e) => ["early", "fresh", "kinds"].includes(e?.book) && day(e.sealed)).map((e) => ({ book: e.book, sealed: day(e.sealed), due: day(e.due), dayN: num(e.dayN), change: num(e.change) })),
     supply: doc.supply ? { ...cleanSupplyBoard(doc.supply), seal: cleanBook(doc.supply.seal, SUPPLY_BOOK) } : null,
