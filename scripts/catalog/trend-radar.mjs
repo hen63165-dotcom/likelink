@@ -352,10 +352,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         let haulState = readJson(join(dir, "hauls.json"), {});
         let videos = 0, asked = 0, answered = 0;
         const channels = new Set();
-        for (const q of HAULS.queries) {
+        for (const [q, short] of [...HAULS.queries.map((x) => [x, false]), ...HAULS.shortQueries.map((x) => [x, true])]) {
           asked++;
           try {
-            const res = await fetchImpl(haulSearchUrl(q, { key: env.YOUTUBE_API_KEY, now }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+            const res = await fetchImpl(haulSearchUrl(q, { key: env.YOUTUBE_API_KEY, now, short }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
             const list = res.ok ? haulVideos(await res.json().catch(() => null)) : null;
             if (!list) continue;
             answered++;

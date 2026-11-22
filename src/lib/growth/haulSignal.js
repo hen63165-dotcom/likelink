@@ -20,6 +20,9 @@ export const HAULS = Object.freeze({
   // about Asia's finds are the earliest window the radar can read (22.11). 12 searches = 1,200 quota units.
   queries: Object.freeze(["aliexpress haul", "temu haul", "aliexpress finds", "temu finds", "amazon finds", "tiktok made me buy it",
     "daiso haul", "korea haul", "olive young haul", "japan haul", "taobao haul", "douyin finds"]),
+  // YouTube Shorts (videos under 4 minutes): where TikTok's creators post the same clips, the closest open
+  // door to TikTok, which has none (22.11, the owner: "without my help, automatically"). 4 searches, 400 units.
+  shortQueries: Object.freeze(["tiktok made me buy it", "amazon finds", "temu finds", "aliexpress finds"]),
   days: 2, // each morning reads the videos of the last two days (the windows overlap; channels are counted once)
   minChannels: 3, // different channels that showed the phrase in the last 7 days
   keepDays: 21,
@@ -31,9 +34,9 @@ export const HAULS = Object.freeze({
 const API = "https://www.googleapis.com/youtube/v3";
 
 /** The newest videos for one haul search (snippet: title and description; 100 quota units). */
-export function haulSearchUrl(q, { key, now = Date.now(), days = HAULS.days } = {}) {
+export function haulSearchUrl(q, { key, now = Date.now(), days = HAULS.days, short = false } = {}) {
   const after = new Date(now - days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const p = new URLSearchParams({ part: "snippet", type: "video", q, publishedAfter: after, maxResults: "50", order: "date", relevanceLanguage: "en", key: String(key || "") });
+  const p = new URLSearchParams({ part: "snippet", type: "video", q, publishedAfter: after, maxResults: "50", order: "date", relevanceLanguage: "en", ...(short ? { videoDuration: "short" } : {}), key: String(key || "") });
   return `${API}/search?${p}`;
 }
 

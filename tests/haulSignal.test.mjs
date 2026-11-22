@@ -42,3 +42,10 @@ test("hauls: Asia's finds first — where the squishy came from — and the plac
   assert.ok(HAULS.queries.length * 100 <= 1500, "within a small share of the free daily quota");
   assert.deepEqual(videoPhrases("KOREA DAISO HAUL: mochi stretch toy"), ["mochi stretch"], "\"toy\" is filler, the place and the store never a product");
 });
+
+test("hauls: YouTube Shorts too — where TikTok's creators post the same clips", () => {
+  const u = new URL(haulSearchUrl("tiktok made me buy it", { key: "k", short: true }));
+  assert.equal(u.searchParams.get("videoDuration"), "short");
+  assert.equal(new URL(haulSearchUrl("temu haul", { key: "k" })).searchParams.get("videoDuration"), null);
+  assert.ok((HAULS.queries.length + HAULS.shortQueries.length) * 100 <= 1600, "1,600 of the free 10,000 daily units at most");
+});
