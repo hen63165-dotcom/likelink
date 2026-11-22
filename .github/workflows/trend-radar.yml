@@ -41,6 +41,7 @@ on:
       - src/lib/growth/freshRisers.js
       - src/lib/growth/channelEngine.js
       - scripts/marketing/channel-preview.mjs
+      - src/lib/growth/radarEvidence.js
 permissions:
   contents: write
 concurrency:
@@ -150,6 +151,8 @@ jobs:
           files="radar-state/state.enc radar-state/board-public.json"
           [ -f radar-state/briefs-public.json ] && files="$files radar-state/briefs-public.json"
           [ -f radar-state/prices-public.json ] && files="$files radar-state/prices-public.json"
+          # 🔎 The evidence: every graded new-product call with the daily store readings behind it.
+          [ -f radar-state/evidence-public.json ] && files="$files radar-state/evidence-public.json"
           # The channels' preview (no secrets: store facts, links and the simulated posts), from a branch
           # run only: it names today's picks, which the lock keeps off the public main release.
           if [ "${GITHUB_REF}" != "refs/heads/main" ] && [ -f radar-state/channel-preview.json ]; then files="$files radar-state/channel-preview.json radar-state/channel-preview.md"; fi

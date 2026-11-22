@@ -1384,6 +1384,9 @@ const BOOK_EN = Object.fromEntries(INSTRUMENTS.map((i) => [i.book, i.en]));
  * and the record as it stands today. The sentence rests on the worldwide check of 17.11
  * (docs/research/radar-gap-map.md) and is dated, so it reads as what was found, never as a promise.
  */
+/** The radar's open evidence (radarEvidence.js): every graded new-product call with the daily store readings behind it. */
+const EVIDENCE_URL = "https://github.com/hen63165-dotcom/likelink/releases/download/radar/evidence-public.json";
+
 function Proof({ record, hasLedger = false }) {
   const { L } = useL();
   const graded = Number(record?.graded) || 0;
@@ -1394,6 +1397,7 @@ function Proof({ record, hasLedger = false }) {
     L("⛓️ באותו יום: טביעת האצבע של הספר נחתמת בביטקוין. מהרגע הזה הספר קבוע, וכל שינוי בו היה נראה מיד.", "⛓️ The same day: the book's fingerprint is sealed in Bitcoin. From then on the book is fixed, and any change would show at once."),
     L("⚖️ אחרי 14 יום: ציון בפומבי, פגיעה או פספוס. שניהם נשארים בספר לתמיד.", "⚖️ After 14 days: a public grade, hit or miss. Both stay in the book for good."),
     L("🔍 כל אחד בודק בעצמו: מורידים את הקבצים מספר החתימות וגוררים אותם לאתר החינמי opentimestamps.org.", "🔍 Anyone checks it themselves: download the files from the sealed ledger and drop them on the free site opentimestamps.org."),
+    L("📂 והנתונים עצמם פתוחים: לכל קביעה על מוצר חדש, מספר ההזמנות של החנות כפי שהרדאר קרא אותו בכל יום, והציון שקיבלה.", "📂 And the data itself is open: for every call on a new product, the store's order count as the radar read it each day, and the grade it got."),
   ];
   return (
     <section className="lx-wrap mt-6" id="proof">
@@ -1417,6 +1421,7 @@ function Proof({ record, hasLedger = false }) {
             ? L(`עד היום: ${graded} קביעות קיבלו ציון, ${hits} מהן פגיעות.`, `So far: ${graded} calls graded, ${hits} of them hits.`)
             : next ? L(`הציון הראשון בפומבי: ${dm(next)}.`, `The first public grade: ${dm(next)}.`) : null}
           {hasLedger ? <> <a className="underline" href="#ledger">{L("לספר החתימות המלא ←", "To the complete sealed ledger →")}</a></> : null}
+          {" "}<a className="underline" href={EVIDENCE_URL} target="_blank" rel="noopener noreferrer">{L("לקובץ הקריאות היומיות ←", "To the daily readings file →")}</a>
         </p>
       </div>
     </section>
