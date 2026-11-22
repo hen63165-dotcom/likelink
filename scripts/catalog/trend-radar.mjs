@@ -31,7 +31,9 @@ import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from 
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
-import { SHOPS, mergeShops, nrdUrl, shopsOf, shopsToday } from "../../src/lib/growth/shopSignal.js";
+import { SHOPS, SHOP_WORDS, mergeShopWords, mergeShops, nrdUrl, productVocab, risingShopWords, shopsOf, shopsToday, wordsToday } from "../../src/lib/growth/shopSignal.js";
+import { TRADE, latestPeriod, parseComext, probeUrl, tradeJumps, tradeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
+const SHOPS_BACK = 8; // daily lists read in one run when the state misses days
 import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
@@ -89,7 +91,7 @@ import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
 import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
-import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -918,38 +920,133 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
   }
   // 🏪 The shops opening (shopSignal.js; the owner, 22.11: "for every door that closes, ten open"): the
-  // free public list of every domain registered in the world yesterday (WhoisDS; reuse allowed, also
-  // commercial; robots.txt read first), counted per watched kind by its own names. No key, one download.
+  // free public list of every domain registered in the world each day (WhoisDS; reuse allowed, also
+  // commercial; robots.txt read first), counted per watched kind by its own names, and (🔤, no list)
+  // by the product words the new shops are named after. Days missing from the state are read back
+  // (up to SHOPS_BACK), so the week-against-week comparison starts as soon as the lists exist.
   if (env.RADAR_SHOPS !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
-    const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    const dayBack = (n) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+    const yesterday = dayBack(1);
     const kinds = board.concepts.filter((c) => c.id && c.en);
-    let domains = null;
+    let shopState = readJson(join(dir, "shops.json"), {});
+    let wordState = readJson(join(dir, "shop-words.json"), { days: [], w: {} });
+    const vocab = productVocab(Object.values(freshPool || {}).map((e) => e?.title));
     let door = "failed";
+    const readDays = [];
+    let domainsYesterday = 0;
     try {
       const r = await getRobots("https://www.whoisds.com/robots.txt", fetchImpl);
       door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, "/whois-database/") : "failed";
-      if (door === true) {
-        const res = await fetchImpl(nrdUrl(yesterday), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60_000) });
-        if (res.ok) {
-          const tmp = join(tmpdir(), `nrd-${yesterday}.zip`);
+    } catch { /* counted by the meter */ }
+    if (door === true) {
+      const have = new Set(wordState.days || []);
+      const want = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(dayBack).filter((d, i) => i === 0 || !have.has(d)).slice(0, SHOPS_BACK);
+      for (const d of want) {
+        try {
+          const res = await fetchImpl(nrdUrl(d), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60_000) });
+          if (!res.ok) continue;
+          const tmp = join(tmpdir(), `nrd-${d}.zip`);
           writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
-          domains = execFileSync("unzip", ["-p", tmp], { maxBuffer: 64 * 1024 * 1024 }).toString("utf8").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+          const domains = execFileSync("unzip", ["-p", tmp], { maxBuffer: 64 * 1024 * 1024 }).toString("utf8").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+          if (domains.length < 1000) continue; // a short or empty file is no reading of the day
+          readDays.push(d);
+          if (d === yesterday) domainsYesterday = domains.length;
+          keep(meter, "shops", domains.length);
+          shopState = mergeShops(shopState, shopsToday(domains, kinds), d, kinds.map((c) => c.id));
+          if (vocab.size) wordState = mergeShopWords(wordState, wordsToday(domains, vocab), d);
+        } catch { /* counted by the meter; a failed day is no zero */ }
+      }
+    }
+    if (readDays.length) {
+      writeFileSync(join(dir, "shops.json"), JSON.stringify(shopState));
+      writeFileSync(join(dir, "shop-words.json"), JSON.stringify(wordState));
+      const last = readDays.slice().sort().pop();
+      for (const c of kinds) { const s = shopsOf(shopState[c.id], last); if (s) c.shops = s; }
+      const rising = kinds.filter((c) => c.shops?.rising).sort((a, b) => b.shops.week - a.shops.week);
+      board.shops = { day: last, domains: domainsYesterday, kinds: kinds.length, withShops: kinds.filter((c) => c.shops?.week > 0).length, rising: rising.length, top: rising.slice(0, SHOPS.top).map((c) => c.id) };
+      sources.shops = "OK";
+      log.push(`shops: ${readDays.length} daily lists read (${readDays.join(", ")}) · ${domainsYesterday} domains registered on ${yesterday} · ${board.shops.withShops} kinds with new shops this week · rising ${rising.slice(0, 6).map((c) => `${c.id} ${c.shops.prev}→${c.shops.week}`).join(", ") || "none"}`);
+      // 🔤 The names the new shops pick (no list): a rising word or pair, a product sellers bet on.
+      const known = [...watch, ...discovered].map((c) => String(c.en || "").toLowerCase());
+      const skip = (k) => isSeasonal(k) || hasBrandName(k) || isNotListedKind(k) || known.some((en) => en.includes(k));
+      const words = risingShopWords(wordState, last, { skip });
+      const sCands = [];
+      if (!words.measuring) {
+        const he = aeEnv(env);
+        for (const r of words.rising.filter((x) => x.pair).slice(0, SHOP_WORDS.admit)) {
+          try {
+            const res = await aeCall(SEARCH, { keywords: r.key, tracking_id: he.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC" }, { env: he, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) !== 200) continue;
+            const raw = rr.result?.products?.product;
+            const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
+            const v = haulOnStore(r.key, list);
+            if (v.ok) { sCands.push({ en: r.key, kind: "", items: v.items, orders: v.orders, category: "shops", via: "shops" }); r.added = true; }
+          } catch (err) { log.push(`shop words ${r.key}: ${String(err?.message || err).slice(0, 60)}`); }
+        }
+        if (sCands.length) {
+          const sBefore = new Set(discovered.map((c) => c.id));
+          discovered = admitDiscovered(discovered, sCands, { concepts: watch, stages: stagesBefore, now });
+          for (const r of words.rising) if (r.added && !discovered.some((c) => c.en === r.key && !sBefore.has(c.id))) r.added = discovered.some((c) => c.en === r.key);
         }
       }
-    } catch { /* counted by the meter; a failed day is no zero */ }
-    if (domains && domains.length) {
-      keep(meter, "shops", domains.length);
-      const counts = shopsToday(domains, kinds);
-      const shopState = mergeShops(readJson(join(dir, "shops.json"), {}), counts, yesterday, kinds.map((c) => c.id));
-      writeFileSync(join(dir, "shops.json"), JSON.stringify(shopState));
-      for (const c of kinds) { const s = shopsOf(shopState[c.id], yesterday); if (s) c.shops = s; }
-      const rising = kinds.filter((c) => c.shops?.rising).sort((a, b) => b.shops.week - a.shops.week);
-      board.shops = { day: yesterday, domains: domains.length, kinds: kinds.length, withShops: kinds.filter((c) => c.shops?.week > 0).length, rising: rising.length, top: rising.slice(0, SHOPS.top).map((c) => c.id) };
-      sources.shops = "OK";
-      log.push(`shops: ${domains.length} domains registered on ${yesterday} · ${board.shops.withShops} kinds with new shops this week · rising ${rising.slice(0, 6).map((c) => `${c.id} ${c.shops.prev}→${c.shops.week}`).join(", ") || "none"}`);
+      board.shopWords = { day: last, days: words.days, vocab: vocab.size, measuring: words.measuring, rising: words.rising };
+      log.push(`shop words: ${vocab.size} product words · ${words.days} days of lists · ${words.measuring ? `measuring (a week against the weeks before needs ${SHOP_WORDS.minDays} days)` : `rising ${words.rising.map((r) => `${r.key} ${r.before}→${r.week} (×${r.times})`).join(", ") || "none"} · joined the radar ${words.rising.filter((r) => r.added).map((r) => r.key).join(", ") || "none"}`}`);
     } else {
       sources.shops = door === true || door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
       log.push(`shops: no list read (${sources.shops})`);
+    }
+  }
+
+  // 🚢 The factories' shipments (tradeSignal.js; the owner, 22.11: "the biggest factories, where it all
+  // starts, not only AliExpress, with no connection"): Eurostat's open customs records, every product
+  // line the EU imports from each partner, the last three months against the same three a year earlier.
+  // Monthly data: the run asks a small probe for the newest month and the update stamp, and downloads
+  // the partners again only when Eurostat published something new.
+  if (env.RADAR_TRADE !== "0") {
+    let trade = readJson(join(dir, "trade.json"), null);
+    let door = "failed";
+    try {
+      const r = await getRobots(`${TRADE.host}/robots.txt`, fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, TRADE.path) : "failed";
+    } catch { /* counted by the meter */ }
+    if (door === true) {
+      let probe = null;
+      try {
+        const res = await fetchImpl(probeUrl(today.slice(0, 7)), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+        if (res.ok) probe = await res.json();
+      } catch { /* counted */ }
+      const latest = probe ? latestPeriod(probe) : null;
+      const updated = typeof probe?.updated === "string" ? probe.updated : null;
+      if (latest && (!trade || trade.latest !== latest || trade.updated !== updated || (trade.partners || []).length < TRADE.partners.length)) {
+        const partners = [];
+        for (const id of TRADE.partners) {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const res = await fetchImpl(tradeUrl(id, latest), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(180_000) });
+              if (res.status === 413) { await new Promise((ok) => setTimeout(ok, 30_000)); continue; } // Eurostat prepares a big answer and asks to come back
+              if (!res.ok) break;
+              const jumps = tradeJumps(parseComext(await res.json()), latest);
+              if (jumps) { partners.push({ id, ...jumps }); keep(meter, "trade", jumps.measured); }
+              break;
+            } catch { break; }
+          }
+        }
+        if (partners.length) trade = { latest, updated, read: today, months: windowsOf(latest).now, partners };
+      }
+      if (trade && trade.latest) {
+        writeFileSync(join(dir, "trade.json"), JSON.stringify(trade));
+        board.trade = trade;
+        sources.trade = "OK";
+        if (trade.read !== today) keep(meter, "trade", 1); // reused: Eurostat published nothing newer (the probe answered)
+        log.push(`trade: EU customs, ${(trade.months || []).join(",")} against a year earlier (Eurostat updated ${trade.updated}, read ${trade.read}) · ${trade.partners.map((p) => `${p.id} ${p.measured} lines, ${p.jumping} doubled (renamed ${p.renamed}, price only ${p.priceOnly})`).join(" · ")} · top ${trade.partners.flatMap((p) => p.top.slice(0, 2).map((r) => `${p.id} ${r.code} +${r.valuePct}%`)).join(", ")}`);
+      } else {
+        sources.trade = "FAILED";
+        log.push(`trade: no customs answer (probe ${probe ? "read, no month" : "failed"})`);
+      }
+    } else {
+      sources.trade = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`trade: door ${sources.trade}`);
     }
   }
 
@@ -1371,6 +1468,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           called: c.at, due: c.due, dayN: dayN(c.at), base: c.base, orders: last ? last[1] : null, on: last ? last[0] : null,
           progress: last ? Math.round(((last[1] - c.base) / c.base) * 1000) / 10 : null,
           weekPct: Number.isFinite(momentum.weekPct) ? momentum.weekPct : null, window, exit: exit.state, why: exit.why,
+          category: pool.category || null,
         };
       });
     log.push(`exit signal: ${board.fresh.watch.length} earlier finds · ${JSON.stringify(board.fresh.watch.reduce((t, w) => ({ ...t, [w.exit]: (t[w.exit] || 0) + 1 }), {}))}`);

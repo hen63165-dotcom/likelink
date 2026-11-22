@@ -6,6 +6,8 @@
 // Free during the trial. The store buttons are LikeLink2's tracked links, with the
 // disclosure above them; an exit is one click event (med "radar") in the owner's numbers.
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { AREA_HE } from "../../lib/growth/radarAreas.js";
+import { PARTNER_NAMES } from "../../lib/growth/tradeSignal.js";
 import { Clock, ExternalLink, Radar, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { BASE } from "../../lib/basePath.js";
 import { BOT_UA } from "../../lib/funnel.js";
@@ -745,7 +747,7 @@ function Factories({ f }) {
     <section className="lx-wrap mt-8" id="factories">
       <div className="lx-card lx-rdr-panel p-5">
         <h2 className="text-[22px] font-black">{L("🏭 מפעלים שקופצים עכשיו", "🏭 Factories jumping now")}</h2>
-        <p className="mt-1 text-[14px] leading-6">{L(`לפני שמוצר הופך לטרנד, המפעל מתחיל למכור אותו. מתוך ${f.factories} חנויות של מפעלים עם מוצרים חדשים, ב־${f.jumping} כמה מוצרים חדשים רצים יחד (לפי החציון, כדי שמוצר אחד לא יטעה). המספרים של אליאקספרס עצמה.`, `Before a product is a trend, the factory starts selling it. Of ${f.factories} factory stores with new listings, in ${f.jumping} several new listings run together (by the median, so one listing cannot mislead). AliExpress's own numbers.`)}</p>
+        <p className="mt-1 text-[14px] leading-6">{L(`לפני שמוצר הופך לטרנד, המפעל מתחיל למכור אותו. מתוך ${f.factories} חנויות של מפעלים עם מוצרים חדשים, ב־${f.jumping} כמה מוצרים חדשים רצים יחד (לפי החציון, כך שרק כמה מוצרים יחד קובעים). המספרים של אליאקספרס עצמה.`, `Before a product is a trend, the factory starts selling it. Of ${f.factories} factory stores with new listings, in ${f.jumping} several new listings run together (by the median, so one listing cannot mislead). AliExpress's own numbers.`)}</p>
         <ul className="mt-3 grid gap-2 md:grid-cols-2">
           {f.top.map((r) => (
             <li key={r.shop} className="lx-card lx-rdr-item p-3">
@@ -764,25 +766,113 @@ function Factories({ f }) {
 
 /** ✉️ The sealed envelopes (radarGate.envelopesOf): the open calls behind the lock, never what is inside. */
 const ENVELOPE_BOOK = { early: ["🚀 קביעה לפני כולם", "🚀 A before-everyone call"], fresh: ["🆕 מוצר חדש", "🆕 A new product"], kinds: ["🧬 סוג חדש", "🧬 A new kind"] };
+// The time left to an envelope's opening: the grading run reads the morning of its due day (05:37 UTC).
+function opensIn(due, now) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(due || ""))) return null;
+  const ms = Date.parse(`${due}T05:37:00Z`) - now;
+  if (!Number.isFinite(ms) || ms <= 0) return { d: 0, h: 0, m: 0, today: true };
+  return { d: Math.floor(ms / 86_400_000), h: Math.floor((ms % 86_400_000) / 3_600_000), m: Math.floor((ms % 3_600_000) / 60_000), today: false };
+}
+
 function Envelopes({ list, onOpen }) {
   const { L } = useL();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
   const moving = list.filter((e) => Number.isFinite(e.change) && e.change > 0).length;
+  // The hottest envelope: the biggest measured change since its seal (a measurement, never a promise).
+  const hot = list.reduce((best, e, i) => (Number.isFinite(e.change) && e.change > 0 && (best < 0 || e.change > list[best].change) ? i : best), -1);
+  const next = list.map((e) => opensIn(e.due, now)).filter(Boolean).sort((a, b) => a.d * 1440 + a.h * 60 + a.m - (b.d * 1440 + b.h * 60 + b.m))[0];
+  const left = (o) => (o.today ? L("נפתחת הבוקר", "Opens this morning") : L(`נפתחת בעוד ${o.d ? `${o.d} ימים ו־` : ""}${o.h} שעות ו־${o.m} דקות`, `Opens in ${o.d ? `${o.d} days, ` : ""}${o.h} h ${o.m} min`));
+  const shareText = (e) => {
+    const what = L(ENVELOPE_BOOK[e.book][0].replace(/^\S+\s/, ""), ENVELOPE_BOOK[e.book][1].replace(/^\S+\s/, ""));
+    const where = e.area && AREA_HE[e.area] ? L(` בתחום ${AREA_HE[e.area]}`, "") : "";
+    const moved = Number.isFinite(e.change) && e.change > 0 ? L(` ומאז ההזמנות עלו +${e.change}%`, ` and its orders are up +${e.change}% since`) : "";
+    return L(`✉️ ברדאר של LikeLink2 יש מעטפה חתומה: ${what}${where}. הרדאר חתם עליה בביטקוין ב־${dm(e.sealed)}${moved}. היא נפתחת לכולם ב־${dm(e.due)}. מה לדעתך יש בפנים?`, `✉️ LikeLink2's radar holds a sealed envelope: ${what}. Sealed in Bitcoin on ${dm(e.sealed)}${moved}. It opens to everyone on ${dm(e.due)}. What do you think is inside?`);
+  };
   return (
     <section className="lx-wrap mt-6" id="envelopes">
       <div className="lx-card lx-rdr-panel p-5">
-        <h2 className="text-[22px] font-black">{L(`✉️ ${list.length} מעטפות חתומות`, `✉️ ${list.length} sealed envelopes`)}</h2>
-        <p className="mt-1 text-[14px] leading-6">{L(`בכל מעטפה קביעה שהרדאר כבר חתם בביטקוין.${moving ? ` ב־${moving} מהן ההזמנות כבר עולות מאז החתימה.` : ""} מה בפנים? המנויות רואות עכשיו. כולם רואים ביום הציון, פגיעה או פספוס.`, `Each envelope holds a call the radar already sealed in Bitcoin.${moving ? ` In ${moving} of them orders are already up since the seal.` : ""} What's inside? Members see it now. Everyone sees it on grading day, hit or miss.`)}</p>
+        <h2 className="text-[22px] font-black">{L(`✉️ ${list.length} מעטפות חתומות${moving ? `. ב־${moving} ההזמנות כבר זזות` : ""}`, `✉️ ${list.length} sealed envelopes${moving ? `. ${moving} already moving` : ""}`)}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("בכל מעטפה קביעה שהרדאר כבר חתם בביטקוין, והיא נשארת בדיוק כמו שנחתמה. מה שרואים מבחוץ הם רק הרמזים שהרדאר מדד ביום החתימה: התחום, הקצב, כמה מעט מוכרים יש בעולם, ובכמה מדינות מחפשים. מה בפנים? המנויות רואות עכשיו. כולם רואים ביום הציון, פגיעה או פספוס.", "Each envelope holds a call the radar already sealed in Bitcoin; it stays exactly as sealed. From outside you see only the clues the radar measured on the day of the seal: the area, the pace, how few sellers the world has, how many countries search it. What's inside? Members see it now. Everyone sees it on grading day, hit or miss.")}</p>
+        {next ? <p className="mt-2 text-[14px] font-extrabold">{L("⏳ המעטפה הבאה: ", "⏳ The next envelope: ")}{left(next)}</p> : null}
         <ul className="mt-3 grid gap-2 md:grid-cols-2">
-          {list.map((e, i) => (
-            <li key={`${e.book}-${e.sealed}-${i}`} className="lx-card lx-rdr-item p-3">
-              <p className="text-[15px] font-extrabold">{L(ENVELOPE_BOOK[e.book][0], ENVELOPE_BOOK[e.book][1])} · 🔒</p>
-              <p className="mt-1 text-[13px]">{L(`נחתם ב־${dm(e.sealed)}${e.dayN ? ` · יום ${e.dayN} מתוך 14` : ""}`, `Sealed on ${dm(e.sealed)}${e.dayN ? ` · day ${e.dayN} of 14` : ""}`)}</p>
-              {Number.isFinite(e.change) ? <p className="text-[13px] font-bold" style={{ color: e.change > 0 ? "#067647" : "var(--lx-muted)" }}>{L(`ההזמנות מאז החתימה: ${e.change > 0 ? "+" : ""}${e.change}%`, `Orders since the seal: ${e.change > 0 ? "+" : ""}${e.change}%`)}</p> : null}
-              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נפתחת לכולם ב־${dm(e.due) || "יום הציון"}`, `Opens to everyone on ${dm(e.due) || "grading day"}`)}</p>
-            </li>
-          ))}
+          {list.map((e, i) => {
+            const o = opensIn(e.due, now);
+            return (
+              <li key={`${e.book}-${e.sealed}-${i}`} className="lx-card lx-rdr-item p-3" style={i === hot ? { outline: "2px solid #067647" } : undefined}>
+                {i === hot ? <p className="text-[12px] font-extrabold" style={{ color: "#067647" }}>{L("🔥 המעטפה הכי חמה עכשיו", "🔥 The hottest envelope right now")}</p> : null}
+                <p className="text-[15px] font-extrabold">{L(ENVELOPE_BOOK[e.book][0], ENVELOPE_BOOK[e.book][1])} · 🔒</p>
+                <p className="mt-1 text-[13px]">{L(`נחתם ב־${dm(e.sealed)}${e.dayN ? ` · יום ${e.dayN} מתוך 14` : ""}`, `Sealed on ${dm(e.sealed)}${e.dayN ? ` · day ${e.dayN} of 14` : ""}`)}</p>
+                {e.area && AREA_HE[e.area] ? <p className="text-[13px]">{L(`📍 רמז: בתחום ${AREA_HE[e.area]}`, `📍 Clue: in ${e.area}`)}</p> : null}
+                {Number.isFinite(e.pace) && e.pace > 0 ? <p className="text-[13px]">{L(`⚡ רמז: רץ בקצב של +${e.pace}% בשבוע`, `⚡ Clue: running at +${e.pace}% a week`)}</p> : null}
+                {Number.isFinite(e.similar) ? <p className="text-[13px]">{L(`🏪 רמז: רק ${e.similar.toLocaleString("he-IL")} מודעות דומות בכל העולם`, `🏪 Clue: only ${e.similar.toLocaleString("en-US")} similar listings worldwide`)}</p> : null}
+                {Number.isFinite(e.countries) && Number.isFinite(e.measured) ? <p className="text-[13px]">{L(`🌍 רמז: מחפשים אותו ב־${e.countries} מתוך ${e.measured} מדינות`, `🌍 Clue: searched in ${e.countries} of ${e.measured} countries`)}</p> : null}
+                {Number.isFinite(e.change) ? <p className="text-[13px] font-bold" style={{ color: e.change > 0 ? "#067647" : "var(--lx-muted)" }}>{L(`ההזמנות מאז החתימה: ${e.change > 0 ? "+" : ""}${e.change}%`, `Orders since the seal: ${e.change > 0 ? "+" : ""}${e.change}%`)}</p> : null}
+                <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{o ? `${left(o)} · ${dm(e.due)}` : L("נפתחת ביום הציון", "Opens on grading day")}</p>
+                <div className="mt-2"><ShareButton path="/radar" title={shareText(e)} variant="button" /></div>
+              </li>
+            );
+          })}
         </ul>
         <button type="button" className="lx-btn lx-btn-ink mt-4" onClick={onOpen}>{L("לפתוח את המעטפות עכשיו", "Open the envelopes now")}</button>
+      </div>
+    </section>
+  );
+}
+
+/** 🚢 What the factories ship (tradeSignal.js): EU customs lines that doubled, against the same months a year earlier. */
+function Trade({ t }) {
+  const { L } = useL();
+  const months = (t.months || []).slice().sort();
+  const span = months.length ? `${months[0].slice(5)}–${months.at(-1).slice(5)}.${months.at(-1).slice(0, 4)}` : t.latest;
+  const rows = (t.partners || []).flatMap((p) => p.top.map((r) => ({ ...r, partner: p.id })));
+  const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
+  const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
+  const eur = (x) => `€${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  return (
+    <section className="lx-wrap mt-8" id="trade">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🚢 מה המפעלים בעולם שולחים יותר", "🚢 What the world's factories ship more of")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`כל מוצר שנכנס לאירופה מוצהר במכס, ונתוני המכס פתוחים לכולם. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים של המפעלים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם במשקל). נתוני Eurostat הרשמיים, שמתפרסמים כשישה שבועות אחרי סוף החודש.`, `Every product entering Europe is declared at customs, and the customs records are open to all. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the factories' shipments at least doubled (${span} against the same months a year earlier, in value and in weight). Eurostat's official data, published about six weeks after each month.`)}</p>
+        {rows.length ? (
+          <ul className="mt-3 grid gap-2 md:grid-cols-2">
+            {rows.sort((a, b) => b.valuePct - a.valuePct).slice(0, 12).map((r) => (
+              <li key={`${r.partner}-${r.code}`} className="lx-card lx-rdr-item p-3">
+                <p className="text-[13px] font-bold">{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד מכס ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · customs line ${r.code}`)}</p>
+                <p className="mt-1 text-[14px]" dir="ltr" style={{ textAlign: "start" }}>{r.label}</p>
+                <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`+${r.valuePct}% בשווי${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% במשקל` : ""}`, `+${r.valuePct}% in value${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% in weight` : ""}`)}</p>
+                <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${eur(r.prev)} ← ${eur(r.value)} בשלושה חודשים`, `${eur(r.prev)} → ${eur(r.value)} in three months`)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 text-[14px]">{L("החודש המשלוחים יציבים: עוד שקט.", "This month the shipments are steady: still quiet.")}</p>}
+        <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("התיאור הוא המילים של המכס עצמו. כל אחד יכול לבדוק את אותו קוד באתר של Eurostat.", "The description is the customs' own words. Anyone can check the same line on Eurostat's site.")} <a className="underline" href="https://ec.europa.eu/eurostat/comext/newxtweb/" target="_blank" rel="noopener noreferrer">Eurostat Comext</a></p>
+      </div>
+    </section>
+  );
+}
+
+/** 🔤 The names new shops pick (shopSignal.js): product words in the names of every new domain in the world. */
+function ShopWords({ s }) {
+  const { L } = useL();
+  return (
+    <section className="lx-wrap mt-8" id="shopwords">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🔤 על מה פותחים חנויות חדשות בעולם", "🔤 What the world's new shops are named after")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`לפני שמוצר הופך לטרנד, אנשים פותחים לו חנות ובוחרים לה שם (לסקווישי היו buttersquishy.com ו־tabasquishy.com). הרדאר קורא כל בוקר את הרשימה הציבורית של כל האתרים שנרשמו בעולם ביום הקודם, ישר מהשמות עצמם: הוא מוצא בהם ${s.vocab.toLocaleString("he-IL")} מילים של מוצרים, ומחפש מילה או צמד מילים שהרבה יותר חנויות חדשות נקראות על שמם השבוע.`, `Before a product is a trend, people open a shop for it and name it (the squishy had buttersquishy.com and tabasquishy.com). Every morning the radar reads the public list of every website registered in the world the day before, with no list prepared in advance: it finds ${s.vocab.toLocaleString("en-US")} product words in the names and looks for a word or pair that many more new shops took this week.`)}</p>
+        {s.measuring ? (
+          <p className="mt-2 text-[14px] font-bold">{L(`נמדד: ${s.days} ימים של רשימות. ההשוואה של שבוע מול השבועות שלפניו מתחילה מ־10 ימים.`, `Measured: ${s.days} days of lists. The week-against-the-weeks-before comparison starts at 10 days.`)}</p>
+        ) : s.rising.length ? (
+          <ul className="mt-3 grid gap-2 md:grid-cols-2">
+            {s.rising.map((r) => (
+              <li key={r.key} className="lx-card lx-rdr-item p-3">
+                <p className="text-[16px] font-extrabold" dir="ltr" style={{ textAlign: "start" }}>{r.key}</p>
+                <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`${r.week} חנויות חדשות השבוע · פי ${r.times} מהקצב שלפני`, `${r.week} new shops this week · ×${r.times} the rate before`)}</p>
+                {r.added ? <p className="text-[12px]">{L("📡 הצטרף לרדאר: מהבוקר הבא הוא נמדד כמו כל סוג", "📡 Joined the radar: measured like every kind from tomorrow morning")}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 text-[14px]">{L("השבוע שמות החנויות החדשות יציבים: עוד שקט.", "This week the new shops' names are steady: still quiet.")}</p>}
       </div>
     </section>
   );
@@ -1958,6 +2048,8 @@ export function RadarPage() {
         <Verdict board={board} gated={gated} />
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
+        {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
+        {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
         {!gated && board?.kinds ? <NewKinds kinds={board.kinds} day={String(board.at || "").slice(0, 10)} /> : null}
         <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">

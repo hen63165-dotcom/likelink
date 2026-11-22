@@ -129,3 +129,24 @@ test("the lock: every open call is a sealed envelope — the seal's facts, never
   assert.equal(clean.envelopes.length, 3);
   assert.ok(!/secret|Secret|1005013/.test(JSON.stringify(clean.envelopes)), "never what is inside");
 });
+
+test("✉️ envelopes carry true clues measured at the seal (area, pace, few sellers, countries), never what is inside", async () => {
+  const { teaserBoard: teaser } = await import("../src/lib/growth/radarGate.js");
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const board = {
+    at: "2026-11-22T06:00:00Z", record: {}, concepts: [],
+    fresh: { risers: [{ id: "1005013201890326", title: "Secret Cloud Lamp", category: "home", weekPct: 84, called: "2026-11-22", due: "2026-12-06", known: { similar: 412, world: { state: "FIRST_SIGNS", measured: 51, searched: 2, where: ["US", "GB"] } } }], watch: [] },
+    kinds: { list: [] }, early: { ledger: [] },
+    trade: { latest: "2026-09", partners: [{ id: "CN", measured: 900, jumping: 1, top: [{ code: "33030090", label: "Toilet waters", value: 19e6, prev: 7.4e6, valuePct: 156, kgPct: 230 }] }] },
+  };
+  const clean = sanitizeBoard(teaser(board));
+  assert.equal(clean.envelopes.length, 1);
+  const e = clean.envelopes[0];
+  assert.equal(e.area, "home");
+  assert.equal(e.pace, 84);
+  assert.equal(e.similar, 412);
+  assert.equal(e.countries, 2);
+  assert.equal(e.measured, 51);
+  assert.ok(!/Secret|Cloud|1005013|US|GB/.test(JSON.stringify(clean.envelopes)), "never the name, the item or the countries");
+  assert.equal(clean.trade.partners[0].top[0].code, "33030090", "the customs records are public behind the lock");
+});

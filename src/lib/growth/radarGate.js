@@ -6,6 +6,7 @@
 // sealed envelope: an open call's concept stays inside until it is graded. Pure; tested.
 import { accessOf } from "./radarPlans.js";
 import { radarSubAccess } from "./radarSubs.js";
+import { AREA_HE } from "./radarAreas.js";
 
 export const RADAR_BOARD_KEY = "radar:board";
 // Each user's own free trial (the owner, 2026-11-15: "a separate access, a free trial, then they
@@ -55,10 +56,15 @@ export function envelopesOf(board) {
   const day = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : null);
   const n = (x) => (Number.isFinite(Number(x)) && x !== null && x !== "" ? Number(x) : null);
   const push = (key, e) => { if (!seen.has(key) && day(e.sealed)) { seen.add(key); out.push(e); } };
-  for (const e of board?.early?.ledger || []) if (!e?.result) push(`early/${e.concept}`, { book: "early", sealed: e.at, due: day(e.due), dayN: n(e.dayN), change: n(e.progress) });
-  for (const w of board?.fresh?.watch || []) push(`fresh/${w.id}`, { book: "fresh", sealed: w.called, due: day(w.due), dayN: n(w.dayN), change: n(w.progress) });
-  for (const r of board?.fresh?.risers || []) push(`fresh/${r.id}`, { book: "fresh", sealed: r.called, due: day(r.due), dayN: 1, change: null });
-  for (const k of board?.kinds?.list || []) push(`kinds/${k.en}`, { book: "kinds", sealed: k.called, due: day(k.due), dayN: null, change: null });
+  // The clues are measurements the radar printed on the card the day it was sealed, never the call:
+  // the shop area, the weekly pace, how few similar listings the world has, how many countries search it.
+  const area = (k) => (Object.hasOwn(AREA_HE, String(k || "")) ? String(k) : null);
+  const world = (w) => (w && Number(w.measured) > 0 ? { countries: n(w.searched) ?? 0, measured: n(w.measured) } : { countries: null, measured: null });
+  const concept = (id) => (board?.concepts || []).find((c) => c?.id === id) || null;
+  for (const e of board?.early?.ledger || []) if (!e?.result) { const c = concept(e.concept); push(`early/${e.concept}`, { book: "early", sealed: e.at, due: day(e.due), dayN: n(e.dayN), change: n(e.progress), area: area(c?.category), pace: null, similar: null, ...world(c?.worldGap) }); }
+  for (const w of board?.fresh?.watch || []) push(`fresh/${w.id}`, { book: "fresh", sealed: w.called, due: day(w.due), dayN: n(w.dayN), change: n(w.progress), area: area(w.category), pace: n(w.weekPct), similar: n(w.known?.similar), ...world(w.known?.world) });
+  for (const r of board?.fresh?.risers || []) push(`fresh/${r.id}`, { book: "fresh", sealed: r.called, due: day(r.due), dayN: 1, change: null, area: area(r.category), pace: n(r.weekPct), similar: n(r.known?.similar), ...world(r.known?.world) });
+  for (const k of board?.kinds?.list || []) push(`kinds/${k.en}`, { book: "kinds", sealed: k.called, due: day(k.due), dayN: null, change: null, area: area(k.category), pace: n(k.medianWeekPct), similar: n(k.known?.similar), ...world(k.known?.world) });
   return out.sort((a, b) => (a.sealed < b.sealed ? 1 : a.sealed > b.sealed ? -1 : (b.change ?? -1e9) - (a.change ?? -1e9))).slice(0, 12);
 }
 
@@ -88,6 +94,8 @@ export function teaserBoard(board) {
     scan: board.scan || null,
     sourceHealth: board.sourceHealth || null,
     envelopes: envelopesOf(board),
+    // 🚢 The factories' shipments: official customs records, no call, public behind the lock.
+    trade: board.trade || null,
     // 📦 "Room to make it": the record and the seal's fingerprint are public; the kinds stay behind the lock.
     supply: board.supply ? { measured: board.supply.measured || 0, under: board.supply.under || 0, over: board.supply.over || 0, top: [], record: board.supply.record || null, seal: board.supply.seal ? { d: board.supply.seal.d, sha256: board.supply.seal.sha256, count: board.supply.seal.count, ots: board.supply.seal.ots || [] } : null } : null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.

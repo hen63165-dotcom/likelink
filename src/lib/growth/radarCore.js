@@ -241,6 +241,7 @@ export const SOURCES = Object.freeze([
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
   { key: "hauls", he: "יוטיוב: סרטוני הקניות של הבלוגרים הראשונים", en: "YouTube: the first creators' haul videos", door: "YouTube Data API (מפתח חינמי)" },
   { key: "shops", he: "חנויות חדשות שנפתחות בעולם, לפי שמות האתרים", en: "New shops opening worldwide, by their domain names", door: "רשימה ציבורית חינמית של דומיינים חדשים" },
+  { key: "trade", he: "מה המפעלים שולחים: נתוני המכס של אירופה, לכל סוג מוצר", en: "What the factories ship: EU customs records, every product line", door: "Eurostat, נתונים פתוחים רשמיים (בלי מפתח)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
   { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },

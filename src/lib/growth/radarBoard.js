@@ -11,7 +11,9 @@ import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
 import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
 import { cleanSupply, cleanSupplyBoard } from "./supplyGap.js";
-import { cleanShops } from "./shopSignal.js";
+import { cleanShopWords, cleanShops } from "./shopSignal.js";
+import { cleanTrade } from "./tradeSignal.js";
+import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
@@ -221,10 +223,14 @@ export function sanitizeBoard(doc) {
       if (!/^\d{3,20}$/.test(String(r?.shop || "")) || !ITEM.test(String(r?.lead?.id || "")) || num(r.medianWeekPct) === null) return null;
       return { shop: String(r.shop), listings: num(r.listings) ?? 0, medianWeekPct: num(r.medianWeekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), lead: { id: String(r.lead.id), title: str(r.lead.title, 140), image: radarImage(r.lead.image), buy, weekPct: num(r.lead.weekPct) } };
     }).filter(Boolean) } : null,
+    // 🚢 The factories' shipments (tradeSignal.js): EU customs lines, codes and the customs' own words.
+    trade: cleanTrade(doc.trade),
+    // 🔤 The names new shops pick (shopSignal.js): product words only, never a domain.
+    shopWords: cleanShopWords(doc.shopWords),
     // 🏪 The shops opening (shopSignal.js): counts and kind ids only, never a domain.
     shops: doc.shops && typeof doc.shops === "object" && day(doc.shops.day) ? { day: day(doc.shops.day), domains: num(doc.shops.domains) ?? 0, kinds: num(doc.shops.kinds) ?? 0, withShops: num(doc.shops.withShops) ?? 0, rising: num(doc.shops.rising) ?? 0, top: (Array.isArray(doc.shops.top) ? doc.shops.top : []).filter((id) => ID.test(String(id))).slice(0, 8) } : null,
     // ✉️ The sealed envelopes of the locked board (radarGate.envelopesOf): never a name, only the facts of the seal.
-    envelopes: (Array.isArray(doc.envelopes) ? doc.envelopes : []).slice(0, 12).filter((e) => ["early", "fresh", "kinds"].includes(e?.book) && day(e.sealed)).map((e) => ({ book: e.book, sealed: day(e.sealed), due: day(e.due), dayN: num(e.dayN), change: num(e.change) })),
+    envelopes: (Array.isArray(doc.envelopes) ? doc.envelopes : []).slice(0, 12).filter((e) => ["early", "fresh", "kinds"].includes(e?.book) && day(e.sealed)).map((e) => ({ book: e.book, sealed: day(e.sealed), due: day(e.due), dayN: num(e.dayN), change: num(e.change), area: AREA_HE[e.area] ? e.area : null, pace: num(e.pace), similar: num(e.similar), countries: num(e.countries), measured: num(e.measured) })),
     supply: doc.supply ? { ...cleanSupplyBoard(doc.supply), seal: cleanBook(doc.supply.seal, SUPPLY_BOOK) } : null,
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
