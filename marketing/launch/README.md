@@ -22,7 +22,7 @@ https://likelink2.vercel.app/radar?utm_source=hackernews&utm_medium=show_hn
 ```
 Hi HN. I built a radar that looks for consumer products that are starting to sell before they become trends.
 
-Every morning it reads AliExpress's own order counts (through the official affiliate API), Google and YouTube suggestions in 51 countries plus Hebrew searches in Israel, and a few open social doors (Bluesky's AppView, Wikipedia pageviews).
+Every morning it reads AliExpress's own order counts (through the official affiliate API), Google suggestions in 51 countries and YouTube in 50, plus Hebrew searches in Israel, and a few open social doors (Bluesky's AppView, Wikipedia pageviews).
 
 The part I care about most: every call is written down in advance, hashed, and timestamped in Bitcoin through OpenTimestamps the same day, misses included. 14 days later it gets a public grade (hit at +50% in orders), and the grade is never edited. Trend tools I found publish accuracy they measured themselves; here you can check it yourself.
 
@@ -49,7 +49,7 @@ I seal every trend call in Bitcoin before it's graded. Here is the open evidence
 ```
 I'm building LikeLink2's trend radar alone, in public.
 
-It reads AliExpress order counts every morning, plus Google and YouTube searches in 51 countries, and only calls a product when the numbers agree. Every call is timestamped in Bitcoin the same day, misses included, and graded in public 14 days later.
+It reads AliExpress order counts every morning, plus Google searches in 51 countries and YouTube in 50, and only calls a product when the numbers agree. Every call is timestamped in Bitcoin the same day, misses included, and graded in public 14 days later.
 
 This week an outside review showed me two mistakes, so I fixed both in public: a "2026 New" smartwatch that was already selling 502 orders a month (now: new only if the radar saw it from the start), and thermal sticker paper filed as a kids' camera (now: an accessory "for X" is never X).
 
