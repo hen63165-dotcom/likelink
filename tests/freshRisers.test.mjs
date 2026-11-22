@@ -196,3 +196,18 @@ test("fresh: a part or refill 'for' the kind is never the kind", () => {
   assert.equal(pickMatches("פח אשפה מתקפל לרכב", { he: "פח לרכב" }), true);
   assert.equal(pickMatches("מארגן למגירות בשלושה גדלים", { he: "מארגן מגירות" }), true, "a head noun named directly still counts");
 });
+
+test("fresh: a holiday comes back every year — never a new product starting to run", async () => {
+  const { isSeasonal } = await import("../src/lib/growth/freshRisers.js");
+  assert.equal(isSeasonal("2026 New Christmas Tree Ornaments Balls Set"), true);
+  assert.equal(isSeasonal("Santa Claus Costume Kids"), true);
+  assert.equal(isSeasonal("Halloween Witch Hat"), true);
+  assert.equal(isSeasonal("Women's Wide-leg Pants Winter 2026"), false, "a season of the year is no holiday");
+  assert.equal(isSeasonal("Reusable Silicone Air Fryer Liner"), false);
+  const day = (i) => new Date(Date.parse("2026-11-08T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+  const grow = (start) => Array.from({ length: 15 }, (_, i) => [day(i), Math.round(start * 1.12 ** i)]);
+  const pool = { a: { id: "1005013000000001", title: "Christmas Tree Ornaments Balls", first: day(0) }, b: { id: "1005013000000002", title: "Cloud Slides Soft Platform", first: day(0) } };
+  const f = freshRisers(pool, { "1005013000000001": grow(60), "1005013000000002": grow(60) }, { rules: { ...FRESH, maxOrders: 10_000 } });
+  assert.deepEqual(f.risers.map((r) => r.id), ["1005013000000002"]);
+  assert.deepEqual(f.seasonal, { n: 1, top: ["1005013000000001"] });
+});

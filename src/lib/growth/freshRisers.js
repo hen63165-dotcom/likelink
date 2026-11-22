@@ -43,6 +43,16 @@ export const FRESH = Object.freeze({
 });
 
 /**
+ * Holidays (the owner, 22.11: "so it never makes mistakes again"): demand that comes back every year on
+ * the calendar is no trend. In late November Christmas ornaments and Santa costumes grow every week, and
+ * 20.11's first kinds run found "balls tree" (Christmas ornaments). A seasonal listing is never shown as
+ * a new product starting to run, and a kind whose name or half its listings are seasonal is never a
+ * new kind; both are counted apart.
+ */
+const SEASONAL = /\b(christmas|xmas|x-mas|santa|reindeer|snowman|advent|nativity|halloween|valentine'?s?|easter|ramadan|eid|hanukkah|chanukah|menorah|diwali|thanksgiving|black friday|new year'?s?|lunar new year|st\.? patrick'?s?|mother'?s day|father'?s day)\b/i;
+export const isSeasonal = (title = "") => SEASONAL.test(String(title || ""));
+
+/**
  * How new a listing is, from the radar's own first reading of it (pure): NEW when that first reading
  * held under `newBase` orders in 30 days (the radar watched it from the start), ESTABLISHED when it was
  * already selling more than that (it grows, but it is no new product), null without a reading.
@@ -187,6 +197,7 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
   const real = fdrKeep(tested.map((x) => x.ev?.p), rules.fdr ?? FRESH.fdr);
   const rows = [];
   const established = [];
+  const seasonal = [];
   tested.forEach(({ e, m, ev }, i) => {
     if (m.weekPct < rules.minWeekPct || !real.has(i)) return;
     if (Number.isFinite(e.sat) && e.sat < (rules.minSat ?? FRESH.minSat)) return;
@@ -194,6 +205,7 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
     if (before.weekPct === null || before.weekPct < rules.heldWeekPct) return;
     // Only a listing the radar watched from the start is a new product; one already selling at its
     // first reading grows, and is counted apart, never shown as new.
+    if (isSeasonal(e.title)) { seasonal.push(e.id); return; }
     const age = listingAge(items?.[e.id], { rules });
     if (age?.state !== "NEW") { established.push({ id: e.id, weekPct: m.weekPct, firstOrders: age?.firstOrders ?? null, firstDay: age?.firstDay ?? null }); return; }
     rows.push({ age, id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
@@ -202,7 +214,7 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
   const since = entries.map((e) => e.first).filter(Boolean).sort()[0] || null;
   const fastRaw = tested.filter(({ m }) => m.weekPct >= rules.minWeekPct).length;
   established.sort((a, b) => b.weekPct - a.weekPct || (a.id < b.id ? -1 : 1));
-  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), established: { n: established.length, top: established.slice(0, 6) }, noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
+  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), established: { n: established.length, top: established.slice(0, 6) }, seasonal: { n: seasonal.length, top: seasonal.slice(0, 6) }, noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
 }
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

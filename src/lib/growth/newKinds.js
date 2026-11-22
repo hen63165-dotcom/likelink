@@ -16,7 +16,7 @@ import { hasBrandName, isNotListedKind } from "./deals.js";
 import { HOT, itemMomentum } from "./radarOpportunity.js";
 import { CATEGORY_KIND, covered, phrasesOf } from "./radarDiscovery.js";
 import { BRAIN, kindFeatures } from "./radarBrain.js";
-import { growthOverDays } from "./freshRisers.js";
+import { growthOverDays, isSeasonal } from "./freshRisers.js";
 
 export const KINDS = Object.freeze({
   model: "Xenova/all-MiniLM-L6-v2",
@@ -107,6 +107,8 @@ export function newKinds(pool = {}, items = {}, vectors = {}, { concepts = [], r
     const label = kindLabel(members.map((m) => m.title));
     if (!label || hasBrandName(label) || isNotListedKind(label) || covered(label, concepts)) continue;
     if (members.some((m) => hasBrandName(m.title) || isNotListedKind(m.title))) continue;
+    // A holiday comes back every year: never a new kind (20.11: "balls tree", Christmas ornaments).
+    if (isSeasonal(label) || members.filter((m) => isSeasonal(m.title)).length * 2 >= members.length) continue;
     const moms = members.map((m) => ({ m, mom: itemMomentum(items?.[m.id] || [], { rules: HOT }) }));
     const measured = moms.filter((x) => x.mom.weekPct !== null && Number.isFinite(x.mom.orders));
     if (measured.length < rules.minMeasured) continue;
