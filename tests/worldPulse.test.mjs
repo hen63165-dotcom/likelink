@@ -95,15 +95,19 @@ test("the finish lines are late: they never count toward a call, they time it ('
   const quiet = earlyCall({ world: { state: "SPREADING", echo: [], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 3 } });
   assert.equal(quiet.level, "CALL");
   assert.equal(quiet.beforeAll, true, "a call before every finish line is 'before everyone'");
-  assert.deepEqual(quiet.aheadOf, ["buzz", "israel", "trends", "wide"]);
+  assert.deepEqual(quiet.aheadOf, ["buzz", "israel", "trends", "wide", "ads"]);
   assert.equal(Object.hasOwn(quiet.signals, "social"), false, "buzz is not one of the agreeing signals");
   const loud = earlyCall({ world: { state: "SPREADING", echo: ["tiktok"], trends: [] }, stage: "RISING", listings, gap: { state: "GAP" }, before: { count: 3 } });
   assert.equal(loud.count, quiet.count, "buzz adds nothing to the count");
   assert.equal(loud.beforeAll, false);
-  assert.deepEqual(loud.aheadOf, ["israel", "trends", "wide"]);
+  assert.deepEqual(loud.aheadOf, ["israel", "trends", "wide", "ads"]);
   assert.deepEqual(earlyCall({ world: { state: "WIDE", echo: ["tiktok", "douyin"] }, stage: "STEADY" }).level, "NONE", "buzz alone is not even watched");
   assert.deepEqual(earlyCall({ world: { state: "WIDE" }, stage: "RISING" }).aheadOf, [], "no call, no claim of being ahead");
-  assert.deepEqual(finishLinesOf({ world: { state: "VIRAL_NOW", echo: [] }, gap: { state: "ARRIVING" } }), { buzz: false, israel: true, trends: true, wide: false });
+  assert.deepEqual(finishLinesOf({ world: { state: "VIRAL_NOW", echo: [] }, gap: { state: "ARRIVING" } }), { buzz: false, israel: true, trends: true, wide: false, ads: false });
+  // 📢 The ad-spy tools' own source (22.11): the day ≥ 10 ads for it start in a week in Meta's Ad Library.
+  assert.equal(finishLinesOf({ ads: { week: 12, more: false } }).ads, true);
+  assert.equal(finishLinesOf({ ads: { week: 9 } }).ads, false);
+  assert.equal(finishLinesOf({}).ads, false, "unmeasured without the owner's token: never crossed");
 
   const calls = [
     { concept: "a", kind: "early", at: "2026-11-01" },
@@ -133,7 +137,7 @@ test("the board keeps only known finish lines on its way to the page", async () 
     assert.deepEqual(c.early.aheadOf, ["buzz"]);
     assert.deepEqual(c.early.buzz, ["tiktok"]);
   }
-  assert.deepEqual(Object.keys(b.early.lead), ["buzz", "israel", "trends", "wide"]);
+  assert.deepEqual(Object.keys(b.early.lead), ["buzz", "israel", "trends", "wide", "ads"]);
   assert.equal(b.early.lead.buzz.medianDays, 6);
 });
 

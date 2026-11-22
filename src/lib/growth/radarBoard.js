@@ -25,7 +25,7 @@ const BUY = /^https:\/\/s\.click\.aliexpress\.com\/[A-Za-z0-9_\-/.?=&%]+$/;
 const IMG_HOST = /(^|\.)(aliexpress-media\.com|alicdn\.com|aliexpress\.com)$/i;
 
 const str = (v, max = 200) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : "");
-const FINISH = ["buzz", "israel", "trends", "wide"];
+const FINISH = ["buzz", "israel", "trends", "wide", "ads"];
 const OTS_HOSTS = ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"];
 /** A sealed book (radarLedger.js): its day, hash, line count, text when it fits and matches, and up to two proofs. */
 const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? {

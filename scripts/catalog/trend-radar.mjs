@@ -1291,7 +1291,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const need = signalsNeeded(earlyRecordBefore);
   for (const c of board.concepts || []) {
     c.world = worldPulseOf(worldMap[c.id] || []);
-    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early });
+    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early, ads: c.social?.ads });
     // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
     const latest = (readings[c.id] || []).at(-1);
     // Only an open EARLY call blocks a new one: a rising concept nearly always has an open stage call
@@ -1309,7 +1309,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
   // on its call, so the page can say how many days the call came first.
-  calls = stampFirsts(calls, Object.fromEntries((board.concepts || []).map((c) => [c.id, finishLinesOf({ world: c.world, gap: c.gap })])), today);
+  calls = stampFirsts(calls, Object.fromEntries((board.concepts || []).map((c) => [c.id, finishLinesOf({ world: c.world, gap: c.gap, ads: c.social?.ads })])), today);
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   // The sealed envelope: today's fingerprint of every early call so far (calls.json is public on the
