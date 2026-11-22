@@ -55,6 +55,23 @@ export function acceptTitle(en = "", asked = "", resolved = "") {
   return title.every((t) => kind.some((k) => same(t, k)));
 }
 
+/**
+ * The titles read straight from the Pageviews API when the article lookup's door is closed (22.11:
+ * en.wikipedia.org's robots.txt disallows /api/ for every automatic reader; wikimedia.org has no rules
+ * file). Without a lookup no redirect is resolved and no disambiguation page is recognised, so only the
+ * kind's own full phrase counts, as written or in the singular: never a part of it.
+ */
+export function directTitles(en = "") {
+  const w = String(en || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!w.length) return [];
+  const full = w.join(" ");
+  const singular = [...w.slice(0, -1), stem(w.at(-1))].join(" ");
+  return [...new Set([full, singular])].filter((t) => t.length >= 4).map(capital);
+}
+
+/** How many readers an answer holds in total (0 for no article or a failed answer). */
+export const viewsTotal = (json) => rows(json).reduce((n, [, v]) => n + v, 0);
+
 const titlePath = (title) => encodeURIComponent(String(title).replace(/ /g, "_"));
 const ymd = (iso) => String(iso).slice(0, 10).replace(/-/g, "");
 

@@ -52,8 +52,10 @@ function fakeNet({ week }) {
       return json({ aliexpress_affiliate_product_query_response: { resp_result: { resp_code: 200, result: items([3000001, 3000002, 3000003], 500, { promotion_link: "javascript:alert(1)" }) } } });
     }
     // 🗣️ Bluesky's open search: the butter squishy is talked about more this week than the week before.
-    if (u === "https://public.api.bsky.app/robots.txt") return json("not found", 404);
-    if (origin === "https://public.api.bsky.app" && pathname === "/xrpc/app.bsky.feed.searchPosts") {
+    // 22.11: public.api.bsky.app's CDN refuses the runner (403); the AppView api.bsky.app answers.
+    if (origin === "https://public.api.bsky.app") return json("<html>403 Forbidden</html>", 403);
+    if (u === "https://api.bsky.app/robots.txt") return json("# Crawling the public parts of the API is allowed.\nUser-agent: *\nAllow: /\n");
+    if (origin === "https://api.bsky.app" && pathname === "/xrpc/app.bsky.feed.searchPosts") {
       const sp = new URL(u).searchParams;
       const runDay = week ? "2026-11-21" : "2026-11-14";
       const n = sp.get("q") === '"butter stick squishy"' ? (sp.get("until").startsWith(runDay) ? 30 : 20) : 0;
@@ -61,6 +63,16 @@ function fakeNet({ week }) {
     }
     // 📚 Wikipedia's own rules file closes its API to automatic readers: the radar reads none of it.
     if (u === "https://en.wikipedia.org/robots.txt") return json("User-agent: *\nAllow: /api/rest_v1/?doc\nDisallow: /w/\nDisallow: /api/\n");
+    // wikimedia.org's rules file redirects to www.wikimedia.org, which has none (22.11, as live): the
+    // Pageviews API is open, and the butter squishy has an article read more this week.
+    if (u === "https://wikimedia.org/robots.txt") return { ok: false, status: 302, headers: { get: (k) => (k.toLowerCase() === "location" ? "https://www.wikimedia.org//robots.txt" : null) }, text: async () => "", clone() { return this; } };
+    if (u === "https://www.wikimedia.org//robots.txt") return json("not found", 404);
+    if (origin === "https://wikimedia.org" && pathname.startsWith("/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Butter_stick_squishy/daily/")) {
+      const end = Date.parse(`${pathname.split("/").at(-1).replace(/^(\d{4})(\d{2})(\d{2})00$/, "$1-$2-$3")}T00:00:00Z`);
+      const days = Array.from({ length: 60 }, (_, i) => new Date(end - (59 - i) * 86_400_000).toISOString().slice(0, 10).replace(/-/g, ""));
+      return json({ items: days.map((d, i) => ({ timestamp: `${d}00`, views: i >= 53 ? 30 : 20 })) });
+    }
+    if (origin === "https://wikimedia.org") return json({ type: "not_found" }, 404);
     if (u === "https://suggestqueries.google.com/robots.txt") return json("not found", 404);
     if (u === "https://trends.google.com/robots.txt") return json("User-agent: *\nDisallow: /trends/api\n");
     if (origin === "https://trends.google.com" && pathname === "/trending/rss") return json("<rss><channel><item><title>מכבי תל אביב</title></item></channel></rss>");
@@ -127,7 +139,14 @@ test("two daily runs a week apart: discovery, Israel gap, the window and a board
   // 0 kinds, the words were set later in the run); 📚 Wikipedia's rules file closes its API: CLOSED.
   assert.equal(r2.sources.bluesky, "OK");
   assert.deepEqual(r2.board.concepts.find((c) => c.id === "butter-squishy").social?.bsky, { week: 30, prev: 20, weekPct: 50, capped: false });
-  assert.equal(r2.sources.wikipedia, "ROBOTS_DISALLOW");
+  // 📚 The lookup's door stays closed (nothing is asked at en.wikipedia.org/api/), the Pageviews door is
+  // open behind its redirect: the kind's own phrase is read there (22.11: the run read the 302 as failed).
+  assert.equal(r2.sources.wikipedia, "OK");
+  const bw = r2.board.concepts.find((c) => c.id === "butter-squishy").wiki;
+  assert.equal(bw.en, "Butter stick squishy");
+  assert.equal(bw.a.weekPct, 50);
+  assert.ok(two.requests.some((r) => r.url === "https://www.wikimedia.org//robots.txt"), "the rules file's redirect is followed");
+  assert.ok(!two.requests.some((r) => r.url.startsWith("https://public.api.bsky.app/xrpc/")), "Bluesky is asked at its AppView");
   // 🌍 The world gap (worldGap.js): the morning's 13 countries + 38 more + Israel's Hebrew consensus.
   // The US completes "butter stick squishy", every other country and Israel stay quiet: first signs.
   assert.equal(r2.sources.worldGap, "OK");

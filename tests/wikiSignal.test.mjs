@@ -4,7 +4,7 @@
 // is by month since 2016, and the board keeps numbers and titles only.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../src/lib/growth/wikiSignal.js";
+import { directTitles, viewsTotal, WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../src/lib/growth/wikiSignal.js";
 import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 import { sourceOf } from "../src/lib/growth/runReceipt.js";
 
@@ -96,4 +96,13 @@ test("wiki: the run receipt counts Wikimedia's hosts as one source", () => {
   assert.equal(sourceOf("https://en.wikipedia.org/api/rest_v1/page/summary/X"), "wikipedia");
   assert.equal(sourceOf("https://www.wikidata.org/wiki/Special:EntityData/Q1.json"), "wikipedia");
   assert.equal(sourceOf("https://en.wikipedia.org/robots.txt"), "rules");
+});
+
+test("wikipedia: behind the lookup's closed door only the kind's own full phrase is read, and a missing article is zero readers", () => {
+  assert.deepEqual(directTitles("leg warmers"), ["Leg warmers", "Leg warmer"]);
+  assert.deepEqual(directTitles("butter stick squishy"), ["Butter stick squishy"]);
+  assert.deepEqual(directTitles(""), []);
+  assert.equal(viewsTotal({ items: [{ timestamp: "2026112000", views: 41 }, { timestamp: "2026112100", views: 9 }] }), 50);
+  assert.equal(viewsTotal(null), 0);
+  assert.equal(viewsTotal({ type: "not_found" }), 0);
 });

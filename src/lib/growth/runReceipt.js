@@ -49,7 +49,7 @@ export function sourceOf(url) {
   if (host === "www.googleapis.com" && u.pathname.startsWith("/youtube/")) return "youtubeApi";
   if (host === "api.pinterest.com") return "pinterest";
   if (host === "graph.facebook.com") return u.pathname.includes("/ads_archive") ? "metaAds" : "instagram";
-  if (host === "public.api.bsky.app") return "bluesky";
+  if (host === "api.bsky.app" || host === "public.api.bsky.app") return "bluesky";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";

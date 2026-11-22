@@ -28,7 +28,7 @@ import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpres
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from "../../src/lib/growth/socialSignal.js";
-import { WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
+import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
 const codeOf = (x) => {
@@ -168,6 +168,25 @@ async function itemOrders(ids, { env, fetchImpl, now }) {
 async function getText(url, fetchImpl) {
   const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
   return { status: res.status, text: await res.text() };
+}
+
+/**
+ * A robots.txt answer, following up to five redirects within the same site, as the robots standard
+ * asks (RFC 9309, 2.3.1.2). 22.11: wikimedia.org's rules file answers 302 → www.wikimedia.org, which
+ * has none (404: no rule), and the radar read that redirect as a failed door.
+ */
+async function getRobots(url, fetchImpl) {
+  const site = (h) => h.split(".").slice(-2).join(".");
+  let u = url;
+  for (let hop = 0; hop <= 5; hop++) {
+    const res = await fetchImpl(u, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
+    const loc = res.status >= 300 && res.status < 400 ? res.headers?.get?.("location") : null;
+    if (!loc) return { status: res.status, text: await res.text() };
+    const next = new URL(loc, u);
+    if (next.protocol !== "https:" || site(next.hostname) !== site(new URL(u).hostname)) return { status: res.status, text: "" };
+    u = next.href;
+  }
+  return { status: 310, text: "" };
 }
 
 /** One phrase's suggestions as text (null when the answer is not usable). */
@@ -709,12 +728,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const doors = {};
     for (const [k, d] of Object.entries({ summary: WIKI.summary, views: WIKI.views, data: WIKI.data })) {
       try {
-        const r = await getText(`${d.host}/robots.txt`, fetchImpl);
+        const r = await getRobots(`${d.host}/robots.txt`, fetchImpl);
         doors[k] = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, d.path) : "failed";
       } catch { doors[k] = "failed"; }
     }
     const ageDays = (d) => (d ? (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${d}T00:00:00Z`)) / 86_400_000 : Infinity);
     let lookups = 0, failed = 0;
+    const from = new Date(now - 60 * 86_400_000).toISOString().slice(0, 10);
+    const to = new Date(now - 86_400_000).toISOString().slice(0, 10);
     if (doors.summary === true) {
       for (const c of board.concepts) {
         if (!c.en || ageDays(wikiState[c.id]?.at) < WIKI.resolveEveryDays) continue;
@@ -737,11 +758,35 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         }
         wikiState[c.id] = { at: today, en: found?.title || null, q: found?.q || null, he };
       }
+    } else if (doors.views === true) {
+      // The lookup's door is closed (en.wikipedia.org disallows /api/): the kind's own full phrase is
+      // read straight from the Pageviews API on wikimedia.org (directTitles; the title with the most
+      // readers wins, none means no article), and its Hebrew name likewise from he.wikipedia.
+      for (const c of board.concepts) {
+        if (!c.en || ageDays(wikiState[c.id]?.at) < WIKI.resolveEveryDays) continue;
+        if (lookups >= WIKI.maxLookups) break;
+        let best = null;
+        for (const title of directTitles(c.en)) {
+          lookups++;
+          try {
+            const r = await getJson(viewsUrl("en.wikipedia", title, { from, to }));
+            const n = r.status === 200 ? viewsTotal(r.json) : 0;
+            if (n > (best?.n || 0)) best = { title, n };
+            if (r.status >= 500 || r.status === 429) failed++;
+          } catch { failed++; }
+          await pause(politeMs);
+        }
+        let he = null;
+        if (best && c.he) {
+          lookups++;
+          try { const r = await getJson(viewsUrl("he.wikipedia", c.he, { from, to })); he = r.status === 200 && viewsTotal(r.json) > 0 ? c.he : null; } catch { failed++; }
+          await pause(politeMs);
+        }
+        wikiState[c.id] = { at: today, en: best?.title || null, q: null, he, via: "views" };
+      }
     }
     const cards = [];
     if (doors.views === true) {
-      const from = new Date(now - 60 * 86_400_000).toISOString().slice(0, 10);
-      const to = new Date(now - 86_400_000).toISOString().slice(0, 10);
       const lastMonth = new Date(Date.parse(`${today.slice(0, 7)}-01T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
       for (const c of board.concepts) {
         const st = wikiState[c.id];
@@ -763,7 +808,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.wiki = { ...wikiSummary(cards), doors };
     // A door the site's own rules close is CLOSED, never FAILED (21.11: en.wikipedia.org's robots.txt
     // disallows /api/ for every automatic reader, so the radar reads none of it).
-    sources.wikipedia = doors.summary === false || doors.views === false ? "ROBOTS_DISALLOW" : doors.views === "failed" || doors.summary === "failed" ? "FAILED" : cards.length ? "OK" : "FAILED";
+    // 22.11: the lookup's closed door no longer closes the source; only the Pageviews door decides.
+    sources.wikipedia = doors.views === false ? "ROBOTS_DISALLOW" : doors.views === "failed" ? "FAILED" : cards.length ? "OK" : "FAILED";
     log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
   }
   // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving
@@ -776,7 +822,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       return { status: res.status, json: res.ok ? await res.json().catch(() => null) : null };
     };
     let bskyDoor = "failed";
-    try { const r = await getText(`${SOCIAL.bsky.host}/robots.txt`, fetchImpl); bskyDoor = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, SOCIAL.bsky.path) : "failed"; } catch { /* failed */ }
+    try { const r = await getRobots(`${SOCIAL.bsky.host}/robots.txt`, fetchImpl); bskyDoor = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, SOCIAL.bsky.path) : "failed"; } catch { /* failed */ }
     let heard = 0, bskyFailed = 0;
     const weekMs = 7 * 86_400_000;
     const count = async (phrase, since, until) => {
