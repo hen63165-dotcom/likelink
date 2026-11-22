@@ -141,3 +141,35 @@ test("world gap: YouTube from the same country counts as searching it there", ()
   assert.match(worldGapLine(worldGapOf({ counts: all(0), yt: all(0) }), "he"), /\(גוגל ויוטיוב\)/);
   assert.deepEqual(cleanWorldGap(g).yt, { measured: 51, searched: 1 });
 });
+
+// 📦 "Room to make it", sealed and checked (the owner, 22.11: "be before the sellers and the factories;
+// they list following us"): every UNDERSUPPLIED kind is a call, the BALANCED ones the control; 14 days
+// later, did new sellers come in (listings +15%)? Never edited; the edge only once both sides have 3.
+import { SUPPLY_CALL, gradeSupplyCalls, recordSupplyCalls, supplyCallRecord, supplySealText } from "../src/lib/growth/supplyGap.js";
+import { recordView } from "../src/lib/growth/radarCore.js";
+
+test("supply calls: sealed in advance, graded by whether new sellers followed, against the balanced kinds", () => {
+  const k = (id, state, listings) => ({ id, supply: { state, listings, orders: 1000 } });
+  let calls = recordSupplyCalls([], [k("cable-knit-scarf", "UNDERSUPPLIED", 400), k("leg-warmers", "BALANCED", 900), k("drawer-organizer", "OVERSUPPLIED", 3000), k("Bad Id", "UNDERSUPPLIED", 10)], "2026-11-22");
+  assert.deepEqual(calls.map((c) => [c.id, c.role, c.due]), [["cable-knit-scarf", "call", "2026-12-06"], ["leg-warmers", "control", "2026-12-06"]]);
+  // One open entry per kind and role: the next morning adds nothing for them.
+  assert.equal(recordSupplyCalls(calls, [k("cable-knit-scarf", "UNDERSUPPLIED", 410)], "2026-11-23").length, 2);
+  assert.match(supplySealText(calls), /^cable-knit-scarf\|2026-11-22\|call\|400\|2026-12-06\|-\nleg-warmers\|2026-11-22\|control\|900\|2026-12-06\|-$/);
+  assert.equal(gradeSupplyCalls(calls, { "cable-knit-scarf": ["2026-12-05", 600] }, "2026-12-05")[0].result, undefined, "before its day: open");
+  calls = gradeSupplyCalls(calls, { "cable-knit-scarf": ["2026-12-06", 480], "leg-warmers": ["2026-12-06", 920] }, "2026-12-06");
+  assert.deepEqual(calls.map((c) => [c.result, c.growth]), [["FOLLOWED", 20], ["QUIET", 2.2]]);
+  assert.deepEqual(gradeSupplyCalls(calls, { "cable-knit-scarf": ["2026-12-07", 100] }, "2026-12-07")[0].result, "FOLLOWED", "a grade is never edited");
+  assert.equal(gradeSupplyCalls([{ id: "x-y", role: "call", at: "2026-11-01", due: "2026-11-15", listings: 10 }], {}, "2026-11-19")[0].result, "UNREAD");
+  const r = supplyCallRecord(calls);
+  assert.equal(r.followed, 1);
+  assert.equal(r.control.graded, 1);
+  assert.equal(r.edge, null, "the edge waits for 3 grades on each side");
+  assert.equal(SUPPLY_CALL.followPct, 15);
+  // The browser keeps the record and the seal; the record table shows the book.
+  const board = sanitizeBoard({ at: "2026-12-06T06:00:00.000Z", record: {}, concepts: [], supply: { measured: 2, under: 1, over: 0, top: ["cable-knit-scarf"], record: r, seal: { d: "2026-12-06", sha256: "a".repeat(64), count: 2, text: supplySealText(calls), ots: [] } } });
+  assert.equal(board.supply.record.followed, 1);
+  assert.equal(board.supply.seal.count, 2);
+  assert.ok(board.supply.seal.text.startsWith("cable-knit-scarf|"));
+  const row = recordView(board).rows.find((x) => x.id === "supply");
+  assert.deepEqual([row.given, row.graded, row.result.hits], [1, 1, 1]);
+});

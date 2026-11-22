@@ -73,7 +73,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
 import { GAP, GAP_CORE, GAP_COUNTRIES, GAP_EXTRA, freshGap, gapSweepOrder, suggestFacts, worldGapOf, worldGapSummary } from "../../src/lib/growth/worldGap.js";
-import { supplyBoard, supplyGapOf } from "../../src/lib/growth/supplyGap.js";
+import { gradeSupplyCalls, recordSupplyCalls, supplyBoard, supplyCallRecord, supplyGapOf, supplySealText } from "../../src/lib/growth/supplyGap.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
@@ -1305,6 +1305,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     c.supply = supplyGapOf({ series: c.series, listings: c.listings }); // 🏭 sellers against demand (supplyGap.js)
   }
   board.supply = supplyBoard(board.concepts);
+  // 📦 "Room to make it", sealed and checked (supplyGap.js): every UNDERSUPPLIED kind is a call that
+  // sellers will follow, graded after 14 days by its own listings; the BALANCED kinds are the control.
+  {
+    const latest = {};
+    for (const c of board.concepts || []) {
+      const l = (Array.isArray(c.listings) ? c.listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1]))).at(-1);
+      if (l) latest[c.id] = [l[0], Number(l[1])];
+    }
+    let supplyCalls = gradeSupplyCalls(readJson(join(dir, "supply-calls.json"), []), latest, today);
+    supplyCalls = recordSupplyCalls(supplyCalls, board.concepts, today);
+    writeFileSync(join(dir, "supply-calls.json"), JSON.stringify(supplyCalls));
+    board.supply.record = supplyCallRecord(supplyCalls);
+    const supplyText = supplySealText(supplyCalls);
+    if (supplyText) board.supply.seal = await sealBook({ text: supplyText, count: supplyText.split("\n").length }, prevBoard.supply?.seal, "supply");
+    const r = board.supply.record;
+    log.push(`supply calls: ${r.calls} "room to make it" calls · ${r.graded} graded · ${r.followed} followed by new sellers (+${r.followPct}% listings in ${r.gradeDays} days) · control ${r.control.followed}/${r.control.graded} · edge ${r.edge ?? "-"} · next ${r.nextDue || "-"}`);
+  }
   log.push(`supply: ${board.supply.measured} kinds measured · ${board.supply.under} under-supplied (demand outruns sellers) · ${board.supply.over} over-supplied · ${board.supply.top.map((id) => { const c = board.concepts.find((x) => x.id === id); return `${id} orders ${c.supply.demandWeekPct}% vs listings ${c.supply.supplyWeekPct}%`; }).join(", ") || "none"}`);
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
@@ -1473,7 +1490,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

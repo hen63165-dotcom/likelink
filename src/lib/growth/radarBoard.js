@@ -35,6 +35,9 @@ const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/
   text: typeof s.text === "string" && s.text.length <= 30_000 && textRe.test(s.text) ? s.text : null,
   ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
 } : null);
+// 📦 "Room to make it" (supplyGap.js supplySealText): every call and control entry, `id|day|role|listings|due|grade`.
+const SUPPLY_LINE = "[a-z0-9][a-z0-9-]{1,40}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:call|control)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:FOLLOWED|QUIET|UNREAD|-)";
+const SUPPLY_BOOK = new RegExp(`^${SUPPLY_LINE}(\\n${SUPPLY_LINE})*$`);
 const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
 // Only verified anchors: a 64-hex root and block hash, a block height, the complete proof as base64.
 const cleanAnchors = (a) => (a && typeof a === "object" ? {
@@ -210,7 +213,7 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
-    supply: cleanSupplyBoard(doc.supply),
+    supply: doc.supply ? { ...cleanSupplyBoard(doc.supply), seal: cleanBook(doc.supply.seal, SUPPLY_BOOK) } : null,
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
     site: doc.site && typeof doc.site === "object" ? {

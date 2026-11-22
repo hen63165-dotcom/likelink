@@ -23,6 +23,7 @@ export const INSTRUMENTS = Object.freeze([
   { id: "luck", book: "luck", tab: "proof", section: "luck", he: "הרדאר מול המזל", en: "The radar vs luck", whatHe: "סוג אקראי כל יום, נבדק באותו כלל", whatEn: "A random kind each day, graded by the same rule" },
   { id: "fresh", book: "fresh", tab: "today", section: "fresh", he: "מוצרים חדשים", en: "New products", whatHe: "מוצר קטן שההזמנות שלו רצות, לפני שכולם מוכרים", whatEn: "A small product whose orders run, before everyone sells it" },
   { id: "kinds", book: "kinds", tab: "today", section: "kinds", he: "סוגים חדשים", en: "New kinds", whatHe: "סוג חדש שהבינה המלאכותית מצאה לפי משמעות", whatEn: "A new kind the AI found by meaning" },
+  { id: "supply", book: "supply", tab: "today", section: "supply", he: "מקום לייצר", en: "Room to make it", whatHe: "סוג שהביקוש שלו רץ מהר מהמוכרים; אחרי 14 יום בודקים אם מוכרים חדשים נכנסו בעקבות הרדאר", whatEn: "A kind whose demand outruns the sellers; after 14 days, did new sellers follow the radar" },
   { id: "brain", book: "brain", tab: "proof", section: "brain", he: "המוח", en: "The brain", whatHe: "מה הרדאר למד מכל קביעה שנבדקה", whatEn: "What the radar learned from every graded call" },
   { id: "promise", book: "promise", tab: "proof", section: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "The proven range and calibrated chance", whatHe: "טווח הזמנות וסיכוי לעלייה, לכל מוצר שנמדד", whatEn: "An orders range and a chance to grow, for every product measured" },
   { id: "window", book: "window", tab: "proof", section: "window", he: "שעון החלון", en: "The window clock", whatHe: "הסיכוי שמוצר יגיע ל־2,000 מודעות, כלומר שכולם כבר מוכרים", whatEn: "The chance a product reaches 2,000 listings: everyone sells it" },
@@ -78,6 +79,10 @@ export function recordView(board = {}) {
     } else if (ins.id === "stages") row = callsRow(b.record);
     else if (ins.id === "fresh") row = callsRow(b.fresh?.record);
     else if (ins.id === "kinds") row = callsRow(b.kinds?.record);
+    else if (ins.id === "supply") {
+      const r = b.supply?.record;
+      if (r) row = { given: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, result: r.graded ? { kind: "hits", hits: num(r.followed) ?? 0, of: r.graded, rate: pct(num(r.followed) ?? 0, r.graded), edge: num(r.edge) } : null, next: r.nextDue || null };
+    }
     else if (ins.id === "luck") {
       const v = b.luck?.versus || {};
       const graded = num(v.luck?.graded) ?? 0;
@@ -113,7 +118,8 @@ export function recordView(board = {}) {
     if (!row) continue;
     rows.push({ id: ins.id, he: ins.he, en: ins.en, whatHe: ins.whatHe, whatEn: ins.whatEn, section: ins.section, sealed: (b.ledger?.text || "").split("\n").some((l) => l.startsWith(`${ins.book}=`)), ...row });
   }
-  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck");
+  // The trend calls' hits only: the brain learns, luck is the yardstick, supply grades sellers following.
+  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "supply");
   return {
     rows,
     day: b.ledger?.d || String(b.at || "").slice(0, 10) || null,
