@@ -1106,7 +1106,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   board.fresh.byCategory = byCategory(freshCalls).slice(0, 30);
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
-  log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
+  log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}% (first read ${r.age?.firstOrders} on ${r.age?.firstDay})`).join(", ") || "none yet"} (tracking ${board.fresh.tracking}) · already selling at the first reading, not new: ${board.fresh.established?.n ?? 0}${board.fresh.established?.top?.length ? ` (${board.fresh.established.top.map((r) => `${r.id} +${r.weekPct}% from ${r.firstOrders}`).join(", ")})` : ""}`);
   // Every new product the radar ever showed, misses included, sealed in Bitcoin (radarLedger.js):
   // the one book of calls that was not sealed before 17.11.
   const freshText = freshSealText(freshCalls);

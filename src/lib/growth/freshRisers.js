@@ -35,7 +35,25 @@ export const FRESH = Object.freeze({
   nullWeekPct: 20,
   fdr: 0.1,
   minSat: 90, // the store's own satisfaction share, when it sent one (used to choose only, never shown)
+  // A new product, an older one that grows, and a misclassified one are three different things (the
+  // owner, 22.11, after an outside check found a 2026-New smartwatch among the risers that was already
+  // selling 502 orders in 30 days the first time the radar read it). The store's API sends no listing
+  // date and a seller's "2026 New" proves nothing, so the radar says only what it saw itself.
+  newBase: 100, // orders in 30 days at the radar's first reading: under it, the radar saw it from the start
 });
+
+/**
+ * How new a listing is, from the radar's own first reading of it (pure): NEW when that first reading
+ * held under `newBase` orders in 30 days (the radar watched it from the start), ESTABLISHED when it was
+ * already selling more than that (it grows, but it is no new product), null without a reading.
+ */
+export function listingAge(series = [], { rules = FRESH } = {}) {
+  const rs = (Array.isArray(series) ? series : []).filter((r) => Array.isArray(r) && /^\d{4}-\d{2}-\d{2}$/.test(String(r[0])) && Number.isFinite(Number(r[1])));
+  if (!rs.length) return null;
+  const first = [...rs].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))[0];
+  const orders = Number(first[1]);
+  return { state: orders < (rules.newBase ?? FRESH.newBase) ? "NEW" : "ESTABLISHED", firstDay: first[0], firstOrders: orders };
+}
 
 const dayGap = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000;
 // The standard normal's upper tail (Abramowitz–Stegun 7.1.26, |error| < 1.5e-7).
@@ -168,17 +186,23 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
   }
   const real = fdrKeep(tested.map((x) => x.ev?.p), rules.fdr ?? FRESH.fdr);
   const rows = [];
+  const established = [];
   tested.forEach(({ e, m, ev }, i) => {
     if (m.weekPct < rules.minWeekPct || !real.has(i)) return;
     if (Number.isFinite(e.sat) && e.sat < (rules.minSat ?? FRESH.minSat)) return;
     const before = itemMomentum((items?.[e.id] || []).slice(0, -1), { rules: HOT });
     if (before.weekPct === null || before.weekPct < rules.heldWeekPct) return;
-    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
+    // Only a listing the radar watched from the start is a new product; one already selling at its
+    // first reading grows, and is counted apart, never shown as new.
+    const age = listingAge(items?.[e.id], { rules });
+    if (age?.state !== "NEW") { established.push({ id: e.id, weekPct: m.weekPct, firstOrders: age?.firstOrders ?? null, firstDay: age?.firstDay ?? null }); return; }
+    rows.push({ age, id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
   });
   rows.sort((a, b) => b.lowPct - a.lowPct || b.weekPct - a.weekPct || a.orders - b.orders);
   const since = entries.map((e) => e.first).filter(Boolean).sort()[0] || null;
   const fastRaw = tested.filter(({ m }) => m.weekPct >= rules.minWeekPct).length;
-  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
+  established.sort((a, b) => b.weekPct - a.weekPct || (a.id < b.id ? -1 : 1));
+  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), established: { n: established.length, top: established.slice(0, 6) }, noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
 }
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

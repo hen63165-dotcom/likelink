@@ -147,6 +147,8 @@ export function findFacts(f = {}, { kind = "fresh", day = null } = {}) {
   if (kind === "fresh") {
     if (num(f.weekPct) !== null) add("pace", "קצב ההזמנות", "Orders pace", `${iso(`${signed(f.weekPct)}%`)} בשבוע`, `${signed(f.weekPct)}% a week`, "up");
     if (num(f.orders) !== null && num(f.ordersBefore) !== null) add("orders", "הזמנות ב־30 יום", "Orders in 30 days", `${he(f.ordersBefore)} ב־${dm(f.from)} ← ${he(f.orders)} ב־${dm(f.to)}`, `${en(f.ordersBefore)} on ${dm(f.from)} → ${en(f.orders)} on ${dm(f.to)}`);
+    // New, as the radar itself saw it (freshRisers.listingAge): its first reading of the listing.
+    if (f.age?.state === "NEW" && dm(f.age.firstDay) && num(f.age.firstOrders) !== null) add("age", "חדש", "New", `הרדאר ראה אותו מתחילתו: ${he(f.age.firstOrders)} הזמנות ב־30 יום בקריאה הראשונה, ${dm(f.age.firstDay)}`, `The radar saw it from the start: ${en(f.age.firstOrders)} orders in 30 days at its first reading, ${dm(f.age.firstDay)}`, "seal");
   } else {
     if (num(f.medianWeekPct) !== null) add("pace", "קצב ההזמנות", "Orders pace", `${iso(`${signed(f.medianWeekPct)}%`)} בשבוע (החציון של ${f.measured ?? f.members} מודעות)`, `${signed(f.medianWeekPct)}% a week (median of ${f.measured ?? f.members} listings)`, "up");
     if (num(f.orders) !== null) add("orders", "הזמנות ב־30 יום", "Orders in 30 days", `${he(f.orders)} יחד, ב־${f.members} מודעות חדשות`, `${en(f.orders)} together, in ${f.members} new listings`);
