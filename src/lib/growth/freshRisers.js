@@ -166,7 +166,9 @@ export function freshEntry(p, { category = "", today = "" } = {}) {
   if (hasBrandName(title) || isNotListedKind(title)) return null;
   const price = Number(p.target_sale_price ?? p.sale_price);
   const sat = satOf(p.evaluate_rate);
-  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders, ...(sat !== null ? { sat } : {}) };
+  // The factory's own store on AliExpress (its public id), when the store sends it (factorySignal.js).
+  const shop = /^\d{3,20}$/.test(String(p.shop_id ?? "")) ? String(p.shop_id) : null;
+  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders, ...(sat !== null ? { sat } : {}), ...(shop ? { shop } : {}) };
 }
 
 /** The pool after today's answers: new ids join, known ones refresh, unseen ones leave after keepDays. */

@@ -43,6 +43,8 @@ on:
       - scripts/marketing/channel-preview.mjs
       - src/lib/growth/radarEvidence.js
       - src/lib/growth/haulSignal.js
+      - src/lib/growth/shopSignal.js
+      - src/lib/growth/factorySignal.js
 permissions:
   contents: write
 concurrency:

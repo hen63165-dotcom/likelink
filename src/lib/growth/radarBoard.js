@@ -215,6 +215,12 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
+    // 🏭 The factories that jump (factorySignal.js): the store's public id, its numbers, its fastest new listing.
+    factories: doc.factories && typeof doc.factories === "object" ? { withShop: num(doc.factories.withShop) ?? 0, factories: num(doc.factories.factories) ?? 0, jumping: num(doc.factories.jumping) ?? 0, top: (Array.isArray(doc.factories.top) ? doc.factories.top : []).slice(0, 8).map((r) => {
+      const buy = typeof r?.lead?.buy === "string" && BUY.test(r.lead.buy) ? r.lead.buy : null;
+      if (!/^\d{3,20}$/.test(String(r?.shop || "")) || !ITEM.test(String(r?.lead?.id || "")) || num(r.medianWeekPct) === null) return null;
+      return { shop: String(r.shop), listings: num(r.listings) ?? 0, medianWeekPct: num(r.medianWeekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), lead: { id: String(r.lead.id), title: str(r.lead.title, 140), image: radarImage(r.lead.image), buy, weekPct: num(r.lead.weekPct) } };
+    }).filter(Boolean) } : null,
     // 🏪 The shops opening (shopSignal.js): counts and kind ids only, never a domain.
     shops: doc.shops && typeof doc.shops === "object" && day(doc.shops.day) ? { day: day(doc.shops.day), domains: num(doc.shops.domains) ?? 0, kinds: num(doc.shops.kinds) ?? 0, withShops: num(doc.shops.withShops) ?? 0, rising: num(doc.shops.rising) ?? 0, top: (Array.isArray(doc.shops.top) ? doc.shops.top : []).filter((id) => ID.test(String(id))).slice(0, 8) } : null,
     // ✉️ The sealed envelopes of the locked board (radarGate.envelopesOf): never a name, only the facts of the seal.

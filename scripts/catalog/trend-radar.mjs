@@ -32,6 +32,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
 import { SHOPS, mergeShops, nrdUrl, shopsOf, shopsToday } from "../../src/lib/growth/shopSignal.js";
+import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
@@ -1026,6 +1027,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
+  // 🏭 The factories that jump (factorySignal.js): the stores whose new listings run together.
+  board.factories = factoryJumps(freshPool, items);
+  log.push(`factories: ${board.factories.withShop} new listings carry their store's id · ${board.factories.factories} stores · ${board.factories.jumping} jumping${board.factories.withShop ? "" : " (the store sent no store ids)"} · ${board.factories.top.slice(0, 5).map((r) => `store ${r.shop}: ${r.listings} listings, median +${r.medianWeekPct}%/wk, ${r.ordersBefore}→${r.orders} orders`).join(" | ") || "none"}`);
   board.fresh.strict = freshRules.strict;
   {
     const n = board.fresh.noise || {};

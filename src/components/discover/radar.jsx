@@ -738,6 +738,30 @@ function Verdict({ board, gated = false }) {
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
 // 🏭 For factories and sellers (supplyGap.js): the kinds whose orders grow faster than the listings.
+/** 🏭 The factories that jump (factorySignal.js): stores whose new listings run together, by the store's own numbers. */
+function Factories({ f }) {
+  const { L } = useL();
+  return (
+    <section className="lx-wrap mt-8" id="factories">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🏭 מפעלים שקופצים עכשיו", "🏭 Factories jumping now")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`לפני שמוצר הופך לטרנד, המפעל מתחיל למכור אותו. מתוך ${f.factories} חנויות של מפעלים עם מוצרים חדשים, ב־${f.jumping} כמה מוצרים חדשים רצים יחד (לפי החציון, כדי שמוצר אחד לא יטעה). המספרים של אליאקספרס עצמה.`, `Before a product is a trend, the factory starts selling it. Of ${f.factories} factory stores with new listings, in ${f.jumping} several new listings run together (by the median, so one listing cannot mislead). AliExpress's own numbers.`)}</p>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {f.top.map((r) => (
+            <li key={r.shop} className="lx-card lx-rdr-item p-3">
+              <p className="text-[15px] font-extrabold">{L(`חנות מפעל ${r.shop}`, `Factory store ${r.shop}`)}</p>
+              <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`${r.listings} מוצרים חדשים · החציון +${r.medianWeekPct}% בשבוע`, `${r.listings} new listings · median +${r.medianWeekPct}% a week`)}</p>
+              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`ההזמנות שלהם יחד ב־30 יום: ${r.ordersBefore?.toLocaleString("he-IL")} ← ${r.orders?.toLocaleString("he-IL")}`, `Their orders in 30 days together: ${r.ordersBefore?.toLocaleString("en-US")} → ${r.orders?.toLocaleString("en-US")}`)}</p>
+              <p className="mt-1 text-[13px]">{L(`המוביל: ${r.lead.title}`, `Leading: ${r.lead.title}`)}</p>
+              <a className="underline text-[12px]" href={`https://www.aliexpress.com/store/${r.shop}`} target="_blank" rel="noopener noreferrer">{L("לחנות של המפעל", "The factory's store")}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 /** ✉️ The sealed envelopes (radarGate.envelopesOf): the open calls behind the lock, never what is inside. */
 const ENVELOPE_BOOK = { early: ["🚀 קביעה לפני כולם", "🚀 A before-everyone call"], fresh: ["🆕 מוצר חדש", "🆕 A new product"], kinds: ["🧬 סוג חדש", "🧬 A new kind"] };
 function Envelopes({ list, onOpen }) {
@@ -1933,6 +1957,7 @@ export function RadarPage() {
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
+        {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
         {!gated && board?.kinds ? <NewKinds kinds={board.kinds} day={String(board.at || "").slice(0, 10)} /> : null}
         <section ref={results} className="lx-wrap mt-8 md:mt-12" style={{ scrollMarginTop: 80 }} aria-labelledby="radar-results">
