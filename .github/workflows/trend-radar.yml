@@ -69,6 +69,13 @@ jobs:
       # Pinterest's own trends API (src/lib/growth/pinterestTrends.js): the owner's Pinterest app token;
       # without it nothing is asked (REQUIRES_CONNECTION).
       PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
+      # Japan's and Korea's biggest stores, official doors (the owner, 22.11: "כן לרקוטן ונאבר"): Rakuten
+      # Ichiba's ranking API (her free Rakuten Web Service app) and NAVER API HUB's Shopping Insight (her
+      # free Ncloud key). Read only once the keys exist; until then nothing is asked.
+      RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
+      RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
+      NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
+      NAVER_API_KEY: ${{ secrets.NAVER_API_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
