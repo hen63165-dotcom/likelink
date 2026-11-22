@@ -738,6 +738,32 @@ function Verdict({ board, gated = false }) {
 
 /** New listings that start to run (freshRisers.js): measured, dated, the store's own words. */
 // 🏭 For factories and sellers (supplyGap.js): the kinds whose orders grow faster than the listings.
+/** ✉️ The sealed envelopes (radarGate.envelopesOf): the open calls behind the lock, never what is inside. */
+const ENVELOPE_BOOK = { early: ["🚀 קביעה לפני כולם", "🚀 A before-everyone call"], fresh: ["🆕 מוצר חדש", "🆕 A new product"], kinds: ["🧬 סוג חדש", "🧬 A new kind"] };
+function Envelopes({ list, onOpen }) {
+  const { L } = useL();
+  const moving = list.filter((e) => Number.isFinite(e.change) && e.change > 0).length;
+  return (
+    <section className="lx-wrap mt-6" id="envelopes">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L(`✉️ ${list.length} מעטפות חתומות`, `✉️ ${list.length} sealed envelopes`)}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`בכל מעטפה קביעה שהרדאר כבר חתם בביטקוין.${moving ? ` ב־${moving} מהן ההזמנות כבר עולות מאז החתימה.` : ""} מה בפנים? המנויות רואות עכשיו. כולם רואים ביום הציון, פגיעה או פספוס.`, `Each envelope holds a call the radar already sealed in Bitcoin.${moving ? ` In ${moving} of them orders are already up since the seal.` : ""} What's inside? Members see it now. Everyone sees it on grading day, hit or miss.`)}</p>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {list.map((e, i) => (
+            <li key={`${e.book}-${e.sealed}-${i}`} className="lx-card lx-rdr-item p-3">
+              <p className="text-[15px] font-extrabold">{L(ENVELOPE_BOOK[e.book][0], ENVELOPE_BOOK[e.book][1])} · 🔒</p>
+              <p className="mt-1 text-[13px]">{L(`נחתם ב־${dm(e.sealed)}${e.dayN ? ` · יום ${e.dayN} מתוך 14` : ""}`, `Sealed on ${dm(e.sealed)}${e.dayN ? ` · day ${e.dayN} of 14` : ""}`)}</p>
+              {Number.isFinite(e.change) ? <p className="text-[13px] font-bold" style={{ color: e.change > 0 ? "#067647" : "var(--lx-muted)" }}>{L(`ההזמנות מאז החתימה: ${e.change > 0 ? "+" : ""}${e.change}%`, `Orders since the seal: ${e.change > 0 ? "+" : ""}${e.change}%`)}</p> : null}
+              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נפתחת לכולם ב־${dm(e.due) || "יום הציון"}`, `Opens to everyone on ${dm(e.due) || "grading day"}`)}</p>
+            </li>
+          ))}
+        </ul>
+        <button type="button" className="lx-btn lx-btn-ink mt-4" onClick={onOpen}>{L("לפתוח את המעטפות עכשיו", "Open the envelopes now")}</button>
+      </div>
+    </section>
+  );
+}
+
 function SupplyList({ board }) {
   const { L } = useL();
   const top = (board?.supply?.top || []).map((id) => (board.concepts || []).find((c) => c.id === id)).filter((c) => c?.supply);
@@ -1903,6 +1929,7 @@ export function RadarPage() {
           <div className="lx-wrap mt-6"><p className="rounded-2xl p-3 text-[15px] font-bold" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🎁 את בניסיון חינם: נשארו לך ${acc.daysLeft} ימים.`, `🎁 You're on a free trial: ${acc.daysLeft} days left.`)} <button type="button" className="underline" onClick={() => pick("plans")}>{L("למסלולים", "See the plans")}</button></p></div>
         ) : null}
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
+        {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}

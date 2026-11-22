@@ -30,6 +30,8 @@ test("feed: every sealed call, newest first, with the day's root and the grading
 test("feed: behind the lock, never an open call's name", () => {
   const locked = feedEntries(teaserBoard(board));
   assert.ok(!JSON.stringify(locked).includes("cable"), "the teaser names no open call");
-  assert.deepEqual(locked.map((x) => x.id), ["ledger/2026-11-22"]);
+  // ✉️ The open call is a sealed envelope there: its kind of call and its days, never its name.
+  assert.deepEqual(locked.map((x) => x.id), ["envelope/early/2026-11-22/0", "ledger/2026-11-22"]);
+  assert.match(locked[0].text, /opens to everyone on 2026-12-06/);
   assert.deepEqual(feedEntries(null), []);
 });

@@ -112,3 +112,20 @@ test("the lock: 'room to make it' shows its record and fingerprint, never the ki
   assert.equal(t.supply.seal.text, undefined);
   assert.ok(!JSON.stringify(t).includes("cable-knit-scarf"));
 });
+
+test("the lock: every open call is a sealed envelope — the seal's facts, never what is inside", async () => {
+  const { teaserBoard: teaser, envelopesOf } = await import("../src/lib/growth/radarGate.js");
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const board = {
+    at: "2026-11-22T06:00:00Z", record: {}, concepts: [],
+    early: { ledger: [{ concept: "secret-kind", at: "2026-11-20", due: "2026-12-04", dayN: 3, progress: 38 }, { concept: "done-kind", at: "2026-11-01", due: "2026-11-15", result: "HIT" }] },
+    fresh: { watch: [{ id: "1005013201890326", title: "Secret pants", called: "2026-11-20", due: "2026-12-04", dayN: 3, progress: 21 }], risers: [{ id: "1005013201890326", title: "Secret pants", called: "2026-11-20", due: "2026-12-04" }, { id: "1005013000000009", title: "Secret lamp", called: "2026-11-22", due: "2026-12-06" }] },
+  };
+  const env = envelopesOf(board);
+  assert.deepEqual(env.map((e) => [e.book, e.sealed, e.change]), [["fresh", "2026-11-22", null], ["early", "2026-11-20", 38], ["fresh", "2026-11-20", 21]], "graded calls are no envelope; one per call");
+  const t = teaser(board);
+  assert.equal(t.envelopes.length, 3);
+  const clean = sanitizeBoard(t);
+  assert.equal(clean.envelopes.length, 3);
+  assert.ok(!/secret|Secret|1005013/.test(JSON.stringify(clean.envelopes)), "never what is inside");
+});

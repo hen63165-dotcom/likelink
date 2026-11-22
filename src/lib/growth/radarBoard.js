@@ -213,6 +213,8 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
+    // ✉️ The sealed envelopes of the locked board (radarGate.envelopesOf): never a name, only the facts of the seal.
+    envelopes: (Array.isArray(doc.envelopes) ? doc.envelopes : []).slice(0, 12).filter((e) => ["early", "fresh", "kinds"].includes(e?.book) && day(e.sealed)).map((e) => ({ book: e.book, sealed: day(e.sealed), due: day(e.due), dayN: num(e.dayN), change: num(e.change) })),
     supply: doc.supply ? { ...cleanSupplyBoard(doc.supply), seal: cleanBook(doc.supply.seal, SUPPLY_BOOK) } : null,
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,

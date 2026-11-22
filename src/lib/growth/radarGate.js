@@ -42,6 +42,26 @@ export function boardAccess({ settings = {}, sub = null, trial = null, signedIn 
 }
 
 /** The public teaser: the proof without the live calls (no concept, no seal text, open calls counted only). */
+/**
+ * ✉️ The sealed envelopes (the owner, 22.11: "make option 2 hungrier: hidden, psychological tension"):
+ * behind the lock, every open call is shown as a sealed envelope — what kind of call it is, the day it
+ * was sealed in Bitcoin, its day N of 14 and how much its orders changed since the seal — never what is
+ * inside. Members open it now; everyone else sees it open on its grading day, hit or miss. True only:
+ * the change is the measured one, nothing promises how it ends.
+ */
+export function envelopesOf(board) {
+  const out = [];
+  const seen = new Set();
+  const day = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || "")) ? d : null);
+  const n = (x) => (Number.isFinite(Number(x)) && x !== null && x !== "" ? Number(x) : null);
+  const push = (key, e) => { if (!seen.has(key) && day(e.sealed)) { seen.add(key); out.push(e); } };
+  for (const e of board?.early?.ledger || []) if (!e?.result) push(`early/${e.concept}`, { book: "early", sealed: e.at, due: day(e.due), dayN: n(e.dayN), change: n(e.progress) });
+  for (const w of board?.fresh?.watch || []) push(`fresh/${w.id}`, { book: "fresh", sealed: w.called, due: day(w.due), dayN: n(w.dayN), change: n(w.progress) });
+  for (const r of board?.fresh?.risers || []) push(`fresh/${r.id}`, { book: "fresh", sealed: r.called, due: day(r.due), dayN: 1, change: null });
+  for (const k of board?.kinds?.list || []) push(`kinds/${k.en}`, { book: "kinds", sealed: k.called, due: day(k.due), dayN: null, change: null });
+  return out.sort((a, b) => (a.sealed < b.sealed ? 1 : a.sealed > b.sealed ? -1 : (b.change ?? -1e9) - (a.change ?? -1e9))).slice(0, 12);
+}
+
 export function teaserBoard(board) {
   if (!board || typeof board !== "object") return null;
   const e = board.early && typeof board.early === "object" ? board.early : null;
@@ -67,6 +87,7 @@ export function teaserBoard(board) {
     receipt: board.receipt || null,
     scan: board.scan || null,
     sourceHealth: board.sourceHealth || null,
+    envelopes: envelopesOf(board),
     // 📦 "Room to make it": the record and the seal's fingerprint are public; the kinds stay behind the lock.
     supply: board.supply ? { measured: board.supply.measured || 0, under: board.supply.under || 0, over: board.supply.over || 0, top: [], record: board.supply.record || null, seal: board.supply.seal ? { d: board.supply.seal.d, sha256: board.supply.seal.sha256, count: board.supply.seal.count, ots: board.supply.seal.ots || [] } : null } : null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.
