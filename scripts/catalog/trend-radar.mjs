@@ -28,6 +28,7 @@ import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpres
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from "../../src/lib/growth/socialSignal.js";
+import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
@@ -340,6 +341,51 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const tAdded = discovered.filter((c) => !tBefore.has(c.id));
       sources.trendsDiscovery = "OK";
       log.push(`trends discovery: ${terms.length} trending terms abroad · ${tCands.length} sell on AliExpress · added ${tAdded.map((c) => c.en).join(", ") || "none"}`);
+    }
+    // 🎥 The first creators (haulSignal.js; the owner, 22.11: "the way the squishy was found, for every
+    // product"): the newest haul and "finds" videos on YouTube (official Data API, her free key), the
+    // product phrases more channels started to show this week, sold on AliExpress → trial concepts, so
+    // the stages, the world gap and the sealed calls measure them from tomorrow. RADAR_HAULS=0 turns it off.
+    if (env.RADAR_HAULS !== "0") {
+      if (!env.YOUTUBE_API_KEY) sources.hauls = "REQUIRES_CONNECTION";
+      else {
+        let haulState = readJson(join(dir, "hauls.json"), {});
+        let videos = 0, asked = 0, answered = 0;
+        const channels = new Set();
+        for (const q of HAULS.queries) {
+          asked++;
+          try {
+            const res = await fetchImpl(haulSearchUrl(q, { key: env.YOUTUBE_API_KEY, now }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+            const list = res.ok ? haulVideos(await res.json().catch(() => null)) : null;
+            if (!list) continue;
+            answered++;
+            videos += list.length;
+            for (const v of list) channels.add(v.channel);
+            haulState = mergeHauls(haulState, list, today);
+          } catch { /* the meter counts the failure */ }
+        }
+        writeFileSync(join(dir, "hauls.json"), JSON.stringify(haulState));
+        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered] }).slice(0, HAULS.perDay);
+        const hCands = [];
+        const he = aeEnv(env);
+        for (const r of risers) {
+          try {
+            const res = await aeCall(SEARCH, { keywords: r.phrase, tracking_id: he.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC" }, { env: he, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) !== 200) continue;
+            const raw = rr.result?.products?.product;
+            const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
+            const v = haulOnStore(r.phrase, list);
+            if (v.ok) hCands.push({ en: r.phrase, kind: "", items: v.items, orders: v.orders, category: "hauls", via: "haul" });
+          } catch (err) { log.push(`hauls ${r.phrase}: ${String(err?.message || err).slice(0, 60)}`); }
+        }
+        const hBefore = new Set(discovered.map((c) => c.id));
+        discovered = admitDiscovered(discovered, hCands, { concepts: watch, stages: stagesBefore, now });
+        const hAdded = discovered.filter((c) => !hBefore.has(c.id));
+        if (answered) keep(meter, "youtubeApi", videos);
+        sources.hauls = answered ? "OK" : "FAILED";
+        log.push(`hauls: ${answered}/${asked} searches · ${videos} videos from ${channels.size} channels · rising ${risers.map((r) => `${r.phrase} ${r.before}→${r.channels}`).join(", ") || "none"} · sold on AliExpress ${hCands.length} · added ${hAdded.map((c) => c.en).join(", ") || "none"}`);
+      }
     }
     // Readings of concepts that left the trial are dropped with them.
     for (const id of Object.keys(readings)) if (id.startsWith("auto-") && !discovered.some((c) => c.id === id)) { delete readings[id]; delete awareness[id]; delete picks[id]; }

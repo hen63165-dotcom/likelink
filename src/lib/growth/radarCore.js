@@ -239,6 +239,7 @@ export const SOURCES = Object.freeze([
   { key: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "Proven range and calibrated chance", door: "החישוב של הרדאר" },
   { key: "window", he: "שעון החלון", en: "Window clock", door: "החישוב של הרדאר" },
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
+  { key: "hauls", he: "יוטיוב: סרטוני הקניות של הבלוגרים הראשונים", en: "YouTube: the first creators' haul videos", door: "YouTube Data API (מפתח חינמי)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
   { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },

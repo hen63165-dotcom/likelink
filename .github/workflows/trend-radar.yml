@@ -42,6 +42,7 @@ on:
       - src/lib/growth/channelEngine.js
       - scripts/marketing/channel-preview.mjs
       - src/lib/growth/radarEvidence.js
+      - src/lib/growth/haulSignal.js
 permissions:
   contents: write
 concurrency:

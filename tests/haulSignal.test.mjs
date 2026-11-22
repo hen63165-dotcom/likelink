@@ -1,0 +1,38 @@
+// 🎥 The first creators (src/lib/growth/haulSignal.js; the owner, 22.11: "exactly the way the squishy was
+// found, for every product"): haul videos → product phrases → channels this week against last week →
+// sold on AliExpress → a trial concept. Never a brand, an unlisted kind, a holiday or a known kind.
+import test from "node:test";
+import assert from "node:assert/strict";
+import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls, videoPhrases } from "../src/lib/growth/haulSignal.js";
+
+test("hauls: the official search, the haul's own words dropped, channels counted once", () => {
+  const u = new URL(haulSearchUrl("temu haul", { key: "k", now: Date.parse("2026-11-22T06:00:00Z") }));
+  assert.equal(u.origin + u.pathname, "https://www.googleapis.com/youtube/v3/search");
+  assert.equal(u.searchParams.get("order"), "date");
+  assert.equal(u.searchParams.get("publishedAfter"), "2026-11-20T06:00:00Z");
+  assert.equal(haulVideos({ error: {} }), null);
+  const vids = haulVideos({ items: [
+    { id: { videoId: "abc123" }, snippet: { channelId: "UC1", title: "TEMU HAUL: taba squishy and cloud slides", description: "links below" } },
+    { id: { videoId: "abc124" }, snippet: { channelId: "UC1", title: "taba squishy again", description: "" } },
+    { id: { videoId: "abc125" }, snippet: { title: "no channel" } },
+  ] });
+  assert.equal(vids.length, 2);
+  assert.ok(videoPhrases(vids[0].text).includes("taba squishy"));
+  assert.ok(!videoPhrases(vids[0].text).some((p) => p.includes("temu") || p.includes("haul")));
+  const s = mergeHauls({}, vids, "2026-11-22");
+  assert.deepEqual(s["taba squishy"], { "2026-11-22": ["UC1"] }, "one channel, counted once");
+});
+
+test("hauls: a phrase more channels started to show joins; a known kind, a brand or a holiday never", () => {
+  const v = (ch, text) => ({ id: `v${ch}`, channel: ch, text });
+  let s = mergeHauls({}, [v("UCa", "mochi stretch toy")], "2026-11-10");
+  s = mergeHauls(s, [v("UCb", "mochi stretch"), v("UCc", "mochi stretch"), v("UCd", "mochi stretch"), v("UCe", "christmas tree"), v("UCf", "christmas tree"), v("UCg", "christmas tree"), v("UCh", "nike shoes"), v("UCi", "nike shoes"), v("UCj", "nike shoes"), v("UCk", "lip oil"), v("UCl", "lip oil"), v("UCm", "lip oil")], "2026-11-21");
+  const r = haulRisers(s, "2026-11-22", { concepts: [{ id: "lip-oil", en: "lip oil" }] });
+  assert.deepEqual(r.map((x) => x.phrase), ["mochi stretch"]);
+  assert.deepEqual([r[0].channels, r[0].before], [3, 1]);
+  // Days older than keepDays leave the state.
+  assert.equal(mergeHauls(s, [], "2026-12-20")["mochi stretch"], undefined);
+  assert.deepEqual(haulOnStore("mochi stretch", [{ title: "Mochi Stretch Toy", orders: 200 }, { title: "mochi stretch ball", orders: 90 }, { title: "Mochi stretchy squeeze", orders: 40 }, { title: "other", orders: 999 }]), { ok: true, items: 3, orders: 330 });
+  assert.equal(haulOnStore("mochi stretch", [{ title: "mochi stretch", orders: 10 }]).ok, false);
+  assert.equal(HAULS.minChannels, 3);
+});
