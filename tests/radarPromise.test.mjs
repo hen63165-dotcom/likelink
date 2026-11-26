@@ -271,6 +271,10 @@ test("the chance from 10 orders only; a record kept under the older rule restart
   const open = [{ i: "1005000000000001", a: day(0), h: 7, o: 0, r: [0, 9, 0, 9], c: 60 }, { i: "1005000000000002", a: day(0), h: 7, o: 100, r: [0, 999, 0, 999], c: 80 }];
   const old = { ...addIssued(newPromiseState(), open), chanceRule: undefined, chance: { 7: { n: 249, hits: 26, brier: 9, bins: [] } } };
   const g = gradePromises(old, items, day(7));
+  const written = addIssued(newPromiseState(), open);
+  delete written.chanceRule;
+  written.chance = { 7: { n: 249, hits: 26, brier: 9, bins: [] } };
+  assert.equal(chanceRecord(gradePromises(written, items, day(7)).state).find((x) => x.h === 7).n, 1, "a state written before the field existed (no key at all) restarts too (26.11's main run)");
   const rec = chanceRecord(g.state).find((x) => x.h === 7);
   assert.equal(rec.n, 1, "the old tally restarts; the item at 0 orders is never graded as a hit");
   assert.equal(g.state.chanceSince, day(7));
