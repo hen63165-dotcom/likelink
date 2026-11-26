@@ -109,3 +109,13 @@ test("what the radar read today: the run's own states, mapped once, unknown keys
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
   assert.match(page, /<SourcesToday sources=\{board\.sourcesToday\} receipt=\{board\.receipt \|\| null\} scan=\{board\.scan \|\| null\} health=\{board\.sourceHealth \|\| null\} \/>/);
 });
+
+test("the strongest record already graded in public: the proven range at 90%, from 30 grades (26.11)", async () => {
+  const { provenRecord } = await import("../src/lib/growth/radarCore.js");
+  const cov = [{ h: 3, n: 424, held: 336, rate: 79.2, level: 80 }, { h: 3, n: 424, held: 383, rate: 90.3, level: 90 }, { h: 7, n: 12, held: 12, rate: 100, level: 90 }];
+  assert.deepEqual(provenRecord({ promise: { coverage: cov } }), { h: 3, level: 90, n: 424, held: 383, rate: 90.3 });
+  assert.equal(provenRecord({ promise: { coverage: [{ h: 7, n: 29, held: 29, level: 90 }] } }), null, "under 30 grades: nothing said yet");
+  assert.equal(provenRecord({}), null);
+  const { radarStaticMain } = await import("../src/lib/growth/radarStatic.js");
+  assert.match(radarStaticMain({ promise: { coverage: cov } }), /383 מתוך 424 התקיימו, כשהרדאר אמר 90%/);
+});

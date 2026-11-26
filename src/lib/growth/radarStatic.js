@@ -7,6 +7,7 @@
 // board when it could read it; without one, only the fixed facts are written.
 
 import { receiptTotals } from "./runReceipt.js";
+import { provenRecord } from "./radarCore.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -36,6 +37,8 @@ export function radarStaticMain(board = null) {
     const run = receipt.run && /^https:\/\/github\.com\/hen63165-dotcom\/likelink\/actions\/runs\/\d+$/.test(String(receipt.run.url || "")) ? receipt.run : null;
     today.push(`<li>קבלת הריצה של ${esc(dm(receipt.started.slice(0, 10)))}: הרדאר שלח ${fmt(t.asked)} שאלות, ${fmt(t.answered)} ענו עם נתונים${run ? `. היומן הציבורי של הריצה: <a href="${esc(run.url)}">GitHub, ריצה ${esc(run.id)}</a>` : ""}.</li>`);
   }
+  const proven = board ? provenRecord(board) : null;
+  if (proven) today.push(`<li>טווחי הזמנות ל־${fmt(proven.h)} ימים, כל אחד חתום מראש בביטקוין ונבדק ביום שלו: ${fmt(proven.held)} מתוך ${fmt(proven.n)} התקיימו, כשהרדאר אמר ${fmt(proven.level)}%.</li>`);
   if (num(board?.fresh?.tracking)) today.push(`<li>${fmt(board.fresh.tracking)} מוצרים חדשים במעקב יומי.</li>`);
   today.push(graded
     ? `<li>עד היום ${fmt(graded)} קביעות קיבלו ציון בפומבי, ${fmt(hits)} מהן פגיעות.</li>`

@@ -15,7 +15,7 @@ import { landingAttribution } from "../../lib/attribution.js";
 import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
-import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
+import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, provenRecord, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
 import { recomputeCases } from "../../lib/growth/radarBacktest.js";
@@ -2407,6 +2407,8 @@ export function RadarPage() {
   const howCountries = searchCountries(board?.receipt);
   const receiptSum = board?.receipt ? receiptTotals(board.receipt) : null;
   const boardIsToday = board?.at ? israelDay(board.at) === israelDay(Date.now()) : false;
+  // 📐 The strongest record already graded in public (radarCore.js provenRecord), on the first screen.
+  const proven = board ? provenRecord(board) : null;
   const press = () => {
     setShown(true);
     setTab("today");
@@ -2426,6 +2428,7 @@ export function RadarPage() {
               <dl className="lx-rdr-facts" aria-label={L("הרדאר עכשיו", "The radar now")}>
                 <div><dt>{L(`הקריאה של ${dm(String(board.at).slice(0, 10))}`, `The reading of ${dm(String(board.at).slice(0, 10))}`)}</dt><dd>{callsToday ? L(`${callsToday} קביעות חדשות, חתומות`, `${callsToday} new calls, sealed`) : boardIsToday ? L("עוד שקט היום", "All quiet today") : L("עוד שקט", "All quiet")}</dd></div>
                 {receiptSum?.asked ? <div><dt>{L("קבלת הריצה", "The run receipt")}</dt><dd><a className="underline" href="#sources" onClick={(e) => { e.preventDefault(); pick("proof", { scroll: false }); setTimeout(() => document.getElementById("sources")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>{L(`${receiptSum.answered.toLocaleString("he-IL")} מתוך ${receiptSum.asked.toLocaleString("he-IL")} ענו`, `${receiptSum.answered.toLocaleString("en-US")} of ${receiptSum.asked.toLocaleString("en-US")} answered`)}</a></dd></div> : null}
+                {proven ? <div><dt>{L("נחתם מראש, נבדק בפומבי", "Sealed in advance, graded in public")}</dt><dd><a className="underline" href="#promise" onClick={(e) => { e.preventDefault(); pick("proof", { scroll: false }); setTimeout(() => document.getElementById("promise")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>{L(`טווחי ${proven.h} ימים: ${proven.held.toLocaleString("he-IL")} מתוך ${proven.n.toLocaleString("he-IL")} התקיימו (נאמר ${proven.level}%)`, `${proven.h}-day ranges: ${proven.held.toLocaleString("en-US")} of ${proven.n.toLocaleString("en-US")} held (stated ${proven.level}%)`)}</a></dd></div> : null}
                 {board.fresh?.tracking ? <div><dt>{L("מוצרים חדשים במעקב יומי", "New products tracked daily")}</dt><dd>{board.fresh.tracking.toLocaleString("en-US")}</dd></div> : null}
                 {board.fresh?.risers?.length ? <div><dt>{L("מתחילים לרוץ עכשיו", "Starting to run now")}</dt><dd>{board.fresh.risers.length}</dd></div> : null}
                 {board.ledger?.sha256 ? <div><dt>{L("חתום בביטקוין", "Sealed in Bitcoin")}</dt><dd>{board.anchors?.list?.[0] ? L(`בלוק ${board.anchors.list[0].height}`, `block ${board.anchors.list[0].height}`) : dm(board.ledger.d)}</dd></div> : null}
