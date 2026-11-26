@@ -310,3 +310,19 @@ test("a post's growth must beat counting noise (21.11): 300 → 330 orders is no
   const unmeasured = { ...base, evidence: { ...base.evidence, before: null } };
   assert.equal(rankCandidates([unmeasured], { now: NOW }).rejected[0].reason, "growth_unmeasured");
 });
+
+test("brand look (26.11): a brand wave's legal look-alike is a candidate, the brand never named, only with measured growth", async () => {
+  const { candidatesFrom } = await import("../src/lib/growth/channelEngine.js");
+  const board = { at: "2026-11-26T16:00:00Z", concepts: [], waves: { list: [
+    { token: "stanley", reason: "BRAND", alt: { id: "1005000000000001", title: "40oz insulated tumbler with handle and straw", image: "https://ae01.alicdn.com/kf/x.jpg", buy: "https://s.click.aliexpress.com/e/_abc", price: 39, orders: 900, ordersBefore: 600, weekPct: 35, from: "2026-11-19", to: "2026-11-26" } },
+    { token: "flipper", reason: "TOOL", alt: { id: "1005000000000002", title: "x", image: "https://ae01.alicdn.com/kf/y.jpg", buy: "https://s.click.aliexpress.com/e/_d" } },
+  ] } };
+  const c = candidatesFrom(board, []);
+  assert.equal(c.length, 1, "a hacking tool's wave never posts");
+  assert.equal(c[0].source, "brand_look");
+  assert.equal(c[0].match.label, "DUPE");
+  assert.equal(c[0].trend.he, null);
+  assert.ok(!/stanley/i.test(JSON.stringify({ title: c[0].title, trend: c[0].trend, match: c[0].match })), "the brand is never named");
+  assert.equal(c[0].evidence.before, 600);
+  assert.equal(c[0].evidence.after, 900);
+});

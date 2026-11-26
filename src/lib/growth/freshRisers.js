@@ -119,6 +119,26 @@ const satOf = (v) => { const n = Number.parseFloat(String(v ?? "").replace("%", 
 export function freshPhrase(title = "") {
   return [...phrasesOf(title)][0] || null;
 }
+
+/** How many of the pool's titles hold each two-word phrase (the sellers' own names for a kind). */
+export function phraseCounts(titles = []) {
+  const df = new Map();
+  for (const t of Array.isArray(titles) ? titles : []) for (const p of new Set(phrasesOf(t))) df.set(p, (df.get(p) || 0) + 1);
+  return df;
+}
+
+/**
+ * The kind's most specific name (the owner, 26.11: "the radar only says the market is saturated"):
+ * the first two words of a title are often the generic part ("led lamp" for a cloud-shaped humidifier
+ * lamp), and a generic phrase counts every seller of the whole category, so a new thing read as
+ * saturated. The name used is the title's phrase the fewest pool titles share, among those at least
+ * `minShared` titles share (one seller's quirk is no name for a kind); else the first phrase.
+ */
+export function distinctPhrase(title = "", df = new Map(), { minShared = 2 } = {}) {
+  const ps = [...new Set(phrasesOf(title))];
+  const named = ps.filter((p) => (df.get(p) || 0) >= minShared).sort((a, b) => (df.get(a) - df.get(b)) || ps.indexOf(a) - ps.indexOf(b));
+  return named[0] || ps[0] || null;
+}
 export function unknownCheck({ phrase = null, similar = null, suggestions = null } = {}, { rules = FRESH } = {}) {
   if (!phrase || !Number.isFinite(similar) || !Array.isArray(suggestions)) return { unknown: false, reason: "NOT_CHECKED", phrase, similar: Number.isFinite(similar) ? similar : null, buzz: [] };
   const buzz = echoOf({ en: suggestions });

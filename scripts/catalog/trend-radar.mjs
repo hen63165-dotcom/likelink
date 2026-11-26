@@ -92,7 +92,7 @@ import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
 import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
-import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, distinctPhrase, phraseCounts, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -1141,8 +1141,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const counts = {};
     let ytSearches = 0;
     sources.youtubeApi = env.YOUTUBE_API_KEY ? "NOT_ASKED" : "REQUIRES_CONNECTION";
+    const poolDf = phraseCounts(Object.values(freshPool || {}).map((e) => e?.title));
     for (const r of board.fresh.risers) {
-      const phrase = freshPhrase(r.title);
+      const phrase = distinctPhrase(r.title, poolDf);
       let similar = null;
       let suggestions = null;
       if (phrase && store) {
@@ -1242,6 +1243,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           const raw = Number(rr?.resp_code) === 200 ? rr.result?.products?.product : null;
           alt = altPick(Array.isArray(raw) ? raw : raw ? [raw] : []);
         } catch { alt = null; }
+        // The legal look-alike's own orders join the item histories, so its pace is measured like any
+        // listing (the channel engine posts it only with a measured growth that beats the noise).
+        if (alt && Number.isFinite(alt.orders)) {
+          items[alt.id] = addItemReading(items[alt.id], [today, alt.orders]);
+          const m = itemMomentum(items[alt.id], { rules: HOT_RULES });
+          alt = { ...alt, state: m.state, weekPct: Number.isFinite(m.weekPct) ? m.weekPct : null, ordersBefore: m.ordersBefore ?? null, from: m.from || null, to: m.to || today };
+        }
       }
       cards.push(waveCard(w, { hist: st.hist, firstSeen: st.first, buzz, yt, ig: igs, alt }));
       await pause(politeMs);

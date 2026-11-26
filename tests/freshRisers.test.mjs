@@ -211,3 +211,16 @@ test("fresh: a holiday comes back every year — never a new product starting to
   assert.deepEqual(f.risers.map((r) => r.id), ["1005013000000002"]);
   assert.deepEqual(f.seasonal, { n: 1, top: ["1005013000000001"] });
 });
+
+test("the kind's most specific name (26.11): the phrase fewest pool titles share, never one seller's quirk", async () => {
+  const { distinctPhrase, phraseCounts, freshPhrase } = await import("../src/lib/growth/freshRisers.js");
+  const titles = ["LED lamp cloud humidifier night light", "LED lamp desk reading", "LED lamp bedside", "Cloud humidifier USB mini", "Cloud humidifier aroma"];
+  const df = phraseCounts(titles);
+  const t = titles[0];
+  const first = freshPhrase(t);
+  const best = distinctPhrase(t, df);
+  assert.ok(best, "a name is chosen");
+  assert.ok((df.get(best) || 0) >= 2, "shared by at least two sellers");
+  assert.equal(first, "lamp cloud", "the first two words are one seller's quirk here");
+  assert.equal(best, "cloud humidifier", "the name three sellers share");
+});
