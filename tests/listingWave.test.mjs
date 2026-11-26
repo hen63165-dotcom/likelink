@@ -105,7 +105,7 @@ test("a call only for a wave still before its sales; one open call per phrase; g
   const rec = waveRecord(gradeWaveCalls(calls, {}, { today: day(42) }));
   assert.equal(rec.graded, 0, "an unread call is never counted");
   assert.equal(rec.unread, 1);
-  const many = recordWaveCalls([], Array.from({ length: 6 }, (_, i) => ({ phrase: `jelly ring${"x".repeat(i)}`.replace("ring", "ring").slice(0, 20), week: 6, before: 0, demand: { items: 3, orders: 10 }, check: { unknown: true, similar: 10 } })), { today });
+  const many = recordWaveCalls([], Array.from({ length: 6 }, (_, i) => ({ phrase: `jelly ring${"x".repeat(i)}`, week: 6, before: 0, demand: { items: 3, orders: 10 }, check: { unknown: true, similar: 10 } })), { today });
   assert.equal(many.length, PRELAUNCH.perDay);
 });
 

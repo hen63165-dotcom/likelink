@@ -23,6 +23,7 @@ test("a feed's posts: the date, the link and the word pairs, never the text", ()
   assert.ok(posts[0].p.includes("stick squishy"), "squishies and squishy are the same word");
   assert.deepEqual(Object.keys(posts[0]).sort(), ["d", "p", "u"], "no title or body is kept");
   assert.deepEqual(pairsOf("Cloud Slides"), ["cloud slide"]);
+  assert.deepEqual(parseFeed('<rss><item><title>Fish &amp;lt;b&amp;gt; tank</title><link>https://x.example/a</link><pubDate>Tue, 01 Dec 2026 10:00:00 GMT</pubDate></item></rss>')[0].p, ["fish tank"], "an escaped tag stays text, decoded once (CodeQL, 26.11)");
 });
 
 test("each call against what the rivals published: first, quiet, after, or sealed before the feeds were read", () => {

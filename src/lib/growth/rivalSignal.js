@@ -20,7 +20,8 @@ export const RIVAL = Object.freeze({ keepDays: 400, maxPairs: 600, maxPosts: 300
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const STOP = new Set("the and for with from that this your you are our was were has have not but all can how what why when who new best top more most into than out about will just also its it's".split(" "));
-const unescape = (s) => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;|&#8217;/g, "'").replace(/&#\d+;/g, " ");
+// &amp; is decoded last, so "&amp;lt;" stays the text "&lt;" (never decoded twice).
+const unescape = (s) => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;|&#8217;/g, "'").replace(/&#\d+;/g, " ").replace(/&amp;/g, "&");
 const textOf = (s) => unescape(s).replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/g, " ");
 const words = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9' ]+/g, " ").split(/\s+/).map((w) => w.replace(/^'+|'+$/g, "")).filter((w) => w.length >= 3 && !STOP.has(w));
 // Singular: squishies → squishy, boxes → box, slides → slide, dress stays dress.
