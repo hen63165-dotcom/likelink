@@ -40,6 +40,23 @@ export function usableTerm(term = "", region = "KR") {
   return script.test(t) ? t : null;
 }
 
+// Words that carry no kind of thing (who it is for, filler), never counted in a round trip.
+const ROUND_STOP = new Set(["women", "woman", "womens", "men", "mens", "kids", "girls", "boys", "for", "with", "and", "the", "new", "set"]);
+const contentWords = (s) => String(s || "").toLowerCase().replace(/[^a-z ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !ROUND_STOP.has(w));
+
+/**
+ * The round trip (26.11: the first run's model wrote "ribbed crew socks" in Korean as "the crew's
+ * pocket", and "garlic chopper grater" as "garlic saw"): the term is translated back to English, and
+ * it is used only when every content word of the kind comes back (by its first four letters). A term
+ * that loses a word measures another thing, so it stays unmeasured, never "quiet there".
+ */
+export function roundTripOk(en = "", back = "") {
+  const want = contentWords(en);
+  if (!want.length) return false;
+  const got = contentWords(back).map((w) => w.slice(0, 4));
+  return want.every((w) => got.includes(w.slice(0, 4)));
+}
+
 /** The completions that extend the term (the suggestion that is only the term itself never counts). */
 export function localExtensions(term, suggestions) {
   if (!Array.isArray(suggestions)) return null;

@@ -89,7 +89,7 @@ import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
 import { mergePath, pathBoard, pathCard } from "../../src/lib/growth/trendPath.js";
 import { marketOf, pruneChecks, saturationQueue } from "../../src/lib/growth/saturation.js";
-import { ASIA, asiaCard, localExtensions, mergeAsia, regionReading, usableTerm } from "../../src/lib/growth/asiaSignal.js";
+import { ASIA, asiaCard, localExtensions, mergeAsia, regionReading, roundTripOk, usableTerm } from "../../src/lib/growth/asiaSignal.js";
 import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
@@ -932,16 +932,26 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const asia = readJson(join(dir, "asia.json"), { terms: {}, hist: {} });
       asia.terms ||= {}; asia.hist ||= {};
       const kinds = socialKinds(board.concepts, { max: ASIA.perRun });
-      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en);
-      let translated = 0, untranslatable = 0;
+      // v2 terms passed the round trip; an older term is translated again.
+      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en || asia.terms[c.id].v !== 2);
+      let translated = 0, untranslatable = 0, lost = 0;
+      const lostSamples = [];
       if (need.length) {
         const { loadTranslator } = await import("./radar-embed.mjs");
         const translate = await loadTranslator();
         for (const c of need) {
-          const t = { en: c.en };
+          const t = { en: c.en, v: 2 };
           for (const r of Object.keys(ASIA.regions)) {
-            try { t[r] = usableTerm(await translate(c.en, ASIA.regions[r].nllb), r); } catch { t[r] = null; }
-            if (t[r]) translated++; else untranslatable++;
+            let term = null;
+            try { term = usableTerm(await translate(c.en, ASIA.regions[r].nllb), r); } catch { term = null; }
+            // The round trip: back to English, every content word must return, else it measures another thing.
+            if (term) {
+              let back = "";
+              try { back = await translate(term, ASIA.src, ASIA.regions[r].nllb); } catch { back = ""; }
+              if (!roundTripOk(c.en, back)) { lost++; if (lostSamples.length < 4) lostSamples.push(`${c.en} → ${back || "?"}`); term = null; }
+            }
+            t[r] = term;
+            if (term) translated++; else untranslatable++;
           }
           asia.terms[c.id] = t;
         }
@@ -967,7 +977,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       writeFileSync(join(dir, "asia.json"), JSON.stringify(asia));
       sources.asia = answered ? "OK" : asked ? "FAILED" : "EMPTY";
       const shown = kinds.filter((c) => c.asia).map((c) => `${c.en}: ${Object.entries(c.asia.regions).map(([r, x]) => `${r} ${x.state}`).join(" ")}`);
-      log.push(`asia: ${kinds.length} moving kinds · ${need.length} translated today (${translated} words, ${untranslatable} untranslatable) · ${answered} of ${asked} answered · ${shown.slice(0, 8).join(" · ") || "none"}`);
+      log.push(`asia: ${kinds.length} moving kinds · ${need.length} translated today (${translated} words kept, ${untranslatable} without a usable word, ${lost} lost a word in the round trip${lostSamples.length ? `: ${lostSamples.join("; ")}` : ""}) · ${answered} of ${asked} answered · ${shown.slice(0, 8).join(" · ") || "none"}`);
     } catch (err) { sources.asia = "FAILED"; log.push(`asia: ${String(err?.message || err).slice(0, 120)}`); }
   }
   // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving
@@ -1889,7 +1899,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       try {
         const r = await getRobots(`${NEWS.host}/robots.txt`, fetchImpl, { timeoutMs: 40_000 });
         door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, NEWS.path) : "failed";
-      } catch { /* counted by the meter */ }
+        if (door === "failed") log.push(`news robots: HTTP ${r.status}`);
+      } catch (err) { log.push(`news robots: ${String(err?.cause?.code || err?.cause?.message || err?.name || err?.message || err).slice(0, 80)}`); }
     }
     let asked = 0, read = 0, failed = 0;
     if (door === true) {

@@ -86,3 +86,15 @@ test("Korea and Japan reach the card in their own words, the word asked printed,
   assert.match(run, /env\.RADAR_ASIA !== "0" && sources\.suggest === "OK"/, "asked only when this run read Google's robots.txt as open");
   assert.match(run, /!late\("asia", 240_000\)/, "skipped by name past the run's deadline");
 });
+
+test("the round trip: a Korean or Japanese word is used only when every word of the kind comes back (26.11's first run)", async () => {
+  const { roundTripOk } = await import("../src/lib/growth/asiaSignal.js");
+  assert.equal(roundTripOk("ribbed crew socks women", "the crew's pocket woman"), false, "a lost word measures another thing");
+  assert.equal(roundTripOk("garlic chopper grater", "garlic saw"), false);
+  assert.equal(roundTripOk("capybara squishy", "capybara"), false, "the animal alone is another search");
+  assert.equal(roundTripOk("magnetic car phone mount", "Magnetic car phone mounts"), true);
+  assert.equal(roundTripOk("hair claw clip", "hair claw clips"), true);
+  assert.equal(roundTripOk("", "x"), false);
+  const { readFileSync } = await import("node:fs");
+  assert.match(readFileSync("scripts/catalog/trend-radar.mjs", "utf8"), /if \(!roundTripOk\(c\.en, back\)\)/);
+});

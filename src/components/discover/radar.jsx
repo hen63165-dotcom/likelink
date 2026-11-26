@@ -1789,7 +1789,6 @@ function Baseline({ baseline }) {
   const lines = [line(v.radar, "הרדאר", "The radar"), line(v.naive, "הדירוג הפשוט", "The simple ranking"), line(v.random, "ההגרלה", "Chance")].filter(Boolean);
   const edge = (x, he, en) => (Number.isFinite(x) ? (x >= 0 ? L(`הרדאר מעל ${he} ב־${x} נקודות אחוז.`, `The radar is ${x} percentage points above ${en}.`) : L(`${he} לפני הרדאר ב־${-x} נקודות אחוז, וזה נשאר בספר.`, `${en} is ${-x} percentage points ahead of the radar, and that stays in the ledger.`)) : null);
   const edges = [edge(v.edgeNaive, "הדירוג הפשוט", "the simple ranking"), edge(v.edgeRandom, "ההגרלה", "chance")].filter(Boolean);
-  const picks = (list = []) => list.map((x) => `${x.title}${Number.isFinite(x.weekPct) ? ` (${x.weekPct > 0 ? "+" : ""}${x.weekPct}%)` : ""}`).join(" · ");
   return (
     <section className="lx-wrap mt-6" id="baseline">
       <div className="lx-card lx-rdr-panel p-5">
@@ -1799,8 +1798,9 @@ function Baseline({ baseline }) {
         {edges.length ? <p className="text-[14px] font-bold">{edges.join(" ")}</p>
           : baseline.nextDue ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הציון הראשון: ${dm(baseline.nextDue)}. ההשוואה מופיעה כשלכל צד יש ${v.minGraded ?? 3} ציונים, על אותם ימים${v.since ? ` (מ־${dm(v.since)})` : ""}.`, `The first grade: ${dm(baseline.nextDue)}. The comparison shows once each side has ${v.minGraded ?? 3} grades, on the same days${v.since ? ` (from ${dm(v.since)})` : ""}.`)}</p> : null}
         {v.radar?.calls ? <p className="mt-1 text-[13px]">{L(`${v.overlap} מתוך ${v.radar.calls} הקביעות של הרדאר היו גם בבחירה של הדירוג הפשוט באותו יום.`, `${v.overlap} of the radar's ${v.radar.calls} calls were also the simple ranking's pick that day.`)}</p> : null}
-        {baseline.today?.naive?.length ? <p className="mt-2 text-[13px]"><b>{L("הדירוג הפשוט היום: ", "The simple ranking today: ")}</b><bdi dir="ltr">{picks(baseline.today.naive)}</bdi></p> : null}
-        {baseline.today?.random?.length ? <p className="mt-1 text-[13px]"><b>{L("ההגרלה היום: ", "Chance today: ")}</b><bdi dir="ltr">{picks(baseline.today.random)}</bdi></p> : null}
+        {/* The yardsticks' own picks are store titles chosen with none of the radar's checks (a brand name
+            included), so the page names how many were sealed today, never which: they are in the sealed book. */}
+        {baseline.today?.naive?.length || baseline.today?.random?.length ? <p className="mt-2 text-[13px]">{L(`היום נחתמו ${baseline.today.naive.length} בחירות של הדירוג הפשוט ו־${baseline.today.random.length} של ההגרלה.`, `Sealed today: ${baseline.today.naive.length} simple-ranking picks and ${baseline.today.random.length} chance picks.`)}</p> : null}
         {baseline.rebuilt?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הבחירות של ${baseline.rebuilt.map(dm).join(", ")} נבנו בכלל הקבוע מהקריאות של אותו יום, ונחתמו לפני שאפשר היה לבדוק אותן.`, `The picks of ${baseline.rebuilt.map(dm).join(", ")} were rebuilt by the fixed rule from that day's readings, and sealed before any of them could be graded.`)}</p> : null}
         {baseline.seal?.text ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}><a className="underline" download={`radar-baseline-${baseline.seal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(baseline.seal.text)}`}>{L(`כל ${baseline.seal.count} הבחירות של הדירוג וההגרלה, חתומות`, `all ${baseline.seal.count} ranking and chance picks, sealed`)}</a></p> : null}
       </div>

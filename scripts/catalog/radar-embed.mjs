@@ -28,8 +28,8 @@ export async function loadTranslator(model = ASIA.model) {
   const { pipeline, env } = await import("@huggingface/transformers");
   env.allowLocalModels = false;
   const t = await pipeline("translation", model, { dtype: "q8" });
-  return async (text, tgt) => {
-    const out = await t(String(text), { src_lang: ASIA.src, tgt_lang: tgt, max_new_tokens: 24 });
+  return async (text, tgt, src = ASIA.src) => {
+    const out = await t(String(text), { src_lang: src, tgt_lang: tgt, max_new_tokens: 24 });
     return String((Array.isArray(out) ? out[0] : out)?.translation_text || "");
   };
 }
