@@ -32,6 +32,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
 import { SHOPS, SHOP_WORDS, mergeShopWords, mergeShops, nrdUrl, productVocab, risingShopWords, shopsOf, shopsToday, wordsToday } from "../../src/lib/growth/shopSignal.js";
+import { NEWS, mergeNews, newsBoard, newsQueue, newsUrl, parseTimeline } from "../../src/lib/growth/newsSignal.js";
 import { TRADE, latestPeriod, parseComext, probeUrl, tradeJumps, tradeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
 const SHOPS_BACK = 8; // daily lists read in one run when the state misses days
 import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
@@ -1653,6 +1654,51 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
+  // 📰 Who said it first: the radar or the world's news (newsSignal.js; the owner, 26.11): every sealed
+  // call's own phrase against GDELT's open news timeline (no key; robots.txt read first; one request
+  // every 5.5 s). The first day the news named it is stamped once; counts per book go on the board.
+  if (env.RADAR_NEWS !== "0") {
+    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
+    const entries = [
+      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
+      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
+      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
+    ].filter((e) => e.phrase && e.called);
+    let newsState = readJson(join(dir, "news.json"), {});
+    let door = "failed";
+    try {
+      const r = await getRobots(`${NEWS.host}/robots.txt`, fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, NEWS.path) : "failed";
+    } catch { /* counted by the meter */ }
+    let asked = 0, read = 0, failed = 0;
+    if (door === true) {
+      for (const phrase of newsQueue(entries, newsState, today)) {
+        asked++;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await new Promise((ok) => setTimeout(ok, NEWS.politeMs));
+          try {
+            const res = await fetchImpl(newsUrl(phrase), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(40_000) });
+            if (res.status === 429) continue; // asked too soon: wait and ask once more
+            if (!res.ok) { failed++; break; }
+            const timeline = parseTimeline(JSON.parse(await res.text()));
+            if (!timeline) { failed++; break; }
+            newsState = mergeNews(newsState, phrase, timeline, today);
+            read++;
+            keep(meter, "news");
+            break;
+          } catch { failed++; break; }
+        }
+      }
+      writeFileSync(join(dir, "news.json"), JSON.stringify(newsState));
+      board.news = newsBoard(entries, newsState, today);
+      sources.news = read || Object.keys(newsState).length ? "OK" : "FAILED";
+      const a = board.news.all;
+      log.push(`news: ${asked} phrases asked · ${read} read · ${failed} failed · calls ${a.calls}: read ${a.read}, quiet ${a.quiet}, the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days ahead)` : ""}, the news first ${a.newsFirst}`);
+    } else {
+      sources.news = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`news: door ${sources.news}`);
+    }
+  }
   // 🧾 The receipt, taken here (every reading and every book's seal are in it; the root's own seal and
   // the Bitcoin check come after). The page's source states are the run's claims checked against it,
   // the exact text is printed in the public GitHub log and sealed as the book "run".

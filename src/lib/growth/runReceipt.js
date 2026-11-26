@@ -23,7 +23,7 @@ export const RECEIPT = Object.freeze({ v: 1, repo: "hen63165-dotcom/likelink", s
 /** Every place the run asks, by host: the public source keys the page already names. */
 export const METERED = Object.freeze([
   "aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram",
-  "engine_baidu", "engine_naver", "site", "seal", "bitcoin", "rules", "other",
+  "engine_baidu", "engine_naver", "wikipedia", "bluesky", "metaAds", "shops", "trade", "news", "site", "seal", "bitcoin", "rules", "other",
 ]);
 export const OUTCOMES = Object.freeze(["answered", "empty", "refused", "failed"]);
 export const AE_METHODS = Object.freeze(["product.query", "hotproduct.query", "productdetail.get", "category.get", "order.list", "link.generate"]);
@@ -52,6 +52,7 @@ export function sourceOf(url) {
   if (host === "api.bsky.app" || host === "public.api.bsky.app") return "bluesky";
   if (host === "www.whoisds.com") return "shops";
   if (host === "ec.europa.eu" && u.pathname.startsWith("/eurostat/")) return "trade";
+  if (host === "api.gdeltproject.org") return "news";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";
@@ -264,7 +265,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
-  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade",
+  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", news: "news",
 });
 
 /**

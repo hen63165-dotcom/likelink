@@ -1140,6 +1140,27 @@ function CapabilityMap({ board }) {
   );
 }
 
+// 📰 Who said it first (newsSignal.js): every sealed call against the world's news (GDELT), per book.
+const NEWS_BOOK = { stages: ["קביעות שלב", "Stage calls"], early: ["לפני כולם", "Before everyone"], fresh: ["מוצרים חדשים", "New products"], kinds: ["סוגים חדשים", "New kinds"] };
+function NewsRace({ news }) {
+  const { L } = useL();
+  const a = news.all;
+  return (
+    <section className="lx-card lx-rdr-panel mt-4 p-5" id="news">
+      <h2 className="text-[20px] font-black">{L("📰 מי אמר ראשון: הרדאר או החדשות בעולם", "📰 Who said it first: the radar or the world's news")}</h2>
+      <p className="mt-1 text-[14px] leading-6">{L(`כל קביעה חתומה נבדקת מול מאגר החדשות הפתוח GDELT, שקורא אתרי חדשות ב־65 שפות. נרשם היום הראשון שבו החדשות הזכירו את המוצר לפחות ${news.minPerDay} פעמים ביום, ואחרי שנרשם הוא נשאר כמו שהוא.`, `Every sealed call is checked against GDELT, the open news database that reads news sites in 65 languages. The first day the news named it at least ${news.minPerDay} times a day is stamped and stays as stamped.`)}</p>
+      <dl className="lx-rdr-dl mt-3">
+        <div><dt>{L("קביעות שנבדקו", "Calls checked")}</dt><dd>{a.read} / {a.calls}</dd></div>
+        <div><dt>{L("הרדאר אמר ראשון", "The radar said it first")}</dt><dd>{a.ahead}{a.medianAheadDays !== null ? L(` · חציון ${a.medianAheadDays} ימים לפני החדשות`, ` · median ${a.medianAheadDays} days before the news`) : ""}</dd></div>
+        <div><dt>{L("עוד שקט בחדשות", "Still quiet in the news")}</dt><dd>{a.quiet}</dd></div>
+        <div><dt>{L("החדשות אמרו ראשונות", "The news said it first")}</dt><dd>{a.newsFirst}</dd></div>
+      </dl>
+      <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{Object.entries(news.books).map(([k, b]) => L(`${NEWS_BOOK[k][0]}: ${b.ahead} ראשון, ${b.quiet} בשקט, ${b.newsFirst} אחרי החדשות`, `${NEWS_BOOK[k][1]}: ${b.ahead} first, ${b.quiet} quiet, ${b.newsFirst} after the news`)).join(" · ")}</p>
+      <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(news.d)}. כל אחד יכול לבדוק את אותו ביטוי ב־GDELT.`, `Checked on ${dm(news.d)}. Anyone can check the same phrase on GDELT.`)} <a className="underline" href="https://api.gdeltproject.org/api/v2/summary/summary" target="_blank" rel="noopener noreferrer">GDELT</a></p>
+    </section>
+  );
+}
+
 function RecordTable({ board }) {
   const { L } = useL();
   const v = recordView(board || {});
@@ -2134,6 +2155,7 @@ export function RadarPage() {
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
+        {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}

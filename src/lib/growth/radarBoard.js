@@ -13,6 +13,7 @@ import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
 import { cleanSupply, cleanSupplyBoard } from "./supplyGap.js";
 import { cleanShopWords, cleanShops } from "./shopSignal.js";
 import { cleanTrade } from "./tradeSignal.js";
+import { cleanNews } from "./newsSignal.js";
 import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
@@ -225,6 +226,8 @@ export function sanitizeBoard(doc) {
     }).filter(Boolean) } : null,
     // 🚢 The factories' shipments (tradeSignal.js): EU customs lines, codes and the customs' own words.
     trade: cleanTrade(doc.trade),
+    // 📰 Who said it first (newsSignal.js): counts per book only.
+    news: cleanNews(doc.news),
     // 🔤 The names new shops pick (shopSignal.js): product words only, never a domain.
     shopWords: cleanShopWords(doc.shopWords),
     // 🏪 The shops opening (shopSignal.js): counts and kind ids only, never a domain.
