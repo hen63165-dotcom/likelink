@@ -184,11 +184,11 @@ async function getText(url, fetchImpl) {
  * asks (RFC 9309, 2.3.1.2). 22.11: wikimedia.org's rules file answers 302 → www.wikimedia.org, which
  * has none (404: no rule), and the radar read that redirect as a failed door.
  */
-async function getRobots(url, fetchImpl) {
+async function getRobots(url, fetchImpl, { timeoutMs = 12_000 } = {}) {
   const site = (h) => h.split(".").slice(-2).join(".");
   let u = url;
   for (let hop = 0; hop <= 5; hop++) {
-    const res = await fetchImpl(u, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
+    const res = await fetchImpl(u, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
     const loc = res.status >= 300 && res.status < 400 ? res.headers?.get?.("location") : null;
     if (!loc) return { status: res.status, text: await res.text() };
     const next = new URL(loc, u);
@@ -1712,10 +1712,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     ].filter((e) => e.phrase && e.called);
     let newsState = readJson(join(dir, "news.json"), {});
     let door = "failed";
-    try {
-      const r = await getRobots(`${NEWS.host}/robots.txt`, fetchImpl);
-      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, NEWS.path) : "failed";
-    } catch { /* counted by the meter */ }
+    // GDELT's server is slow from some runners (26.11: the 12-second robots read failed with a network
+    // error while it answered 404, no rule, elsewhere): a longer wait and one more try.
+    for (let attempt = 0; attempt < 2 && door === "failed"; attempt++) {
+      try {
+        const r = await getRobots(`${NEWS.host}/robots.txt`, fetchImpl, { timeoutMs: 40_000 });
+        door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, NEWS.path) : "failed";
+      } catch { /* counted by the meter */ }
+    }
     let asked = 0, read = 0, failed = 0;
     if (door === true) {
       for (const phrase of newsQueue(entries, newsState, today)) {
