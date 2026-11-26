@@ -47,14 +47,20 @@ const contentWords = (s) => String(s || "").toLowerCase().replace(/[^a-z ]+/g, "
 /**
  * The round trip (26.11: the first run's model wrote "ribbed crew socks" in Korean as "the crew's
  * pocket", and "garlic chopper grater" as "garlic saw"): the term is translated back to English, and
- * it is used only when every content word of the kind comes back (by its first four letters). A term
- * that loses a word measures another thing, so it stays unmeasured, never "quiet there".
+ * it is used only when the kind's head noun (its last content word: socks, grater, scarf) comes back
+ * and at least two thirds of its content words do (by their first four letters). The same day's run
+ * showed that asking for every word kept 3 of 40 ("cable knit scarf" came back "cable scarf", the same
+ * search); a term that loses its head noun measures another thing, so it stays unmeasured, never
+ * "quiet there".
  */
 export function roundTripOk(en = "", back = "") {
   const want = contentWords(en);
   if (!want.length) return false;
-  const got = contentWords(back).map((w) => w.slice(0, 4));
-  return want.every((w) => got.includes(w.slice(0, 4)));
+  const got = new Set(contentWords(back).map((w) => w.slice(0, 4)));
+  const head = want[want.length - 1].slice(0, 4);
+  if (!got.has(head)) return false;
+  const kept = want.filter((w) => got.has(w.slice(0, 4))).length;
+  return kept >= Math.ceil((want.length * 2) / 3);
 }
 
 /** The completions that extend the term (the suggestion that is only the term itself never counts). */

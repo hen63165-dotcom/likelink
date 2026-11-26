@@ -100,6 +100,8 @@ import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
+import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
+import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
 import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
@@ -933,19 +935,19 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const asia = readJson(join(dir, "asia.json"), { terms: {}, hist: {} });
       asia.terms ||= {}; asia.hist ||= {};
       const kinds = socialKinds(board.concepts, { max: ASIA.perRun });
-      // v2 terms passed the round trip; an older term is translated again.
-      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en || asia.terms[c.id].v !== 2);
+      // v3 terms passed the round trip (head noun + two thirds); an older term is translated again.
+      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en || asia.terms[c.id].v !== 3);
       let translated = 0, untranslatable = 0, lost = 0;
       const lostSamples = [];
       if (need.length) {
         const { loadTranslator } = await import("./radar-embed.mjs");
         const translate = await loadTranslator();
         for (const c of need) {
-          const t = { en: c.en, v: 2 };
+          const t = { en: c.en, v: 3 };
           for (const r of Object.keys(ASIA.regions)) {
             let term = null;
             try { term = usableTerm(await translate(c.en, ASIA.regions[r].nllb), r); } catch { term = null; }
-            // The round trip: back to English, every content word must return, else it measures another thing.
+            // The round trip: back to English, the head noun and two thirds of the words must return, else it measures another thing.
             if (term) {
               let back = "";
               try { back = await translate(term, ASIA.src, ASIA.regions[r].nllb); } catch { back = ""; }
@@ -1879,6 +1881,19 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const ids = (list) => list.map((x) => `${x.id} +${x.weekPct}%`).join(", ") || "none";
     log.push(`baseline: pool ${pool.length} today · simple ranking ${ids(board.baseline.today.naive)} · chance ${board.baseline.today.random.length ? ids(board.baseline.today.random) : "no draw (no sealed prices)"} · rebuilt ${rebuilt.map((d) => `${d} (${baseState.naive.filter((x) => x.at === d).length}+${baseState.random.filter((x) => x.at === d).length})`).join(", ") || "none"} · radar ${v.radar.hits}/${v.radar.graded} · ranking ${v.naive.hits}/${v.naive.graded} · chance ${v.random.hits}/${v.random.graded} · overlap ${v.overlap}${v.edgeNaive !== null ? ` · edge over the ranking ${v.edgeNaive} pts` : ""}${v.edgeRandom !== null ? ` · edge over chance ${v.edgeRandom} pts` : ""}`);
   }
+  // 🥊 The head-to-head (radarBacktest.js; the owner, 26.11: "proof the forecasts beat a random choice or a
+  // simple ranking by order growth", then "so nobody has an edge"): every day of the radar's own readings,
+  // its chance model (trained only on what that day knew) against the fastest-growing items and against
+  // chance, on the same fixed sample of items. The cases are published so anyone can recompute them.
+  if (env.RADAR_BACKTEST !== "0" && !late("backtest", 150_000)) {
+    try {
+      const t0 = Date.now();
+      const bt = backtest(items, today);
+      board.backtest = backtestBoard(bt);
+      writeFileSync(join(dir, "backtest-public.json"), JSON.stringify(backtestPublic(bt)));
+      log.push(`backtest: ${bt.horizons.map((h) => `${h.h}d: ${h.days} days (${h.skipped} without enough history), ${h.cases} cases · top ${h.k}: model ${h.model.rate}%, simple ranking ${h.rank.rate}%, chance ${h.random.rate}% · Brier model ${h.brier.model}, ranking ${h.brier.rank}, constant ${h.brier.base} · AUC ${h.auc.model} vs ${h.auc.rank} · days won ${h.dayDuel.wins}, lost ${h.dayDuel.losses}, tied ${h.dayDuel.ties} (sign test p ${h.dayDuel.p})`).join(" | ")} · ${Math.round((Date.now() - t0) / 1000)} s`);
+    } catch (err) { log.push(`backtest: ${String(err?.message || err).slice(0, 120)}`); }
+  }
   // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
   // factories, before sales, before everything"): the store's newest listings nobody has bought yet,
   // per area and a rotation of world categories, each with its store's id. A phrase many different
@@ -2015,6 +2030,39 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.news = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
       log.push(`news: door ${sources.news}`);
     }
+  }
+  // 🏁 Who named it first: the radar or the trend companies (rivalSignal.js; the owner, 26.11, over an
+  // outside check: "compare it with Exploding Topics, Spate, Trendalytics, FastMoss and Kalodata on the
+  // same products and dates"): their paid data is closed, so the radar reads only what they publish for
+  // automated readers, their blogs' RSS feeds (robots.txt first), keeps each post's date, link and
+  // two-word phrases, and checks every sealed call's own phrase against all of it.
+  if (env.RADAR_RIVALS !== "0" && !late("rivals", 60_000)) {
+    let rivals = readJson(join(dir, "rivals.json"), {});
+    const doors = {};
+    for (const r of RIVALS) {
+      try {
+        const rb = await getRobots(`${r.host}/robots.txt`, fetchImpl);
+        const allowed = rb.status === 200 || rb.status === 404 || rb.status === 410 ? robotsAllows(rb.status, rb.text, r.path) : "failed";
+        if (allowed !== true) { doors[r.id] = allowed === "failed" ? "FAILED" : "ROBOTS_DISALLOW"; continue; }
+        const res = await fetchImpl(`${r.host}${r.path}`, { headers: { "user-agent": UA, accept: "application/rss+xml, application/atom+xml, application/xml" }, signal: AbortSignal.timeout(30_000) });
+        if (!res.ok) { doors[r.id] = "FAILED"; continue; }
+        const posts = parseFeed(await res.text());
+        if (!posts.length) { doors[r.id] = "EMPTY"; continue; }
+        rivals = mergeRival(rivals, r.id, posts, today);
+        doors[r.id] = "OK";
+      } catch { doors[r.id] = "FAILED"; }
+    }
+    writeFileSync(join(dir, "rivals.json"), JSON.stringify(rivals));
+    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
+    const entries = [
+      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
+      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
+      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
+      ...(readJson(join(dir, "prelaunch.json"), {}).calls || []).map((c) => ({ book: "prelaunch", phrase: c.phrase, called: c.at })),
+    ].filter((e) => e.phrase && e.called);
+    board.rivals = rivalsBoard(entries, rivals, today, { doors });
+    const a = board.rivals.all;
+    log.push(`rivals: ${Object.entries(doors).map(([k, v]) => `${k} ${v}`).join(", ")} · ${Object.keys(rivals.posts || {}).length} posts kept · calls ${a.calls}: compared ${a.compared} (sealed before the feeds were read ${a.beforeTracking}), the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days)` : ""}, still quiet there ${a.quiet}, a rival first ${a.rivalFirst}`);
   }
   // 🧾 The receipt, taken here (every reading and every book's seal are in it; the root's own seal and
   // the Bitcoin check come after). The page's source states are the run's claims checked against it,

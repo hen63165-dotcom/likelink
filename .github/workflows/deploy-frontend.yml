@@ -192,6 +192,8 @@ jobs:
           [ -f dist/radar/board.json ] && node scripts/catalog/radar-feed.mjs dist/radar/board.json dist/radar/feed.xml || true
           # 🔁 The open evidence (radarEvidence.js) next to the board, so "check it yourself" on /radar can read it.
           gh release download radar --pattern evidence-public.json --dir /tmp/radar-pub --clobber && cp /tmp/radar-pub/evidence-public.json dist/radar/evidence.json || echo "::notice::no public evidence yet"
+          # 🥊 The head-to-head cases (radarBacktest.js), so the page can recompute the comparison in the browser.
+          gh release download radar --pattern backtest-public.json --dir /tmp/radar-pub --clobber && cp /tmp/radar-pub/backtest-public.json dist/radar/backtest.json || echo "::notice::no public backtest yet"
           # The promotion kits (alpha.js kitOf) → /radar/kits/, only while the trial is open.
           rm -rf /tmp/radar-kits && mkdir -p /tmp/radar-kits
           if gh release download radar --pattern briefs-public.json --dir /tmp/radar-kits --clobber; then

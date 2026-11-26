@@ -94,6 +94,8 @@ test("the round trip: a Korean or Japanese word is used only when every word of 
   assert.equal(roundTripOk("capybara squishy", "capybara"), false, "the animal alone is another search");
   assert.equal(roundTripOk("magnetic car phone mount", "Magnetic car phone mounts"), true);
   assert.equal(roundTripOk("hair claw clip", "hair claw clips"), true);
+  assert.equal(roundTripOk("cable knit scarf women", "Cable scarf woman"), true, "the head noun and two of three words: the same search (26.11's run kept 3 of 40 when every word was asked)");
+  assert.equal(roundTripOk("platform mini snow boots women", "I'm not sure what the platform is."), false, "the head noun lost");
   assert.equal(roundTripOk("", "x"), false);
   const { readFileSync } = await import("node:fs");
   assert.match(readFileSync("scripts/catalog/trend-radar.mjs", "utf8"), /if \(!roundTripOk\(c\.en, back\)\)/);

@@ -17,6 +17,8 @@ import { cleanNews } from "./newsSignal.js";
 import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
+import { cleanBacktest } from "./radarBacktest.js";
+import { cleanRivals } from "./rivalSignal.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
@@ -281,6 +283,8 @@ export function sanitizeBoard(doc) {
     // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.
     luck: cleanLuck(doc.luck),
     // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
+    backtest: cleanBacktest(doc.backtest),
+    rivals: cleanRivals(doc.rivals),
     prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),

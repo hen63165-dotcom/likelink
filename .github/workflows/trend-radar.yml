@@ -52,6 +52,7 @@ on:
       - src/lib/growth/asiaSignal.js
       - src/lib/growth/saturation.js
       - src/lib/growth/listingWave.js
+      - src/lib/growth/radarBacktest.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/runReceipt.js
 permissions:
@@ -174,6 +175,8 @@ jobs:
           [ -f radar-state/prices-public.json ] && files="$files radar-state/prices-public.json"
           # 🔎 The evidence: every graded new-product call with the daily store readings behind it.
           [ -f radar-state/evidence-public.json ] && files="$files radar-state/evidence-public.json"
+          # 🥊 The head-to-head cases (radarBacktest.js): every item, day and forecast, to recompute every number.
+          [ -f radar-state/backtest-public.json ] && files="$files radar-state/backtest-public.json"
           # The channels' preview (no secrets: store facts, links and the simulated posts), from a branch
           # run only: it names today's picks, which the lock keeps off the public main release.
           if [ "${GITHUB_REF}" != "refs/heads/main" ] && [ -f radar-state/channel-preview.json ]; then files="$files radar-state/channel-preview.json radar-state/channel-preview.md"; fi

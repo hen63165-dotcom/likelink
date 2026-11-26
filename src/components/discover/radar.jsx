@@ -18,6 +18,7 @@ import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
+import { recomputeCases } from "../../lib/growth/radarBacktest.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
@@ -1280,6 +1281,33 @@ function NewsRace({ news }) {
   );
 }
 
+// 🏁 Who named it first: the radar or the trend companies (rivalSignal.js): their public RSS feeds only.
+const RIVAL_BOOK = { early: ["קביעה לפני כולם", "Before-everyone call"], stages: ["קביעת עלייה", "Rising call"], fresh: ["מוצר חדש", "New product"], kinds: ["סוג חדש", "New kind"], prelaunch: ["לפני המכירה הראשונה", "Before the first sale"] };
+function RivalRace({ rivals }) {
+  const { L } = useL();
+  const a = rivals.all;
+  const fed = rivals.rivals.filter((r) => r.door === "OK" || r.posts > 0);
+  return (
+    <section className="lx-card lx-rdr-panel mt-4 p-5" id="rivals">
+      <h2 className="text-[20px] font-black">{L("🏁 מי אמר ראשון: הרדאר או חברות הטרנדים", "🏁 Who said it first: the radar or the trend companies")}</h2>
+      <p className="mt-1 text-[14px] leading-6">{L(`הנתונים של חברות הטרנדים בתשלום וסגורים, אז הרדאר משווה את עצמו למה שהן מפרסמות לקריאה אוטומטית: הפיד הפתוח של הבלוג שלהן (${fed.map((r) => r.name).join(", ") || "Trendalytics, FastMoss, Jungle Scout"}), אחרי בדיקת robots.txt. נשמרים רק התאריך, הקישור וצמדי המילים של כל פוסט, וכל קביעה חתומה נבדקת מול כל מה שפרסמו. ${rivals.unfed.join(", ")} מפרסמות בלי פיד פתוח בכתובות המקובלות.`, `The trend companies' data is paid and closed, so the radar compares itself with what they publish for automated readers: their blog's open feed (${fed.map((r) => r.name).join(", ") || "Trendalytics, FastMoss, Jungle Scout"}), robots.txt read first. Only each post's date, link and word pairs are kept, and every sealed call is checked against everything they published. ${rivals.unfed.join(", ")} publish no open feed at the usual addresses.`)}</p>
+      <dl className="lx-rdr-dl mt-3">
+        <div><dt>{L("קביעות שהושוו", "Calls compared")}</dt><dd>{a.compared} / {a.calls}</dd></div>
+        <div><dt>{L("הרדאר אמר ראשון", "The radar said it first")}</dt><dd>{a.ahead}{a.medianAheadDays !== null ? L(` · חציון ${a.medianAheadDays} ימים לפניהן`, ` · median ${a.medianAheadDays} days before them`) : ""}</dd></div>
+        <div><dt>{L("עוד שקט אצלן", "Still quiet there")}</dt><dd>{a.quiet}</dd></div>
+        <div><dt>{L("הן אמרו ראשונות", "They said it first")}</dt><dd>{a.rivalFirst}</dd></div>
+      </dl>
+      {a.beforeTracking ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${a.beforeTracking} קביעות נחתמו לפני שהפידים נקראו לראשונה, ולכן נשארות מחוץ להשוואה.`, `${a.beforeTracking} calls were sealed before the feeds were first read, so they stay out of the comparison.`)}</p> : null}
+      {rivals.named.length ? (
+        <ul className="mt-2 grid gap-1 text-[13px]">
+          {rivals.named.map((x) => <li key={`${x.phrase}|${x.called}`}><span dir="ltr" className="font-bold">{x.phrase}</span> · {L(RIVAL_BOOK[x.book]?.[0] || "", RIVAL_BOOK[x.book]?.[1] || "")} · {x.state === "AHEAD" ? L(`הרדאר ${dm(x.called)}, ${rivals.rivals.find((r) => r.id === x.rival)?.name} ${dm(x.d)}`, `the radar ${dm(x.called)}, ${rivals.rivals.find((r) => r.id === x.rival)?.name} ${dm(x.d)}`) : L(`${rivals.rivals.find((r) => r.id === x.rival)?.name} ${dm(x.d)}, הרדאר ${dm(x.called)}`, `${rivals.rivals.find((r) => r.id === x.rival)?.name} ${dm(x.d)}, the radar ${dm(x.called)}`)} · <a className="underline" href={x.u} target="_blank" rel="noopener noreferrer">{L("הפוסט", "the post")}</a></li>)}
+        </ul>
+      ) : null}
+      <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} פוסטים מ־${r.since ? dm(r.since) : "—"}`).join(" · ")}`, `Checked on ${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} posts since ${r.since ? dm(r.since) : "—"}`).join(" · ")}`)}</p>
+    </section>
+  );
+}
+
 function RecordTable({ board }) {
   const { L } = useL();
   const v = recordView(board || {});
@@ -1820,6 +1848,64 @@ function Luck({ luck, concepts = [] }) {
 }
 
 // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule, sealed.
+// 🥊 The head-to-head (radarBacktest.js): every day of the radar's readings, its chance model against the
+// simple ranking by order growth and against chance, on the same items; recomputable in the browser.
+const BACKTEST_URL = "https://github.com/hen63165-dotcom/likelink/releases/download/radar/backtest-public.json";
+const RADAR_BACKTEST_HOME = "https://hen63165-dotcom.github.io/likelink/radar/backtest.json";
+function HeadToHead({ bt }) {
+  const { L } = useL();
+  const [again, setAgain] = useState(null);
+  const nf = (x) => Number(x || 0).toLocaleString(L("he-IL", "en-US"));
+  const rows = (bt?.horizons || []).filter((h) => h.days > 0);
+  const recompute = async () => {
+    setAgain({ busy: true });
+    for (const u of [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/backtest.json` : "", RADAR_BACKTEST_HOME].filter(Boolean))]) {
+      try {
+        const res = await fetch(u, { cache: "no-cache" });
+        if (!res.ok) continue;
+        return setAgain({ per: recomputeCases(await res.json()) });
+      } catch { /* the next address */ }
+    }
+    setAgain({ failed: true });
+  };
+  return (
+    <section className="lx-wrap mt-6" id="backtest">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("🥊 הרדאר מול הדירוג הפשוט ומול המזל, כל יום", "🥊 The radar vs the simple ranking and chance, every day")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("בכל יום מהקריאות של הרדאר: המודל שלו (הסיכוי המכויל 🎯), שלומד רק ממה שהיה ידוע באותו יום, מול הדירוג הפשוט (המוצרים שצמחו הכי מהר בשבוע האחרון) ומול בחירה אקראית, על אותם מוצרים בדיוק (מדגם קבוע שנבחר בגיבוב ציבורי של היום והמוצר). זו בדיקה לאחור, כמו שבודקים תחזיות: כל יום רואה רק את המידע של אותו יום. כל המקרים פתוחים להורדה, ואפשר לחשב הכל מחדש בדפדפן.", "Every day of the radar's readings: its model (the 🎯 calibrated chance), trained only on what was known that day, against the simple ranking (the items that grew fastest over the last week) and a random pick, on exactly the same items (a fixed sample chosen by a public hash of the day and the item). A backtest, the way forecasts are tested: each day sees only that day's data. Every case is open to download, and the page recomputes it in your browser.")}</p>
+        {rows.length ? rows.map((h) => {
+          const lead = h.model.rate !== null && h.rank.rate !== null ? Math.round((h.model.rate - h.rank.rate) * 10) / 10 : null;
+          return (
+            <div key={h.h} className="lx-card lx-rdr-item mt-3 p-3">
+              <p className="text-[16px] font-extrabold">{L(`תוך ${h.h} ימים: צמיחה של ${h.line}% לפחות`, `Within ${h.h} days: growth of at least ${h.line}%`)}</p>
+              <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${h.days} ימים (${dm(h.from)}–${dm(h.to)}) · ${nf(h.cases)} מקרים`, `${h.days} days (${dm(h.from)}–${dm(h.to)}) · ${nf(h.cases)} cases`)}</p>
+              <p className="mt-2 text-[14px] font-bold">{L(`מתוך ה־${h.k} שכל אחד שם ראשונים כל יום, כמה צמחו: המודל של הרדאר ${h.model.rate}% · הסדר של הרדאר אחרי בדיקת הרעש ${h.radar.rate}% · הדירוג הפשוט ${h.rank.rate}% · בחירה אקראית ${h.random.rate}%`, `Of the ${h.k} each one put first every day, how many grew: the radar's model ${h.model.rate}% · the radar's noise-checked order ${h.radar.rate}% · the simple ranking ${h.rank.rate}% · a random pick ${h.random.rate}%`)}</p>
+              <p className="mt-1 text-[13px]">{L(`ימים: המודל ניצח ב־${h.dayDuel.wins}, הדירוג הפשוט ב־${h.dayDuel.losses}, תיקו ב־${h.dayDuel.ties}${h.dayDuel.p !== null ? ` (מבחן הסימן: p ${h.dayDuel.p})` : ""}`, `Days: the model won ${h.dayDuel.wins}, the simple ranking ${h.dayDuel.losses}, tied ${h.dayDuel.ties}${h.dayDuel.p !== null ? ` (sign test p ${h.dayDuel.p})` : ""}`)}</p>
+              <p className="mt-1 text-[13px]">{L(`ציון Brier (נמוך יותר מדויק יותר): המודל ${h.brier.model} · הדירוג הפשוט ${h.brier.rank} · ניחוש קבוע ${h.brier.base} · AUC: המודל ${h.auc.model} · הסדר אחרי בדיקת הרעש ${h.auc.radar} · הדירוג הפשוט ${h.auc.rank}`, `Brier score (lower is more accurate): the model ${h.brier.model} · the simple ranking ${h.brier.rank} · a constant guess ${h.brier.base} · AUC: the model ${h.auc.model} · the noise-checked order ${h.auc.radar} · the simple ranking ${h.auc.rank}`)}</p>
+              {lead !== null ? <p className="mt-1 text-[13px] font-bold" style={{ color: lead > 0 ? "#067647" : undefined }}>{lead > 0 ? L(`המודל מוביל על הדירוג הפשוט ב־${lead} נקודות.`, `The model leads the simple ranking by ${lead} points.`) : lead < 0 ? L(`הדירוג הפשוט מוביל ב־${-lead} נקודות: זה מה שהרדאר משפר עכשיו, והמספרים יראו אם זה הצליח.`, `The simple ranking leads by ${-lead} points: this is what the radar is improving now, and the numbers will show whether it worked.`) : L("שווים.", "Even.")}</p> : null}
+            </div>
+          );
+        }) : <p className="mt-2 text-[14px]">{L("הבדיקה מתחילה כשיש מספיק ימים של קריאות.", "The test starts once there are enough days of readings.")}</p>}
+        {rows.length ? (
+          <div className="mt-3">
+            <button type="button" className="lx-btn" onClick={recompute} disabled={again?.busy}>{again?.busy ? L("מחשב…", "Computing…") : L("🔁 לחשב מחדש בדפדפן", "🔁 Recompute in my browser")}</button>
+            {" "}<a className="underline text-[13px]" href={BACKTEST_URL} target="_blank" rel="noopener noreferrer">{L("לקובץ המקרים ←", "To the cases file →")}</a>
+            {again?.per ? (
+              <ul className="mt-2 grid gap-1 text-[13px]">
+                {rows.map((h) => {
+                  const g = again.per[h.h];
+                  const same = g && g.days === h.days && g.model === h.model.rate && g.radar === h.radar.rate && g.rank === h.rank.rate;
+                  return <li key={h.h}>{g ? L(`${h.h} ימים: המודל ${g.model}%, הסדר אחרי בדיקת הרעש ${g.radar}%, הדירוג הפשוט ${g.rank}%, ${g.days} ימים ${same ? "· זהה למה שפורסם ✓" : "· שונה ממה שפורסם"}`, `${h.h} days: the model ${g.model}%, the noise-checked order ${g.radar}%, the simple ranking ${g.rank}%, ${g.days} days ${same ? "· the same as published ✓" : "· different from what was published"}`) : L(`${h.h} ימים: בקובץ חסרים המקרים`, `${h.h} days: the file lacks the cases`)}</li>;
+                })}
+              </ul>
+            ) : again?.failed ? <p className="mt-2 text-[13px]">{L("הקובץ עוד בדרך לאתר; אפשר להוריד אותו מהקישור.", "The file is still on its way to the site; download it from the link.")}</p> : null}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function Baseline({ baseline }) {
   const { L } = useL();
   if (!baseline?.versus) return null;
@@ -2375,6 +2461,7 @@ export function RadarPage() {
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
         {board ? <RecordTable board={board} /> : null}
         {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
+        {board?.rivals ? <RivalRace rivals={board.rivals} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
@@ -2383,6 +2470,7 @@ export function RadarPage() {
         {board?.ledger?.sha256 ? <VerifyYourself board={board} /> : null}
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
+        {board?.backtest ? <HeadToHead bt={board.backtest} /> : null}
         {board?.baseline ? <Baseline baseline={board.baseline} /> : null}
         {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
         {board?.challenge ? <Challenge ch={board.challenge} /> : null}

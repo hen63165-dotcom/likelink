@@ -16,7 +16,7 @@ import { teaserBoard } from "../../src/lib/growth/radarGate.js";
 import { evidenceOf } from "../../src/lib/growth/radarEvidence.js";
 
 export const STATE_FILE = "state.enc";
-export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json", "evidence-public.json"];
+export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json", "evidence-public.json", "backtest-public.json"];
 const MAGIC = "LLRS1";
 export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board";
 
