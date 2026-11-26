@@ -139,13 +139,20 @@ let dealLink = "";
 if (DEAL) {
   // Which candidate the live page answers RAISED for today (unrecorded probe, a page of its own).
   const probe = await context.newPage();
+  probe.on("console", (m) => { if (m.type() === "error") console.log(`deal probe console: ${m.text().slice(0, 200)}`); });
+  probe.on("response", (r) => { const u = r.url(); if (/mode=magic|radar\/prices/.test(u)) console.log(`deal probe response: ${r.status()} ${u.replace(/u=[^&]+/, "u=…").slice(0, 160)}`); });
   for (const link of DEAL_LINKS) {
     try {
       await probe.goto(`${SITE}/magic?u=${encodeURIComponent(link)}`, { waitUntil: "networkidle", timeout: 45_000 });
       await probe.waitForSelector(`text=${RAISED_TEXT}`, { timeout: 30_000 });
       dealLink = link;
       break;
-    } catch { /* the next candidate */ }
+    } catch (e) {
+      // Say what the live page showed instead (the next candidate is tried).
+      const seen = await probe.locator("#magic-result").innerText({ timeout: 2000 }).catch(() => "");
+      const body = seen || (await probe.locator("main").innerText({ timeout: 2000 }).catch(() => ""));
+      console.log(`deal probe ${link.match(/\d{6,20}/)?.[0]}: ${String(e?.message || e).split("\n")[0]} | page: ${body.replace(/\s+/g, " ").slice(0, 600)}`);
+    }
   }
   await probe.close();
   if (!dealLink) throw new Error("deal mode: no candidate answered RAISED on the live page; nothing is made");
