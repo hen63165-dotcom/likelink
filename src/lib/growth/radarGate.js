@@ -7,6 +7,7 @@
 import { accessOf } from "./radarPlans.js";
 import { radarSubAccess } from "./radarSubs.js";
 import { AREA_HE } from "./radarAreas.js";
+import { cleanBaseline } from "./radarBaseline.js";
 
 export const RADAR_BOARD_KEY = "radar:board";
 // Each user's own free trial (the owner, 2026-11-15: "a separate access, a free trial, then they
@@ -106,6 +107,8 @@ export function teaserBoard(board) {
     // (which name items) and the book's text stay behind the lock, its hash and proofs do not.
     promise: board.promise ? { v: board.promise.v, at: board.promise.at, horizons: board.promise.horizons || [], coverage: board.promise.coverage || [], chance: board.promise.chance || [], issued: board.promise.issued || 0, open: board.promise.open || 0, nextDue: board.promise.nextDue || null, recent: [], seal: board.promise.seal ? { d: board.promise.seal.d, sha256: board.promise.seal.sha256, count: board.promise.seal.count, ots: board.promise.seal.ots || [] } : null } : null,
     // The radar vs luck: the record and the comparison stay public; the day's draw does not.
+    // The radar vs the simple ranking: the record and the comparison stay public; the day's picks do not.
+    baseline: board.baseline ? { ...cleanBaseline(board.baseline, { full: false }), seal: board.baseline.seal ? { d: board.baseline.seal.d, sha256: board.baseline.seal.sha256, count: board.baseline.seal.count, ots: board.baseline.seal.ots || [] } : null } : null,
     luck: board.luck ? { versus: board.luck.versus, draws: board.luck.draws, nextDue: board.luck.nextDue, recent: board.luck.recent || [], today: null, seal: board.luck.seal ? { d: board.luck.seal.d, sha256: board.luck.seal.sha256, count: board.luck.seal.count, ots: board.luck.seal.ots || [] } : null } : null,
     concepts: [],
     early: e ? {

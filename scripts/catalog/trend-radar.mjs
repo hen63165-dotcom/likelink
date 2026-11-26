@@ -77,6 +77,7 @@ import { OTS_CALENDARS, fromBase64, hexBytes, otsProof, toBase64 } from "../../s
 import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
+import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
@@ -1292,6 +1293,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length} · kinds photographed ${photographed.length}`);
     } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
   } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
+  // Every open call is read again by its own item number until it is graded — the radar's new products
+  // and the yardsticks' picks alike (radarBaseline.js) — so no call waits ungraded because the store's
+  // searches stopped returning its listing. The store's own 30-day orders only.
+  let baseState = readJson(join(dir, "baseline.json"), { naive: [], random: [] });
+  if (store) {
+    const openFresh = readJson(join(dir, "fresh-calls.json"), []).filter((c) => !c.result && /^\d{6,20}$/.test(String(c.id))).map((c) => String(c.id));
+    const ids = [...new Set([...openFresh, ...baselineOpenIds(baseState)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 240);
+    let read = 0;
+    for (let i = 0; i < ids.length; i += 20) {
+      try {
+        const got = await itemOrders(ids.slice(i, i + 20), { env, fetchImpl, now });
+        for (const [id, f] of got) if (Number.isFinite(f.orders)) { items[id] = addItemReading(items[id], [today, f.orders]); read++; }
+      } catch (err) { log.push(`open calls ${i}: ${String(err?.message || err).slice(0, 80)}`); }
+    }
+    keep(meter, "aliexpress", read);
+    log.push(`open calls read again by item: ${read} of ${ids.length} without a reading today`);
+  }
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);
@@ -1659,6 +1677,26 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const v = board.luck.versus;
     log.push(`luck: today ${board.luck.today ? `${board.luck.today.concept} (1 of ${board.luck.today.pool})` : "no draw (no sealed prices)"} · luck ${v.luck.hits}/${v.luck.graded} · radar ${v.radar.hits}/${v.radar.graded}${v.edge !== null ? ` · edge ${v.edge} pts` : ""}`);
   }
+  // 📏 The radar vs the simple ranking and chance (radarBaseline.js; the owner, 26.11, over an outside
+  // check: "proof the forecasts beat a random choice or a simple ranking by order growth"): every day,
+  // from the radar's own pool of small listings, the 3 growing fastest with none of its checks and 3
+  // drawn by the hash of today's sealed prices, graded by the new products' own rule, in their own book.
+  if (env.RADAR_BASELINE !== "0") {
+    const seals = readJson(join(dir, "price-seals.json"), {});
+    const seedOf = (d) => { const t = baselineSeedText(d, seals[d]?.sha256); return t ? createHash("sha256").update(t).digest("hex") : null; };
+    baseState = gradeBaseline(baseState, items, today);
+    const rebuilt = rebuildDays(baseState, freshCalls, today);
+    for (const d of rebuilt) baseState = recordBaseline(baseState, { day: d, pool: baselinePool(freshPool, items, d), seed: seedOf(d), rebuilt: today });
+    const pool = baselinePool(freshPool, items, today);
+    baseState = recordBaseline(baseState, { day: today, pool, seed: seedOf(today) });
+    writeFileSync(join(dir, "baseline.json"), JSON.stringify(baseState));
+    board.baseline = baselineBoard(baseState, freshCalls, today);
+    const baseText = baselineSealText(baseState);
+    if (baseText) board.baseline.seal = await sealBook({ text: baseText, count: baseText.split("\n").length }, prevBoard.baseline?.seal, "baseline");
+    const v = board.baseline.versus;
+    const ids = (list) => list.map((x) => `${x.id} +${x.weekPct}%`).join(", ") || "none";
+    log.push(`baseline: pool ${pool.length} today · simple ranking ${ids(board.baseline.today.naive)} · chance ${board.baseline.today.random.length ? ids(board.baseline.today.random) : "no draw (no sealed prices)"} · rebuilt ${rebuilt.map((d) => `${d} (${baseState.naive.filter((x) => x.at === d).length}+${baseState.random.filter((x) => x.at === d).length})`).join(", ") || "none"} · radar ${v.radar.hits}/${v.radar.graded} · ranking ${v.naive.hits}/${v.naive.graded} · chance ${v.random.hits}/${v.random.graded} · overlap ${v.overlap}${v.edgeNaive !== null ? ` · edge over the ranking ${v.edgeNaive} pts` : ""}${v.edgeRandom !== null ? ` · edge over chance ${v.edgeRandom} pts` : ""}`);
+  }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
@@ -1731,7 +1769,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

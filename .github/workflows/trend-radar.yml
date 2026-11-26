@@ -47,6 +47,7 @@ on:
       - src/lib/growth/factorySignal.js
       - src/lib/growth/tradeSignal.js
       - src/lib/growth/newsSignal.js
+      - src/lib/growth/radarBaseline.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/runReceipt.js
 permissions:

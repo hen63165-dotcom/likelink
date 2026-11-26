@@ -1631,6 +1631,35 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
+// 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule, sealed.
+function Baseline({ baseline }) {
+  const { L } = useL();
+  if (!baseline?.versus) return null;
+  const v = baseline.versus;
+  const rule = baseline.rule || {};
+  const line = (s, he, en) => (s?.graded ? L(`${he}: ${s.hits} מתוך ${s.graded} פגעו (${s.rate}%)`, `${en}: ${s.hits} of ${s.graded} hit (${s.rate}%)`) : null);
+  const lines = [line(v.radar, "הרדאר", "The radar"), line(v.naive, "הדירוג הפשוט", "The simple ranking"), line(v.random, "ההגרלה", "Chance")].filter(Boolean);
+  const edge = (x, he, en) => (Number.isFinite(x) ? (x >= 0 ? L(`הרדאר מעל ${he} ב־${x} נקודות אחוז.`, `The radar is ${x} percentage points above ${en}.`) : L(`${he} לפני הרדאר ב־${-x} נקודות אחוז, וזה נשאר בספר.`, `${en} is ${-x} percentage points ahead of the radar, and that stays in the ledger.`)) : null);
+  const edges = [edge(v.edgeNaive, "הדירוג הפשוט", "the simple ranking"), edge(v.edgeRandom, "ההגרלה", "chance")].filter(Boolean);
+  const picks = (list = []) => list.map((x) => `${x.title}${Number.isFinite(x.weekPct) ? ` (${x.weekPct > 0 ? "+" : ""}${x.weekPct}%)` : ""}`).join(" · ");
+  return (
+    <section className="lx-wrap mt-6" id="baseline">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("📏 הרדאר מול הדירוג הפשוט ומול הגרלה", "📏 The radar vs the simple ranking and chance")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`כדי לדעת כמה הבדיקות של הרדאר שוות, הוא נמדד כל יום מול שתי דרכים פשוטות, מאותם מוצרים קטנים שהוא קורא (${rule.minOrders ?? 30} עד ${(rule.maxOrders ?? 3000).toLocaleString("en-US")} הזמנות בחודש): ${rule.perDay ?? 3} המוצרים שההזמנות שלהם צומחות הכי מהר השבוע, בלי אף בדיקה של הרדאר, ו־${rule.perDay ?? 3} מוצרים בהגרלה, לפי טביעת האצבע של מחירי החנות של היום שנחתמו בביטקוין. כולם נבדקים באותו כלל של המוצרים החדשים: ‎+${rule.hitPct ?? 50}% הזמנות בתוך ${rule.days ?? 14} יום, וכולם נחתמים כל יום.`, `To know what the radar's checks are worth, it is measured every day against two simple ways, from the same small listings it reads (${rule.minOrders ?? 30} to ${(rule.maxOrders ?? 3000).toLocaleString("en-US")} orders a month): the ${rule.perDay ?? 3} listings whose orders grow fastest this week, with none of the radar's checks, and ${rule.perDay ?? 3} listings drawn by the fingerprint of today's store prices, sealed in Bitcoin. All are graded by the new products' own rule: +${rule.hitPct ?? 50}% orders within ${rule.days ?? 14} days, and all are sealed every day.`)}</p>
+        {lines.length ? <p className="mt-2 text-[15px] font-black">{lines.join(" · ")}</p> : null}
+        {edges.length ? <p className="text-[14px] font-bold">{edges.join(" ")}</p>
+          : baseline.nextDue ? <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`הציון הראשון: ${dm(baseline.nextDue)}. ההשוואה מופיעה כשלכל צד יש ${v.minGraded ?? 3} ציונים, על אותם ימים${v.since ? ` (מ־${dm(v.since)})` : ""}.`, `The first grade: ${dm(baseline.nextDue)}. The comparison shows once each side has ${v.minGraded ?? 3} grades, on the same days${v.since ? ` (from ${dm(v.since)})` : ""}.`)}</p> : null}
+        {v.radar?.calls ? <p className="mt-1 text-[13px]">{L(`${v.overlap} מתוך ${v.radar.calls} הקביעות של הרדאר היו גם בבחירה של הדירוג הפשוט באותו יום.`, `${v.overlap} of the radar's ${v.radar.calls} calls were also the simple ranking's pick that day.`)}</p> : null}
+        {baseline.today?.naive?.length ? <p className="mt-2 text-[13px]"><b>{L("הדירוג הפשוט היום: ", "The simple ranking today: ")}</b><bdi dir="ltr">{picks(baseline.today.naive)}</bdi></p> : null}
+        {baseline.today?.random?.length ? <p className="mt-1 text-[13px]"><b>{L("ההגרלה היום: ", "Chance today: ")}</b><bdi dir="ltr">{picks(baseline.today.random)}</bdi></p> : null}
+        {baseline.rebuilt?.length ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הבחירות של ${baseline.rebuilt.map(dm).join(", ")} נבנו בכלל הקבוע מהקריאות של אותו יום, ונחתמו לפני שאפשר היה לבדוק אותן.`, `The picks of ${baseline.rebuilt.map(dm).join(", ")} were rebuilt by the fixed rule from that day's readings, and sealed before any of them could be graded.`)}</p> : null}
+        {baseline.seal?.text ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}><a className="underline" download={`radar-baseline-${baseline.seal.d}.txt`} href={`data:text/plain;charset=utf-8,${encodeURIComponent(baseline.seal.text)}`}>{L(`כל ${baseline.seal.count} הבחירות של הדירוג וההגרלה, חתומות`, `all ${baseline.seal.count} ranking and chance picks, sealed`)}</a></p> : null}
+      </div>
+    </section>
+  );
+}
+
 function Ledger({ ledger, freshBook = null, stagesBook = null, kindsBook = null, brainBook = null, promiseBook = null, windowBook = null, anchors = null }) {
   const { L } = useL();
   if (!ledger?.sha256) return null;
@@ -2163,6 +2192,7 @@ export function RadarPage() {
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
+        {board?.baseline ? <Baseline baseline={board.baseline} /> : null}
         {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
         {board?.challenge ? <Challenge ch={board.challenge} /> : null}
       </div>

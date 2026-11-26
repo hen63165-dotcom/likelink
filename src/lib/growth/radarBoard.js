@@ -16,6 +16,7 @@ import { cleanTrade } from "./tradeSignal.js";
 import { cleanNews } from "./newsSignal.js";
 import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
+import { cleanBaseline } from "./radarBaseline.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
@@ -57,6 +58,9 @@ const BOOK_NAMES = LEDGER_BOOKS.join("|");
 const LEDGER_ROOT = new RegExp(`^(?:${BOOK_NAMES})=[0-9a-f]{64}(?:\\n(?:${BOOK_NAMES})=[0-9a-f]{64})*$`);
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
+// 📏 The radar vs the simple ranking (radarBaseline.js baselineSealText): `book|item|day|orders|due|grade|rebuilt|seed`.
+const BASELINE_LINE = "(?:naive|random)\\|\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|UNREAD|-)\\|(?:\\d{4}-\\d{2}-\\d{2}|-)\\|(?:[0-9a-f]{64}|-)";
+const BASELINE_BOOK = new RegExp(`^${BASELINE_LINE}(\\n${BASELINE_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -267,6 +271,8 @@ export function sanitizeBoard(doc) {
     stagesSeal: cleanBook(doc.stagesSeal, STAGES_BOOK),
     // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.
     luck: cleanLuck(doc.luck),
+    // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
+    baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
