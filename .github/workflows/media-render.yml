@@ -69,7 +69,11 @@ jobs:
           OWN_MODEL_PYTHON: python
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
-        run: node scripts/media/render-reels.mjs --limit "${{ github.event.inputs.limit || '4' }}" --out "$RUNNER_TEMP/reels"
+          # A dispatch input reaches the shell as data (env), never as script text.
+          RENDER_LIMIT: ${{ github.event.inputs.limit || '4' }}
+        run: |
+          case "$RENDER_LIMIT" in ''|*[!0-9]*) echo "limit must be a whole number"; exit 1;; esac
+          node scripts/media/render-reels.mjs --limit "$RENDER_LIMIT" --out "$RUNNER_TEMP/reels"
       - name: Audit served reels (verify, measure, learn)
         if: always()
         run: |

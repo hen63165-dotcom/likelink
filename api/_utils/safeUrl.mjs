@@ -92,3 +92,32 @@ export async function safeFetch(raw, init = {}, maxRedirects = 3) {
   }
   throw new UnsafeUrlError("too_many_redirects");
 }
+
+// ─── The image proxy's fence (/api/og?mode=image) ─────────────────────────────
+// 26.11 security pass: any *.supabase.co (a stranger's project too) and any redirect from an allowed host
+// were fetched, so a stranger's server could serve anything through our address or send the proxy
+// anywhere. Now: the site itself, the store's image CDNs, LikeLink2's own Supabase project and the
+// catalog's fixed photo CDN; https on the default port, no user:password; every redirect hop is checked
+// against the same list, at most 3.
+const OWN_SUPABASE = new Set(["vjitiuirqfysexsxdxqx.supabase.co"]);
+export function imageHostAllowed(raw, origin = "") {
+  let u;
+  try { u = new URL(String(raw || "")); } catch { return false; }
+  if (u.protocol !== "https:" || u.port || u.username || u.password) return false;
+  const h = u.hostname.toLowerCase();
+  if (origin && u.origin === String(origin)) return true;
+  return /(^|\.)alicdn\.com$/.test(h) || /(^|\.)aliexpress-media\.com$/.test(h) || OWN_SUPABASE.has(h) || h === "images.unsplash.com";
+}
+
+/** fetch() of an image that stays inside imageHostAllowed on every hop. */
+export async function fetchAllowedImage(raw, origin, init = {}, { fetchImpl = globalThis.fetch, maxRedirects = 3 } = {}) {
+  let current = String(raw || "");
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    if (!imageHostAllowed(current, origin)) throw new UnsafeUrlError("image_host");
+    const res = await fetchImpl(current, { ...init, redirect: "manual" });
+    const where = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    if (!where) return res;
+    current = new URL(where, current).href;
+  }
+  throw new UnsafeUrlError("too_many_redirects");
+}

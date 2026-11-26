@@ -14,6 +14,7 @@
 import { originFromRequest } from "./_utils/origin.mjs";
 import { noteKvReadFailed, readKvResponse, assertKvWritable } from "../src/lib/cloud/kvReadGuard.js";
 import { isAuthorizedCron } from "./_utils/cronAuth.mjs";
+import { safeFetch } from "./_utils/safeUrl.mjs";
 
 const HISTORY_KEY = "marketplace:pricehistory";
 const NOTIFS_KEY = "marketplace:notifications";
@@ -166,8 +167,9 @@ export function parsePriceNumber(raw) {
 
 async function fetchLivePrice(url) {
   try {
-    const res = await fetch(url, {
-      redirect: "follow",
+    // A product's link is a creator's input: safeFetch refuses internal and private hosts and checks
+    // every redirect hop (26.11 security pass; it followed any redirect before).
+    const res = await safeFetch(url, {
       signal: AbortSignal.timeout(10000),
       headers: {
         "user-agent":
