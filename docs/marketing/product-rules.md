@@ -61,6 +61,18 @@ or a carousel follows it, and so does the daily routine.
      brand look is wanted (`brandWaves.js`), and its `altPick` is the no-name
      item with the same look that may be posted.
 
+7. **Never saturated** (the owner, 2026-11-26: *"ראיתי שהרדאר מצא מוצרים שהשוק
+   רווי בהם כבר, תתקן את זה, זה אמור לא להיות מן הסתם"*). Rising orders alone
+   are not early: a squishy with 49,602 orders a month that grows 33% a week is a
+   hit everyone already sells. Every product shown or posted passes the market
+   check (`src/lib/growth/saturation.js`) and only **OPEN** goes out:
+   - ≥ 5,000 orders in 30 days → saturated, no question asked;
+   - more than 2,000 AliExpress listings for its own most specific name → saturated;
+   - tiktok / viral / trending / amazon in Google's US suggestions for it → buzz;
+   - a check that could not be read → unmeasured, never assumed open.
+   The daily videos, Telegram, the WhatsApp page and the site's "hot" list all
+   follow it. A day with no open product is a quiet day: say "עוד שקט".
+
 ## What is never posted, even when it is hot
 
 - **Brand copies.** On AliExpress, "Lululemon", "Loewe", "Alo", "Calvin Klein",

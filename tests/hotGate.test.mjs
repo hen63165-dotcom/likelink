@@ -8,8 +8,8 @@ import { hotOnlyPool } from "../src/lib/growth/hotGate.js";
 const pool = [{ id: "p-old" }, { id: "p-hot" }, { id: "p-hotter" }];
 
 test("hot-only: only the radar's KEEP products, strongest Alpha first", () => {
-  const board = { site: { keep: [{ id: "p-hot", alpha: 60 }, { id: "p-hotter", alpha: 80 }] } };
-  assert.deepEqual(hotOnlyPool(pool, board).pool.map((p) => p.id), ["p-hotter", "p-hot"]);
+  const board = { site: { keep: [{ id: "p-hot", alpha: 60 }, { id: "p-hotter", alpha: 80 }, { id: "p-crowded", alpha: 99 }], hot: [{ id: "p-hot", market: { state: "OPEN" } }, { id: "p-hotter", market: { state: "OPEN" } }, { id: "p-crowded", market: { state: "SATURATED" } }] } };
+  assert.deepEqual(hotOnlyPool([...pool, { id: "p-crowded" }], board).pool.map((p) => p.id), ["p-hotter", "p-hot"], "a saturated KEEP product is never posted (26.11)");
 });
 
 test("hot-only: no board or no kept product → nothing is posted", () => {

@@ -88,6 +88,7 @@ import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
 import { mergePath, pathBoard, pathCard } from "../../src/lib/growth/trendPath.js";
+import { marketOf, pruneChecks, saturationQueue } from "../../src/lib/growth/saturation.js";
 import { ASIA, asiaCard, localExtensions, mergeAsia, regionReading, usableTerm } from "../../src/lib/growth/asiaSignal.js";
 import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
@@ -1363,6 +1364,59 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     writeFileSync(join(dir, "waves.json"), JSON.stringify(waveState));
     board.waves = { at: today, list: cards.slice(0, WAVES.show) };
     log.push(`waves: ${cards.map((c) => `${c.token} (${c.items} items, ${c.orders} orders${c.alt ? ", alt" : ""})`).join(", ") || "none today"} · youtube ${ytN} · instagram ${sources.instagram}`);
+  }
+  // 🚫 Saturated is never a find (saturation.js; the owner, 26.11: "I saw the radar found products the
+  // market is already saturated with — fix it"). Every product shown or posted outside the radar's own
+  // discoveries — the channel's listings per kind, the site's HOT products, the legal brand looks — gets
+  // one market check: a mass seller (≥ 5,000 orders in 30 days) is saturated with no question asked; the
+  // rest are asked for the listings matching their own most specific name (over 2,000: saturated) and
+  // Google's US suggestions (tiktok/viral/trending/amazon: buzz). Only OPEN is shown or posted; a check
+  // that could not be read leaves it UNMEASURED, never open. Kept 3 days in saturation.json.
+  {
+    const targets = [
+      ...(board.pool?.list || []).map((r) => ({ id: String(r.id), orders: r.orders, ref: r })),
+      ...(board.site?.hot || []).map((r) => ({ id: String(r.itemId || ""), orders: r.orders, ref: r })),
+      ...(board.waves?.list || []).filter((w) => w?.alt?.id).map((w) => ({ id: String(w.alt.id), orders: w.alt.orders, ref: w.alt })),
+    ];
+    let satState = pruneChecks(readJson(join(dir, "saturation.json"), {}), today);
+    const queue = store && env.RADAR_SATURATION !== "0" && !late("saturation", 150_000) ? saturationQueue(targets, satState, today) : [];
+    let asked = 0;
+    if (queue.length) {
+      // The English store title of each (the shown titles are Hebrew), 20 at a time.
+      const en = {};
+      const e = aeEnv(env);
+      for (let i = 0; i < queue.length; i += 20) {
+        try {
+          const out = await aeCall(DETAIL, { product_ids: queue.slice(i, i + 20).join(","), target_currency: "ILS", target_language: "EN", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
+          const r = out?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+          const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+          for (const x of Array.isArray(raw) ? raw : raw ? [raw] : []) if (x?.product_id) en[String(x.product_id)] = String(x.product_title || "");
+        } catch (err) { log.push(`saturation titles ${i}: ${String(err?.message || err).slice(0, 80)}`); }
+      }
+      const df = phraseCounts(Object.values(freshPool || {}).map((x) => x?.title));
+      for (const id of queue) {
+        const phrase = en[id] ? distinctPhrase(en[id], df) : null;
+        if (!phrase) continue;
+        asked++;
+        let similar = null;
+        let suggestions = null;
+        try {
+          const res = await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+        } catch { /* unread → unmeasured */ }
+        if (sources.suggest === "OK") {
+          try { suggestions = await suggestList(phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+          await pause(politeMs);
+        }
+        const c = unknownCheck({ phrase, similar, suggestions });
+        if (c.reason !== "NOT_CHECKED") satState[id] = { d: today, reason: c.reason, phrase: c.phrase, similar: c.similar, buzz: c.buzz };
+      }
+    }
+    for (const t of targets) t.ref.market = marketOf({ orders: t.orders, check: satState[t.id] });
+    writeFileSync(join(dir, "saturation.json"), JSON.stringify(satState));
+    const tally = targets.reduce((m, t) => ((m[t.ref.market.state] = (m[t.ref.market.state] || 0) + 1), m), {});
+    log.push(`saturation: ${targets.length} products shown or posted outside the discoveries · ${queue.length} asked today (${asked} with a name) · ${JSON.stringify(tally)} · open: ${targets.filter((t) => t.ref.market.state === "OPEN").slice(0, 6).map((t) => `${t.id} (${t.ref.market.similar} similar)`).join(", ") || "none"}`);
   }
   // The crowd sensor (crowdSensor.js): items checked in the magic button by different people this
   // week (counts only, from the server), with the store's own facts; their orders join the histories.

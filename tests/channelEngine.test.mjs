@@ -23,7 +23,9 @@ const slippers = {
   pick: { itemId: "1005009763188833" },
 };
 const sweaterKind = { id: "chunky-knit-sweater", kind: "style", stage: "STEADY", he: "סוודר סרוג עבה", match: ["סוודר סרוג"], gap: { state: "ARRIVED", he: "כבר מחפשים בארץ" }, world: { state: "WIDE" } };
-const hot = (id, title, before, after, weekPct, from = "2026-11-15") => ({ id, title, orders: after, ordersBefore: before, weekPct, from, to: "2026-11-21", state: "HOT", he: "חם עכשיו" });
+// Each row carries the market check (saturation.js) the run adds; these test the other gates, so OPEN.
+const OPEN = { state: "OPEN", similar: 800 };
+const hot = (id, title, before, after, weekPct, from = "2026-11-15") => ({ id, title, orders: after, ordersBefore: before, weekPct, from, to: "2026-11-21", state: "HOT", he: "חם עכשיו", market: OPEN });
 const board = () => ({
   at: "2026-11-21T01:35:53.097Z",
   concepts: [slippers, sweaterKind],
@@ -274,7 +276,7 @@ test("the photo check (lens on the runner): its own kind first, or top three wit
   assert.equal(visualVerdict([{ id: "category-mensocks", p: 0.84 }, { id: "leg-warmers", p: 0.13 }, { id: "ribbed-crew-socks", p: 0.02 }], "ribbed-crew-socks").verdict, "CATEGORY_ONLY");
   // The verdict travels on the board, and a photo of another kind is rejected by the server's engine too.
   const listing = { id: "1005000000000001", kind: "platform-fur-slippers", title: "נעלי בית פרווה", image: IMG("Sa1aaaaaaaaaaaaaaaaaaaaaa"), price: 31.6, buy: BUY("c"), sat: "97+", words: 2, orders: 4200, ordersBefore: 3300, from: "2026-11-14", to: "2026-11-21", weekPct: 31, compared: 3, cheapest: 24.9, at: "2026-11-21" };
-  const clean = sanitizeBoard({ ...board(), record: { calls: 0 }, pool: { at: "x", kinds: 1, list: [{ ...listing, visual: "MISMATCH" }] } });
+  const clean = sanitizeBoard({ ...board(), record: { calls: 0 }, pool: { at: "x", kinds: 1, list: [{ ...listing, visual: "MISMATCH", market: OPEN }] } });
   assert.equal(clean.pool.list[0].visual, "MISMATCH");
   const r = rankCandidates(candidatesFrom({ ...board(), site: { hot: [] }, fresh: { risers: [] }, pool: clean.pool }, products(), { now: NOW }), { now: NOW });
   assert.equal(r.rejected[0].reason, "photo_shows_another_kind");
@@ -325,4 +327,21 @@ test("brand look (26.11): a brand wave's legal look-alike is a candidate, the br
   assert.ok(!/stanley/i.test(JSON.stringify({ title: c[0].title, trend: c[0].trend, match: c[0].match })), "the brand is never named");
   assert.equal(c[0].evidence.before, 600);
   assert.equal(c[0].evidence.after, 900);
+});
+
+test("saturated is never posted (26.11): a mass seller, a market with many sellers, buzz, or an unread check", () => {
+  const b = board();
+  const rows = [
+    { ...b.site.hot[2], market: { state: "SATURATED", why: "mass", orders: 49602 } },
+    { ...b.site.hot[3], market: { state: "SATURATED", why: "sellers", similar: 31000 } },
+    { ...b.site.hot[4], market: { state: "BUZZ", why: "buzz", similar: 900 } },
+    { ...b.site.hot[5], market: null },
+  ];
+  const { ranked, rejected } = rankCandidates(candidatesFrom({ ...b, site: { hot: rows } }, products(), { now: NOW }), { now: NOW });
+  const why = Object.fromEntries(rejected.filter((r) => r.productId).map((r) => [r.productId, r.reason]));
+  assert.equal(why["ae-1005012966678990"], "saturated_market");
+  assert.equal(why["ae-1005012967925438"], "saturated_market");
+  assert.equal(why["ae-1005013205496649"], "already_buzzing");
+  assert.equal(why["ae-1005008077732057"], "market_unmeasured", "a check that could not be read is never assumed open");
+  assert.ok(ranked.every((c) => c.source === "fresh_riser"), "only the discoveries, which passed the same check, remain");
 });

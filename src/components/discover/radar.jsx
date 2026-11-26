@@ -415,13 +415,17 @@ function MarketMap({ list, openId = "" }) {
 function SiteHot({ site }) {
   const { L } = useL();
   if (!site?.checked) return null;
+  // 🚫 Only a product the market check found open (saturation.js); the saturated ones are counted, never listed.
+  const open = site.hot.filter((r) => r.market?.state === "OPEN");
+  const crowded = site.hot.length - open.length;
   return (
     <div className="lx-card mt-8 p-4 md:p-5" style={{ boxShadow: "none", border: "1px solid #bbf7d0" }}>
       <h3 className="text-[18px] font-extrabold">{L("🔥 באתר עכשיו: מה באמת חם השבוע", "🔥 On the site now: what is really hot this week")}</h3>
       <p className="mt-1 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`בדקנו ${site.checked} מוצרים מהאתר מול ההזמנות באליאקספרס, כל יום. חם = ההזמנות של הפריט עלו ב־10% ומעלה בשבוע.`, `We check ${site.checked} of the site's products against AliExpress orders every day. Hot = the item's orders rose 10%+ in a week.`)}</p>
-      {site.hot.length ? (
+      {crowded ? <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L(`עוד ${crowded} מוצרים מהאתר שההזמנות שלהם עולות כבר נמכרים בהמון חנויות או באלפי הזמנות בחודש, ולכן הם נשארים מחוץ לרשימה: הרדאר מציג רק מה שהשוק שלו עוד פתוח.`, `${crowded} more site products with rising orders are already sold by many stores or by the thousands each month, so they stay off the list: the radar shows only what still has an open market.`)}</p> : null}
+      {open.length ? (
         <ul className="mt-3 grid gap-2">
-          {site.hot.map((r) => (
+          {open.map((r) => (
             <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl px-3 py-2 text-[14px]" style={{ background: "#ecfdf3" }}>
               <Go to={`/p/${r.id}`} className="font-bold underline">{r.title || r.id}</Go>
               {(() => { const k = (site.keep || []).find((x) => x.id === r.id); return k ? <span className="text-[12px] font-bold">{L(`אלפא ${k.alpha ?? "—"} · ${k.accel?.he || ""}${k.israelHe ? ` · בישראל: ${k.israelHe}` : ""}`, `Alpha ${k.alpha ?? "—"}`)}</span> : null; })()}

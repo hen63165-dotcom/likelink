@@ -219,7 +219,7 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       price: r.price > 0 ? { value: r.price, currency: "ILS", checkedAt: r.at || boardAt.slice(0, 10), source: "aliexpress_api" } : null,
       quality: { sat: r.sat || null, reviews: null, seller: null, shipping: null, video: r.video === true },
       sellers: { compared: num(r.compared), hot: num(r.hotSellers), cheapest: num(r.cheapest) },
-      israel: israelOf(c, boardAt), world: worldOf(c),
+      israel: israelOf(c, boardAt), world: worldOf(c), market: r.market || null,
     });
   }
   // 2. Site products the radar measured HOT today (the site record gives the photo, link and price).
@@ -242,7 +242,7 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       // names the failed check: on 19.11 the +49% fur slippers failed "95% satisfaction").
       quality: { sat: p?.status === "approved" ? "95+" : p ? "low" : null, reviews: null, seller: null, shipping: null, video: Boolean(p?.sellerVideo || p?.videoUrl) },
       sellers: null,
-      israel: c ? israelOf(c, boardAt) : null, world: c ? worldOf(c) : null,
+      israel: c ? israelOf(c, boardAt) : null, world: c ? worldOf(c) : null, market: r.market || null,
     });
   }
   // 3. The radar's own discoveries: new products starting to run.
@@ -275,7 +275,7 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       evidence: evidenceOf({ ordersBefore: a.ordersBefore, orders: a.orders, from: a.from, to: a.to, weekPct: a.weekPct }, "brand_look"),
       price: num(a.price) > 0 ? { value: a.price, currency: "ILS", checkedAt: a.to || boardAt.slice(0, 10), source: "aliexpress_api" } : null,
       quality: { sat: "95+", reviews: null, seller: null, shipping: null, video: false },
-      sellers: null, israel: null, world: null,
+      sellers: null, israel: null, world: null, market: a.market || null,
     });
   }
   return out.map((c) => ({ ...c, keys: identityKeys(c), sourceHe: SOURCE_HE[c.source] }));
@@ -294,6 +294,14 @@ export function rejectionOf(c = {}, { now = Date.now(), rules = ENGINE } = {}) {
   if (c.linkKind === "site" && c.siteStatus !== "approved") return c.siteStatus === "archived" ? "archived_by_radar_quality_check" : "not_on_sale_on_site";
   if (hasBrandName(c.storeTitle || c.title) || hasBrandName(c.title)) return "brand_name";
   if (isNotListedKind(c.storeTitle || c.title)) return "unlisted_kind";
+  // 🚫 Saturated is never posted (saturation.js; the owner, 26.11): outside the radar's own discoveries
+  // (which pass the same check before they are shown), only a product measured OPEN goes out.
+  if (c.source !== "fresh_riser") {
+    const m = c.market?.state;
+    if (m === "SATURATED") return "saturated_market";
+    if (m === "BUZZ") return "already_buzzing";
+    if (m !== "OPEN") return "market_unmeasured";
+  }
   const e = c.evidence || {};
   if (ageDays(e.to, now) > rules.maxAgeDays) return "stale_measurement";
   if (!(e.weekPct >= rules.hot.minWeekPct)) return "not_rising";

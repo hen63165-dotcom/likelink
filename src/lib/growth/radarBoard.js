@@ -19,6 +19,7 @@ import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
+import { cleanMarket } from "./saturation.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
@@ -116,7 +117,7 @@ function cleanOpportunity(o) {
 }
 
 const cleanSiteRow = (r) => (r && /^[\w-]{2,60}$/.test(String(r.id || "")) && HOTS.has(r.state)
-  ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to) }
+  ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), market: cleanMarket(r.market) }
   : null);
 
 // 📚 A kind's Wikipedia attention (wikiSignal.js): article titles, readers this week and the week
@@ -300,6 +301,7 @@ function cleanPool(p) {
       visual: ["MATCH", "MISMATCH", "CATEGORY_ONLY"].includes(r.visual) ? r.visual : null,
       orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), weekPct: num(r.weekPct),
       compared: num(r.compared), hotSellers: num(r.hotSellers), cheapest: num(r.cheapest), at: day(r.at),
+      market: cleanMarket(r.market), // 🚫 saturation.js: only OPEN is posted
     }));
   return { at: str(p.at, 30), kinds: num(p.kinds) ?? 0, list };
 }
@@ -389,7 +391,7 @@ function cleanWaves(w) {
   const list = (Array.isArray(w.list) ? w.list : []).slice(0, 8).map((c) => {
     if (!c || !["BRAND", "TOOL"].includes(c.reason) || num(c.items) === null || num(c.orders) === null) return null;
     const a = c.alt && typeof c.alt === "object" ? c.alt : null;
-    const alt = a && ITEM.test(String(a.id || "")) && typeof a.buy === "string" && BUY.test(a.buy) && radarImage(a.image) ? { id: String(a.id), title: str(a.title, 140), image: radarImage(a.image), buy: a.buy, price: num(a.price), orders: num(a.orders), ordersBefore: num(a.ordersBefore), weekPct: num(a.weekPct), state: HOTS.has(a.state) ? a.state : null, from: day(a.from), to: day(a.to), check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${a.id}.html`)}` } : null;
+    const alt = a && ITEM.test(String(a.id || "")) && typeof a.buy === "string" && BUY.test(a.buy) && radarImage(a.image) ? { id: String(a.id), title: str(a.title, 140), image: radarImage(a.image), buy: a.buy, price: num(a.price), orders: num(a.orders), ordersBefore: num(a.ordersBefore), weekPct: num(a.weekPct), state: HOTS.has(a.state) ? a.state : null, from: day(a.from), to: day(a.to), market: cleanMarket(a.market), check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${a.id}.html`)}` } : null;
     const yt = c.yt && num(c.yt.videos) !== null ? { videos: num(c.yt.videos), views: num(c.yt.views), days: num(c.yt.days) ?? 7 } : null;
     const ig = c.ig && num(c.ig.posts) !== null ? { posts: num(c.ig.posts), videos: num(c.ig.videos), likes: num(c.ig.likes), comments: num(c.ig.comments), capped: c.ig.capped === true } : null;
     return { token: str(c.token, 40), reason: c.reason, reasonHe: str(c.reasonHe, 80), items: num(c.items), orders: num(c.orders), firstSeen: day(c.firstSeen), listings: num(c.listings), listingsWeekPct: num(c.listingsWeekPct), ordersWeekPct: num(c.ordersWeekPct), buzz: Array.isArray(c.buzz) ? strs(c.buzz, 4, 20) : null, yt, ig, alt };
