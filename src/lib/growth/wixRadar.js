@@ -7,6 +7,7 @@
 // written anywhere; the store's own data is never read (no Wix permission is asked for).
 // Wording follows the site's rules: what IS, measured numbers with their dates, never a promise.
 
+import { keptOut } from "./callGate.js";
 export const WIX_RADAR = Object.freeze({
   path: "/wix/radar",
   // The only pages allowed to show it in a frame: Wix's own dashboard hosts (vercel.json).
@@ -123,7 +124,7 @@ export function verdictOf(board) {
     .filter((e) => e.at === d && !e.result)
     .map((e) => ({ id: e.concept, concept: byId.get(e.concept) || { id: e.concept }, at: e.at, due: e.due }));
   const brink = (board?.concepts || [])
-    .filter((c) => c?.early && c.early.level !== "CALL" && c.early.count === 3)
+    .filter((c) => c?.early && c.early.level !== "CALL" && c.early.count === 3 && !keptOut(c))
     .map((c) => ({ id: c.id, concept: c, missing: Object.keys(SIGNAL_LABELS).filter((k) => c.early.signals?.[k] !== true) }))
     .slice(0, 5);
   return { day: d, calls, brink, quiet: !calls.length };

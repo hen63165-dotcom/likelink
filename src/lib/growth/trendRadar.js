@@ -264,7 +264,7 @@ export function pickFrom(result = {}, { rules = RADAR, now = Date.now(), concept
  * its demand base; after `gradeDays` the call is graded against the newest reading: HIT when the
  * concept's orders grew ≥ hitPct, else MISS. Calls are never edited after grading.
  */
-export function updateCalls(calls = [], concept, stage, readings = [], { now = Date.now(), rules = RADAR } = {}) {
+export function updateCalls(calls = [], concept, stage, readings = [], { now = Date.now(), rules = RADAR, open: mayOpen = true } = {}) {
   const today = dayOf(now);
   const out = (Array.isArray(calls) ? calls : []).map((c) => ({ ...c }));
   const latest = (Array.isArray(readings) ? readings : []).at(-1);
@@ -277,7 +277,9 @@ export function updateCalls(calls = [], concept, stage, readings = [], { now = D
     c.growth = round(growth);
   }
   const open = out.some((c) => c.concept === concept && !c.result);
-  if (!open && (stage === "EMERGING" || stage === "RISING") && latest?.sum > 0) {
+  // A call opens only when the caller says so (since 26.11 the run grades here and opens a call only
+  // after the kind passed the whole gate, callGate.js).
+  if (mayOpen && !open && (stage === "EMERGING" || stage === "RISING") && latest?.sum > 0) {
     out.push({ concept, stage, at: today, base: latest.sum, due: dayOf(Date.parse(today) + rules.gradeDays * DAY) });
   }
   return out;

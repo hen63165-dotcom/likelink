@@ -5,6 +5,7 @@
 // scripts/marketing/radar-story.mjs. Nothing is posted from here; she posts it from her phone.
 import { PRODUCTION_ORIGIN } from "../../constants/domain.js";
 import { verdictOf } from "./worldPulse.js";
+import { keptOut } from "./callGate.js";
 
 export const STORY = Object.freeze({ width: 1080, height: 1920 });
 
@@ -66,7 +67,7 @@ export function radarStoryOf(board, { origin = PRODUCTION_ORIGIN } = {}) {
         title: "🔎 היום הרדאר במעקב צמוד",
         sub: "הקביעה הבאה תיחתם כשכל 4 הסימנים יסכימו.",
       };
-      const brink = concepts.filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 2);
+      const brink = concepts.filter((c) => c.early?.level === "WATCH" && c.early.count === 3 && !keptOut(c)).slice(0, 2);
       for (const c of brink) items.push({ icon: "🔥", text: `על סף קביעה: ${c.he}` });
       const born = concepts
         .filter((c) => c.factory?.born && c.early?.level !== "CALL")

@@ -116,6 +116,7 @@ export function teaserBoard(board) {
     // The radar vs the simple ranking: the record and the comparison stay public; the day's picks do not.
     backtest: cleanBacktest(board.backtest),
     rivals: cleanRivals(board.rivals, { full: false }),
+    callGate: board.callGate || null,
     versus: board.versus ? { ...cleanVersus(board.versus), seal: board.versus.seal ? { d: board.versus.seal.d, sha256: board.versus.seal.sha256, count: board.versus.seal.count, ots: board.versus.seal.ots || [] } : null } : null,
     prelaunch: board.prelaunch ? { ...cleanPrelaunch(board.prelaunch, { full: false }), seal: board.prelaunch.seal ? { d: board.prelaunch.seal.d, sha256: board.prelaunch.seal.sha256, count: board.prelaunch.seal.count, ots: board.prelaunch.seal.ots || [] } : null } : null,
     baseline: board.baseline ? { ...cleanBaseline(board.baseline, { full: false }), seal: board.baseline.seal ? { d: board.baseline.seal.d, sha256: board.baseline.seal.sha256, count: board.baseline.seal.count, ots: board.baseline.seal.ots || [] } : null } : null,

@@ -19,6 +19,7 @@ import { LEDGER_BOOKS } from "./radarLedger.js";
 import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
+import { GATE_REASONS, cleanGate } from "./callGate.js";
 import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
@@ -197,6 +198,7 @@ function cleanRow(c) {
     action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,
     actionHe: Object.hasOwn(ACTIONS, c.action) ? ACTIONS[c.action] : null,
     accel: cleanAccel(c.accel),
+    gateWhy: c.gateWhy === "ok" || GATE_REASONS.includes(c.gateWhy) ? c.gateWhy : null,
     lifecycle: Object.hasOwn(LIFECYCLE, c.lifecycle) ? c.lifecycle : null,
     lifecycleHe: Object.hasOwn(LIFECYCLE, c.lifecycle) ? LIFECYCLE[c.lifecycle].he : null,
     alpha: cleanAlpha(c.alpha),
@@ -288,6 +290,7 @@ export function sanitizeBoard(doc) {
     // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
     backtest: cleanBacktest(doc.backtest),
     rivals: cleanRivals(doc.rivals),
+    callGate: cleanGate(doc.callGate),
     versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
     prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,

@@ -68,6 +68,7 @@ async function aeCall(method, biz, opts) {
   return res;
 }
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
+import { callGate, gateTally } from "../../src/lib/growth/callGate.js";
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, lookCandidates, mergeLooks, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
@@ -497,7 +498,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         } catch { /* the pool is never worth a failed reading */ }
         const s = signals(readings[c.id]);
         const stage = stageOf(s);
-        calls = updateCalls(calls, c.id, stage, readings[c.id], { now });
+        // Graded here; a new call opens only after the whole gate (callGate.js), once the morning's
+        // Israel, world, buzz, acceleration and listings are measured.
+        calls = updateCalls(calls, c.id, stage, readings[c.id], { now, open: false });
         log.push(`${c.id}: ${reading.listings ?? "?"} listings · top orders ${reading.sum} · ${stage}${s.ok ? ` (${s.demandWeek}%/wk over ${s.span}d, breadth ${s.breadth})` : ""}${pick ? "" : " · no pick passes the rules"}`);
       } catch (err) {
         log.push(`${c.id}: ${String(err?.message || err).slice(0, 100)}`);
@@ -1674,14 +1677,21 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
+  const gates = [];
   for (const c of board.concepts || []) {
     c.world = worldPulseOf(worldMap[c.id] || []);
     c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early, ads: c.social?.ads });
+    // 🚪 Every call passes the whole gate first (callGate.js; the owner, 26.11: "never a saturated
+    // product again, in any way"): before everyone, not fading, not saturated, not noise.
+    const gate = callGate(c, signals(readings[c.id] || []));
+    gates.push({ id: c.id, ...gate });
+    c.gateWhy = gate.ok ? "ok" : gate.why;
+    if (gate.ok) calls = updateCalls(calls, c.id, c.stage, readings[c.id], { now, open: true });
     // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
     const latest = (readings[c.id] || []).at(-1);
     // Only an open EARLY call blocks a new one: a rising concept nearly always has an open stage call
     // (updateCalls), and that must never stop the stronger early call from being sealed.
-    if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && x.kind === "early" && !x.result)) {
+    if (c.early.level === "CALL" && gate.ok && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && x.kind === "early" && !x.result)) {
       calls.push({ concept: c.id, kind: "early", stage: c.stage, at: today, base: latest.sum, due: new Date(Date.parse(today) + 14 * 86_400_000).toISOString().slice(0, 10), signals: Object.entries(c.early.signals).filter(([, v]) => v).map(([k]) => k) });
       log.push(`EARLY CALL ${c.id}: ${c.early.count}/4 signals`);
     }
@@ -1689,6 +1699,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     c.factory = factoryOf(c.listings); // the factory signal: sellers rushing in before buyers
     c.supply = supplyGapOf({ series: c.series, listings: c.listings }); // 🏭 sellers against demand (supplyGap.js)
   }
+  // The gate's morning (callGate.js): how many kinds rose, how many were called, why the others were kept
+  // out. The record includes today's calls (they open here now, after the whole gate).
+  board.callGate = { d: today, ...gateTally(gates) };
+  board.record = trackRecord(calls);
+  log.push(`call gate: ${board.callGate.rising} kinds rising · called ${board.callGate.called} · kept out: ${["israel_arrived", "world_known", "buzz", "fading", "saturated", "noise", "unmeasured"].map((k) => `${k} ${board.callGate[k]}`).join(", ")} · out: ${gates.filter((g) => !g.ok && g.why !== "stage").slice(0, 10).map((g) => `${g.id} (${g.why})`).join(", ") || "none"}`);
   board.supply = supplyBoard(board.concepts);
   // 🧭 The path every trend walks (trendPath.js; the owner, 22.11: "check how every product that became
   // a trend started"): where each kind stands today — origin, community, crossing, rush, everyone — with

@@ -19,6 +19,7 @@ import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SEC
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
 import { recomputeCases } from "../../lib/growth/radarBacktest.js";
+import { keptOut } from "../../lib/growth/callGate.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
@@ -655,9 +656,10 @@ function Verdict({ board, gated = false }) {
     );
   }
   // On the brink: three of the four signals today. Tomorrow's reading decides (never a promise).
-  const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3).slice(0, 5);
+  // Never a kind the call gate kept out (known, arrived in Israel, saturated or fading: callGate.js).
+  const brink = (board.concepts || []).filter((c) => c.early?.level === "WATCH" && c.early.count === 3 && !keptOut(c)).slice(0, 5);
   // Born now: sellers rush in (listings +25%/week from a small base) before buyers search.
-  const born = (board.concepts || []).filter((c) => c.factory?.born && c.early?.level !== "CALL").sort((a, b) => b.factory.weekPct - a.factory.weekPct).slice(0, 5);
+  const born = (board.concepts || []).filter((c) => c.factory?.born && c.early?.level !== "CALL" && !keptOut(c)).sort((a, b) => b.factory.weekPct - a.factory.weekPct).slice(0, 5);
   const day = String(board.at || "").slice(0, 10);
   const v = verdictOf({ ledger: board.early.ledger || [], concepts: board.concepts || [], day });
   const ledger = board.early.ledger || [];
@@ -1304,6 +1306,21 @@ function RivalRace({ rivals }) {
         </ul>
       ) : null}
       <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} פוסטים מ־${r.since ? dm(r.since) : "—"}`).join(" · ")}`, `Checked on ${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} posts since ${r.since ? dm(r.since) : "—"}`).join(" · ")}`)}</p>
+    </section>
+  );
+}
+
+// 🚪 The gate's morning (callGate.js): how many kinds rose, how many were called, and why the others stayed out.
+function GateLine({ g }) {
+  const { L } = useL();
+  const parts = [["israel_arrived", "כבר הגיעו לישראל", "already in Israel"], ["world_known", "כבר מוכרים בעולם", "already known in the world"], ["buzz", "כבר באזז בחו״ל", "already buzzing abroad"], ["fading", "דועכים", "fading"], ["saturated", "רוויים (יותר מ־2,000 מודעות)", "saturated (over 2,000 listings)"], ["noise", "עלייה שהרעש מסביר", "a rise the noise explains"], ["unmeasured", "בלי ספירת מודעות היום", "no listing count today"]].filter(([k]) => g[k] > 0);
+  return (
+    <section className="lx-wrap mt-6" id="gate">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("🚪 השער: רק מה שעוד לפני כולם", "🚪 The gate: only what is still before everyone")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("כל קביעה עוברת את כל הבדיקות באותו בוקר: הביקוש מתחיל לעלות, העולם עוד שקט, גם בחו״ל עוד שקט, ישראל עוד לפני, הקצב עולה, עד 2,000 מודעות דומות (נספר היום), והעלייה גדולה מהרעש. מה שנחתם לפני השער נשאר בספר ומקבל ציון כמו כל קביעה.", "Every call passes every check on the same morning: demand starting to rise, the world still quiet, no buzz abroad, Israel not there yet, not fading, not saturated (up to 2,000 similar listings, counted today), and a rise bigger than the noise. What was sealed before the gate stays in the ledger and is graded like every call.")}</p>
+        <p className="mt-2 text-[14px] font-bold">{L(`ב־${dm(g.d)}: ${g.rising} סוגים עלו, ${g.called} עברו את השער.`, `On ${dm(g.d)}: ${g.rising} kinds rose, ${g.called} passed the gate.`)}{parts.length ? L(` נשארו בחוץ: ${parts.map(([k, he]) => `${he} ${g[k]}`).join(" · ")}.`, ` Kept out: ${parts.map(([k, , en]) => `${en} ${g[k]}`).join(" · ")}.`) : ""}</p>
+      </div>
     </section>
   );
 }
@@ -2471,6 +2488,7 @@ export function RadarPage() {
       </div>
 
       <div role="tabpanel" id="rdr-panel-proof" aria-labelledby="rdr-tab-proof" hidden={tab !== "proof"}>
+        {board?.callGate ? <GateLine g={board.callGate} /> : null}
         {board ? <RecordTable board={board} /> : null}
         {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
         {board?.rivals ? <RivalRace rivals={board.rivals} /> : null}
