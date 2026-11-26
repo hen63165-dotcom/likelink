@@ -32,6 +32,8 @@ test("each door at its own bar: different stores, new domains above their old ra
   assert.deepEqual([...s.prelaunch.keys()], ["jelly ring"], "three stores this week; the cup's stores listed it before, the lamp has two");
   assert.deepEqual([...s.shops.keys()], ["jelly ring"], "a pair above its old rate; a single word and a pair below its old rate are out");
   assert.deepEqual([...s.listings.keys()], ["jelly ring"], "running at +25% a week or more; a holiday is skipped");
+  const named = doorSignals({ shopWords: { days: [back(1)], w: { "truck rental": { [back(1)]: 4 }, "jelly ring": { [back(1)]: 2 } } } }, T, { productKeys: new Set(["jelly ring"]) });
+  assert.deepEqual([...named.shops.keys()], ["jelly ring"], "a shop's name counts only when listings use it as a phrase (26.11: truck rental)");
 });
 
 test("a call needs two doors this week; the control comes from one-door names, seeded by the day", () => {

@@ -104,7 +104,7 @@ import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice }
 import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
 import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
 import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
-import { NOISE, candidates as noiseCandidates, controlPool as noiseControls, doorSignals, mergeSignals as mergeNoise, noiseBoard, noiseQueue, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls } from "../../src/lib/growth/beforeNoise.js";
+import { NOISE, keyOf as noiseKey, candidates as noiseCandidates, controlPool as noiseControls, doorSignals, mergeSignals as mergeNoise, noiseBoard, noiseQueue, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls } from "../../src/lib/growth/beforeNoise.js";
 import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
@@ -2060,7 +2060,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     for (const k of board.kinds?.list || []) listings.push({ phrase: k.en, weekPct: k.medianWeekPct, orders: k.orders });
     for (const r of board.factories?.top || []) if (r.lead?.title) listings.push({ phrase: distinctPhrase(r.lead.title, df), weekPct: r.medianWeekPct, orders: r.orders });
-    const signals = doorSignals({ prelaunch: readJson(join(dir, "prelaunch.json"), {}), shopWords: readJson(join(dir, "shop-words.json"), {}), listings }, today, { skip: waveSkip(watch) });
+    const productKeys = new Set([...df.entries()].filter(([, n]) => n >= 2).map(([ph]) => noiseKey(ph)).filter(Boolean));
+    const signals = doorSignals({ prelaunch: readJson(join(dir, "prelaunch.json"), {}), shopWords: readJson(join(dir, "shop-words.json"), {}), listings }, today, { skip: waveSkip(watch), productKeys });
     st = mergeNoise(st, signals, today);
     const agree = noiseCandidates(st, today);
     const checked = [];

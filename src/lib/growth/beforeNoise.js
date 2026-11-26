@@ -75,9 +75,10 @@ export function keyOf(phrase = "") {
  * Today's names per door.
  * prelaunch: the prelaunch state ({ ps: { phrase: { store: firstDay } } });
  * shopWords: the shop-words state ({ days, w: { key: { day: n } } });
- * listings: [{ phrase, weekPct, orders }] from the runner (fast new listings, new kinds, jumping stores).
+ * listings: [{ phrase, weekPct, orders }] from the runner (fast new listings, new kinds, jumping stores);
+ * productKeys: the names this year's new listings use as a phrase (a shop pair outside it is no product).
  */
-export function doorSignals({ prelaunch = {}, shopWords = {}, listings = [] } = {}, today, { rules = NOISE, skip = () => false } = {}) {
+export function doorSignals({ prelaunch = {}, shopWords = {}, listings = [] } = {}, today, { rules = NOISE, skip = () => false, productKeys = null } = {}) {
   const out = { prelaunch: new Map(), shops: new Map(), listings: new Map() };
   if (!DAY.test(String(today || ""))) return out;
   const from = addDays(today, -rules.windowDays);
@@ -99,6 +100,9 @@ export function doorSignals({ prelaunch = {}, shopWords = {}, listings = [] } = 
     if (week < rules.minDomains) continue;
     const before = beforeDays.reduce((s, d) => s + (per?.[d] || 0), 0);
     const expected = beforeDays.length ? before * (weekDays.length / beforeDays.length) : 0;
+    // A shop's name is a product only when listings use the same two words as a phrase (26.11's first
+    // real run: "truck rental", "business special", "glass work" — business names, never products).
+    if (productKeys && !productKeys.has(keyOf(k))) continue;
     if (week > expected) add("shops", k, week);
   }
   for (const l of Array.isArray(listings) ? listings : []) {
