@@ -12,7 +12,7 @@ import { parseLedgerText } from "./radarLedger.js";
 
 // Where each book's seal sits on the board (radarCore.js INSTRUMENTS order; prices have no text on it).
 export const BOOK_SEALS = Object.freeze({
-  early: (b) => b?.early?.seal, stages: (b) => b?.stagesSeal, luck: (b) => b?.luck?.seal, baseline: (b) => b?.baseline?.seal,
+  early: (b) => b?.early?.seal, stages: (b) => b?.stagesSeal, luck: (b) => b?.luck?.seal, baseline: (b) => b?.baseline?.seal, versus: (b) => b?.versus?.seal,
   fresh: (b) => b?.fresh?.seal, kinds: (b) => b?.kinds?.seal, prelaunch: (b) => b?.prelaunch?.seal, supply: (b) => b?.supply?.seal, brain: (b) => b?.brain?.seal,
   promise: (b) => b?.promise?.seal, window: (b) => b?.window?.seal, globe: (b) => b?.globe?.seal, run: (b) => b?.receipt?.seal,
 });

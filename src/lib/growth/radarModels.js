@@ -51,8 +51,8 @@ export function richExamples(items, h, d, line, { rules = MODELS, promise = PROM
       const y = rs.find((r) => r[0] === dayStr(dayNum(t) + h));
       if (!y) continue;
       const f = richFeatures(rs, t, { promise });
-      if (!f) continue;
-      out.push({ x: xRich(f, h), y: y[1] + 1e-9 >= f.o * (1 + line / 100) ? 1 : 0 });
+      if (!f || f.o < promise.minOrders) continue;
+      out.push({ x: xRich(f, h), y: y[1] + 1e-9 >= f.o * (1 + line / 100) && y[1] >= f.o + 1 ? 1 : 0 });
       found++;
     }
   }

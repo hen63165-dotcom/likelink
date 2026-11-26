@@ -102,6 +102,7 @@ import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
 import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
 import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
+import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
 import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
@@ -1469,7 +1470,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   let baseState = readJson(join(dir, "baseline.json"), { naive: [], random: [] });
   if (store) {
     const openFresh = readJson(join(dir, "fresh-calls.json"), []).filter((c) => !c.result && /^\d{6,20}$/.test(String(c.id))).map((c) => String(c.id));
-    const ids = [...new Set([...openFresh, ...baselineOpenIds(baseState)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 240);
+    const ids = [...new Set([...openFresh, ...baselineOpenIds(baseState), ...versusDueIds(readJson(join(dir, "versus.json"), {}), today)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 360);
     let read = 0;
     for (let i = 0; i < ids.length; i += 20) {
       try {
@@ -1894,6 +1895,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`backtest: ${bt.horizons.map((h) => `${h.h}d: ${h.days} days (${h.skipped} without enough history), ${h.cases} cases · top ${h.k}: model ${h.model.rate}%, simple ranking ${h.rank.rate}%, chance ${h.random.rate}% · Brier model ${h.brier.model}, ranking ${h.brier.rank}, constant ${h.brier.base} · AUC ${h.auc.model} vs ${h.auc.rank} · days won ${h.dayDuel.wins}, lost ${h.dayDuel.losses}, tied ${h.dayDuel.ties} (sign test p ${h.dayDuel.p})`).join(" | ")} · ${Math.round((Date.now() - t0) / 1000)} s`);
     } catch (err) { log.push(`backtest: ${String(err?.message || err).slice(0, 120)}`); }
   }
+  // ⚔️ The sealed head-to-head (radarVersus.js; the owner, 26.11: "start now, so we can know, not always
+  // wait"): every morning the radar seals its learning model's pick, its noise-checked order, the simple
+  // ranking's pick and a random pick from the same public sample; each is graded by the store's own
+  // orders after 3 and 7 days. The first 3-day grades come three mornings after the first sheet.
+  if (env.RADAR_VERSUS !== "0" && !late("versus", 90_000)) {
+    try {
+      let vs = gradeVersus(readJson(join(dir, "versus.json"), {}), items, today);
+      const sheet = vs.days?.[today] ? null : versusSheet(items, today);
+      vs = recordVersus(vs, sheet, today);
+      writeFileSync(join(dir, "versus.json"), JSON.stringify(vs));
+      const todays = vs.days?.[today] || null;
+      const text = versusSealText(todays);
+      board.versus = { ...versusRecord(vs, today), today: todays ? today : null };
+      if (text) board.versus.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.versus?.seal, "versus");
+      log.push(`versus: ${todays ? `sheet sealed for ${today} (${todays.pool.length} items in the sample, ${Object.values(todays.picks).map((p) => Object.entries(p).map(([c, l]) => `${c} ${l.length}`).join("/")).join(" | ")})` : "no sheet today (too few measured items)"} · ${board.versus.horizons.map((x) => `${x.h}d: ${x.days} days graded${x.days ? ` · learning ${x.learn.rate}% · noise-checked ${x.radar.rate}% · ranking ${x.rank.rate}% · random ${x.random.rate}%` : ""} · next grade ${x.nextDue || "-"}`).join(" | ")}`);
+    } catch (err) { log.push(`versus: ${String(err?.message || err).slice(0, 120)}`); }
+  }
   // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
   // factories, before sales, before everything"): the store's newest listings nobody has bought yet,
   // per area and a rotation of world categories, each with its store's id. A phrase many different
@@ -2088,7 +2106,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

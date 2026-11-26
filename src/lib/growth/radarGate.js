@@ -10,6 +10,7 @@ import { AREA_HE } from "./radarAreas.js";
 import { cleanPrelaunch } from "./listingWave.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
+import { cleanVersus } from "./radarVersus.js";
 import { cleanBaseline } from "./radarBaseline.js";
 
 export const RADAR_BOARD_KEY = "radar:board";
@@ -115,6 +116,7 @@ export function teaserBoard(board) {
     // The radar vs the simple ranking: the record and the comparison stay public; the day's picks do not.
     backtest: cleanBacktest(board.backtest),
     rivals: cleanRivals(board.rivals, { full: false }),
+    versus: board.versus ? { ...cleanVersus(board.versus), seal: board.versus.seal ? { d: board.versus.seal.d, sha256: board.versus.seal.sha256, count: board.versus.seal.count, ots: board.versus.seal.ots || [] } : null } : null,
     prelaunch: board.prelaunch ? { ...cleanPrelaunch(board.prelaunch, { full: false }), seal: board.prelaunch.seal ? { d: board.prelaunch.seal.d, sha256: board.prelaunch.seal.sha256, count: board.prelaunch.seal.count, ots: board.prelaunch.seal.ots || [] } : null } : null,
     baseline: board.baseline ? { ...cleanBaseline(board.baseline, { full: false }), seal: board.baseline.seal ? { d: board.baseline.seal.d, sha256: board.baseline.seal.sha256, count: board.baseline.seal.count, ots: board.baseline.seal.ots || [] } : null } : null,
     luck: board.luck ? { versus: board.luck.versus, draws: board.luck.draws, nextDue: board.luck.nextDue, recent: board.luck.recent || [], today: null, seal: board.luck.seal ? { d: board.luck.seal.d, sha256: board.luck.seal.sha256, count: board.luck.seal.count, ots: board.luck.seal.ots || [] } : null } : null,

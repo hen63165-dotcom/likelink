@@ -32,6 +32,8 @@ function market(n = 260, days = 36, seed = 7) {
 
 test("the pieces: reached, AUC, the sign test", () => {
   assert.equal(reached(100, 110, 10), true);
+  assert.equal(reached(0, 0, 10), false, "at 0 orders nothing grew (26.11: the lab counted every 0-order item as a hit)");
+  assert.equal(reached(5, 5, 10), false, "the same orders: no growth");
   assert.equal(reached(100, 109, 10), false);
   assert.equal(auc([0.1, 0.4, 0.35, 0.8], [0, 0, 1, 1]), 0.75);
   assert.equal(auc([1, 1], [1, 1]), null, "one outcome only: no AUC");
@@ -103,7 +105,7 @@ test("the board keeps the record (behind the lock too), never the cases; the pag
   assert.equal(cleanBacktest({ horizons: [{ h: 5 }] }).horizons.length, 0);
   assert.equal(SECTION_TABS.backtest, "proof");
   const page = readFileSync("src/components/discover/radar.jsx", "utf8");
-  assert.match(page, /<HeadToHead bt=\{board\.backtest\} \/>/);
+  assert.match(page, /<HeadToHead bt=\{board\.backtest\} versus=\{board\.versus\} \/>/);
   assert.match(page, /id="backtest"/);
   const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
   assert.match(run, /env\.RADAR_BACKTEST !== "0"/);

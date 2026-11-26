@@ -44,6 +44,11 @@ export const PROMISE = Object.freeze({
   // markets, and none for product trends): per horizon, the chance the item's 30-day orders grow by
   // at least this much. 14 days uses the new products' own hit line (+50%, freshRisers.gradeFresh).
   chanceLine: { 3: 10, 7: 25, 14: 50 },
+  // 26.11, the lab on the real history: an item at 0 orders "reached +10%" whatever happened, so it was
+  // a sure hit. The chance is given and graded only from `minOrders` (where +10% is a real order), a hit
+  // needs at least one more order, and the record under that rule (`chanceRule`) starts on its own day.
+  minOrders: 10,
+  chanceRule: 2,
   chanceBins: 10,
 });
 
@@ -196,7 +201,7 @@ export function rangeFor(series, today, cal, level, { rules = PROMISE } = {}) {
 export function chanceFor(series, today, cal, { rules = PROMISE } = {}) {
   if (!cal || cal.state !== "READY" || !cal.res) return null;
   const f = featuresAt(series, today, { rules });
-  if (!f) return null;
+  if (!f || f.o < rules.minOrders) return null;
   const line = rules.chanceLine[cal.h];
   if (!Number.isFinite(line)) return null;
   const rs = cal.res.bands?.[bandOf(f.o, rules)] || cal.res.all;
@@ -234,7 +239,7 @@ export function issuePromises(items, ids, today, calib, { rules = PROMISE } = {}
   return out;
 }
 
-export const newPromiseState = () => ({ v: PROMISE.version, alphas: {}, totals: {}, chance: {}, open: [], recent: [] });
+export const newPromiseState = () => ({ v: PROMISE.version, alphas: {}, totals: {}, chance: {}, chanceRule: PROMISE.chanceRule, chanceSince: null, open: [], recent: [] });
 
 /**
  * Grades every open range whose day came: HELD (1) when the real 30-day orders fell inside, else 0,
@@ -246,7 +251,10 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
   const s = { ...newPromiseState(), ...(state || {}) };
   const alphas = JSON.parse(JSON.stringify(s.alphas || {}));
   const totals = JSON.parse(JSON.stringify(s.totals || {}));
-  const chance = JSON.parse(JSON.stringify(s.chance || {}));
+  // A chance record kept under an older rule restarts under the current one (dated: `chanceSince`).
+  const sameRule = s.chanceRule === rules.chanceRule;
+  const chance = sameRule ? JSON.parse(JSON.stringify(s.chance || {})) : {};
+  const chanceSince = sameRule ? s.chanceSince || today : today;
   const open = [];
   const graded = [];
   let setAside = 0;
@@ -266,8 +274,8 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
   for (const g of graded) {
     // The chance, graded like a weather forecast: did it happen, and how far was the chance from it.
     const line = rules.chanceLine[g.h];
-    if (Number.isFinite(g.c) && Number.isFinite(line)) {
-      const hit = g.v >= g.o * (1 + line / 100) ? 1 : 0;
+    if (Number.isFinite(g.c) && Number.isFinite(line) && g.o >= rules.minOrders) {
+      const hit = g.v >= g.o * (1 + line / 100) && g.v >= g.o + 1 ? 1 : 0;
       const p = g.c / 100;
       const t = (chance[g.h] ||= { n: 0, hits: 0, brier: 0, bins: Array.from({ length: rules.chanceBins }, () => ({ n: 0, p: 0, hits: 0 })) });
       t.n++; t.hits += hit; t.brier = Math.round((t.brier + (p - hit) ** 2) * 1e6) / 1e6;
@@ -284,7 +292,7 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
     });
   }
   return {
-    state: { v: rules.version, alphas, totals, chance, open, recent: [...graded.reverse(), ...(s.recent || [])].slice(0, rules.keepRecent) },
+    state: { v: rules.version, alphas, totals, chance, chanceRule: rules.chanceRule, chanceSince, open, recent: [...graded.reverse(), ...(s.recent || [])].slice(0, rules.keepRecent) },
     graded: graded.length,
     setAside,
   };
@@ -353,6 +361,7 @@ export function promiseBoard(state, calib, issued, today, { rules = PROMISE } = 
     }),
     coverage: coverageOf(state, { rules }),
     chance: chanceRecord(state, { rules }),
+    chanceSince: state.chanceSince || null,
     issued: issued.length,
     open: (state.open || []).length,
     nextDue: dues.find((d) => d > today) || dues[0] || null,

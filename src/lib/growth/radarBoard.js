@@ -19,6 +19,7 @@ import { LEDGER_BOOKS } from "./radarLedger.js";
 import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
+import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
@@ -69,6 +70,8 @@ const BASELINE_LINE = "(?:naive|random)\\|\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d
 const BASELINE_BOOK = new RegExp(`^${BASELINE_LINE}(\\n${BASELINE_LINE})*$`);
 // 🏭 Before the first sale (listingWave.js prelaunchSealText).
 const PRELAUNCH_BOOK = new RegExp(`^${PRELAUNCH_LINE}(\\n${PRELAUNCH_LINE})*$`);
+// ⚔️ The sealed head-to-head (radarVersus.js versusSealText): the day's sample and picks, item numbers only.
+const VERSUS_BOOK = new RegExp(`^${VERSUS_LINE}(\\n${VERSUS_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -285,6 +288,7 @@ export function sanitizeBoard(doc) {
     // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
     backtest: cleanBacktest(doc.backtest),
     rivals: cleanRivals(doc.rivals),
+    versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
     prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),
@@ -435,6 +439,7 @@ function cleanPromise(p) {
     at: day(p.at),
     horizons: (Array.isArray(p.horizons) ? p.horizons : []).filter((h) => RANGE_H.includes(h?.h)).map((h) => ({ h: h.h, state: h.state === "READY" ? "READY" : "CALIBRATING", n: Math.max(0, num(h.n) ?? 0), need: num(h.need) ?? 60 })),
     coverage: cov,
+    chanceSince: day(p.chanceSince),
     // 🎯 The calibrated chance's record per horizon (radarPromise.js chanceRecord).
     chance: (Array.isArray(p.chance) ? p.chance : []).filter((c) => RANGE_H.includes(c?.h) && CHANCE_LINE[c.h] === c.line).map((c) => ({
       h: c.h, line: c.line, n: Math.max(0, num(c.n) ?? 0), hits: Math.max(0, num(c.hits) ?? 0),

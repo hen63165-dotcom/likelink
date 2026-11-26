@@ -30,7 +30,7 @@ import { PROMISE, bandOf, calibrate, chanceFor, examples, featuresAt, targetAt }
 import { growthOverDays } from "./freshRisers.js";
 import { learnOn, predictLogistic, richFeatures, xRich } from "./radarModels.js";
 
-export const BACKTEST = Object.freeze({ horizons: [3, 7], k: 20, perDay: 400, minPool: 40, maxDays: 30, paceBins: 10, maxCases: 30_000 });
+export const BACKTEST = Object.freeze({ horizons: [3, 7], k: 20, minOrders: PROMISE.minOrders, perDay: 400, minPool: 40, maxDays: 30, paceBins: 10, maxCases: 30_000 });
 
 // FNV-1a: the day's sample of items is a fixed, public shuffle (nobody picks them), so every case can be published.
 const fnv = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
@@ -42,15 +42,16 @@ const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
 const r1 = (x) => (Number.isFinite(x) ? Math.round(x * 10) / 10 : null);
 
 /** True when an item at `o` orders reached the line: `y` ≥ o × (1 + line). */
-export const reached = (o, y, line) => y + 1e-9 >= o * (1 + line / 100);
+// From `minOrders` only, and at least one more order (26.11: at 0 orders every item "reached +10%").
+export const reached = (o, y, line) => y + 1e-9 >= o * (1 + line / 100) && y >= o + 1;
 
 /** The simple ranking as a probability: its pace decile's hit share among the examples known on day d. */
 export function paceForecaster(train, line, bins = BACKTEST.paceBins) {
   const rows = train.map((e) => {
     const o = Math.exp(e.x[2]) - 1;
     const pace = e.x[1];
-    return { pace, hit: e.y >= Math.log((o * (1 + line / 100) + 1) / (o + 1)) };
-  }).sort((a, b) => a.pace - b.pace);
+    return { pace, o, hit: e.y >= Math.log((o * (1 + line / 100) + 1) / (o + 1)) && e.y >= Math.log((o + 2) / (o + 1)) - 1e-12 };
+  }).filter((r) => r.o >= PROMISE.minOrders).sort((a, b) => a.pace - b.pace);
   const n = rows.length;
   if (!n) return null;
   const edges = Array.from({ length: bins - 1 }, (_, i) => rows[Math.floor(((i + 1) * n) / bins)].pace);
@@ -111,7 +112,7 @@ export function backtest(items = {}, today, { rules = BACKTEST, promise = PROMIS
       const lm = learnOn(items, h, d, line, { promise });
       if (!lm) { acc.skipped++; continue; }
       const pool = [];
-      const ids = Object.keys(items).filter((id) => featuresAt(items[id], d, { rules: promise })).sort((a, b) => fnv(`${d}|${a}`) - fnv(`${d}|${b}`) || (a < b ? -1 : 1)).slice(0, rules.perDay);
+      const ids = Object.keys(items).filter((id) => (featuresAt(items[id], d, { rules: promise })?.o ?? -1) >= rules.minOrders).sort((a, b) => fnv(`${d}|${a}`) - fnv(`${d}|${b}`) || (a < b ? -1 : 1)).slice(0, rules.perDay);
       for (const id of ids) {
         const series = items[id];
         const f = featuresAt(series, d, { rules: promise });
@@ -190,7 +191,7 @@ export function backtestBoard(bt) {
 /** The published cases: one row per item, day and horizon, so anyone can recompute every number. */
 export const CASE_COLUMNS = Object.freeze(["horizon", "day", "item", "orders", "pacePerDay", "modelChancePct", "rankingChancePct", "ordersAfter", "grew", "radarLowWeekPct", "learnChancePct"]);
 export function backtestPublic(bt) {
-  return bt ? { at: bt.at, rule: "grew = ordersAfter >= orders × (1 + line/100); line: 3 days +10%, 7 days +25%; top k = 20 a day (or a fifth of a small pool)", columns: CASE_COLUMNS, cases: bt.cases } : null;
+  return bt ? { at: bt.at, rule: "items with at least 10 orders; grew = ordersAfter >= orders × (1 + line/100) and ordersAfter >= orders + 1; line: 3 days +10%, 7 days +25%; top k = 20 a day (or a fifth of a small pool)", columns: CASE_COLUMNS, cases: bt.cases } : null;
 }
 
 /** Recomputes the top-k head-to-head from the published cases (the page runs it in the visitor's browser). */

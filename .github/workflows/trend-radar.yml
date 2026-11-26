@@ -53,6 +53,8 @@ on:
       - src/lib/growth/saturation.js
       - src/lib/growth/listingWave.js
       - src/lib/growth/radarBacktest.js
+      - src/lib/growth/radarModels.js
+      - src/lib/growth/radarVersus.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/runReceipt.js
 permissions:

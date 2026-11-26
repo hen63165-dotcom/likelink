@@ -1591,6 +1591,7 @@ function ProvenRange({ promise }) {
         <div className="mt-4 rounded-[14px] p-4" style={{ background: "#fff", border: "1px solid #99f6e4" }}>
           <p className="text-[16px] font-black">{L("🎯 הסיכוי המכויל", "🎯 The calibrated chance")}</p>
           <p className="mt-1 text-[13px] leading-6">{L("כמו במזג האוויר: כשאומרים 30% גשם, יורד גשם בערך ב־3 ימים מתוך 10. כך כאן: לכל מוצר הרדאר נותן סיכוי לעלות (ב־10% תוך 3 ימים, ב־25% תוך 7, ב־50% תוך 14), וכשהוא אומר 30%, זה צריך לקרות בערך 3 פעמים מתוך 10. כל סיכוי נחתם מראש, נבדק ביום שלו, ומקבל ציון Brier מול ניחוש לפי שיעור הבסיס.", "Like the weather: when it says 30% rain, it rains on about 3 days in 10. Here, for every product the radar gives a chance to grow (10% within 3 days, 25% within 7, 50% within 14). When it says 30%, it should happen about 3 times in 10. Every chance is sealed in advance, checked on its day, and given a Brier score against guessing the base rate.")}</p>
+          {promise.chanceSince ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הרקורד נספר מ־${dm(promise.chanceSince)}, מ־10 הזמנות ומעלה ורק עם הזמנה אחת לפחות יותר (ב־26.11 הבדיקה מצאה שמוצר עם 0 הזמנות נספר כ"עלה" בכל מקרה, אז הספירה התחילה מחדש).`, `The record counts from ${dm(promise.chanceSince)}, from 10 orders up and only with at least one more order (on 26.11 the check found that an item at 0 orders counted as "grew" either way, so the count started again).`)}</p> : null}
           {(promise.chance || []).filter((c) => c.n > 0).length ? (
             <ul className="mt-2 grid gap-2">
               {(promise.chance || []).filter((c) => c.n > 0).map((c) => (
@@ -1852,7 +1853,7 @@ function Luck({ luck, concepts = [] }) {
 // simple ranking by order growth and against chance, on the same items; recomputable in the browser.
 const BACKTEST_URL = "https://github.com/hen63165-dotcom/likelink/releases/download/radar/backtest-public.json";
 const RADAR_BACKTEST_HOME = "https://hen63165-dotcom.github.io/likelink/radar/backtest.json";
-function HeadToHead({ bt }) {
+function HeadToHead({ bt, versus }) {
   const { L } = useL();
   const [again, setAgain] = useState(null);
   const nf = (x) => Number(x || 0).toLocaleString(L("he-IL", "en-US"));
@@ -1872,17 +1873,28 @@ function HeadToHead({ bt }) {
     <section className="lx-wrap mt-6" id="backtest">
       <div className="lx-card lx-rdr-panel p-5">
         <h2 className="text-[20px] font-black">{L("🥊 הרדאר מול הדירוג הפשוט ומול המזל, כל יום", "🥊 The radar vs the simple ranking and chance, every day")}</h2>
+        {versus ? (
+          <div className="lx-card lx-rdr-item mt-3 p-3">
+            <p className="text-[16px] font-extrabold">{L("⚔️ הדו־קרב החתום, מכאן והלאה", "⚔️ The sealed head-to-head, from here on")}</p>
+            <p className="mt-1 text-[13px] leading-6">{L(`כל בוקר הרדאר חותם מראש בביטקוין 4 בחירות של 20 מוצרים מאותו מדגם ציבורי: המודל הלומד שלו, הסדר שלו אחרי בדיקת הרעש, הדירוג הפשוט, ובחירה אקראית. אחרי 3 ו־7 ימים ההזמנות של החנות נותנות ציון לכל אחת. נחתם מ־${versus.since ? dm(versus.since) : "היום"}: ${versus.sheets} בקרים.`, `Every morning the radar seals in Bitcoin, in advance, four picks of 20 items from the same public sample: its learning model, its noise-checked order, the simple ranking and a random pick. After 3 and 7 days the store's orders grade each one. Sealed since ${versus.since ? dm(versus.since) : "today"}: ${versus.sheets} mornings.`)}</p>
+            {versus.horizons.map((x) => (x.days ? (
+              <p key={x.h} className="mt-1 text-[13px] font-bold">{L(`${x.h} ימים (${x.days} בקרים נבדקו): המודל הלומד ${x.learn.rate}% · אחרי בדיקת הרעש ${x.radar.rate}% · הדירוג הפשוט ${x.rank.rate}% · אקראי ${x.random.rate}% · ימים מול הדירוג: ${x.learnDuel.wins} ניצחונות, ${x.learnDuel.losses} הפסדים`, `${x.h} days (${x.days} mornings graded): the learning model ${x.learn.rate}% · noise-checked ${x.radar.rate}% · the simple ranking ${x.rank.rate}% · random ${x.random.rate}% · days against the ranking: ${x.learnDuel.wins} won, ${x.learnDuel.losses} lost`)}</p>
+            ) : <p key={x.h} className="mt-1 text-[13px]">{L(`${x.h} ימים: הציון הראשון ב־${x.nextDue ? dm(x.nextDue) : "—"}.`, `${x.h} days: the first grade on ${x.nextDue ? dm(x.nextDue) : "—"}.`)}</p>))}
+          </div>
+        ) : null}
         <p className="mt-1 text-[14px] leading-6">{L("בכל יום מהקריאות של הרדאר: המודל שלו (הסיכוי המכויל 🎯), שלומד רק ממה שהיה ידוע באותו יום, מול הדירוג הפשוט (המוצרים שצמחו הכי מהר בשבוע האחרון) ומול בחירה אקראית, על אותם מוצרים בדיוק (מדגם קבוע שנבחר בגיבוב ציבורי של היום והמוצר). זו בדיקה לאחור, כמו שבודקים תחזיות: כל יום רואה רק את המידע של אותו יום. כל המקרים פתוחים להורדה, ואפשר לחשב הכל מחדש בדפדפן.", "Every day of the radar's readings: its model (the 🎯 calibrated chance), trained only on what was known that day, against the simple ranking (the items that grew fastest over the last week) and a random pick, on exactly the same items (a fixed sample chosen by a public hash of the day and the item). A backtest, the way forecasts are tested: each day sees only that day's data. Every case is open to download, and the page recomputes it in your browser.")}</p>
+        {bt && rows.length ? <p className="mt-3 text-[14px] font-extrabold">{L("📜 הבדיקה לאחור על כל ההיסטוריה", "📜 The backtest on the whole history")}</p> : null}
         {rows.length ? rows.map((h) => {
-          const lead = h.model.rate !== null && h.rank.rate !== null ? Math.round((h.model.rate - h.rank.rate) * 10) / 10 : null;
+          const mine = h.learn?.rate ?? h.model.rate;
+          const lead = mine !== null && h.rank.rate !== null ? Math.round((mine - h.rank.rate) * 10) / 10 : null;
           return (
             <div key={h.h} className="lx-card lx-rdr-item mt-3 p-3">
               <p className="text-[16px] font-extrabold">{L(`תוך ${h.h} ימים: צמיחה של ${h.line}% לפחות`, `Within ${h.h} days: growth of at least ${h.line}%`)}</p>
               <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${h.days} ימים (${dm(h.from)}–${dm(h.to)}) · ${nf(h.cases)} מקרים`, `${h.days} days (${dm(h.from)}–${dm(h.to)}) · ${nf(h.cases)} cases`)}</p>
-              <p className="mt-2 text-[14px] font-bold">{L(`מתוך ה־${h.k} שכל אחד שם ראשונים כל יום, כמה צמחו: המודל של הרדאר ${h.model.rate}% · הסדר של הרדאר אחרי בדיקת הרעש ${h.radar.rate}% · הדירוג הפשוט ${h.rank.rate}% · בחירה אקראית ${h.random.rate}%`, `Of the ${h.k} each one put first every day, how many grew: the radar's model ${h.model.rate}% · the radar's noise-checked order ${h.radar.rate}% · the simple ranking ${h.rank.rate}% · a random pick ${h.random.rate}%`)}</p>
+              <p className="mt-2 text-[14px] font-bold">{L(`מתוך ה־${h.k} שכל אחד שם ראשונים כל יום, כמה צמחו: המודל הלומד של הרדאר ${h.learn?.rate ?? "—"}% · מודל הסיכוי ${h.model.rate}% · הסדר אחרי בדיקת הרעש ${h.radar.rate}% · הדירוג הפשוט ${h.rank.rate}% · בחירה אקראית ${h.random.rate}%`, `Of the ${h.k} each one put first every day, how many grew: the radar's learning model ${h.learn?.rate ?? "—"}% · the chance model ${h.model.rate}% · the noise-checked order ${h.radar.rate}% · the simple ranking ${h.rank.rate}% · a random pick ${h.random.rate}%`)}</p>
               <p className="mt-1 text-[13px]">{L(`ימים: המודל ניצח ב־${h.dayDuel.wins}, הדירוג הפשוט ב־${h.dayDuel.losses}, תיקו ב־${h.dayDuel.ties}${h.dayDuel.p !== null ? ` (מבחן הסימן: p ${h.dayDuel.p})` : ""}`, `Days: the model won ${h.dayDuel.wins}, the simple ranking ${h.dayDuel.losses}, tied ${h.dayDuel.ties}${h.dayDuel.p !== null ? ` (sign test p ${h.dayDuel.p})` : ""}`)}</p>
               <p className="mt-1 text-[13px]">{L(`ציון Brier (נמוך יותר מדויק יותר): המודל ${h.brier.model} · הדירוג הפשוט ${h.brier.rank} · ניחוש קבוע ${h.brier.base} · AUC: המודל ${h.auc.model} · הסדר אחרי בדיקת הרעש ${h.auc.radar} · הדירוג הפשוט ${h.auc.rank}`, `Brier score (lower is more accurate): the model ${h.brier.model} · the simple ranking ${h.brier.rank} · a constant guess ${h.brier.base} · AUC: the model ${h.auc.model} · the noise-checked order ${h.auc.radar} · the simple ranking ${h.auc.rank}`)}</p>
-              {lead !== null ? <p className="mt-1 text-[13px] font-bold" style={{ color: lead > 0 ? "#067647" : undefined }}>{lead > 0 ? L(`המודל מוביל על הדירוג הפשוט ב־${lead} נקודות.`, `The model leads the simple ranking by ${lead} points.`) : lead < 0 ? L(`הדירוג הפשוט מוביל ב־${-lead} נקודות: זה מה שהרדאר משפר עכשיו, והמספרים יראו אם זה הצליח.`, `The simple ranking leads by ${-lead} points: this is what the radar is improving now, and the numbers will show whether it worked.`) : L("שווים.", "Even.")}</p> : null}
+              {lead !== null ? <p className="mt-1 text-[13px] font-bold" style={{ color: lead > 0 ? "#067647" : undefined }}>{lead > 0 ? L(`המודל הלומד של הרדאר מוביל על הדירוג הפשוט ב־${lead} נקודות בבדיקה לאחור.`, `The radar's learning model leads the simple ranking by ${lead} points in the backtest.`) : lead < 0 ? L(`הדירוג הפשוט מוביל ב־${-lead} נקודות: זה מה שהרדאר משפר עכשיו, והמספרים יראו אם זה הצליח.`, `The simple ranking leads by ${-lead} points: this is what the radar is improving now, and the numbers will show whether it worked.`) : L("שווים.", "Even.")}</p> : null}
             </div>
           );
         }) : <p className="mt-2 text-[14px]">{L("הבדיקה מתחילה כשיש מספיק ימים של קריאות.", "The test starts once there are enough days of readings.")}</p>}
@@ -2470,7 +2482,7 @@ export function RadarPage() {
         {board?.ledger?.sha256 ? <VerifyYourself board={board} /> : null}
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
-        {board?.backtest ? <HeadToHead bt={board.backtest} /> : null}
+        {board?.backtest || board?.versus ? <HeadToHead bt={board.backtest} versus={board.versus} /> : null}
         {board?.baseline ? <Baseline baseline={board.baseline} /> : null}
         {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
         {board?.challenge ? <Challenge ch={board.challenge} /> : null}
