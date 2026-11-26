@@ -1,0 +1,37 @@
+# 🧪 The radar lab (scripts/catalog/radar-lab.mjs): the head-to-head on the radar's real item histories
+# in minutes, from any branch. Reads the encrypted state of the main `radar` release (read only: nothing
+# is written back or uploaded) and prints totals only.
+name: Radar lab
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - scripts/catalog/radar-lab.mjs
+      - src/lib/growth/radarModels.js
+      - src/lib/growth/radarBacktest.js
+      - .github/workflows/radar-lab.yml
+permissions:
+  contents: read
+concurrency:
+  group: radar-lab-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: The radar's history (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        run: |
+          mkdir -p lab-state
+          gh release download radar --dir lab-state --pattern state.enc --clobber
+          node scripts/catalog/radar-state.mjs unpack lab-state
+      - name: The head-to-head on the real history
+        run: node scripts/catalog/radar-lab.mjs lab-state

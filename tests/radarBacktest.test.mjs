@@ -54,7 +54,9 @@ test("every day the model, the simple ranking and chance meet on the same items"
     assert.equal(h.dayDuel.wins + h.dayDuel.losses + h.dayDuel.ties, h.days);
   }
   assert.ok(bt.cases.length > 0 && bt.cases.length <= BACKTEST.maxCases);
-  assert.equal(bt.cases[0].length, 10);
+  assert.equal(bt.cases[0].length, 11);
+  assert.ok(bt.horizons.every((h) => h.learn.of === h.rank.of), "the learning model meets them on the same picks count");
+  assert.equal(bt.daily.length, bt.horizons.reduce((s, h) => s + h.days, 0), "one daily row per tested day");
   assert.ok(bt.horizons.every((h) => h.radar.of === h.rank.of), "the radar's noise-checked order meets them on the same picks count");
   // The published cases give back the same head-to-head in any browser.
   const again = recomputeCases(backtestPublic(bt));
@@ -63,6 +65,7 @@ test("every day the model, the simple ranking and chance meet on the same items"
     assert.equal(again[h.h].model, h.model.rate);
     assert.equal(again[h.h].rank, h.rank.rate);
     assert.equal(again[h.h].radar, h.radar.rate);
+    assert.equal(again[h.h].learn, h.learn.rate);
   }
 });
 
@@ -84,6 +87,7 @@ test("no day sees its future: changing what happened later leaves every earlier 
     assert.equal(s[6], r[6], "the simple ranking's chance on that day");
     assert.equal(s[4], r[4], "the item's pace on that day");
     assert.equal(s[9], r[9], "the radar's low-end growth on that day");
+    assert.equal(s[10], r[10], "the learning model's chance on that day");
   }
   assert.ok(compared > 100, `compared ${compared} forecasts`);
 });
