@@ -15,7 +15,7 @@ const dm = (d) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}/.test(d) ? `${Nu
 
 /** The dated sentence: always "we found", with the day of the worldwide check (docs/research/radar-gap-map.md). */
 export const RADAR_CLAIM = Object.freeze({
-  checked: "2026-11-20", // the tenth check (docs/research/radar-gap-map.md) found it still holds
+  checked: "2026-11-26", // the eleventh check (docs/research/radar-gap-map.md) found it still holds
   he: "רדאר טרנדי המוצרים היחיד שמצאנו בעולם שחותם כל קביעה מראש, גם את הטעויות, ונותן לה ציון בפומבי.",
   en: "The only product-trend radar we found in the world that seals every call in advance, misses included, and grades it in public.",
 });
