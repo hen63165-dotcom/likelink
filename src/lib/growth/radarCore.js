@@ -60,6 +60,22 @@ const he = (n) => Number(n).toLocaleString("he-IL");
 const iso = (t) => `\u2066${t}\u2069`;
 const en = (n) => Number(n).toLocaleString("en-US");
 
+/**
+ * The radar's strongest record already graded in public: the proven range at the 90% level, on the
+ * horizon with the most grades (≥ 30), as it stands on the board. Each range was sealed in Bitcoin
+ * the day it was issued and graded on its own day; nothing here is computed beyond held / graded.
+ */
+export function provenRecord(board = {}) {
+  const cov = Array.isArray(board?.promise?.coverage) ? board.promise.coverage : [];
+  const best = cov
+    .filter((c) => c?.level === 90 && Number.isInteger(c?.h) && Number(c?.n) >= 30 && Number.isFinite(Number(c?.held)) && Number(c.held) <= Number(c.n))
+    .sort((a, b) => Number(b.n) - Number(a.n) || a.h - b.h)[0];
+  if (!best) return null;
+  const n = Number(best.n);
+  const held = Number(best.held);
+  return { h: best.h, level: 90, n, held, rate: Math.round((held / n) * 1000) / 10 };
+}
+
 /** A calls book's row: given, checked, hits, the next check. */
 function callsRow(r = {}) {
   const graded = num(r.graded) ?? 0;
