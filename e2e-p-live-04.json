@@ -1,0 +1,61 @@
+{
+ "base": "https://likelink2.vercel.app",
+ "product": "p-live-04",
+ "campaign": "v-lookbook-p-live-04",
+ "pass": false,
+ "results": [
+  {
+   "name": "cloud_reads_on_load",
+   "pass": true,
+   "cloud": [
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Acollections",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asales",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asettings",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Amarketers",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aclicks",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aproducts",
+    "200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos"
+   ],
+   "console": [
+    "warning: [Likelink] Products needing a manual tracking-ID fix: [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Obje"
+   ]
+  },
+  {
+   "name": "product_page_loads",
+   "pass": false,
+   "url": "https://likelink2.vercel.app/p/p-live-04",
+   "h1": "המוצר לא נמצא"
+  },
+  {
+   "name": "no_sideways_scroll_phone",
+   "pass": true
+  },
+  {
+   "name": "video_on_product_page",
+   "pass": false
+  },
+  {
+   "name": "shop_button_is_own_affiliate_link",
+   "pass": false,
+   "href": "",
+   "expected": "https://s.click.aliexpress.com/e/_c4CoPLhr"
+  },
+  {
+   "name": "video_post_on_creator_page",
+   "pass": false,
+   "url": "https://likelink2.vercel.app/u/alyostyle"
+  },
+  {
+   "name": "unknown_product_not_found_page",
+   "pass": true,
+   "sample": "דילוג לתוכן LikeLink2 פתיחת סטודיו המוצר לא נמצא ייתכן שהקישור שגוי, שהמוצר הוסר"
+  },
+  {
+   "name": "no_page_errors",
+   "pass": true,
+   "errors": []
+  }
+ ],
+ "at": "2026-11-26T21:19:10.591Z"
+}

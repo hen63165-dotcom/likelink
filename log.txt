@@ -1,0 +1,183 @@
+LIVE_VERSION { "commit": "d0584aa162a842099b5294a635c5634e06e6372e", "branch": "main", "host": "vercel", "builtAt": "2026-11-26T21:00:49.358Z" } 
+PAGE m home {"h1":"ההמלצות של היוצרים שאתם אוהבים, במקום אחד.","height":7421,"overflowX":false,"videos":3,"posts":1,"version":""}
+PAGE m search {"h1":"מה מחפשים?","height":1980,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE m product {"h1":"עגילי Smyoue מואסניט ורודים 0.2-3 קראט","height":4771,"overflowX":false,"videos":3,"posts":3,"version":""}
+PAGE m reels {"h1":"LikeLink Reels","height":844,"overflowX":false,"videos":4,"posts":0,"version":""}
+PAGE m creator {"h1":"ALYOSTYLE","height":2266,"overflowX":false,"videos":2,"posts":2,"version":""}
+PAGE m products {"h1":"כל המוצרים","height":10394,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE d home {"h1":"ההמלצות של היוצרים שאתם אוהבים, במקום אחד.","height":5659,"overflowX":false,"videos":3,"posts":1,"version":""}
+PAGE d search {"h1":"מה מחפשים?","height":1236,"overflowX":false,"videos":0,"posts":0,"version":""}
+PAGE d product {"h1":"עגילי Smyoue מואסניט ורודים 0.2-3 קראט","height":3755,"overflowX":false,"videos":3,"posts":3,"version":""}
+PAGE d reels {"h1":"LikeLink Reels","height":900,"overflowX":false,"videos":4,"posts":0,"version":""}
+PAGE d creator {"h1":"ALYOSTYLE","height":1636,"overflowX":false,"videos":2,"posts":2,"version":""}
+PAGE d products {"h1":"כל המוצרים","height":7271,"overflowX":false,"videos":0,"posts":0,"version":""}
+BASE https://likelink2.vercel.app
+VERSION { "commit": "d0584aa162a842099b5294a635c5634e06e6372e", "branch": "main", "host": "vercel", "builtAt": "2026-11-26T21:00:49.358Z" } 
+PAGE he m radar {"h1":"רדאר הטרנדים","dir":"rtl","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+FAIL he m radar: no live radar card
+PAGE he m radar-pro {"h1":"לראות מה מתחיל לעלות, עם המספרים","dir":"rtl","overflowX":false,"cards":3,"alpha":false,"noDirection":false,"errors":0}
+FAIL he m radar-pro: the tiers do not say the price is not set
+FAIL he m radar-pro: a shekel price appears on the tiers
+PAGE he m magic {"h1":"כפתור הקסם ✨","dir":"rtl","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+PAGE he d radar {"h1":"רדאר הטרנדים","dir":"rtl","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+FAIL he d radar: no live radar card
+PAGE he d radar-pro {"h1":"לראות מה מתחיל לעלות, עם המספרים","dir":"rtl","overflowX":false,"cards":3,"alpha":false,"noDirection":false,"errors":0}
+FAIL he d radar-pro: the tiers do not say the price is not set
+FAIL he d radar-pro: a shekel price appears on the tiers
+PAGE he d magic {"h1":"כפתור הקסם ✨","dir":"rtl","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+PAGE en m radar {"h1":"The trend radar","dir":"ltr","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+FAIL en m radar: no live radar card
+PAGE en m radar-pro {"h1":"See what is starting to rise, with the numbers","dir":"ltr","overflowX":false,"cards":3,"alpha":true,"noDirection":false,"errors":0}
+FAIL en m radar-pro: the tiers do not say the price is not set
+FAIL en m radar-pro: a shekel price appears on the tiers
+PAGE en m magic {"h1":"The magic button ✨","dir":"ltr","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+PAGE en d radar {"h1":"The trend radar","dir":"ltr","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+FAIL en d radar: no live radar card
+PAGE en d radar-pro {"h1":"See what is starting to rise, with the numbers","dir":"ltr","overflowX":false,"cards":3,"alpha":true,"noDirection":false,"errors":0}
+FAIL en d radar-pro: the tiers do not say the price is not set
+FAIL en d radar-pro: a shekel price appears on the tiers
+PAGE en d magic {"h1":"The magic button ✨","dir":"ltr","overflowX":false,"cards":0,"alpha":false,"noDirection":false,"errors":0}
+RADAR_UI FAILED 12
+E2E {"name":"cloud_reads_on_load","pass":true,"cloud":["200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Acollections","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asales","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Asettings","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Amarketers","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aclicks","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Aproducts","200 GET /rest/v1/kv?select=value&key=eq.marketplace%3Avideos"],"console":["warning: [Likelink] Products needing a manual tracking-ID fix: [Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Object, Obje"]}
+E2E {"name":"product_page_loads","pass":false,"url":"https://likelink2.vercel.app/p/p-live-04","h1":"המוצר לא נמצא"}
+E2E {"name":"no_sideways_scroll_phone","pass":true}
+E2E {"name":"video_on_product_page","pass":false}
+E2E {"name":"shop_button_is_own_affiliate_link","pass":false,"href":"","expected":"https://s.click.aliexpress.com/e/_c4CoPLhr"}
+E2E {"name":"video_post_on_creator_page","pass":false,"url":"https://likelink2.vercel.app/u/alyostyle"}
+E2E {"name":"unknown_product_not_found_page","pass":true,"sample":"דילוג לתוכן LikeLink2 פתיחת סטודיו המוצר לא נמצא ייתכן שהקישור שגוי, שהמוצר הוסר"}
+E2E {"name":"no_page_errors","pass":true,"errors":[]}
+E2E_RESULT FAIL 4/8
+LIVE {"name":"revision_served","pass":true,"commit":"d0584aa","builtAt":"2026-11-26T21:00:49.358Z"}
+LIVE {"name":"catalog_copy","pass":true,"listed":110}
+LIVE {"name":"indexnow_key_live","pass":true,"status":200}
+LIVE {"name":"pinterest_rss","pass":true,"status":200,"items":49,"withUtm":49,"productOrReelPins":48,"withDisclosure":48}
+LIVE {"name":"pinterest_image_reachable","pass":true,"status":206,"type":"image/webp","host":"ae-pic-a1.aliexpress-media.com"}
+LIVE {"name":"daily_drop_today","pass":true,"date":"2026-11-26","product":"p-live-05"}
+LIVE {"name":"daily_drop_disclosure_and_utm","pass":true,"posts":4,"link":"https://likelink2.vercel.app/p/p-live-05?utm_source=drop&utm_medium=social&utm_campaign=daily_drop_20261126"}
+LIVE {"name":"daily_drop_page","pass":true,"status":200}
+LIVE {"name":"reels_feed","pass":true,"reels":15,"looks":["talking","story","lookbook_photos","lookbook","seller"],"luna":2,"lookbooks":2}
+LIVE {"name":"luna_reel_bytes","pass":true,"id":"luna-gift-earrings-a","status":206,"type":"video/mp4"}
+LIVE {"name":"lookbook_bytes","pass":true,"id":"lookbook-p-live-04","status":206,"type":"video/mp4"}
+LIVE {"name":"creative_ledger_published","pass":true,"jobs":4,"live":["p-live-05","p-live-04","p-live-02","p-live-01"],"stored":[]}
+LIVE {"name":"product_p-live-01","pass":false,"price":"₪16.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_p-live-02","pass":false,"price":"₪399.58","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_p-live-03","pass":false,"price":"₪270.42","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_p-live-04","pass":false,"price":"₪116.50","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_p-live-05","pass":true,"price":"₪56.79","expectedFrom":"cloud","shown":["₪56.79","₪140.08","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":{"ok":true,"src":"https://likelink2.vercel.app/looks/p-live-05.jpg"}}
+LIVE {"name":"product_ae-1005003711297938","pass":false,"price":"₪8.76","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007382224504","pass":false,"price":"₪22.27","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008181803185","pass":false,"price":"₪14.65","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005006863850606","pass":false,"price":"₪61.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008430108216","pass":false,"price":"₪25.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005009185028607","pass":false,"price":"₪10.26","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007476887390","pass":true,"price":"₪40.90","expectedFrom":"cloud","shown":["₪40.90","₪82.22","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/Sd30d9abb76c546388a93202be5ec3522z.jpg"}}
+LIVE {"name":"product_ae-1005006994477824","pass":false,"price":"₪23.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012011243048","pass":false,"price":"₪43.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008248098577","pass":false,"price":"₪9.29","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008248182129","pass":false,"price":"₪9.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007171036530","pass":false,"price":"₪9.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007345430335","pass":false,"price":"₪18.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013266260514","pass":false,"price":"₪15.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013266094825","pass":false,"price":"₪19.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012613833998","pass":false,"price":"₪14.29","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012986704439","pass":false,"price":"₪21.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012967864709","pass":false,"price":"₪8.27","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012736775484","pass":false,"price":"₪9.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005010228971023","pass":false,"price":"₪10.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005010155293582","pass":true,"price":"₪12.32","expectedFrom":"cloud","shown":["₪12.32","₪28.35","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/Sfe6c100187124679a1d064d343e5f219g.jpg"}}
+LIVE {"name":"product_ae-1005007345357544","pass":false,"price":"₪15.64","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005006783080409","pass":false,"price":"₪12.23","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007476663588","pass":true,"price":"₪34.19","expectedFrom":"cloud","shown":["₪34.19","₪73.54","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S14c2d789310f43498f2e61dea96defb6p.jpg"}}
+LIVE {"name":"product_ae-1005011624245510","pass":false,"price":"₪177.21","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012323403801","pass":false,"price":"₪12.45","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005011676523229","pass":false,"price":"₪36.87","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013299422092","pass":false,"price":"₪41.73","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005010004260060","pass":false,"price":"₪68.76","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012872093982","pass":true,"price":"₪114.39","expectedFrom":"cloud","shown":["₪114.39","₪181.57","₪65.92"],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/Sa10d25d9c3ae4b9f969c3296da31e38dj.jpg"}}
+LIVE {"name":"product_ae-1005012932093776","pass":false,"price":"₪48.84","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013187022988","pass":false,"price":"₪125.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-21T13:26:04.561Z","image":null}
+LIVE {"name":"product_ae-1005012040321452","pass":false,"price":"₪49.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013429299062","pass":false,"price":"₪169.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013327851644","pass":false,"price":"₪77.22","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005013461862167","pass":false,"price":"₪188.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008429942445","pass":false,"price":"₪5.30","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005010044052123","pass":false,"price":"₪4.42","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005011865685346","pass":false,"price":"₪5.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005009460421963","pass":false,"price":"₪13.86","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007009989925","pass":false,"price":"₪5.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005012221742613","pass":false,"price":"₪3.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005007822533405","pass":false,"price":"₪5.94","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005008565961511","pass":false,"price":"₪7.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005010706991166","pass":false,"price":"₪6.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-26T15:06:16.964Z","image":null}
+LIVE {"name":"product_ae-1005011939997610","pass":false,"price":"₪4.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:13:32.744Z","image":null}
+LIVE {"name":"product_ae-1005012099742235","pass":false,"price":"₪10.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005012977999244","pass":false,"price":"₪4.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005008084818028","pass":false,"price":"₪4.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:13:54.700Z","image":null}
+LIVE {"name":"product_ae-1005009695987191","pass":false,"price":"₪4.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:13:54.700Z","image":null}
+LIVE {"name":"product_ae-1005012986748239","pass":false,"price":"₪10.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:13:54.700Z","image":null}
+LIVE {"name":"product_ae-1005007038045592","pass":false,"price":"₪4.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005013423760715","pass":false,"price":"₪31.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005009806942156","pass":false,"price":"₪12.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005013255319649","pass":false,"price":"₪9.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:13:54.700Z","image":null}
+LIVE {"name":"product_ae-1005007010314562","pass":false,"price":"₪25.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:15:50.799Z","image":null}
+LIVE {"name":"product_ae-1005006783027299","pass":false,"price":"₪6.60","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005012993913551","pass":false,"price":"₪10.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005008430061388","pass":false,"price":"₪8.29","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005007805582693","pass":false,"price":"₪15.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005010323716760","pass":false,"price":"₪15.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:16:14.411Z","image":null}
+LIVE {"name":"product_ae-1005006997185394","pass":false,"price":"₪9.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:16:14.411Z","image":null}
+LIVE {"name":"product_ae-1005013255301623","pass":false,"price":"₪6.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005009916227563","pass":false,"price":"₪11.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005012983812567","pass":false,"price":"₪14.90","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005012814928010","pass":false,"price":"₪19.49","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:11.783Z","image":null}
+LIVE {"name":"product_ae-1005013156971652","pass":false,"price":"₪4.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:35.828Z","image":null}
+LIVE {"name":"product_ae-1005005866435877","pass":false,"price":"₪9.13","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:20:33.876Z","image":null}
+LIVE {"name":"product_ae-1005007168657495","pass":false,"price":"₪18.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:20:33.876Z","image":null}
+LIVE {"name":"product_ae-1005006863869342","pass":false,"price":"₪14.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:20:33.876Z","image":null}
+LIVE {"name":"product_ae-1005013362999177","pass":true,"price":"₪4.79","expectedFrom":"cloud","shown":["₪4.79","₪9.66","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:20:33.876Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S4905f25d9f034f94a0b313f8dac44466Z.jpg"}}
+LIVE {"name":"product_ae-1005010706854356","pass":false,"price":"₪6.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T13:18:35.828Z","image":null}
+LIVE {"name":"product_ae-1005007254611442","pass":false,"price":"₪140.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T19:24:44.160Z","image":null}
+LIVE {"name":"product_ae-1005010487472044","pass":false,"price":"₪130.69","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-08T19:33:04.461Z","image":null}
+LIVE {"name":"product_ae-1005012438734147","pass":false,"price":"₪23.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-12T07:48:17.725Z","image":null}
+LIVE {"name":"product_ae-1005012649969906","pass":false,"price":"₪8.09","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-14T12:30:23.429Z","image":null}
+LIVE {"name":"product_ae-1005010089173390","pass":false,"price":"₪13.59","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-15T11:59:35.519Z","image":null}
+LIVE {"name":"product_ae-1005008742678061","pass":false,"price":"₪43.94","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-15T13:00:24.476Z","image":null}
+LIVE {"name":"product_ae-1005012061688172","pass":false,"price":"₪43.99","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-15T13:00:24.476Z","image":null}
+LIVE {"name":"product_ae-1005007011405828","pass":false,"price":"₪12.19","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:09:24.682Z","image":null}
+LIVE {"name":"product_ae-1005013236635286","pass":false,"price":"₪10.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:44:57.246Z","image":null}
+LIVE {"name":"product_ae-1005012967925438","pass":true,"price":"₪9.73","expectedFrom":"cloud","shown":["₪9.73","₪24.73","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:44:57.246Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S96e8a03d29374d518f2da625527410a8c.jpg"}}
+LIVE {"name":"product_ae-1005008660103911","pass":false,"price":"₪7.47","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:44:57.246Z","image":null}
+LIVE {"name":"product_ae-1005010001656201","pass":true,"price":"₪5.35","expectedFrom":"cloud","shown":["₪5.35","₪12.52","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:44:57.246Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S198a2e5777eb4fc1bc535ff9f001b060c.jpg"}}
+LIVE {"name":"product_ae-1005008248110476","pass":false,"price":"₪25.48","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:52:05.523Z","image":null}
+LIVE {"name":"product_ae-1005012013870879","pass":false,"price":"₪49.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:52:05.523Z","image":null}
+LIVE {"name":"product_ae-1005011867832153","pass":false,"price":"₪55.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:52:05.523Z","image":null}
+LIVE {"name":"product_ae-1005010160938109","pass":false,"price":"₪41.25","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:52:05.523Z","image":null}
+LIVE {"name":"product_ae-1005007170328762","pass":false,"price":"₪8.79","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:52:05.523Z","image":null}
+LIVE {"name":"product_ae-1005012013850934","pass":false,"price":"₪46.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:55:54.127Z","image":null}
+LIVE {"name":"product_ae-1005010473736160","pass":true,"price":"₪43.76","expectedFrom":"cloud","shown":["₪43.76","₪114.67","₪100"],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:55:54.127Z","image":{"ok":true,"src":"https://ae-pic-a1.aliexpress-media.com/kf/S0d5889429c0e42f290d8f6490bc131c7f.jpg"}}
+LIVE {"name":"product_ae-1005012374470555","pass":false,"price":"₪84.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:55:54.127Z","image":null}
+LIVE {"name":"product_ae-1005011624837441","pass":false,"price":"₪15.29","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T10:55:54.127Z","image":null}
+LIVE {"name":"product_ae-1005012313021653","pass":false,"price":"₪92.43","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T11:59:01.154Z","image":null}
+LIVE {"name":"product_ae-1005010371337928","pass":false,"price":"₪44.59","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T11:59:01.154Z","image":null}
+LIVE {"name":"product_ae-1005006942012032","pass":false,"price":"₪33.32","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T11:59:01.154Z","image":null}
+LIVE {"name":"product_ae-1005009757758766","pass":false,"price":"₪92.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T11:59:01.154Z","image":null}
+LIVE {"name":"product_ae-1005010573141781","pass":false,"price":"₪47.42","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T11:57:02.161Z","image":null}
+LIVE {"name":"product_ae-1005010671473041","pass":false,"price":"₪24.49","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005013470676158","pass":false,"price":"₪9.82","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005012650009799","pass":false,"price":"₪37.39","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005011587381045","pass":false,"price":"₪59.59","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005009515117175","pass":false,"price":"₪26.41","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005013000656985","pass":false,"price":"₪93.55","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-19T12:01:54.053Z","image":null}
+LIVE {"name":"product_ae-1005005522818667","pass":false,"price":"₪3.49","expectedFrom":"cloud","shown":[],"priceSource":"aliexpress_api","checkedAt":"2026-11-20T09:42:37.179Z","image":null}
+LIVE {"name":"reels_page_plays","pass":true,"t0":1.164516,"t1":3.664666,"w":1080,"h":1920,"src":"ps://likelink2.vercel.app/media/reels/lookbook-p-live-05.mp4"}
+LIVE {"name":"luna_character_reel_plays","pass":true,"id":"luna-gift-earrings-a","look":"talking","play":{"t0":1.426234,"t1":3.92637,"w":1080,"h":1920,"src":"https://likelink2.vercel.app/media/reels/gift-earrings-a.mp4"},"aiLabelOnThisPost":true,"label":"A אנימציה ממוחשבת (לא צילום) לונה מסבירה · דמות וקול AI מונפשים · המוצר בתמונה אמיתית בחירה של ALYOSTYLE עגילי Smyoue מו"}
+LIVE {"name":"guide_page","pass":true,"checks":8,"missing":[]}
+LIVE {"name":"size_ring_from_strip","pass":true,"want":{"us":7,"eu":54},"shown":"מידה אמריקאית (רוב המוכרים באליאקספרס) 7 מידה אירופאית / ישראלית 54 קוטר פנימי 17.2 מ״מ · היקף 54.0 מ״מ. בין שתי מידות? "}
+LIVE {"name":"size_bracelet_from_wrist","pass":true,"want":"17–17.5","shown":"אורך צמיד מומלץ 17–17.5 ס״מ. עצה כללית: מוסיפים 1.5–2 ס״מ לפרק היד, לפי כמה רפוי"}
+LIVE {"name":"studio_signed_out_entrance","pass":true,"emailFields":1,"path":"/studio"}
+LIVE {"name":"studio_signed_out_engine_link","pass":true,"emailFields":1,"path":"/studio/creative-engine"}
+LIVE {"name":"no_paid_provider_requests","pass":true,"paid":[],"thirdPartyHosts":["ae-pic-a1.aliexpress-media.com","fonts.googleapis.com","fonts.gstatic.com"]}
+LIVE {"name":"no_page_errors","pass":true,"errors":[]}
+LIVE_WRITES_ABORTED 4
+LIVE_SUMMARY {"base":"https://likelink2.vercel.app","passed":30,"of":131,"failed":["product_p-live-01","product_p-live-02","product_p-live-03","product_p-live-04","product_ae-1005003711297938","product_ae-1005007382224504","product_ae-1005008181803185","product_ae-1005006863850606","product_ae-1005008430108216","product_ae-1005009185028607","product_ae-1005006994477824","product_ae-1005012011243048","product_ae-1005008248098577","product_ae-1005008248182129","product_ae-1005007171036530","product_ae-1005007345430335","product_ae-1005013266260514","product_ae-1005013266094825","product_ae-1005012613833998","product_ae-1005012986704439","product_ae-1005012967864709","product_ae-1005012736775484","product_ae-1005010228971023","product_ae-1005007345357544","product_ae-1005006783080409","product_ae-1005011624245510","product_ae-1005012323403801","product_ae-1005011676523229","product_ae-1005013299422092","product_ae-1005010004260060","product_ae-1005012932093776","product_ae-1005013187022988","product_ae-1005012040321452","product_ae-1005013429299062","product_ae-1005013327851644","product_ae-1005013461862167","product_ae-1005008429942445","product_ae-1005010044052123","product_ae-1005011865685346","product_ae-1005009460421963","product_ae-1005007009989925","product_ae-1005012221742613","product_ae-1005007822533405","product_ae-1005008565961511","product_ae-1005010706991166","product_ae-1005011939997610","product_ae-1005012099742235","product_ae-1005012977999244","product_ae-1005008084818028","product_ae-1005009695987191","product_ae-1005012986748239","product_ae-1005007038045592","product_ae-1005013423760715","product_ae-1005009806942156","product_ae-1005013255319649","product_ae-1005007010314562","product_ae-1005006783027299","product_ae-1005012993913551","product_ae-1005008430061388","product_ae-1005007805582693","product_ae-1005010323716760","product_ae-1005006997185394","product_ae-1005013255301623","product_ae-1005009916227563","product_ae-1005012983812567","product_ae-1005012814928010","product_ae-1005013156971652","product_ae-1005005866435877","product_ae-1005007168657495","product_ae-1005006863869342","product_ae-1005010706854356","product_ae-1005007254611442","product_ae-1005010487472044","product_ae-1005012438734147","product_ae-1005012649969906","product_ae-1005010089173390","product_ae-1005008742678061","product_ae-1005012061688172","product_ae-1005007011405828","product_ae-1005013236635286","product_ae-1005008660103911","product_ae-1005008248110476","product_ae-1005012013870879","product_ae-1005011867832153","product_ae-1005010160938109","product_ae-1005007170328762","product_ae-1005012013850934","product_ae-1005012374470555","product_ae-1005011624837441","product_ae-1005012313021653","product_ae-1005010371337928","product_ae-1005006942012032","product_ae-1005009757758766","product_ae-1005010573141781","product_ae-1005010671473041","product_ae-1005013470676158","product_ae-1005012650009799","product_ae-1005011587381045","product_ae-1005009515117175","product_ae-1005013000656985","product_ae-1005005522818667"]}
+gallery sheet: 110 products
