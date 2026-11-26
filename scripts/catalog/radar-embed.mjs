@@ -5,6 +5,7 @@
 // base64) so each morning only the listings new to the pool are embedded.
 import { KINDS } from "../../src/lib/growth/newKinds.js";
 import { LENS } from "../../src/lib/growth/lens.js";
+import { ASIA } from "../../src/lib/growth/asiaSignal.js";
 
 export function packVector(v) {
   let n = 0;
@@ -17,6 +18,20 @@ export function packVector(v) {
 export function unpackVector(s) {
   const b = Buffer.from(String(s || ""), "base64");
   return Array.from(new Int8Array(b.buffer, b.byteOffset, b.length), (x) => x / 127);
+}
+
+/**
+ * 🇰🇷🇯🇵 The open translation model (asiaSignal.js: NLLB-200 distilled, Meta's, through transformers.js
+ * on this runner's CPU): one English kind name → its words in the target language. Nothing paid, no key.
+ */
+export async function loadTranslator(model = ASIA.model) {
+  const { pipeline, env } = await import("@huggingface/transformers");
+  env.allowLocalModels = false;
+  const t = await pipeline("translation", model, { dtype: "q8" });
+  return async (text, tgt) => {
+    const out = await t(String(text), { src_lang: ASIA.src, tgt_lang: tgt, max_new_tokens: 24 });
+    return String((Array.isArray(out) ? out[0] : out)?.translation_text || "");
+  };
 }
 
 /** The model as a function: titles → normalized vectors. */

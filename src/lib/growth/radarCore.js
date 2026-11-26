@@ -257,9 +257,10 @@ export const SOURCES = Object.freeze([
   { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },
   { key: "bluesky", he: "בלוסקיי: כמה מדברים על כל סוג השבוע", en: "Bluesky: how many posts name each kind this week", door: "חיפוש ציבורי ברשת פתוחה, לפי robots.txt" },
   { key: "metaAds", he: "ספריית הפרסומות של מטא: מודעות חדשות השבוע", en: "Meta Ad Library: new ads this week", door: "Ad Library API (טוקן של בעלת האתר)" },
+  { key: "asia", he: "קוריאה ויפן בשפה שלהן: מה מקלידים שם בגוגל וביוטיוב", en: "Korea and Japan in their own language: what people type in Google and YouTube", door: "Google suggestions (לפי robots.txt) + NLLB-200, מודל תרגום פתוח על שרת הריצה" },
   // Their own robots.txt closes them; the radar respects it and reads the same countries through open doors.
   { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt", insteadHe: "במקום זה: מה המפעלים בסין שולחים לפי המכס של אירופה, וסרטוני הקניות מטאובאו ודואין ביוטיוב", insteadEn: "Instead: what China's factories ship, in EU customs, and the Taobao and Douyin finds on YouTube" },
-  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt", insteadHe: "במקום זה: החיפושים בגוגל וביוטיוב מקוריאה, וסרטוני הקניות מקוריאה ומאוליב יאנג ביוטיוב", insteadEn: "Instead: Google's and YouTube's searches from Korea, and the Korea and Olive Young finds on YouTube" },
+  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt", insteadHe: "במקום זה: החיפושים בגוגל וביוטיוב מקוריאה, גם בקוריאנית, וסרטוני הקניות מקוריאה ומאוליב יאנג ביוטיוב", insteadEn: "Instead: Google's and YouTube's searches from Korea, in Korean too, and the Korea and Olive Young finds on YouTube" },
 ]);
 // The doors the radar reads next, each only through official access (never scraping).
 export const NEXT_DOORS = Object.freeze([

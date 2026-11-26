@@ -64,3 +64,25 @@ test("the path reaches the page: each card's steps and the board's counts are sa
   const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
   assert.match(run, /mergePath\(readJson\(join\(dir, "path\.json"\), \{\}\), withVia, today\)/, "the run keeps the history in its encrypted state");
 });
+
+test("Korea and Japan reach the card in their own words, the word asked printed, behind the lock never a kind", async () => {
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const { regionReading, asiaCard, mergeAsia } = await import("../src/lib/growth/asiaSignal.js");
+  const { sourcesView } = await import("../src/lib/growth/radarCore.js");
+  const { readFileSync } = await import("node:fs");
+  let hist = mergeAsia({}, "cloud-slides", "KR", "2026-11-25", { term: "구름 슬리퍼", state: "QUIET" });
+  const kr = regionReading({ term: "구름 슬리퍼", google: 2, youtube: 0 });
+  hist = mergeAsia(hist, "cloud-slides", "KR", "2026-11-26", kr);
+  const card = asiaCard({ KR: kr, JP: { term: null, state: "UNMEASURED" } }, hist["cloud-slides"], "2026-11-26");
+  assert.equal(card.regions.KR.state, "FIRST_SIGNS");
+  assert.equal(card.regions.KR.arrived, "2026-11-26", "a sign after a quiet day is an arrival, dated");
+  const board = sanitizeBoard({ v: 2, at: "2026-11-26T16:00:00Z", record: {}, concepts: [{ id: "cloud-slides", he: "x", stage: "RISING", series: [], evidence: [], asia: card }], sourcesToday: { asia: "OK" } });
+  assert.equal(board.concepts[0].asia.regions.KR.term, "구름 슬리퍼");
+  assert.equal(board.concepts[0].asia.regions.JP.state, "UNMEASURED");
+  assert.equal(sourcesView(board.sourcesToday).find((x) => x.key === "asia").group, "read");
+  const page = readFileSync("src/components/discover/radar.jsx", "utf8");
+  assert.match(page, /<AsiaLine a=\{c\.asia\} \/>/);
+  const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /env\.RADAR_ASIA !== "0" && sources\.suggest === "OK"/, "asked only when this run read Google's robots.txt as open");
+  assert.match(run, /!late\("asia", 240_000\)/, "skipped by name past the run's deadline");
+});

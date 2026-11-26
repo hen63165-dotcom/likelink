@@ -326,6 +326,7 @@ export function ConceptCard({ c }) {
       <IsraelLine gap={c.gap} />
       <WorldGapLine g={c.worldGap} />
       <PathLine p={c.path} />
+      <AsiaLine a={c.asia} />
       {c.supply ? <p className="mt-2 text-[13px] font-bold" style={{ color: c.supply.state === "UNDERSUPPLIED" ? "#067647" : "var(--lx-muted)" }}>{L(supplyLine(c.supply, "he"), supplyLine(c.supply, "en"))}</p> : null}
       <Everywhere q={c.en} />
       <AlphaBlock c={c} />
@@ -835,6 +836,23 @@ function PathLine({ p }) {
       <b>{L(`🧭 בדרך של טרנד: ${PATH_NAMES[p.at][0]}`, `🧭 On the trend's path: ${PATH_NAMES[p.at][1]}`)}</b>
       {lit.length ? L(` · ${lit.map((k) => `${PATH_NAMES[k][0]} מ־${dm(p.steps[k])}`).join(" · ")}`, ` · ${lit.map((k) => `${PATH_NAMES[k][1]} from ${dm(p.steps[k])}`).join(" · ")}`) : null}
       {p.before ? L(" · עוד לפני המירוץ של המוכרים ולפני כולם", " · still before the sellers' rush and before everyone") : null}
+    </p>
+  );
+}
+
+// 🇰🇷🇯🇵 Korea and Japan in their own language (asiaSignal.js): the word asked is printed beside every answer.
+const ASIA_STATE = { SEARCHED: ["מקלידים אותו שם", "people there type it"], FIRST_SIGNS: ["סימנים ראשונים", "first signs"], QUIET: ["עוד שקט שם", "still quiet there"], UNMEASURED: ["בלי תרגום שאפשר לשאול", "no translation to ask with"] };
+const ASIA_NAME = { KR: ["🇰🇷 קוריאה", "🇰🇷 Korea"], JP: ["🇯🇵 יפן", "🇯🇵 Japan"] };
+function AsiaLine({ a }) {
+  const { L } = useL();
+  const rows = Object.entries(a?.regions || {}).filter(([r, x]) => ASIA_NAME[r] && ASIA_STATE[x?.state]);
+  if (!rows.length) return null;
+  return (
+    <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>
+      {rows.map(([r, x], i) => (
+        <span key={r}>{i ? " · " : ""}<b>{L(ASIA_NAME[r][0], ASIA_NAME[r][1])}</b>{x.term ? <> (<bdi>{x.term}</bdi>)</> : null}: {L(ASIA_STATE[x.state][0], ASIA_STATE[x.state][1])}{x.arrived ? L(` · התחיל שם ב־${dm(x.arrived)}`, ` · started there on ${dm(x.arrived)}`) : null}</span>
+      ))}
+      <span className="block text-[11px]">{L("המילה תורגמה במודל תרגום פתוח, ונשאלה בגוגל וביוטיוב מאותה מדינה.", "The word was translated by an open translation model and asked in Google and YouTube from that country.")}</span>
     </p>
   );
 }

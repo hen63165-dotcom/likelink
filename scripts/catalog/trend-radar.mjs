@@ -88,6 +88,7 @@ import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
 import { mergePath, pathBoard, pathCard } from "../../src/lib/growth/trendPath.js";
+import { ASIA, asiaCard, localExtensions, mergeAsia, regionReading, usableTerm } from "../../src/lib/growth/asiaSignal.js";
 import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
@@ -917,6 +918,56 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     // 22.11: the lookup's closed door no longer closes the source; only the Pageviews door decides.
     sources.wikipedia = doors.views === false ? "ROBOTS_DISALLOW" : doors.views === "failed" ? "FAILED" : cards.length ? "OK" : "FAILED";
     log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
+  }
+  // 🇰🇷🇯🇵 Korea and Japan in their own language (asiaSignal.js; the owner, 22.11: "for Japan and Korea,
+  // a far more genius way, maybe through AI"). Naver closes its suggestions in its own robots.txt; Google's
+  // public suggestions from Korea and Japan are open (the same robots.txt the Israel gap reads this run).
+  // An open translation model on this runner gives each moving kind its Korean and Japanese words once
+  // (kept in asia.json); then Google and YouTube are asked, from each country in its own language,
+  // whether people there type it already. The word asked is printed beside every answer; a kind the
+  // model could not translate is UNMEASURED there, never quiet. RADAR_ASIA=0 turns it off.
+  if (env.RADAR_ASIA !== "0" && sources.suggest === "OK" && Array.isArray(board.concepts) && board.concepts.length && !late("asia", 240_000)) {
+    try {
+      const asia = readJson(join(dir, "asia.json"), { terms: {}, hist: {} });
+      asia.terms ||= {}; asia.hist ||= {};
+      const kinds = socialKinds(board.concepts, { max: ASIA.perRun });
+      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en);
+      let translated = 0, untranslatable = 0;
+      if (need.length) {
+        const { loadTranslator } = await import("./radar-embed.mjs");
+        const translate = await loadTranslator();
+        for (const c of need) {
+          const t = { en: c.en };
+          for (const r of Object.keys(ASIA.regions)) {
+            try { t[r] = usableTerm(await translate(c.en, ASIA.regions[r].nllb), r); } catch { t[r] = null; }
+            if (t[r]) translated++; else untranslatable++;
+          }
+          asia.terms[c.id] = t;
+        }
+      }
+      let asked = 0, answered = 0;
+      for (const c of kinds) {
+        const readings = {};
+        for (const [r, reg] of Object.entries(ASIA.regions)) {
+          const term = asia.terms[c.id]?.[r] || null;
+          if (!term) { readings[r] = { term: null, state: "UNMEASURED" }; continue; }
+          asked++;
+          const g = await suggestList(term, { hl: reg.hl, gl: reg.gl }, fetchImpl);
+          await pause(politeMs);
+          const y = await suggestList(term, { hl: reg.hl, gl: reg.gl, ds: "yt" }, fetchImpl);
+          await pause(politeMs);
+          if (g || y) answered++;
+          readings[r] = regionReading({ term, google: localExtensions(term, g), youtube: localExtensions(term, y) });
+          asia.hist = mergeAsia(asia.hist, c.id, r, today, readings[r]);
+        }
+        const card = asiaCard(readings, asia.hist[c.id], today);
+        if (card) c.asia = card;
+      }
+      writeFileSync(join(dir, "asia.json"), JSON.stringify(asia));
+      sources.asia = answered ? "OK" : asked ? "FAILED" : "EMPTY";
+      const shown = kinds.filter((c) => c.asia).map((c) => `${c.en}: ${Object.entries(c.asia.regions).map(([r, x]) => `${r} ${x.state}`).join(" ")}`);
+      log.push(`asia: ${kinds.length} moving kinds · ${need.length} translated today (${translated} words, ${untranslatable} untranslatable) · ${answered} of ${asked} answered · ${shown.slice(0, 8).join(" · ") || "none"}`);
+    } catch (err) { sources.asia = "FAILED"; log.push(`asia: ${String(err?.message || err).slice(0, 120)}`); }
   }
   // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving
   // kind this week against the week before, and how many ads for it started in the EU this week (only

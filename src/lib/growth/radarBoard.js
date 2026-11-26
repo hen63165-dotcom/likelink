@@ -18,6 +18,7 @@ import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
+import { cleanAsia } from "./asiaSignal.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
@@ -196,6 +197,7 @@ function cleanRow(c) {
     shops: cleanShops(c.shops),
     worldGap: cleanWorldGap(c.worldGap),
     path: cleanPathCard(c.path), // 🧭 where the kind stands on the path every trend walks (trendPath.js)
+    asia: cleanAsia(c.asia), // 🇰🇷🇯🇵 Korea and Japan in their own language (asiaSignal.js)
     supply: cleanSupply(c.supply),
   };
 }

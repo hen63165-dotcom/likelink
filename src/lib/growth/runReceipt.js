@@ -267,7 +267,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
-  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", news: "news",
+  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", news: "news", asia: "worldSearch",
 });
 
 /**

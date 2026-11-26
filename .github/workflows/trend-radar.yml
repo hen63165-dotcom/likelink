@@ -48,6 +48,8 @@ on:
       - src/lib/growth/tradeSignal.js
       - src/lib/growth/newsSignal.js
       - src/lib/growth/radarBaseline.js
+      - src/lib/growth/trendPath.js
+      - src/lib/growth/asiaSignal.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/runReceipt.js
 permissions:
@@ -103,7 +105,7 @@ jobs:
           node scripts/catalog/radar-state.mjs unpack radar-state
           rm -f radar-state/board-public.json radar-state/briefs-public.json
           ls -la radar-state
-      - name: The radar's sentence model (new kinds by meaning)
+      - name: The radar's sentence and translation models (new kinds by meaning; Korea and Japan in their own words)
         # src/lib/growth/newKinds.js: an open model (all-MiniLM-L6-v2) through transformers.js on this
         # runner's CPU; installed here only, never shipped to the site. A failed install only skips the
         # kinds (the reading reports kinds: FAILED) and nothing else changes.
