@@ -932,6 +932,46 @@ function Trade({ t }) {
 }
 
 /** 🔤 The names new shops pick (shopSignal.js): product words in the names of every new domain in the world. */
+// 🏭 Before the first sale (listingWave.js): the store's newest listings with almost no orders, and the
+// products many different stores start listing this week. Behind the lock: the counts and the record only.
+function Prelaunch({ p, gated }) {
+  const { L } = useL();
+  const nf = (x) => Number(x || 0).toLocaleString(L("he-IL", "en-US"));
+  const r = p.record || {};
+  return (
+    <section className="lx-wrap mt-8" id="prelaunch">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🏭 לפני המכירה הראשונה", "🏭 Before the first sale")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L(`הסקווישי התחיל במפעלים שהעלו אותו לחנות לפני שמישהו קנה. כל בוקר הרדאר קורא את המודעות החדשות ביותר של אליאקספרס, אלה עם פחות מ־10 הזמנות, ב־${p.areas} תחומים וקטגוריות, ומחפש מוצר שהרבה חנויות שונות מתחילות להעלות השבוע, הרבה מעל הקצב שלהן קודם (חנות שמעלה אותו עשר פעמים נספרת פעם אחת). מוצר כזה שעוד נמכר מעט נחתם מראש בביטקוין, ואחרי 21 יום בודקים בפומבי אם המכירות הגיעו: 300 הזמנות לפחות, ופי 3 מהבסיס.`, `The squishy started at factories that listed it before anyone bought it. Every morning the radar reads AliExpress's newest listings, those with under 10 orders, in ${p.areas} areas and categories, and looks for a product many different stores start listing this week, far above their pace before (a store listing it ten times counts once). One that still sells little is sealed in Bitcoin in advance, and after 21 days we check in public whether the sales came: at least 300 orders, and 3 times the base.`)}</p>
+        <p className="mt-2 text-[14px] font-bold">{L(`הבוקר: ${nf(p.listings)} מודעות לפני המכירות, ${nf(p.fresh)} מהן נראו היום לראשונה, מ־${nf(p.stores)} חנויות שונות.`, `This morning: ${nf(p.listings)} listings before their sales, ${nf(p.fresh)} of them seen for the first time today, from ${nf(p.stores)} different stores.`)}</p>
+        {p.measuring ? (
+          <p className="mt-2 text-[14px]">{L(`נמדד: ${p.days} ימים. ההשוואה של שבוע מול השבועות שלפניו מתחילה מ־10 ימים.`, `Measured: ${p.days} days. The week-against-the-weeks-before comparison starts at 10 days.`)}</p>
+        ) : gated ? (
+          <p className="mt-2 text-[14px]">{L(`השבוע: ${p.wavesToday} מוצרים שהרבה חנויות מתחילות להעלות.`, `This week: ${p.wavesToday} products many stores start listing.`)}</p>
+        ) : p.waves.length ? (
+          <ul className="mt-3 grid gap-2 md:grid-cols-2">
+            {p.waves.map((w) => (
+              <li key={w.phrase} className="lx-card lx-rdr-item p-3">
+                <p className="text-[16px] font-extrabold" dir="ltr" style={{ textAlign: "start" }}>{w.phrase}</p>
+                <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`${w.week} חנויות שונות התחילו השבוע · פי ${w.times} מהקצב שלפני`, `${w.week} different stores started this week · ×${w.times} the pace before`)}</p>
+                {w.state === "UNKNOWN" ? <p className="text-[12px]">{L(`📦 עוד נמכר מעט: ${nf(w.demand)} הזמנות ב־30 יום · ${nf(w.similar)} מודעות דומות`, `📦 Still selling little: ${nf(w.demand)} orders in 30 days · ${nf(w.similar)} similar listings`)}</p> : null}
+                {w.state === "SATURATED" ? <p className="text-[12px]">{L(`כבר ${nf(w.similar)} מודעות דומות: השוק מלא`, `Already ${nf(w.similar)} similar listings: the market is full`)}</p> : null}
+                {w.state === "BUZZ" ? <p className="text-[12px]">{L("כבר מחפשים אותו בחו״ל עם טיקטוק או אמזון", "Already searched abroad with TikTok or Amazon")}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : <p className="mt-2 text-[14px]">{L("השבוע החנויות מעלות בקצב הרגיל: עוד שקט.", "This week the stores list at their usual pace: still quiet.")}</p>}
+        {!gated && p.open.length ? (
+          <ul className="mt-3 grid gap-1 text-[13px]">
+            {p.open.map((c) => <li key={c.phrase}><span dir="ltr" className="font-bold">{c.phrase}</span> · {L(`נחתם ${dm(c.at)} · ${c.stores} חנויות · ${nf(c.base)} הזמנות בבסיס · נבדק ב־${dm(c.due)}`, `sealed ${dm(c.at)} · ${c.stores} stores · ${nf(c.base)} orders at the base · graded ${dm(c.due)}`)}</li>)}
+          </ul>
+        ) : gated && r.pending ? <p className="mt-2 text-[13px]">{L(`✉️ ${r.pending} קביעות פתוחות, חתומות בביטקוין. כל אחת נפתחת ביום הבדיקה שלה.`, `✉️ ${r.pending} open calls, sealed in Bitcoin. Each opens on its grading day.`)}</p> : null}
+        <p className="mt-2 text-[13px] font-bold">{r.graded ? L(`עד היום: המכירות הגיעו ב־${r.hits} מתוך ${r.graded}.`, `So far: the sales came in ${r.hits} of ${r.graded}.`) : r.nextDue ? L(`הבדיקה הראשונה: ${dm(r.nextDue)}.`, `The first grading: ${dm(r.nextDue)}.`) : L("הקביעה הראשונה נחתמת כשגל כזה נמדד.", "The first call is sealed when such a wave is measured.")}</p>
+      </div>
+    </section>
+  );
+}
+
 function ShopWords({ s }) {
   const { L } = useL();
   return (
@@ -2244,6 +2284,7 @@ export function RadarPage() {
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
+        {board?.prelaunch ? <Prelaunch p={board.prelaunch} gated={gated} /> : null}
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}

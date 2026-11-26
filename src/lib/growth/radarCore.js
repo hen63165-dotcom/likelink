@@ -24,6 +24,7 @@ export const INSTRUMENTS = Object.freeze([
   { id: "baseline", book: "baseline", tab: "proof", section: "baseline", he: "הרדאר מול הדירוג הפשוט", en: "The radar vs the simple ranking", whatHe: "כל יום: 3 המוצרים שצומחים הכי מהר, בלי הבדיקות של הרדאר, ו־3 בהגרלה, נבדקים באותו כלל", whatEn: "Each day: the 3 fastest-growing listings, without the radar's checks, and 3 drawn by chance, graded by the same rule" },
   { id: "fresh", book: "fresh", tab: "today", section: "fresh", he: "מוצרים חדשים", en: "New products", whatHe: "מוצר קטן שההזמנות שלו רצות, לפני שכולם מוכרים", whatEn: "A small product whose orders run, before everyone sells it" },
   { id: "kinds", book: "kinds", tab: "today", section: "kinds", he: "סוגים חדשים", en: "New kinds", whatHe: "סוג חדש שהבינה המלאכותית מצאה לפי משמעות", whatEn: "A new kind the AI found by meaning" },
+  { id: "prelaunch", book: "prelaunch", tab: "today", section: "prelaunch", he: "לפני המכירה הראשונה", en: "Before the first sale", whatHe: "מוצר שהרבה חנויות שונות מתחילות להעלות השבוע, לפני שקונים אותו; אחרי 21 יום בודקים אם המכירות הגיעו", whatEn: "A product many different stores start listing this week, before people buy it; after 21 days, did the sales come" },
   { id: "supply", book: "supply", tab: "today", section: "supply", he: "מקום לייצר", en: "Room to make it", whatHe: "סוג שהביקוש שלו רץ מהר מהמוכרים; אחרי 14 יום בודקים אם מוכרים חדשים נכנסו בעקבות הרדאר", whatEn: "A kind whose demand outruns the sellers; after 14 days, did new sellers follow the radar" },
   { id: "brain", book: "brain", tab: "proof", section: "brain", he: "המוח", en: "The brain", whatHe: "מה הרדאר למד מכל קביעה שנבדקה", whatEn: "What the radar learned from every graded call" },
   { id: "promise", book: "promise", tab: "proof", section: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "The proven range and calibrated chance", whatHe: "טווח הזמנות וסיכוי לעלייה, לכל מוצר שנמדד", whatEn: "An orders range and a chance to grow, for every product measured" },
@@ -80,6 +81,7 @@ export function recordView(board = {}) {
     } else if (ins.id === "stages") row = callsRow(b.record);
     else if (ins.id === "fresh") row = callsRow(b.fresh?.record);
     else if (ins.id === "kinds") row = callsRow(b.kinds?.record);
+    else if (ins.id === "prelaunch" && b.prelaunch) row = callsRow(b.prelaunch.record);
     else if (ins.id === "supply") {
       const r = b.supply?.record;
       if (r) row = { given: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, result: r.graded ? { kind: "hits", hits: num(r.followed) ?? 0, of: r.graded, rate: pct(num(r.followed) ?? 0, r.graded), edge: num(r.edge) } : null, next: r.nextDue || null };

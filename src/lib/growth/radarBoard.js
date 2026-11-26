@@ -16,6 +16,7 @@ import { cleanTrade } from "./tradeSignal.js";
 import { cleanNews } from "./newsSignal.js";
 import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
+import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
@@ -64,6 +65,8 @@ const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
 // 📏 The radar vs the simple ranking (radarBaseline.js baselineSealText): `book|item|day|orders|due|grade|rebuilt|seed`.
 const BASELINE_LINE = "(?:naive|random)\\|\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|UNREAD|-)\\|(?:\\d{4}-\\d{2}-\\d{2}|-)\\|(?:[0-9a-f]{64}|-)";
 const BASELINE_BOOK = new RegExp(`^${BASELINE_LINE}(\\n${BASELINE_LINE})*$`);
+// 🏭 Before the first sale (listingWave.js prelaunchSealText).
+const PRELAUNCH_BOOK = new RegExp(`^${PRELAUNCH_LINE}(\\n${PRELAUNCH_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -278,6 +281,7 @@ export function sanitizeBoard(doc) {
     // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.
     luck: cleanLuck(doc.luck),
     // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
+    prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),

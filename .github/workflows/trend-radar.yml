@@ -51,6 +51,7 @@ on:
       - src/lib/growth/trendPath.js
       - src/lib/growth/asiaSignal.js
       - src/lib/growth/saturation.js
+      - src/lib/growth/listingWave.js
       - src/lib/growth/israelGap.js
       - src/lib/growth/runReceipt.js
 permissions:

@@ -38,6 +38,13 @@ export function feedEntries(raw) {
     if (!k.called) continue;
     add({ id: `kind/${k.en}/${k.called}`, day: k.called, section: "kinds", title: `New kind found by ${k.via === "look" ? "look" : "meaning"}: ${k.en}`, text: `Sealed on ${k.called}; ${k.members} new listings, median ${k.medianWeekPct}% a week, ${k.orders} orders together; graded in public on ${k.due}.` });
   }
+  for (const c of b.prelaunch?.open || []) {
+    add({ id: `prelaunch/${c.phrase}/${c.at}`, day: c.at, section: "prelaunch", title: `Before the first sale: ${c.phrase}`, text: `Sealed on ${c.at}; ${c.stores} different stores started listing it that week, ${c.base} orders together at the base; graded in public on ${c.due} (a hit at 300 orders and three times the base).` });
+  }
+  for (const c of b.prelaunch?.graded || []) {
+    if (c.result !== "HIT" && c.result !== "MISS") continue;
+    add({ id: `prelaunch-graded/${c.phrase}/${c.at}`, day: c.graded || c.due, section: "prelaunch", title: `Graded ${c.result}: before the first sale, ${c.phrase}`, text: `Sealed on ${c.at} at ${c.base} orders; ${c.orders} on ${c.graded || c.due}, against ${c.target}. Every grade stays in the sealed ledger.` });
+  }
   const BOOK = { early: "a before-everyone call", fresh: "a new product", kinds: "a new kind" };
   (b.envelopes || []).forEach((e, i) => add({ id: `envelope/${e.book}/${e.sealed}/${i}`, day: e.sealed, section: "verdict", title: `Sealed envelope: ${BOOK[e.book]}, sealed on ${e.sealed}`, text: `Sealed in Bitcoin on ${e.sealed}${e.dayN ? `; day ${e.dayN} of 14` : ""}${Number.isFinite(e.change) ? `; orders ${e.change > 0 ? "+" : ""}${e.change}% since the seal` : ""}. Members see what is inside now; it opens to everyone on ${e.due || "its grading day"}.` }));
   const day = b.ledger?.d || String(b.at || "").slice(0, 10);

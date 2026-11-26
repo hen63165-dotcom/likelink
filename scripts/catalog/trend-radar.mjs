@@ -100,6 +100,7 @@ import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
+import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
@@ -1878,6 +1879,90 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const ids = (list) => list.map((x) => `${x.id} +${x.weekPct}%`).join(", ") || "none";
     log.push(`baseline: pool ${pool.length} today · simple ranking ${ids(board.baseline.today.naive)} · chance ${board.baseline.today.random.length ? ids(board.baseline.today.random) : "no draw (no sealed prices)"} · rebuilt ${rebuilt.map((d) => `${d} (${baseState.naive.filter((x) => x.at === d).length}+${baseState.random.filter((x) => x.at === d).length})`).join(", ") || "none"} · radar ${v.radar.hits}/${v.radar.graded} · ranking ${v.naive.hits}/${v.naive.graded} · chance ${v.random.hits}/${v.random.graded} · overlap ${v.overlap}${v.edgeNaive !== null ? ` · edge over the ranking ${v.edgeNaive} pts` : ""}${v.edgeRandom !== null ? ` · edge over chance ${v.edgeRandom} pts` : ""}`);
   }
+  // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
+  // factories, before sales, before everything"): the store's newest listings nobody has bought yet,
+  // per area and a rotation of world categories, each with its store's id. A phrase many different
+  // stores start listing this week, far above their pace before, is a wave; a wave still before its
+  // sales (few orders, few listings, no buzz abroad) is sealed as a call and graded after 21 days by
+  // the store's own orders for that phrase.
+  if (env.RADAR_PRELAUNCH !== "0" && store && !late("prelaunch", 240_000)) {
+    const e = aeEnv(env);
+    let pre = readJson(join(dir, "prelaunch.json"), {});
+    const year = new Date(now).getUTCFullYear();
+    const world = readJson(join(dir, "world-categories.json"), {});
+    const rot = rotation((world.list || []).filter((c) => c.parent), pre.cursor || 0, PRELAUNCH.areasWorld);
+    const areas = [
+      ...[...TREND_CATEGORIES, ...WAVE_AREAS, ...FASHION_AREAS].map((c) => ({ key: c.key, words: c.keywords, biz: { keywords: freshKeywords(c, now) } })),
+      ...rot.slice.map((c) => ({ key: `world-${c.id}`, words: String(c.name || "").toLowerCase(), biz: { category_ids: c.id, keywords: `${year} new` }, alone: { category_ids: c.id } })),
+    ];
+    const started = Date.now();
+    let read = 0;
+    let answered = 0;
+    let listings = 0;
+    let fresh = 0;
+    const storesToday = new Set();
+    const codes = {};
+    for (const a of areas) {
+      if (Date.now() - started > 150_000) { log.push(`prelaunch: budget over at ${a.key}`); break; }
+      try {
+        read++;
+        const ask = (biz) => aeCall(SEARCH, { ...biz, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_ASC" }, { env: e, fetchImpl, now });
+        let r = (await ask(a.biz))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(r?.resp_code) === 405 && a.alone) r = (await ask(a.alone))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(r?.resp_code) !== 200) { codes[`resp_${r?.resp_code ?? "none"}`] = (codes[`resp_${r?.resp_code ?? "none"}`] || 0) + 1; continue; }
+        answered++;
+        const raw = r.result?.products?.product;
+        const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((p) => prelaunchEntry(p)).filter(Boolean);
+        listings += list.length;
+        const m = mergeListings(pre, list, { today, area: a.key, areaWords: a.words });
+        pre = m.state;
+        fresh += m.fresh;
+        for (const x of list) if (x.shop && pre.seen[x.id] === today && !m.seed) storesToday.add(x.shop);
+      } catch (err) { codes[codeOf(err)] = (codes[codeOf(err)] || 0) + 1; }
+      await pause(politeMs);
+    }
+    if (answered) keep(meter, "aliexpress", listings);
+    pre.cursor = rot.next;
+    pre.stats = { ...(pre.stats || {}), [today]: { read, answered, listings, fresh, stores: storesToday.size } };
+    pre = prunePrelaunch(pre, today);
+    const waves = listingWaves(pre, today, { skip: waveSkip([...watch, ...discovered]) });
+    // Each wave: the store's own orders and listings for its phrase, and Google's US suggestions.
+    const checked = [];
+    for (const w of waves.waves.slice(0, PRELAUNCH.checkPerRun)) {
+      let demand = null;
+      let similar = null;
+      let suggestions = null;
+      try {
+        const rr = (await aeCall(SEARCH, { keywords: w.phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200) {
+          similar = Number(rr.result?.total_record_count);
+          const raw = rr.result?.products?.product;
+          demand = phraseDemand(w.phrase, Array.isArray(raw) ? raw : raw ? [raw] : []);
+        } else if (Number(rr?.resp_code) === 405) { similar = 0; demand = { items: 0, orders: 0 }; }
+      } catch { /* unread → not a call */ }
+      if (sources.suggest === "OK") {
+        try { suggestions = await suggestList(w.phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+        await pause(politeMs);
+      }
+      checked.push({ ...w, demand, check: unknownCheck({ phrase: w.phrase, similar: Number.isFinite(similar) ? similar : null, suggestions }) });
+    }
+    // The calls due today: the store's own orders for each phrase now.
+    const reads = {};
+    for (const phrase of waveDueQueue(pre.calls, today)) {
+      try {
+        const rr = (await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200) { const raw = rr.result?.products?.product; reads[phrase] = phraseDemand(phrase, Array.isArray(raw) ? raw : raw ? [raw] : []); }
+        else if (Number(rr?.resp_code) === 405) reads[phrase] = { items: 0, orders: 0 };
+      } catch { /* unread: tried again tomorrow, up to three days past due */ }
+    }
+    pre.calls = recordWaveCalls(gradeWaveCalls(pre.calls, reads, { today }), checked, { today });
+    writeFileSync(join(dir, "prelaunch.json"), JSON.stringify(pre));
+    const preText = prelaunchSealText(pre.calls);
+    const preSeal = preText ? await sealBook({ text: preText, count: preText.split("\n").length }, prevBoard.prelaunch?.seal, "prelaunch") : null;
+    board.prelaunch = prelaunchBoard(pre, { day: today, waves, checked, areas: areas.length, read, answered, listings, fresh, stores: storesToday.size, seal: preSeal });
+    const rec = board.prelaunch.record;
+    log.push(`prelaunch: ${answered}/${read} areas answered (${areas.length - rot.slice.length} areas + ${rot.slice.length} world categories, ${rot.days} days a round) · ${listings} listings under ${PRELAUNCH.maxOrders} orders · ${fresh} first seen today from ${storesToday.size} stores · ${Object.keys(pre.ps || {}).length} phrases kept · ${waves.measuring ? `measuring (${waves.days} of ${PRELAUNCH.minDays} days)` : `waves ${waves.waves.slice(0, 8).map((w) => `${w.phrase} ${w.before}→${w.week} stores (×${w.times})`).join(", ") || "none"}`} · checked ${checked.map((c) => `${c.phrase} ${c.check.reason} ${c.check.similar ?? "?"} listings ${c.demand?.orders ?? "?"} orders`).join(", ") || "none"} · calls ${rec.calls} (${rec.pending} open, ${rec.hits}/${rec.graded} hits, ${rec.unread} unread)${Object.keys(codes).length ? ` · refused ${JSON.stringify(codes)}` : ""}`);
+  }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
@@ -1955,7 +2040,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
