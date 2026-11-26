@@ -23,6 +23,25 @@ const OUT = resolve(process.argv[2] || "magic-demo");
 // to cut its proof shots from; that reel burns in its own labels and disclosure.
 const CLEAN = process.env.MAGIC_CLEAN === "1";
 const NAME = CLEAN ? "magic-clean" : "magic-demo";
+// MAGIC_MODE=deal: the Black Friday cut (the owner, 27.11: "create interest"). MAGIC_LINKS lists
+// candidate items (comma separated) whose recorded prices read RAISED on the radar's ledger; the first
+// one the live page really answers "⚠️ הנחה שמחזירה למחיר הרגיל" for is recorded, nothing else.
+const DEAL = process.env.MAGIC_MODE === "deal";
+const DEAL_LINKS = String(process.env.MAGIC_LINKS || "").split(",").map((x) => x.trim()).filter((x) => /^https:\/\/www\.aliexpress\.com\/item\/\d{6,20}\.html$/.test(x));
+// The day's honest tally comes from the public price index itself (realDeal.js honestTally, written by
+// price-ledger.mjs), never typed in: the end card and the caption print it only when it reads as such.
+const PRICES_INDEX = "https://hen63165-dotcom.github.io/likelink/radar/prices/index.json";
+async function readTally() {
+  try {
+    const r = await fetch(PRICES_INDEX, { signal: AbortSignal.timeout(15_000) });
+    if (!r.ok) return null;
+    const t = (await r.json())?.tally;
+    const ok = t && /^\d{4}-\d{2}-\d{2}$/.test(String(t.d)) && Number.isInteger(t.sales) && t.sales > 0 && Number.isInteger(t.raised) && Number.isInteger(t.real) && t.real + t.raised <= t.sales;
+    return ok ? { day: `${Number(t.d.slice(8))}.${Number(t.d.slice(5, 7))}`, sales: t.sales, raised: t.raised } : null;
+  } catch { return null; }
+}
+const TALLY = DEAL ? await readTally() : null;
+const DEAL_TALLY = TALLY ? `ב־${TALLY.day}: ${TALLY.raised} מתוך ${TALLY.sales}` : "";
 mkdirSync(OUT, { recursive: true });
 
 // The captions, the tap marks and the end card, drawn inside the page (fixed, on top).
@@ -114,8 +133,68 @@ async function typeAnim(locator, text) {
   }
 }
 
+const RAISED_TEXT = "הנחה שמחזירה למחיר הרגיל";
+let found = null;
+let dealLink = "";
+if (DEAL) {
+  // Which candidate the live page answers RAISED for today (unrecorded probe, a page of its own).
+  const probe = await context.newPage();
+  for (const link of DEAL_LINKS) {
+    try {
+      await probe.goto(`${SITE}/magic?u=${encodeURIComponent(link)}`, { waitUntil: "networkidle", timeout: 45_000 });
+      await probe.waitForSelector(`text=${RAISED_TEXT}`, { timeout: 30_000 });
+      dealLink = link;
+      break;
+    } catch { /* the next candidate */ }
+  }
+  await probe.close();
+  if (!dealLink) throw new Error("deal mode: no candidate answered RAISED on the live page; nothing is made");
+}
+
 await page.goto(`${SITE}/magic`, { waitUntil: "networkidle", timeout: 45_000 });
 if (!CLEAN) await page.evaluate(() => { window.__brand?.(); });
+if (DEAL) {
+  await page.waitForSelector("text=הדבקה ובדיקה", { timeout: 20_000 });
+  await sleep(400);
+  await cap("בלאק פריידיי: „הנחה ענקית” 🔥", "רגע לפני שקונים…");
+  await shot(2.4);
+  await page.evaluate((link) => navigator.clipboard.writeText(link), dealLink);
+  await cap("מדביקים את הקישור מאלי", "בכפתור הקסם ✨");
+  await shot(1.6);
+  await tap(page.getByRole("button", { name: /הדבקה ובדיקה/ }));
+  const res = page.locator("#magic-result");
+  try {
+    await res.waitFor({ timeout: 4000 });
+  } catch {
+    await page.locator("#magic-link").fill(dealLink);
+    await page.locator("#magic-link").press("Enter");
+    await shot(0.6);
+    await res.waitFor({ timeout: 25_000 });
+  }
+  const dealBox = page.getByText(RAISED_TEXT).first();
+  await dealBox.waitFor({ timeout: 30_000 });
+  await sleep(800);
+  await dealBox.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -170));
+  await cap("הרדאר רשם את המחיר שלו כל בוקר", "וכל יום נחתם בביטקוין");
+  await shot(3.0);
+  await cap("⚠️ ה„הנחה” רק החזירה אותו למחיר הרגיל", "קודם המחיר עלה, ועכשיו „ירד”");
+  await shot(3.4);
+  await cap("");
+  if (!CLEAN) {
+    await page.evaluate((tally) => {
+      window.__end?.();
+      const el = document.getElementById("__end");
+      if (el) {
+        const first = el.firstElementChild;
+        if (first) first.textContent = "בודקים לפני שקונים 🏷️";
+        if (first?.nextElementSibling) first.nextElementSibling.innerHTML = tally ? `${tally} „הנחות” שהרדאר מדד<br>רק החזירו את המחיר בערך לרגיל` : "הרדאר רושם כל בוקר את המחיר<br>של עשרות אלפי מוצרים";
+      }
+    }, DEAL_TALLY);
+    await shot(3.0);
+  }
+}
+if (!DEAL) {
 await page.waitForSelector("text=הדבקה ובדיקה", { timeout: 20_000 });
 await sleep(400);
 
@@ -166,7 +245,7 @@ await shot(0.5);
 await page.locator("ul.grid li").first().waitFor({ timeout: 25_000 });
 await sleep(1500);
 mark("grid");
-const found = await page.locator("ul.grid li").count();
+found = await page.locator("ul.grid li").count();
 await cap("רק מוצרים שעברו בדיקה ✅", "הרבה הזמנות, שביעות רצון גבוהה, בלי חיקויים");
 await shot(1.4);
 await scrollAnim(520, 3.6);
@@ -176,6 +255,7 @@ await cap("");
 if (!CLEAN) {
   await page.evaluate(() => window.__end?.());
   await shot(2.6);
+}
 }
 await context.close();
 await browser.close();
@@ -202,7 +282,20 @@ execFileSync("ffmpeg", [
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1.2", "-i", mp4, "-frames:v", "1", "-q:v", "3", join(OUT, "cover.jpg")]);
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", mp4, "-vf", "fps=1,scale=360:-1", "-q:v", "5", join(OUT, "frames-%02d.jpg")]);
 
-const caption = [
+const caption = DEAL ? [
+  "#פרסומת · באתר יש קישורי שותפים",
+  "",
+  "בלאק פריידיי: לפני שקונים, בודקים אם זה באמת מבצע 🏷️",
+  "הרדאר של LikeLink2 רושם כל בוקר את המחיר בחנות של עשרות אלפי מוצרים באליאקספרס, וכל יום נחתם בביטקוין.",
+  ...(DEAL_TALLY ? [`${DEAL_TALLY} „הנחות” שהוא מדד רק החזירו את המחיר בערך לרגיל.`] : []),
+  "",
+  "מדביקים קישור בכפתור הקסם ורואים: מבצע אמיתי, או הנחה שמחזירה למחיר הרגיל.",
+  "בחינם ובלי הרשמה: likelink2.vercel.app/magic",
+  "",
+  "שמרו ושלחו למי שקונה היום 💌",
+  "",
+  "#בלאקפריידיי #אליאקספרס #מבצעים #קניותברשת #BlackFriday",
+].join("\n") : [
   "#פרסומת · באתר יש קישורי שותפים",
   "",
   "ראית משהו בטיקטוק או באינסטגרם ורוצה להזמין מאלי? ✨",
@@ -217,5 +310,5 @@ const caption = [
   "#אליאקספרס #קניותברשת #טיפים #עליאקספרס #קניות",
 ].join("\n");
 writeFileSync(join(OUT, "caption.txt"), `${caption}\n`);
-writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: LINK, query: QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
-console.log(`magic demo: ${length.toFixed(1)} s, ${found} search results, ${readdirSync(OUT).filter((f) => f.startsWith("frames-")).length} frames`);
+writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: DEAL ? dealLink : LINK, mode: DEAL ? "deal" : "demo", tally: TALLY, query: DEAL ? null : QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
+console.log(`magic demo (${DEAL ? `deal ${dealLink}` : "demo"}): ${length.toFixed(1)} s, ${found ?? 0} search results, ${readdirSync(OUT).filter((f) => f.startsWith("frames-")).length} frames`);
