@@ -13,7 +13,9 @@
 // Merged from the previous /api/creator-og and /api/product-og endpoints.
 
 import { originFromRequest } from "./_utils/origin.mjs";
-import { checkUrlSyntax, safeFetch } from "./_utils/safeUrl.mjs";
+import { isApprovedOrigin } from "./_utils/cors.js";
+import { PRODUCTION_ORIGIN } from "../src/constants/domain.js";
+import { checkUrlSyntax, fetchAllowedImage, imageHostAllowed, safeFetch } from "./_utils/safeUrl.mjs";
 import { canonicalProduct, buildProductSeo, renderProductBody } from "../src/lib/discovery/surfaces.js";
 import { isPromotable } from "../src/lib/discovery/catalogIntegrity.js";
 import { INDEX_ROBOTS } from "../src/constants/seo.js";
@@ -276,21 +278,14 @@ export default async function handler(req, res) {
     try { target = new URL(raw); } catch {
       res.status(400); res.end("Invalid image URL."); return;
     }
-    const allowedHost =
-      target.origin === origin ||
-      /(^|\.)alicdn\.com$/i.test(target.hostname) ||
-      /(^|\.)aliexpress-media\.com$/i.test(target.hostname) ||
-      /(^|\.)supabase\.(co|in)$/i.test(target.hostname) ||
-      /(^|\.)supabase-storage\.com$/i.test(target.hostname) ||
-      // The catalog's own product photos are hosted here (fixed public image
-      // CDN; the response must still be an image/* under 8MB).
-      /^images\.unsplash\.com$/i.test(target.hostname);
-    if (!allowedHost || !["http:","https:"].includes(target.protocol)) {
+    // The store's CDNs answer https too: an http address is asked over https (as before, minus plain http).
+    if (target.protocol === "http:") target.protocol = "https:";
+    // The fence (safeUrl.mjs imageHostAllowed): our own hosts and the store's CDNs only, on every hop.
+    if (!imageHostAllowed(target.href, origin)) {
       res.status(403); res.end("Image host not allowed."); return;
     }
     try {
-      const upstream = await fetch(target.href, {
-        redirect: "follow",
+      const upstream = await fetchAllowedImage(target.href, origin, {
         signal: AbortSignal.timeout(10000),
         headers: { "user-agent": "Mozilla/5.0", accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8" },
       });
@@ -359,7 +354,10 @@ export default async function handler(req, res) {
   // Real visitor — serve the normal React app from the same deployment.
   if (!BOT_PATTERN.test(userAgent) || (!slug && !productId)) {
     try {
-      const app = await fetch(`${origin}/index.html`, {
+      // The app shell comes from one of our own origins only: the origin follows the request's
+      // forwarded host, so a forged X-Forwarded-Host must never choose the server asked (26.11).
+      const appOrigin = isApprovedOrigin(origin) ? origin : PRODUCTION_ORIGIN;
+      const app = await fetch(`${appOrigin}/index.html`, {
         redirect: "follow",
         signal: AbortSignal.timeout(5000),
       });

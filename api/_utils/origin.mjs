@@ -70,6 +70,10 @@ export function requestOrigin(req) {
     .split(",")[0]
     .trim();
   if (!host) return "";
+  // A host is letters, digits, dots and hyphens (and a port): anything else in a forwarded header is
+  // refused, since the origin is written into HTML and asked by the server (26.11 security pass).
+  if (!/^[a-z0-9.-]+(:\d{1,5})?$/i.test(host)) return "";
+  if (proto !== "https" && proto !== "http") return "";
   const origin = `${proto}://${host.replace(/:\d+$/, "")}`;
   if (isLegacyOrigin(origin)) return "";
   return origin;

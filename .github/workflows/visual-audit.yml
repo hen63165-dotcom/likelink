@@ -80,11 +80,12 @@ jobs:
       - name: Publish the screenshots to the ops/screenshots branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIT_BASE: ${{ github.event.inputs.base || 'https://likelink2.vercel.app' }}
         run: |
           set -e
           cd "$RUNNER_TEMP/audit"
           cp "$RUNNER_TEMP/audit-log.txt" log.txt
-          printf 'Screenshots of %s by the Visual audit workflow, run %s (%s). Overwritten on every run.\n' "${{ github.event.inputs.base || 'https://likelink2.vercel.app' }}" "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
+          printf 'Screenshots of %s by the Visual audit workflow, run %s (%s). Overwritten on every run.\n' "$AUDIT_BASE" "$GITHUB_RUN_ID" "$(date -u +%FT%TZ)" > README.md
           git init -q -b ops/screenshots
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

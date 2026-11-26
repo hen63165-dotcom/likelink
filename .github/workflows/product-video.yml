@@ -90,7 +90,13 @@ jobs:
           echo "no earlier seller videos"
       - name: Find the seller's product videos
         if: github.event.inputs.clip == ''
-        run: node scripts/media/product-video/find-videos.mjs product-videos ${{ github.event.inputs.products }}
+        # A dispatch input reaches the shell as data (env), never as script text; ids only.
+        env:
+          PRODUCT_IDS: ${{ github.event.inputs.products }}
+        run: |
+          case "$PRODUCT_IDS" in *[!A-Za-z0-9_\ ,-]*) echo "products: ids, spaces and commas only"; exit 1;; esac
+          # shellcheck disable=SC2086 # the ids are split on purpose, as before
+          node scripts/media/product-video/find-videos.mjs product-videos $PRODUCT_IDS
       - name: Keep the seller videos for the next run
         if: github.event.inputs.clip == ''
         env:

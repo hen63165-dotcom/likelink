@@ -26,6 +26,8 @@ test("the first link in shared text, and which links are the store's", () => {
   assert.equal(isStoreLink("https://a.aliexpress.com/_mKx1Ab2"), true);
   assert.equal(isStoreLink("https://he.aliexpress.com/item/1.html"), true);
   assert.equal(isStoreLink("https://aliexpress.com.evil.example/item/1.html"), false);
+  assert.equal(isStoreLink("https://aliexpress.com:8443/item/1.html"), false, "the server asks the default port only");
+  assert.equal(isStoreLink("https://x:y@www.aliexpress.com/item/1.html"), false, "no user:password part");
   assert.equal(isStoreLink("https://www.temu.com/x.html"), false);
 });
 

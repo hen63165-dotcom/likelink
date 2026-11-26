@@ -36,11 +36,16 @@ export function firstLink(text = "") {
   return m[0].replace(/[).,;!?\]}]+$/, "").slice(0, 2000);
 }
 
-/** An address on AliExpress (a product page, an app share link or a tracked link). */
+/**
+ * An address on AliExpress (a product page, an app share link or a tracked link). The server asks only
+ * such an address, so it is the magic button's whole SSRF fence: the default port and no user:password
+ * part too (26.11 security pass: "https://aliexpress.com:8443/" and "https://x@aliexpress.com/" read as
+ * the store before).
+ */
 export function isStoreLink(link = "") {
   try {
     const u = new URL(String(link || "").trim());
-    return (u.protocol === "https:" || u.protocol === "http:") && AE_HOST.test(u.hostname);
+    return (u.protocol === "https:" || u.protocol === "http:") && AE_HOST.test(u.hostname) && !u.port && !u.username && !u.password;
   } catch {
     return false;
   }
