@@ -77,7 +77,7 @@ export function radarStaticMain(board = null) {
           <h2 lang="en" dir="ltr">In English</h2>
           <p lang="en" dir="ltr">Every morning the LikeLink2 radar asks AliExpress about its categories (fashion every day, the rest in rotation), checks Google and YouTube searches in Hebrew and Google searches in other countries, and makes a call only when all four signals agree. How many requests each run sent and how many were answered is in its run receipt, with the run's public log. ${esc(RADAR_CLAIM.en)} (Per a worldwide check on ${esc(dm(RADAR_CLAIM.checked))}.) Each day's books are hashed with SHA-256 and timestamped in Bitcoin through OpenTimestamps, so anyone can check that nothing was added, removed or changed later. Beside the calls, one kind is drawn at random each day (seeded by the hash of that day's sealed store prices) and graded by the same rule, so the record shows the radar against luck.</p>
           <nav aria-label="הרדאר">
-            <a href="/radar#proof">איך יודעים שזה אמיתי</a> · <a href="/radar#ledger">ספר החתימות המלא</a> · <a href="/magic">כפתור הקסם</a> · <a href="/radar-pro">המסלולים</a>
+            <a href="/radar#proof">איך יודעים שזה אמיתי</a> · <a href="/radar#ledger">ספר החתימות המלא</a> · <a href="/radar#data">המאגר החתום והקבצים הפתוחים</a> · <a href="/magic">כפתור הקסם</a> · <a href="/radar-pro">המסלולים</a>
           </nav>
         </main>`;
 }

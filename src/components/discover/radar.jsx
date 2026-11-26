@@ -18,6 +18,9 @@ import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, provenRecord, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
+import { OPEN_FILES, datasetCard } from "../../lib/growth/radarDataset.js";
+import { PRICES_HOME } from "../../lib/growth/realDeal.js";
+import { CONTACT_EMAIL } from "../../constants/contact.js";
 import { recomputeCases } from "../../lib/growth/radarBacktest.js";
 import { keptOut } from "../../lib/growth/callGate.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
@@ -1847,6 +1850,45 @@ function VerifyYourself({ board }) {
   );
 }
 
+// 📦 The radar as data (radarDataset.js): the one asset nobody can make later — each day is sealed in
+// Bitcoin only on that day — counted from the board and the public price index, with every open file.
+function DataPool({ board }) {
+  const { L } = useL();
+  const [index, setIndex] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch(`${PRICES_HOME}/index.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live) setIndex(j); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const card = datasetCard(board, index);
+  const s = card.sealed;
+  const p = card.prices;
+  if (!s.since && !card.today) return null;
+  const nf = (v) => Number(v).toLocaleString("he-IL");
+  return (
+    <section className="lx-wrap mt-6" id="data">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("📦 המאגר החתום של הרדאר", "📦 The radar's sealed data pool")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("חותמת זמן בביטקוין נוצרת רק ביום שלה. לכן כל יום שהרדאר חתם נשאר עם התאריך שלו לתמיד, וכל יום חדש מוסיף למאגר יום שאפשר לבדוק.", "A Bitcoin timestamp is made only on its own day. So every day the radar sealed keeps its date for good, and every new day adds a day anyone can check.")}</p>
+        <dl className="lx-rdr-dl mt-3">
+          {s.since ? <><dt>{L("נחתם כל יום מאז", "Sealed every day since")}</dt><dd>{dm(s.since)}{Number.isInteger(s.days) ? L(` · ${nf(s.days)} ימים חתומים`, ` · ${s.days} sealed days`) : ""}</dd></> : null}
+          {s.inBitcoin ? <><dt>{L("נמצאו בתוך בלוק ביטקוין", "Found inside a Bitcoin block")}</dt><dd>{L(`${nf(s.inBitcoin)} ימים${s.latest ? `, האחרון בבלוק #${s.latest.height}` : ""}${s.pending ? `, ועוד ${nf(s.pending)} בדרך` : ""}`, `${s.inBitcoin} days${s.latest ? `, the latest in block #${s.latest.height}` : ""}${s.pending ? `, and ${s.pending} on the way` : ""}`)}</dd></> : null}
+          {card.today ? <><dt>{L(`בספרים של ${dm(card.today.d)}`, `In the ${dm(card.today.d)} books`)}</dt><dd>{L(`${nf(card.today.records)} רשומות ב־${nf(card.today.books)} ספרים`, `${card.today.records} records in ${card.today.books} books`)}</dd></> : null}
+          {p ? <><dt>{L("ספר המחירים", "The price ledger")}</dt><dd>{L(`${nf(p.items)} מוצרים, המחיר של כל אחד נרשם מאז ${dm(p.since)}; ${nf(p.sealedDays)} ימים חתומים`, `${p.items} items, each one's price recorded since ${dm(p.since)}; ${p.sealedDays} sealed days`)}</dd></> : null}
+          {p?.tally ? <><dt>{L(`המבצעים של ${dm(p.tally.d)}`, `The ${dm(p.tally.d)} sales`)}</dt><dd>{L(`מתוך ${nf(p.tally.sales)} הנחות: ${nf(p.tally.real)} מתחת למחיר הרגיל, ${nf(p.tally.raised)} רק ביטלו העלאה`, `Of ${p.tally.sales} discounts: ${p.tally.real} under the usual price, ${p.tally.raised} only undid a raise`)}</dd></> : null}
+          {card.proven ? <><dt>{L("הרקורד הכי חזק שכבר קיבל ציון", "The strongest record already graded")}</dt><dd>{L(`${nf(card.proven.held)} מתוך ${nf(card.proven.n)} טווחים ל־${card.proven.h} ימים התקיימו (נאמר ${card.proven.level}%)`, `${card.proven.held} of ${card.proven.n} ${card.proven.h}-day ranges held (said ${card.proven.level}%)`)}</dd></> : null}
+        </dl>
+        <h3 className="mt-4 text-[16px] font-extrabold">{L("הקבצים הפתוחים", "The open files")}</h3>
+        <ul className="mt-1 text-[13px] leading-6">
+          {OPEN_FILES.map((f) => <li key={f.id}><a className="font-bold underline" href={f.url} target="_blank" rel="noopener noreferrer" dir="ltr" style={{ overflowWrap: "anywhere" }}>{f.url.replace(/^https:\/\//, "")}</a>{L(` · ${f.he}`, ` · ${f.en}`)}</li>)}
+        </ul>
+        <p className="mt-3 text-[13px] leading-6">{L("רוצים לחבר את הרדאר לפלטפורמה, לחנות או למחקר שלכם?", "Want to connect the radar to your platform, store or research?")} <a className="font-bold underline" href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("LikeLink2 radar data")}`}>{L("כתבו לנו", "Write to us")}</a></p>
+        <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(card.use.he, card.use.en)}</p>
+      </div>
+    </section>
+  );
+}
+
 function Proof({ record, hasLedger = false }) {
   const { L } = useL();
   const graded = Number(record?.graded) || 0;
@@ -2554,6 +2596,7 @@ export function RadarPage() {
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
         {board?.ledger?.sha256 ? <VerifyYourself board={board} /> : null}
+        {board ? <DataPool board={board} /> : null}
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
         {board?.backtest || board?.versus ? <HeadToHead bt={board.backtest} versus={board.versus} /> : null}

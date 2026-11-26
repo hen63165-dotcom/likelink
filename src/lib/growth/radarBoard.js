@@ -60,6 +60,8 @@ const cleanAnchors = (a) => (a && typeof a === "object" ? {
     .map((x) => ({ d: x.d, sha256: x.sha256, height: x.height, block: x.block, time: Number.isFinite(x.time) && x.time > 1_200_000_000 ? x.time : null, b64: /^[A-Za-z0-9+/]+=*$/.test(String(x.b64 || "")) && String(x.b64).length <= 20_000 ? x.b64 : null })),
   pending: Number.isInteger(a.pending) && a.pending >= 0 ? a.pending : 0,
   since: /^\d{4}-\d{2}-\d{2}$/.test(String(a.since || "")) ? a.since : null,
+  // Days with a sealed root (inside Bitcoin or still waiting), counted by the run (anchorsBoard).
+  days: Number.isInteger(a.days) && a.days >= 0 && a.days < 100_000 ? a.days : null,
 } : null);
 // Every book of radarLedger.js LEDGER_BOOKS, built from the list itself: on 20.11 a hand-written copy
 // missed brain= and the page dropped the root text, so nobody could recompute it.
