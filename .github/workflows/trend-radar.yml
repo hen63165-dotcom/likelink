@@ -61,7 +61,7 @@ concurrency:
 jobs:
   read:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 58
     env:
       ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
       ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
@@ -115,9 +115,11 @@ jobs:
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
           set -o pipefail
-          # 30 minutes (17.11: 120 world categories and 16 styles a day did not fit in 14; the job's 50
-          # leave time for the archive, the board, the alert and the encrypted state after it).
-          timeout 1800 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
+          # 45 minutes (17.11: 120 world categories and 16 styles a day did not fit in 14; 26.11: a run
+          # reached 30 and was stopped before it saved anything). The run's own deadline (38 minutes)
+          # skips the optional readings by name, so the day is always saved; the job's 58 leave time for
+          # the archive, the board, the alert and the encrypted state after it.
+          timeout 2700 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: The channels' preview (Telegram + Instagram from this board; nothing is sent)
         # src/lib/growth/channelEngine.js over the board just measured: the leading candidates checked

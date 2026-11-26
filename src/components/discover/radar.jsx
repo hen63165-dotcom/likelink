@@ -1333,19 +1333,34 @@ function SourcesToday({ sources, receipt, scan = null, health = null }) {
             ) : null}
           </div>
         ) : null}
-        <ul className="mt-3 grid gap-1.5 md:grid-cols-2">
-          {list.map((x) => (
-            <li key={x.key} className="flex items-center justify-between gap-3 border-b py-1.5 text-[13px]" style={{ borderColor: "var(--lx-line)" }}>
-              <span>
-                <b>{L(x.he, x.en)}</b>
-                <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
-                {x.counts ? <StageCounts c={x.counts} countryNames={countryNames} /> : null}
-                {MEASURES[x.key] || health?.sources?.[x.key] ? <SourceHealth m={MEASURES[x.key]} h={health?.sources?.[x.key] || null} /> : null}
-              </span>
-              <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
-            </li>
-          ))}
-        </ul>
+        {[
+          ["read", "מה הרדאר קרא בריצה", "What the radar read in the run", null],
+          ["connect", "דלתות שנפתחות בחיבור של בעלת האתר", "Doors the owner's connection opens", "הן נספרות רק מהיום שהחיבור קיים, ועד אז הרדאר קורא בלעדיהן.", "They count only from the day the connection exists; until then the radar reads without them."],
+          ["closed", "סגור לפי הכללים של האתר עצמו", "Closed by the site's own rules", "הרדאר מכבד את robots.txt של כל אתר, ובודק כל יום אם הדלת נפתחה. את אותן מדינות הוא קורא בדלת פתוחה אחרת:", "The radar respects every site's robots.txt and checks each day whether the door opened. It reads the same countries through another open door:"],
+        ].map(([g, he, en, noteHe, noteEn]) => {
+          const rows = list.filter((x) => x.group === g);
+          if (!rows.length) return null;
+          return (
+            <div key={g} className="mt-3">
+              <p className="text-[14px] font-black">{L(he, en)}</p>
+              {noteHe ? <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(noteHe, noteEn)}</p> : null}
+              <ul className="mt-1 grid gap-1.5 md:grid-cols-2">
+                {rows.map((x) => (
+                  <li key={x.key} className="flex items-center justify-between gap-3 border-b py-1.5 text-[13px]" style={{ borderColor: "var(--lx-line)" }}>
+                    <span>
+                      <b>{L(x.he, x.en)}</b>
+                      <span className="block text-[11px]" style={{ color: "var(--lx-muted)" }}>{x.door}</span>
+                      {x.insteadHe ? <span className="block text-[12px] font-bold">{L(x.insteadHe, x.insteadEn)}</span> : null}
+                      {x.counts ? <StageCounts c={x.counts} countryNames={countryNames} /> : null}
+                      {MEASURES[x.key] || health?.sources?.[x.key] ? <SourceHealth m={MEASURES[x.key]} h={health?.sources?.[x.key] || null} /> : null}
+                    </span>
+                    <span className={`lx-rdr-pill ${tone[SOURCE_STATES[x.state].tone]}`}>{L(SOURCE_STATES[x.state].he, SOURCE_STATES[x.state].en)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
         {scan ? <ScanTable scan={scan} /> : null}
         <p className="mt-4 text-[14px] font-black">{L("הדלתות הבאות", "The next doors")}</p>
         <ul className="mt-1 grid gap-1 text-[13px]">

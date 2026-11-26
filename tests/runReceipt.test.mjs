@@ -85,6 +85,15 @@ test("the metered fetch returns the same answer and counts what really came back
   assert.equal(receiptText(receipt), text, "the same counts always give the same text (and so the same hash)");
 });
 
+test("Wikimedia's 404 for a title with no article is a valid answer, none; other 404s stay refusals", async () => {
+  const meter = newMeter();
+  const f = meterFetch(async () => new Response(JSON.stringify({ type: "not_found" }), { status: 404 }), meter);
+  await f("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Bow_fur_boots/daily/20261101/20261125");
+  await f("https://he.wikipedia.org/api/rest_v1/page/summary/x");
+  const r = receiptOf(meter, {});
+  assert.deepEqual(r.sources.wikipedia, { asked: 2, answered: 0, empty: 1, refused: 1, failed: 0, codes: { no_article: 1, http_404: 1 } });
+});
+
 test("a claimed state stands only on a real answer from its own host", () => {
   const receipt = { sources: { aliexpress: { asked: 10, answered: 0, empty: 0, refused: 10, failed: 0 }, rules: { asked: 1, answered: 1 }, trendsIL: { asked: 1, answered: 1 } } };
   const claimed = { aliexpress: "OK", world: { categories: 564, readToday: 120 }, fresh: "OK", suggest: "OK", youtube: "OK", trendsIL: "OK", kinds: "OK", promise: "OK", pinterest: "REQUIRES_CONNECTION", engine_baidu: "ROBOTS_DISALLOW_OR_FAILED" };

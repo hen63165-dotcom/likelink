@@ -94,6 +94,12 @@ test("what the radar read today: the run's own states, mapped once, unknown keys
   assert.deepEqual(Object.keys(board.sourcesToday).sort(), ["aliexpress", "engine_naver", "kinds", "pinterest", "world", "youtubeApi"]);
   const v = Object.fromEntries(sourcesView(board.sourcesToday).map((x) => [x.key, x.state]));
   assert.deepEqual(v, { aliexpress: "OK", world: "OK", kinds: "FAILED", youtubeApi: "SKIPPED", pinterest: "REQUIRES_CONNECTION", engine_naver: "CLOSED" });
+  // Three groups, never mixed: what the run read, the doors a connection opens, the doors a site's rules close.
+  const groups = Object.fromEntries(sourcesView(board.sourcesToday).map((x) => [x.key, x.group]));
+  assert.deepEqual(groups, { aliexpress: "read", world: "read", kinds: "read", youtubeApi: "read", pinterest: "connect", engine_naver: "closed" });
+  const naver = sourcesView(board.sourcesToday).find((x) => x.key === "engine_naver");
+  assert.match(naver.insteadHe, /^במקום זה: /, "a closed door names the open one read instead");
+  assert.match(naver.insteadEn, /Korea/);
   for (const s of Object.values(SOURCE_STATES)) assert.doesNotMatch(s.he, /(^|\s)(לא|אין)(\s|$)/);
   assert.ok(NEXT_DOORS.every((d) => d.door && d.he));
   assert.deepEqual(teaserBoard(board).sourcesToday, board.sourcesToday);

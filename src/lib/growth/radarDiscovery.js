@@ -15,6 +15,7 @@ export const DISCOVERY = Object.freeze({
   maxAuto: 24, // trial concepts on the radar at once
   trialDays: 14, // a trial concept stays this long unless it is rising
   keepStages: Object.freeze(["EMERGING", "RISING"]),
+  maxEmpty: 2, // empty store answers in a row before a trial concept leaves
 });
 
 // The board's shop kinds for the trend board's categories (src/lib/growth/trendBoard.js).
@@ -107,7 +108,8 @@ export const autoId = (en) => `auto-${String(en).toLowerCase().replace(/[^a-z0-9
 export function admitDiscovered(current = [], candidates = [], { concepts = [], stages = {}, now = Date.now(), rules = DISCOVERY } = {}) {
   const today = new Date(now).toISOString().slice(0, 10);
   const age = (d) => Math.round((Date.parse(today) - Date.parse(d)) / 86_400_000);
-  const kept = (Array.isArray(current) ? current : []).filter((c) => c?.id && c.en && (age(c.found) < rules.trialDays || rules.keepStages.includes(stages[c.id])));
+  // A trial concept the store answered empty for `maxEmpty` readings in a row is sold under no such name: it leaves.
+  const kept = (Array.isArray(current) ? current : []).filter((c) => c?.id && c.en && !(Number(c.empty) >= rules.maxEmpty) && (age(c.found) < rules.trialDays || rules.keepStages.includes(stages[c.id])));
   const ids = new Set([...kept.map((c) => c.id), ...concepts.map((c) => c.id)]);
   let added = 0;
   for (const cand of Array.isArray(candidates) ? candidates : []) {

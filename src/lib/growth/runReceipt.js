@@ -171,6 +171,8 @@ export function meterFetch(fetchImpl, meter) {
     let outcome = httpOutcome(status);
     let code = outcome === "answered" ? null : `http_${status || "none"}`;
     if (key === "rules" && status === 404) { outcome = "empty"; code = "no_rules_file"; }
+    // Wikimedia's Pageviews answers 404 for a title with no article (or no views): a valid answer, "none".
+    if (key === "wikipedia" && status === 404 && /\/metrics\/pageviews\/per-article\//.test(href)) { outcome = "empty"; code = "no_article"; }
     // A 2xx is a success only when its body says so: read from a copy, the caller gets the original.
     if (outcome === "answered" && key !== "seal" && key !== "bitcoin" && key !== "rules") {
       if (typeof res.clone === "function") {
