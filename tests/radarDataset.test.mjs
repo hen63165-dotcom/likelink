@@ -79,3 +79,32 @@ test("wiring: the build writes /radar/dataset.json, the page shows the pool in t
   const pub = readFileSync("src/lib/publicSeo.js", "utf8");
   assert.doesNotMatch(pub, /radarDataset\.js/, "publicSeo stays light: it imports radarOpenData.js only");
 });
+
+test("the record per instrument and the auditor's lines: graded first with numbers, waiting books with their grading day", async () => {
+  const { recordOf, auditLines, withAuditLines } = await import("../src/lib/growth/radarDataset.js");
+  const board = {
+    at: "2026-11-26T21:00:00Z",
+    ledger: { d: "2026-11-26", sha256: H("f"), text: `stages=${H("1")}\nversus=${H("2")}` },
+    record: { calls: 3, graded: 0, hits: 0, pending: 3, nextDue: "2026-12-05" },
+    versus: { sheets: 12, horizons: [{ h: 3, nextDue: "2026-11-29", pick: { of: 0, hits: 0 }, rank: { of: 0, hits: 0 } }], seal: { sha256: H("2"), count: 12 } },
+    promise: { coverage: [{ h: 3, level: 90, n: 470, held: 421, rate: 89.6 }], open: 450, nextDue: "2026-11-27" },
+    anchors: { list: [{ d: "2026-11-25", sha256: H("a"), height: 977538, block: BLOCK }], pending: 1, since: "2026-11-20", days: 7 },
+  };
+  const rec = recordOf(board);
+  assert.equal(rec.day, "2026-11-26");
+  const stages = rec.rows.find((r) => r.id === "stages");
+  assert.deepEqual([stages.said, stages.graded, stages.result, stages.nextGrading], [3, 0, null, "2026-12-05"]);
+  const card = datasetCard(board, { first: "2026-11-16", items: 60425, seals: { "2026-11-26": { sha256: H("b") } } });
+  const lines = auditLines(card);
+  assert.match(lines[0], /^- The record as of 2026-11-26/);
+  assert.ok(lines.some((l) => /421 of 470 3-day order ranges held when the radar said 90%/.test(l)), "the graded record, with its numbers");
+  assert.ok(lines.some((l) => /Rising calls: 3 sealed, first grading on 2026-12-05/.test(l)), "a waiting book, with its day");
+  assert.ok(lines.some((l) => /sealed head-to-head: 12 sealed, first grading on 2026-11-29/.test(l)));
+  assert.ok(lines.some((l) => /Sealed every day since 2026-11-20; 1 days already verified inside Bitcoin blocks \(latest block 977538\)/.test(l)));
+  assert.ok(lines.some((l) => /60425 items recorded daily since 2026-11-16, 1 days sealed/.test(l)));
+  const txt = "a\n<!-- radar:record -->\nb";
+  assert.equal(withAuditLines(txt, null), "a\n\nb", "without a board the marker goes");
+  assert.match(withAuditLines(txt, card), /^a\n- The record as of 2026-11-26/);
+  assert.match(readFileSync("public/llms.txt", "utf8"), /<!-- radar:record -->/);
+  assert.match(readFileSync("scripts/prerender-products.mjs", "utf8"), /withAuditLines\(readFileSync\(llms, "utf8"\), radarCard\)/);
+});

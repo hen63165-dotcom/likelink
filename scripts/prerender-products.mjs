@@ -188,6 +188,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   const result = prerender({ catalog, radarBoard });
   // 📣 The radar's public feed on the main host too (radarFeed.js), from the same public board.
+  let radarCard = null;
   if (radarBoard && existsSync(join(ROOT, "dist"))) {
     const { radarFeed } = await import("../src/lib/growth/radarFeed.js");
     mkdirSync(join(ROOT, "dist/radar"), { recursive: true });
@@ -200,7 +201,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       const res = await fetch("https://hen63165-dotcom.github.io/likelink/radar/prices/index.json", { signal: AbortSignal.timeout(8000) });
       if (res.ok) priceIndex = await res.json();
     } catch { /* the card says null */ }
-    writeFileSync(join(ROOT, "dist/radar/dataset.json"), `${JSON.stringify(datasetCard(radarBoard, priceIndex), null, 1)}\n`);
+    const card = datasetCard(radarBoard, priceIndex);
+    writeFileSync(join(ROOT, "dist/radar/dataset.json"), `${JSON.stringify(card, null, 1)}\n`);
+    radarCard = card;
+  }
+  // /llms.txt carries the radar's record as of this build (radarDataset.js auditLines); without a
+  // readable board the marker line is simply removed.
+  if (existsSync(join(ROOT, "dist/llms.txt"))) {
+    const { withAuditLines } = await import("../src/lib/growth/radarDataset.js");
+    const llms = join(ROOT, "dist/llms.txt");
+    writeFileSync(llms, withAuditLines(readFileSync(llms, "utf8"), radarCard));
   }
   console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls (${note})`);
 }
