@@ -14,7 +14,7 @@ export { OPEN_FILES, LEDGER_SINCE, datasetJsonLd } from "./radarOpenData.js";
 
 import { OPEN_FILES } from "./radarOpenData.js";
 import { BOOK_SEALS } from "./radarVerify.js";
-import { provenRecord } from "./radarCore.js";
+import { provenRecord, recordView } from "./radarCore.js";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const SHA = /^[0-9a-f]{64}$/;
@@ -69,7 +69,51 @@ export function datasetCard(board = {}, priceIndex = null) {
     today: ledger ? { d: DAY.test(String(ledger.d || "")) ? ledger.d : null, root: ledger.sha256, books: books.length, records: books.reduce((s, b) => s + b.records, 0), perBook: books } : null,
     prices: pricesOf(priceIndex),
     proven: provenRecord(board),
+    record: recordOf(board),
     use: { he: "חופשי לקרוא ולבדוק. כל שימוש אחר, כולל חיבור לפלטפורמה, בתיאום עם בעלת האתר.", en: "Free to read and verify. Any other use, including connecting it to a platform, by agreement with the site's owner (see LICENSE)." },
     files: OPEN_FILES.map(({ id, url, format, every, en }) => ({ id, url, format, every, what: en })),
   };
+}
+
+/**
+ * Every instrument's record as the board holds it (radarCore.js recordView): how many said, how many
+ * already checked, the result as it is, and the next grading day. An outside check read "0 graded
+ * predictions" on 26.11 while 470 three-day ranges were already graded: the card now says per book
+ * what is graded and what waits for which day, so nobody has to guess.
+ */
+export function recordOf(board = {}) {
+  const v = recordView(board);
+  return {
+    day: v.day,
+    rows: v.rows.map((r) => ({ id: r.id, name: r.en, said: r.given ?? null, graded: r.graded ?? null, result: r.result || null, nextGrading: r.next || null, sealedToday: r.sealed === true })),
+  };
+}
+
+/**
+ * The lines /llms.txt carries for an auditor, from the card (English, what IS, dated). Graded books
+ * first with their numbers; books still waiting are named with their first grading day.
+ */
+export function auditLines(card) {
+  if (!card || typeof card !== "object") return [];
+  const out = [];
+  const day = card.record?.day || card.today?.d || null;
+  if (day) out.push(`- The record as of ${day} (from the public board; the same numbers are in https://likelink2.vercel.app/radar/dataset.json, rebuilt with every deploy):`);
+  if (card.proven) out.push(`  - Graded so far: ${card.proven.held} of ${card.proven.n} ${card.proven.h}-day order ranges held when the radar said ${card.proven.level}% — each range sealed in Bitcoin before its outcome (a calibration record, not a hit rate of product picks).`);
+  for (const r of card.record?.rows || []) {
+    if (!r.said || r.result || !r.nextGrading) continue;
+    out.push(`  - ${r.name}: ${r.said} sealed, first grading on ${r.nextGrading} (hit or miss, published either way).`);
+  }
+  const s = card.sealed || {};
+  if (s.since) out.push(`  - Sealed every day since ${s.since}${Number.isInteger(s.inBitcoin) && s.inBitcoin ? `; ${s.inBitcoin} days already verified inside Bitcoin blocks${s.latest ? ` (latest block ${s.latest.height})` : ""}` : ""}.`);
+  if (card.prices) out.push(`  - Store prices: ${card.prices.items} items recorded daily since ${card.prices.since}, ${card.prices.sealedDays} days sealed.`);
+  return out;
+}
+
+/** Puts the audit lines in place of the marker line in llms.txt (an empty line when there is nothing to add). */
+export function withAuditLines(text, card) {
+  const lines = auditLines(card);
+  const MARK = "<!-- radar:record -->";
+  const t = String(text || "");
+  if (!t.includes(MARK)) return t;
+  return t.replace(MARK, lines.join("\n"));
 }
