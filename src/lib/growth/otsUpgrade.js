@@ -193,5 +193,5 @@ export function anchorsBoard(roots = {}, { max = 10 } = {}) {
     .slice(0, max)
     .map(({ d, r }) => ({ d, sha256: r.sha256, height: Number(r.anchor.height), block: r.anchor.block, time: Number(r.anchor.time) || null, b64: r.anchor.b64 || null }));
   const pending = days.filter((d) => roots[d] && !roots[d].anchor).length;
-  return { list, pending, since: days.length ? days[days.length - 1] : null };
+  return { list, pending, since: days.length ? days[days.length - 1] : null, days: days.length };
 }

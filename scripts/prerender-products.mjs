@@ -192,6 +192,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const { radarFeed } = await import("../src/lib/growth/radarFeed.js");
     mkdirSync(join(ROOT, "dist/radar"), { recursive: true });
     writeFileSync(join(ROOT, "dist/radar/feed.xml"), radarFeed(radarBoard));
+    // 📦 The radar as data (radarDataset.js): the sealed history and every open file, from the same
+    // board and the public price index; an unread index leaves its part null.
+    const { datasetCard } = await import("../src/lib/growth/radarDataset.js");
+    let priceIndex = null;
+    try {
+      const res = await fetch("https://hen63165-dotcom.github.io/likelink/radar/prices/index.json", { signal: AbortSignal.timeout(8000) });
+      if (res.ok) priceIndex = await res.json();
+    } catch { /* the card says null */ }
+    writeFileSync(join(ROOT, "dist/radar/dataset.json"), `${JSON.stringify(datasetCard(radarBoard, priceIndex), null, 1)}\n`);
   }
   console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls (${note})`);
 }
