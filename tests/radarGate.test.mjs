@@ -102,3 +102,51 @@ test("who spotted it first: only a user with access picks; the table is public a
   assert.equal(mine.body.picks[0].concept, "tofu-squishy");
   assert.equal(mine.body.picks[0].userId, undefined);
 });
+
+test("the lock: 'room to make it' shows its record and fingerprint, never the kinds it named", async () => {
+  const { teaserBoard: teaser } = await import("../src/lib/growth/radarGate.js");
+  const t = teaser({ at: "2026-11-22T06:00:00Z", supply: { measured: 125, under: 14, over: 2, top: ["cable-knit-scarf"], record: { calls: 14, graded: 0, followed: 0 }, seal: { d: "2026-11-22", sha256: "a".repeat(64), count: 30, text: "cable-knit-scarf|2026-11-22|call|400|2026-12-06|-", ots: [] } } });
+  assert.deepEqual(t.supply.top, []);
+  assert.equal(t.supply.record.calls, 14);
+  assert.equal(t.supply.seal.sha256, "a".repeat(64));
+  assert.equal(t.supply.seal.text, undefined);
+  assert.ok(!JSON.stringify(t).includes("cable-knit-scarf"));
+});
+
+test("the lock: every open call is a sealed envelope — the seal's facts, never what is inside", async () => {
+  const { teaserBoard: teaser, envelopesOf } = await import("../src/lib/growth/radarGate.js");
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const board = {
+    at: "2026-11-22T06:00:00Z", record: {}, concepts: [],
+    early: { ledger: [{ concept: "secret-kind", at: "2026-11-20", due: "2026-12-04", dayN: 3, progress: 38 }, { concept: "done-kind", at: "2026-11-01", due: "2026-11-15", result: "HIT" }] },
+    fresh: { watch: [{ id: "1005013201890326", title: "Secret pants", called: "2026-11-20", due: "2026-12-04", dayN: 3, progress: 21 }], risers: [{ id: "1005013201890326", title: "Secret pants", called: "2026-11-20", due: "2026-12-04" }, { id: "1005013000000009", title: "Secret lamp", called: "2026-11-22", due: "2026-12-06" }] },
+  };
+  const env = envelopesOf(board);
+  assert.deepEqual(env.map((e) => [e.book, e.sealed, e.change]), [["fresh", "2026-11-22", null], ["early", "2026-11-20", 38], ["fresh", "2026-11-20", 21]], "graded calls are no envelope; one per call");
+  const t = teaser(board);
+  assert.equal(t.envelopes.length, 3);
+  const clean = sanitizeBoard(t);
+  assert.equal(clean.envelopes.length, 3);
+  assert.ok(!/secret|Secret|1005013/.test(JSON.stringify(clean.envelopes)), "never what is inside");
+});
+
+test("✉️ envelopes carry true clues measured at the seal (area, pace, few sellers, countries), never what is inside", async () => {
+  const { teaserBoard: teaser } = await import("../src/lib/growth/radarGate.js");
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const board = {
+    at: "2026-11-22T06:00:00Z", record: {}, concepts: [],
+    fresh: { risers: [{ id: "1005013201890326", title: "Secret Cloud Lamp", category: "home", weekPct: 84, called: "2026-11-22", due: "2026-12-06", known: { similar: 412, world: { state: "FIRST_SIGNS", measured: 51, searched: 2, where: ["US", "GB"] } } }], watch: [] },
+    kinds: { list: [] }, early: { ledger: [] },
+    trade: { latest: "2026-09", partners: [{ id: "CN", measured: 900, jumping: 1, top: [{ code: "33030090", label: "Toilet waters", value: 19e6, prev: 7.4e6, valuePct: 156, kgPct: 230 }] }] },
+  };
+  const clean = sanitizeBoard(teaser(board));
+  assert.equal(clean.envelopes.length, 1);
+  const e = clean.envelopes[0];
+  assert.equal(e.area, "home");
+  assert.equal(e.pace, 84);
+  assert.equal(e.similar, 412);
+  assert.equal(e.countries, 2);
+  assert.equal(e.measured, 51);
+  assert.ok(!/Secret|Cloud|1005013|US|GB/.test(JSON.stringify(clean.envelopes)), "never the name, the item or the countries");
+  assert.equal(clean.trade.partners[0].top[0].code, "33030090", "the customs records are public behind the lock");
+});

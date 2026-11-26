@@ -118,3 +118,20 @@ Sources: [style3d: AI fashion prediction accuracy 2026](https://www.style3d.ai/b
 - Numbers about competitors only as they publish them, with the source.
 
 Sources: [Contently roundup](https://contently.com/2025/12/26/how-to-detect-micro-trends-before-they-break-out-top-10-platforms-for-2026/), [trendsmcp comparison](https://www.trendsmcp.ai/blog/best-tools-for-trend-forecasting-2026), [ai-in-fashion: WGSN/Heuritech](https://ai-in-fashion.com/en/trend-forecasting-tools-compared/), [EchoTik TikTok tools](https://echotik.live/blog/best-tiktok-product-research-tools-2026/), [SmartScout: Helium 10 vs Jungle Scout](https://www.smartscout.com/blog/helium-10-vs-jungle-scout), [DemandSage](https://www.demandsage.com/helium-10-vs-jungle-scout/), [NeuPortal](https://neuportal.ai/blog/prove-prediction-made-before-event-opentimestamps), [Exploding Topics](https://explodingtopics.com/solutions/market-researchers), [Glimpse](https://meetglimpse.com/software-guides/trend-forecasting/), [ZIK](https://www.zikanalytics.com/academy/ebay/advanced-tools/ali-growth-scanner-tutorial), [Minea](https://minea.com/./aliexpress-products-finder).
+
+
+## Eleventh check (26.11.2026): Wix's purchases, sealed product-trend calls
+
+Asked: did Wix buy a company that does what the radar does, and does the approved sentence still hold?
+
+- **Wix's purchases.** None of them forecasts product trends.
+  - [Base44](https://www.calcalistech.com/ctechnews/article/s1iflnlelx) is an AI app builder, announced June 2025, about $80M upfront plus earn-outs ([up to ~$280M reported](https://www.calcalistech.com/ctechnews/article/fu5xrwt7i)).
+  - [Hour One](https://www.nasdaq.com/articles/wix-acquires-hour-one-boost-generative-ai-and-drive-innovation) makes AI video.
+  - [Rise.ai](https://techradar.com/news/wix-will-offer-gift-cards-and-store-create-solutions-after-riseai-acquisition) does gift cards and re-engagement.
+  - [Modalyst](https://techradar.com/news/wix-continues-acquisition-spree-with-purchase-of-dropshipping-firm-modalyst) is a dropshipping supplier marketplace. Inside Wix, it lets sellers browse "trending products" by subcategory, save and import them, and order samples ([review](https://www.websitebuilderexpert.com/building-online-stores/how-to-find-trending-products-to-sell-online/)). We found no published selection method, no dated calls and no graded record. The radar's Wix page (`/wix/radar`) already hands a find to Modalyst's search and to Wix's import file: the radar is the step before it, which product and when.
+- **Sealed, graded calls.** The extended search found sealed, graded forecasts only outside product trends:
+  - sports betting;
+  - [NeuPortal's Bitcoin-timestamped market forecasts](https://neuportal.ai/blog/ai-and-blockchain-how-bitcoin-timestamps-make-ai-verifiable), self-published.
+
+  We found no ecommerce trend tool publishing timestamped, publicly graded calls. The approved sentence (`RADAR_CLAIM`) still holds, with "we found" and this date.
+- **What the radar's own record shows the same day.** The lab, on 17–22.11, 3 days, +10%: the radar's pick 18.3%, the simple ranking 18.3%, random 2%. It is equal to the simple ranking, not ahead of it. Nothing may say "the best" or "more accurate than" until the sealed daily duel (`radarVersus.js`) and the 14-day grades show it.

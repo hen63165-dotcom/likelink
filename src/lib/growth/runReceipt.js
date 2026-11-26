@@ -13,14 +13,17 @@
 //      receipt is printed line by line by GitHub's own runner, with GitHub's own timestamps.
 //   3. Bitcoin. The receipt's exact text is a book of the daily sealed root (book "run"), so the
 //      numbers cannot be changed after the morning they were read.
-// Pure and import-free: the runner meters and builds it, the board keeps it, the page shows it.
+// Pure (it imports only the world gap's country names): the runner meters and builds it, the board
+// keeps it, the page shows it.
+
+import { GAP_EXTRA } from "./worldGap.js";
 
 export const RECEIPT = Object.freeze({ v: 1, repo: "hen63165-dotcom/likelink", server: "https://github.com" });
 
 /** Every place the run asks, by host: the public source keys the page already names. */
 export const METERED = Object.freeze([
   "aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram",
-  "engine_baidu", "engine_naver", "site", "seal", "bitcoin", "rules", "other",
+  "engine_baidu", "engine_naver", "wikipedia", "bluesky", "metaAds", "shops", "trade", "news", "site", "seal", "bitcoin", "rules", "other",
 ]);
 export const OUTCOMES = Object.freeze(["answered", "empty", "refused", "failed"]);
 export const AE_METHODS = Object.freeze(["product.query", "hotproduct.query", "productdetail.get", "category.get", "order.list", "link.generate"]);
@@ -30,6 +33,8 @@ export const COUNTRY_NAMES = Object.freeze({
   il: ["ישראל", "Israel"], us: ["ארה״ב", "US"], gb: ["בריטניה", "UK"], ca: ["קנדה", "Canada"], au: ["אוסטרליה", "Australia"],
   de: ["גרמניה", "Germany"], fr: ["צרפת", "France"], jp: ["יפן", "Japan"], kr: ["קוריאה", "Korea"], in: ["הודו", "India"],
   es: ["ספרד", "Spain"], it: ["איטליה", "Italy"], br: ["ברזיל", "Brazil"], mx: ["מקסיקו", "Mexico"], cn: ["סין", "China"],
+  // The world gap's own countries (worldGap.js).
+  ...Object.fromEntries(GAP_EXTRA.map((c) => [c.id, [c.he, c.en]])),
 });
 
 /** The source a request belongs to, from its address alone (null for no address). */
@@ -44,7 +49,10 @@ export function sourceOf(url) {
   if (host === "www.googleapis.com" && u.pathname.startsWith("/youtube/")) return "youtubeApi";
   if (host === "api.pinterest.com") return "pinterest";
   if (host === "graph.facebook.com") return u.pathname.includes("/ads_archive") ? "metaAds" : "instagram";
-  if (host === "public.api.bsky.app") return "bluesky";
+  if (host === "api.bsky.app" || host === "public.api.bsky.app") return "bluesky";
+  if (host === "www.whoisds.com") return "shops";
+  if (host === "ec.europa.eu" && u.pathname.startsWith("/eurostat/")) return "trade";
+  if (host === "api.gdeltproject.org") return "news";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
   if (host.endsWith(".supabase.co") || host === "likelink2.vercel.app") return "site";
@@ -163,6 +171,8 @@ export function meterFetch(fetchImpl, meter) {
     let outcome = httpOutcome(status);
     let code = outcome === "answered" ? null : `http_${status || "none"}`;
     if (key === "rules" && status === 404) { outcome = "empty"; code = "no_rules_file"; }
+    // Wikimedia's Pageviews answers 404 for a title with no article (or no views): a valid answer, "none".
+    if (key === "wikipedia" && status === 404 && /\/metrics\/pageviews\/per-article\//.test(href)) { outcome = "empty"; code = "no_article"; }
     // A 2xx is a success only when its body says so: read from a copy, the caller gets the original.
     if (outcome === "answered" && key !== "seal" && key !== "bitcoin" && key !== "rules") {
       if (typeof res.clone === "function") {
@@ -257,6 +267,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
+  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", news: "news", asia: "worldSearch",
 });
 
 /**
@@ -348,7 +359,7 @@ export function cleanReceipt(doc) {
       const m = Object.fromEntries(AE_METHODS.filter((x) => c.methods[x]).map((x) => [x, cleanCounts(c.methods[x])]));
       if (Object.keys(m).length) row.methods = m;
     }
-    if (Array.isArray(c.countries)) { const cs = c.countries.filter((x) => Object.hasOwn(COUNTRY_NAMES, x)).slice(0, 20); if (cs.length) row.countries = cs; }
+    if (Array.isArray(c.countries)) { const cs = c.countries.filter((x) => Object.hasOwn(COUNTRY_NAMES, x)).slice(0, 60); if (cs.length) row.countries = cs; }
     sources[key] = row;
   }
   const r = doc.run && typeof doc.run === "object" && RUN_URL.test(String(doc.run.url || "")) && /^\d{1,20}$/.test(String(doc.run.id || "")) ? {

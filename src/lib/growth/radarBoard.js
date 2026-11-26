@@ -9,7 +9,22 @@ import { CONFIDENCE, GAP_STATES, WINDOWS, normalize } from "./israelGap.js";
 import { ACTIONS, HOT_STATES } from "./radarOpportunity.js";
 import { ACCEL, LIFECYCLE } from "./alpha.js";
 import { CLOCK_COUNTRIES, CLOCK_IDS } from "./worldClock.js";
+import { cleanWorldGap, cleanWorldGapSummary } from "./worldGap.js";
+import { cleanSupply, cleanSupplyBoard } from "./supplyGap.js";
+import { cleanShopWords, cleanShops } from "./shopSignal.js";
+import { cleanTrade } from "./tradeSignal.js";
+import { cleanNews } from "./newsSignal.js";
+import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
+import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
+import { cleanBacktest } from "./radarBacktest.js";
+import { cleanRivals } from "./rivalSignal.js";
+import { GATE_REASONS, cleanGate } from "./callGate.js";
+import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
+import { cleanBaseline } from "./radarBaseline.js";
+import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
+import { cleanAsia } from "./asiaSignal.js";
+import { cleanMarket } from "./saturation.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
@@ -23,7 +38,7 @@ const BUY = /^https:\/\/s\.click\.aliexpress\.com\/[A-Za-z0-9_\-/.?=&%]+$/;
 const IMG_HOST = /(^|\.)(aliexpress-media\.com|alicdn\.com|aliexpress\.com)$/i;
 
 const str = (v, max = 200) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : "");
-const FINISH = ["buzz", "israel", "trends", "wide"];
+const FINISH = ["buzz", "israel", "trends", "wide", "ads"];
 const OTS_HOSTS = ["a.pool.opentimestamps.org", "b.pool.opentimestamps.org"];
 /** A sealed book (radarLedger.js): its day, hash, line count, text when it fits and matches, and up to two proofs. */
 const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/.test(String(s.sha256 || "")) ? {
@@ -33,6 +48,9 @@ const cleanBook = (s, textRe) => (s && typeof s === "object" && /^[0-9a-f]{64}$/
   text: typeof s.text === "string" && s.text.length <= 30_000 && textRe.test(s.text) ? s.text : null,
   ots: (Array.isArray(s.ots) ? s.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })),
 } : null);
+// 📦 "Room to make it" (supplyGap.js supplySealText): every call and control entry, `id|day|role|listings|due|grade`.
+const SUPPLY_LINE = "[a-z0-9][a-z0-9-]{1,40}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:call|control)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:FOLLOWED|QUIET|UNREAD|-)";
+const SUPPLY_BOOK = new RegExp(`^${SUPPLY_LINE}(\\n${SUPPLY_LINE})*$`);
 const FRESH_BOOK = /^(\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))(\n\d{6,20}\|\d{4}-\d{2}-\d{2}\|\d+\|\d{4}-\d{2}-\d{2}\|(?:HIT|MISS|-))*$/;
 // Only verified anchors: a 64-hex root and block hash, a block height, the complete proof as base64.
 const cleanAnchors = (a) => (a && typeof a === "object" ? {
@@ -48,6 +66,13 @@ const BOOK_NAMES = LEDGER_BOOKS.join("|");
 const LEDGER_ROOT = new RegExp(`^(?:${BOOK_NAMES})=[0-9a-f]{64}(?:\\n(?:${BOOK_NAMES})=[0-9a-f]{64})*$`);
 const LUCK_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)\\|[0-9a-f]{64}";
 const LUCK_BOOK = new RegExp(`^${LUCK_LINE}(\\n${LUCK_LINE})*$`);
+// 📏 The radar vs the simple ranking (radarBaseline.js baselineSealText): `book|item|day|orders|due|grade|rebuilt|seed`.
+const BASELINE_LINE = "(?:naive|random)\\|\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|UNREAD|-)\\|(?:\\d{4}-\\d{2}-\\d{2}|-)\\|(?:[0-9a-f]{64}|-)";
+const BASELINE_BOOK = new RegExp(`^${BASELINE_LINE}(\\n${BASELINE_LINE})*$`);
+// 🏭 Before the first sale (listingWave.js prelaunchSealText).
+const PRELAUNCH_BOOK = new RegExp(`^${PRELAUNCH_LINE}(\\n${PRELAUNCH_LINE})*$`);
+// ⚔️ The sealed head-to-head (radarVersus.js versusSealText): the day's sample and picks, item numbers only.
+const VERSUS_BOOK = new RegExp(`^${VERSUS_LINE}(\\n${VERSUS_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -101,7 +126,7 @@ function cleanOpportunity(o) {
 }
 
 const cleanSiteRow = (r) => (r && /^[\w-]{2,60}$/.test(String(r.id || "")) && HOTS.has(r.state)
-  ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to) }
+  ? { id: r.id, title: str(r.title, 60), state: r.state, he: HOT_STATES[r.state].he, weekPct: num(r.weekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), market: cleanMarket(r.market) }
   : null);
 
 // 📚 A kind's Wikipedia attention (wikiSignal.js): article titles, readers this week and the week
@@ -173,12 +198,18 @@ function cleanRow(c) {
     action: Object.hasOwn(ACTIONS, c.action) ? c.action : null,
     actionHe: Object.hasOwn(ACTIONS, c.action) ? ACTIONS[c.action] : null,
     accel: cleanAccel(c.accel),
+    gateWhy: c.gateWhy === "ok" || GATE_REASONS.includes(c.gateWhy) ? c.gateWhy : null,
     lifecycle: Object.hasOwn(LIFECYCLE, c.lifecycle) ? c.lifecycle : null,
     lifecycleHe: Object.hasOwn(LIFECYCLE, c.lifecycle) ? LIFECYCLE[c.lifecycle].he : null,
     alpha: cleanAlpha(c.alpha),
     explain: cleanExplain(c.explain),
     wiki: cleanWiki(c.wiki),
     social: cleanSocial(c.social),
+    shops: cleanShops(c.shops),
+    worldGap: cleanWorldGap(c.worldGap),
+    path: cleanPathCard(c.path), // 🧭 where the kind stands on the path every trend walks (trendPath.js)
+    asia: cleanAsia(c.asia), // 🇰🇷🇯🇵 Korea and Japan in their own language (asiaSignal.js)
+    supply: cleanSupply(c.supply),
   };
 }
 
@@ -205,6 +236,25 @@ export function sanitizeBoard(doc) {
     early: doc.early && typeof doc.early === "object" ? { need: doc.early.need === 5 ? 5 : 4, open: num(doc.early.open), record: { graded: num(doc.early.record?.graded) ?? 0, hits: num(doc.early.record?.hits) ?? 0, accuracy: num(doc.early.record?.accuracy), pending: num(doc.early.record?.pending) ?? 0, calls: num(doc.early.record?.calls) ?? 0 }, lead: doc.early.lead && typeof doc.early.lead === "object" ? Object.fromEntries(FINISH.map((k) => { const l = doc.early.lead[k] || {}; return [k, { met: num(l.met) ?? 0, ahead: num(l.ahead) ?? 0, medianDays: num(l.medianDays), waiting: num(l.waiting) ?? 0 }]; })) : null, calibration: doc.early.calibration && typeof doc.early.calibration === "object" ? Object.fromEntries(["signal", "sniper"].map((k) => { const r = doc.early.calibration[k] || {}; return [k, { graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0 }]; })) : null, ledger: (Array.isArray(doc.early.ledger) ? doc.early.ledger : []).slice(0, 40).filter((e) => ID.test(String(e?.concept || ""))).map((e) => ({ concept: e.concept, at: day(e.at), due: day(e.due), result: e.result === "HIT" || e.result === "MISS" ? e.result : null, growth: num(e.growth), progress: num(e.progress), dayN: num(e.dayN), firsts: Object.fromEntries(FINISH.filter((k) => day(e.firsts?.[k])).map((k) => [k, day(e.firsts[k])])) })).filter((e) => e.at), seal: doc.early.seal && /^[0-9a-f]{64}$/.test(String(doc.early.seal.sha256 || "")) ? { d: day(doc.early.seal.d), sha256: doc.early.seal.sha256, count: num(doc.early.seal.count) ?? 0, text: typeof doc.early.seal.text === "string" && doc.early.seal.text.length <= 30_000 && /^[a-z0-9|,\n-]*$/.test(doc.early.seal.text) ? doc.early.seal.text : null, ots: (Array.isArray(doc.early.seal.ots) ? doc.early.seal.ots : []).filter((o) => OTS_HOSTS.includes(o?.cal) && /^[A-Za-z0-9+/]+=*$/.test(String(o?.b64 || "")) && String(o.b64).length <= 14_000).slice(0, 2).map((o) => ({ cal: o.cal, b64: o.b64 })) } : null } : null,
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
+    worldGap: cleanWorldGapSummary(doc.worldGap),
+    path: cleanPathBoard(doc.path),
+    // 🏭 The factories that jump (factorySignal.js): the store's public id, its numbers, its fastest new listing.
+    factories: doc.factories && typeof doc.factories === "object" ? { withShop: num(doc.factories.withShop) ?? 0, factories: num(doc.factories.factories) ?? 0, jumping: num(doc.factories.jumping) ?? 0, top: (Array.isArray(doc.factories.top) ? doc.factories.top : []).slice(0, 8).map((r) => {
+      const buy = typeof r?.lead?.buy === "string" && BUY.test(r.lead.buy) ? r.lead.buy : null;
+      if (!/^\d{3,20}$/.test(String(r?.shop || "")) || !ITEM.test(String(r?.lead?.id || "")) || num(r.medianWeekPct) === null) return null;
+      return { shop: String(r.shop), listings: num(r.listings) ?? 0, medianWeekPct: num(r.medianWeekPct), orders: num(r.orders), ordersBefore: num(r.ordersBefore), lead: { id: String(r.lead.id), title: str(r.lead.title, 140), image: radarImage(r.lead.image), buy, weekPct: num(r.lead.weekPct) } };
+    }).filter(Boolean) } : null,
+    // 🚢 The factories' shipments (tradeSignal.js): EU customs lines, codes and the customs' own words.
+    trade: cleanTrade(doc.trade),
+    // 📰 Who said it first (newsSignal.js): counts per book only.
+    news: cleanNews(doc.news),
+    // 🔤 The names new shops pick (shopSignal.js): product words only, never a domain.
+    shopWords: cleanShopWords(doc.shopWords),
+    // 🏪 The shops opening (shopSignal.js): counts and kind ids only, never a domain.
+    shops: doc.shops && typeof doc.shops === "object" && day(doc.shops.day) ? { day: day(doc.shops.day), domains: num(doc.shops.domains) ?? 0, kinds: num(doc.shops.kinds) ?? 0, withShops: num(doc.shops.withShops) ?? 0, rising: num(doc.shops.rising) ?? 0, top: (Array.isArray(doc.shops.top) ? doc.shops.top : []).filter((id) => ID.test(String(id))).slice(0, 8) } : null,
+    // ✉️ The sealed envelopes of the locked board (radarGate.envelopesOf): never a name, only the facts of the seal.
+    envelopes: (Array.isArray(doc.envelopes) ? doc.envelopes : []).slice(0, 12).filter((e) => ["early", "fresh", "kinds"].includes(e?.book) && day(e.sealed)).map((e) => ({ book: e.book, sealed: day(e.sealed), due: day(e.due), dayN: num(e.dayN), change: num(e.change), area: AREA_HE[e.area] ? e.area : null, pace: num(e.pace), similar: num(e.similar), countries: num(e.countries), measured: num(e.measured) })),
+    supply: doc.supply ? { ...cleanSupplyBoard(doc.supply), seal: cleanBook(doc.supply.seal, SUPPLY_BOOK) } : null,
     record: { calls: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, hits: num(r.hits) ?? 0, accuracy: num(r.accuracy), pending: num(r.pending) ?? 0, nextDue: day(r.nextDue), recent },
     clock,
     site: doc.site && typeof doc.site === "object" ? {
@@ -237,6 +287,13 @@ export function sanitizeBoard(doc) {
     stagesSeal: cleanBook(doc.stagesSeal, STAGES_BOOK),
     // The radar vs luck (radarLuck.js): a random kind drawn each day, graded by the same rule.
     luck: cleanLuck(doc.luck),
+    // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
+    backtest: cleanBacktest(doc.backtest),
+    rivals: cleanRivals(doc.rivals),
+    callGate: cleanGate(doc.callGate),
+    versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
+    prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
+    baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
     // Every category in the world (worldCategories.js): how much of AliExpress's tree the radar reads.
@@ -259,6 +316,7 @@ function cleanPool(p) {
       visual: ["MATCH", "MISMATCH", "CATEGORY_ONLY"].includes(r.visual) ? r.visual : null,
       orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), weekPct: num(r.weekPct),
       compared: num(r.compared), hotSellers: num(r.hotSellers), cheapest: num(r.cheapest), at: day(r.at),
+      market: cleanMarket(r.market), // 🚫 saturation.js: only OPEN is posted
     }));
   return { at: str(p.at, 30), kinds: num(p.kinds) ?? 0, list };
 }
@@ -348,7 +406,7 @@ function cleanWaves(w) {
   const list = (Array.isArray(w.list) ? w.list : []).slice(0, 8).map((c) => {
     if (!c || !["BRAND", "TOOL"].includes(c.reason) || num(c.items) === null || num(c.orders) === null) return null;
     const a = c.alt && typeof c.alt === "object" ? c.alt : null;
-    const alt = a && ITEM.test(String(a.id || "")) && typeof a.buy === "string" && BUY.test(a.buy) && radarImage(a.image) ? { id: String(a.id), title: str(a.title, 140), image: radarImage(a.image), buy: a.buy, price: num(a.price), check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${a.id}.html`)}` } : null;
+    const alt = a && ITEM.test(String(a.id || "")) && typeof a.buy === "string" && BUY.test(a.buy) && radarImage(a.image) ? { id: String(a.id), title: str(a.title, 140), image: radarImage(a.image), buy: a.buy, price: num(a.price), orders: num(a.orders), ordersBefore: num(a.ordersBefore), weekPct: num(a.weekPct), state: HOTS.has(a.state) ? a.state : null, from: day(a.from), to: day(a.to), market: cleanMarket(a.market), check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${a.id}.html`)}` } : null;
     const yt = c.yt && num(c.yt.videos) !== null ? { videos: num(c.yt.videos), views: num(c.yt.views), days: num(c.yt.days) ?? 7 } : null;
     const ig = c.ig && num(c.ig.posts) !== null ? { posts: num(c.ig.posts), videos: num(c.ig.videos), likes: num(c.ig.likes), comments: num(c.ig.comments), capped: c.ig.capped === true } : null;
     return { token: str(c.token, 40), reason: c.reason, reasonHe: str(c.reasonHe, 80), items: num(c.items), orders: num(c.orders), firstSeen: day(c.firstSeen), listings: num(c.listings), listingsWeekPct: num(c.listingsWeekPct), ordersWeekPct: num(c.ordersWeekPct), buzz: Array.isArray(c.buzz) ? strs(c.buzz, 4, 20) : null, yt, ig, alt };
@@ -384,6 +442,7 @@ function cleanPromise(p) {
     at: day(p.at),
     horizons: (Array.isArray(p.horizons) ? p.horizons : []).filter((h) => RANGE_H.includes(h?.h)).map((h) => ({ h: h.h, state: h.state === "READY" ? "READY" : "CALIBRATING", n: Math.max(0, num(h.n) ?? 0), need: num(h.need) ?? 60 })),
     coverage: cov,
+    chanceSince: day(p.chanceSince),
     // 🎯 The calibrated chance's record per horizon (radarPromise.js chanceRecord).
     chance: (Array.isArray(p.chance) ? p.chance : []).filter((c) => RANGE_H.includes(c?.h) && CHANCE_LINE[c.h] === c.line).map((c) => ({
       h: c.h, line: c.line, n: Math.max(0, num(c.n) ?? 0), hits: Math.max(0, num(c.hits) ?? 0),
@@ -443,7 +502,10 @@ function cleanFresh(f) {
     const check = typeof r.check === "string" && /^\/magic\?u=[A-Za-z0-9%._\-]+$/.test(r.check) ? r.check : null;
     // Shown only with its "nobody has heard of it yet" check (freshRisers.unknownCheck).
     if (!r.known || num(r.known.similar) === null) return null;
-    return { id: String(r.id), title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), called: day(r.called), due: day(r.due), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
+    // Only a listing the radar watched from the start is shown as new (freshRisers.listingAge).
+    if (r.age && r.age.state !== "NEW") return null;
+    const age = r.age && day(r.age.firstDay) && num(r.age.firstOrders) !== null ? { state: "NEW", firstDay: day(r.age.firstDay), firstOrders: num(r.age.firstOrders) } : null;
+    return { id: String(r.id), age, title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), called: day(r.called), due: day(r.due), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), world: cleanWorldGap(r.known.world), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
   const rec = f.record && typeof f.record === "object" ? f.record : {};
   const recent = (Array.isArray(f.recent) ? f.recent : []).slice(0, 12).filter((c) => ITEM.test(String(c?.id || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ id: String(c.id), title: str(c.title, 80), at: day(c.at), result: c.result, growth: num(c.growth) }));
@@ -475,7 +537,7 @@ function cleanKinds(k) {
     }).filter(Boolean);
     if (!samples.length) return null;
     if (!x.known || num(x.known.similar) === null) return null; // shown only with its "nobody has heard of it yet" check
-    return { en: x.en, via: x.via === "look" ? "look" : "meaning", known: { similar: num(x.known.similar) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
+    return { en: x.en, via: x.via === "look" ? "look" : "meaning", known: { similar: num(x.known.similar), world: cleanWorldGap(x.known.world) }, window: cleanCardWindow(x.window), called: day(x.called), due: day(x.due), learned: cleanLearned(x.learned), sure: [99, 95, 90, 80].includes(num(x.sure)) ? num(x.sure) : null, members: x.members.filter((id) => ITEM.test(String(id))).length, measured: num(x.measured), medianWeekPct: num(x.medianWeekPct), orders: num(x.orders), ordersBefore: num(x.ordersBefore), first: day(x.first), category: str(x.category, 20), samples };
   }).filter(Boolean);
   const rec = k.record && typeof k.record === "object" ? k.record : {};
   const recent = (Array.isArray(k.recent) ? k.recent : []).slice(0, 12).filter((c) => KIND_NAME.test(String(c?.en || "")) && (c.result === "HIT" || c.result === "MISS")).map((c) => ({ en: c.en, at: day(c.at), members: num(c.members), result: c.result, growth: num(c.growth) }));

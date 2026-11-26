@@ -187,7 +187,8 @@ export function radarPool(listingsByKind = {}, momentumOf = () => null, concepts
   return { at: new Date(now).toISOString(), kinds: Object.keys(listingsByKind || {}).length, list: rows.slice(0, rules.poolMax) };
 }
 
-const SOURCE_HE = Object.freeze({ radar_listing: "ממצאי הרדאר: פריט חם בסוג שהרדאר מודד", site_hot: "ממצאי הרדאר: מוצר מהחנות שנמדד חם", fresh_riser: "ממצאי הרדאר: מוצר חדש שמתחיל לרוץ" });
+const fnv = (t) => { let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+const SOURCE_HE = Object.freeze({ radar_listing: "ממצאי הרדאר: פריט חם בסוג שהרדאר מודד", site_hot: "ממצאי הרדאר: מוצר מהחנות שנמדד חם", fresh_riser: "ממצאי הרדאר: מוצר חדש שמתחיל לרוץ", brand_look: "ממצאי הרדאר: הלוק שכולם מחפשים, בלי השם והלוגו" });
 
 /**
  * Every candidate from the latest board (and the site's own records for the site rows), with the
@@ -218,7 +219,7 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       price: r.price > 0 ? { value: r.price, currency: "ILS", checkedAt: r.at || boardAt.slice(0, 10), source: "aliexpress_api" } : null,
       quality: { sat: r.sat || null, reviews: null, seller: null, shipping: null, video: r.video === true },
       sellers: { compared: num(r.compared), hot: num(r.hotSellers), cheapest: num(r.cheapest) },
-      israel: israelOf(c, boardAt), world: worldOf(c),
+      israel: israelOf(c, boardAt), world: worldOf(c), market: r.market || null,
     });
   }
   // 2. Site products the radar measured HOT today (the site record gives the photo, link and price).
@@ -241,7 +242,7 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       // names the failed check: on 19.11 the +49% fur slippers failed "95% satisfaction").
       quality: { sat: p?.status === "approved" ? "95+" : p ? "low" : null, reviews: null, seller: null, shipping: null, video: Boolean(p?.sellerVideo || p?.videoUrl) },
       sellers: null,
-      israel: c ? israelOf(c, boardAt) : null, world: c ? worldOf(c) : null,
+      israel: c ? israelOf(c, boardAt) : null, world: c ? worldOf(c) : null, market: r.market || null,
     });
   }
   // 3. The radar's own discoveries: new products starting to run.
@@ -256,6 +257,25 @@ export function candidatesFrom(board = null, products = [], { now = Date.now(), 
       quality: { sat: null, reviews: null, seller: null, shipping: null, video: false },
       sellers: { compared: null, hot: null, cheapest: null, similar: num(r.known?.similar) },
       israel: null, world: null, discovery: { similar: num(r.known?.similar), youtube: r.known?.yt ?? null, called: r.called || null, due: r.due || null },
+    });
+  }
+  // 4. The look everyone wants, legally (the owner, 26.11: "the hottest brands' dupes, hits everyone asks
+  // for that Israel has little of"): the radar sees brand waves it never sells and finds for each the
+  // best-selling look-alike with no brand name, character or logo in its title (brandWaves.js altPick:
+  // ≥ 95% satisfaction, ≥ 300 orders, her own link). The brand is never named in the post, and the
+  // post goes out only with the look-alike's own measured growth (the same gates as every candidate).
+  for (const w of Array.isArray(board.waves?.list) ? board.waves.list : []) {
+    const a = w?.alt;
+    if (!a?.id || !a.buy || w.reason !== "BRAND") continue;
+    out.push({
+      source: "brand_look", itemId: String(a.id), productId: null, title: a.title, storeTitle: a.title, image: a.image, link: a.buy, linkKind: "store",
+      // The wave's key is a hash of its token, so the brand's name appears nowhere in a plan or a post.
+      trend: { key: `b:${fnv(String(w.token || a.id).toLowerCase())}`, he: null, conceptId: null, stage: "HOT", kind: null },
+      match: { label: "DUPE", by: "brand_wave", look: null, words: null, visual: null },
+      evidence: evidenceOf({ ordersBefore: a.ordersBefore, orders: a.orders, from: a.from, to: a.to, weekPct: a.weekPct }, "brand_look"),
+      price: num(a.price) > 0 ? { value: a.price, currency: "ILS", checkedAt: a.to || boardAt.slice(0, 10), source: "aliexpress_api" } : null,
+      quality: { sat: "95+", reviews: null, seller: null, shipping: null, video: false },
+      sellers: null, israel: null, world: null, market: a.market || null,
     });
   }
   return out.map((c) => ({ ...c, keys: identityKeys(c), sourceHe: SOURCE_HE[c.source] }));
@@ -274,6 +294,14 @@ export function rejectionOf(c = {}, { now = Date.now(), rules = ENGINE } = {}) {
   if (c.linkKind === "site" && c.siteStatus !== "approved") return c.siteStatus === "archived" ? "archived_by_radar_quality_check" : "not_on_sale_on_site";
   if (hasBrandName(c.storeTitle || c.title) || hasBrandName(c.title)) return "brand_name";
   if (isNotListedKind(c.storeTitle || c.title)) return "unlisted_kind";
+  // 🚫 Saturated is never posted (saturation.js; the owner, 26.11): outside the radar's own discoveries
+  // (which pass the same check before they are shown), only a product measured OPEN goes out.
+  if (c.source !== "fresh_riser") {
+    const m = c.market?.state;
+    if (m === "SATURATED") return "saturated_market";
+    if (m === "BUZZ") return "already_buzzing";
+    if (m !== "OPEN") return "market_unmeasured";
+  }
   const e = c.evidence || {};
   if (ageDays(e.to, now) > rules.maxAgeDays) return "stale_measurement";
   if (!(e.weekPct >= rules.hot.minWeekPct)) return "not_rising";

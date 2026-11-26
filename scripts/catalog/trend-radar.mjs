@@ -24,11 +24,19 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
+import { aeBanSeconds, aeCall as aeCallRaw, aeEnv, aeStatus } from "../../api/_utils/aliexpressAffiliate.mjs";
 import { dayText, sniffPrices } from "../../src/lib/growth/realDeal.js";
 import { addHealth, hasList, healthOf, keep, measuredStates, meterFetch, newMeter, newTally, receiptOf, receiptText, tallyUnit, worldState } from "../../src/lib/growth/runReceipt.js";
 import { SOCIAL, adsPage, adsUrl, bskyPage, bskyUrl, socialKinds, talkOf } from "../../src/lib/growth/socialSignal.js";
-import { WIKI, acceptTitle, attentionOf, candidateTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
+import { SHOPS, SHOP_WORDS, mergeShopWords, mergeShops, nrdUrl, productVocab, risingShopWords, shopsOf, shopsToday, wordsToday } from "../../src/lib/growth/shopSignal.js";
+import { NEWS, mergeNews, newsBoard, newsQueue, newsUrl, parseTimeline } from "../../src/lib/growth/newsSignal.js";
+import { TRADE, latestPeriod, parseComext, probeUrl, tradeJumps, tradeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
+const SHOPS_BACK = 8; // daily lists read in one run when the state misses days
+import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
+import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
 
 // An error's short code for the receipt (resp_<code>, http_<status>, err_<code>, timeout, error).
 const codeOf = (x) => {
@@ -45,11 +53,22 @@ const codeOf = (x) => {
 // shekel "from" price for today in the price ledger (prices.json), sealed per day below.
 const PRICE_SINK = { ledger: null, today: null };
 async function aeCall(method, biz, opts) {
-  const res = await aeCallRaw(method, biz, opts);
+  // The store's short frequency ban ("this ban will last N seconds", up to 10): waited out and asked
+  // again, up to twice more (the client itself asks once more after a ban of up to 2 s), so a busy
+  // second never stops a category or a kind for the day.
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    try { res = await aeCallRaw(method, biz, opts); break; } catch (err) {
+      const ban = aeBanSeconds(err);
+      if (ban === null || ban < 1 || ban > 10 || attempt >= 2) throw err; // only a ban that names its seconds
+      await new Promise((ok) => setTimeout(ok, Math.max(1, ban) * 1000 + 500));
+    }
+  }
   if (PRICE_SINK.ledger) { try { sniffPrices(res, PRICE_SINK.today, PRICE_SINK.ledger); } catch { /* a price is never worth a failed run */ } }
   return res;
 }
 import { RADAR, addReading, buildBoard, pickFrom, readingFrom, signals, stageOf, updateCalls, validConcept } from "../../src/lib/growth/trendRadar.js";
+import { callGate, gateTally } from "../../src/lib/growth/callGate.js";
 import { SUGGEST_HOST, SUGGEST_PATH, TRENDS_IL_RSS, addAwareness, awarenessReading, extensions, parseSuggest, robotsAllows, suggestUrl, trendingInIsrael } from "../../src/lib/growth/israelGap.js";
 import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/radarDiscovery.js";
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, lookCandidates, mergeLooks, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
@@ -69,20 +88,30 @@ import { OTS_CALENDARS, fromBase64, hexBytes, otsProof, toBase64 } from "../../s
 import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
+import { mergePath, pathBoard, pathCard } from "../../src/lib/growth/trendPath.js";
+import { marketOf, pruneChecks, saturationQueue } from "../../src/lib/growth/saturation.js";
+import { ASIA, asiaCard, localExtensions, mergeAsia, regionReading, roundTripOk, usableTerm } from "../../src/lib/growth/asiaSignal.js";
+import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
 import { CLOCK_EXTRA, clockOf, globeBoard, gradeNextCalls, lagTable, nextCallsSealText, recordNextCalls } from "../../src/lib/growth/worldClock.js";
+import { GAP, GAP_CORE, GAP_COUNTRIES, GAP_EXTRA, freshGap, gapSweepOrder, suggestFacts, worldGapOf, worldGapSummary } from "../../src/lib/growth/worldGap.js";
+import { gradeSupplyCalls, recordSupplyCalls, supplyBoard, supplyCallRecord, supplyGapOf, supplySealText } from "../../src/lib/growth/supplyGap.js";
 import { hasBrandName, isNotListedKind } from "../../src/lib/growth/deals.js";
 import { YT, ytIdsOf, ytSearchUrl, ytSignal, ytVideosUrl, ytViewsOf } from "../../src/lib/growth/youtubeSignal.js";
 import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
+import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
+import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
+import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
+import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
 import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
-import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
+import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, distinctPhrase, phraseCounts, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
 const SEARCH = "aliexpress.affiliate.product.query";
 const DETAIL = "aliexpress.affiliate.productdetail.get";
@@ -93,6 +122,15 @@ const readJson = (file, fallback) => {
   try { return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : fallback; } catch { return fallback; }
 };
 const pause = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+/** Runs async tasks with at most `n` at a time (in order of start; each result at its own index). */
+async function runPool(tasks, n) {
+  const out = new Array(tasks.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(n, tasks.length)) }, async () => {
+    while (next < tasks.length) { const i = next++; out[i] = await tasks[i](); }
+  }));
+  return out;
+}
 
 /** One concept's answer from the store, or why there is none. */
 export async function readConcept(c, { env = process.env, fetchImpl = globalThis.fetch, now = Date.now() } = {}) {
@@ -159,6 +197,25 @@ async function getText(url, fetchImpl) {
   return { status: res.status, text: await res.text() };
 }
 
+/**
+ * A robots.txt answer, following up to five redirects within the same site, as the robots standard
+ * asks (RFC 9309, 2.3.1.2). 22.11: wikimedia.org's rules file answers 302 → www.wikimedia.org, which
+ * has none (404: no rule), and the radar read that redirect as a failed door.
+ */
+async function getRobots(url, fetchImpl, { timeoutMs = 12_000 } = {}) {
+  const site = (h) => h.split(".").slice(-2).join(".");
+  let u = url;
+  for (let hop = 0; hop <= 5; hop++) {
+    const res = await fetchImpl(u, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
+    const loc = res.status >= 300 && res.status < 400 ? res.headers?.get?.("location") : null;
+    if (!loc) return { status: res.status, text: await res.text() };
+    const next = new URL(loc, u);
+    if (next.protocol !== "https:" || site(next.hostname) !== site(new URL(u).hostname)) return { status: res.status, text: "" };
+    u = next.href;
+  }
+  return { status: 310, text: "" };
+}
+
 /** One phrase's suggestions as text (null when the answer is not usable). */
 async function suggestList(phrase, opts, fetchImpl) {
   const got = await getText(suggestUrl(phrase, opts), fetchImpl);
@@ -178,6 +235,17 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // source is "read" only when its host really answered, and the page shows those counts, not claims.
   const meter = newMeter();
   const runStarted = Date.now();
+  // The run's own clock (26.11: a branch run read for 30 minutes and was stopped before it saved
+  // anything). Past the deadline, the optional readings are skipped and named as skipped, so the day's
+  // readings, calls and seals are always saved.
+  const deadline = runStarted + (Number(env.RADAR_DEADLINE_MIN) || 38) * 60_000;
+  const late = (key, needMs) => {
+    const left = deadline - Date.now();
+    if (left >= needMs) return false;
+    sources[key] = "SKIPPED";
+    log.push(`${key}: skipped, the run's time (${Math.max(0, Math.round(left / 1000))} s left of the deadline)`);
+    return true;
+  };
   fetchImpl = meterFetch(fetchImpl, meter);
   const { concepts: listed = [] } = readJson("scripts/catalog/radar-concepts.json", {});
   const watch = listed.filter(validConcept);
@@ -311,6 +379,51 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       sources.trendsDiscovery = "OK";
       log.push(`trends discovery: ${terms.length} trending terms abroad · ${tCands.length} sell on AliExpress · added ${tAdded.map((c) => c.en).join(", ") || "none"}`);
     }
+    // 🎥 The first creators (haulSignal.js; the owner, 22.11: "the way the squishy was found, for every
+    // product"): the newest haul and "finds" videos on YouTube (official Data API, her free key), the
+    // product phrases more channels started to show this week, sold on AliExpress → trial concepts, so
+    // the stages, the world gap and the sealed calls measure them from tomorrow. RADAR_HAULS=0 turns it off.
+    if (env.RADAR_HAULS !== "0") {
+      if (!env.YOUTUBE_API_KEY) sources.hauls = "REQUIRES_CONNECTION";
+      else {
+        let haulState = readJson(join(dir, "hauls.json"), {});
+        let videos = 0, asked = 0, answered = 0;
+        const channels = new Set();
+        for (const [q, short] of [...HAULS.queries.map((x) => [x, false]), ...HAULS.shortQueries.map((x) => [x, true])]) {
+          asked++;
+          try {
+            const res = await fetchImpl(haulSearchUrl(q, { key: env.YOUTUBE_API_KEY, now, short }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
+            const list = res.ok ? haulVideos(await res.json().catch(() => null)) : null;
+            if (!list) continue;
+            answered++;
+            videos += list.length;
+            for (const v of list) channels.add(v.channel);
+            haulState = mergeHauls(haulState, list, today);
+          } catch { /* the meter counts the failure */ }
+        }
+        writeFileSync(join(dir, "hauls.json"), JSON.stringify(haulState));
+        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered] }).slice(0, HAULS.perDay);
+        const hCands = [];
+        const he = aeEnv(env);
+        for (const r of risers) {
+          try {
+            const res = await aeCall(SEARCH, { keywords: r.phrase, tracking_id: he.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC" }, { env: he, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) !== 200) continue;
+            const raw = rr.result?.products?.product;
+            const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
+            const v = haulOnStore(r.phrase, list);
+            if (v.ok) hCands.push({ en: r.phrase, kind: "", items: v.items, orders: v.orders, category: "hauls", via: "haul" });
+          } catch (err) { log.push(`hauls ${r.phrase}: ${String(err?.message || err).slice(0, 60)}`); }
+        }
+        const hBefore = new Set(discovered.map((c) => c.id));
+        discovered = admitDiscovered(discovered, hCands, { concepts: watch, stages: stagesBefore, now });
+        const hAdded = discovered.filter((c) => !hBefore.has(c.id));
+        if (answered) keep(meter, "youtubeApi", videos);
+        sources.hauls = answered ? "OK" : "FAILED";
+        log.push(`hauls: ${answered}/${asked} searches · ${videos} videos from ${channels.size} channels · rising ${risers.map((r) => `${r.phrase} ${r.before}→${r.channels}`).join(", ") || "none"} · sold on AliExpress ${hCands.length} · added ${hAdded.map((c) => c.en).join(", ") || "none"}`);
+      }
+    }
     // Readings of concepts that left the trial are dropped with them.
     for (const id of Object.keys(readings)) if (id.startsWith("auto-") && !discovered.some((c) => c.id === id)) { delete readings[id]; delete awareness[id]; delete picks[id]; }
   }
@@ -360,7 +473,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       if (Date.now() - started > budgetMs) { log.push(`${c.id}: budget over, not read today`); tallyUnit(scan.concepts, { id: c.id, code: "budget_over" }); continue; }
       try {
         const got = await readConcept(c, { env, fetchImpl, now });
-        if (!got.ok) { log.push(`${c.id}: ${got.reason}`); tallyUnit(scan.concepts, { id: c.id, code: codeOf(got.reason), scanned: /^resp 405/.test(got.reason) }); continue; }
+        if (!got.ok) {
+          log.push(`${c.id}: ${got.reason}`);
+          tallyUnit(scan.concepts, { id: c.id, code: codeOf(got.reason), scanned: /^resp 405/.test(got.reason) });
+          // A trial concept the store sells nothing under (two empty answers in a row) leaves the radar.
+          if (c.auto && /^resp 405/.test(got.reason)) c.empty = (Number(c.empty) || 0) + 1;
+          continue;
+        }
+        if (c.auto && c.empty) delete c.empty;
         const reading = readingFrom(got.result, { now });
         if (!reading.top.length) { log.push(`${c.id}: no item with orders`); tallyUnit(scan.concepts, { id: c.id, scanned: true, withData: hasList(got.result) }); continue; }
         tallyUnit(scan.concepts, { id: c.id, scanned: true, withData: true, kept: reading.top.length });
@@ -378,7 +498,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         } catch { /* the pool is never worth a failed reading */ }
         const s = signals(readings[c.id]);
         const stage = stageOf(s);
-        calls = updateCalls(calls, c.id, stage, readings[c.id], { now });
+        // Graded here; a new call opens only after the whole gate (callGate.js), once the morning's
+        // Israel, world, buzz, acceleration and listings are measured.
+        calls = updateCalls(calls, c.id, stage, readings[c.id], { now, open: false });
         log.push(`${c.id}: ${reading.listings ?? "?"} listings · top orders ${reading.sum} · ${stage}${s.ok ? ` (${s.demandWeek}%/wk over ${s.span}d, breadth ${s.breadth})` : ""}${pick ? "" : " · no pick passes the rules"}`);
       } catch (err) {
         log.push(`${c.id}: ${String(err?.message || err).slice(0, 100)}`);
@@ -591,6 +713,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const wStarted = Date.now();
       let restRead = 0; // asked, for the rotation's cursor
       let restAnswered = 0; // answered, for today's real pace
+      let worldByCategory = 0; // categories read by the category alone (no listing titled new this year)
+      let hotFromList = 0; // categories whose hot list was empty, measured by their best sellers instead
       for (const [ci, cat] of rot.slice.entries()) {
         const isRest = !rot.slice.slice(0, rot.fashion).includes(cat);
         if (Date.now() - wStarted > WORLD.budgetMs) {
@@ -600,12 +724,21 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         }
         let stop = false;
         let thrown = false;
+        let byCategory = null; // the category's own listings, when its "<year> new" search found none
         try {
-          const res = await aeCall(SEARCH, { category_ids: cat.id, keywords: `${new Date(now).getUTCFullYear()} new`, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
-          const r = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          const ask = (keywords) => aeCall(SEARCH, { category_ids: cat.id, ...(keywords ? { keywords } : {}), tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
+          let r = (await ask(`${new Date(now).getUTCFullYear()} new`))?.aliexpress_affiliate_product_query_response?.resp_result;
+          // An empty answer (405: no listing titled new this year) asks the category alone: its listings
+          // join the pool too, and only one the radar saw from under 100 orders is ever called new.
+          if (Number(r?.resp_code) === 405) {
+            await pause(politeMs);
+            const r2 = (await ask(null))?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(r2?.resp_code) === 200 || Number(r2?.resp_code) === 405) { r = r2; byCategory = true; worldByCategory++; }
+          }
           const code = Number(r?.resp_code);
           const raw = code === 200 ? r.result?.products?.product : null;
           const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+          if (byCategory) byCategory = list;
           // Scanned only on a valid answer: 200 (with or without listings) or 405 (none); any other
           // code is a failed scan, named on the page with its code.
           const scanned = code === 200 || code === 405;
@@ -641,7 +774,19 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
             const hot = await aeCall(HOT, { category_ids: cat.id, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now });
             const hr = hot?.aliexpress_affiliate_hotproduct_query_response?.resp_result;
             const hraw = Number(hr?.resp_code) === 200 ? hr.result?.products?.product : null;
-            waveLists[`world-${cat.id}`] = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
+            let hlist = Array.isArray(hraw) ? hraw : hraw ? [hraw] : [];
+            // An empty hot list: the category's best sellers by recent orders (the same store numbers).
+            if (!hlist.length && Number(hr?.resp_code) === 405) {
+              if (Array.isArray(byCategory)) hlist = byCategory;
+              else {
+                await pause(politeMs);
+                const br = (await aeCall(SEARCH, { category_ids: cat.id, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+                const braw = Number(br?.resp_code) === 200 ? br.result?.products?.product : null;
+                hlist = Array.isArray(braw) ? braw : braw ? [braw] : [];
+              }
+              if (hlist.length) hotFromList++;
+            }
+            waveLists[`world-${cat.id}`] = hlist;
           } catch (err) { log.push(`world hot ${cat.id}: ${String(err?.message || err).slice(0, 60)}`); }
         }
         await pause(politeMs);
@@ -656,7 +801,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const roundDays = restAnswered ? Math.ceil(restTotal / restAnswered) : null;
       const w = scan.world;
       sources.world = rot.total ? { categories: rot.total, asked: w.asked, readToday: w.scanned, withItems: w.withData, verified: w.kept, empty: w.scanned - w.withData, failed: w.asked - w.scanned, fashionDaily: rot.fashion, fullRoundDays: roundDays } : "FAILED";
-      log.push(`world: ${w.asked} categories asked · ${w.scanned} scanned · ${w.withData} with listings · ${w.kept} kept · ${w.asked - w.scanned} failed (${rot.fashion} fashion every day) · ${rot.total} in the tree · at today's pace a full round every ${roundDays ?? "?"} days`);
+      log.push(`world: ${w.asked} categories asked · ${w.scanned} scanned · ${w.withData} with listings · ${w.kept} kept · ${w.asked - w.scanned} failed (${rot.fashion} fashion every day) · ${worldByCategory} read by the category alone · ${hotFromList} hot lists from the best sellers · ${rot.total} in the tree · at today's pace a full round every ${roundDays ?? "?"} days`);
     }
     freshPool = mergeFreshPool(freshPool, entries, { today });
     // OK only with listings that passed the radar's checks (freshEntry); explicit EMPTY / FAILED otherwise.
@@ -677,6 +822,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   });
   const board = intel.board;
   board.sourcesToday = sources;
+  // The store words, before the Wikipedia and Bluesky doors below need them (the early-call loop sets
+  // them again later; on 21.11 the first real run asked Bluesky about 0 kinds for want of them).
+  const enOf = new Map(concepts.map((x) => [x.id, x.en || ""]));
+  for (const c of Array.isArray(board.concepts) ? board.concepts : []) if (!c.en) c.en = enOf.get(c.id) || "";
   // When the daily reading really ran (GitHub starts scheduled runs late, 17–20.11: about 9 hours after
   // the 05:37 cron): a scheduled run records its own time, any other run keeps the last one. The page
   // counts down from it, never from the cron.
@@ -685,7 +834,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // 📚 Wikipedia attention (wikiSignal.js): every watched kind that has its own article, in English and
   // in Hebrew: this week against last week, the last 30 days, and the history by month since 2016,
   // from Wikimedia's free official Pageviews API. robots.txt first for every host; RADAR_WIKI=0 off.
-  if (env.RADAR_WIKI !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
+  if (env.RADAR_WIKI !== "0" && Array.isArray(board.concepts) && board.concepts.length && !late("wikipedia", 150_000)) {
     const wikiState = readJson(join(dir, "wiki.json"), {});
     const getJson = async (url) => {
       const res = await fetchImpl(url, { headers: { "user-agent": WIKI.ua, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
@@ -694,12 +843,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const doors = {};
     for (const [k, d] of Object.entries({ summary: WIKI.summary, views: WIKI.views, data: WIKI.data })) {
       try {
-        const r = await getText(`${d.host}/robots.txt`, fetchImpl);
+        const r = await getRobots(`${d.host}/robots.txt`, fetchImpl);
         doors[k] = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, d.path) : "failed";
       } catch { doors[k] = "failed"; }
     }
     const ageDays = (d) => (d ? (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${d}T00:00:00Z`)) / 86_400_000 : Infinity);
     let lookups = 0, failed = 0;
+    const from = new Date(now - 60 * 86_400_000).toISOString().slice(0, 10);
+    const to = new Date(now - 86_400_000).toISOString().slice(0, 10);
     if (doors.summary === true) {
       for (const c of board.concepts) {
         if (!c.en || ageDays(wikiState[c.id]?.at) < WIKI.resolveEveryDays) continue;
@@ -722,11 +873,35 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         }
         wikiState[c.id] = { at: today, en: found?.title || null, q: found?.q || null, he };
       }
+    } else if (doors.views === true) {
+      // The lookup's door is closed (en.wikipedia.org disallows /api/): the kind's own full phrase is
+      // read straight from the Pageviews API on wikimedia.org (directTitles; the title with the most
+      // readers wins, none means no article), and its Hebrew name likewise from he.wikipedia.
+      for (const c of board.concepts) {
+        if (!c.en || ageDays(wikiState[c.id]?.at) < WIKI.resolveEveryDays) continue;
+        if (lookups >= WIKI.maxLookups) break;
+        let best = null;
+        for (const title of directTitles(c.en)) {
+          lookups++;
+          try {
+            const r = await getJson(viewsUrl("en.wikipedia", title, { from, to }));
+            const n = r.status === 200 ? viewsTotal(r.json) : 0;
+            if (n > (best?.n || 0)) best = { title, n };
+            if (r.status >= 500 || r.status === 429) failed++;
+          } catch { failed++; }
+          await pause(politeMs);
+        }
+        let he = null;
+        if (best && c.he) {
+          lookups++;
+          try { const r = await getJson(viewsUrl("he.wikipedia", c.he, { from, to })); he = r.status === 200 && viewsTotal(r.json) > 0 ? c.he : null; } catch { failed++; }
+          await pause(politeMs);
+        }
+        wikiState[c.id] = { at: today, en: best?.title || null, q: null, he, via: "views" };
+      }
     }
     const cards = [];
     if (doors.views === true) {
-      const from = new Date(now - 60 * 86_400_000).toISOString().slice(0, 10);
-      const to = new Date(now - 86_400_000).toISOString().slice(0, 10);
       const lastMonth = new Date(Date.parse(`${today.slice(0, 7)}-01T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
       for (const c of board.concepts) {
         const st = wikiState[c.id];
@@ -746,20 +921,83 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     }
     writeFileSync(join(dir, "wiki.json"), JSON.stringify(wikiState));
     board.wiki = { ...wikiSummary(cards), doors };
-    sources.wikipedia = doors.views === "failed" || doors.summary === "failed" ? "FAILED" : doors.views !== true || doors.summary !== true ? "ROBOTS_DISALLOW" : cards.length ? "OK" : "FAILED";
+    // A door the site's own rules close is CLOSED, never FAILED (21.11: en.wikipedia.org's robots.txt
+    // disallows /api/ for every automatic reader, so the radar reads none of it).
+    // 22.11: the lookup's closed door no longer closes the source; only the Pageviews door decides.
+    sources.wikipedia = doors.views === false ? "ROBOTS_DISALLOW" : doors.views === "failed" ? "FAILED" : cards.length ? "OK" : "FAILED";
     log.push(`wikipedia: robots ${JSON.stringify(doors)} · ${lookups} lookups · ${Object.values(wikiState).filter((s) => s?.en).length} kinds with an article · ${cards.length} read today (${cards.filter((c) => c.he).length} with Hebrew) · ${board.wiki.rising} rising · ${failed} failed · ${cards.filter((c) => c.rising).slice(0, 6).map((c) => `${c.en} +${c.a.weekPct}%`).join(", ") || "none rising"}`);
+  }
+  // 🇰🇷🇯🇵 Korea and Japan in their own language (asiaSignal.js; the owner, 22.11: "for Japan and Korea,
+  // a far more genius way, maybe through AI"). Naver closes its suggestions in its own robots.txt; Google's
+  // public suggestions from Korea and Japan are open (the same robots.txt the Israel gap reads this run).
+  // An open translation model on this runner gives each moving kind its Korean and Japanese words once
+  // (kept in asia.json); then Google and YouTube are asked, from each country in its own language,
+  // whether people there type it already. The word asked is printed beside every answer; a kind the
+  // model could not translate is UNMEASURED there, never quiet. RADAR_ASIA=0 turns it off.
+  if (env.RADAR_ASIA !== "0" && sources.suggest === "OK" && Array.isArray(board.concepts) && board.concepts.length && !late("asia", 240_000)) {
+    try {
+      const asia = readJson(join(dir, "asia.json"), { terms: {}, hist: {} });
+      asia.terms ||= {}; asia.hist ||= {};
+      const kinds = socialKinds(board.concepts, { max: ASIA.perRun });
+      // v3 terms passed the round trip (head noun + two thirds); an older term is translated again.
+      const need = kinds.filter((c) => !asia.terms[c.id] || asia.terms[c.id].en !== c.en || asia.terms[c.id].v !== 3);
+      let translated = 0, untranslatable = 0, lost = 0;
+      const lostSamples = [];
+      if (need.length) {
+        const { loadTranslator } = await import("./radar-embed.mjs");
+        const translate = await loadTranslator();
+        for (const c of need) {
+          const t = { en: c.en, v: 3 };
+          for (const r of Object.keys(ASIA.regions)) {
+            let term = null;
+            try { term = usableTerm(await translate(c.en, ASIA.regions[r].nllb), r); } catch { term = null; }
+            // The round trip: back to English, the head noun and two thirds of the words must return, else it measures another thing.
+            if (term) {
+              let back = "";
+              try { back = await translate(term, ASIA.src, ASIA.regions[r].nllb); } catch { back = ""; }
+              if (!roundTripOk(c.en, back)) { lost++; if (lostSamples.length < 4) lostSamples.push(`${c.en} → ${back || "?"}`); term = null; }
+            }
+            t[r] = term;
+            if (term) translated++; else untranslatable++;
+          }
+          asia.terms[c.id] = t;
+        }
+      }
+      let asked = 0, answered = 0;
+      for (const c of kinds) {
+        const readings = {};
+        for (const [r, reg] of Object.entries(ASIA.regions)) {
+          const term = asia.terms[c.id]?.[r] || null;
+          if (!term) { readings[r] = { term: null, state: "UNMEASURED" }; continue; }
+          asked++;
+          const g = await suggestList(term, { hl: reg.hl, gl: reg.gl }, fetchImpl);
+          await pause(politeMs);
+          const y = await suggestList(term, { hl: reg.hl, gl: reg.gl, ds: "yt" }, fetchImpl);
+          await pause(politeMs);
+          if (g || y) answered++;
+          readings[r] = regionReading({ term, google: localExtensions(term, g), youtube: localExtensions(term, y) });
+          asia.hist = mergeAsia(asia.hist, c.id, r, today, readings[r]);
+        }
+        const card = asiaCard(readings, asia.hist[c.id], today);
+        if (card) c.asia = card;
+      }
+      writeFileSync(join(dir, "asia.json"), JSON.stringify(asia));
+      sources.asia = answered ? "OK" : asked ? "FAILED" : "EMPTY";
+      const shown = kinds.filter((c) => c.asia).map((c) => `${c.en}: ${Object.entries(c.asia.regions).map(([r, x]) => `${r} ${x.state}`).join(" ")}`);
+      log.push(`asia: ${kinds.length} moving kinds · ${need.length} translated today (${translated} words kept, ${untranslatable} without a usable word, ${lost} lost a word in the round trip${lostSamples.length ? `: ${lostSamples.join("; ")}` : ""}) · ${answered} of ${asked} answered · ${shown.slice(0, 8).join(" · ") || "none"}`);
+    } catch (err) { sources.asia = "FAILED"; log.push(`asia: ${String(err?.message || err).slice(0, 120)}`); }
   }
   // 🗣️ Bluesky's open network and 📢 Meta's Ad Library (socialSignal.js): how many posts name a moving
   // kind this week against the week before, and how many ads for it started in the EU this week (only
   // with the owner's own token). robots.txt first; counts only. RADAR_SOCIAL=0 turns both off.
-  if (env.RADAR_SOCIAL !== "0" && Array.isArray(board.concepts) && board.concepts.length) {
+  if (env.RADAR_SOCIAL !== "0" && Array.isArray(board.concepts) && board.concepts.length && !late("bluesky", 180_000)) {
     const kinds = socialKinds(board.concepts);
     const getJson = async (url) => {
       const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
       return { status: res.status, json: res.ok ? await res.json().catch(() => null) : null };
     };
     let bskyDoor = "failed";
-    try { const r = await getText(`${SOCIAL.bsky.host}/robots.txt`, fetchImpl); bskyDoor = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, SOCIAL.bsky.path) : "failed"; } catch { /* failed */ }
+    try { const r = await getRobots(`${SOCIAL.bsky.host}/robots.txt`, fetchImpl); bskyDoor = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, SOCIAL.bsky.path) : "failed"; } catch { /* failed */ }
     let heard = 0, bskyFailed = 0;
     const weekMs = 7 * 86_400_000;
     const count = async (phrase, since, until) => {
@@ -804,6 +1042,201 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`meta ad library: ${ads} kinds counted · ${adsFailed} failed`);
     }
   }
+  // 🏪 The shops opening (shopSignal.js; the owner, 22.11: "for every door that closes, ten open"): the
+  // free public list of every domain registered in the world each day (WhoisDS; reuse allowed, also
+  // commercial; robots.txt read first), counted per watched kind by its own names, and (🔤, no list)
+  // by the product words the new shops are named after. Days missing from the state are read back
+  // (up to SHOPS_BACK), so the week-against-week comparison starts as soon as the lists exist.
+  if (env.RADAR_SHOPS !== "0" && Array.isArray(board.concepts) && board.concepts.length && !late("shops", 180_000)) {
+    const dayBack = (n) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+    const yesterday = dayBack(1);
+    const kinds = board.concepts.filter((c) => c.id && c.en);
+    let shopState = readJson(join(dir, "shops.json"), {});
+    let wordState = readJson(join(dir, "shop-words.json"), { days: [], w: {} });
+    const vocab = productVocab(Object.values(freshPool || {}).map((e) => e?.title));
+    let door = "failed";
+    const readDays = [];
+    let domainsYesterday = 0;
+    try {
+      const r = await getRobots("https://www.whoisds.com/robots.txt", fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, "/whois-database/") : "failed";
+    } catch { /* counted by the meter */ }
+    if (door === true) {
+      const have = new Set(wordState.days || []);
+      const want = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map(dayBack).filter((d, i) => i === 0 || !have.has(d)).slice(0, SHOPS_BACK);
+      for (const d of want) {
+        try {
+          const res = await fetchImpl(nrdUrl(d), { headers: { "user-agent": UA }, signal: AbortSignal.timeout(60_000) });
+          if (!res.ok) continue;
+          const tmp = join(tmpdir(), `nrd-${d}.zip`);
+          writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+          const domains = execFileSync("unzip", ["-p", tmp], { maxBuffer: 64 * 1024 * 1024 }).toString("utf8").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+          if (domains.length < 1000) continue; // a short or empty file is no reading of the day
+          readDays.push(d);
+          if (d === yesterday) domainsYesterday = domains.length;
+          keep(meter, "shops", domains.length);
+          shopState = mergeShops(shopState, shopsToday(domains, kinds), d, kinds.map((c) => c.id));
+          if (vocab.size) wordState = mergeShopWords(wordState, wordsToday(domains, vocab), d);
+        } catch { /* counted by the meter; a failed day is no zero */ }
+      }
+    }
+    if (readDays.length) {
+      writeFileSync(join(dir, "shops.json"), JSON.stringify(shopState));
+      writeFileSync(join(dir, "shop-words.json"), JSON.stringify(wordState));
+      const last = readDays.slice().sort().pop();
+      for (const c of kinds) { const s = shopsOf(shopState[c.id], last); if (s) c.shops = s; }
+      const rising = kinds.filter((c) => c.shops?.rising).sort((a, b) => b.shops.week - a.shops.week);
+      board.shops = { day: last, domains: domainsYesterday, kinds: kinds.length, withShops: kinds.filter((c) => c.shops?.week > 0).length, rising: rising.length, top: rising.slice(0, SHOPS.top).map((c) => c.id) };
+      sources.shops = "OK";
+      log.push(`shops: ${readDays.length} daily lists read (${readDays.join(", ")}) · ${domainsYesterday} domains registered on ${yesterday} · ${board.shops.withShops} kinds with new shops this week · rising ${rising.slice(0, 6).map((c) => `${c.id} ${c.shops.prev}→${c.shops.week}`).join(", ") || "none"}`);
+      // 🔤 The names the new shops pick (no list): a rising word or pair, a product sellers bet on.
+      const known = [...watch, ...discovered].map((c) => String(c.en || "").toLowerCase());
+      const skip = (k) => isSeasonal(k) || hasBrandName(k) || isNotListedKind(k) || known.some((en) => en.includes(k));
+      const words = risingShopWords(wordState, last, { skip });
+      const sCands = [];
+      if (!words.measuring) {
+        const he = aeEnv(env);
+        for (const r of words.rising.filter((x) => x.pair).slice(0, SHOP_WORDS.admit)) {
+          try {
+            const res = await aeCall(SEARCH, { keywords: r.key, tracking_id: he.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "20", sort: "LAST_VOLUME_DESC" }, { env: he, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) !== 200) continue;
+            const raw = rr.result?.products?.product;
+            const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((x) => ({ title: x.product_title, orders: Number(x.lastest_volume) || 0 }));
+            const v = haulOnStore(r.key, list);
+            if (v.ok) { sCands.push({ en: r.key, kind: "", items: v.items, orders: v.orders, category: "shops", via: "shops" }); r.added = true; }
+          } catch (err) { log.push(`shop words ${r.key}: ${String(err?.message || err).slice(0, 60)}`); }
+        }
+        if (sCands.length) {
+          const sBefore = new Set(discovered.map((c) => c.id));
+          discovered = admitDiscovered(discovered, sCands, { concepts: watch, stages: stagesBefore, now });
+          for (const r of words.rising) if (r.added && !discovered.some((c) => c.en === r.key && !sBefore.has(c.id))) r.added = discovered.some((c) => c.en === r.key);
+        }
+      }
+      board.shopWords = { day: last, days: words.days, vocab: vocab.size, measuring: words.measuring, rising: words.rising };
+      log.push(`shop words: ${vocab.size} product words · ${words.days} days of lists · ${words.measuring ? `measuring (a week against the weeks before needs ${SHOP_WORDS.minDays} days)` : `rising ${words.rising.map((r) => `${r.key} ${r.before}→${r.week} (×${r.times})`).join(", ") || "none"} · joined the radar ${words.rising.filter((r) => r.added).map((r) => r.key).join(", ") || "none"}`}`);
+    } else {
+      sources.shops = door === true || door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`shops: no list read (${sources.shops})`);
+    }
+  }
+
+  // 🚢 The factories' shipments (tradeSignal.js; the owner, 22.11: "the biggest factories, where it all
+  // starts, not only AliExpress, with no connection"): Eurostat's open customs records, every product
+  // line the EU imports from each partner, the last three months against the same three a year earlier.
+  // Monthly data: the run asks a small probe for the newest month and the update stamp, and downloads
+  // the partners again only when Eurostat published something new.
+  if (env.RADAR_TRADE !== "0" && !late("trade", 180_000)) {
+    let trade = readJson(join(dir, "trade.json"), null);
+    let door = "failed";
+    try {
+      const r = await getRobots(`${TRADE.host}/robots.txt`, fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, TRADE.path) : "failed";
+    } catch { /* counted by the meter */ }
+    if (door === true) {
+      let probe = null;
+      try {
+        const res = await fetchImpl(probeUrl(today.slice(0, 7)), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+        if (res.ok) probe = await res.json();
+      } catch { /* counted */ }
+      const latest = probe ? latestPeriod(probe) : null;
+      const updated = typeof probe?.updated === "string" ? probe.updated : null;
+      if (latest && (!trade || trade.latest !== latest || trade.updated !== updated || (trade.partners || []).length < TRADE.partners.length)) {
+        const partners = [];
+        for (const id of TRADE.partners) {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const res = await fetchImpl(tradeUrl(id, latest), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(180_000) });
+              if (res.status === 413) { await new Promise((ok) => setTimeout(ok, 30_000)); continue; } // Eurostat prepares a big answer and asks to come back
+              if (!res.ok) break;
+              const jumps = tradeJumps(parseComext(await res.json()), latest);
+              if (jumps) { partners.push({ id, ...jumps }); keep(meter, "trade", jumps.measured); }
+              break;
+            } catch { break; }
+          }
+        }
+        if (partners.length) trade = { latest, updated, read: today, months: windowsOf(latest).now, partners };
+      }
+      if (trade && trade.latest) {
+        writeFileSync(join(dir, "trade.json"), JSON.stringify(trade));
+        board.trade = trade;
+        sources.trade = "OK";
+        if (trade.read !== today) keep(meter, "trade", 1); // reused: Eurostat published nothing newer (the probe answered)
+        log.push(`trade: EU customs, ${(trade.months || []).join(",")} against a year earlier (Eurostat updated ${trade.updated}, read ${trade.read}) · ${trade.partners.map((p) => `${p.id} ${p.measured} lines, ${p.jumping} doubled (renamed ${p.renamed}, price only ${p.priceOnly})`).join(" · ")} · top ${trade.partners.flatMap((p) => p.top.slice(0, 2).map((r) => `${p.id} ${r.code} +${r.valuePct}%`)).join(", ")}`);
+      } else {
+        sources.trade = "FAILED";
+        log.push(`trade: no customs answer (probe ${probe ? "read, no month" : "failed"})`);
+      }
+    } else {
+      sources.trade = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`trade: door ${sources.trade}`);
+    }
+  }
+
+  // 🌍 The world gap (worldGap.js; the owner, 21.11: "not only the gap in Israel, the gap against the
+  // whole world"): Google's public suggestions for the English store words from every country of
+  // GAP_COUNTRIES. The watched kinds keep today's 13 countries from the morning reading and get the
+  // other 38 here (the moving ones first, the rest in rotation); every new product and new kind about to
+  // be shown is read from all of them below (`phraseGap`). robots.txt was read before the first
+  // suggestion (sources.suggest). Counts only: no suggestion text is kept. RADAR_GAP=0 turns it off.
+  const gapState = readJson(join(dir, "world-gap.json"), {});
+  for (const k of ["concepts", "phrases"]) {
+    gapState[k] = Object.fromEntries(Object.entries(gapState[k] && typeof gapState[k] === "object" ? gapState[k] : {})
+      .filter(([, v]) => v?.d && (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${v.d}T00:00:00Z`)) / 86_400_000 <= GAP.keepDays));
+  }
+  const gapOn = env.RADAR_GAP !== "0" && sources.suggest === "OK" && !late("worldGap", 8 * 60_000);
+  const gapRun = { started: Date.now(), asked: 0, answered: 0, failRun: 0, stopped: false, concepts: 0, phrases: 0 };
+  // `withYt`: YouTube's own suggestions from each country too (ds=yt; the radar's finds).
+  const sweepCountries = async (phrase, ids, { withYt = false } = {}) => {
+    const counts = {};
+    const yt = {};
+    const echo = [];
+    const jobs = ids.flatMap((id) => (withYt ? [[id, false], [id, true]] : [[id, false]]));
+    await runPool(jobs.map(([id, isYt]) => async () => {
+      if (gapRun.stopped || Date.now() - gapRun.started > GAP.budgetMs) { gapRun.stopped = true; return; }
+      gapRun.asked++;
+      let facts = null;
+      try { facts = suggestFacts(phrase, await suggestList(phrase, isYt ? { hl: "en", gl: id, ds: "yt" } : { hl: "en", gl: id }, fetchImpl)); } catch { facts = null; }
+      if (facts) { gapRun.answered++; gapRun.failRun = 0; (isYt ? yt : counts)[id] = facts.n; if (facts.echo && !echo.includes(id)) echo.push(id); }
+      else if (++gapRun.failRun >= GAP.maxFailures) gapRun.stopped = true;
+      await pause(Math.round(politeMs / 2));
+    }), GAP.concurrency);
+    if (Object.keys(counts).length) keep(meter, "worldSearch", Object.keys(counts).length);
+    if (Object.keys(yt).length) keep(meter, "youtube", Object.keys(yt).length);
+    return { counts, yt, echo };
+  };
+  const israelOf = (gap) => (["ARRIVING", "ARRIVED"].includes(gap?.state) ? true : ["GAP", "QUIET"].includes(gap?.state) ? false : null);
+  if (gapOn && Array.isArray(board.concepts)) {
+    const extraIds = GAP_EXTRA.map((c) => c.id);
+    for (const c of gapSweepOrder(board.concepts, gapState.concepts)) {
+      if (gapRun.stopped) break;
+      const latest = (worldMap[c.id] || []).at(-1);
+      const fresh = latest?.d === today ? latest : null;
+      // Today's 13 countries from the morning reading (the clock's own five are kept apart in `x`).
+      const core = {};
+      for (const x of GAP_CORE) { const v = x.id in (fresh?.x || {}) ? fresh.x[x.id] : fresh?.by?.[x.id]; if (Number.isFinite(v)) core[x.id] = v; }
+      const ask = [...GAP_CORE.map((x) => x.id).filter((id) => !(id in core)), ...extraIds];
+      const got = await sweepCountries(c.en, ask);
+      const usEcho = (fresh?.echo || []).some((k) => k === "tiktok" || k === "amazon") ? ["us"] : [];
+      const g = worldGapOf({ counts: { ...core, ...got.counts }, israel: israelOf(c.gap), echo: [...got.echo, ...usEcho], trends: fresh?.trends || [], d: today });
+      if (g.state !== "UNMEASURED") { gapState.concepts[c.id] = g; gapRun.concepts++; }
+    }
+  }
+  for (const c of Array.isArray(board.concepts) ? board.concepts : []) { const g = freshGap(gapState.concepts[c.id], today); if (g) c.worldGap = g; }
+  // A new product or new kind about to be shown: every country of the world gap (Israel's Hebrew
+  // searches need Hebrew words, which a new listing has none of: Israel stays unmeasured for it).
+  const phraseGap = async (phrase) => {
+    const key = String(phrase || "").toLowerCase().trim();
+    if (!gapOn || !key) return null;
+    if (gapState.phrases[key]?.d === today) return gapState.phrases[key];
+    if (gapRun.stopped || gapRun.phrases >= GAP.maxPhrases) return null;
+    gapRun.phrases++;
+    const got = await sweepCountries(phrase, GAP_COUNTRIES.filter((x) => x.id !== "il").map((x) => x.id), { withYt: true });
+    const g = worldGapOf({ counts: got.counts, yt: got.yt, echo: got.echo, d: today });
+    if (g.state === "UNMEASURED") return null;
+    gapState.phrases[key] = g;
+    return g;
+  };
 
   // 📣 One pool for Telegram and Instagram (channelEngine.js radarPool): the listings HOT on their own
   // measured momentum (≥ +10% a week, ≥ 300 orders), per kind, with how many sellers were compared.
@@ -814,6 +1247,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // Every candidate must also be unknown (few sellers, no buzz abroad) before it is shown.
   const freshRules = freshBar(freshRecord(readJson(join(dir, "fresh-calls.json"), [])));
   board.fresh = freshRisers(freshPool, items, { rules: { ...freshRules, show: FRESH.checkUpTo } });
+  // 🏭 The factories that jump (factorySignal.js): the stores whose new listings run together.
+  board.factories = factoryJumps(freshPool, items);
+  log.push(`factories: ${board.factories.withShop} new listings carry their store's id · ${board.factories.factories} stores · ${board.factories.jumping} jumping${board.factories.withShop ? "" : " (the store sent no store ids)"} · ${board.factories.top.slice(0, 5).map((r) => `store ${r.shop}: ${r.listings} listings, median +${r.medianWeekPct}%/wk, ${r.ordersBefore}→${r.orders} orders`).join(" | ") || "none"}`);
   board.fresh.strict = freshRules.strict;
   {
     const n = board.fresh.noise || {};
@@ -827,8 +1263,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const counts = {};
     let ytSearches = 0;
     sources.youtubeApi = env.YOUTUBE_API_KEY ? "NOT_ASKED" : "REQUIRES_CONNECTION";
+    const poolDf = phraseCounts(Object.values(freshPool || {}).map((e) => e?.title));
     for (const r of board.fresh.risers) {
-      const phrase = freshPhrase(r.title);
+      const phrase = distinctPhrase(r.title, poolDf);
       let similar = null;
       let suggestions = null;
       if (phrase && store) {
@@ -859,8 +1296,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         sources.youtubeApi = yt ? "OK" : sources.youtubeApi === "OK" ? "OK" : "FAILED";
       }
       if (known.unknown && yt?.level === "BUZZ") { counts.BUZZ_YT = (counts.BUZZ_YT || 0) + 1; continue; }
+      // 🌍 Already searched in half the world's countries, or a buzz word in any of them: known, hidden.
+      const world = known.unknown ? await phraseGap(phrase) : null;
+      if (world?.state === "KNOWN") { counts.KNOWN_WORLD = (counts.KNOWN_WORLD || 0) + 1; continue; }
       counts[known.reason] = (counts[known.reason] || 0) + 1;
-      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt } });
+      if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt, world } });
     }
     board.fresh.risers = checked.slice(0, FRESH.show);
     log.push(`fresh unknown check: ${JSON.stringify(counts)}`);
@@ -925,6 +1365,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           const raw = Number(rr?.resp_code) === 200 ? rr.result?.products?.product : null;
           alt = altPick(Array.isArray(raw) ? raw : raw ? [raw] : []);
         } catch { alt = null; }
+        // The legal look-alike's own orders join the item histories, so its pace is measured like any
+        // listing (the channel engine posts it only with a measured growth that beats the noise).
+        if (alt && Number.isFinite(alt.orders)) {
+          items[alt.id] = addItemReading(items[alt.id], [today, alt.orders]);
+          const m = itemMomentum(items[alt.id], { rules: HOT_RULES });
+          alt = { ...alt, state: m.state, weekPct: Number.isFinite(m.weekPct) ? m.weekPct : null, ordersBefore: m.ordersBefore ?? null, from: m.from || null, to: m.to || today };
+        }
       }
       cards.push(waveCard(w, { hist: st.hist, firstSeen: st.first, buzz, yt, ig: igs, alt }));
       await pause(politeMs);
@@ -934,6 +1381,59 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     writeFileSync(join(dir, "waves.json"), JSON.stringify(waveState));
     board.waves = { at: today, list: cards.slice(0, WAVES.show) };
     log.push(`waves: ${cards.map((c) => `${c.token} (${c.items} items, ${c.orders} orders${c.alt ? ", alt" : ""})`).join(", ") || "none today"} · youtube ${ytN} · instagram ${sources.instagram}`);
+  }
+  // 🚫 Saturated is never a find (saturation.js; the owner, 26.11: "I saw the radar found products the
+  // market is already saturated with — fix it"). Every product shown or posted outside the radar's own
+  // discoveries — the channel's listings per kind, the site's HOT products, the legal brand looks — gets
+  // one market check: a mass seller (≥ 5,000 orders in 30 days) is saturated with no question asked; the
+  // rest are asked for the listings matching their own most specific name (over 2,000: saturated) and
+  // Google's US suggestions (tiktok/viral/trending/amazon: buzz). Only OPEN is shown or posted; a check
+  // that could not be read leaves it UNMEASURED, never open. Kept 3 days in saturation.json.
+  {
+    const targets = [
+      ...(board.pool?.list || []).map((r) => ({ id: String(r.id), orders: r.orders, ref: r })),
+      ...(board.site?.hot || []).map((r) => ({ id: String(r.itemId || ""), orders: r.orders, ref: r })),
+      ...(board.waves?.list || []).filter((w) => w?.alt?.id).map((w) => ({ id: String(w.alt.id), orders: w.alt.orders, ref: w.alt })),
+    ];
+    let satState = pruneChecks(readJson(join(dir, "saturation.json"), {}), today);
+    const queue = store && env.RADAR_SATURATION !== "0" && !late("saturation", 150_000) ? saturationQueue(targets, satState, today) : [];
+    let asked = 0;
+    if (queue.length) {
+      // The English store title of each (the shown titles are Hebrew), 20 at a time.
+      const en = {};
+      const e = aeEnv(env);
+      for (let i = 0; i < queue.length; i += 20) {
+        try {
+          const out = await aeCall(DETAIL, { product_ids: queue.slice(i, i + 20).join(","), target_currency: "ILS", target_language: "EN", country: "IL", tracking_id: e.ALIEXPRESS_TRACKING_ID }, { env: e, fetchImpl, now });
+          const r = out?.aliexpress_affiliate_productdetail_get_response?.resp_result;
+          const raw = Number(r?.resp_code) === 200 ? r.result?.products?.product : null;
+          for (const x of Array.isArray(raw) ? raw : raw ? [raw] : []) if (x?.product_id) en[String(x.product_id)] = String(x.product_title || "");
+        } catch (err) { log.push(`saturation titles ${i}: ${String(err?.message || err).slice(0, 80)}`); }
+      }
+      const df = phraseCounts(Object.values(freshPool || {}).map((x) => x?.title));
+      for (const id of queue) {
+        const phrase = en[id] ? distinctPhrase(en[id], df) : null;
+        if (!phrase) continue;
+        asked++;
+        let similar = null;
+        let suggestions = null;
+        try {
+          const res = await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+          const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+          if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+        } catch { /* unread → unmeasured */ }
+        if (sources.suggest === "OK") {
+          try { suggestions = await suggestList(phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+          await pause(politeMs);
+        }
+        const c = unknownCheck({ phrase, similar, suggestions });
+        if (c.reason !== "NOT_CHECKED") satState[id] = { d: today, reason: c.reason, phrase: c.phrase, similar: c.similar, buzz: c.buzz };
+      }
+    }
+    for (const t of targets) t.ref.market = marketOf({ orders: t.orders, check: satState[t.id] });
+    writeFileSync(join(dir, "saturation.json"), JSON.stringify(satState));
+    const tally = targets.reduce((m, t) => ((m[t.ref.market.state] = (m[t.ref.market.state] || 0) + 1), m), {});
+    log.push(`saturation: ${targets.length} products shown or posted outside the discoveries · ${queue.length} asked today (${asked} with a name) · ${JSON.stringify(tally)} · open: ${targets.filter((t) => t.ref.market.state === "OPEN").slice(0, 6).map((t) => `${t.id} (${t.ref.market.similar} similar)`).join(", ") || "none"}`);
   }
   // The crowd sensor (crowdSensor.js): items checked in the magic button by different people this
   // week (counts only, from the server), with the store's own facts; their orders join the histories.
@@ -967,6 +1467,23 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`crowd: ${counts.length} items checked by ${CROWD.minPeople}+ people this week · shown ${board.crowd.list.length} · kinds photographed ${photographed.length}`);
     } catch (err) { sources.crowd = "FAILED"; log.push(`crowd: ${String(err?.message || err).slice(0, 60)}`); }
   } else sources.crowd = env.AUTOPILOT_SECRET ? "OFF" : "REQUIRES_CONNECTION";
+  // Every open call is read again by its own item number until it is graded — the radar's new products
+  // and the yardsticks' picks alike (radarBaseline.js) — so no call waits ungraded because the store's
+  // searches stopped returning its listing. The store's own 30-day orders only.
+  let baseState = readJson(join(dir, "baseline.json"), { naive: [], random: [] });
+  if (store) {
+    const openFresh = readJson(join(dir, "fresh-calls.json"), []).filter((c) => !c.result && /^\d{6,20}$/.test(String(c.id))).map((c) => String(c.id));
+    const ids = [...new Set([...openFresh, ...baselineOpenIds(baseState), ...versusDueIds(readJson(join(dir, "versus.json"), {}), today)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 360);
+    let read = 0;
+    for (let i = 0; i < ids.length; i += 20) {
+      try {
+        const got = await itemOrders(ids.slice(i, i + 20), { env, fetchImpl, now });
+        for (const [id, f] of got) if (Number.isFinite(f.orders)) { items[id] = addItemReading(items[id], [today, f.orders]); read++; }
+      } catch (err) { log.push(`open calls ${i}: ${String(err?.message || err).slice(0, 80)}`); }
+    }
+    keep(meter, "aliexpress", read);
+    log.push(`open calls read again by item: ${read} of ${ids.length} without a reading today`);
+  }
   // Every riser shown is a public call, graded after 14 days (HIT: orders +50% since), never edited.
   let freshCalls = gradeFresh(readJson(join(dir, "fresh-calls.json"), []), items, today);
   freshCalls = recordFresh(freshCalls, board.fresh.risers, today);
@@ -976,7 +1493,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   board.fresh.byCategory = byCategory(freshCalls).slice(0, 30);
   board.fresh.recent = freshCalls.filter((c) => c.result).slice(-12).reverse().map((c) => ({ id: c.id, title: c.title, at: c.at, result: c.result, growth: c.growth }));
   writeFileSync(join(dir, "fresh-calls.json"), JSON.stringify(freshCalls));
-  log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}%`).join(", ") || "none yet"} (tracking ${board.fresh.tracking})`);
+  log.push(`fresh risers: ${board.fresh.risers.map((r) => `${r.id} +${r.weekPct}% (first read ${r.age?.firstOrders} on ${r.age?.firstDay})`).join(", ") || "none yet"} (tracking ${board.fresh.tracking}) · holiday listings set apart: ${board.fresh.seasonal?.n ?? 0} · already selling at the first reading, not new: ${board.fresh.established?.n ?? 0}${board.fresh.established?.top?.length ? ` (${board.fresh.established.top.map((r) => `${r.id} +${r.weekPct}% from ${r.firstOrders}`).join(", ")})` : ""}`);
   // Every new product the radar ever showed, misses included, sealed in Bitcoin (radarLedger.js):
   // the one book of calls that was not sealed before 17.11.
   const freshText = freshSealText(freshCalls);
@@ -1008,8 +1525,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
       if (Number.isFinite(similar)) phraseReads[k.en] = similar;
       const known = unknownCheck({ phrase: k.en, similar, suggestions });
+      const world = known.unknown ? await phraseGap(k.en) : null;
+      if (world?.state === "KNOWN") { kindCounts.KNOWN_WORLD = (kindCounts.KNOWN_WORLD || 0) + 1; continue; }
       kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
-      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar } });
+      if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar, world } });
     }
     log.push(`kinds unknown check: ${JSON.stringify(kindCounts)}`);
     if (shownKinds.length) {
@@ -1028,6 +1547,14 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const kindsText = kindsSealText(kindCalls);
     if (kindsText) board.kinds.seal = await sealBook({ text: kindsText, count: kindsText.split("\n").length }, prevBoard.kinds?.seal, "kinds");
     log.push(`kinds: ${shownKinds.length} shown · record ${JSON.stringify(board.kinds.record)}`);
+  }
+  // 🌍 The world gap's state and the day's summary.
+  writeFileSync(join(dir, "world-gap.json"), JSON.stringify(gapState));
+  {
+    const todays = [...(board.concepts || []).map((c) => c.worldGap), ...(board.fresh?.risers || []).map((r) => r.known?.world), ...(board.kinds?.list || []).map((k) => k.known?.world)].filter((g) => g?.d === today);
+    board.worldGap = worldGapSummary(todays, { today });
+    sources.worldGap = !gapOn ? (env.RADAR_GAP === "0" ? "OFF" : "NOT_ASKED") : todays.length ? "OK" : "FAILED";
+    log.push(`world gap: ${GAP_COUNTRIES.length} countries · ${gapRun.concepts} watched kinds + ${gapRun.phrases} new phrases measured · ${gapRun.answered}/${gapRun.asked} answers${gapRun.stopped ? " · stopped (budget or failures)" : ""} · states ${JSON.stringify(board.worldGap.states)} · ${(board.concepts || []).filter((c) => c.worldGap?.d === today && c.worldGap.before).slice(0, 6).map((c) => `${c.id} ${c.worldGap.searched}/${c.worldGap.measured}`).join(", ") || "none before the world"}`);
   }
   // 🧠 The brain (radarBrain.js): what the radar learned from every graded call that recorded its
   // signals the day it was made; for today's risers and kinds, the record of past calls like them.
@@ -1142,6 +1669,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           called: c.at, due: c.due, dayN: dayN(c.at), base: c.base, orders: last ? last[1] : null, on: last ? last[0] : null,
           progress: last ? Math.round(((last[1] - c.base) / c.base) * 1000) / 10 : null,
           weekPct: Number.isFinite(momentum.weekPct) ? momentum.weekPct : null, window, exit: exit.state, why: exit.why,
+          category: pool.category || null,
         };
       });
     log.push(`exit signal: ${board.fresh.watch.length} earlier finds · ${JSON.stringify(board.fresh.watch.reduce((t, w) => ({ ...t, [w.exit]: (t[w.exit] || 0) + 1 }), {}))}`);
@@ -1149,24 +1677,70 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // The early calls' own public record, and the bar it sets (signalsNeeded: misses raise it).
   const earlyRecordBefore = trackRecord(calls.filter((x) => x.kind === "early"));
   const need = signalsNeeded(earlyRecordBefore);
+  const gates = [];
   for (const c of board.concepts || []) {
     c.world = worldPulseOf(worldMap[c.id] || []);
-    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early });
+    c.early = earlyCall({ world: c.world, stage: c.stage, listings: c.listings, gap: c.gap, need, before: (prevBoard.concepts || []).find((x) => x.id === c.id)?.early, ads: c.social?.ads });
+    // 🚪 Every call passes the whole gate first (callGate.js; the owner, 26.11: "never a saturated
+    // product again, in any way"): before everyone, not fading, not saturated, not noise.
+    const gate = callGate(c, signals(readings[c.id] || []));
+    gates.push({ id: c.id, ...gate });
+    c.gateWhy = gate.ok ? "ok" : gate.why;
+    if (gate.ok) calls = updateCalls(calls, c.id, c.stage, readings[c.id], { now, open: true });
     // A call is saved the day it is made (graded by updateCalls after 14 days like every call).
     const latest = (readings[c.id] || []).at(-1);
     // Only an open EARLY call blocks a new one: a rising concept nearly always has an open stage call
     // (updateCalls), and that must never stop the stronger early call from being sealed.
-    if (c.early.level === "CALL" && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && x.kind === "early" && !x.result)) {
+    if (c.early.level === "CALL" && gate.ok && latest?.sum > 0 && !calls.some((x) => x.concept === c.id && x.kind === "early" && !x.result)) {
       calls.push({ concept: c.id, kind: "early", stage: c.stage, at: today, base: latest.sum, due: new Date(Date.parse(today) + 14 * 86_400_000).toISOString().slice(0, 10), signals: Object.entries(c.early.signals).filter(([, v]) => v).map(([k]) => k) });
       log.push(`EARLY CALL ${c.id}: ${c.early.count}/4 signals`);
     }
     c.en = (concepts.find((x) => x.id === c.id) || {}).en || ""; // the store words, for the find-it-everywhere links
     c.factory = factoryOf(c.listings); // the factory signal: sellers rushing in before buyers
+    c.supply = supplyGapOf({ series: c.series, listings: c.listings }); // 🏭 sellers against demand (supplyGap.js)
   }
+  // The gate's morning (callGate.js): how many kinds rose, how many were called, why the others were kept
+  // out. The record includes today's calls (they open here now, after the whole gate).
+  board.callGate = { d: today, ...gateTally(gates) };
+  board.record = trackRecord(calls);
+  log.push(`call gate: ${board.callGate.rising} kinds rising · called ${board.callGate.called} · kept out: ${["israel_arrived", "world_known", "buzz", "fading", "saturated", "noise", "unmeasured"].map((k) => `${k} ${board.callGate[k]}`).join(", ")} · out: ${gates.filter((g) => !g.ok && g.why !== "stage").slice(0, 10).map((g) => `${g.id} (${g.why})`).join(", ") || "none"}`);
+  board.supply = supplyBoard(board.concepts);
+  // 🧭 The path every trend walks (trendPath.js; the owner, 22.11: "check how every product that became
+  // a trend started"): where each kind stands today — origin, community, crossing, rush, everyone — with
+  // the first day each step was lit (never moved), and what the radar learned from the kinds it watched
+  // walk it, observed transitions only (a step already lit at the first reading is never a start).
+  if (env.RADAR_PATH !== "0") {
+    const via = new Map(concepts.map((x) => [x.id, x.why?.via || null]));
+    const withVia = (board.concepts || []).map((c) => ({ ...c, via: via.get(c.id) || null }));
+    const pathState = mergePath(readJson(join(dir, "path.json"), {}), withVia, today);
+    for (const [i, c] of (board.concepts || []).entries()) c.path = pathCard(withVia[i], pathState[c.id]);
+    writeFileSync(join(dir, "path.json"), JSON.stringify(pathState));
+    board.path = pathBoard(board.concepts || [], pathState);
+    const l = board.path.learned;
+    log.push(`path: ${Object.entries(board.path.at).map(([k, n]) => `${k} ${n}`).join(" · ")} · before everyone ${board.path.before} · ${l.kinds} kinds watched, ${l.observedMass} seen reach everyone · ${Object.entries(l.steps).map(([k, v]) => `${k} ${v.reached}/${v.started}${v.ready ? ` (median ${v.medianDays} d)` : ""}`).join(", ")}`);
+  }
+  // 📦 "Room to make it", sealed and checked (supplyGap.js): every UNDERSUPPLIED kind is a call that
+  // sellers will follow, graded after 14 days by its own listings; the BALANCED kinds are the control.
+  {
+    const latest = {};
+    for (const c of board.concepts || []) {
+      const l = (Array.isArray(c.listings) ? c.listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1]))).at(-1);
+      if (l) latest[c.id] = [l[0], Number(l[1])];
+    }
+    let supplyCalls = gradeSupplyCalls(readJson(join(dir, "supply-calls.json"), []), latest, today);
+    supplyCalls = recordSupplyCalls(supplyCalls, board.concepts, today);
+    writeFileSync(join(dir, "supply-calls.json"), JSON.stringify(supplyCalls));
+    board.supply.record = supplyCallRecord(supplyCalls);
+    const supplyText = supplySealText(supplyCalls);
+    if (supplyText) board.supply.seal = await sealBook({ text: supplyText, count: supplyText.split("\n").length }, prevBoard.supply?.seal, "supply");
+    const r = board.supply.record;
+    log.push(`supply calls: ${r.calls} "room to make it" calls · ${r.graded} graded · ${r.followed} followed by new sellers (+${r.followPct}% listings in ${r.gradeDays} days) · control ${r.control.followed}/${r.control.graded} · edge ${r.edge ?? "-"} · next ${r.nextDue || "-"}`);
+  }
+  log.push(`supply: ${board.supply.measured} kinds measured · ${board.supply.under} under-supplied (demand outruns sellers) · ${board.supply.over} over-supplied · ${board.supply.top.map((id) => { const c = board.concepts.find((x) => x.id === id); return `${id} orders ${c.supply.demandWeekPct}% vs listings ${c.supply.supplyWeekPct}%`; }).join(", ") || "none"}`);
   // "Before everyone", timed: the first day a called concept crosses each public finish line (the
   // networks' buzz, Hebrew searches in Israel, Google's trending searches, many countries) is stamped
   // on its call, so the page can say how many days the call came first.
-  calls = stampFirsts(calls, Object.fromEntries((board.concepts || []).map((c) => [c.id, finishLinesOf({ world: c.world, gap: c.gap })])), today);
+  calls = stampFirsts(calls, Object.fromEntries((board.concepts || []).map((c) => [c.id, finishLinesOf({ world: c.world, gap: c.gap, ads: c.social?.ads })])), today);
   if (sources.siteProducts === "OK") log.push(`catalog check: ${JSON.stringify(intel.audit.counts)} · kits ready ${intel.briefs.ready}, halted ${intel.briefs.halted} · decisions ${intel.decisions.length}`);
   writeFileSync(join(dir, "readings.json"), JSON.stringify(readings));
   // The sealed envelope: today's fingerprint of every early call so far (calls.json is public on the
@@ -1303,9 +1877,226 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const v = board.luck.versus;
     log.push(`luck: today ${board.luck.today ? `${board.luck.today.concept} (1 of ${board.luck.today.pool})` : "no draw (no sealed prices)"} · luck ${v.luck.hits}/${v.luck.graded} · radar ${v.radar.hits}/${v.radar.graded}${v.edge !== null ? ` · edge ${v.edge} pts` : ""}`);
   }
+  // 📏 The radar vs the simple ranking and chance (radarBaseline.js; the owner, 26.11, over an outside
+  // check: "proof the forecasts beat a random choice or a simple ranking by order growth"): every day,
+  // from the radar's own pool of small listings, the 3 growing fastest with none of its checks and 3
+  // drawn by the hash of today's sealed prices, graded by the new products' own rule, in their own book.
+  if (env.RADAR_BASELINE !== "0") {
+    const seals = readJson(join(dir, "price-seals.json"), {});
+    const seedOf = (d) => { const t = baselineSeedText(d, seals[d]?.sha256); return t ? createHash("sha256").update(t).digest("hex") : null; };
+    baseState = gradeBaseline(baseState, items, today);
+    const rebuilt = rebuildDays(baseState, freshCalls, today);
+    for (const d of rebuilt) baseState = recordBaseline(baseState, { day: d, pool: baselinePool(freshPool, items, d), seed: seedOf(d), rebuilt: today });
+    const pool = baselinePool(freshPool, items, today);
+    baseState = recordBaseline(baseState, { day: today, pool, seed: seedOf(today) });
+    writeFileSync(join(dir, "baseline.json"), JSON.stringify(baseState));
+    board.baseline = baselineBoard(baseState, freshCalls, today);
+    const baseText = baselineSealText(baseState);
+    if (baseText) board.baseline.seal = await sealBook({ text: baseText, count: baseText.split("\n").length }, prevBoard.baseline?.seal, "baseline");
+    const v = board.baseline.versus;
+    const ids = (list) => list.map((x) => `${x.id} +${x.weekPct}%`).join(", ") || "none";
+    log.push(`baseline: pool ${pool.length} today · simple ranking ${ids(board.baseline.today.naive)} · chance ${board.baseline.today.random.length ? ids(board.baseline.today.random) : "no draw (no sealed prices)"} · rebuilt ${rebuilt.map((d) => `${d} (${baseState.naive.filter((x) => x.at === d).length}+${baseState.random.filter((x) => x.at === d).length})`).join(", ") || "none"} · radar ${v.radar.hits}/${v.radar.graded} · ranking ${v.naive.hits}/${v.naive.graded} · chance ${v.random.hits}/${v.random.graded} · overlap ${v.overlap}${v.edgeNaive !== null ? ` · edge over the ranking ${v.edgeNaive} pts` : ""}${v.edgeRandom !== null ? ` · edge over chance ${v.edgeRandom} pts` : ""}`);
+  }
+  // 🥊 The head-to-head (radarBacktest.js; the owner, 26.11: "proof the forecasts beat a random choice or a
+  // simple ranking by order growth", then "so nobody has an edge"): every day of the radar's own readings,
+  // its chance model (trained only on what that day knew) against the fastest-growing items and against
+  // chance, on the same fixed sample of items. The cases are published so anyone can recompute them.
+  if (env.RADAR_BACKTEST !== "0" && !late("backtest", 150_000)) {
+    try {
+      const t0 = Date.now();
+      const bt = backtest(items, today);
+      board.backtest = backtestBoard(bt);
+      writeFileSync(join(dir, "backtest-public.json"), JSON.stringify(backtestPublic(bt)));
+      log.push(`backtest: ${bt.horizons.map((h) => `${h.h}d: ${h.days} days (${h.skipped} without enough history), ${h.cases} cases · top ${h.k}: model ${h.model.rate}%, simple ranking ${h.rank.rate}%, chance ${h.random.rate}% · Brier model ${h.brier.model}, ranking ${h.brier.rank}, constant ${h.brier.base} · AUC ${h.auc.model} vs ${h.auc.rank} · days won ${h.dayDuel.wins}, lost ${h.dayDuel.losses}, tied ${h.dayDuel.ties} (sign test p ${h.dayDuel.p})`).join(" | ")} · ${Math.round((Date.now() - t0) / 1000)} s`);
+    } catch (err) { log.push(`backtest: ${String(err?.message || err).slice(0, 120)}`); }
+  }
+  // ⚔️ The sealed head-to-head (radarVersus.js; the owner, 26.11: "start now, so we can know, not always
+  // wait"): every morning the radar seals its learning model's pick, its noise-checked order, the simple
+  // ranking's pick and a random pick from the same public sample; each is graded by the store's own
+  // orders after 3 and 7 days. The first 3-day grades come three mornings after the first sheet.
+  if (env.RADAR_VERSUS !== "0" && !late("versus", 90_000)) {
+    try {
+      let vs = gradeVersus(readJson(join(dir, "versus.json"), {}), items, today);
+      const sheet = vs.days?.[today] ? null : versusSheet(items, today);
+      vs = recordVersus(vs, sheet, today);
+      writeFileSync(join(dir, "versus.json"), JSON.stringify(vs));
+      const todays = vs.days?.[today] || null;
+      const text = versusSealText(todays);
+      board.versus = { ...versusRecord(vs, today), today: todays ? today : null };
+      if (text) board.versus.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.versus?.seal, "versus");
+      log.push(`versus: ${todays ? `sheet sealed for ${today} (${todays.pool.length} items in the sample, ${Object.values(todays.picks).map((p) => Object.entries(p).map(([c, l]) => `${c} ${l.length}`).join("/")).join(" | ")})` : "no sheet today (too few measured items)"} · ${board.versus.horizons.map((x) => `${x.h}d: ${x.days} days graded${x.days ? ` · the radar's pick ${x.pick.rate}% · learning ${x.learn.rate}% · noise-checked ${x.radar.rate}% · ranking ${x.rank.rate}% · random ${x.random.rate}%` : ""} · next grade ${x.nextDue || "-"}`).join(" | ")}`);
+    } catch (err) { log.push(`versus: ${String(err?.message || err).slice(0, 120)}`); }
+  }
+  // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
+  // factories, before sales, before everything"): the store's newest listings nobody has bought yet,
+  // per area and a rotation of world categories, each with its store's id. A phrase many different
+  // stores start listing this week, far above their pace before, is a wave; a wave still before its
+  // sales (few orders, few listings, no buzz abroad) is sealed as a call and graded after 21 days by
+  // the store's own orders for that phrase.
+  if (env.RADAR_PRELAUNCH !== "0" && store && !late("prelaunch", 240_000)) {
+    const e = aeEnv(env);
+    let pre = readJson(join(dir, "prelaunch.json"), {});
+    const year = new Date(now).getUTCFullYear();
+    const world = readJson(join(dir, "world-categories.json"), {});
+    const rot = rotation((world.list || []).filter((c) => c.parent), pre.cursor || 0, PRELAUNCH.areasWorld);
+    const areas = [
+      ...[...TREND_CATEGORIES, ...WAVE_AREAS, ...FASHION_AREAS].map((c) => ({ key: c.key, words: c.keywords, biz: { keywords: freshKeywords(c, now) } })),
+      ...rot.slice.map((c) => ({ key: `world-${c.id}`, words: String(c.name || "").toLowerCase(), biz: { category_ids: c.id, keywords: `${year} new` }, alone: { category_ids: c.id } })),
+    ];
+    const started = Date.now();
+    let read = 0;
+    let answered = 0;
+    let listings = 0;
+    let fresh = 0;
+    const storesToday = new Set();
+    const codes = {};
+    for (const a of areas) {
+      if (Date.now() - started > 150_000) { log.push(`prelaunch: budget over at ${a.key}`); break; }
+      try {
+        read++;
+        const ask = (biz) => aeCall(SEARCH, { ...biz, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_ASC" }, { env: e, fetchImpl, now });
+        let r = (await ask(a.biz))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(r?.resp_code) === 405 && a.alone) r = (await ask(a.alone))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(r?.resp_code) !== 200) { codes[`resp_${r?.resp_code ?? "none"}`] = (codes[`resp_${r?.resp_code ?? "none"}`] || 0) + 1; continue; }
+        answered++;
+        const raw = r.result?.products?.product;
+        const list = (Array.isArray(raw) ? raw : raw ? [raw] : []).map((p) => prelaunchEntry(p)).filter(Boolean);
+        listings += list.length;
+        const m = mergeListings(pre, list, { today, area: a.key, areaWords: a.words });
+        pre = m.state;
+        fresh += m.fresh;
+        for (const x of list) if (x.shop && pre.seen[x.id] === today && !m.seed) storesToday.add(x.shop);
+      } catch (err) { codes[codeOf(err)] = (codes[codeOf(err)] || 0) + 1; }
+      await pause(politeMs);
+    }
+    if (answered) keep(meter, "aliexpress", listings);
+    pre.cursor = rot.next;
+    pre.stats = { ...(pre.stats || {}), [today]: { read, answered, listings, fresh, stores: storesToday.size } };
+    pre = prunePrelaunch(pre, today);
+    const waves = listingWaves(pre, today, { skip: waveSkip([...watch, ...discovered]) });
+    // Each wave: the store's own orders and listings for its phrase, and Google's US suggestions.
+    const checked = [];
+    for (const w of waves.waves.slice(0, PRELAUNCH.checkPerRun)) {
+      let demand = null;
+      let similar = null;
+      let suggestions = null;
+      try {
+        const rr = (await aeCall(SEARCH, { keywords: w.phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200) {
+          similar = Number(rr.result?.total_record_count);
+          const raw = rr.result?.products?.product;
+          demand = phraseDemand(w.phrase, Array.isArray(raw) ? raw : raw ? [raw] : []);
+        } else if (Number(rr?.resp_code) === 405) { similar = 0; demand = { items: 0, orders: 0 }; }
+      } catch { /* unread → not a call */ }
+      if (sources.suggest === "OK") {
+        try { suggestions = await suggestList(w.phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+        await pause(politeMs);
+      }
+      checked.push({ ...w, demand, check: unknownCheck({ phrase: w.phrase, similar: Number.isFinite(similar) ? similar : null, suggestions }) });
+    }
+    // The calls due today: the store's own orders for each phrase now.
+    const reads = {};
+    for (const phrase of waveDueQueue(pre.calls, today)) {
+      try {
+        const rr = (await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "50", sort: "LAST_VOLUME_DESC" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200) { const raw = rr.result?.products?.product; reads[phrase] = phraseDemand(phrase, Array.isArray(raw) ? raw : raw ? [raw] : []); }
+        else if (Number(rr?.resp_code) === 405) reads[phrase] = { items: 0, orders: 0 };
+      } catch { /* unread: tried again tomorrow, up to three days past due */ }
+    }
+    pre.calls = recordWaveCalls(gradeWaveCalls(pre.calls, reads, { today }), checked, { today });
+    writeFileSync(join(dir, "prelaunch.json"), JSON.stringify(pre));
+    const preText = prelaunchSealText(pre.calls);
+    const preSeal = preText ? await sealBook({ text: preText, count: preText.split("\n").length }, prevBoard.prelaunch?.seal, "prelaunch") : null;
+    board.prelaunch = prelaunchBoard(pre, { day: today, waves, checked, areas: areas.length, read, answered, listings, fresh, stores: storesToday.size, seal: preSeal });
+    const rec = board.prelaunch.record;
+    log.push(`prelaunch: ${answered}/${read} areas answered (${areas.length - rot.slice.length} areas + ${rot.slice.length} world categories, ${rot.days} days a round) · ${listings} listings under ${PRELAUNCH.maxOrders} orders · ${fresh} first seen today from ${storesToday.size} stores · ${Object.keys(pre.ps || {}).length} phrases kept · ${waves.measuring ? `measuring (${waves.days} of ${PRELAUNCH.minDays} days)` : `waves ${waves.waves.slice(0, 8).map((w) => `${w.phrase} ${w.before}→${w.week} stores (×${w.times})`).join(", ") || "none"}`} · checked ${checked.map((c) => `${c.phrase} ${c.check.reason} ${c.check.similar ?? "?"} listings ${c.demand?.orders ?? "?"} orders`).join(", ") || "none"} · calls ${rec.calls} (${rec.pending} open, ${rec.hits}/${rec.graded} hits, ${rec.unread} unread)${Object.keys(codes).length ? ` · refused ${JSON.stringify(codes)}` : ""}`);
+  }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
+  // 📰 Who said it first: the radar or the world's news (newsSignal.js; the owner, 26.11): every sealed
+  // call's own phrase against GDELT's open news timeline (no key; robots.txt read first; one request
+  // every 5.5 s). The first day the news named it is stamped once; counts per book go on the board.
+  if (env.RADAR_NEWS !== "0" && !late("news", 200_000)) {
+    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
+    const entries = [
+      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
+      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
+      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
+    ].filter((e) => e.phrase && e.called);
+    let newsState = readJson(join(dir, "news.json"), {});
+    let door = "failed";
+    // GDELT's server is slow from some runners (26.11: the 12-second robots read failed with a network
+    // error while it answered 404, no rule, elsewhere): a longer wait and one more try.
+    for (let attempt = 0; attempt < 2 && door === "failed"; attempt++) {
+      try {
+        const r = await getRobots(`${NEWS.host}/robots.txt`, fetchImpl, { timeoutMs: 40_000 });
+        door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, NEWS.path) : "failed";
+        if (door === "failed") log.push(`news robots: HTTP ${r.status}`);
+      } catch (err) { log.push(`news robots: ${String(err?.cause?.code || err?.cause?.message || err?.name || err?.message || err).slice(0, 80)}`); }
+    }
+    let asked = 0, read = 0, failed = 0;
+    if (door === true) {
+      for (const phrase of newsQueue(entries, newsState, today)) {
+        asked++;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await new Promise((ok) => setTimeout(ok, NEWS.politeMs));
+          try {
+            const res = await fetchImpl(newsUrl(phrase), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(40_000) });
+            if (res.status === 429) continue; // asked too soon: wait and ask once more
+            if (!res.ok) { failed++; break; }
+            const timeline = parseTimeline(JSON.parse(await res.text()));
+            if (!timeline) { failed++; break; }
+            newsState = mergeNews(newsState, phrase, timeline, today);
+            read++;
+            keep(meter, "news");
+            break;
+          } catch { failed++; break; }
+        }
+      }
+      writeFileSync(join(dir, "news.json"), JSON.stringify(newsState));
+      board.news = newsBoard(entries, newsState, today);
+      sources.news = read || Object.keys(newsState).length ? "OK" : "FAILED";
+      const a = board.news.all;
+      log.push(`news: ${asked} phrases asked · ${read} read · ${failed} failed · calls ${a.calls}: read ${a.read}, quiet ${a.quiet}, the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days ahead)` : ""}, the news first ${a.newsFirst}`);
+    } else {
+      sources.news = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+      log.push(`news: door ${sources.news}`);
+    }
+  }
+  // 🏁 Who named it first: the radar or the trend companies (rivalSignal.js; the owner, 26.11, over an
+  // outside check: "compare it with Exploding Topics, Spate, Trendalytics, FastMoss and Kalodata on the
+  // same products and dates"): their paid data is closed, so the radar reads only what they publish for
+  // automated readers, their blogs' RSS feeds (robots.txt first), keeps each post's date, link and
+  // two-word phrases, and checks every sealed call's own phrase against all of it.
+  if (env.RADAR_RIVALS !== "0" && !late("rivals", 60_000)) {
+    let rivals = readJson(join(dir, "rivals.json"), {});
+    const doors = {};
+    for (const r of RIVALS) {
+      try {
+        const rb = await getRobots(`${r.host}/robots.txt`, fetchImpl);
+        const allowed = rb.status === 200 || rb.status === 404 || rb.status === 410 ? robotsAllows(rb.status, rb.text, r.path) : "failed";
+        if (allowed !== true) { doors[r.id] = allowed === "failed" ? "FAILED" : "ROBOTS_DISALLOW"; continue; }
+        const res = await fetchImpl(`${r.host}${r.path}`, { headers: { "user-agent": UA, accept: "application/rss+xml, application/atom+xml, application/xml" }, signal: AbortSignal.timeout(30_000) });
+        if (!res.ok) { doors[r.id] = "FAILED"; continue; }
+        const posts = parseFeed(await res.text());
+        if (!posts.length) { doors[r.id] = "EMPTY"; continue; }
+        rivals = mergeRival(rivals, r.id, posts, today);
+        doors[r.id] = "OK";
+      } catch { doors[r.id] = "FAILED"; }
+    }
+    writeFileSync(join(dir, "rivals.json"), JSON.stringify(rivals));
+    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
+    const entries = [
+      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
+      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
+      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
+      ...(readJson(join(dir, "prelaunch.json"), {}).calls || []).map((c) => ({ book: "prelaunch", phrase: c.phrase, called: c.at })),
+    ].filter((e) => e.phrase && e.called);
+    board.rivals = rivalsBoard(entries, rivals, today, { doors });
+    const a = board.rivals.all;
+    log.push(`rivals: ${Object.entries(doors).map(([k, v]) => `${k} ${v}`).join(", ")} · ${Object.keys(rivals.posts || {}).length} posts kept · calls ${a.calls}: compared ${a.compared} (sealed before the feeds were read ${a.beforeTracking}), the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days)` : ""}, still quiet there ${a.quiet}, a rival first ${a.rivalFirst}`);
+  }
   // 🧾 The receipt, taken here (every reading and every book's seal are in it; the root's own seal and
   // the Bitcoin check come after). The page's source states are the run's claims checked against it,
   // the exact text is printed in the public GitHub log and sealed as the book "run".
@@ -1330,7 +2121,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

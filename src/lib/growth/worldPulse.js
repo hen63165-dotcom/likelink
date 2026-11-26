@@ -205,7 +205,7 @@ export function productTrend(term, items = [], { rules = WORLD } = {}) {
  * CALL (sniper mode) when all four agree and the previous reading already showed three (it held);
  * WATCH otherwise on two. A call is graded publicly after 14 days.
  */
-export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 4, before = null } = {}) {
+export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], gap = null, need = 4, before = null, ads = null } = {}) {
   const rs = (Array.isArray(listings) ? listings : []).filter((r) => Array.isArray(r) && Number.isFinite(Number(r[1])));
   let supply = false;
   if (rs.length >= 2) {
@@ -229,7 +229,7 @@ export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], g
   const held = Number(before?.count) >= heldMin;
   const level = count >= Math.min(need, 4) && signals.demand && held ? "CALL" : count >= 2 ? "WATCH" : "NONE";
   // The finish lines are not signals (they come after): they only say what the call is ahead of.
-  const crossed = finishLinesOf({ world, gap });
+  const crossed = finishLinesOf({ world, gap, ads });
   const aheadOf = FINISH_LINES.filter((k) => !crossed[k]);
   const buzz = Array.isArray(world?.echo) ? world.echo.filter((k) => Object.hasOwn(ECHO, k)) : [];
   return { level, count, signals, held, buzz, aheadOf: level === "CALL" ? aheadOf : [], beforeAll: level === "CALL" && aheadOf.length === FINISH_LINES.length };
@@ -245,13 +245,19 @@ export function earlyCall({ world = null, stage = "UNVERIFIED", listings = [], g
  *   wide   — it is searched in many countries (the world pulse turns WIDE).
  * A line already crossed when the call is made counts 0 days: never "ahead".
  */
-export const FINISH_LINES = Object.freeze(["buzz", "israel", "trends", "wide"]);
-export function finishLinesOf({ world = null, gap = null } = {}) {
+//   ads    — sellers start advertising it: at least ADS_LINE ads for it started this week in Meta's Ad
+//            Library (EU, socialSignal.js; the owner's token). That is the moment the ad-spy tools
+//            (Minea, PiPiADS, WinningHunter and the like read ads) can see it (the owner, 22.11: "surpass
+//            them in everything"): a call is timed against their own source. Unmeasured without the token.
+export const FINISH_LINES = Object.freeze(["buzz", "israel", "trends", "wide", "ads"]);
+export const ADS_LINE = 10;
+export function finishLinesOf({ world = null, gap = null, ads = null } = {}) {
   return {
     buzz: Array.isArray(world?.echo) && world.echo.length > 0,
     israel: gap?.state === "ARRIVING" || gap?.state === "ARRIVED",
     trends: (Array.isArray(world?.trends) && world.trends.length > 0) || world?.state === "VIRAL_NOW",
     wide: world?.state === "WIDE",
+    ads: Number(ads?.week) >= ADS_LINE,
   };
 }
 

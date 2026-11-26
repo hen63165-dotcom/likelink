@@ -28,7 +28,9 @@ test("fresh: a small listing whose orders grew ≥ 40% a week is a riser; a big 
   ], { today: "2026-11-16" });
   for (const e of Object.values(pool)) e.seen = "2026-11-16";
   const items = {
-    "1005002222221": [["2026-11-06", 150], ["2026-11-09", 200], ["2026-11-16", 400]], // +100% a week, held
+    // +100% a week, held, and new: the radar's first reading had 60 orders (22.11: one already selling
+    // ≥ 100 at its first reading grows, but is no new product — listingAge, tested below).
+    "1005002222221": [["2026-11-06", 60], ["2026-11-09", 80], ["2026-11-16", 160]],
     "1005002222222": [["2026-11-09", 2000], ["2026-11-16", 2200]], // +10%
     "1005002222223": [["2026-11-09", 6000], ["2026-11-16", 9000]], // too big
   };
@@ -36,7 +38,7 @@ test("fresh: a small listing whose orders grew ≥ 40% a week is a riser; a big 
   assert.equal(f.tracking, 3);
   assert.deepEqual(f.risers.map((r) => r.id), ["1005002222221"]);
   assert.equal(f.risers[0].weekPct, 100);
-  assert.equal(f.risers[0].ordersBefore, 200);
+  assert.equal(f.risers[0].ordersBefore, 80);
   assert.ok(f.risers[0].orders <= FRESH.maxOrders);
   // one reading only → nothing claimed; a jump the reading before did not show → not held
   assert.equal(freshRisers(pool, { "1005002222221": [["2026-11-16", 400]] }).risers.length, 0);
@@ -156,4 +158,69 @@ test("a component brand on a cheap laptop is a brand name (21.11: '2026 New Ultr
   assert.equal(hasBrandName("Gaming laptop RTX 4060"), true);
   assert.equal(hasBrandName("Ceramic Mug Set"), false);
   assert.equal(freshEntry(p("1005004444449", "2026 New Ultra Intel Core i9 Laptop", 150)), null);
+});
+
+// 🆕 New, older and growing, misclassified (the owner, 22.11, after an outside check: a "2026 New"
+// smartwatch among the risers already sold 502 orders in 30 days at the radar's first reading; thermal
+// sticker paper "for a kids' camera" stood in the camera's pool).
+import { listingAge } from "../src/lib/growth/freshRisers.js";
+import { pickMatches } from "../src/lib/growth/trendRadar.js";
+import { findFacts } from "../src/lib/growth/radarCore.js";
+import { sanitizeBoard as cleanBoard } from "../src/lib/growth/radarBoard.js";
+
+test("fresh: only a listing the radar watched from the start is new; one already selling grows apart", () => {
+  assert.deepEqual(listingAge([["2026-11-20", 140], ["2026-11-16", 82]]), { state: "NEW", firstDay: "2026-11-16", firstOrders: 82 });
+  assert.deepEqual(listingAge([["2026-11-16", 502], ["2026-11-22", 888]]), { state: "ESTABLISHED", firstDay: "2026-11-16", firstOrders: 502 });
+  assert.equal(listingAge([]), null);
+  const day = (i) => new Date(Date.parse("2026-11-08T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+  const grow = (start) => Array.from({ length: 15 }, (_, i) => [day(i), Math.round(start * 1.12 ** i)]);
+  const pool = { a: { id: "1005013201890326", title: "new pants", first: day(0) }, b: { id: "1005010439451200", title: "2026 New Smart Watch", first: day(0) } };
+  const items = { "1005013201890326": grow(60), "1005010439451200": grow(420) };
+  const f = freshRisers(pool, items, { rules: { ...FRESH, maxOrders: 10_000 } });
+  assert.deepEqual(f.risers.map((r) => r.id), ["1005013201890326"]);
+  assert.equal(f.risers[0].age.state, "NEW");
+  assert.equal(f.established.n, 1);
+  assert.equal(f.established.top[0].id, "1005010439451200");
+  const rows = findFacts({ ...f.risers[0], known: { similar: 300 } }, { kind: "fresh" });
+  assert.match(rows.find((r) => r.key === "age").he, /^הרדאר ראה אותו מתחילתו: 60 הזמנות ב־30 יום בקריאה הראשונה, 0?8\.11$/);
+  // The browser never shows an older listing as new.
+  const r0 = { id: "1005010439451200", title: "x", image: "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg", buy: "https://s.click.aliexpress.com/e/_x", weekPct: 94.5, orders: 888, known: { similar: 100 } };
+  const b = cleanBoard({ at: "2026-11-22T06:00:00.000Z", record: {}, concepts: [], fresh: { risers: [{ ...r0, age: { state: "ESTABLISHED", firstDay: "2026-11-16", firstOrders: 502 } }, { ...r0, id: "1005013201890326", age: { state: "NEW", firstDay: "2026-11-16", firstOrders: 82 } }] } });
+  assert.deepEqual(b.fresh.risers.map((r) => r.id), ["1005013201890326"]);
+});
+
+test("fresh: a part or refill 'for' the kind is never the kind", () => {
+  const camera = { he: "מצלמה מדפיסה לילדים", hq: ["מצלמה מדפיסה לילדים"] };
+  assert.equal(pickMatches("מצלמת ילדים דיגיטלית לצילום מיני מדפסת ניידת להדפסה", camera), true);
+  assert.equal(pickMatches("מדבקת נייר תרמי בגודל 57*25 מילימטר למדפסת מיני להדפסה מיידית על נייר הדפסה למצלמת ילדים", camera), false);
+  assert.equal(pickMatches("פח אשפה מתקפל לרכב", { he: "פח לרכב" }), true);
+  assert.equal(pickMatches("מארגן למגירות בשלושה גדלים", { he: "מארגן מגירות" }), true, "a head noun named directly still counts");
+});
+
+test("fresh: a holiday comes back every year — never a new product starting to run", async () => {
+  const { isSeasonal } = await import("../src/lib/growth/freshRisers.js");
+  assert.equal(isSeasonal("2026 New Christmas Tree Ornaments Balls Set"), true);
+  assert.equal(isSeasonal("Santa Claus Costume Kids"), true);
+  assert.equal(isSeasonal("Halloween Witch Hat"), true);
+  assert.equal(isSeasonal("Women's Wide-leg Pants Winter 2026"), false, "a season of the year is no holiday");
+  assert.equal(isSeasonal("Reusable Silicone Air Fryer Liner"), false);
+  const day = (i) => new Date(Date.parse("2026-11-08T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+  const grow = (start) => Array.from({ length: 15 }, (_, i) => [day(i), Math.round(start * 1.12 ** i)]);
+  const pool = { a: { id: "1005013000000001", title: "Christmas Tree Ornaments Balls", first: day(0) }, b: { id: "1005013000000002", title: "Cloud Slides Soft Platform", first: day(0) } };
+  const f = freshRisers(pool, { "1005013000000001": grow(60), "1005013000000002": grow(60) }, { rules: { ...FRESH, maxOrders: 10_000 } });
+  assert.deepEqual(f.risers.map((r) => r.id), ["1005013000000002"]);
+  assert.deepEqual(f.seasonal, { n: 1, top: ["1005013000000001"] });
+});
+
+test("the kind's most specific name (26.11): the phrase fewest pool titles share, never one seller's quirk", async () => {
+  const { distinctPhrase, phraseCounts, freshPhrase } = await import("../src/lib/growth/freshRisers.js");
+  const titles = ["LED lamp cloud humidifier night light", "LED lamp desk reading", "LED lamp bedside", "Cloud humidifier USB mini", "Cloud humidifier aroma"];
+  const df = phraseCounts(titles);
+  const t = titles[0];
+  const first = freshPhrase(t);
+  const best = distinctPhrase(t, df);
+  assert.ok(best, "a name is chosen");
+  assert.ok((df.get(best) || 0) >= 2, "shared by at least two sellers");
+  assert.equal(first, "lamp cloud", "the first two words are one seller's quirk here");
+  assert.equal(best, "cloud humidifier", "the name three sellers share");
 });

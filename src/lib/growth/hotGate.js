@@ -7,7 +7,10 @@
 export function hotOnlyPool(pool = [], board = null) {
   const keep = Array.isArray(board?.site?.keep) ? board.site.keep : null;
   if (!keep) return { pool: [], reason: "radar_board_missing" };
-  const rank = new Map(keep.map((r, i) => [String(r.id), { i, alpha: Number(r.alpha) }]));
+  // 🚫 And only a product the market check found open (saturation.js, the owner, 26.11): a KEEP row whose
+  // market is saturated, buzzing or unread is never posted.
+  const open = new Set((Array.isArray(board?.site?.hot) ? board.site.hot : []).filter((r) => r?.market?.state === "OPEN").map((r) => String(r.id)));
+  const rank = new Map(keep.filter((r) => open.has(String(r.id))).map((r, i) => [String(r.id), { i, alpha: Number(r.alpha) }]));
   const out = (Array.isArray(pool) ? pool : []).filter((p) => rank.has(String(p?.id)));
   out.sort((a, b) => (rank.get(String(b.id)).alpha || 0) - (rank.get(String(a.id)).alpha || 0) || rank.get(String(a.id)).i - rank.get(String(b.id)).i);
   return { pool: out, reason: out.length ? null : "no_hot_product_today" };

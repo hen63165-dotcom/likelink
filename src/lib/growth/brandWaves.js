@@ -128,7 +128,7 @@ export function altPick(products = [], { rules = WAVES } = {}) {
     if (!/^\d{6,20}$/.test(id) || !title || !BUY.test(link) || !IMG.test(image)) continue;
     if (waveOf(title) || hasBrandName(title) || isNotListedKind(title) || isHackTool(title)) continue;
     if (!(orders >= rules.altMinOrders) || !(rate >= rules.altMinRate) || !(price > 0)) continue;
-    return { id, title: title.slice(0, 140), image, buy: link, price };
+    return { id, title: title.slice(0, 140), image, buy: link, price, orders };
   }
   return null;
 }

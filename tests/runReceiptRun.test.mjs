@@ -104,3 +104,22 @@ test("partly failing: the category the store refused is counted as failed with i
   assert.equal(board.sourceHealth.sources.aliexpress.level, "MEASURING");
   assert.ok(board.sourceHealth.sources.aliexpress.lastValid);
 });
+
+test("past the run's own deadline, the optional readings are skipped by name and the day is still saved", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "radar-late-"));
+  const fetchImpl = async (url) => {
+    const u = new URL(String(url));
+    if (u.hostname === "api-sg.aliexpress.com") return json({ error_response: { code: "ApiCallLimit", msg: "limited" } });
+    if (u.pathname === "/robots.txt") return json("", 404);
+    return json("", 503);
+  };
+  const { board, sources, log } = await run(dir, { env: { ...ENV, RADAR_DEADLINE_MIN: "0.000001" }, fetchImpl, now: NOW, politeMs: 0, budgetMs: 30_000, suggestBudgetMs: 30_000 });
+  for (const k of ["trade", "news"]) {
+    assert.equal(sources[k], "SKIPPED", `${k} is named as skipped`);
+    assert.ok(log.some((l) => l.startsWith(`${k}: skipped, the run's time`)), `${k}: the log says why`);
+  }
+  assert.ok(board.ledger === null || typeof board.ledger === "object", "the run reached its end and built the board");
+  assert.ok(board.receipt, "the receipt is still taken");
+  const view = Object.fromEntries(sourcesView(sanitizeBoard(board).sourcesToday, board.receipt).map((x) => [x.key, x.state]));
+  assert.equal(view.trade, "SKIPPED", "the page says skipped, never answered");
+});

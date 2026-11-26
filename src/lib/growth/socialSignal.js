@@ -1,8 +1,8 @@
 // 🗣️ People talking, and 📢 brands advertising (the owner, 2026-11-21: "surpass every company, one by one").
 //
 // Brandwatch, Talkwalker and Sprinklr listen to social networks at scale; the radar listens where the
-// door is open by design: Bluesky's public AppView (the AT Protocol is an open network; its search is
-// public, read-only), counting the posts that name a kind this week against the week before. Minea and
+// door is open by design: Bluesky's own AppView, api.bsky.app (the AT Protocol is an open network; its
+// robots.txt says "crawling the public parts of the API is allowed"), counting the posts that name a kind this week against the week before. Minea and
 // the ad-spy tools read ads; the radar reads Meta's own Ad Library API (the official door, opened by
 // Meta for every ad shown in the EU), counting the ads that started this week for a kind, only once the
 // owner has her own access token (META_ADLIB_TOKEN; without it REQUIRES_CONNECTION and nothing is
@@ -10,7 +10,9 @@
 // FAILED, never zero. Pure: the runner reads.
 
 export const SOCIAL = Object.freeze({
-  bsky: { host: "https://public.api.bsky.app", path: "/xrpc/app.bsky.feed.searchPosts" },
+  // 22.11: public.api.bsky.app's CDN answered every search from the runner with 403 (25 of 25 failed);
+  // api.bsky.app, the AppView itself, answers the same public search without a key.
+  bsky: { host: "https://api.bsky.app", path: "/xrpc/app.bsky.feed.searchPosts" },
   ads: { host: "https://graph.facebook.com", path: "/v21.0/ads_archive", countries: ["DE", "FR", "IT", "ES", "NL", "PL", "SE", "IE"] },
   maxKinds: 25, // kinds listened to a run (two searches each)
   pageSize: 100,

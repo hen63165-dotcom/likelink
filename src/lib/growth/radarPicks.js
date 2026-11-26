@@ -99,7 +99,9 @@ const QUIET_WORLD = new Set(["NONE", "EARLY", "SPREADING"]);
 const ISRAEL_NOT_YET = new Set(["GAP", "QUIET", "UNCERTAIN", "ARRIVING"]);
 /** Before everyone: measured, and no finish line crossed (wide searches, hot searches, buzz, Israel). */
 export function beforeEveryone(c) {
-  return Boolean(c && STAGE_RANK[c.stage] && QUIET_WORLD.has(c.world?.state) && !(Array.isArray(c.early?.buzz) && c.early.buzz.length) && ISRAEL_NOT_YET.has(c.gap?.state));
+  // 🌍 …and never a kind the world gap measured as already known (worldGap.js: searched in half the
+  // countries measured, or a buzz word in any of them).
+  return Boolean(c && STAGE_RANK[c.stage] && QUIET_WORLD.has(c.world?.state) && !(Array.isArray(c.early?.buzz) && c.early.buzz.length) && ISRAEL_NOT_YET.has(c.gap?.state) && c.worldGap?.state !== "KNOWN");
 }
 const ID = /^[a-z0-9][a-z0-9-]{1,40}$/;
 const dayOf = (t) => new Date(t).toISOString().slice(0, 10);
@@ -107,7 +109,8 @@ const dayOf = (t) => new Date(t).toISOString().slice(0, 10);
 /** The radar's candidates for today, best first (its own measurements only). */
 export function radarCandidates(board) {
   return (Array.isArray(board?.concepts) ? board.concepts : [])
-    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && beforeEveryone(c))
+    // Never a kind the call gate kept out (callGate.js: known, arrived, saturated or fading).
+    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && beforeEveryone(c) && !["world_known", "buzz", "israel_arrived", "fading", "saturated"].includes(c.gateWhy))
     .sort((a, b) => STAGE_RANK[b.stage] - STAGE_RANK[a.stage]
       || (Number(b.alpha?.score) || -1) - (Number(a.alpha?.score) || -1)
       || (Number(b.early?.count) || 0) - (Number(a.early?.count) || 0)

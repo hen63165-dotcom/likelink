@@ -265,3 +265,16 @@ test("the chance is graded like a weather forecast: Brier, base rate, skill and 
   assert.deepEqual(rec.bins.map((b) => [b.from, b.said, b.happened, b.n]), [[20, 20, 0, 1], [80, 80, 100, 1]]);
   assert.deepEqual(g.state.recent.map((x) => x.hit).sort(), [0, 1]);
 });
+
+test("the chance from 10 orders only; a record kept under the older rule restarts, dated (26.11)", () => {
+  const items = { 1005000000000001: [[day(0), 0], [day(7), 0]], 1005000000000002: [[day(0), 100], [day(7), 130]] };
+  const open = [{ i: "1005000000000001", a: day(0), h: 7, o: 0, r: [0, 9, 0, 9], c: 60 }, { i: "1005000000000002", a: day(0), h: 7, o: 100, r: [0, 999, 0, 999], c: 80 }];
+  const old = { ...addIssued(newPromiseState(), open), chanceRule: undefined, chance: { 7: { n: 249, hits: 26, brier: 9, bins: [] } } };
+  const g = gradePromises(old, items, day(7));
+  const rec = chanceRecord(g.state).find((x) => x.h === 7);
+  assert.equal(rec.n, 1, "the old tally restarts; the item at 0 orders is never graded as a hit");
+  assert.equal(g.state.chanceSince, day(7));
+  assert.equal(g.state.chanceRule, 2);
+  const again = gradePromises({ ...g.state, open }, items, day(8));
+  assert.equal(again.state.chanceSince, day(7), "the restart day is kept");
+});

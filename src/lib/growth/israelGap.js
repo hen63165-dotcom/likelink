@@ -137,6 +137,14 @@ export function levelOf(n, { rules = GAP } = {}) {
  * robots.txt says whether a path may be read by any crawler (the group for "*"). A missing file
  * (404) allows everything; an unreadable answer (5xx, network) does not: the source is skipped.
  */
+/** Whether one robots.txt rule's path pattern matches a path (RFC 9309 wildcards). */
+export function robotsMatch(pattern = "", path = "") {
+  const anchored = pattern.endsWith("$");
+  const body = anchored ? pattern.slice(0, -1) : pattern;
+  const re = new RegExp(`^${body.split("*").map((x) => x.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}${anchored ? "$" : ""}`);
+  return re.test(path);
+}
+
 export function robotsAllows(status, txt = "", path = SUGGEST_PATH) {
   if (status === 404 || status === 410) return true;
   if (status !== 200) return false;
@@ -150,8 +158,12 @@ export function robotsAllows(status, txt = "", path = SUGGEST_PATH) {
     const val = m[2].trim();
     if (key === "user-agent") { applies = val === "*"; continue; }
     if (!applies || !val) continue;
-    const prefix = val.replace(/\*.*$/, "").replace(/\$$/, "");
-    if (path.startsWith(prefix) && prefix.length > best.len) best = { len: prefix.length, allow: key === "allow" };
+    // RFC 9309: "*" matches any run of characters and a final "$" anchors the end; the longest
+    // matching rule wins and Allow wins a tie. (22.11: "Disallow: /eurostat/*?*p_p_id=…" was read as
+    // "/eurostat/", which closed Eurostat's open API door that the rule never names.)
+    if (!robotsMatch(val, path)) continue;
+    const len = val.length;
+    if (len > best.len || (len === best.len && key === "allow")) best = { len, allow: key === "allow" };
   }
   return best.allow;
 }

@@ -35,7 +35,35 @@ export const FRESH = Object.freeze({
   nullWeekPct: 20,
   fdr: 0.1,
   minSat: 90, // the store's own satisfaction share, when it sent one (used to choose only, never shown)
+  // A new product, an older one that grows, and a misclassified one are three different things (the
+  // owner, 22.11, after an outside check found a 2026-New smartwatch among the risers that was already
+  // selling 502 orders in 30 days the first time the radar read it). The store's API sends no listing
+  // date and a seller's "2026 New" proves nothing, so the radar says only what it saw itself.
+  newBase: 100, // orders in 30 days at the radar's first reading: under it, the radar saw it from the start
 });
+
+/**
+ * Holidays (the owner, 22.11: "so it never makes mistakes again"): demand that comes back every year on
+ * the calendar is no trend. In late November Christmas ornaments and Santa costumes grow every week, and
+ * 20.11's first kinds run found "balls tree" (Christmas ornaments). A seasonal listing is never shown as
+ * a new product starting to run, and a kind whose name or half its listings are seasonal is never a
+ * new kind; both are counted apart.
+ */
+const SEASONAL = /\b(christmas|xmas|x-mas|santa|reindeer|snowman|advent|nativity|halloween|valentine'?s?|easter|ramadan|eid|hanukkah|chanukah|menorah|diwali|thanksgiving|black friday|new year'?s?|lunar new year|st\.? patrick'?s?|mother'?s day|father'?s day)\b/i;
+export const isSeasonal = (title = "") => SEASONAL.test(String(title || ""));
+
+/**
+ * How new a listing is, from the radar's own first reading of it (pure): NEW when that first reading
+ * held under `newBase` orders in 30 days (the radar watched it from the start), ESTABLISHED when it was
+ * already selling more than that (it grows, but it is no new product), null without a reading.
+ */
+export function listingAge(series = [], { rules = FRESH } = {}) {
+  const rs = (Array.isArray(series) ? series : []).filter((r) => Array.isArray(r) && /^\d{4}-\d{2}-\d{2}$/.test(String(r[0])) && Number.isFinite(Number(r[1])));
+  if (!rs.length) return null;
+  const first = [...rs].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))[0];
+  const orders = Number(first[1]);
+  return { state: orders < (rules.newBase ?? FRESH.newBase) ? "NEW" : "ESTABLISHED", firstDay: first[0], firstOrders: orders };
+}
 
 const dayGap = (a, b) => (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000;
 // The standard normal's upper tail (Abramowitz–Stegun 7.1.26, |error| < 1.5e-7).
@@ -91,6 +119,26 @@ const satOf = (v) => { const n = Number.parseFloat(String(v ?? "").replace("%", 
 export function freshPhrase(title = "") {
   return [...phrasesOf(title)][0] || null;
 }
+
+/** How many of the pool's titles hold each two-word phrase (the sellers' own names for a kind). */
+export function phraseCounts(titles = []) {
+  const df = new Map();
+  for (const t of Array.isArray(titles) ? titles : []) for (const p of new Set(phrasesOf(t))) df.set(p, (df.get(p) || 0) + 1);
+  return df;
+}
+
+/**
+ * The kind's most specific name (the owner, 26.11: "the radar only says the market is saturated"):
+ * the first two words of a title are often the generic part ("led lamp" for a cloud-shaped humidifier
+ * lamp), and a generic phrase counts every seller of the whole category, so a new thing read as
+ * saturated. The name used is the title's phrase the fewest pool titles share, among those at least
+ * `minShared` titles share (one seller's quirk is no name for a kind); else the first phrase.
+ */
+export function distinctPhrase(title = "", df = new Map(), { minShared = 2 } = {}) {
+  const ps = [...new Set(phrasesOf(title))];
+  const named = ps.filter((p) => (df.get(p) || 0) >= minShared).sort((a, b) => (df.get(a) - df.get(b)) || ps.indexOf(a) - ps.indexOf(b));
+  return named[0] || ps[0] || null;
+}
 export function unknownCheck({ phrase = null, similar = null, suggestions = null } = {}, { rules = FRESH } = {}) {
   if (!phrase || !Number.isFinite(similar) || !Array.isArray(suggestions)) return { unknown: false, reason: "NOT_CHECKED", phrase, similar: Number.isFinite(similar) ? similar : null, buzz: [] };
   const buzz = echoOf({ en: suggestions });
@@ -138,7 +186,9 @@ export function freshEntry(p, { category = "", today = "" } = {}) {
   if (hasBrandName(title) || isNotListedKind(title)) return null;
   const price = Number(p.target_sale_price ?? p.sale_price);
   const sat = satOf(p.evaluate_rate);
-  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders, ...(sat !== null ? { sat } : {}) };
+  // The factory's own store on AliExpress (its public id), when the store sends it (factorySignal.js).
+  const shop = /^\d{3,20}$/.test(String(p.shop_id ?? "")) ? String(p.shop_id) : null;
+  return { id, title, image, link, price: Number.isFinite(price) && price > 0 ? price : null, category, first: today, seen: today, orders, ...(sat !== null ? { sat } : {}), ...(shop ? { shop } : {}) };
 }
 
 /** The pool after today's answers: new ids join, known ones refresh, unseen ones leave after keepDays. */
@@ -168,17 +218,25 @@ export function freshRisers(pool = {}, items = {}, { rules = FRESH } = {}) {
   }
   const real = fdrKeep(tested.map((x) => x.ev?.p), rules.fdr ?? FRESH.fdr);
   const rows = [];
+  const established = [];
+  const seasonal = [];
   tested.forEach(({ e, m, ev }, i) => {
     if (m.weekPct < rules.minWeekPct || !real.has(i)) return;
     if (Number.isFinite(e.sat) && e.sat < (rules.minSat ?? FRESH.minSat)) return;
     const before = itemMomentum((items?.[e.id] || []).slice(0, -1), { rules: HOT });
     if (before.weekPct === null || before.weekPct < rules.heldWeekPct) return;
-    rows.push({ id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
+    // Only a listing the radar watched from the start is a new product; one already selling at its
+    // first reading grows, and is counted apart, never shown as new.
+    if (isSeasonal(e.title)) { seasonal.push(e.id); return; }
+    const age = listingAge(items?.[e.id], { rules });
+    if (age?.state !== "NEW") { established.push({ id: e.id, weekPct: m.weekPct, firstOrders: age?.firstOrders ?? null, firstDay: age?.firstDay ?? null }); return; }
+    rows.push({ age, id: e.id, title: e.title, image: e.image, buy: e.link, price: e.price, category: e.category, first: e.first, orders: m.orders, ordersBefore: m.ordersBefore, from: m.from, to: m.to, weekPct: m.weekPct, heldPct: before.weekPct, lowPct: ev.lowWeekPct, check: `/magic?u=${encodeURIComponent(`https://www.aliexpress.com/item/${e.id}.html`)}` });
   });
   rows.sort((a, b) => b.lowPct - a.lowPct || b.weekPct - a.weekPct || a.orders - b.orders);
   const since = entries.map((e) => e.first).filter(Boolean).sort()[0] || null;
   const fastRaw = tested.filter(({ m }) => m.weekPct >= rules.minWeekPct).length;
-  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
+  established.sort((a, b) => b.weekPct - a.weekPct || (a.id < b.id ? -1 : 1));
+  return { tracking: entries.length, since, risers: rows.slice(0, rules.show), established: { n: established.length, top: established.slice(0, 6) }, seasonal: { n: seasonal.length, top: seasonal.slice(0, 6) }, noise: { tested: tested.length, fast: fastRaw, real: real.size, fdr: rules.fdr ?? FRESH.fdr } };
 }
 
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

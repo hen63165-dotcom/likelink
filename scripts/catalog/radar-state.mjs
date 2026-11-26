@@ -13,9 +13,10 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { teaserBoard } from "../../src/lib/growth/radarGate.js";
+import { evidenceOf } from "../../src/lib/growth/radarEvidence.js";
 
 export const STATE_FILE = "state.enc";
-export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json"];
+export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json", "evidence-public.json", "backtest-public.json"];
 const MAGIC = "LLRS1";
 export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board";
 
@@ -65,6 +66,12 @@ export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetc
   if (isOpen && files["briefs.json"]) writeFileSync(join(dir, "briefs-public.json"), files["briefs.json"]);
   // 🏷️ The price ledger is public on purpose (realDeal.js): store prices, and the seals that prove them.
   if (files["prices.json"]) writeFileSync(join(dir, "prices-public.json"), JSON.stringify({ ledger: JSON.parse(files["prices.json"]), seals: files["price-seals.json"] ? JSON.parse(files["price-seals.json"]) : {} }));
+  // 🔎 The evidence (radarEvidence.js): every graded new-product call with the daily store readings
+  // behind it, open calls too while the board is open, so anyone can check a grade without trusting us.
+  if (files["fresh-calls.json"]) {
+    const today = new Date().toISOString().slice(0, 10);
+    writeFileSync(join(dir, "evidence-public.json"), JSON.stringify(evidenceOf({ freshCalls: JSON.parse(files["fresh-calls.json"]), items: files["items.json"] ? JSON.parse(files["items.json"]) : {}, open: isOpen, today, baseline: files["baseline.json"] ? JSON.parse(files["baseline.json"]) : null })));
+  }
   return { files: names.length, open: isOpen };
 }
 

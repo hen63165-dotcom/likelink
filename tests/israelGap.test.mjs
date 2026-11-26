@@ -130,3 +130,14 @@ test("trial concepts: three a day at most, dropped after the trial unless rising
   cur = admitDiscovered(cur, [], { now: at("2026-11-15"), stages: { [autoId("cloud slides")]: "RISING" } });
   assert.deepEqual(cur.map((c) => c.en), ["cloud slides", "neck fan"], "past the trial: only the rising one (and the younger one) stay");
 });
+
+test("a trial concept the store answers empty for twice in a row leaves, freeing its place", () => {
+  const cands = ["cloud slides", "pearl claw"].map((en) => ({ en, items: 4, orders: 900, category: "home", kind: "home" }));
+  let cur = admitDiscovered([], cands, { now: at("2026-11-01") });
+  cur[0].empty = 1;
+  cur = admitDiscovered(cur, [], { now: at("2026-11-02") });
+  assert.equal(cur.length, 2, "one empty answer: still on the radar");
+  cur[0].empty = 2;
+  cur = admitDiscovered(cur, [], { now: at("2026-11-03") });
+  assert.deepEqual(cur.map((c) => c.en), ["pearl claw"], "two in a row: sold under no such name, it leaves");
+});

@@ -14,7 +14,7 @@ const PDI = "⁩";
 
 test("one list of instruments: the root's books, the page's tabs and labels all come from it", () => {
   assert.deepEqual([...LEDGER_BOOKS], [...BOOKS], "the sealed root's order is the core's");
-  assert.deepEqual([...BOOKS], ["early", "stages", "luck", "fresh", "kinds", "brain", "promise", "window", "globe", "prices", "run"]);
+  assert.deepEqual([...BOOKS], ["early", "stages", "luck", "baseline", "versus", "fresh", "kinds", "prelaunch", "supply", "brain", "promise", "window", "globe", "prices", "run"]);
   assert.equal(new Set(INSTRUMENTS.map((i) => i.id)).size, INSTRUMENTS.length);
   for (const i of INSTRUMENTS) {
     assert.ok(i.he && i.en && i.whatHe && i.whatEn, i.id);
@@ -94,6 +94,12 @@ test("what the radar read today: the run's own states, mapped once, unknown keys
   assert.deepEqual(Object.keys(board.sourcesToday).sort(), ["aliexpress", "engine_naver", "kinds", "pinterest", "world", "youtubeApi"]);
   const v = Object.fromEntries(sourcesView(board.sourcesToday).map((x) => [x.key, x.state]));
   assert.deepEqual(v, { aliexpress: "OK", world: "OK", kinds: "FAILED", youtubeApi: "SKIPPED", pinterest: "REQUIRES_CONNECTION", engine_naver: "CLOSED" });
+  // Three groups, never mixed: what the run read, the doors a connection opens, the doors a site's rules close.
+  const groups = Object.fromEntries(sourcesView(board.sourcesToday).map((x) => [x.key, x.group]));
+  assert.deepEqual(groups, { aliexpress: "read", world: "read", kinds: "read", youtubeApi: "read", pinterest: "connect", engine_naver: "closed" });
+  const naver = sourcesView(board.sourcesToday).find((x) => x.key === "engine_naver");
+  assert.match(naver.insteadHe, /^במקום זה: /, "a closed door names the open one read instead");
+  assert.match(naver.insteadEn, /Korea/);
   for (const s of Object.values(SOURCE_STATES)) assert.doesNotMatch(s.he, /(^|\s)(לא|אין)(\s|$)/);
   assert.ok(NEXT_DOORS.every((d) => d.door && d.he));
   assert.deepEqual(teaserBoard(board).sourcesToday, board.sourcesToday);

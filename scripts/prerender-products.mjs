@@ -187,5 +187,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     } catch { /* fixed facts only */ }
   }
   const result = prerender({ catalog, radarBoard });
+  // 📣 The radar's public feed on the main host too (radarFeed.js), from the same public board.
+  if (radarBoard && existsSync(join(ROOT, "dist"))) {
+    const { radarFeed } = await import("../src/lib/growth/radarFeed.js");
+    mkdirSync(join(ROOT, "dist/radar"), { recursive: true });
+    writeFileSync(join(ROOT, "dist/radar/feed.xml"), radarFeed(radarBoard));
+  }
   console.log(result.skipped ? "prerender: no dist/ or catalog copy, skipped" : `prerender: ${result.pages} product pages, sitemap with ${result.urls} urls (${note})`);
 }

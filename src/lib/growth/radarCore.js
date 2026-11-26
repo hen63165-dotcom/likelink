@@ -12,14 +12,21 @@
 //      gave, how many were checked, the result as it is, the next check.
 //   3. findFacts(find): one card for every find (a new product or a new kind): the same rows, in the
 //      same order, each one a measurement with its source, and the seal line.
-// Pure and import-free, so the runner, the server, the page, the Wix page and the tests share it.
+// Pure (it imports only the world gap's wording), so the runner, the server, the page, the Wix page
+// and the tests share it.
+
+import { worldGapLine } from "./worldGap.js";
 
 export const INSTRUMENTS = Object.freeze([
   { id: "early", book: "early", tab: "today", section: "verdict", he: "קביעות לפני כולם", en: "Before-everyone calls", whatHe: "כשכל 4 הסימנים מסכימים: העולם, הביקוש, המוכרים וישראל", whatEn: "When all four signals agree: the world, demand, sellers and Israel" },
   { id: "stages", book: "stages", tab: "today", section: "verdict", he: "קביעות עלייה", en: "Rising calls", whatHe: "סוג שהביקוש שלו מתחיל לעלות", whatEn: "A kind whose demand starts to rise" },
   { id: "luck", book: "luck", tab: "proof", section: "luck", he: "הרדאר מול המזל", en: "The radar vs luck", whatHe: "סוג אקראי כל יום, נבדק באותו כלל", whatEn: "A random kind each day, graded by the same rule" },
+  { id: "baseline", book: "baseline", tab: "proof", section: "baseline", he: "הרדאר מול הדירוג הפשוט", en: "The radar vs the simple ranking", whatHe: "כל יום: 3 המוצרים שצומחים הכי מהר, בלי הבדיקות של הרדאר, ו־3 בהגרלה, נבדקים באותו כלל", whatEn: "Each day: the 3 fastest-growing listings, without the radar's checks, and 3 drawn by chance, graded by the same rule" },
+  { id: "versus", book: "versus", tab: "proof", section: "backtest", he: "הדו־קרב החתום", en: "The sealed head-to-head", whatHe: "כל בוקר: הבחירות של הרדאר מול הדירוג הפשוט ומול בחירה אקראית, נחתמות מראש ונבדקות אחרי 3 ו־7 ימים", whatEn: "Every morning: the radar's picks against the simple ranking and a random pick, sealed in advance and graded after 3 and 7 days" },
   { id: "fresh", book: "fresh", tab: "today", section: "fresh", he: "מוצרים חדשים", en: "New products", whatHe: "מוצר קטן שההזמנות שלו רצות, לפני שכולם מוכרים", whatEn: "A small product whose orders run, before everyone sells it" },
   { id: "kinds", book: "kinds", tab: "today", section: "kinds", he: "סוגים חדשים", en: "New kinds", whatHe: "סוג חדש שהבינה המלאכותית מצאה לפי משמעות", whatEn: "A new kind the AI found by meaning" },
+  { id: "prelaunch", book: "prelaunch", tab: "today", section: "prelaunch", he: "לפני המכירה הראשונה", en: "Before the first sale", whatHe: "מוצר שהרבה חנויות שונות מתחילות להעלות השבוע, לפני שקונים אותו; אחרי 21 יום בודקים אם המכירות הגיעו", whatEn: "A product many different stores start listing this week, before people buy it; after 21 days, did the sales come" },
+  { id: "supply", book: "supply", tab: "today", section: "supply", he: "מקום לייצר", en: "Room to make it", whatHe: "סוג שהביקוש שלו רץ מהר מהמוכרים; אחרי 14 יום בודקים אם מוכרים חדשים נכנסו בעקבות הרדאר", whatEn: "A kind whose demand outruns the sellers; after 14 days, did new sellers follow the radar" },
   { id: "brain", book: "brain", tab: "proof", section: "brain", he: "המוח", en: "The brain", whatHe: "מה הרדאר למד מכל קביעה שנבדקה", whatEn: "What the radar learned from every graded call" },
   { id: "promise", book: "promise", tab: "proof", section: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "The proven range and calibrated chance", whatHe: "טווח הזמנות וסיכוי לעלייה, לכל מוצר שנמדד", whatEn: "An orders range and a chance to grow, for every product measured" },
   { id: "window", book: "window", tab: "proof", section: "window", he: "שעון החלון", en: "The window clock", whatHe: "הסיכוי שמוצר יגיע ל־2,000 מודעות, כלומר שכולם כבר מוכרים", whatEn: "The chance a product reaches 2,000 listings: everyone sells it" },
@@ -36,8 +43,8 @@ export const BOOKS = Object.freeze(INSTRUMENTS.filter((i) => i.book).map((i) => 
 /** Every section id on /radar → its tab (deep links like /radar#window open the right tab). */
 export const SECTION_TABS = Object.freeze({
   today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", watch: "today", export: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
-  tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools",
+  proof: "proof", verify: "proof", backtest: "proof", rivals: "proof", gate: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof",
+  tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools", path: "today",
   plans: "plans", "radar-tiers": "plans",
   ...Object.fromEntries(INSTRUMENTS.map((i) => [i.section, i.tab]).filter(([s]) => !["verdict", "fresh", "kinds", "ledger"].includes(s))),
 });
@@ -75,6 +82,28 @@ export function recordView(board = {}) {
     } else if (ins.id === "stages") row = callsRow(b.record);
     else if (ins.id === "fresh") row = callsRow(b.fresh?.record);
     else if (ins.id === "kinds") row = callsRow(b.kinds?.record);
+    else if (ins.id === "prelaunch" && b.prelaunch) row = callsRow(b.prelaunch.record);
+    else if (ins.id === "supply") {
+      const r = b.supply?.record;
+      if (r) row = { given: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, result: r.graded ? { kind: "hits", hits: num(r.followed) ?? 0, of: r.graded, rate: pct(num(r.followed) ?? 0, r.graded), edge: num(r.edge) } : null, next: r.nextDue || null };
+    }
+    else if (ins.id === "baseline") {
+      const v = b.baseline?.versus;
+      if (v) {
+        const graded = (num(v.naive?.graded) ?? 0) + (num(v.random?.graded) ?? 0);
+        const hits = (num(v.naive?.hits) ?? 0) + (num(v.random?.hits) ?? 0);
+        row = { given: (num(v.naive?.calls) ?? 0) + (num(v.random?.calls) ?? 0), graded, result: graded ? { kind: "hits", hits, of: graded, rate: pct(hits, graded), edge: num(v.edgeNaive) } : null, next: b.baseline?.nextDue || null };
+      }
+    }
+    else if (ins.id === "versus" && b.versus) {
+      const hs = b.versus.horizons || [];
+      const graded = hs.reduce((s, x) => s + (num(x.pick?.of) ?? 0), 0);
+      const hits = hs.reduce((s, x) => s + (num(x.pick?.hits) ?? 0), 0);
+      const rankOf = hs.reduce((s, x) => s + (num(x.rank?.of) ?? 0), 0);
+      const rankHits = hs.reduce((s, x) => s + (num(x.rank?.hits) ?? 0), 0);
+      const next = hs.map((x) => x.nextDue).filter(Boolean).sort()[0] || null;
+      row = { given: num(b.versus.sheets) ?? 0, graded, result: graded ? { kind: "hits", hits, of: graded, rate: pct(hits, graded), edge: rankOf ? Math.round((pct(hits, graded) - pct(rankHits, rankOf)) * 10) / 10 : null } : null, next };
+    }
     else if (ins.id === "luck") {
       const v = b.luck?.versus || {};
       const graded = num(v.luck?.graded) ?? 0;
@@ -110,7 +139,8 @@ export function recordView(board = {}) {
     if (!row) continue;
     rows.push({ id: ins.id, he: ins.he, en: ins.en, whatHe: ins.whatHe, whatEn: ins.whatEn, section: ins.section, sealed: (b.ledger?.text || "").split("\n").some((l) => l.startsWith(`${ins.book}=`)), ...row });
   }
-  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck");
+  // The trend calls' hits only: the brain learns, luck, the simple ranking and the daily duel are yardsticks, supply grades sellers following.
+  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "baseline" && r.id !== "versus" && r.id !== "supply");
   return {
     rows,
     day: b.ledger?.d || String(b.at || "").slice(0, 10) || null,
@@ -144,12 +174,19 @@ export function findFacts(f = {}, { kind = "fresh", day = null } = {}) {
   if (kind === "fresh") {
     if (num(f.weekPct) !== null) add("pace", "קצב ההזמנות", "Orders pace", `${iso(`${signed(f.weekPct)}%`)} בשבוע`, `${signed(f.weekPct)}% a week`, "up");
     if (num(f.orders) !== null && num(f.ordersBefore) !== null) add("orders", "הזמנות ב־30 יום", "Orders in 30 days", `${he(f.ordersBefore)} ב־${dm(f.from)} ← ${he(f.orders)} ב־${dm(f.to)}`, `${en(f.ordersBefore)} on ${dm(f.from)} → ${en(f.orders)} on ${dm(f.to)}`);
+    // New, as the radar itself saw it (freshRisers.listingAge): its first reading of the listing.
+    if (f.age?.state === "NEW" && dm(f.age.firstDay) && num(f.age.firstOrders) !== null) add("age", "חדש", "New", `הרדאר ראה אותו מתחילתו: ${he(f.age.firstOrders)} הזמנות ב־30 יום בקריאה הראשונה, ${dm(f.age.firstDay)}`, `The radar saw it from the start: ${en(f.age.firstOrders)} orders in 30 days at its first reading, ${dm(f.age.firstDay)}`, "seal");
   } else {
     if (num(f.medianWeekPct) !== null) add("pace", "קצב ההזמנות", "Orders pace", `${iso(`${signed(f.medianWeekPct)}%`)} בשבוע (החציון של ${f.measured ?? f.members} מודעות)`, `${signed(f.medianWeekPct)}% a week (median of ${f.measured ?? f.members} listings)`, "up");
     if (num(f.orders) !== null) add("orders", "הזמנות ב־30 יום", "Orders in 30 days", `${he(f.orders)} יחד, ב־${f.members} מודעות חדשות`, `${en(f.orders)} together, in ${f.members} new listings`);
   }
   const similar = num(f.known?.similar);
-  if (similar !== null) add("sellers", "מודעות דומות", "Similar listings", `${he(similar)} באליאקספרס · שקט בגוגל בארה״ב`, `${en(similar)} on AliExpress · quiet on Google in the US`);
+  // 🌍 The world gap (worldGap.js): the same phrase in Google's suggestions from every country measured.
+  // With it, the world row speaks for Google (the US among the countries), so the listings row does not.
+  const wg = f.known?.world;
+  const wgHe = worldGapLine(wg, "he");
+  if (similar !== null) add("sellers", "מודעות דומות", "Similar listings", wgHe ? `${he(similar)} באליאקספרס` : `${he(similar)} באליאקספרס · שקט בגוגל בארה״ב`, wgHe ? `${en(similar)} on AliExpress` : `${en(similar)} on AliExpress · quiet on Google in the US`);
+  if (wgHe) add("world", "מול העולם", "Against the world", wgHe, worldGapLine(wg, "en"), wg.before ? "up" : null);
   const yt = f.known?.yt;
   if (yt) add("youtube", "יוטיוב השבוע", "YouTube this week", yt.level === "EARLY" ? `${he(yt.videos)} סרטונים חדשים: היוצרים הראשונים` : "שקט מוחלט", yt.level === "EARLY" ? `${en(yt.videos)} new videos: the first creators` : "Silent");
   const p = f.promise;
@@ -223,13 +260,19 @@ export const SOURCES = Object.freeze([
   { key: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "Proven range and calibrated chance", door: "החישוב של הרדאר" },
   { key: "window", he: "שעון החלון", en: "Window clock", door: "החישוב של הרדאר" },
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
+  { key: "hauls", he: "יוטיוב: סרטוני הקניות של הבלוגרים הראשונים", en: "YouTube: the first creators' haul videos", door: "YouTube Data API (מפתח חינמי)" },
+  { key: "shops", he: "חנויות חדשות שנפתחות בעולם, לפי שמות האתרים", en: "New shops opening worldwide, by their domain names", door: "רשימה ציבורית חינמית של דומיינים חדשים" },
+  { key: "trade", he: "מה המפעלים שולחים: נתוני המכס של אירופה, לכל סוג מוצר", en: "What the factories ship: EU customs records, every product line", door: "Eurostat, נתונים פתוחים רשמיים (בלי מפתח)" },
+  { key: "news", he: "מי אמר ראשון: הרדאר או החדשות בעולם", en: "Who said it first: the radar or the world's news", door: "GDELT, מאגר חדשות פתוח (בלי מפתח)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },
   { key: "wikipedia", he: "ויקיפדיה: כמה קוראים על כל סוג, מאז 2016", en: "Wikipedia: readers of every kind, since 2016", door: "Wikimedia Pageviews API (רשמי, חינמי, לפי robots.txt)" },
   { key: "bluesky", he: "בלוסקיי: כמה מדברים על כל סוג השבוע", en: "Bluesky: how many posts name each kind this week", door: "חיפוש ציבורי ברשת פתוחה, לפי robots.txt" },
   { key: "metaAds", he: "ספריית הפרסומות של מטא: מודעות חדשות השבוע", en: "Meta Ad Library: new ads this week", door: "Ad Library API (טוקן של בעלת האתר)" },
-  { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt" },
-  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt" },
+  { key: "asia", he: "קוריאה ויפן בשפה שלהן: מה מקלידים שם בגוגל וביוטיוב", en: "Korea and Japan in their own language: what people type in Google and YouTube", door: "Google suggestions (לפי robots.txt) + NLLB-200, מודל תרגום פתוח על שרת הריצה" },
+  // Their own robots.txt closes them; the radar respects it and reads the same countries through open doors.
+  { key: "engine_baidu", he: "באידו (סין)", en: "Baidu (China)", door: "שירות ציבורי, לפי robots.txt", insteadHe: "במקום זה: מה המפעלים בסין שולחים לפי המכס של אירופה, וסרטוני הקניות מטאובאו ודואין ביוטיוב", insteadEn: "Instead: what China's factories ship, in EU customs, and the Taobao and Douyin finds on YouTube" },
+  { key: "engine_naver", he: "נאבר (קוריאה)", en: "Naver (Korea)", door: "שירות ציבורי, לפי robots.txt", insteadHe: "במקום זה: החיפושים בגוגל וביוטיוב מקוריאה, גם בקוריאנית, וסרטוני הקניות מקוריאה ומאוליב יאנג ביוטיוב", insteadEn: "Instead: Google's and YouTube's searches from Korea, in Korean too, and the Korea and Olive Young finds on YouTube" },
 ]);
 // The doors the radar reads next, each only through official access (never scraping).
 export const NEXT_DOORS = Object.freeze([
@@ -278,7 +321,11 @@ export function sourcesView(sources = {}, receipt = null) {
     const counts = x.key === "world" && v && typeof v === "object" && Number.isFinite(v.asked)
       ? { unit: "categories", asked: v.asked, scanned: v.readToday ?? 0, withData: v.withItems ?? 0, kept: Number.isFinite(v.verified) ? v.verified : null, failed: v.failed ?? 0, refused: 0, codes: null }
       : c ? { unit: "requests", asked: c.asked, scanned: (c.answered || 0) + (c.empty || 0), withData: c.answered, kept: Number.isInteger(c.kept) ? c.kept : null, refused: c.refused, failed: c.failed, codes: c.codes || null, countries: c.countries || null } : null;
-    return { key: x.key, he: x.he, en: x.en, door: x.door, state, counts };
+    // Three groups, never mixed (the owner, 26.11, after an outside check read every listed source as
+    // one the radar scans): what the run read, the doors her connection opens, and the doors closed
+    // by the site's own rules, with the open door used instead.
+    const group = state === "REQUIRES_CONNECTION" ? "connect" : state === "CLOSED" ? "closed" : "read";
+    return { key: x.key, he: x.he, en: x.en, door: x.door, state, counts, group, ...(x.insteadHe ? { insteadHe: x.insteadHe, insteadEn: x.insteadEn } : {}) };
   });
 }
 

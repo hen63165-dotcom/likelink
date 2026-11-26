@@ -36,9 +36,27 @@ on:
       - scripts/catalog/radar-embed.mjs
       - src/lib/growth/wikiSignal.js
       - src/lib/growth/socialSignal.js
+      - src/lib/growth/worldGap.js
+      - src/lib/growth/supplyGap.js
       - src/lib/growth/freshRisers.js
       - src/lib/growth/channelEngine.js
       - scripts/marketing/channel-preview.mjs
+      - src/lib/growth/radarEvidence.js
+      - src/lib/growth/haulSignal.js
+      - src/lib/growth/shopSignal.js
+      - src/lib/growth/factorySignal.js
+      - src/lib/growth/tradeSignal.js
+      - src/lib/growth/newsSignal.js
+      - src/lib/growth/radarBaseline.js
+      - src/lib/growth/trendPath.js
+      - src/lib/growth/asiaSignal.js
+      - src/lib/growth/saturation.js
+      - src/lib/growth/listingWave.js
+      - src/lib/growth/radarBacktest.js
+      - src/lib/growth/radarModels.js
+      - src/lib/growth/radarVersus.js
+      - src/lib/growth/israelGap.js
+      - src/lib/growth/runReceipt.js
 permissions:
   contents: write
 concurrency:
@@ -50,14 +68,17 @@ concurrency:
 jobs:
   read:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 58
     env:
       ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
       ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
       ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
       # The owner's own free YouTube Data API key (src/lib/growth/youtubeSignal.js); without it the
       # YouTube check is skipped (REQUIRES_CONNECTION) and nothing else changes.
-      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      # The owner's YouTube key has a free daily quota (10,000 units, reset at midnight Pacific time). On
+      # 26.11 six branch test runs spent it and main's next reading found YouTube answering 429, so only
+      # main's runs use it; a branch run reports YouTube as waiting for a connection.
+      YOUTUBE_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.YOUTUBE_API_KEY || '' }}
       META_ADLIB_TOKEN: ${{ secrets.META_ADLIB_TOKEN }}
       # Instagram's own Hashtag Search API for the waves (the owner's business account; without them: REQUIRES_CONNECTION).
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -65,6 +86,13 @@ jobs:
       # Pinterest's own trends API (src/lib/growth/pinterestTrends.js): the owner's Pinterest app token;
       # without it nothing is asked (REQUIRES_CONNECTION).
       PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
+      # Japan's and Korea's biggest stores, official doors (the owner, 22.11: "כן לרקוטן ונאבר"): Rakuten
+      # Ichiba's ranking API (her free Rakuten Web Service app) and NAVER API HUB's Shopping Insight (her
+      # free Ncloud key). Read only once the keys exist; until then nothing is asked.
+      RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
+      RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
+      NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
+      NAVER_API_KEY: ${{ secrets.NAVER_API_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +113,7 @@ jobs:
           node scripts/catalog/radar-state.mjs unpack radar-state
           rm -f radar-state/board-public.json radar-state/briefs-public.json
           ls -la radar-state
-      - name: The radar's sentence model (new kinds by meaning)
+      - name: The radar's sentence and translation models (new kinds by meaning; Korea and Japan in their own words)
         # src/lib/growth/newKinds.js: an open model (all-MiniLM-L6-v2) through transformers.js on this
         # runner's CPU; installed here only, never shipped to the site. A failed install only skips the
         # kinds (the reading reports kinds: FAILED) and nothing else changes.
@@ -97,9 +125,11 @@ jobs:
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
         run: |
           set -o pipefail
-          # 30 minutes (17.11: 120 world categories and 16 styles a day did not fit in 14; the job's 50
-          # leave time for the archive, the board, the alert and the encrypted state after it).
-          timeout 1800 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
+          # 45 minutes (17.11: 120 world categories and 16 styles a day did not fit in 14; 26.11: a run
+          # reached 30 and was stopped before it saved anything). The run's own deadline (38 minutes)
+          # skips the optional readings by name, so the day is always saved; the job's 58 leave time for
+          # the archive, the board, the alert and the encrypted state after it.
+          timeout 2700 node scripts/catalog/trend-radar.mjs radar-state | tee /tmp/radar.txt
           { echo "### Trend radar"; echo '```'; tail -80 /tmp/radar.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: The channels' preview (Telegram + Instagram from this board; nothing is sent)
         # src/lib/growth/channelEngine.js over the board just measured: the leading candidates checked
@@ -148,6 +178,10 @@ jobs:
           files="radar-state/state.enc radar-state/board-public.json"
           [ -f radar-state/briefs-public.json ] && files="$files radar-state/briefs-public.json"
           [ -f radar-state/prices-public.json ] && files="$files radar-state/prices-public.json"
+          # 🔎 The evidence: every graded new-product call with the daily store readings behind it.
+          [ -f radar-state/evidence-public.json ] && files="$files radar-state/evidence-public.json"
+          # 🥊 The head-to-head cases (radarBacktest.js): every item, day and forecast, to recompute every number.
+          [ -f radar-state/backtest-public.json ] && files="$files radar-state/backtest-public.json"
           # The channels' preview (no secrets: store facts, links and the simulated posts), from a branch
           # run only: it names today's picks, which the lock keeps off the public main release.
           if [ "${GITHUB_REF}" != "refs/heads/main" ] && [ -f radar-state/channel-preview.json ]; then files="$files radar-state/channel-preview.json radar-state/channel-preview.md"; fi
