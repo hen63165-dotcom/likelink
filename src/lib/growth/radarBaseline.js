@@ -176,7 +176,8 @@ export function baselineBoard(state = {}, radarCalls = [], today = null) {
 export function cleanBaseline(b, { full = true } = {}) {
   if (!b || typeof b !== "object" || !b.versus || typeof b.versus !== "object") return null;
   const day = (d) => (DAY.test(String(d || "")) ? d : null);
-  const n = (x, max = 1e7) => (Number.isFinite(Number(x)) && Math.abs(Number(x)) <= max ? Math.round(Number(x) * 10) / 10 : null);
+  // A missing number stays missing (Number(null) is 0: an edge before any grade would read as "0 points").
+  const n = (x, max = 1e7) => (typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= max ? Math.round(x * 10) / 10 : null);
   const side = (t) => ({ calls: n(t?.calls) ?? 0, graded: n(t?.graded) ?? 0, hits: n(t?.hits) ?? 0, rate: n(t?.rate, 100), medianGrowth: n(t?.medianGrowth, 1e6) });
   const v = b.versus;
   const versus = { since: day(v.since), radar: side(v.radar), naive: side(v.naive), random: side(v.random), edgeNaive: n(v.edgeNaive, 100), edgeRandom: n(v.edgeRandom, 100), overlap: n(v.overlap) ?? 0, minGraded: n(v.minGraded, 100) ?? BASELINE.minGraded };

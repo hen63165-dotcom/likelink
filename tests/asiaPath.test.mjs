@@ -40,3 +40,27 @@ test("path: learns only from observed transitions, never from a step already lit
   assert.equal(l.steps.origin.started, 0, "origin was lit at the first reading: no observed start");
   assert.equal(l.observedMass, 1);
 });
+
+test("the path reaches the page: each card's steps and the board's counts are sanitized, counts public behind the lock", async () => {
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const { teaserBoard } = await import("../src/lib/growth/radarGate.js");
+  const { pathBoard, pathCard, mergePath } = await import("../src/lib/growth/trendPath.js");
+  const { readFileSync } = await import("node:fs");
+  const c = { id: "cloud-slides", stage: "RISING", worldGap: { state: "QUIET" }, world: { state: "NONE" }, factory: { weekPct: 5 }, shops: { rising: false }, social: { talk: { rising: true } }, gap: { state: "GAP" } };
+  const st = mergePath({}, [c], "2026-11-26");
+  const card = pathCard(c, st[c.id]);
+  assert.equal(card.at, "community");
+  assert.equal(card.before, true);
+  const board = sanitizeBoard({ v: 2, at: "2026-11-26T16:00:00Z", record: {}, concepts: [{ id: "cloud-slides", he: "x", stage: "RISING", series: [], evidence: [], path: { ...card, steps: { ...card.steps, mass: "<b>" } } }], path: pathBoard([{ path: card }], st) });
+  assert.equal(board.concepts[0].path.at, "community");
+  assert.equal(board.concepts[0].path.steps.mass, null, "only a day or false passes");
+  assert.equal(board.path.before, 1);
+  const locked = teaserBoard({ ...board, record: { calls: 0 } });
+  assert.deepEqual(locked.path.at, board.path.at, "the counts stay public");
+  assert.equal(JSON.stringify(locked.path).includes("cloud-slides"), false, "never a kind's name behind the lock");
+  const page = readFileSync("src/components/discover/radar.jsx", "utf8");
+  assert.match(page, /<TrendPath path=\{board\.path\} \/>/);
+  assert.match(page, /<PathLine p=\{c\.path\} \/>/);
+  const run = readFileSync("scripts/catalog/trend-radar.mjs", "utf8");
+  assert.match(run, /mergePath\(readJson\(join\(dir, "path\.json"\), \{\}\), withVia, today\)/, "the run keeps the history in its encrypted state");
+});

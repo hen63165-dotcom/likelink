@@ -70,7 +70,7 @@ export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetc
   // behind it, open calls too while the board is open, so anyone can check a grade without trusting us.
   if (files["fresh-calls.json"]) {
     const today = new Date().toISOString().slice(0, 10);
-    writeFileSync(join(dir, "evidence-public.json"), JSON.stringify(evidenceOf({ freshCalls: JSON.parse(files["fresh-calls.json"]), items: files["items.json"] ? JSON.parse(files["items.json"]) : {}, open: isOpen, today })));
+    writeFileSync(join(dir, "evidence-public.json"), JSON.stringify(evidenceOf({ freshCalls: JSON.parse(files["fresh-calls.json"]), items: files["items.json"] ? JSON.parse(files["items.json"]) : {}, open: isOpen, today, baseline: files["baseline.json"] ? JSON.parse(files["baseline.json"]) : null })));
   }
   return { files: names.length, open: isOpen };
 }

@@ -99,6 +99,8 @@ export function teaserBoard(board) {
     trade: board.trade || null,
     // 📰 Who said it first: counts per book, never a call's name; public behind the lock.
     news: board.news || null,
+    // 🧭 How many kinds stand at each step of the path, and what the radar learned: counts only, never a kind.
+    path: board.path ? { at: board.path.at, before: board.path.before, learned: board.path.learned } : null,
     // 📦 "Room to make it": the record and the seal's fingerprint are public; the kinds stay behind the lock.
     supply: board.supply ? { measured: board.supply.measured || 0, under: board.supply.under || 0, over: board.supply.over || 0, top: [], record: board.supply.record || null, seal: board.supply.seal ? { d: board.supply.seal.d, sha256: board.supply.seal.sha256, count: board.supply.seal.count, ots: board.supply.seal.ots || [] } : null } : null,
     // ⏳ The window clock's record is public; the chances name the finds, so they stay behind the lock.

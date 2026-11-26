@@ -16,6 +16,8 @@ import { storage } from "../../lib/storage.js";
 import { sanitizeBoard } from "../../lib/growth/radarBoard.js";
 import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
+import { PATH_STEPS } from "../../lib/growth/trendPath.js";
+import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
 import { EXPORT, exportable, wixCsv } from "../../lib/growth/radarExport.js";
 import { WIX_PRODUCTS_URL } from "../../lib/growth/wixRadar.js";
 import { COUNTRY_NAMES, MEASURES, israelDay, israelTime, receiptTotals, searchCountries } from "../../lib/growth/runReceipt.js";
@@ -323,6 +325,7 @@ export function ConceptCard({ c }) {
       <WorldLine world={c.world} />
       <IsraelLine gap={c.gap} />
       <WorldGapLine g={c.worldGap} />
+      <PathLine p={c.path} />
       {c.supply ? <p className="mt-2 text-[13px] font-bold" style={{ color: c.supply.state === "UNDERSUPPLIED" ? "#067647" : "var(--lx-muted)" }}>{L(supplyLine(c.supply, "he"), supplyLine(c.supply, "en"))}</p> : null}
       <Everywhere q={c.en} />
       <AlphaBlock c={c} />
@@ -821,6 +824,60 @@ function Envelopes({ list, onOpen }) {
 }
 
 /** 🚢 What the factories ship (tradeSignal.js): EU customs lines that doubled, against the same months a year earlier. */
+// 🧭 The path every trend walks (trendPath.js): five steps, the first day each was lit, never moved.
+const PATH_NAMES = { origin: ["מקור", "Origin"], community: ["קהילה", "Community"], crossing: ["חציה", "Crossing"], rush: ["המירוץ", "The rush"], mass: ["כולם", "Everyone"] };
+function PathLine({ p }) {
+  const { L } = useL();
+  if (!p?.at) return null;
+  const lit = PATH_STEPS.filter((k) => typeof p.steps?.[k] === "string");
+  return (
+    <p className="mt-2 text-[13px]" style={{ color: p.before ? "#067647" : "var(--lx-muted)" }}>
+      <b>{L(`🧭 בדרך של טרנד: ${PATH_NAMES[p.at][0]}`, `🧭 On the trend's path: ${PATH_NAMES[p.at][1]}`)}</b>
+      {lit.length ? L(` · ${lit.map((k) => `${PATH_NAMES[k][0]} מ־${dm(p.steps[k])}`).join(" · ")}`, ` · ${lit.map((k) => `${PATH_NAMES[k][1]} from ${dm(p.steps[k])}`).join(" · ")}`) : null}
+      {p.before ? L(" · עוד לפני המירוץ של המוכרים ולפני כולם", " · still before the sellers' rush and before everyone") : null}
+    </p>
+  );
+}
+
+function TrendPath({ path }) {
+  const { L } = useL();
+  if (!path?.at) return null;
+  const l = path.learned || {};
+  const total = PATH_STEPS.reduce((s, k) => s + (path.at[k] || 0), 0);
+  if (!total && !l.kinds) return null;
+  return (
+    <section className="lx-wrap mt-6" id="path">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("🧭 הדרך שכל טרנד עובר", "🧭 The path every trend walks")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("כל טרנד שבדקנו עבר את אותם חמישה שלבים: המקור (מוכר בקטן, וההזמנות מתחילות לעלות), הקהילה (הראשונים מראים אותו), החציה (מתחיל במדינה נוספת), המירוץ (מוכרים, חנויות ומפעלים מצטרפים) ו־כולם. הרדאר מסמן לכל סוג את היום הראשון שבו כל שלב נדלק, והתאריך נשאר כמו שנרשם. הזמן הנכון לדבר הוא בין הקהילה לחציה: אחרי הראשונים, לפני המירוץ.", "Every trend we checked walked the same five steps: the origin (sold small, orders start to rise), the community (the first ones show it), the crossing (it starts in another country), the rush (sellers, shops and factories join) and everyone. For each kind the radar stamps the first day each step lit, and the date stays as stamped. The right time to speak is between the community and the crossing: after the first ones, before the rush.")}</p>
+        <ul className="mt-3 grid grid-cols-5 gap-2 text-center">
+          {PATH_STEPS.map((k) => (
+            <li key={k} className="rounded-xl p-2" style={{ border: "1px solid var(--lx-line)" }}>
+              <b className="block text-[20px]">{(path.at[k] || 0).toLocaleString("he-IL")}</b>
+              <span className="text-[12px]">{L(PATH_NAMES[k][0], PATH_NAMES[k][1])}</span>
+            </li>
+          ))}
+        </ul>
+        {path.before ? <p className="mt-2 text-[14px] font-bold" style={{ color: "#067647" }}>{L(`${path.before} סוגים עכשיו עוד לפני המירוץ של המוכרים ולפני כולם.`, `${path.before} kinds stand now before the sellers' rush and before everyone.`)}</p> : null}
+        <p className="mt-3 text-[14px] font-black">{L("מה הרדאר למד מהדרך", "What the radar learned from the path")}</p>
+        <ul className="mt-1 grid gap-1 text-[13px]">
+          {PATH_STEPS.filter((k) => k !== "mass").map((k) => {
+            const s = l.steps?.[k] || {};
+            return (
+              <li key={k}>
+                <b>{L(PATH_NAMES[k][0], PATH_NAMES[k][1])}:</b>{" "}
+                {s.ready ? L(`מ־${s.started} סוגים שהתחילו את השלב, ${s.reached} הגיעו לכולם, אחרי ${s.medianDays} ימים בחציון.`, `of ${s.started} kinds seen starting this step, ${s.reached} reached everyone, after a median of ${s.medianDays} days.`)
+                  : L(`נמדד: ${s.started || 0} סוגים התחילו את השלב, ${s.reached || 0} הגיעו לכולם. המספר מופיע מ־3 מעברים שנצפו.`, `measured: ${s.started || 0} kinds started this step, ${s.reached || 0} reached everyone. The number shows from 3 observed transitions.`)}
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נלמד מ־${l.kinds || 0} סוגים שהרדאר עוקב אחריהם. נספר רק מעבר שהרדאר ראה קורה: שלב שכבר היה דולק בקריאה הראשונה נשאר מחוץ לחשבון.`, `Learned from ${l.kinds || 0} kinds the radar follows. Only a transition the radar saw happen counts: a step already lit at the first reading stays out of the count.`)}</p>
+      </div>
+    </section>
+  );
+}
+
 function Trade({ t }) {
   const { L } = useL();
   const months = (t.months || []).slice().sort();
@@ -1576,6 +1633,60 @@ const BOOK_EN = Object.fromEntries(INSTRUMENTS.map((i) => [i.book, i.en]));
 /** The radar's open evidence (radarEvidence.js): every graded new-product call with the daily store readings behind it. */
 const EVIDENCE_URL = "https://github.com/hen63165-dotcom/likelink/releases/download/radar/evidence-public.json";
 
+// 🔁 Check it yourself (radarVerify.js): the visitor's own browser recomputes every book's fingerprint
+// against the day's root, and grades every graded call again from the open evidence.
+const RADAR_EVIDENCE_HOME = "https://hen63165-dotcom.github.io/likelink/radar/evidence.json";
+function VerifyYourself({ board }) {
+  const { L } = useL();
+  const [state, setState] = useState(null);
+  if (!board?.ledger?.sha256) return null;
+  const run = async () => {
+    setState({ busy: true });
+    try {
+      const books = await verifyBooks(board);
+      let regrade = null;
+      for (const u of [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/evidence.json` : "", RADAR_EVIDENCE_HOME].filter(Boolean))]) {
+        try {
+          const res = await fetch(u, { cache: "no-cache" });
+          if (!res.ok) continue;
+          regrade = regradeEvidence(await res.json());
+          if (regrade) break;
+        } catch { /* the next address */ }
+      }
+      setState({ books, regrade });
+    } catch { setState({ failed: true }); }
+  };
+  const BOOK_NAME = (k) => L(BOOK_HE[k] || k, BOOK_EN[k] || k);
+  const b = state?.books;
+  const g = state?.regrade;
+  const side = (t, he, en) => (t?.graded ? L(`${he}: ${t.matched} מתוך ${t.graded} ציונים יצאו זהים${t.differ.length ? `, ${t.differ.length} שונים` : ""}${t.unreadable ? `, ${t.unreadable} בלי הקריאה של יום הבדיקה בקובץ` : ""}.`, `${en}: ${t.matched} of ${t.graded} grades came out the same${t.differ.length ? `, ${t.differ.length} different` : ""}${t.unreadable ? `, ${t.unreadable} without the due day's reading in the file` : ""}.`) : null);
+  return (
+    <section className="lx-wrap mt-6" id="verify">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("🔁 תבדקי בעצמך", "🔁 Check it yourself")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("בלחיצה אחת הדפדפן שלך עושה את הבדיקה, בלי לסמוך על הרדאר: הוא מחשב מחדש את טביעת האצבע של כל ספר חתום ומשווה לשורש של היום שנחתם בביטקוין, ואחר כך נותן מחדש ציון לכל קביעה שנבדקה, מתוך ספירות ההזמנות של החנות עצמה, לפי הכלל שכתוב בקובץ.", "In one click your own browser does the check, trusting nothing the radar says: it recomputes every sealed book's fingerprint against the day's root sealed in Bitcoin, then grades every graded call again from the store's own order counts, by the rule written in the file.")}</p>
+        <button type="button" className="lx-btn mt-3" onClick={run} disabled={state?.busy}>{state?.busy ? L("בודק…", "Checking…") : L("🔁 לבדוק עכשיו", "🔁 Check now")}</button>
+        {state?.failed ? <p className="mt-2 text-[13px] font-bold">{L("הבדיקה נעצרה בדפדפן הזה. אפשר לנסות שוב, או להוריד את הקבצים מהספר המלא.", "The check stopped in this browser. Try again, or download the files from the complete ledger.")}</p> : null}
+        {b ? (
+          <div className="mt-3 text-[14px] leading-6">
+            {b.root ? <p className="font-black">{b.root.ok ? L(`✓ השורש של ${dm(b.root.d)}: טביעת האצבע שחישבת זהה לזו שנחתמה.`, `✓ The ${dm(b.root.d)} root: the fingerprint you computed is the one sealed.`) : L(`✗ השורש של ${dm(b.root.d)}: טביעת האצבע שחישבת שונה מזו שנחתמה.`, `✗ The ${dm(b.root.d)} root: the fingerprint you computed differs from the one sealed.`)}</p> : null}
+            <p className="font-bold">{L(`${b.matched} מתוך ${b.checked} ספרים שהטקסט שלהם מפורסם יצאו זהים, טקסט ושורש.`, `${b.matched} of ${b.checked} books with a published text came out the same, text and root.`)}</p>
+            {b.broken.length ? <p className="font-black" style={{ color: "#b42318" }}>{L(`שונים: ${b.broken.map(BOOK_NAME).join(", ")}`, `Different: ${b.broken.map(BOOK_NAME).join(", ")}`)}</p> : null}
+            {b.unpublished.length ? <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הטקסט של ${b.unpublished.map(BOOK_NAME).join(", ")} ארוך מכדי להתפרסם כאן, ולכן הוא נשאר מחוץ לבדיקה הזו.`, `The text of ${b.unpublished.map(BOOK_NAME).join(", ")} is too long to publish here, so it stays out of this check.`)}</p> : null}
+            {g ? (
+              <>
+                <p className="mt-2 font-black">{L(`הציונים, מחדש (כלל: ‎+${g.hitPct}% הזמנות ביום הבדיקה):`, `The grades, again (rule: +${g.hitPct}% orders on the due day):`)}</p>
+                {[side(g.books.fresh, "הקביעות של הרדאר", "The radar's calls"), side(g.books.naive, "הדירוג הפשוט", "The simple ranking"), side(g.books.random, "ההגרלה", "Chance")].filter(Boolean).map((t) => <p key={t}>{t}</p>)}
+                {!g.books.fresh.graded && !g.books.naive.graded && !g.books.random.graded ? <p>{L("עוד אין קביעה שהגיע יום הבדיקה שלה. כשיגיע, הציון שלה ייבדק כאן מחדש.", "No call has reached its due day yet. When one does, its grade is checked here again.")}</p> : null}
+              </>
+            ) : <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{L("קובץ הראיות לא נטען בדפדפן הזה. אפשר להוריד אותו מקישור הראיות למטה.", "The evidence file did not load in this browser. You can download it from the evidence link below.")}</p>}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function Proof({ record, hasLedger = false }) {
   const { L } = useL();
   const graded = Number(record?.graded) || 0;
@@ -2114,6 +2225,7 @@ export function RadarPage() {
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
+        {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
         {!gated && board?.kinds ? <NewKinds kinds={board.kinds} day={String(board.at || "").slice(0, 10)} /> : null}
@@ -2205,6 +2317,7 @@ export function RadarPage() {
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
         {board?.window ? <WindowClock win={board.window} /> : null}
         <Proof record={board?.record} hasLedger={Boolean(board?.ledger?.sha256)} />
+        {board?.ledger?.sha256 ? <VerifyYourself board={board} /> : null}
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
         {board?.baseline ? <Baseline baseline={board.baseline} /> : null}

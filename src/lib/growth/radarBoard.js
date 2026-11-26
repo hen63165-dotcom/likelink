@@ -17,6 +17,7 @@ import { cleanNews } from "./newsSignal.js";
 import { AREA_HE } from "./radarAreas.js";
 import { LEDGER_BOOKS } from "./radarLedger.js";
 import { cleanBaseline } from "./radarBaseline.js";
+import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
@@ -194,6 +195,7 @@ function cleanRow(c) {
     social: cleanSocial(c.social),
     shops: cleanShops(c.shops),
     worldGap: cleanWorldGap(c.worldGap),
+    path: cleanPathCard(c.path), // 🧭 where the kind stands on the path every trend walks (trendPath.js)
     supply: cleanSupply(c.supply),
   };
 }
@@ -222,6 +224,7 @@ export function sanitizeBoard(doc) {
     concepts: doc.concepts.slice(0, 200).map(cleanRow).filter(Boolean),
     wiki: cleanWikiSummary(doc.wiki),
     worldGap: cleanWorldGapSummary(doc.worldGap),
+    path: cleanPathBoard(doc.path),
     // 🏭 The factories that jump (factorySignal.js): the store's public id, its numbers, its fastest new listing.
     factories: doc.factories && typeof doc.factories === "object" ? { withShop: num(doc.factories.withShop) ?? 0, factories: num(doc.factories.factories) ?? 0, jumping: num(doc.factories.jumping) ?? 0, top: (Array.isArray(doc.factories.top) ? doc.factories.top : []).slice(0, 8).map((r) => {
       const buy = typeof r?.lead?.buy === "string" && BUY.test(r.lead.buy) ? r.lead.buy : null;

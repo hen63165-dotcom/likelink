@@ -148,6 +148,10 @@ test("sealed under the root, sanitized for the page, the record public behind th
   assert.equal(locked.baseline.seal.sha256, sha(text));
   assert.equal(JSON.stringify(locked).includes("Listing 1000000004"), false);
   assert.equal(cleanBaseline({ versus: {}, today: { naive: [{ id: "<script>", title: "x" }] } }).today.naive.length, 0);
+  const before = cleanBaseline({ versus: { radar: { graded: 0 }, naive: { graded: 0 }, edgeNaive: null, edgeRandom: undefined } });
+  assert.equal(before.versus.edgeNaive, null, "no edge before grades: never read as 0 points");
+  assert.equal(before.versus.edgeRandom, null);
+  assert.equal(before.versus.radar.rate, null);
   const row = recordView({ baseline: { versus: baselineVersus([], { naive: [{ id: "1", at: "2026-11-20", result: "HIT" }], random: [{ id: "2", at: "2026-11-20", result: "MISS" }] }), nextDue: "2026-12-04" } }).rows.find((r) => r.id === "baseline");
   assert.equal(row.graded, 2);
   assert.equal(row.result.hits, 1);

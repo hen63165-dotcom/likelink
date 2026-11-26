@@ -87,6 +87,7 @@ import { OTS_CALENDARS, fromBase64, hexBytes, otsProof, toBase64 } from "../../s
 import { anchorProof, anchorsBoard } from "../../src/lib/growth/otsUpgrade.js";
 import { freshSealText, ledgerText, stagesSealText } from "../../src/lib/growth/radarLedger.js";
 import { drawLuck, gradeLuck, luckBoard, luckSealText, luckSeed, recordLuck } from "../../src/lib/growth/radarLuck.js";
+import { mergePath, pathBoard, pathCard } from "../../src/lib/growth/trendPath.js";
 import { baselineBoard, baselineOpenIds, baselinePool, baselineSealText, baselineSeedText, gradeBaseline, rebuildDays, recordBaseline } from "../../src/lib/growth/radarBaseline.js";
 import { createHash, randomBytes } from "node:crypto";
 import { cancelNotFresh, challengeBoard, challengeSealText, gradeChallenge, openChallenge, pickFreshOptions, shouldOpen } from "../../src/lib/growth/radarChallenge.js";
@@ -1570,6 +1571,20 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     c.supply = supplyGapOf({ series: c.series, listings: c.listings }); // 🏭 sellers against demand (supplyGap.js)
   }
   board.supply = supplyBoard(board.concepts);
+  // 🧭 The path every trend walks (trendPath.js; the owner, 22.11: "check how every product that became
+  // a trend started"): where each kind stands today — origin, community, crossing, rush, everyone — with
+  // the first day each step was lit (never moved), and what the radar learned from the kinds it watched
+  // walk it, observed transitions only (a step already lit at the first reading is never a start).
+  if (env.RADAR_PATH !== "0") {
+    const via = new Map(concepts.map((x) => [x.id, x.why?.via || null]));
+    const withVia = (board.concepts || []).map((c) => ({ ...c, via: via.get(c.id) || null }));
+    const pathState = mergePath(readJson(join(dir, "path.json"), {}), withVia, today);
+    for (const [i, c] of (board.concepts || []).entries()) c.path = pathCard(withVia[i], pathState[c.id]);
+    writeFileSync(join(dir, "path.json"), JSON.stringify(pathState));
+    board.path = pathBoard(board.concepts || [], pathState);
+    const l = board.path.learned;
+    log.push(`path: ${Object.entries(board.path.at).map(([k, n]) => `${k} ${n}`).join(" · ")} · before everyone ${board.path.before} · ${l.kinds} kinds watched, ${l.observedMass} seen reach everyone · ${Object.entries(l.steps).map(([k, v]) => `${k} ${v.reached}/${v.started}${v.ready ? ` (median ${v.medianDays} d)` : ""}`).join(", ")}`);
+  }
   // 📦 "Room to make it", sealed and checked (supplyGap.js): every UNDERSUPPLIED kind is a call that
   // sellers will follow, graded after 14 days by its own listings; the BALANCED kinds are the control.
   {
