@@ -8,6 +8,7 @@ import { accessOf } from "./radarPlans.js";
 import { radarSubAccess } from "./radarSubs.js";
 import { AREA_HE } from "./radarAreas.js";
 import { cleanPrelaunch } from "./listingWave.js";
+import { cleanNoise } from "./beforeNoise.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
 import { cleanVersus } from "./radarVersus.js";
@@ -119,6 +120,7 @@ export function teaserBoard(board) {
     callGate: board.callGate || null,
     versus: board.versus ? { ...cleanVersus(board.versus), seal: board.versus.seal ? { d: board.versus.seal.d, sha256: board.versus.seal.sha256, count: board.versus.seal.count, ots: board.versus.seal.ots || [] } : null } : null,
     prelaunch: board.prelaunch ? { ...cleanPrelaunch(board.prelaunch, { full: false }), seal: board.prelaunch.seal ? { d: board.prelaunch.seal.d, sha256: board.prelaunch.seal.sha256, count: board.prelaunch.seal.count, ots: board.prelaunch.seal.ots || [] } : null } : null,
+    noise: board.noise ? { ...cleanNoise(board.noise, { full: false }), seal: board.noise.seal ? { d: board.noise.seal.d, sha256: board.noise.seal.sha256, count: board.noise.seal.count, ots: board.noise.seal.ots || [] } : null } : null,
     baseline: board.baseline ? { ...cleanBaseline(board.baseline, { full: false }), seal: board.baseline.seal ? { d: board.baseline.seal.d, sha256: board.baseline.seal.sha256, count: board.baseline.seal.count, ots: board.baseline.seal.ots || [] } : null } : null,
     luck: board.luck ? { versus: board.luck.versus, draws: board.luck.draws, nextDue: board.luck.nextDue, recent: board.luck.recent || [], today: null, seal: board.luck.seal ? { d: board.luck.seal.d, sha256: board.luck.seal.sha256, count: board.luck.seal.count, ots: board.luck.seal.ots || [] } : null } : null,
     concepts: [],

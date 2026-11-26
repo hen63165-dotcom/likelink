@@ -52,6 +52,7 @@ on:
       - src/lib/growth/asiaSignal.js
       - src/lib/growth/saturation.js
       - src/lib/growth/listingWave.js
+      - src/lib/growth/beforeNoise.js
       - src/lib/growth/radarBacktest.js
       - src/lib/growth/radarModels.js
       - src/lib/growth/radarVersus.js

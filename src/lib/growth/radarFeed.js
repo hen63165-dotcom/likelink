@@ -45,6 +45,15 @@ export function feedEntries(raw) {
     if (c.result !== "HIT" && c.result !== "MISS") continue;
     add({ id: `prelaunch-graded/${c.phrase}/${c.at}`, day: c.graded || c.due, section: "prelaunch", title: `Graded ${c.result}: before the first sale, ${c.phrase}`, text: `Sealed on ${c.at} at ${c.base} orders; ${c.orders} on ${c.graded || c.due}, against ${c.target}. Every grade stays in the sealed ledger.` });
   }
+  const DOOR_EN = { prelaunch: "factories listing it before its first sale", shops: "new shops registering its name", listings: "new listings whose orders start to run" };
+  for (const c of b.noise?.open || []) {
+    if (c.role !== "call") continue;
+    add({ id: `noise/${c.key}/${c.at}`, day: c.at, section: "noise", title: `Before the noise: ${c.key}`, text: `Sealed on ${c.at}: ${(c.doors || []).map((d) => DOOR_EN[d]).join(" and ")}, while Google's US suggestions, the sellers (${c.similar ?? "?"} listings) and YouTube were still quiet; graded in public on ${c.due} (a hit when the noise arrives by then).` });
+  }
+  for (const c of b.noise?.graded || []) {
+    if (c.role !== "call" || (c.result !== "HIT" && c.result !== "MISS")) continue;
+    add({ id: `noise-graded/${c.key}/${c.at}`, day: c.graded || c.due, section: "noise", title: `Graded ${c.result}: before the noise, ${c.key}`, text: c.result === "HIT" ? `Sealed on ${c.at}; the noise arrived on ${c.graded} (${(c.lines || []).join(", ")}), ${c.lead} days after the seal.` : `Sealed on ${c.at}; still quiet on ${c.graded || c.due}. Every grade stays in the sealed ledger.` });
+  }
   const BOOK = { early: "a before-everyone call", fresh: "a new product", kinds: "a new kind" };
   (b.envelopes || []).forEach((e, i) => add({ id: `envelope/${e.book}/${e.sealed}/${i}`, day: e.sealed, section: "verdict", title: `Sealed envelope: ${BOOK[e.book]}, sealed on ${e.sealed}`, text: `Sealed in Bitcoin on ${e.sealed}${e.dayN ? `; day ${e.dayN} of 14` : ""}${Number.isFinite(e.change) ? `; orders ${e.change > 0 ? "+" : ""}${e.change}% since the seal` : ""}. Members see what is inside now; it opens to everyone on ${e.due || "its grading day"}.` }));
   const day = b.ledger?.d || String(b.at || "").slice(0, 10);

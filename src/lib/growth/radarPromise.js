@@ -252,7 +252,9 @@ export function gradePromises(state, items, today, { rules = PROMISE } = {}) {
   const alphas = JSON.parse(JSON.stringify(s.alphas || {}));
   const totals = JSON.parse(JSON.stringify(s.totals || {}));
   // A chance record kept under an older rule restarts under the current one (dated: `chanceSince`).
-  const sameRule = s.chanceRule === rules.chanceRule;
+  // The stored state's own field decides: a state written before the field existed has none, and the
+  // defaults above would fill it with today's rule (26.11's main run kept 348 old grades that way).
+  const sameRule = (state || {}).chanceRule === rules.chanceRule;
   const chance = sameRule ? JSON.parse(JSON.stringify(s.chance || {})) : {};
   const chanceSince = sameRule ? s.chanceSince || today : today;
   const open = [];

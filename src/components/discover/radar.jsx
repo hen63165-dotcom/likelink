@@ -934,6 +934,58 @@ function Trade({ t }) {
   );
 }
 
+// 🔇 Before the noise (beforeNoise.js): three doors upstream of YouTube and TikTok; a call when two of them
+// name the same product in the same week while the downstream is quiet, a one-door control beside it,
+// graded when the noise arrives. Behind the lock: the counts and the record only.
+const NOISE_DOORS = {
+  prelaunch: ["🏭 מפעלים שמעלים אותו לפני המכירה הראשונה", "🏭 Factories listing it before its first sale"],
+  shops: ["🏪 חנויות חדשות שנפתחות בשמו", "🏪 New shops registering its name"],
+  listings: ["🆕 מודעות חדשות שההזמנות שלהן מתחילות לרוץ", "🆕 New listings whose orders start to run"],
+};
+const NOISE_LINES_HE = { buzz: ["גוגל בארה״ב משלים אותו בטיקטוק או אמזון", "Google's US suggestions add TikTok or Amazon"], listings: ["יותר מ־2,000 מודעות", "over 2,000 listings"], youtube: ["גל סרטונים ביוטיוב", "a wave of YouTube videos"] };
+function BeforeNoise({ noise, gated }) {
+  const { L } = useL();
+  const nf = (x) => Number(x || 0).toLocaleString(L("he-IL", "en-US"));
+  const r = noise.record?.call || {};
+  const c = noise.record?.control || {};
+  const doorName = (d) => L(NOISE_DOORS[d]?.[0] || d, NOISE_DOORS[d]?.[1] || d);
+  return (
+    <section className="lx-wrap mt-8" id="noise">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🔇 לפני הרעש", "🔇 Before the noise")}</h2>
+        <p className="mt-1 text-[14px] leading-6">{L("הרעש הוא מה שכולם רואים: טיקטוק ואמזון בהשלמות של גוגל, הצפה של מוכרים, גל סרטונים ביוטיוב. לפניו יש שלוש דלתות, כל אחת קוראת את השוק ממקום אחר: מפעלים שמעלים מוצר לחנות לפני שמישהו קנה, חנויות חדשות בעולם שנרשמות בשם שלו, ומודעות חדשות שההזמנות שלהן מתחילות לרוץ. כששתי דלתות שונות קוראות לאותו מוצר באותו שבוע, ובגוגל, אצל המוכרים וביוטיוב עוד שקט, הרדאר חותם קביעה מראש בביטקוין. לידה נחתמת ביקורת: מוצר שרק דלת אחת קראה לו, בסדר קבוע מראש. כל בוקר הרדאר בודק אם הרעש הגיע, ואחרי 30 יום כל קביעה מקבלת ציון בפומבי, עם מספר הימים שהרדאר הקדים.", "Noise is what everyone sees: TikTok and Amazon in Google's suggestions, a flood of sellers, a wave of YouTube videos. Before it there are three doors, each reading the market from another place: factories listing a product before anyone bought it, new shops in the world registering its name, and new listings whose orders start to run. When two different doors name the same product in the same week, while Google, the sellers and YouTube are still quiet, the radar seals a call in advance in Bitcoin. Beside it a control is sealed: a product only one door named, in a fixed order. Every morning the radar checks whether the noise arrived, and after 30 days each call is graded in public, with the days the radar was ahead.")}</p>
+        <ul className="mt-3 grid gap-2 md:grid-cols-3">
+          {Object.keys(NOISE_DOORS).map((d) => (
+            <li key={d} className="lx-card lx-rdr-item p-3">
+              <p className="text-[14px] font-extrabold">{doorName(d)}</p>
+              <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`${nf(noise.doors?.[d])} מוצרים השבוע`, `${nf(noise.doors?.[d])} products this week`)}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[14px] font-bold">{L(`הבוקר: ${nf(noise.agree)} מוצרים ששתי דלתות קראו להם · ${nf(noise.checked)} נבדקו מול גוגל, המוכרים${noise.youtube === "READ" ? " ויוטיוב" : ""}${noise.reasons?.QUIET ? ` · ${nf(noise.reasons.QUIET)} עוד בשקט` : ""}.`, `This morning: ${nf(noise.agree)} products two doors named · ${nf(noise.checked)} checked against Google, the sellers${noise.youtube === "READ" ? " and YouTube" : ""}${noise.reasons?.QUIET ? ` · ${nf(noise.reasons.QUIET)} still quiet` : ""}.`)}</p>
+        {!gated && noise.open?.some((x) => x.role === "call") ? (
+          <ul className="mt-3 grid gap-2 md:grid-cols-2">
+            {noise.open.filter((x) => x.role === "call").map((x) => (
+              <li key={x.key} className="lx-card lx-rdr-item p-3">
+                <p className="text-[16px] font-extrabold" dir="ltr" style={{ textAlign: "start" }}>{x.key}</p>
+                <p className="mt-1 text-[13px]">{(x.doors || []).map(doorName).join(L(" + ", " + "))}</p>
+                <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`נחתם ${dm(x.at)} · יום ${x.dayN} מתוך 30 · ${nf(x.now ?? x.similar)} מודעות היום`, `Sealed ${dm(x.at)} · day ${x.dayN} of 30 · ${nf(x.now ?? x.similar)} listings today`)}</p>
+                <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הציון בפומבי ב־${dm(x.due)}`, `Graded in public on ${dm(x.due)}`)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : gated && r.pending ? <p className="mt-2 text-[13px]">{L(`✉️ ${r.pending} קביעות פתוחות, חתומות בביטקוין. כל אחת נפתחת ביום הבדיקה שלה.`, `✉️ ${r.pending} open calls, sealed in Bitcoin. Each opens on its grading day.`)}</p> : null}
+        {!gated && noise.graded?.some((x) => x.role === "call") ? (
+          <ul className="mt-3 grid gap-1 text-[13px]">
+            {noise.graded.filter((x) => x.role === "call").map((x) => <li key={`${x.key}-${x.at}`}><span dir="ltr" className="font-bold">{x.key}</span> · {x.result === "HIT" ? L(`הרעש הגיע ב־${dm(x.graded)} (${(x.lines || []).map((k) => NOISE_LINES_HE[k]?.[0]).join(", ")}), ${x.lead} ימים אחרי החתימה`, `the noise came on ${dm(x.graded)} (${(x.lines || []).map((k) => NOISE_LINES_HE[k]?.[1]).join(", ")}), ${x.lead} days after the seal`) : x.result === "MISS" ? L(`עדיין שקט ב־${dm(x.graded)}`, `still quiet on ${dm(x.graded)}`) : L("מחוץ לספירה: נקרא אחרי סוף התקופה", "left out of the count: read after its end")}</li>)}
+          </ul>
+        ) : null}
+        <p className="mt-2 text-[13px] font-bold">{r.graded ? L(`עד היום: הרעש הגיע ב־${r.hits} מתוך ${r.graded} קביעות${r.medianLeadDays !== null && r.medianLeadDays !== undefined ? `, באמצע ${r.medianLeadDays} ימים אחרי החתימה` : ""} · בביקורת: ${c.hits} מתוך ${c.graded}${Number.isFinite(noise.record?.edge) ? ` · הפרש ${noise.record.edge > 0 ? "+" : ""}${noise.record.edge} נקודות` : ""}.`, `So far: the noise came for ${r.hits} of ${r.graded} calls${r.medianLeadDays !== null && r.medianLeadDays !== undefined ? `, a median ${r.medianLeadDays} days after the seal` : ""} · the control: ${c.hits} of ${c.graded}${Number.isFinite(noise.record?.edge) ? ` · a ${noise.record.edge > 0 ? "+" : ""}${noise.record.edge}-point difference` : ""}.`) : r.nextDue ? L(`הבדיקה הראשונה: ${dm(r.nextDue)}. ${r.pending} קביעות ו־${c.pending} ביקורות פתוחות.`, `The first grading: ${dm(r.nextDue)}. ${r.pending} calls and ${c.pending} controls open.`) : L("הקביעה הראשונה נחתמת כששתי דלתות מסכימות והשוק עוד בשקט.", "The first call is sealed when two doors agree and the market is still quiet.")}</p>
+      </div>
+    </section>
+  );
+}
+
 /** 🔤 The names new shops pick (shopSignal.js): product words in the names of every new domain in the world. */
 // 🏭 Before the first sale (listingWave.js): the store's newest listings with almost no orders, and the
 // products many different stores start listing this week. Behind the lock: the counts and the record only.
@@ -2399,6 +2451,7 @@ export function RadarPage() {
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
+        {board?.noise ? <BeforeNoise noise={board.noise} gated={gated} /> : null}
         {board?.prelaunch ? <Prelaunch p={board.prelaunch} gated={gated} /> : null}
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}

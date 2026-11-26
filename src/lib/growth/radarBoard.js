@@ -21,6 +21,7 @@ import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
 import { GATE_REASONS, cleanGate } from "./callGate.js";
 import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
+import { NOISE_LINE, cleanNoise } from "./beforeNoise.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
@@ -71,6 +72,8 @@ const BASELINE_LINE = "(?:naive|random)\\|\\d{6,20}\\|\\d{4}-\\d{2}-\\d{2}\\|\\d
 const BASELINE_BOOK = new RegExp(`^${BASELINE_LINE}(\\n${BASELINE_LINE})*$`);
 // 🏭 Before the first sale (listingWave.js prelaunchSealText).
 const PRELAUNCH_BOOK = new RegExp(`^${PRELAUNCH_LINE}(\\n${PRELAUNCH_LINE})*$`);
+// 🔇 Before the noise (beforeNoise.js noiseSealText): every call and control entry.
+const NOISE_BOOK = new RegExp(`^${NOISE_LINE}(\\n${NOISE_LINE})*$`);
 // ⚔️ The sealed head-to-head (radarVersus.js versusSealText): the day's sample and picks, item numbers only.
 const VERSUS_BOOK = new RegExp(`^${VERSUS_LINE}(\\n${VERSUS_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
@@ -293,6 +296,7 @@ export function sanitizeBoard(doc) {
     callGate: cleanGate(doc.callGate),
     versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
     prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
+    noise: doc.noise && cleanNoise(doc.noise) ? { ...cleanNoise(doc.noise), seal: cleanBook(doc.noise.seal, NOISE_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,
     waves: cleanWaves(doc.waves),
     crowd: cleanCrowd(doc.crowd),
