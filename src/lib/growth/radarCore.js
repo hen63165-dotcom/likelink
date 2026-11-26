@@ -97,8 +97,8 @@ export function recordView(board = {}) {
     }
     else if (ins.id === "versus" && b.versus) {
       const hs = b.versus.horizons || [];
-      const graded = hs.reduce((s, x) => s + (num(x.learn?.of) ?? 0), 0);
-      const hits = hs.reduce((s, x) => s + (num(x.learn?.hits) ?? 0), 0);
+      const graded = hs.reduce((s, x) => s + (num(x.pick?.of) ?? 0), 0);
+      const hits = hs.reduce((s, x) => s + (num(x.pick?.hits) ?? 0), 0);
       const rankOf = hs.reduce((s, x) => s + (num(x.rank?.of) ?? 0), 0);
       const rankHits = hs.reduce((s, x) => s + (num(x.rank?.hits) ?? 0), 0);
       const next = hs.map((x) => x.nextDue).filter(Boolean).sort()[0] || null;

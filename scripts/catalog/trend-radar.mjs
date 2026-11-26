@@ -1909,7 +1909,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const text = versusSealText(todays);
       board.versus = { ...versusRecord(vs, today), today: todays ? today : null };
       if (text) board.versus.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.versus?.seal, "versus");
-      log.push(`versus: ${todays ? `sheet sealed for ${today} (${todays.pool.length} items in the sample, ${Object.values(todays.picks).map((p) => Object.entries(p).map(([c, l]) => `${c} ${l.length}`).join("/")).join(" | ")})` : "no sheet today (too few measured items)"} · ${board.versus.horizons.map((x) => `${x.h}d: ${x.days} days graded${x.days ? ` · learning ${x.learn.rate}% · noise-checked ${x.radar.rate}% · ranking ${x.rank.rate}% · random ${x.random.rate}%` : ""} · next grade ${x.nextDue || "-"}`).join(" | ")}`);
+      log.push(`versus: ${todays ? `sheet sealed for ${today} (${todays.pool.length} items in the sample, ${Object.values(todays.picks).map((p) => Object.entries(p).map(([c, l]) => `${c} ${l.length}`).join("/")).join(" | ")})` : "no sheet today (too few measured items)"} · ${board.versus.horizons.map((x) => `${x.h}d: ${x.days} days graded${x.days ? ` · the radar's pick ${x.pick.rate}% · learning ${x.learn.rate}% · noise-checked ${x.radar.rate}% · ranking ${x.rank.rate}% · random ${x.random.rate}%` : ""} · next grade ${x.nextDue || "-"}`).join(" | ")}`);
     } catch (err) { log.push(`versus: ${String(err?.message || err).slice(0, 120)}`); }
   }
   // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
