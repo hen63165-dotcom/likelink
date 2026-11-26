@@ -8,6 +8,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { backtest } from "../../src/lib/growth/radarBacktest.js";
+import { VARIANTS, labRun, labTotals } from "../../src/lib/growth/radarLab.js";
 
 const dir = process.argv[2] || "lab-state";
 const file = join(dir, "items.json");
@@ -38,4 +39,18 @@ for (const h of bt.horizons) {
     console.log(`${label} (${part[0].d} → ${part[part.length - 1].d}, ${part.length} days): ${C.map((c) => `${NAME[c]} ${rate(c)}%`).join(" · ")} · random ${rnd}%`);
   }
   for (const x of rows) console.log(`  ${x.d}: pool ${x.n}, grew ${Math.round(x.rate * 1000) / 10}% · top ${x.k}: chance ${x.model} · learning ${x.learn} · noise-checked ${x.radar} · ranking ${x.rank}`);
+}
+
+// The variants: chosen on the earlier half, checked on the later half (radarLab.js).
+for (const h of [3, 7]) {
+  const rows = labRun(items, today, { h });
+  if (!rows.length) { console.log(`\n--- variants ${h}d: no tested day yet`); continue; }
+  const half = Math.floor(rows.length / 2);
+  const early = labTotals(rows.slice(0, half));
+  const late = labTotals(rows.slice(half));
+  const all = labTotals(rows);
+  console.log(`\n--- variants ${h}d · ${rows.length} days (${rows[0].d} → ${rows[rows.length - 1].d}) · base rate ${Math.round((rows.reduce((s, r) => s + r.rate, 0) / rows.length) * 1000) / 10}%`);
+  for (const v of VARIANTS) console.log(`${v.id.padEnd(20)} all ${String(all[v.id].rate).padStart(5)}% auc ${all[v.id].auc} · earlier ${String(early[v.id].rate).padStart(5)}% auc ${early[v.id].auc} · later ${String(late[v.id].rate).padStart(5)}% auc ${late[v.id].auc}`);
+  const pick = VARIANTS.map((v) => v.id).filter((id) => early[id].rate !== null).sort((a, b) => early[b].rate - early[a].rate || (early[b].auc ?? 0) - (early[a].auc ?? 0))[0];
+  console.log(`chosen on the earlier half: ${pick} · on the later half it got ${late[pick]?.rate}% (the simple ranking ${late.ranking?.rate}%)`);
 }

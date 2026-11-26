@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/catalog/radar-lab.mjs
       - src/lib/growth/radarModels.js
+      - src/lib/growth/radarLab.js
       - src/lib/growth/radarBacktest.js
       - .github/workflows/radar-lab.yml
 permissions:
