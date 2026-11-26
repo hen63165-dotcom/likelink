@@ -26,6 +26,7 @@ export const INSTRUMENTS = Object.freeze([
   { id: "fresh", book: "fresh", tab: "today", section: "fresh", he: "מוצרים חדשים", en: "New products", whatHe: "מוצר קטן שההזמנות שלו רצות, לפני שכולם מוכרים", whatEn: "A small product whose orders run, before everyone sells it" },
   { id: "kinds", book: "kinds", tab: "today", section: "kinds", he: "סוגים חדשים", en: "New kinds", whatHe: "סוג חדש שהבינה המלאכותית מצאה לפי משמעות", whatEn: "A new kind the AI found by meaning" },
   { id: "prelaunch", book: "prelaunch", tab: "today", section: "prelaunch", he: "לפני המכירה הראשונה", en: "Before the first sale", whatHe: "מוצר שהרבה חנויות שונות מתחילות להעלות השבוע, לפני שקונים אותו; אחרי 21 יום בודקים אם המכירות הגיעו", whatEn: "A product many different stores start listing this week, before people buy it; after 21 days, did the sales come" },
+  { id: "noise", book: "noise", tab: "today", section: "noise", he: "לפני הרעש", en: "Before the noise", whatHe: "מוצר ששתי דלתות שונות, לפני יוטיוב וטיקטוק, קוראות לו באותו שבוע, כשבגוגל, ביוטיוב ואצל המוכרים עוד שקט; אחרי 30 יום בודקים אם הרעש הגיע ובכמה ימים הרדאר הקדים", whatEn: "A product two different doors upstream of YouTube and TikTok name in the same week while Google, YouTube and the sellers are still quiet; after 30 days, did the noise come, and how many days ahead was the radar" },
   { id: "supply", book: "supply", tab: "today", section: "supply", he: "מקום לייצר", en: "Room to make it", whatHe: "סוג שהביקוש שלו רץ מהר מהמוכרים; אחרי 14 יום בודקים אם מוכרים חדשים נכנסו בעקבות הרדאר", whatEn: "A kind whose demand outruns the sellers; after 14 days, did new sellers follow the radar" },
   { id: "brain", book: "brain", tab: "proof", section: "brain", he: "המוח", en: "The brain", whatHe: "מה הרדאר למד מכל קביעה שנבדקה", whatEn: "What the radar learned from every graded call" },
   { id: "promise", book: "promise", tab: "proof", section: "promise", he: "הטווח המוכח והסיכוי המכויל", en: "The proven range and calibrated chance", whatHe: "טווח הזמנות וסיכוי לעלייה, לכל מוצר שנמדד", whatEn: "An orders range and a chance to grow, for every product measured" },
@@ -83,6 +84,10 @@ export function recordView(board = {}) {
     else if (ins.id === "fresh") row = callsRow(b.fresh?.record);
     else if (ins.id === "kinds") row = callsRow(b.kinds?.record);
     else if (ins.id === "prelaunch" && b.prelaunch) row = callsRow(b.prelaunch.record);
+    else if (ins.id === "noise" && b.noise) {
+      const r = b.noise.record?.call || {};
+      row = { ...callsRow(r), result: num(r.graded) ? { kind: "hits", hits: num(r.hits) ?? 0, of: r.graded, rate: pct(num(r.hits) ?? 0, r.graded), edge: num(b.noise.record?.edge) } : null };
+    }
     else if (ins.id === "supply") {
       const r = b.supply?.record;
       if (r) row = { given: num(r.calls) ?? 0, graded: num(r.graded) ?? 0, result: r.graded ? { kind: "hits", hits: num(r.followed) ?? 0, of: r.graded, rate: pct(num(r.followed) ?? 0, r.graded), edge: num(r.edge) } : null, next: r.nextDue || null };
@@ -139,8 +144,8 @@ export function recordView(board = {}) {
     if (!row) continue;
     rows.push({ id: ins.id, he: ins.he, en: ins.en, whatHe: ins.whatHe, whatEn: ins.whatEn, section: ins.section, sealed: (b.ledger?.text || "").split("\n").some((l) => l.startsWith(`${ins.book}=`)), ...row });
   }
-  // The trend calls' hits only: the brain learns, luck, the simple ranking and the daily duel are yardsticks, supply grades sellers following.
-  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "baseline" && r.id !== "versus" && r.id !== "supply");
+  // The trend calls' hits only: the brain learns, luck, the simple ranking and the daily duel are yardsticks, supply grades sellers following, noise grades the noise arriving.
+  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "baseline" && r.id !== "versus" && r.id !== "supply" && r.id !== "noise");
   return {
     rows,
     day: b.ledger?.d || String(b.at || "").slice(0, 10) || null,

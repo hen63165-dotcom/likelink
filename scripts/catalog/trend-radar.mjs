@@ -104,6 +104,7 @@ import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice }
 import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
 import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
 import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
+import { NOISE, candidates as noiseCandidates, controlPool as noiseControls, doorSignals, mergeSignals as mergeNoise, noiseBoard, noiseQueue, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls } from "../../src/lib/growth/beforeNoise.js";
 import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
@@ -2011,6 +2012,74 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     const rec = board.prelaunch.record;
     log.push(`prelaunch: ${answered}/${read} areas answered (${areas.length - rot.slice.length} areas + ${rot.slice.length} world categories, ${rot.days} days a round) · ${listings} listings under ${PRELAUNCH.maxOrders} orders · ${fresh} first seen today from ${storesToday.size} stores · ${Object.keys(pre.ps || {}).length} phrases kept · ${waves.measuring ? `measuring (${waves.days} of ${PRELAUNCH.minDays} days)` : `waves ${waves.waves.slice(0, 8).map((w) => `${w.phrase} ${w.before}→${w.week} stores (×${w.times})`).join(", ") || "none"}`} · checked ${checked.map((c) => `${c.phrase} ${c.check.reason} ${c.check.similar ?? "?"} listings ${c.demand?.orders ?? "?"} orders`).join(", ") || "none"} · calls ${rec.calls} (${rec.pending} open, ${rec.hits}/${rec.graded} hits, ${rec.unread} unread)${Object.keys(codes).length ? ` · refused ${JSON.stringify(codes)}` : ""}`);
   }
+  // 🔇 Before the noise (beforeNoise.js; the owner, 26.11: "hit the products that made no noise yet and
+  // are going to make huge noise… far ahead of YouTube and TikTok; unify it all into one code"): three
+  // doors upstream of every feed — factories listing it before its first sale, new shops registering its
+  // name, new listings whose orders start to run (with their new kinds and the stores that jump) — and a
+  // call when two of them name the same product this week while the downstream is quiet (≤ 2,000
+  // listings, no tiktok/viral/amazon in Google's US suggestions, YouTube quiet where the owner's key is
+  // read). A one-door control beside it. Every open entry read again each morning until the noise comes.
+  if (env.RADAR_NOISE !== "0" && store && !late("noise", 120_000)) {
+    const e = aeEnv(env);
+    let st = readJson(join(dir, "noise.json"), {});
+    let ytN = 0;
+    const readOf = async (key) => {
+      const r = { similar: null, suggestions: null, yt: null };
+      try {
+        const rr = (await aeCall(SEARCH, { keywords: key, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now }))?.aliexpress_affiliate_product_query_response?.resp_result;
+        if (Number(rr?.resp_code) === 200 && Number.isFinite(Number(rr.result?.total_record_count))) r.similar = Number(rr.result.total_record_count);
+        else if (Number(rr?.resp_code) === 405) r.similar = 0;
+      } catch { /* unread: never quiet */ }
+      if (sources.suggest === "OK") {
+        try { r.suggestions = await suggestList(key, { hl: "en", gl: "us" }, fetchImpl); } catch { r.suggestions = null; }
+        await pause(politeMs);
+      }
+      if (env.YOUTUBE_API_KEY && ytN < NOISE.ytPerRun) {
+        ytN++;
+        try {
+          const search = await (await fetchImpl(ytSearchUrl(key, { key: env.YOUTUBE_API_KEY, now }), { signal: AbortSignal.timeout(15_000) })).json();
+          const ids = ytIdsOf(search);
+          const views = ids === null ? null : ids.length ? ytViewsOf(await (await fetchImpl(ytVideosUrl(ids, { key: env.YOUTUBE_API_KEY }), { signal: AbortSignal.timeout(15_000) })).json()) : 0;
+          r.yt = ytSignal({ videos: ids === null ? null : ids.length, views });
+          if (r.yt) keep(meter, "youtubeApi");
+        } catch { r.yt = null; }
+      }
+      return r;
+    };
+    // The open entries first: has the noise arrived?
+    const reads = {};
+    const queue = noiseQueue(st.calls || [], today);
+    for (const c of queue) reads[c.key] = await readOf(c.key);
+    st.calls = readNoise(st.calls || [], reads, today);
+    // Today's names per door.
+    const df = phraseCounts(Object.values(freshPool || {}).map((x) => x?.title));
+    const listings = [];
+    for (const x of Object.values(freshPool || {})) {
+      const m = itemMomentum(items[x?.id] || [], { rules: HOT_RULES });
+      if (Number.isFinite(m.weekPct) && m.weekPct >= NOISE.fastWeekPct) listings.push({ phrase: distinctPhrase(x.title, df), weekPct: m.weekPct, orders: m.orders });
+    }
+    for (const k of board.kinds?.list || []) listings.push({ phrase: k.en, weekPct: k.medianWeekPct, orders: k.orders });
+    for (const r of board.factories?.top || []) if (r.lead?.title) listings.push({ phrase: distinctPhrase(r.lead.title, df), weekPct: r.medianWeekPct, orders: r.orders });
+    const signals = doorSignals({ prelaunch: readJson(join(dir, "prelaunch.json"), {}), shopWords: readJson(join(dir, "shop-words.json"), {}), listings }, today, { skip: waveSkip(watch) });
+    st = mergeNoise(st, signals, today);
+    const agree = noiseCandidates(st, today);
+    const checked = [];
+    for (const [role, list] of [["call", agree.slice(0, NOISE.checkPerRun)], ["control", noiseControls(st, today).slice(0, NOISE.controlPerRun)]]) {
+      for (const c of list) {
+        const r = await readOf(c.key);
+        const check = quietCheck(r);
+        checked.push({ ...c, role, similar: r.similar, yt: r.yt, check });
+        if (!check.quiet) st.checked = { ...(st.checked || {}), [c.key]: today };
+      }
+    }
+    st.calls = pruneNoise(recordNoiseCalls(st.calls, checked, today));
+    writeFileSync(join(dir, "noise.json"), JSON.stringify(st));
+    const noiseText = noiseSealText(st.calls);
+    const noiseSeal = noiseText ? await sealBook({ text: noiseText, count: noiseText.split("\n").length }, prevBoard.noise?.seal, "noise") : null;
+    board.noise = noiseBoard(st, { day: today, signals, agree: agree.length, checked, seal: noiseSeal, youtube: env.YOUTUBE_API_KEY ? "READ" : "UNREAD" });
+    const nr = board.noise.record;
+    log.push(`before the noise: doors today prelaunch ${signals.prelaunch.size}, shops ${signals.shops.size}, listings ${signals.listings.size} · ${agree.length} names two doors agree on · checked ${checked.map((c) => `${c.key} (${c.role}, ${c.doors.join("+")}) ${c.check.reason} ${c.similar ?? "?"} listings${c.yt ? ` yt ${c.yt.videos}` : ""}`).join(", ") || "none"} · read again ${queue.length} · calls ${nr.call.calls} (${nr.call.pending} open, ${nr.call.hits}/${nr.call.graded} noise arrived, median ${nr.call.medianLeadDays ?? "-"} days ahead) · control ${nr.control.calls} (${nr.control.hits}/${nr.control.graded})`);
+  }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);
   if (stagesText) board.stagesSeal = await sealBook({ text: stagesText, count: stagesText.split("\n").length }, prevBoard.stagesSeal, "stages");
@@ -2121,7 +2190,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, noise: board.noise?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
