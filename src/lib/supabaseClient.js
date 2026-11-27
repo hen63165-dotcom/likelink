@@ -31,6 +31,20 @@ export const supabaseConfigured = Boolean(url && key);
  */
 const FETCH_PATCHED = Symbol.for("likelink.fetchPatched");
 
+// The header goes ONLY to the Supabase host. A custom header on any other cross-site GET makes the
+// browser send a preflight first, and hosts that answer no preflight (GitHub Pages) then refuse the read:
+// on 26.11 every fetch from likelink2.vercel.app to github.io (the real-deal prices on /magic, the radar's
+// evidence and backtest, the studio feeds) was blocked by CORS because this patch added X-Client-Info.
+const SUPABASE_ORIGIN = (() => { try { return url ? new URL(url).origin : ""; } catch { return ""; } })();
+function originOf(input) {
+  try {
+    const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input?.url;
+    return new URL(String(raw || ""), globalThis.location?.href).origin;
+  } catch {
+    return "";
+  }
+}
+
 function patchFetchOnce() {
   try {
     if (!isBrowser()) return;                        // server / test / CLI: never touch globals
@@ -39,6 +53,8 @@ function patchFetchOnce() {
 
     const originalFetch = globalThis.fetch.bind(globalThis);
     globalThis.fetch = async (input, init = {}) => {
+      // Everything that is not the Supabase host goes out exactly as the caller wrote it.
+      if (!SUPABASE_ORIGIN || originOf(input) !== SUPABASE_ORIGIN) return originalFetch(input, init);
       const headers = new Headers(init.headers);
       // supabase-js already sends X-Client-Info; set it only when a caller
       // forwards raw requests so the trace stays identifiable end-to-end.

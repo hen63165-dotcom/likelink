@@ -41,7 +41,24 @@ async function readTally() {
   } catch { return null; }
 }
 const TALLY = DEAL ? await readTally() : null;
-const DEAL_TALLY = TALLY ? `ב־${TALLY.day}: ${TALLY.raised} מתוך ${TALLY.sales}` : "";
+// How long the "sale" price has already been the price: the item's own recorded readings (the same public
+// shard the page reads), counted back from the newest one while each stays within 3% of it.
+async function sameSince(id) {
+  try {
+    const r = await fetch(PRICES_INDEX.replace("index.json", `${id.slice(-2)}.json`), { signal: AbortSignal.timeout(15_000) });
+    const s = r.ok ? (await r.json())?.[id] : null;
+    if (!Array.isArray(s) || s.length < 2) return null;
+    const rows = s.filter((x) => Array.isArray(x) && /^\d{4}-\d{2}-\d{2}$/.test(String(x[0])) && Number(x[1]) > 0);
+    const now = rows.at(-1)[1];
+    let i = rows.length - 1;
+    while (i > 0 && Math.abs(rows[i - 1][1] / now - 1) <= 0.03) i -= 1;
+    const n = rows.length - i;
+    const d = rows[i][0];
+    return n >= 4 ? { since: `${Number(d.slice(8))}.${Number(d.slice(5, 7))}`, readings: n } : null;
+  } catch { return null; }
+}
+let dealRun = null;
+const DEAL_TALLY = TALLY ? `ב־${TALLY.day} הרדאר מדד ${TALLY.sales} „הנחות”. ב־${TALLY.raised} מהן` : "";
 mkdirSync(OUT, { recursive: true });
 
 // The captions, the tap marks and the end card, drawn inside the page (fixed, on top).
@@ -156,6 +173,7 @@ if (DEAL) {
   }
   await probe.close();
   if (!dealLink) throw new Error("deal mode: no candidate answered RAISED on the live page; nothing is made");
+  dealRun = await sameSince(dealLink.match(/(\d{6,20})\.html$/)[1]);
 }
 
 await page.goto(`${SITE}/magic`, { waitUntil: "networkidle", timeout: 45_000 });
@@ -163,7 +181,7 @@ if (!CLEAN) await page.evaluate(() => { window.__brand?.(); });
 if (DEAL) {
   await page.waitForSelector("text=הדבקה ובדיקה", { timeout: 20_000 });
   await sleep(400);
-  await cap("בלאק פריידיי: „הנחה ענקית” 🔥", "רגע לפני שקונים…");
+  await cap("בלאק פריידיי: „מבצע” 🔥", "רגע לפני שקונים…");
   await shot(2.4);
   await page.evaluate((link) => navigator.clipboard.writeText(link), dealLink);
   await cap("מדביקים את הקישור מאלי", "בכפתור הקסם ✨");
@@ -185,7 +203,8 @@ if (DEAL) {
   await page.evaluate(() => window.scrollBy(0, -170));
   await cap("הרדאר רשם את המחיר שלו כל בוקר", "וכל יום נחתם בביטקוין");
   await shot(3.0);
-  await cap("⚠️ ה„הנחה” רק החזירה אותו למחיר הרגיל", "קודם המחיר עלה, ועכשיו „ירד”");
+  if (dealRun) await cap(`המחיר של „המבצע”? כבר כאן מ־${dealRun.since}`, `הרדאר רשם אותו מחיר ${dealRun.readings} בקרים ברצף`);
+  else await cap("⚠️ „ההנחה” מחזירה את המחיר לרגיל", "המחיר הרגיל שהרדאר רשם");
   await shot(3.4);
   await cap("");
   if (!CLEAN) {
@@ -195,7 +214,7 @@ if (DEAL) {
       if (el) {
         const first = el.firstElementChild;
         if (first) first.textContent = "בודקים לפני שקונים 🏷️";
-        if (first?.nextElementSibling) first.nextElementSibling.innerHTML = tally ? `${tally} „הנחות” שהרדאר מדד<br>רק החזירו את המחיר בערך לרגיל` : "הרדאר רושם כל בוקר את המחיר<br>של עשרות אלפי מוצרים";
+        if (first?.nextElementSibling) first.nextElementSibling.innerHTML = tally ? `${tally}<br>„ההנחה” השאירה את המחיר ברמה הרגילה<br>שהרדאר רשם, או מעליה` : "הרדאר רושם כל בוקר את המחיר<br>של עשרות אלפי מוצרים";
       }
     }, DEAL_TALLY);
     await shot(3.0);
@@ -294,7 +313,8 @@ const caption = DEAL ? [
   "",
   "בלאק פריידיי: לפני שקונים, בודקים אם זה באמת מבצע 🏷️",
   "הרדאר של LikeLink2 רושם כל בוקר את המחיר בחנות של עשרות אלפי מוצרים באליאקספרס, וכל יום נחתם בביטקוין.",
-  ...(DEAL_TALLY ? [`${DEAL_TALLY} „הנחות” שהוא מדד רק החזירו את המחיר בערך לרגיל.`] : []),
+  ...(DEAL_TALLY ? [`${DEAL_TALLY} „ההנחה” השאירה את המחיר ברמה הרגילה שהוא רשם, או מעליה.`] : []),
+  ...(dealRun ? [`במוצר שבסרטון: אותו מחיר כבר מ־${dealRun.since}, ${dealRun.readings} בקרים ברצף.`] : []),
   "",
   "מדביקים קישור בכפתור הקסם ורואים: מבצע אמיתי, או הנחה שמחזירה למחיר הרגיל.",
   "בחינם ובלי הרשמה: likelink2.vercel.app/magic",
@@ -317,5 +337,5 @@ const caption = DEAL ? [
   "#אליאקספרס #קניותברשת #טיפים #עליאקספרס #קניות",
 ].join("\n");
 writeFileSync(join(OUT, "caption.txt"), `${caption}\n`);
-writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: DEAL ? dealLink : LINK, mode: DEAL ? "deal" : "demo", tally: TALLY, query: DEAL ? null : QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
+writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: DEAL ? dealLink : LINK, mode: DEAL ? "deal" : "demo", tally: TALLY, sameSince: dealRun, query: DEAL ? null : QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
 console.log(`magic demo (${DEAL ? `deal ${dealLink}` : "demo"}): ${length.toFixed(1)} s, ${found ?? 0} search results, ${readdirSync(OUT).filter((f) => f.startsWith("frames-")).length} frames`);
