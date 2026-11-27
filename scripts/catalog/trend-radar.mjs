@@ -1454,6 +1454,10 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       // 🌍 Already searched in half the world's countries, or a buzz word in any of them: known, hidden.
       const world = known.unknown ? await phraseGap(phrase) : null;
       if (world?.state === "KNOWN") { counts.KNOWN_WORLD = (counts.KNOWN_WORLD || 0) + 1; continue; }
+      // Before the world, measured (the owner, 27.11: "focus only on the goal"): searched in three or
+      // more countries is already spreading, and a find the world gap did not read is never shown.
+      if (known.unknown && world?.state === "SPREADING") { counts.SPREADING_WORLD = (counts.SPREADING_WORLD || 0) + 1; continue; }
+      if (known.unknown && !world) { counts.WORLD_UNREAD = (counts.WORLD_UNREAD || 0) + 1; continue; }
       counts[known.reason] = (counts[known.reason] || 0) + 1;
       if (known.unknown) checked.push({ ...r, known: { phrase: known.phrase, similar: known.similar, yt, world } });
     }
@@ -1682,6 +1686,8 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const known = unknownCheck({ phrase: k.en, similar, suggestions });
       const world = known.unknown ? await phraseGap(k.en) : null;
       if (world?.state === "KNOWN") { kindCounts.KNOWN_WORLD = (kindCounts.KNOWN_WORLD || 0) + 1; continue; }
+      if (known.unknown && world?.state === "SPREADING") { kindCounts.SPREADING_WORLD = (kindCounts.SPREADING_WORLD || 0) + 1; continue; }
+      if (known.unknown && !world) { kindCounts.WORLD_UNREAD = (kindCounts.WORLD_UNREAD || 0) + 1; continue; }
       kindCounts[known.reason] = (kindCounts[known.reason] || 0) + 1;
       if (known.unknown) shownKinds.push({ ...k, known: { similar: known.similar, world } });
     }
@@ -1858,7 +1864,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // out. The record includes today's calls (they open here now, after the whole gate).
   board.callGate = { d: today, ...gateTally(gates) };
   board.record = trackRecord(calls);
-  log.push(`call gate: ${board.callGate.rising} kinds rising · called ${board.callGate.called} · kept out: ${["israel_arrived", "world_known", "buzz", "fading", "saturated", "noise", "unmeasured"].map((k) => `${k} ${board.callGate[k]}`).join(", ")} · out: ${gates.filter((g) => !g.ok && g.why !== "stage").slice(0, 10).map((g) => `${g.id} (${g.why})`).join(", ") || "none"}`);
+  log.push(`call gate: ${board.callGate.rising} kinds rising · called ${board.callGate.called} · kept out: ${["israel_arrived", "world_known", "world_spreading", "world_unmeasured", "buzz", "fading", "saturated", "noise", "unmeasured"].map((k) => `${k} ${board.callGate[k]}`).join(", ")} · out: ${gates.filter((g) => !g.ok && g.why !== "stage").slice(0, 10).map((g) => `${g.id} (${g.why})`).join(", ") || "none"}`);
   board.supply = supplyBoard(board.concepts);
   // 🧭 The path every trend walks (trendPath.js; the owner, 22.11: "check how every product that became
   // a trend started"): where each kind stands today — origin, community, crossing, rush, everyone — with

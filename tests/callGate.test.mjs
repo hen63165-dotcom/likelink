@@ -58,3 +58,15 @@ test("the morning's tally reaches the board, the reasons as counts", () => {
   assert.equal(board.concepts[0].gateWhy, "saturated");
   assert.equal(cleanGate({ d: "x" }), null);
 });
+
+test("before the world, measured (27.11): spreading in 3+ countries is kept out, an unread world waits", () => {
+  assert.equal(callGate({ ...early, worldGap: { state: "SPREADING" } }, sig()).why, "world_spreading");
+  assert.equal(callGate({ ...early, worldGap: { state: "UNMEASURED" } }, sig()).why, "world_unmeasured");
+  assert.equal(callGate({ ...early, worldGap: undefined }, sig()).why, "world_unmeasured", "a kind the sweep did not read is never called");
+  assert.deepEqual(callGate({ ...early, worldGap: { state: "WORLD_QUIET" } }, sig()), { ok: true, why: null });
+  assert.equal(keptOut({ gateWhy: "world_spreading" }), true, "kept off the brink and the radar's pick");
+  assert.equal(keptOut({ gateWhy: "world_unmeasured" }), false, "an unread world only waits");
+  const t = gateTally([{ ok: false, why: "world_spreading" }, { ok: false, why: "world_unmeasured" }]);
+  assert.equal(t.world_spreading, 1);
+  assert.equal(t.world_unmeasured, 1);
+});

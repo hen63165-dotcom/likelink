@@ -110,7 +110,7 @@ const dayOf = (t) => new Date(t).toISOString().slice(0, 10);
 export function radarCandidates(board) {
   return (Array.isArray(board?.concepts) ? board.concepts : [])
     // Never a kind the call gate kept out (callGate.js: known, arrived, saturated or fading).
-    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && beforeEveryone(c) && !["world_known", "buzz", "israel_arrived", "fading", "saturated"].includes(c.gateWhy))
+    .filter((c) => c && ID.test(String(c.id || "")) && Number(c.today?.orders) > 0 && beforeEveryone(c) && !["world_known", "world_spreading", "buzz", "israel_arrived", "fading", "saturated"].includes(c.gateWhy))
     .sort((a, b) => STAGE_RANK[b.stage] - STAGE_RANK[a.stage]
       || (Number(b.alpha?.score) || -1) - (Number(a.alpha?.score) || -1)
       || (Number(b.early?.count) || 0) - (Number(a.early?.count) || 0)

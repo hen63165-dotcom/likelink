@@ -1617,7 +1617,7 @@ function GoogleRace({ race }) {
 // 🚪 The gate's morning (callGate.js): how many kinds rose, how many were called, and why the others stayed out.
 function GateLine({ g }) {
   const { L } = useL();
-  const parts = [["israel_arrived", "כבר הגיעו לישראל", "already in Israel"], ["world_known", "כבר מוכרים בעולם", "already known in the world"], ["buzz", "כבר באזז בחו״ל", "already buzzing abroad"], ["fading", "דועכים", "fading"], ["saturated", "רוויים (יותר מ־2,000 מודעות)", "saturated (over 2,000 listings)"], ["noise", "עלייה שהרעש מסביר", "a rise the noise explains"], ["unmeasured", "בלי ספירת מודעות היום", "no listing count today"]].filter(([k]) => g[k] > 0);
+  const parts = [["israel_arrived", "כבר הגיעו לישראל", "already in Israel"], ["world_known", "כבר מוכרים בעולם", "already known in the world"], ["world_spreading", "כבר מחפשים אותם ב־3 מדינות ומעלה", "already searched in 3 or more countries"], ["world_unmeasured", "מחכים לקריאה מול העולם", "waiting for a world reading"], ["buzz", "כבר באזז בחו״ל", "already buzzing abroad"], ["fading", "דועכים", "fading"], ["saturated", "רוויים (יותר מ־2,000 מודעות)", "saturated (over 2,000 listings)"], ["noise", "עלייה שהרעש מסביר", "a rise the noise explains"], ["unmeasured", "בלי ספירת מודעות היום", "no listing count today"]].filter(([k]) => g[k] > 0);
   return (
     <section className="lx-wrap mt-6" id="gate">
       <div className="lx-card lx-rdr-panel p-5">

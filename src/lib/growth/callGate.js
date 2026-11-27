@@ -7,6 +7,8 @@
 //   • its demand is starting to rise or rising (EMERGING / RISING);
 //   • before everyone (radarPicks.beforeEveryone): the world still quiet, no TikTok / Amazon / Douyin /
 //     Korea echo, Israel not arrived, the world gap never KNOWN;
+//   • before the world, measured: the world gap read and WORLD_QUIET or FIRST_SIGNS (27.11; SPREADING
+//     — searched in three or more countries — is kept out, and an unread world waits);
 //   • not fading: its acceleration shield is never DECELERATING or DECLINING;
 //   • not saturated: the store's own count of its matching listings at or under the radar's line
 //     (2,000, saturation.js), and that count read today (an unread count is never "open");
@@ -18,7 +20,11 @@ import { growthOverDays } from "./freshRisers.js";
 import { SATURATION } from "./saturation.js";
 
 export const CALL_GATE = Object.freeze({ maxListings: SATURATION.maxSimilar, nullWeekPct: 10, p: 0.01 });
-export const GATE_REASONS = Object.freeze(["stage", "world_known", "buzz", "israel_arrived", "fading", "unmeasured", "saturated", "noise"]);
+export const GATE_REASONS = Object.freeze(["stage", "world_known", "world_spreading", "world_unmeasured", "buzz", "israel_arrived", "fading", "unmeasured", "saturated", "noise"]);
+// Before everyone in the world, measured (the owner, 27.11: "did you make sure it focuses only on the
+// goal?"): the world gap must have been read and show the kind in no more than two of its countries.
+// Searched in three or more is already spreading; a kind the sweep did not read waits for a reading.
+const BEFORE_THE_WORLD = new Set(["WORLD_QUIET", "FIRST_SIGNS"]);
 
 const QUIET_WORLD = new Set(["NONE", "EARLY", "SPREADING"]);
 const ISRAEL_NOT_YET = new Set(["GAP", "QUIET", "UNCERTAIN", "ARRIVING"]);
@@ -32,6 +38,8 @@ export function callGate(c, s, { rules = CALL_GATE } = {}) {
     if (!QUIET_WORLD.has(c.world?.state) || c.worldGap?.state === "KNOWN") return { ok: false, why: "world_known" };
     return { ok: false, why: "world_known" };
   }
+  if (c.worldGap?.state === "SPREADING") return { ok: false, why: "world_spreading" };
+  if (!BEFORE_THE_WORLD.has(c.worldGap?.state)) return { ok: false, why: "world_unmeasured" };
   if (c.accel?.cls === "DECELERATING" || c.accel?.cls === "DECLINING") return { ok: false, why: "fading" };
   if (!s?.ok || !Number.isFinite(s.listings)) return { ok: false, why: "unmeasured" };
   if (s.listings > rules.maxListings) return { ok: false, why: "saturated" };
@@ -42,7 +50,7 @@ export function callGate(c, s, { rules = CALL_GATE } = {}) {
 
 // What keeps a kind off every list the radar shows as rising, on the brink or born (the gate's own
 // reasons that mean "known, arrived, saturated or fading"; noise and an unread count only wait).
-export const KEPT_OUT = Object.freeze(["world_known", "buzz", "israel_arrived", "fading", "saturated"]);
+export const KEPT_OUT = Object.freeze(["world_known", "world_spreading", "buzz", "israel_arrived", "fading", "saturated"]);
 export const keptOut = (c) => KEPT_OUT.includes(c?.gateWhy);
 
 /** The browser's copy of the morning's tally. */
