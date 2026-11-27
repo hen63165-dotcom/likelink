@@ -33,7 +33,7 @@ import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
 import { SHOPS, SHOP_WORDS, mergeShopWords, mergeShops, nrdUrl, productVocab, risingShopWords, shopsOf, shopsToday, wordsToday } from "../../src/lib/growth/shopSignal.js";
 import { NEWS, mergeNews, newsBoard, newsQueue, newsUrl, parseTimeline } from "../../src/lib/growth/newsSignal.js";
-import { TRADE, US_TRADE, addCensusMonth, latestPeriod, monthBack, parseComext, probeUrl, tradeJumps, tradeUrl, usMonthUrl, usProbeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
+import { TRADE, UK_TRADE, US_TRADE, addCensusMonth, addHmrcMonth, latestPeriod, monthBack, parseComext, probeUrl, tradeJumps, tradeUrl, ukCountryUrl, ukLabelUrl, ukLabels, ukMonthUrl, ukNextLink, ukProbeUrl, usMonthUrl, usProbeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
 const SHOPS_BACK = 8; // daily lists read in one run when the state misses days
 import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
@@ -1246,6 +1246,85 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       }
     } else {
       log.push(`trade US: door ${door === "failed" ? "FAILED (the rules file could not be read)" : "ROBOTS_DISALLOW"}`);
+    }
+  }
+
+  // 🇬🇧 The same for the United Kingdom (tradeSignal.js UK_TRADE; the owner, 27.11: "a much more genius
+  // way around US customs"): HMRC's open Overseas Trade Statistics API, no key, Open Government Licence.
+  // A probe finds the newest published month; the partners are read again only when it changes.
+  if (env.RADAR_TRADE !== "0" && !late("trade", 120_000)) {
+    let uk = readJson(join(dir, "trade-uk.json"), null);
+    let door = "failed";
+    try {
+      const r = await getRobots(`${UK_TRADE.host}/robots.txt`, fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, UK_TRADE.path) : "failed";
+    } catch { /* counted by the meter */ }
+    sources.tradeUk = door === true || door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
+    const getUk = async (url, ms = 90_000) => {
+      if (!url) return null;
+      const res = await fetchImpl(url, { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(ms) });
+      if (res.status !== 200) return null;
+      try { return await res.json(); } catch { return null; }
+    };
+    if (door === true) {
+      let latest = null;
+      for (let back = 1; back <= 4 && !latest; back++) {
+        const month = monthBack(today.slice(0, 7), back);
+        try {
+          const res = await fetchImpl(ukProbeUrl(month), { headers: { "user-agent": UA, accept: "text/plain" }, signal: AbortSignal.timeout(60_000) });
+          if (res.status === 200 && Number((await res.text()).trim()) > 0) latest = month;
+        } catch { /* counted */ }
+        await pause(politeMs);
+      }
+      if (latest && (!uk || uk.latest !== latest || (uk.partners || []).length < UK_TRADE.partners.length)) {
+        const { now, before } = windowsOf(latest, { rules: UK_TRADE });
+        const partners = [];
+        for (const id of UK_TRADE.partners) {
+          if (late("trade", 60_000)) break;
+          let country = null;
+          try { country = (await getUk(ukCountryUrl(id)))?.value?.[0]?.CountryId ?? null; } catch { country = null; }
+          if (!Number.isInteger(country)) continue;
+          const lines = new Map();
+          let months = 0;
+          for (const m of [...now, ...before]) {
+            try {
+              let url = ukMonthUrl(country, m);
+              let ok = false;
+              for (let page = 0; url && page < UK_TRADE.pages; page++) {
+                const json = await getUk(url);
+                if (!json) { ok = false; break; }
+                addHmrcMonth(json, m, lines);
+                ok = true;
+                url = ukNextLink(json);
+                await pause(politeMs);
+              }
+              if (ok) months++;
+            } catch { /* counted */ }
+          }
+          if (months < now.length + before.length) continue; // shown only with all six months read
+          const jumps = tradeJumps({ lines }, latest, { rules: UK_TRADE });
+          if (jumps) { partners.push({ id, ...jumps }); keep(meter, "tradeUk", jumps.measured); }
+        }
+        // The customs' own words for the lines shown (20 a request).
+        const codes = [...new Set(partners.flatMap((p) => p.top.map((r) => r.code)))];
+        const labels = new Map();
+        for (let i = 0; i < codes.length; i += 20) {
+          try { for (const [k, v] of ukLabels(await getUk(ukLabelUrl(codes.slice(i, i + 20))))) labels.set(k, v); } catch { /* the code stays */ }
+          await pause(politeMs);
+        }
+        for (const p of partners) for (const r of p.top) r.label = labels.get(r.code) || r.label || "";
+        if (partners.length) uk = { reporter: "UK", latest, updated: null, read: today, months: now, partners };
+      }
+      if (uk && uk.latest) {
+        writeFileSync(join(dir, "trade-uk.json"), JSON.stringify(uk));
+        board.tradeUk = uk;
+        sources.tradeUk = "OK";
+        log.push(`trade UK: HMRC, ${(uk.months || []).join(",")} against a year earlier (read ${uk.read}) · ${uk.partners.map((p) => `${p.id} ${p.measured} lines, ${p.jumping} doubled (renamed ${p.renamed}, price only ${p.priceOnly})`).join(" · ")} · top ${uk.partners.flatMap((p) => p.top.slice(0, 2).map((r) => `${p.id} ${r.code} +${r.valuePct}%`)).join(", ")}`);
+      } else {
+        log.push(`trade UK: no HMRC answer (newest month ${latest || "not found"})`);
+      }
+    } else {
+      log.push(`trade UK: door ${door === "failed" ? "FAILED (the rules file could not be read)" : "ROBOTS_DISALLOW"}`);
     }
   }
 

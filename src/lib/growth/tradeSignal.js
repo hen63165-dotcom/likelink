@@ -90,6 +90,78 @@ export function addCensusMonth(rows, month, lines = new Map(), { rules = US_TRAD
   return lines;
 }
 
+// 🇬🇧 The same question asked of the United Kingdom (the owner, 27.11: "a much more genius way around
+// US customs"): while the US door waits for its free key, HMRC's Overseas Trade Statistics API is open —
+// no key, no header, no account — and published under the Open Government Licence v3.0 (commercial use
+// allowed). Every eight-digit CN line imported from each non-EU country (flow 3), its value in pounds and
+// its net mass in kg, per month, summed over the ports by the API itself (OData $apply). robots.txt of
+// api.uktradeinfo.com answers 404 (no rule; checked from a runner on 27.11, when September 2026 held
+// 535,396 rows). The same rule as the EU and the US.
+export const UK_TRADE = Object.freeze({
+  host: "https://api.uktradeinfo.com",
+  path: "/OTS",
+  partners: Object.freeze(["CN", "KR", "JP", "VN", "TW", "IN", "TR"]),
+  flow: 3, // Non-EU imports
+  months: 3,
+  minValue: 2_000_000, // £ in the three months
+  minPrev: 200_000,
+  jumpPct: 100,
+  weightPct: 50,
+  top: 10,
+  labelMax: 160,
+  pages: 6, // @odata.nextLink pages followed per request
+});
+const q = (s) => s.replace(/ /g, "%20");
+/** HMRC's month id ("2026-09" → 202609). */
+export const ukMonthId = (ym) => (MONTH.test(String(ym || "")) ? Number(String(ym).replace("-", "")) : null);
+/** HMRC's own id of a country, by its two letters. */
+export const ukCountryUrl = (alpha, { rules = UK_TRADE } = {}) => (/^[A-Z]{2}$/.test(String(alpha || "")) ? `${rules.host}/Country?${q(`$filter=CountryCodeAlpha eq '${alpha}'`)}` : null);
+/** How many rows a month holds (0 = not published yet). */
+export const ukProbeUrl = (ym, { rules = UK_TRADE } = {}) => (ukMonthId(ym) ? `${rules.host}${rules.path}/$count?${q(`$filter=MonthId eq ${ukMonthId(ym)}`)}` : null);
+/** One partner's month, every commodity summed over the ports. */
+export function ukMonthUrl(countryId, ym, { rules = UK_TRADE } = {}) {
+  const id = ukMonthId(ym);
+  if (!id || !Number.isInteger(Number(countryId))) return null;
+  return `${rules.host}${rules.path}?${q(`$apply=filter(MonthId eq ${id} and CountryId eq ${Number(countryId)} and FlowTypeId eq ${rules.flow})/groupby((CommodityId),aggregate(Value with sum as Value,NetMass with sum as NetMass))`)}`;
+}
+/** The customs' own words for up to 20 lines. */
+export function ukLabelUrl(codes = [], { rules = UK_TRADE } = {}) {
+  const ids = [...new Set(codes.filter((c) => /^\d{8}$/.test(String(c))))].slice(0, 20);
+  return ids.length ? `${rules.host}/Commodity?${q(`$filter=${ids.map((c) => `CommodityId eq ${Number(c)}`).join(" or ")}&$select=CommodityId,Cn8Code,Cn8LongDescription,Hs6Description`)}` : null;
+}
+/** HMRC's commodity rows → Map code → label (the CN8 description, else the HS6 one). */
+export function ukLabels(json, { rules = UK_TRADE } = {}) {
+  const out = new Map();
+  for (const r of Array.isArray(json?.value) ? json.value : []) {
+    const code = String(r?.Cn8Code || "");
+    if (!/^\d{8}$/.test(code)) continue;
+    const label = [r.Cn8LongDescription, r.Hs6Description].map((x) => String(x || "").trim()).find((x) => x && x !== "-") || "";
+    out.set(code, label.replace(/[<>]/g, "").slice(0, rules.labelMax));
+  }
+  return out;
+}
+/** One partner's month from HMRC ({ value: [{ CommodityId, Value, NetMass }] }) → added into `lines`. CN8 lines only. */
+export function addHmrcMonth(json, month, lines = new Map()) {
+  if (!Array.isArray(json?.value) || !MONTH.test(String(month || ""))) return lines;
+  for (const r of json.value) {
+    const code = String(r?.CommodityId ?? "");
+    if (!/^\d{8}$/.test(code)) continue; // chapter and heading totals (05, 9503…) are never a line
+    const v = Number(r.Value);
+    if (!Number.isFinite(v)) continue;
+    const kg = Number(r.NetMass);
+    const line = lines.get(code) || { label: "", v: {}, kg: {} };
+    line.v[month] = (line.v[month] || 0) + v;
+    if (Number.isFinite(kg) && kg > 0) line.kg[month] = (line.kg[month] || 0) + kg;
+    lines.set(code, line);
+  }
+  return lines;
+}
+/** The next page HMRC names, only on its own host. */
+export function ukNextLink(json, { rules = UK_TRADE } = {}) {
+  const u = String(json?.["@odata.nextLink"] || "");
+  return u.startsWith(`${rules.host}/`) ? u : null;
+}
+
 export const PARTNER_NAMES = Object.freeze({
   CN: { he: "סין", en: "China" }, KR: { he: "קוריאה", en: "Korea" }, JP: { he: "יפן", en: "Japan" },
   VN: { he: "וייטנאם", en: "Vietnam" }, TW: { he: "טייוואן", en: "Taiwan" }, IN: { he: "הודו", en: "India" },
@@ -199,5 +271,5 @@ export function cleanTrade(t) {
       value: n(r.value), prev: n(r.prev), valuePct: n(r.valuePct, 1e6), kgPct: n(r.kgPct, 1e6),
     })),
   }));
-  return { latest: t.latest, updated: typeof t.updated === "string" ? t.updated.slice(0, 25) : null, months: (t.months || []).filter((m) => MONTH.test(m)).slice(0, 6), partners, reporter: t.reporter === "US" ? "US" : "EU" };
+  return { latest: t.latest, updated: typeof t.updated === "string" ? t.updated.slice(0, 25) : null, months: (t.months || []).filter((m) => MONTH.test(m)).slice(0, 6), partners, reporter: ["US", "UK"].includes(t.reporter) ? t.reporter : "EU" };
 }

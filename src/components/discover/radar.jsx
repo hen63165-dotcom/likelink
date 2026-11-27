@@ -987,7 +987,31 @@ function Trade({ t }) {
   const rows = (t.partners || []).flatMap((p) => p.top.map((r) => ({ ...r, partner: p.id })));
   const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
   const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
-  const eur = (x) => `${us ? "$" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  const uk = t.reporter === "UK";
+  const eur = (x) => `${us ? "$" : uk ? "£" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  if (uk) {
+    return (
+      <section className="lx-wrap mt-8" id="trade-uk">
+        <div className="lx-card lx-rdr-panel p-5">
+          <h2 className="text-[22px] font-black">{L("🇬🇧 מה המפעלים שולחים יותר לבריטניה", "🇬🇧 What the factories ship more of to the UK")}</h2>
+          <p className="mt-1 text-[14px] leading-6">{L(`כל מוצר שנכנס לבריטניה מוצהר במכס, ורשות המסים הבריטית מפרסמת את הנתונים לכולם, בלי מפתח ובלי הרשמה, ברישיון ממשלתי פתוח. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם במשקל).`, `Every product entering the UK is declared at customs, and HMRC publishes the records to all, with no key or sign-up, under the Open Government Licence. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the shipments at least doubled (${span} against the same months a year earlier, in value and in weight).`)}</p>
+          {rows.length ? (
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
+              {rows.sort((a, b) => b.valuePct - a.valuePct).slice(0, 12).map((r) => (
+                <li key={`${r.partner}-${r.code}`} className="lx-card lx-rdr-item p-3">
+                  <p className="text-[13px] font-bold">{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד מכס ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · customs line ${r.code}`)}</p>
+                  {r.label ? <p className="mt-1 text-[14px]" dir="ltr" style={{ textAlign: "start" }}>{r.label}</p> : null}
+                  <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`+${r.valuePct}% בשווי${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% במשקל` : ""}`, `+${r.valuePct}% in value${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% in weight` : ""}`)}</p>
+                  <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${eur(r.prev)} ← ${eur(r.value)} בשלושה חודשים`, `${eur(r.prev)} → ${eur(r.value)} in three months`)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-2 text-[14px]">{L("החודש המשלוחים יציבים: עוד שקט.", "This month the shipments are steady: still quiet.")}</p>}
+          <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("התיאור הוא המילים של המכס הבריטי עצמו. כל אחד יכול לבדוק את אותו קוד באתר הנתונים של רשות המסים הבריטית.", "The description is UK customs' own words. Anyone can check the same line on HMRC's trade data site.")} <a className="underline" href="https://www.uktradeinfo.com/" target="_blank" rel="noopener noreferrer">uktradeinfo</a></p>
+        </div>
+      </section>
+    );
+  }
   if (us) {
     return (
       <section className="lx-wrap mt-8" id="trade-us">
@@ -2740,6 +2764,7 @@ export function RadarPage() {
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
         {board?.tradeUs?.partners?.length ? <Trade t={board.tradeUs} /> : null}
+        {board?.tradeUk?.partners?.length ? <Trade t={board.tradeUk} /> : null}
         {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}

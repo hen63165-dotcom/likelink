@@ -291,6 +291,7 @@ export const SOURCES = Object.freeze([
   { key: "hauls", he: "יוטיוב: סרטוני הקניות של הבלוגרים הראשונים", en: "YouTube: the first creators' haul videos", door: "YouTube Data API (מפתח חינמי)" },
   { key: "shops", he: "חנויות חדשות שנפתחות בעולם, לפי שמות האתרים", en: "New shops opening worldwide, by their domain names", door: "רשימה ציבורית חינמית של דומיינים חדשים" },
   { key: "trade", he: "מה המפעלים שולחים: נתוני המכס של אירופה, לכל סוג מוצר", en: "What the factories ship: EU customs records, every product line", door: "Eurostat, נתונים פתוחים רשמיים (בלי מפתח)" },
+  { key: "tradeUk", he: "מה המפעלים שולחים לבריטניה: נתוני המכס הבריטי, לכל סוג מוצר", en: "What the factories ship to the UK: UK customs records, every product line", door: "HMRC, נתונים פתוחים רשמיים (בלי מפתח, רישיון ממשלתי פתוח)" },
   { key: "tradeUs", he: "מה המפעלים שולחים לארה״ב: נתוני המכס האמריקאי, לכל סוג מוצר", en: "What the factories ship to the US: US customs records, every product line", door: "Census Bureau API (מפתח חינמי של בעלת האתר)" },
   { key: "news", he: "מי אמר ראשון: הרדאר או החדשות בעולם", en: "Who said it first: the radar or the world's news", door: "GDELT, מאגר חדשות פתוח (בלי מפתח)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
