@@ -149,3 +149,10 @@ test("a brand's name, an unlisted kind or a wholesale lot never enters the pool;
   assert.equal(clean.live[0].brand, true);
   assert.equal(clean.live.length, 1, "kept in the record");
 });
+
+test("the brand words read in Hebrew too (the store answers the magic button in Hebrew)", async () => {
+  const { hasBrandName } = await import("../src/lib/growth/deals.js");
+  assert.ok(hasBrandName("סווטשירט קז'ואל עם קפוצ'ון, קולקציית סתיו-חורף 2026 של ריבוק"));
+  assert.ok(hasBrandName("מגן מסך מט לקינדל בייסיק"));
+  assert.ok(!hasBrandName("סווטשירט קז'ואל עם קפוצ'ון ועיצוב טלאים"));
+});
