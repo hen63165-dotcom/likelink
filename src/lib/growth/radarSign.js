@@ -2,9 +2,10 @@
 // not by the strongest programmer or the cleverest hacker in the world").
 // The code is public and can be copied; the radar's word cannot. Bitcoin already proves WHEN a root
 // existed (OpenTimestamps, radarLedger.js); this proves WHO said it: every morning the run signs
-// `likelink2-radar|root|v1|<day>|<root sha256>` with an Ed25519 key that exists only on the runner
-// (derived there from the run's own machine secret, never stored, never logged — scripts/catalog/
-// radar-signer.mjs), and only its public key is published (radarKey.js, /radar-key.json). A copy of
+// `likelink2-radar|root|v1|<day>|<root sha256>` with an Ed25519 key whose random seed exists only in
+// the radar's encrypted state (made once by the first main run, never uploaded in the clear, never
+// logged — scripts/catalog/radar-signer.mjs), and only its public key is published (radarKey.js,
+// /radar-key.json). Only main runs sign (a branch board is a preview). A copy of
 // the code makes another key; a copy of the board cannot be signed again under this one; a copied
 // root sealed later in Bitcoin loses to the earlier seal. Anyone checks it in their own browser
 // (Web Crypto) with nothing to trust but the published key. Pure; browser-safe; tested.

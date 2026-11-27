@@ -113,7 +113,7 @@ import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pintere
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
-import { radarSigner } from "./radar-signer.mjs";
+import { KEY_FILE, newSigningKey, radarSigner } from "./radar-signer.mjs";
 import { RADAR_KEY } from "../../src/lib/growth/radarKey.js";
 import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
 import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, distinctPhrase, phraseCounts, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
@@ -2466,13 +2466,21 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
-    // ✍️ Who said it (radarSign.js): the root signed with the radar's own key, made here from the
-    // machine secret and never kept; only the key's id and public half are printed.
-    const signer = env.RADAR_SIGN === "0" ? null : radarSigner(env.AUTOPILOT_SECRET);
-    if (signer) {
-      board.ledger.sig = signer.signRoot(board.ledger.d, board.ledger.sha256);
-      log.push(`radar key ${signer.kid}: ${signer.pub} · the ${board.ledger.d} root signed${RADAR_KEY?.kid === signer.kid ? " (the published key)" : RADAR_KEY ? ` (published key ${RADAR_KEY.kid} differs)` : " (key not yet published)"}`);
-    } else log.push("radar key: no machine secret on this run, the root is unsigned");
+    // ✍️ Who said it (radarSign.js): the root signed with the radar's own key, a random seed kept
+    // only in the encrypted state (radar-signer.mjs). Only main signs: a branch board is a preview.
+    // Only the key's id and public half are printed.
+    if (env.RADAR_SIGN !== "0" && env.GITHUB_REF === "refs/heads/main") {
+      let keyDoc = readJson(join(dir, KEY_FILE), null);
+      if (!keyDoc) {
+        keyDoc = newSigningKey(today);
+        writeFileSync(join(dir, KEY_FILE), JSON.stringify(keyDoc));
+      }
+      const signer = radarSigner(keyDoc);
+      if (signer) {
+        board.ledger.sig = signer.signRoot(board.ledger.d, board.ledger.sha256);
+        log.push(`radar key ${signer.kid}: ${signer.pub} (since ${keyDoc.since}) · the ${board.ledger.d} root signed${RADAR_KEY?.kid === signer.kid ? " (the published key)" : RADAR_KEY ? ` (published key ${RADAR_KEY.kid} differs)` : " (key not yet published)"}`);
+      } else log.push("radar key: the stored key is not whole, the root is unsigned");
+    } else log.push("radar key: only a main run signs the root");
   }
   // ⛓️ From sealed to anchored (otsUpgrade.js; the owner, 20.11): every day's ledger root keeps its
   // proofs in roots.json; each run asks the calendars for the rest of the path of the days not yet
