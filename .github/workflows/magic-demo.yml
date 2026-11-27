@@ -11,6 +11,15 @@ on:
         description: "The plain page (no captions, no bar, no end card), for a 3D studio reel's proof shots"
         type: boolean
         default: false
+      mode:
+        description: "demo = the magic button tour; deal = the Black Friday cut (a recorded price whose 'sale' only undoes a raise)"
+        type: choice
+        options: [demo, deal]
+        default: demo
+      links:
+        description: "deal mode: candidate AliExpress item pages, comma separated; the first the live page answers RAISED for is recorded"
+        type: string
+        default: ""
 permissions:
   contents: write
 concurrency:
@@ -41,8 +50,11 @@ jobs:
           PLAYWRIGHT_MODULE: /tmp/pw/node_modules/playwright
           MAGIC_BED: ${{ runner.temp }}/bed.m4a
           MAGIC_CLEAN: ${{ inputs.clean && '1' || '' }}
+          MAGIC_MODE: ${{ inputs.mode }}
+          MAGIC_LINKS: ${{ inputs.links }}
         run: node scripts/marketing/magic-demo.mjs magic-demo
       - name: → the "magic-demo" pre-release (not the site)
+        if: inputs.mode != 'deal'
         run: |
           gh release view magic-demo >/dev/null 2>&1 || gh release create magic-demo --prerelease --title "Magic button demo (not on the site)" --notes "A real recording of the live /magic page, for Reels and TikTok. Nothing is posted from here."
           if [ -f magic-demo/run-clean.json ]; then
@@ -50,3 +62,8 @@ jobs:
           else
             gh release upload magic-demo magic-demo/magic-demo.mp4 magic-demo/cover.jpg magic-demo/caption.txt magic-demo/run.json magic-demo/frames-*.jpg --clobber
           fi
+      - name: → the "magic-deal" pre-release (not the site)
+        if: inputs.mode == 'deal'
+        run: |
+          gh release view magic-deal >/dev/null 2>&1 || gh release create magic-deal --prerelease --title "Real-sale check reel (not on the site)" --notes "A real recording of the live /magic page answering a recorded price. Nothing is posted from here."
+          gh release upload magic-deal magic-demo/magic-demo.mp4 magic-demo/cover.jpg magic-demo/caption.txt magic-demo/run.json magic-demo/frames-*.jpg --clobber
