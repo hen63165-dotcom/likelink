@@ -104,6 +104,7 @@ import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice }
 import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
 import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
 import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
+import { TAKEOFF, gradeTakeoff, recordTakeoff, takeoffOpenIds, takeoffOrders, takeoffPool, takeoffRecord, takeoffSealText, takeoffSheet } from "../../src/lib/growth/radarTakeoff.js";
 import { NOISE, keyOf as noiseKey, candidates as noiseCandidates, controlPool as noiseControls, doorSignals, mergeSignals as mergeNoise, noiseBoard, noiseQueue, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls } from "../../src/lib/growth/beforeNoise.js";
 import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, prelaunchBoard, prelaunchEntry, prelaunchSealText, prunePrelaunch, recordWaveCalls, waveDueQueue, waveSkip } from "../../src/lib/growth/listingWave.js";
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
@@ -1474,7 +1475,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   let baseState = readJson(join(dir, "baseline.json"), { naive: [], random: [] });
   if (store) {
     const openFresh = readJson(join(dir, "fresh-calls.json"), []).filter((c) => !c.result && /^\d{6,20}$/.test(String(c.id))).map((c) => String(c.id));
-    const ids = [...new Set([...openFresh, ...baselineOpenIds(baseState), ...versusDueIds(readJson(join(dir, "versus.json"), {}), today)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 360);
+    const ids = [...new Set([...openFresh, ...takeoffOpenIds(readJson(join(dir, "takeoff.json"), {})), ...baselineOpenIds(baseState), ...versusDueIds(readJson(join(dir, "versus.json"), {}), today)])].filter((id) => (items[id] || []).at(-1)?.[0] !== today).slice(0, 480);
     let read = 0;
     for (let i = 0; i < ids.length; i += 20) {
       try {
@@ -1928,6 +1929,54 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       log.push(`versus: ${todays ? `sheet sealed for ${today} (${todays.pool.length} items in the sample, ${Object.values(todays.picks).map((p) => Object.entries(p).map(([c, l]) => `${c} ${l.length}`).join("/")).join(" | ")})` : "no sheet today (too few measured items)"} · ${board.versus.horizons.map((x) => `${x.h}d: ${x.days} days graded${x.days ? ` · the radar's pick ${x.pick.rate}% · learning ${x.learn.rate}% · noise-checked ${x.radar.rate}% · ranking ${x.rank.rate}% · random ${x.random.rate}%` : ""} · next grade ${x.nextDue || "-"}`).join(" | ")}`);
     } catch (err) { log.push(`versus: ${String(err?.message || err).slice(0, 120)}`); }
   }
+  // 🚀 The takeoff (radarTakeoff.js; the owner, 27.11: "something nobody has heard of, the next hit,
+  // live proof"): from this year's new listings still under 300 orders, the radar's pick (the growth
+  // that beats the counting noise, kept only when nobody has heard of it), the simple ranking's and a
+  // random pick, five each, sealed every morning and graded by the store's own orders after 7 days
+  // (a takeoff = the 30-day orders at least doubled). Every pick is read again by its item number
+  // each morning (the open-calls re-read above), so the scoreboard is live.
+  if (env.RADAR_TAKEOFF !== "0" && !late("takeoff", 120_000)) {
+    try {
+      let to = gradeTakeoff(readJson(join(dir, "takeoff.json"), {}), items, today);
+      let checked = 0;
+      if (!to.days?.[today] && store) {
+        const pool = takeoffPool(freshPool, items, today);
+        const df = phraseCounts(Object.values(freshPool || {}).map((x) => x?.title));
+        const checks = {};
+        const e = aeEnv(env);
+        let found = 0;
+        for (const x of takeoffOrders(pool, today).radar) {
+          if (found >= TAKEOFF.k || checked >= TAKEOFF.scan || late("takeoff-check", 60_000)) break;
+          const phrase = distinctPhrase(x.title, df);
+          if (!phrase) continue;
+          checked++;
+          let similar = null;
+          let suggestions = null;
+          try {
+            const res = await aeCall(SEARCH, { keywords: phrase, tracking_id: e.ALIEXPRESS_TRACKING_ID, target_currency: "ILS", target_language: "EN", ship_to_country: "IL", page_size: "1" }, { env: e, fetchImpl, now });
+            const rr = res?.aliexpress_affiliate_product_query_response?.resp_result;
+            if (Number(rr?.resp_code) === 200) similar = Number(rr.result?.total_record_count);
+          } catch { /* not read → not picked */ }
+          if (sources.suggest === "OK") {
+            try { suggestions = await suggestList(phrase, { hl: "en", gl: "us" }, fetchImpl); } catch { suggestions = null; }
+            await pause(politeMs);
+          }
+          if (Number.isFinite(similar)) phraseReads[phrase] = similar;
+          checks[x.id] = unknownCheck({ phrase, similar, suggestions });
+          if (checks[x.id].unknown) found++;
+        }
+        to = recordTakeoff(to, takeoffSheet(pool, today, checks), today);
+        log.push(`takeoff: ${pool.length} small new listings (${TAKEOFF.minO}–${TAKEOFF.maxO} orders) · ${checked} checked for nobody-heard-of-it · ${found} picked`);
+      } else to = recordTakeoff(to, null, today);
+      writeFileSync(join(dir, "takeoff.json"), JSON.stringify(to));
+      const todays = to.days?.[today] || null;
+      const text = takeoffSealText(todays);
+      board.takeoff = { ...takeoffRecord(to, items, today), today: todays ? today : null };
+      if (text) board.takeoff.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.takeoff?.seal, "takeoff");
+      const t = board.takeoff;
+      log.push(`takeoff: ${todays ? `sheet sealed for ${today} (radar ${todays.picks.radar.length}, rank ${todays.picks.rank.length}, random ${todays.picks.random.length})` : "no sheet today"} · graded sheets ${t.graded}${t.graded ? ` · doubled: radar ${t.radar.hits}/${t.radar.of}, ranking ${t.rank.hits}/${t.rank.of}, random ${t.random.hits}/${t.random.of}` : ""} · next grade ${t.nextDue || "-"}`);
+    } catch (err) { log.push(`takeoff: ${String(err?.message || err).slice(0, 120)}`); }
+  }
   // 🏭 Before the first sale (listingWave.js; the owner, 26.11: "long before everyone, including the
   // factories, before sales, before everything"): the store's newest listings nobody has bought yet,
   // per area and a rotation of world categories, each with its store's id. A phrase many different
@@ -2191,7 +2240,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     board.sourceHealth = healthOf(healthHist, { now });
     log.push(`receipt (sha256 ${board.receipt.seal?.sha256?.slice(0, 12) || "-"}):\n${text}`);
   }
-  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, noise: board.noise?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
+  const rootText = ledgerText({ run: board.receipt?.seal?.sha256, early: board.early?.seal?.sha256, stages: board.stagesSeal?.sha256, luck: board.luck?.seal?.sha256, baseline: board.baseline?.seal?.sha256, versus: board.versus?.seal?.sha256, takeoff: board.takeoff?.seal?.sha256, fresh: board.fresh?.seal?.sha256, kinds: board.kinds?.seal?.sha256, prelaunch: board.prelaunch?.seal?.sha256, noise: board.noise?.seal?.sha256, supply: board.supply?.seal?.sha256, brain: board.brain?.seal?.sha256, promise: board.promise?.seal?.sha256, window: board.window?.seal?.sha256, globe: board.globe?.seal?.sha256, prices: prices ? readJson(join(dir, "price-seals.json"), {})[today]?.sha256 : null });
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);

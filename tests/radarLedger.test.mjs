@@ -38,7 +38,7 @@ test("one root over every sealed book, in a fixed order; anyone can read it back
   assert.equal(ledgerText({ early: "not-a-hash" }), null);
   assert.equal(ledgerText({}), null);
   // 21.11: the run receipt (runReceipt.js) joined as the last book, so the order of every earlier book is kept.
-  assert.deepEqual(LEDGER_BOOKS, ["early", "stages", "luck", "baseline", "versus", "fresh", "kinds", "prelaunch", "noise", "supply", "brain", "promise", "window", "globe", "prices", "run"]);
+  assert.deepEqual(LEDGER_BOOKS, ["early", "stages", "luck", "baseline", "versus", "takeoff", "fresh", "kinds", "prelaunch", "noise", "supply", "brain", "promise", "window", "globe", "prices", "run"]);
   assert.deepEqual(ledgerText({ fresh: sha("f"), stages: sha("s"), early: sha("e") }).split("\n").map((l) => l.split("=")[0]), ["early", "stages", "fresh"]);
 });
 

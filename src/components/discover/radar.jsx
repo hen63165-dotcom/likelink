@@ -19,6 +19,7 @@ import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SEC
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
 import { OPEN_FILES, datasetCard } from "../../lib/growth/radarDataset.js";
+import { TAKEOFF_LAB } from "../../lib/growth/radarTakeoff.js";
 import { PRICES_HOME } from "../../lib/growth/realDeal.js";
 import { CONTACT_EMAIL } from "../../constants/contact.js";
 import { recomputeCases } from "../../lib/growth/radarBacktest.js";
@@ -1085,6 +1086,63 @@ function SupplyList({ board }) {
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 🚀 The takeoff (src/lib/growth/radarTakeoff.js; the owner, 27.11: "the next hit, nobody has heard of
+ * it, live proof"): every morning five small new listings nobody has heard of, sealed in advance with
+ * the simple ranking's five and five drawn by chance; after 7 days the store's own orders say which
+ * doubled. The scoreboard is live: each pick's orders since its seal, read again every morning.
+ */
+function Takeoff({ t, gated = false }) {
+  const { L } = useL();
+  if (!t) return null;
+  const lab = TAKEOFF_LAB;
+  const live = t.live || [];
+  const open = live.filter((x) => x.open);
+  const done = live.filter((x) => !x.open);
+  return (
+    <section className="lx-wrap mt-8" id="takeoff">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[22px] font-black">{L("🚀 ההמראה: הלהיט הבא, חתום מראש", "🚀 The takeoff: the next hit, sealed in advance")}</h2>
+        <p className="mt-1 text-[15px] leading-7">{L("כל בוקר הרדאר בוחר 5 מוצרים חדשים וקטנים, לפני שמישהו שמע עליהם, וחותם אותם בביטקוין. אחרי 7 ימים בודקים בפומבי אם ההזמנות שלהם הוכפלו.", "Every morning the radar picks 5 small new products nobody has heard of yet and seals them in Bitcoin. After 7 days, in public: did their orders double.")}</p>
+        <p className="mt-2 rounded-2xl p-3 text-[14px] font-bold leading-6" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🔁 הבדיקה שבחרה את הכלל, על ההיסטוריה של הרדאר: ב־${dm(lab.day)}, מתוך ${lab.pool.toLocaleString("he-IL")} מוצרים חדשים וקטנים, רק ${lab.doubled} הכפילו את ההזמנות שלהם בשבוע. ה־${lab.k} שהכלל הזה בחר כללו את כל ה־${lab.caught}. בחירה אקראית של ${lab.k} הייתה תופסת בממוצע פחות מאחד. זו בדיקה לאחור של יום אחד, ולכן מהיום כל בוקר נחתם מראש והרקורד יחליט.`, `🔁 The check that chose the rule, on the radar's history: on ${dm(lab.day)}, of ${lab.pool.toLocaleString("en-US")} small new products, only ${lab.doubled} doubled their orders in a week. The ${lab.k} this rule picked held all ${lab.caught}. A random ${lab.k} would catch less than one on average. A look back of one day, so from today every morning is sealed in advance and the record decides.`)}</p>
+        <details className="lx-rdr-how mt-1">
+          <summary>{L("איך הרדאר בוחר", "How the radar picks")}</summary>
+          <p className="mt-2 text-[13px] leading-6">{L("מתוך המודעות החדשות של השנה שעוד קטנות (10 עד 300 הזמנות ב־30 יום), הרדאר מסדר לפי הצמיחה שגוברת על הרעש של ספירה קטנה, ושומר רק מוצר שעוד שקט סביבו: פחות מ־2,000 מודעות בשם הכי מדויק שלו, ובגוגל בארה״ב עוד שקט סביב ״טיקטוק״, ״ויראלי״ ו״אמזון״. לידו נחתמים 5 המוצרים שהכי צמחו בשבוע (הדירוג הפשוט) ו־5 בהגרלה, מאותה רשימה. ״המראה״ = ההזמנות של 30 יום לפחות הוכפלו תוך 7 ימים. הציון נשאר כמו שהוא, גם כשהוא החטאה.", "From this year's new listings that are still small (10 to 300 orders in 30 days), the radar orders by the growth that beats the counting noise and keeps only a product nobody has heard of: under 2,000 listings by its most specific name and quiet around 'tiktok', 'viral' and 'amazon' in Google's US suggestions. Beside it, the 5 fastest-growing of the week (the simple ranking) and 5 drawn by chance, from the same list, are sealed. A takeoff = the 30-day orders at least doubled within 7 days. A grade never changes, misses included.")}</p>
+        </details>
+        <p className="mt-2 text-[13px] font-bold">{t.graded ? L(`📏 הציון בפומבי (${t.graded} בקרים נבדקו): הוכפלו אצל הרדאר ${t.radar.hits} מתוך ${t.radar.of} · הדירוג הפשוט ${t.rank.hits} מתוך ${t.rank.of} · הגרלה ${t.random.hits} מתוך ${t.random.of}.`, `📏 Public grade (${t.graded} mornings graded): doubled — the radar ${t.radar.hits} of ${t.radar.of} · the simple ranking ${t.rank.hits} of ${t.rank.of} · chance ${t.random.hits} of ${t.random.of}.`) : t.sheets ? L(`📏 ${t.sheets} בקרים חתומים. הציון הראשון ב־${dm(t.nextDue)}, בבוקר.`, `📏 ${t.sheets} mornings sealed. The first grade on ${dm(t.nextDue)}, in the morning.`) : L("📏 הבוקר הראשון ייחתם בריצה הבאה של הרדאר.", "📏 The first morning is sealed at the radar's next run.")}</p>
+        {gated && t.openCount ? <p className="mt-2 text-[14px] font-bold">{L(`✉️ ${t.openCount} מוצרים חתומים מחכים לפתיחה ביום הציון.`, `✉️ ${t.openCount} sealed products wait to be opened on their grading day.`)}</p> : null}
+        {!gated && open.length ? (
+          <>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("#פרסומת · כפתור החנות הוא קישור שותפים", "#ad · the store button is an affiliate link")}</p>
+            <ul className="mt-3 grid gap-3 md:grid-cols-2">
+              {open.map((x) => (
+                <li key={`${x.called}-${x.id}`} className="lx-card lx-rdr-item p-3">
+                  <div className="flex items-start gap-3">
+                    <div style={{ width: 64, height: 64, flex: "0 0 64px", borderRadius: 12, overflow: "hidden", background: "#fff" }}><Img src={x.image} alt={x.title || ""} loading="lazy" style={{ width: 64, height: 64, objectFit: "cover" }} /></div>
+                    <p className="min-w-0 flex-1 text-[13px] font-bold leading-5" dir="ltr" style={{ textAlign: "start" }}>{x.title}</p>
+                  </div>
+                  <p className="mt-2 text-[14px] font-black">{x.mult ? L(`פי \u2066${x.mult}\u2069 מאז החתימה`, `×${x.mult} since the seal`) : L("נמדד שוב מחר בבוקר", "Read again tomorrow morning")}</p>
+                  <p className="text-[13px] leading-6">{L(`נחתם ב־${dm(x.called)} עם ${x.base} הזמנות · ${x.on ? `ב־${dm(x.on)}: ${x.orders}` : "נקרא שוב מחר"} · יום ${x.dayN} מתוך 7 · הציון ב־${dm(x.due)}`, `Sealed ${dm(x.called)} at ${x.base} orders · ${x.on ? `on ${dm(x.on)}: ${x.orders}` : "not read again yet"} · day ${x.dayN} of 7 · graded ${dm(x.due)}`)}</p>
+                  {x.phrase ? <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`השם שנבדק: `, `Name checked: `)}<span dir="ltr">{x.phrase}</span>{Number.isFinite(x.similar) ? L(` · ${x.similar} מודעות בעולם`, ` · ${x.similar} listings worldwide`) : ""}</p> : null}
+                  {x.buy ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <a href={x.buy} target="_blank" rel="noopener sponsored" onClick={() => recordExit("takeoff", x.buy)} className="lx-btn lx-btn-ink" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("לחנות", "Store")} <ExternalLink size={12} aria-hidden="true" /></a>
+                      <Go to={`/studio/add-product?from=radar&u=${encodeURIComponent(`https://www.aliexpress.com/item/${x.id}.html`)}`} className="lx-btn lx-btn-ghost" style={{ minHeight: 34, padding: "4px 12px", fontSize: 12 }}>{L("📲 לחנות שלי", "📲 To my store")}</Go>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("המספרים הם ההזמנות של 30 יום כפי שאליאקספרס מדווחת, נקראות מחדש כל בוקר. השם הוא המילים של המוכר.", "The numbers are AliExpress's own 30-day orders, read again every morning. The name is the seller's own words.")}</p>
+          </>
+        ) : null}
+        {done.length ? <p className="mt-2 text-[12px]" style={{ color: "var(--lx-muted)" }} dir="ltr">{done.map((x) => `${x.mult >= 2 ? "✅" : "❌"} ${String(x.title || x.id).slice(0, 36)} (${dm(x.called)}, ×${x.mult ?? "?"})`).join(" · ")}</p> : null}
+        {t.seal?.sha256 ? <p className="mt-2 text-[11px]" style={{ color: "var(--lx-muted)" }}>{L("🧾 הבוקר נחתם: ", "🧾 Sealed this morning: ")}<code dir="ltr">{t.seal.sha256.slice(0, 16)}…</code></p> : null}
       </div>
     </section>
   );
@@ -2496,6 +2554,7 @@ export function RadarPage() {
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
+        {board?.takeoff ? <Takeoff t={board.takeoff} gated={gated} /> : null}
         {board?.noise ? <BeforeNoise noise={board.noise} gated={gated} /> : null}
         {board?.prelaunch ? <Prelaunch p={board.prelaunch} gated={gated} /> : null}
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
