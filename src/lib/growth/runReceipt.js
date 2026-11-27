@@ -52,6 +52,7 @@ export function sourceOf(url) {
   if (host === "api.bsky.app" || host === "public.api.bsky.app") return "bluesky";
   if (host === "www.whoisds.com") return "shops";
   if (host === "ec.europa.eu" && u.pathname.startsWith("/eurostat/")) return "trade";
+  if (host === "api.census.gov" && u.pathname.startsWith("/data/timeseries/intltrade/")) return "trade";
   if (host === "api.gdeltproject.org") return "news";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";

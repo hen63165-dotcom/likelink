@@ -107,6 +107,7 @@ export function teaserBoard(board) {
     envelopes: envelopesOf(board),
     // 🚢 The factories' shipments: official customs records, no call, public behind the lock.
     trade: board.trade || null,
+    tradeUs: board.tradeUs || null,
     // 📰 Who said it first: counts per book, never a call's name; public behind the lock.
     news: board.news || null,
     // 🧭 How many kinds stand at each step of the path, and what the radar learned: counts only, never a kind.

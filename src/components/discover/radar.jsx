@@ -981,12 +981,36 @@ function TrendPath({ path }) {
 
 function Trade({ t }) {
   const { L } = useL();
+  const us = t.reporter === "US";
   const months = (t.months || []).slice().sort();
   const span = months.length ? `${months[0].slice(5)}–${months.at(-1).slice(5)}.${months.at(-1).slice(0, 4)}` : t.latest;
   const rows = (t.partners || []).flatMap((p) => p.top.map((r) => ({ ...r, partner: p.id })));
   const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
   const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
-  const eur = (x) => `€${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  const eur = (x) => `${us ? "$" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  if (us) {
+    return (
+      <section className="lx-wrap mt-8" id="trade-us">
+        <div className="lx-card lx-rdr-panel p-5">
+          <h2 className="text-[22px] font-black">{L("🇺🇸 מה המפעלים שולחים יותר לארה״ב", "🇺🇸 What the factories ship more of to the US")}</h2>
+          <p className="mt-1 text-[14px] leading-6">{L(`השוק הגדול בעולם. כל מוצר שנכנס לארה״ב מוצהר במכס, ולשכת המפקד האמריקאית מפרסמת את הנתונים לכולם. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם בכמות).`, `The world's biggest market. Every product entering the US is declared at customs, and the US Census Bureau publishes the records to all. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the shipments at least doubled (${span} against the same months a year earlier, in value and in quantity).`)}</p>
+          {rows.length ? (
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
+              {rows.sort((a, b) => b.valuePct - a.valuePct).slice(0, 12).map((r) => (
+                <li key={`${r.partner}-${r.code}`} className="lx-card lx-rdr-item p-3">
+                  <p className="text-[13px] font-bold">{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד מכס ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · customs line ${r.code}`)}</p>
+                  <p className="mt-1 text-[14px]" dir="ltr" style={{ textAlign: "start" }}>{r.label}</p>
+                  <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`+${r.valuePct}% בשווי${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% בכמות` : ""}`, `+${r.valuePct}% in value${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% in quantity` : ""}`)}</p>
+                  <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${eur(r.prev)} ← ${eur(r.value)} בשלושה חודשים`, `${eur(r.prev)} → ${eur(r.value)} in three months`)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-2 text-[14px]">{L("החודש המשלוחים יציבים: עוד שקט.", "This month the shipments are steady: still quiet.")}</p>}
+          <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("התיאור הוא המילים של המכס האמריקאי עצמו. כל אחד יכול לבדוק את אותו קוד בנתוני הסחר של לשכת המפקד.", "The description is US customs' own words. Anyone can check the same line in the Census Bureau's trade data.")} <a className="underline" href="https://usatrade.census.gov/" target="_blank" rel="noopener noreferrer">USA Trade Online</a></p>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="lx-wrap mt-8" id="trade">
       <div className="lx-card lx-rdr-panel p-5">
@@ -2685,6 +2709,7 @@ export function RadarPage() {
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
+        {board?.tradeUs?.partners?.length ? <Trade t={board.tradeUs} /> : null}
         {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}

@@ -33,7 +33,7 @@ import { tmpdir } from "node:os";
 import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls } from "../../src/lib/growth/haulSignal.js";
 import { SHOPS, SHOP_WORDS, mergeShopWords, mergeShops, nrdUrl, productVocab, risingShopWords, shopsOf, shopsToday, wordsToday } from "../../src/lib/growth/shopSignal.js";
 import { NEWS, mergeNews, newsBoard, newsQueue, newsUrl, parseTimeline } from "../../src/lib/growth/newsSignal.js";
-import { TRADE, latestPeriod, parseComext, probeUrl, tradeJumps, tradeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
+import { TRADE, US_TRADE, addCensusMonth, latestPeriod, monthBack, parseComext, probeUrl, tradeJumps, tradeUrl, usMonthUrl, usProbeUrl, windowsOf } from "../../src/lib/growth/tradeSignal.js";
 const SHOPS_BACK = 8; // daily lists read in one run when the state misses days
 import { factoryJumps } from "../../src/lib/growth/factorySignal.js";
 import { WIKI, acceptTitle, attentionOf, candidateTitles, directTitles, entityUrl, hebrewTitleOf, historyOf, summaryOf, summaryUrl, viewsTotal, viewsUrl, wikiCard, wikiSummary } from "../../src/lib/growth/wikiSignal.js";
@@ -1172,6 +1172,60 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     } else {
       sources.trade = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
       log.push(`trade: door ${sources.trade}`);
+    }
+  }
+
+  // 🇺🇸 The same for the United States (tradeSignal.js US_TRADE; the owner, 27.11: "the factories and all
+  // the trade, where it all starts"): the Census Bureau's International Trade API, every HTS10 line
+  // imported from each partner, the last three months against the same three a year earlier. A probe
+  // finds the newest published month; the partners are downloaded again only when it changes.
+  if (env.RADAR_TRADE !== "0" && !late("trade", 180_000)) {
+    let us = readJson(join(dir, "trade-us.json"), null);
+    let door = "failed";
+    try {
+      const r = await getRobots(`${US_TRADE.host}/robots.txt`, fetchImpl);
+      door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, US_TRADE.path) : "failed";
+    } catch { /* counted by the meter */ }
+    if (door === true) {
+      const key = String(env.CENSUS_API_KEY || "").trim();
+      let latest = null;
+      for (let back = 1; back <= 4 && !latest; back++) {
+        const month = monthBack(today.slice(0, 7), back);
+        try {
+          const res = await fetchImpl(usProbeUrl(month, { key }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+          if (res.status === 200) { const rows = await res.json().catch(() => null); if (Array.isArray(rows) && rows.length > 1) latest = month; }
+        } catch { /* counted */ }
+      }
+      if (latest && (!us || us.latest !== latest || (us.partners || []).length < Object.keys(US_TRADE.partners).length)) {
+        const { now, before } = windowsOf(latest, { rules: US_TRADE });
+        const partners = [];
+        for (const id of Object.keys(US_TRADE.partners)) {
+          const lines = new Map();
+          let months = 0;
+          for (const m of [...now, ...before]) {
+            try {
+              const res = await fetchImpl(usMonthUrl(id, m, { key }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(120_000) });
+              if (res.status !== 200) continue;
+              addCensusMonth(await res.json(), m, lines);
+              months++;
+            } catch { /* counted */ }
+          }
+          if (months < now.length + before.length) continue; // a partner is shown only with all six months read
+          const jumps = tradeJumps({ lines }, latest, { rules: US_TRADE });
+          if (jumps) { partners.push({ id, ...jumps }); keep(meter, "trade", jumps.measured); }
+        }
+        if (partners.length) us = { reporter: "US", latest, updated: null, read: today, months: now, partners };
+      }
+      if (us && us.latest) {
+        writeFileSync(join(dir, "trade-us.json"), JSON.stringify(us));
+        board.tradeUs = us;
+        if (sources.trade !== "OK") sources.trade = "OK";
+        log.push(`trade US: Census, ${(us.months || []).join(",")} against a year earlier (read ${us.read}) · ${us.partners.map((p) => `${p.id} ${p.measured} lines, ${p.jumping} doubled (renamed ${p.renamed}, price only ${p.priceOnly})`).join(" · ")} · top ${us.partners.flatMap((p) => p.top.slice(0, 2).map((r) => `${p.id} ${r.code} +${r.valuePct}%`)).join(", ")}`);
+      } else {
+        log.push(`trade US: no Census answer (newest month ${latest || "not found"})`);
+      }
+    } else {
+      log.push(`trade US: door ${door === "failed" ? "FAILED" : "ROBOTS_DISALLOW"}`);
     }
   }
 

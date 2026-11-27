@@ -255,6 +255,7 @@ export function sanitizeBoard(doc) {
     }).filter(Boolean) } : null,
     // 🚢 The factories' shipments (tradeSignal.js): EU customs lines, codes and the customs' own words.
     trade: cleanTrade(doc.trade),
+    tradeUs: cleanTrade(doc.tradeUs),
     // 📰 Who said it first (newsSignal.js): counts per book only.
     news: cleanNews(doc.news),
     // 🔤 The names new shops pick (shopSignal.js): product words only, never a domain.

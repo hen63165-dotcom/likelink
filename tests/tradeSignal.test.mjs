@@ -88,3 +88,25 @@ test("the browser's copy: CN8 codes only, known partners, text capped", () => {
   assert.equal(cleanTrade({ latest: "soon" }), null);
   assert.equal(TRADE.partners.includes("CN") && TRADE.partners.includes("KR") && TRADE.partners.includes("JP"), true);
 });
+
+test("🇺🇸 US customs (Census): HTS10 lines, the same rule as the EU, value and quantity", async () => {
+  const { US_TRADE, addCensusMonth, isConsumerLine, tradeJumps, usMonthUrl, usProbeUrl, cleanTrade } = await import("../src/lib/growth/tradeSignal.js");
+  assert.equal(isConsumerLine("9503000073"), true, "a toy line, 10 digits");
+  assert.equal(isConsumerLine("8411123000"), false, "turbojets stay out");
+  assert.match(usMonthUrl("CN", "2026-08"), /^https:\/\/api\.census\.gov\/data\/timeseries\/intltrade\/imports\/hs\?get=I_COMMODITY,I_COMMODITY_SDESC,GEN_VAL_MO,GEN_QY1_MO&COMM_LVL=HS10&CTY_CODE=5700&time=2026-08$/);
+  assert.equal(usMonthUrl("XX", "2026-08"), null);
+  assert.match(usProbeUrl("2026-09"), /COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=2026-09$/);
+  const head = ["I_COMMODITY", "I_COMMODITY_SDESC", "GEN_VAL_MO", "GEN_QY1_MO", "COMM_LVL", "CTY_CODE", "time"];
+  const lines = new Map();
+  for (const [m, v, q] of [["2026-09", 1_500_000, 30_000], ["2026-08", 1_200_000, 25_000], ["2026-07", 900_000, 20_000], ["2025-09", 400_000, 9_000], ["2025-08", 300_000, 7_000], ["2025-07", 300_000, 7_000]]) {
+    addCensusMonth([head, ["9503000073", "TOYS <b>", String(v), String(q), "HS10", "5700", m], ["8411123000", "TURBOJETS", "9000000", "5", "HS10", "5700", m]], m, lines);
+  }
+  const j = tradeJumps({ lines }, "2026-09", { rules: US_TRADE });
+  assert.equal(j.jumping, 1);
+  assert.equal(j.top[0].code, "9503000073");
+  assert.equal(j.top[0].label.includes("<"), false);
+  assert.equal(j.top[0].valuePct, 260);
+  const c = cleanTrade({ reporter: "US", latest: "2026-09", months: ["2026-09", "2026-08", "2026-07"], partners: [{ id: "CN", ...j }] });
+  assert.equal(c.reporter, "US");
+  assert.equal(c.partners[0].top[0].code, "9503000073");
+});
