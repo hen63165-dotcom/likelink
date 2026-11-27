@@ -1,0 +1,22 @@
+# 🚪 The radar's open doors, checked from a runner (scripts/ops/radar-doors.mjs): status, type and the
+# first bytes of one small request per door. Read-only; nothing stored or posted.
+name: Radar doors
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths:
+      - scripts/ops/radar-doors.mjs
+      - .github/workflows/radar-doors.yml
+permissions:
+  contents: read
+jobs:
+  doors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/ops/radar-doors.mjs
