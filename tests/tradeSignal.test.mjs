@@ -138,3 +138,15 @@ test("🇬🇧 UK customs (HMRC): open API, ports summed by the API, CN8 lines o
   assert.equal(c.reporter, "UK");
   assert.equal(cleanTrade({ reporter: "XX", latest: "2026-09", partners: [] }).reporter, "EU");
 });
+
+test("✅ both markets: the same line from the same partner doubled in the EU's and the UK's own records", async () => {
+  const { bothMarkets } = await import("../src/lib/growth/tradeSignal.js");
+  const eu = { partners: [{ id: "KR", top: [{ code: "33079000", label: "Perfumery", valuePct: 260 }] }, { id: "JP", top: [{ code: "94019910", label: "Seat parts", valuePct: 473 }] }] };
+  const uk = { partners: [{ id: "KR", top: [{ code: "33079000", label: "", valuePct: 439 }, { code: "33049900", valuePct: 191 }] }, { id: "JP", top: [{ code: "94019910", valuePct: 1232 }] }, { id: "CN", top: [{ code: "42050019", valuePct: 657 }] }] };
+  const b = bothMarkets(eu, uk);
+  assert.deepEqual(b.map((x) => `${x.partner}-${x.code}`), ["JP-94019910", "KR-33079000"], "strongest by the smaller of the two rises");
+  assert.equal(b[1].label, "Perfumery");
+  assert.deepEqual(bothMarkets(null, uk), []);
+  assert.deepEqual(bothMarkets(eu, { partners: [{ id: "KR", top: [{ code: "33079000", valuePct: 400 }] }] }).length, 1);
+  assert.deepEqual(bothMarkets({ partners: [{ id: "CN", top: [{ code: "33079000", valuePct: 400 }] }] }, { partners: [{ id: "KR", top: [{ code: "33079000", valuePct: 400 }] }] }), [], "a different partner is never a match");
+});

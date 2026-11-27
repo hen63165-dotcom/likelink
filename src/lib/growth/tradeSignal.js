@@ -162,6 +162,24 @@ export function ukNextLink(json, { rules = UK_TRADE } = {}) {
   return u.startsWith(`${rules.host}/`) ? u : null;
 }
 
+/**
+ * The lines that doubled in two markets at once: the same eight-digit line from the same partner in the
+ * EU's and the UK's own customs records (two customs services, counted apart). The tops shown only.
+ */
+export function bothMarkets(eu, uk) {
+  if (!eu?.partners || !uk?.partners) return [];
+  const out = [];
+  for (const p of uk.partners) {
+    const e = eu.partners.find((x) => x.id === p.id);
+    if (!e) continue;
+    for (const r of p.top || []) {
+      const m = (e.top || []).find((x) => String(x.code).slice(0, 8) === String(r.code).slice(0, 8));
+      if (m) out.push({ partner: p.id, code: String(r.code).slice(0, 8), label: m.label || r.label || "", euPct: m.valuePct, ukPct: r.valuePct });
+    }
+  }
+  return out.sort((a, b) => Math.min(b.euPct, b.ukPct) - Math.min(a.euPct, a.ukPct));
+}
+
 export const PARTNER_NAMES = Object.freeze({
   CN: { he: "סין", en: "China" }, KR: { he: "קוריאה", en: "Korea" }, JP: { he: "יפן", en: "Japan" },
   VN: { he: "וייטנאם", en: "Vietnam" }, TW: { he: "טייוואן", en: "Taiwan" }, IN: { he: "הודו", en: "India" },

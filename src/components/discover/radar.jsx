@@ -8,7 +8,7 @@
 import { fieldView } from "../../lib/growth/radarField.js";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AREA_HE } from "../../lib/growth/radarAreas.js";
-import { PARTNER_NAMES } from "../../lib/growth/tradeSignal.js";
+import { PARTNER_NAMES, bothMarkets } from "../../lib/growth/tradeSignal.js";
 import { Clock, ExternalLink, Radar, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { BASE } from "../../lib/basePath.js";
 import { BOT_UA } from "../../lib/funnel.js";
@@ -980,7 +980,7 @@ function TrendPath({ path }) {
   );
 }
 
-function Trade({ t }) {
+function Trade({ t, eu = null }) {
   const { L } = useL();
   const us = t.reporter === "US";
   const months = (t.months || []).slice().sort();
@@ -989,12 +989,21 @@ function Trade({ t }) {
   const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
   const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
   const uk = t.reporter === "UK";
+  const both = uk ? bothMarkets(eu, t) : [];
   const eur = (x) => `${us ? "$" : uk ? "£" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
   if (uk) {
     return (
       <section className="lx-wrap mt-8" id="trade-uk">
         <div className="lx-card lx-rdr-panel p-5">
           <h2 className="text-[22px] font-black">{L("🇬🇧 מה המפעלים שולחים יותר לבריטניה", "🇬🇧 What the factories ship more of to the UK")}</h2>
+          {both.length ? (
+            <div className="mt-2 lx-card lx-rdr-item p-3">
+              <p className="text-[14px] font-black">{L("✅ הוכפל בשני שווקים בבת אחת: גם במכס של אירופה וגם במכס של בריטניה", "✅ Doubled in two markets at once: in both the EU's and the UK's customs records")}</p>
+              <ul className="mt-1 grid gap-1 text-[13px]">
+                {both.map((r) => <li key={`${r.partner}-${r.code}`}>{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · line ${r.code}`)} · <span dir="ltr">{r.label}</span> · {L(`אירופה +${r.euPct}%, בריטניה +${r.ukPct}%`, `EU +${r.euPct}%, UK +${r.ukPct}%`)}</li>)}
+              </ul>
+            </div>
+          ) : null}
           <p className="mt-1 text-[14px] leading-6">{L(`כל מוצר שנכנס לבריטניה מוצהר במכס, ורשות המסים הבריטית מפרסמת את הנתונים לכולם, בלי מפתח ובלי הרשמה, ברישיון ממשלתי פתוח. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם במשקל).`, `Every product entering the UK is declared at customs, and HMRC publishes the records to all, with no key or sign-up, under the Open Government Licence. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the shipments at least doubled (${span} against the same months a year earlier, in value and in weight).`)}</p>
           {rows.length ? (
             <ul className="mt-3 grid gap-2 md:grid-cols-2">
@@ -2795,7 +2804,7 @@ export function RadarPage() {
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
         {board?.tradeUs?.partners?.length ? <Trade t={board.tradeUs} /> : null}
-        {board?.tradeUk?.partners?.length ? <Trade t={board.tradeUk} /> : null}
+        {board?.tradeUk?.partners?.length ? <Trade t={board.tradeUk} eu={board.trade} /> : null}
         {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
