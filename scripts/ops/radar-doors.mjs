@@ -12,10 +12,10 @@ const DOORS = [
   ...[1, 2, 3, 4].map((b) => ({ id: `census-probe-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=${month(b)}` })),
   ...[1, 2, 3, 4].map((b) => ({ id: `census-chapters-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=I_COMMODITY,GEN_VAL_MO&COMM_LVL=HS2&CTY_CODE=5700&time=${month(b)}` })),
   { id: "census-2025-09", url: "https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=2025-09" },
-  { id: "comtrade-robots", url: "https://comtradeapi.un.org/robots.txt" },
-  { id: "comtrade-cn-to-us", url: "https://comtradeapi.un.org/public/v1/preview/C/M/HS?reporterCode=156&period=202609&partnerCode=842&flowCode=X&cmdCode=950300&maxRecords=5", max: 400 },
-  { id: "comtrade-cn-to-world-aggs", url: "https://comtradeapi.un.org/public/v1/getDA/C/M/HS?reporterCode=156&period=202609", max: 400 },
-  { id: "comtrade-latest-cn", url: "https://comtradeapi.un.org/public/v1/preview/C/M/HS?reporterCode=156&period=202610&partnerCode=842&flowCode=X&cmdCode=TOTAL&maxRecords=5", max: 400 },
+  { id: "hmrc-robots", url: "https://api.uktradeinfo.com/robots.txt", max: 300 },
+  { id: "hmrc-country-cn", url: "https://api.uktradeinfo.com/Country?$filter=CountryCodeAlpha%20eq%20'CN'", max: 400 },
+  { id: "hmrc-ots-sample", url: "https://api.uktradeinfo.com/OTS?$top=3&$orderby=MonthId%20desc", max: 600 },
+  { id: "hmrc-ots-count-month", url: "https://api.uktradeinfo.com/OTS/$count?$filter=MonthId%20eq%20202609", max: 200 },
   { id: "gdelt", url: "https://api.gdeltproject.org/api/v2/doc/doc?query=%22butter%20squishy%22&mode=timelinevolraw&format=json&timespan=1m" },
 ];
 for (const d of DOORS) {
