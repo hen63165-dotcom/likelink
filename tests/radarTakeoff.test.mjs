@@ -156,3 +156,12 @@ test("the brand words read in Hebrew too (the store answers the magic button in 
   assert.ok(hasBrandName("מגן מסך מט לקינדל בייסיק"));
   assert.ok(!hasBrandName("סווטשירט קז'ואל עם קפוצ'ון ועיצוב טלאים"));
 });
+
+test("the new-products box never shows a brand's name as a find; an earlier call keeps its row with no store button", () => {
+  const title = "2026 Reebok New Autumn-Winter Men's Hooded Patchwork Casual Sweatshirt";
+  const board = { at: `${day(27)}T06:00:00Z`, concepts: [], record: { calls: 0, graded: 0, hits: 0, recent: [] }, fresh: { tracking: 10, risers: [{ id: "1005013485237055", title, image: IMG, buy: BUY, weekPct: 80, orders: 139, known: { phrase: "reebok men's", similar: 712 } }], watch: [{ id: "1005013485237055", title, image: IMG, buy: BUY, called: day(22), due: day(36), exit: "RUNNING" }] } };
+  const clean = sanitizeBoard(board);
+  assert.equal(clean.fresh.risers.length, 0);
+  assert.equal(clean.fresh.watch.length, 1);
+  assert.equal(clean.fresh.watch[0].buy, null);
+});

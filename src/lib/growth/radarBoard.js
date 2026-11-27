@@ -23,6 +23,7 @@ import { GATE_REASONS, cleanGate } from "./callGate.js";
 import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
 import { TAKEOFF_LINE, cleanTakeoff } from "./radarTakeoff.js";
 import { NOISE_LINE, cleanNoise } from "./beforeNoise.js";
+import { hasBrandName } from "./deals.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
@@ -514,6 +515,8 @@ function cleanFresh(f) {
     if (!r.known || num(r.known.similar) === null) return null;
     // Only a listing the radar watched from the start is shown as new (freshRisers.listingAge).
     if (r.age && r.age.state !== "NEW") return null;
+    // A brand's name on AliExpress is an imitation: never shown as a find (27.11: a "Reebok" sweatshirt).
+    if (hasBrandName(r.title)) return null;
     const age = r.age && day(r.age.firstDay) && num(r.age.firstOrders) !== null ? { state: "NEW", firstDay: day(r.age.firstDay), firstOrders: num(r.age.firstOrders) } : null;
     return { id: String(r.id), age, title: str(r.title, 140), image, buy, check, price: num(r.price), category: str(r.category, 20), orders: num(r.orders), ordersBefore: num(r.ordersBefore), from: day(r.from), to: day(r.to), first: day(r.first), weekPct: num(r.weekPct), learned: cleanLearned(r.learned), sure: [99, 95, 90, 80].includes(num(r.sure)) ? num(r.sure) : null, promise: cleanCardRange(r.promise), window: cleanCardWindow(r.window), called: day(r.called), due: day(r.due), known: { phrase: str(r.known.phrase, 60), similar: num(r.known.similar), world: cleanWorldGap(r.known.world), yt: r.known.yt && ["NONE", "EARLY"].includes(r.known.yt.level) && num(r.known.yt.videos) !== null ? { level: r.known.yt.level, videos: num(r.known.yt.videos), views: num(r.known.yt.views), days: num(r.known.yt.days) ?? 7 } : null } };
   }).filter(Boolean);
@@ -522,7 +525,8 @@ function cleanFresh(f) {
   // 🚪 Every earlier find still in its 14 days, read again today, with its exit signal (radarCore.js exitSignal).
   const watch = (Array.isArray(f.watch) ? f.watch : []).slice(0, 20).map((w) => {
     if (!ITEM.test(String(w?.id || "")) || !EXIT_STATES.has(w.exit) || !day(w.called)) return null;
-    const buy = typeof w.buy === "string" && BUY.test(w.buy) ? w.buy : null;
+    // A call sealed before the brand rule stays in the record and is read like every call, with no store button.
+    const buy = typeof w.buy === "string" && BUY.test(w.buy) && !hasBrandName(w.title) ? w.buy : null;
     return { id: String(w.id), title: str(w.title, 140), image: radarImage(w.image), buy, price: num(w.price), called: day(w.called), due: day(w.due), dayN: num(w.dayN), base: num(w.base), orders: num(w.orders), on: day(w.on), progress: num(w.progress), weekPct: num(w.weekPct), window: cleanCardWindow(w.window), exit: w.exit, why: EXIT_WHY_KEYS.has(w.why) ? w.why : null };
   }).filter(Boolean);
   const byCategory = (Array.isArray(f.byCategory) ? f.byCategory : []).slice(0, 30).filter((c) => /^[\w-]{2,40}$/.test(String(c?.category || ""))).map((c) => ({ category: String(c.category), calls: Math.max(0, num(c.calls) ?? 0), graded: Math.max(0, num(c.graded) ?? 0), hits: Math.max(0, num(c.hits) ?? 0) }));
