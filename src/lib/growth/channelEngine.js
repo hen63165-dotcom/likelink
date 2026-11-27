@@ -540,8 +540,10 @@ export function featuresOf(title = "", { max = 3 } = {}) {
 
 /** The opening line, the way a seller opens: what everyone wants, measured, never a promise. */
 export function hookOf(pick = {}) {
-  if (pick.match?.label === "DUPE" && pick.match.look) return `✨ הלוק שכולן רוצות עכשיו: ${pick.match.look}`;
-  if (pick.source === "brand_look") return "✨ הלוק של המותגים שכולן רוצות, במחיר של אליאקספרס";
+  // "דיופ" said plainly (the owner, 27.11: "make sure they understand these are dupes"): the look of the
+  // brands everyone wants, never the brand's name, logo or a "1:1 / like the original" claim.
+  if (pick.match?.label === "DUPE" && pick.match.look) return `✨ דיופ ללוק שכולן רוצות עכשיו: ${pick.match.look}`;
+  if (pick.source === "brand_look") return "✨ דיופ ללוק של מותגי העל שכולן רוצות עכשיו";
   if (pick.trend?.he) return `🔥 טרנד שעולה עכשיו: ${pick.trend.he}`;
   if (pick.source === "fresh_riser") return "🆕 חדש באליאקספרס ומתחיל לרוץ";
   return "🔥 חם עכשיו באליאקספרס";
@@ -569,7 +571,11 @@ function dealLines(pick = {}, { link = pick.link, join = {}, bold = (t) => t } =
   const proof = [Number.isFinite(e.after) && e.after >= 50 ? `${n0(e.after)} הזמנות בחודש האחרון` : null, happy ? `מעל ${happy} מהקונים מרוצים` : null].filter(Boolean);
   if (proof.length) lines.push(`✅ ${proof.join(" · ")} (לפי אליאקספרס${e.to ? `, ${dm(e.to)}` : ""})`);
   if (Number.isFinite(e.weekPct) && e.weekPct >= 10) lines.push(`📈 ההזמנות עלו ב־${round(e.weekPct, 0)}% בשבוע האחרון`);
-  if (pick.israel?.state === "GAP" || pick.israel?.state === "QUIET") lines.push("🇮🇱 בארץ עוד כמעט לא מכירים");
+  // The market still open, as the radar measured it (saturation.js / the discoveries' unknown check):
+  // similar listings across AliExpress under the 2,000 line, dated.
+  const similar = [pick.market?.state === "OPEN" ? pick.market.similar : null, pick.discovery?.similar, pick.sellers?.similar].find((x) => Number.isFinite(x));
+  if (Number.isFinite(similar) && similar < 2000) lines.push(`🧭 השוק עוד פתוח: ${n0(similar)} מודעות דומות בכל אליאקספרס (בדיקת הראדאר${e.to ? `, ${dm(e.to)}` : ""})`);
+  if (pick.israel?.state === "GAP" || pick.israel?.state === "QUIET") lines.push("🇮🇱 בארץ עוד שקט סביבו");
   if (price > 0) lines.push(`💰 מ־₪${price} · משלוח לישראל`);
   if (pick.returnReason?.he) lines.push(`🔄 חוזר כי ${pick.returnReason.he}`);
   if (link) lines.push(`👉 ${link}`);

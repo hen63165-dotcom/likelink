@@ -8,6 +8,7 @@ Instagram's library is licensed for Reels, a downloaded track usually is not.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import wave
 from pathlib import Path
@@ -90,9 +91,25 @@ def beat(seconds: float, seed: int = 7) -> np.ndarray:
     return out * fade
 
 
+def generated_music_on() -> bool:
+    """The owner, 27.11: "why again weird music and not today's trending music; fix it for everyone from
+    now on". Music made here from numbers is never put under a post again: the trending sound comes
+    from the platform's own licensed library at posting time (TikTok's Commercial Music Library through
+    Upload-Post, or the sound she picks in Instagram's app). The bed is silence unless
+    LIKELINK_GENERATED_MUSIC=1 is set on purpose (a reel that needs an audio track still gets one)."""
+    return os.environ.get("LIKELINK_GENERATED_MUSIC") == "1"
+
+
+def bed_samples(seconds: float, db: float = BED_DB) -> np.ndarray:
+    """The bed's samples: the generated loop only when switched on, otherwise silence of the same length."""
+    if not generated_music_on():
+        return np.zeros(int(seconds * SR))
+    return beat(seconds) * db_to_gain(db)
+
+
 def write_bed(seconds: float, dst: Path, db: float = BED_DB) -> Path:
-    """A stereo AAC bed at `db` (default -20 dB full-scale peak)."""
-    x = beat(seconds) * db_to_gain(db)
+    """A stereo AAC bed at `db` (default -20 dB full-scale peak); silence unless generated music is on."""
+    x = bed_samples(seconds, db)
     pcm = (np.clip(x, -1, 1) * 32767).astype("<i2")
     wav = dst.with_suffix(".wav")
     with wave.open(str(wav), "wb") as w:

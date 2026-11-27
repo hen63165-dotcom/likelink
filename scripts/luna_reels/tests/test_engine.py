@@ -855,6 +855,20 @@ class Music(unittest.TestCase):
         x = music.beat(2.0)
         self.assertLessEqual(float(abs(x).max()), 1.0)
 
+    def test_no_made_up_music_by_default(self):
+        """The owner, 27.11: no weird music under a post; the bed is silence unless switched on on purpose."""
+        import os
+        old = os.environ.pop("LIKELINK_GENERATED_MUSIC", None)
+        try:
+            self.assertFalse(music.generated_music_on())
+            self.assertEqual(float(abs(music.bed_samples(2.0)).max()), 0.0)
+            os.environ["LIKELINK_GENERATED_MUSIC"] = "1"
+            self.assertGreater(float(abs(music.bed_samples(2.0)).max()), 0.0)
+        finally:
+            os.environ.pop("LIKELINK_GENERATED_MUSIC", None)
+            if old is not None:
+                os.environ["LIKELINK_GENERATED_MUSIC"] = old
+
 
 class FreeLipSync(unittest.TestCase):
     """The free lip-sync (scripts/media/talking/musetalk.py): only her mouth and jaw are redrawn, over her own clip."""

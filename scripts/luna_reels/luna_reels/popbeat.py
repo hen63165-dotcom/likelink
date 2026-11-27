@@ -105,7 +105,10 @@ def build(seconds, seed=11):
     return mix / (np.abs(mix).max() or 1) * 0.9
 
 def write(seconds, dst):
-    x = build(seconds)
+    # The owner, 27.11: no made-up music under a post (music.generated_music_on): silence unless
+    # LIKELINK_GENERATED_MUSIC=1; the trending sound comes from the platform's own library.
+    import os
+    x = build(seconds) if os.environ.get("LIKELINK_GENERATED_MUSIC") == "1" else np.zeros(int(float(seconds) * SR))
     pcm = (np.clip(x, -1, 1) * 32767).astype("<i2")
     wav = Path(dst).with_suffix(".wav")
     with wave.open(str(wav), "wb") as w:

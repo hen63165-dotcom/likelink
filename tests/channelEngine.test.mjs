@@ -204,8 +204,10 @@ test("the features come only from the listing's own words, and a seller's materi
   assert.deepEqual(featuresOf("Electric Window Cleaner Cordless Rechargeable Handheld Glass Vacuum"), ["אלחוטי", "נטען", "נייד ונוח ביד"]);
   assert.deepEqual(featuresOf("Pasta Storage Box Airtight Sealed Large Capacity"), ["נסגר הרמטית", "נפח גדול"]);
   assert.deepEqual(featuresOf("925 Sterling Silver Moissanite Tennis Bracelet Gold Plated Genuine"), [], "materials and 'genuine' are the seller's claim");
-  assert.equal(hookOf({ source: "brand_look", match: { label: "DUPE" } }).includes("הלוק של המותגים"), true);
-  assert.match(hookOf({ match: { label: "DUPE", look: "מעיל זמש" } }), /הלוק שכולן רוצות עכשיו: מעיל זמש/);
+  assert.equal(hookOf({ source: "brand_look", match: { label: "DUPE" } }).includes("דיופ ללוק של מותגי העל"), true);
+  assert.match(hookOf({ match: { label: "DUPE", look: "מעיל זמש" } }), /דיופ ללוק שכולן רוצות עכשיו: מעיל זמש/);
+  // A dupe is said plainly; the brand's name, "1:1" or "like the original" never.
+  for (const h of [hookOf({ source: "brand_look" }), hookOf({ match: { label: "DUPE", look: "מעיל זמש" } })]) assert.doesNotMatch(h, /1:1|1 ל־?1|אחד לאחד|מקורי|רפליקה|replica|original/i);
 });
 
 test("WhatsApp gets the same post, ready to send (its API never posts into a group)", async () => {
@@ -352,4 +354,13 @@ test("saturated is never posted (26.11): a mass seller, a market with many selle
   assert.equal(why["ae-1005013205496649"], "already_buzzing");
   assert.equal(why["ae-1005008077732057"], "market_unmeasured", "a check that could not be read is never assumed open");
   assert.ok(ranked.every((c) => c.source === "fresh_riser"), "only the discoveries, which passed the same check, remain");
+});
+
+test("the post says the market is still open only from the radar's own measurement, dated", async () => {
+  const { telegramPost } = await import("../src/lib/growth/channelEngine.js");
+  const base = { source: "brand_look", title: "x", evidence: { after: 800, to: "2026-11-27", weekPct: 22 }, link: "https://s.click.aliexpress.com/e/_x" };
+  const open = telegramPost({ ...base, market: { state: "OPEN", similar: 1240 } }).text;
+  assert.match(open, /🧭 השוק עוד פתוח: 1,240 מודעות דומות בכל אליאקספרס \(בדיקת הראדאר, 27\.11\)/);
+  assert.doesNotMatch(telegramPost({ ...base, market: { state: "OPEN", similar: null } }).text, /השוק עוד פתוח/);
+  assert.doesNotMatch(telegramPost({ ...base, market: { state: "SATURATED", similar: 9000 } }).text, /השוק עוד פתוח/);
 });
