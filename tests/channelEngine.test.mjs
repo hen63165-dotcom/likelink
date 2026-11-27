@@ -181,23 +181,31 @@ test("a quiet day: nothing measured hot → no post, and the reason is named", (
   assert.equal(p.instagram.pkg, null);
 });
 
-test("the post looks like the deals groups (photo, short lines, one link, join links), with dated evidence and both scores", () => {
+test("the post reads like a professional seller's (the owner, 27.11): a hook, what it is and does, the store's own dated proof, price, link, join links", () => {
   const pick = plan().telegram.pick;
   const join = { telegram: "https://t.me/likelink_deals", whatsapp: "https://chat.whatsapp.com/abc" };
   const { text, image, link } = telegramPost(pick, { link: "https://likelink2.vercel.app/p/x", join });
-  assert.match(text, /^#פרסומת · קישור שותפים\n🔥 /);
-  assert.match(text, /✨ [\u0590-\u05ff]/, "a Hebrew name");
-  assert.match(text, /📈 ההזמנות עלו \d+% בשבוע · לפי החנות, \d+\.\d+ ← \d+\.\d+/);
-  assert.match(text, /🧾 [\d,]+ ← [\d,]+ הזמנות ב־30 יום, כפי שהחנות מדווחת/);
-  assert.match(text, /📊 מדד טרנד \d+ · קנייה חכמה \d+ · הכי חזק מתוך \d+/);
+  assert.match(text, /^#פרסומת · קישור שותפים\n(?:✨|🔥|🆕) /, "the disclosure first, then the seller's hook");
+  assert.match(text, /\n[\u0590-\u05ff]/, "a Hebrew line saying what it is");
+  assert.match(text, /✅ [\d,]+ הזמנות בחודש האחרון.*\(לפי אליאקספרס, \d+\.\d+\)/, "the store's own count, attributed and dated");
+  assert.match(text, /📈 ההזמנות עלו ב־\d+% בשבוע האחרון/);
   assert.match(text, /👉 https:\/\/likelink2\.vercel\.app\/p\/x/);
-  assert.match(text, /―+\n🚀 להצטרפות לטלגרם: https:\/\/t\.me\/likelink_deals\n💚 לקבוצת הוואטסאפ: https:\/\/chat\.whatsapp\.com\/abc/);
-  assert.match(text, /🕒 נמדד \d+\.\d+ \d\d:\d\d$/);
+  assert.match(text, /―+\n💚 לקבוצת הוואטסאפ: https:\/\/chat\.whatsapp\.com\/abc\n🚀 להצטרפות לטלגרם: https:\/\/t\.me\/likelink_deals$/);
   assert.ok(/^https:\/\//.test(image) && link);
-  for (const w of ["בטוח", "מובטח", "תחזית", "היחיד", "לפני כולם", "דירוג", "מקורי", "לוגו"]) assert.ok(!text.includes(w), `no "${w}"`);
+  // A seller's post, never a dashboard: no scores or timestamps; never a promise or a counterfeit's words.
+  for (const w of ["מדד טרנד", "קנייה חכמה", "🕒", "בטוח", "מובטח", "תחזית", "היחיד", "לפני כולם", "דירוג", "מקורי", "לוגו", "טיקטים", "1:1", "רפליקה"]) assert.ok(!text.includes(w), `no "${w}"`);
   assert.ok(text.length <= 1024 - 150, "fits a photo caption");
   // Without her join links set, the post has none (never a guessed link).
   assert.doesNotMatch(telegramPost(pick).text, /להצטרפות|לקבוצת/);
+});
+
+test("the features come only from the listing's own words, and a seller's material claim is never repeated", async () => {
+  const { featuresOf, hookOf } = await import("../src/lib/growth/channelEngine.js");
+  assert.deepEqual(featuresOf("Electric Window Cleaner Cordless Rechargeable Handheld Glass Vacuum"), ["אלחוטי", "נטען", "נייד ונוח ביד"]);
+  assert.deepEqual(featuresOf("Pasta Storage Box Airtight Sealed Large Capacity"), ["נסגר הרמטית", "נפח גדול"]);
+  assert.deepEqual(featuresOf("925 Sterling Silver Moissanite Tennis Bracelet Gold Plated Genuine"), [], "materials and 'genuine' are the seller's claim");
+  assert.equal(hookOf({ source: "brand_look", match: { label: "DUPE" } }).includes("הלוק של המותגים"), true);
+  assert.match(hookOf({ match: { label: "DUPE", look: "מעיל זמש" } }), /הלוק שכולן רוצות עכשיו: מעיל זמש/);
 });
 
 test("WhatsApp gets the same post, ready to send (its API never posts into a group)", async () => {
