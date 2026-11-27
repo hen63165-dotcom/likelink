@@ -121,13 +121,15 @@ export function backtest(items = {}, today, { rules = BACKTEST, promise = PROMIS
         if (!f) continue;
         const y = targetAt(series, dayStr(dayNum(d) + h), { rules: promise });
         if (!y) continue;
+        // Before the model has learned enough (PROMISE.minChance) it gives no chance; that day it says the
+        // past base rate, like the constant, so the day still counts for every other contender.
         const c = chanceFor(series, d, cal, { rules: promise });
-        if (!c) continue;
+        if (!c && !(cal.n < promise.minChance)) continue;
         const before = (f.o + 1) / Math.exp(f.pace * f.span) - 1;
         const g = growthOverDays({ before: Math.round(before), after: f.o, days: f.span });
         const rf = richFeatures(series, d, { promise });
         const pl = rf ? predictLogistic(lm, xRich(rf, h)) : 0;
-        pool.push({ id, o: f.o, pace: f.pace, cp: rf ? Math.min(rf.pace, rf.pace3) : f.pace, low: g ? g.lowWeekPct : -1e9, pm: c.p / 100, pr: pf.p(f.pace * h), pl, hit: reached(f.o, y.v, line), y: y.v, band: bandOf(f.o, promise) });
+        pool.push({ id, o: f.o, pace: f.pace, cp: rf ? Math.min(rf.pace, rf.pace3) : f.pace, low: g ? g.lowWeekPct : -1e9, pm: c ? c.p / 100 : pf.base, pr: pf.p(f.pace * h), pl, hit: reached(f.o, y.v, line), y: y.v, band: bandOf(f.o, promise) });
       }
       if (pool.length < rules.minPool) { acc.skipped++; continue; }
       const k = Math.min(rules.k, Math.floor(pool.length / 5));

@@ -44,6 +44,11 @@ export const PROMISE = Object.freeze({
   // markets, and none for product trends): per horizon, the chance the item's 30-day orders grow by
   // at least this much. 14 days uses the new products' own hit line (+50%, freshRisers.gradeFresh).
   chanceLine: { 3: 10, 7: 25, 14: 50 },
+  // 27.11, the lab, day by day: on 19.11 the model had learned from 215 examples and said 62.9% on
+  // average where 3.5% grew (Brier 0.529 against a constant's 0.035); on every other day it was at or
+  // below the constant. A chance is given only once the model learned from this many examples (the
+  // ranges keep `minCalib`: their coverage holds by construction).
+  minChance: 500,
   // 26.11, the lab on the real history: an item at 0 orders "reached +10%" whatever happened, so it was
   // a sure hit. The chance is given and graded only from `minOrders` (where +10% is a real order), a hit
   // needs at least one more order, and the record under that rule (`chanceRule`) starts on its own day.
@@ -207,6 +212,7 @@ export function rangeFor(series, today, cal, level, { rules = PROMISE } = {}) {
  */
 export function chanceFor(series, today, cal, { rules = PROMISE } = {}) {
   if (!cal || cal.state !== "READY" || !cal.res) return null;
+  if (Number.isFinite(rules.minChance) && !(cal.n >= rules.minChance)) return null;
   const f = featuresAt(series, today, { rules });
   if (!f || f.o < rules.minOrders) return null;
   const line = rules.chanceLine[cal.h];
