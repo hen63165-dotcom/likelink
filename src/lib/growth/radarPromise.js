@@ -157,11 +157,18 @@ export function calibrate(items, today, { alphas = {}, rules = PROMISE } = {}) {
     const train = ex.slice(0, cut);
     const cal = ex.slice(cut);
     const beta = fitRidge(train, { lambda: rules.ridge });
-    const signed = cal.map((e) => ({ r: e.y - predict(beta, e.x), band: e.band }));
+    const signed = cal.map((e) => ({ r: e.y - predict(beta, e.x), band: e.band, size: e.x[2] }));
     const scores = signed.map((x) => ({ s: Math.abs(x.r), band: x.band }));
     // The signed errors, sorted, per size band: the conformal predictive distribution behind the chance.
-    const res = { all: signed.map((x) => x.r).sort((a, b) => a - b), bands: {} };
-    for (const b of [0, 1, 2]) { const rb = signed.filter((x) => x.band === b).map((x) => x.r).sort((a, b2) => a - b2); if (rb.length >= rules.minGroup) res.bands[b] = rb; }
+    // 27.11, the lab on the real history: the chance is given only from `minOrders`, but its errors came
+    // from every item, and a listing at 0–9 orders jumps (0 → 3 is a log growth of 1.4), so the chance was
+    // far too high (Brier 0.094 against a constant's 0.023 in the head-to-head). Its errors now come only
+    // from the items it is given for, when there are enough of them; the ranges keep every item's errors.
+    const minSize = Math.log(rules.minOrders + 1) - 1e-9;
+    const own = signed.filter((x) => x.size >= minSize);
+    const pool = own.length >= rules.minGroup ? own : signed;
+    const res = { all: pool.map((x) => x.r).sort((a, b) => a - b), bands: {}, from: pool === own ? "minOrders" : "all" };
+    for (const b of [0, 1, 2]) { const rb = pool.filter((x) => x.band === b).map((x) => x.r).sort((a, b2) => a - b2); if (rb.length >= rules.minGroup) res.bands[b] = rb; }
     const q = {};
     for (const level of rules.levels) {
       const alpha = levelAlpha(alphas, h, level);

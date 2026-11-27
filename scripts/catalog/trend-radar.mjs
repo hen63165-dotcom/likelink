@@ -2154,15 +2154,24 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         if (door === "failed") log.push(`news robots: HTTP ${r.status}`);
       } catch (err) { log.push(`news robots: ${String(err?.cause?.code || err?.cause?.message || err?.name || err?.message || err).slice(0, 80)}`); }
     }
-    let asked = 0, read = 0, failed = 0;
+    let asked = 0, read = 0, failed = 0, limited = 0, limitedRow = 0;
     if (door === true) {
+      // 26.11–27.11: GDELT answered 429 to 9 of 14 phrases although they were asked 5.5 s apart (the
+      // runners share addresses, and GDELT counts every request from one). Each 429 now waits longer
+      // (15 s, then 30 s) before the next try; after two phrases in a row that only got 429 the run
+      // stops asking (the rest wait for the next reading, first in its queue), and the whole door is
+      // held to `NEWS.budgetMs`, so it never takes the time of the readings after it.
+      const until = Date.now() + NEWS.budgetMs;
       for (const phrase of newsQueue(entries, newsState, today)) {
+        if (limitedRow >= 2 || Date.now() > until || deadline - Date.now() < 60_000) break;
         asked++;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          await new Promise((ok) => setTimeout(ok, NEWS.politeMs));
+        let only429 = true;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise((ok) => setTimeout(ok, attempt ? NEWS.backoffMs * 2 ** (attempt - 1) : NEWS.politeMs));
           try {
             const res = await fetchImpl(newsUrl(phrase), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(40_000) });
-            if (res.status === 429) continue; // asked too soon: wait and ask once more
+            if (res.status === 429) continue; // asked too soon: wait longer and ask again
+            only429 = false;
             if (!res.ok) { failed++; break; }
             const timeline = parseTimeline(JSON.parse(await res.text()));
             if (!timeline) { failed++; break; }
@@ -2170,14 +2179,15 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
             read++;
             keep(meter, "news");
             break;
-          } catch { failed++; break; }
+          } catch { only429 = false; failed++; break; }
         }
+        if (only429) { limited++; limitedRow++; } else limitedRow = 0;
       }
       writeFileSync(join(dir, "news.json"), JSON.stringify(newsState));
       board.news = newsBoard(entries, newsState, today);
       sources.news = read || Object.keys(newsState).length ? "OK" : "FAILED";
       const a = board.news.all;
-      log.push(`news: ${asked} phrases asked · ${read} read · ${failed} failed · calls ${a.calls}: read ${a.read}, quiet ${a.quiet}, the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days ahead)` : ""}, the news first ${a.newsFirst}`);
+      log.push(`news: ${asked} phrases asked · ${read} read · ${failed} failed · ${limited} only answered "too many requests"${limitedRow >= 2 ? " (stopped for this run)" : ""} · calls ${a.calls}: read ${a.read}, quiet ${a.quiet}, the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days ahead)` : ""}, the news first ${a.newsFirst}`);
     } else {
       sources.news = door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
       log.push(`news: door ${sources.news}`);

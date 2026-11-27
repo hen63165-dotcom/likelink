@@ -55,9 +55,19 @@ must have haves worth viral products links link part episode shopping order orde
 cheap dupes dupe under dollar dollars things stuff favorites favourites wishlist storefront code coupon discount affiliate
 subscribe channel video videos shorts short vlog today week month 2025 2026 2027 here what this that these those you your`.split(/\s+/));
 
+// A video description's own furniture (26.11's run: "https www", "download app", "search bar", "friday
+// deals", "temufinds temuhaul" rose as phrases — links, app pitches and hashtags, never a product).
+const PROMO_WORDS = new Set(`http https www com net org io app apps download install search bar code codes promo
+deal deals sale sales friday black cyber monday prime day off percent free shipping link links bio description
+follow instagram facebook pinterest snapchat youtube twitter telegram whatsapp discord website site store shop
+shops page click below above comment comments like share save fyp foryou foryoupage trend trending
+new newest latest best top favorite favourite gift gifts idea ideas christmas asmr satisfying relaxing sound sounds`.split(/\s+/));
+const HASHTAG_PART = /temu|haul|aliexpress|amazon|shein|tiktok|fyp|daiso|taobao|douyin|oliveyoung/;
+
 /** The product phrases one video shows (two adjacent meaningful words, without the haul's own words). */
 export function videoPhrases(text = "") {
-  const clean = String(text || "").toLowerCase().split(/[^a-z0-9']+/).filter((w) => w && !HAUL_WORDS.has(w)).join(" ");
+  const noLinks = String(text || "").toLowerCase().replace(/\b(?:https?:\/\/|www\.)\S+/g, " ").replace(/#\S+/g, " ");
+  const clean = noLinks.split(/[^a-z0-9']+/).filter((w) => w && !HAUL_WORDS.has(w) && !PROMO_WORDS.has(w) && !HASHTAG_PART.test(w) && !/\d/.test(w)).join(" ");
   return [...phrasesOf(clean)];
 }
 

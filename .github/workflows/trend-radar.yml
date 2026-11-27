@@ -79,7 +79,10 @@ jobs:
       # The owner's YouTube key has a free daily quota (10,000 units, reset at midnight Pacific time). On
       # 26.11 six branch test runs spent it and main's next reading found YouTube answering 429, so only
       # main's runs use it; a branch run reports YouTube as waiting for a connection.
-      YOUTUBE_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.YOUTUBE_API_KEY || '' }}
+      # 26.11 again: a push to main at 19:50 asked after the day's reading had spent the units and got
+      # 429 on 24 of 26 searches (the first creators lost the day), so only main's daily reading (the
+      # schedule, or a run started by hand) spends it; a push to main reads everything else.
+      YOUTUBE_API_KEY: ${{ github.ref == 'refs/heads/main' && github.event_name != 'push' && secrets.YOUTUBE_API_KEY || '' }}
       META_ADLIB_TOKEN: ${{ secrets.META_ADLIB_TOKEN }}
       # Instagram's own Hashtag Search API for the waves (the owner's business account; without them: REQUIRES_CONNECTION).
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -118,8 +121,15 @@ jobs:
         # src/lib/growth/newKinds.js: an open model (all-MiniLM-L6-v2) through transformers.js on this
         # runner's CPU; installed here only, never shipped to the site. A failed install only skips the
         # kinds (the reading reports kinds: FAILED) and nothing else changes.
+        # 26.11 19:50: the install timed out once downloading a native image library (sharp) and the run
+        # lost the kinds by meaning, the look waves and Asia's translation; three tries, 20 s apart.
         continue-on-error: true
-        run: npm install --no-save --no-audit --no-fund @huggingface/transformers@4.3.1
+        run: |
+          for i in 1 2 3; do
+            npm install --no-save --no-audit --no-fund @huggingface/transformers@4.3.1 && exit 0
+            echo "install try $i failed"; sleep 20
+          done
+          exit 1
       - name: Today's reading
         env:
           # The crowd sensor's counts (GET mode=radar-board&op=crowd, cron auth).

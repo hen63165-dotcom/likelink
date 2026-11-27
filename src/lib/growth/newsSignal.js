@@ -16,6 +16,8 @@ export const NEWS = Object.freeze({
   minPerDay: 3, // articles in one day: a phrase in the news, not a stray mention
   perRun: 24, // phrases asked per run (open calls first, then the longest unread)
   politeMs: 5500, // GDELT asks for one request every 5 seconds
+  backoffMs: 15_000, // after a 429: 15 s, then 30 s (the runners share addresses with other users)
+  budgetMs: 240_000, // the door's whole time in one run
   refreshDays: 2,
   keepDays: 150,
   timespan: "3m",
