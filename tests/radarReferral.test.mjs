@@ -13,6 +13,8 @@ const DAY = 86_400_000;
 const user = (id, { daysOld = 1, confirmed = true } = {}) => ({ id, created_at: new Date(NOW - daysOld * DAY).toISOString(), email_confirmed_at: confirmed ? new Date(NOW - daysOld * DAY).toISOString() : null });
 
 test("one readable code per user, made once", () => {
+  assert.equal(codeFromBytes([255, 250, 249, 248]), null, "bytes past the last whole multiple are skipped (no modulo bias)");
+  assert.match(codeFromBytes([255, 1, 2, 3, 4, 5, 6, 7, 8]), REF_CODE, "a skipped byte takes the next one");
   const c = codeFromBytes([1, 2, 3, 4, 5, 6, 7, 8]);
   assert.match(c, REF_CODE);
   assert.doesNotMatch(c, /[01ilo]/);

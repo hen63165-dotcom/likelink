@@ -11,11 +11,20 @@ export const REF_CODE = /^[a-z0-9]{8}$/;
 const DAY = 86_400_000;
 const ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"; // no 0/o, 1/l/i: read aloud and typed by hand
 
-/** A new code from random bytes (the caller passes them: crypto.getRandomValues on the server). */
+/**
+ * A new code from random bytes (the caller passes them: crypto.getRandomValues on the server). Each
+ * letter takes a byte below the largest multiple of the alphabet's length (rejection sampling), so
+ * every letter is equally likely; too few usable bytes → null (the caller tries the next candidate).
+ */
 export function codeFromBytes(bytes) {
-  const b = Array.from(bytes || []);
-  if (b.length < 8) return null;
-  return b.slice(0, 8).map((x) => ALPHABET[x % ALPHABET.length]).join("");
+  const limit = 256 - (256 % ALPHABET.length);
+  const out = [];
+  for (const x of Array.from(bytes || [])) {
+    if (!Number.isInteger(x) || x < 0 || x >= limit) continue;
+    out.push(ALPHABET[x % ALPHABET.length]);
+    if (out.length === 8) return out.join("");
+  }
+  return null;
 }
 
 const clean = (state) => ({ codes: { ...(state?.codes || {}) }, users: { ...(state?.users || {}) } });

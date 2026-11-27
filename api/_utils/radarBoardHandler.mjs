@@ -145,7 +145,7 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       let refs = (await kvGet(REFERRAL.key, {})) || {};
       if (req.method === "GET" && op === "referral") {
         if (!referralView(refs, uid).code) {
-          const fresh = Array.from({ length: 4 }, () => codeFromBytes(globalThis.crypto.getRandomValues(new Uint8Array(8))));
+          const fresh = Array.from({ length: 4 }, () => codeFromBytes(globalThis.crypto.getRandomValues(new Uint8Array(32))));
           const made = ensureCode(refs, uid, fresh);
           if (!made.code) return json({ ok: false, error: "code_not_made" }, 500);
           await kvSet(REFERRAL.key, made.state);
