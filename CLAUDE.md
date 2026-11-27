@@ -349,7 +349,8 @@ Tests are mostly contract/regression tests. Read the header comment of a failing
   - **Publishing:** `pack()` writes `prices-public.json` (`{ ledger, seals }`; store prices only). `trend-radar.yml` uploads it, and `deploy-frontend.yml` splits it with `price-ledger.mjs` into `/radar/prices/00.json`…`99.json` (by the item id's last two digits), plus `days/<d>.txt` (the sealed texts, so anyone can recompute the hash) and `index.json` (seals and today's `honestTally`).
   - **The answer on `/magic`:** the magic page reads the shard from GitHub Pages (`PRICES_HOME`) and answers with `dealVerdict` against the history before today:
     - REAL_LOW or LOWER: at least 5% under the usual (median) price.
-    - RAISED: at least 13% under the recent 14-day high but not under the usual price. The "sale" only undoes a raise.
+    - RAISED: at least 13% under the recent 14-day high but not under the usual price, and the record shows the price at about today's level before the high (`from`). The "sale" only undoes a raise the radar saw.
+    - DROPPED: the same, but the high opens the record: the radar saw the price fall (`fell`) and stay (`steady` mornings), and says what came before its record is outside it. Never called a raise (27.11: 170 of 26.11's 205 "raised" were items that fell when the sale began on 20.11 after only four recorded days at the old price; the tally keeps `dropped` apart, `honestTally`).
     - HIGHER, or SAME.
     - SHORT: fewer than 3 readings over 5 days; the answer says since when the item is tracked.
     - UNTRACKED.

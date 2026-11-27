@@ -45,6 +45,8 @@ test("the price ledger: only the index's own numbers, the honest tally only when
   const index = { at: "2026-11-26", first: "2026-11-16", items: 59653, days: 11, seals: { "2026-11-16": { sha256: H("a") }, "2026-11-17": { sha256: H("b") }, bad: { sha256: H("c") } }, tally: { d: "2026-11-26", sales: 338, real: 146, raised: 192 } };
   assert.deepEqual(pricesOf(index), { items: 59653, since: "2026-11-16", sealedDays: 2, tally: { d: "2026-11-26", sales: 338, real: 146, raised: 192 } });
   assert.equal(pricesOf({ ...index, tally: { d: "2026-11-26", sales: 10, real: 8, raised: 9 } }).tally, null, "a tally that does not add up is left out");
+  assert.deepEqual(pricesOf({ ...index, tally: { d: "2026-11-26", sales: 371, real: 166, raised: 35, dropped: 170 } }).tally, { d: "2026-11-26", sales: 371, real: 166, raised: 35, dropped: 170 }, "drops are kept apart from raises");
+  assert.equal(pricesOf({ ...index, tally: { d: "2026-11-26", sales: 371, real: 166, raised: 35, dropped: 171 } }).tally, null);
   assert.equal(pricesOf({ items: 0, first: "2026-11-16" }), null);
   assert.equal(pricesOf(null), null);
   assert.equal(datasetCard({}, index).prices.items, 59653);

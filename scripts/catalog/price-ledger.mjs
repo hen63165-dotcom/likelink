@@ -33,7 +33,7 @@ export function writeLedger(src, out) {
     tally: last ? honestTally(ledger, last) : null,
   };
   writeFileSync(join(out, "index.json"), JSON.stringify(index));
-  console.log(`price-ledger: ${index.items} items · ${index.days} days · ${Object.keys(seals).length} sealed${index.tally ? ` · today ${index.tally.sales} sales (${index.tally.real} real, ${index.tally.raised} raised first)` : ""}`);
+  console.log(`price-ledger: ${index.items} items · ${index.days} days · ${Object.keys(seals).length} sealed${index.tally ? ` · today ${index.tally.sales} sales (${index.tally.real} real, ${index.tally.raised} raised first, ${index.tally.dropped} dropped earlier and held)` : ""}`);
   return index;
 }
 

@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { dealVerdict, dm, shekel } from "../../src/lib/growth/realDeal.js";
 
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE || "playwright");
 const SITE = String(process.env.MAGIC_SITE || "https://likelink2.vercel.app").replace(/\/+$/, "");
@@ -25,7 +26,7 @@ const CLEAN = process.env.MAGIC_CLEAN === "1";
 const NAME = CLEAN ? "magic-clean" : "magic-demo";
 // MAGIC_MODE=deal: the Black Friday cut (the owner, 27.11: "create interest"). MAGIC_LINKS lists
 // candidate items (comma separated) whose recorded prices read RAISED on the radar's ledger; the first
-// one the live page really answers "⚠️ הנחה שמחזירה למחיר הרגיל" for is recorded, nothing else.
+// one the live page really answers "⚠️ הנחה אחרי העלאה" for is recorded, nothing else.
 const DEAL = process.env.MAGIC_MODE === "deal";
 const DEAL_LINKS = String(process.env.MAGIC_LINKS || "").split(",").map((x) => x.trim()).filter((x) => /^https:\/\/www\.aliexpress\.com\/item\/\d{6,20}\.html$/.test(x));
 // The day's honest tally comes from the public price index itself (realDeal.js honestTally, written by
@@ -36,29 +37,26 @@ async function readTally() {
     const r = await fetch(PRICES_INDEX, { signal: AbortSignal.timeout(15_000) });
     if (!r.ok) return null;
     const t = (await r.json())?.tally;
-    const ok = t && /^\d{4}-\d{2}-\d{2}$/.test(String(t.d)) && Number.isInteger(t.sales) && t.sales > 0 && Number.isInteger(t.raised) && Number.isInteger(t.real) && t.real + t.raised <= t.sales;
-    return ok ? { day: `${Number(t.d.slice(8))}.${Number(t.d.slice(5, 7))}`, sales: t.sales, raised: t.raised } : null;
+    // Only an index that keeps drops apart from raises (realDeal.js, 27.11): before it, "raised" also
+    // counted items that fell when the sale began and stayed, which the radar never saw raised.
+    const ok = t && /^\d{4}-\d{2}-\d{2}$/.test(String(t.d)) && Number.isInteger(t.sales) && t.sales > 0 && Number.isInteger(t.raised) && Number.isInteger(t.real) && Number.isInteger(t.dropped) && t.real + t.raised + t.dropped <= t.sales;
+    return ok ? { day: `${Number(t.d.slice(8))}.${Number(t.d.slice(5, 7))}`, sales: t.sales, real: t.real, raised: t.raised, dropped: t.dropped } : null;
   } catch { return null; }
 }
 const TALLY = DEAL ? await readTally() : null;
-// How long the "sale" price has already been the price: the item's own recorded readings (the same public
-// shard the page reads), counted back from the newest one while each stays within 3% of it.
-async function sameSince(id) {
+// The raise the radar recorded for the item (the same public shard and the same rule the page uses):
+// the price before it went up (`from`) and the high, from the history before today.
+async function recordedRaise(id) {
   try {
     const r = await fetch(PRICES_INDEX.replace("index.json", `${id.slice(-2)}.json`), { signal: AbortSignal.timeout(15_000) });
-    const s = r.ok ? (await r.json())?.[id] : null;
-    if (!Array.isArray(s) || s.length < 2) return null;
-    const rows = s.filter((x) => Array.isArray(x) && /^\d{4}-\d{2}-\d{2}$/.test(String(x[0])) && Number(x[1]) > 0);
-    const now = rows.at(-1)[1];
-    let i = rows.length - 1;
-    while (i > 0 && Math.abs(rows[i - 1][1] / now - 1) <= 0.03) i -= 1;
-    const n = rows.length - i;
-    const d = rows[i][0];
-    return n >= 4 ? { since: `${Number(d.slice(8))}.${Number(d.slice(5, 7))}`, readings: n } : null;
+    const series = r.ok ? (await r.json())?.[id] : null;
+    if (!Array.isArray(series) || series.length < 4) return null;
+    const v = dealVerdict(series, { price: series.at(-1)[1], today: new Date().toISOString().slice(0, 10) });
+    return v.state === "RAISED" ? { from: { d: dm(v.from.d), p: shekel(v.from.p) }, high: { d: dm(v.high.d), p: shekel(v.high.p) } } : null;
   } catch { return null; }
 }
 let dealRun = null;
-const DEAL_TALLY = TALLY ? `ב־${TALLY.day} הרדאר מדד ${TALLY.sales} „הנחות”. ב־${TALLY.raised} מהן` : "";
+const DEAL_TALLY = TALLY ? `ב־${TALLY.day} הרדאר מדד ${TALLY.sales} „הנחות”.<br>ב־${TALLY.raised} מהן הוא ראה קודם העלאה.` : "";
 mkdirSync(OUT, { recursive: true });
 
 // The captions, the tap marks and the end card, drawn inside the page (fixed, on top).
@@ -150,7 +148,7 @@ async function typeAnim(locator, text) {
   }
 }
 
-const RAISED_TEXT = "הנחה שמחזירה למחיר הרגיל";
+const RAISED_TEXT = "הנחה אחרי העלאה"; // realDeal.js dealLines RAISED (a raise the radar saw, then undone)
 let found = null;
 let dealLink = "";
 if (DEAL) {
@@ -173,7 +171,7 @@ if (DEAL) {
   }
   await probe.close();
   if (!dealLink) throw new Error("deal mode: no candidate answered RAISED on the live page; nothing is made");
-  dealRun = await sameSince(dealLink.match(/(\d{6,20})\.html$/)[1]);
+  dealRun = await recordedRaise(dealLink.match(/(\d{6,20})\.html$/)[1]);
 }
 
 await page.goto(`${SITE}/magic`, { waitUntil: "networkidle", timeout: 45_000 });
@@ -201,11 +199,16 @@ if (DEAL) {
   await sleep(800);
   await dealBox.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, -170));
-  await cap("הרדאר רשם את המחיר שלו כל בוקר", "וכל יום נחתם בביטקוין");
-  await shot(3.0);
-  if (dealRun) await cap(`המחיר של „המבצע”? כבר כאן מ־${dealRun.since}`, `הרדאר רשם אותו מחיר ${dealRun.readings} בקרים ברצף`);
-  else await cap("⚠️ „ההנחה” מחזירה את המחיר לרגיל", "המחיר הרגיל שהרדאר רשם");
-  await shot(3.4);
+  // A highlight ring around the page's own verdict box (an editor's mark; the words are the page's).
+  await dealBox.evaluate((el) => { const box = el.parentElement; if (box) box.style.boxShadow = "0 0 0 5px rgba(217,119,6,.55)"; });
+  if (dealRun) {
+    await cap(`ב־${dealRun.from.d} המחיר: ₪${dealRun.from.p}`, `ב־${dealRun.high.d} הוא עלה ל־₪${dealRun.high.p} 📈`);
+    await shot(3.2);
+  }
+  await cap("⚠️ ועכשיו „הנחה”", "שמחזירה אותו למחיר של לפני ההעלאה");
+  await shot(3.2);
+  await cap("הרדאר רושם כל בוקר את המחיר", "וכל יום נחתם בביטקוין");
+  await shot(2.6);
   await cap("");
   if (!CLEAN) {
     await page.evaluate((tally) => {
@@ -214,7 +217,7 @@ if (DEAL) {
       if (el) {
         const first = el.firstElementChild;
         if (first) first.textContent = "בודקים לפני שקונים 🏷️";
-        if (first?.nextElementSibling) first.nextElementSibling.innerHTML = tally ? `${tally}<br>„ההנחה” השאירה את המחיר ברמה הרגילה<br>שהרדאר רשם, או מעליה` : "הרדאר רושם כל בוקר את המחיר<br>של עשרות אלפי מוצרים";
+        if (first?.nextElementSibling) first.nextElementSibling.innerHTML = tally || "הרדאר רושם כל בוקר את המחיר<br>של עשרות אלפי מוצרים";
       }
     }, DEAL_TALLY);
     await shot(3.0);
@@ -313,10 +316,10 @@ const caption = DEAL ? [
   "",
   "בלאק פריידיי: לפני שקונים, בודקים אם זה באמת מבצע 🏷️",
   "הרדאר של LikeLink2 רושם כל בוקר את המחיר בחנות של עשרות אלפי מוצרים באליאקספרס, וכל יום נחתם בביטקוין.",
-  ...(DEAL_TALLY ? [`${DEAL_TALLY} „ההנחה” השאירה את המחיר ברמה הרגילה שהוא רשם, או מעליה.`] : []),
-  ...(dealRun ? [`במוצר שבסרטון: אותו מחיר כבר מ־${dealRun.since}, ${dealRun.readings} בקרים ברצף.`] : []),
+  ...(dealRun ? [`במוצר שבסרטון הרדאר רשם ₪${dealRun.from.p} ב־${dealRun.from.d}, ₪${dealRun.high.p} ב־${dealRun.high.d}, ועכשיו „הנחה” שמחזירה אותו למחיר של לפני.`] : []),
+  ...(TALLY ? [`ב־${TALLY.day} הרדאר מדד ${TALLY.sales} „הנחות”: ב־${TALLY.real} המחיר נמוך מהמחיר הרגיל שהוא רשם, ב־${TALLY.raised} הוא ראה קודם העלאה, ו־${TALLY.dropped} ירדו כבר לפני כמה ימים ונשארו.`] : []),
   "",
-  "מדביקים קישור בכפתור הקסם ורואים: מבצע אמיתי, או הנחה שמחזירה למחיר הרגיל.",
+  "מדביקים קישור בכפתור הקסם ורואים: מבצע אמיתי, הנחה אחרי העלאה, או מחיר שכבר כאן כמה ימים.",
   "בחינם ובלי הרשמה: likelink2.vercel.app/magic",
   "",
   "שמרו ושלחו למי שקונה היום 💌",
@@ -337,5 +340,5 @@ const caption = DEAL ? [
   "#אליאקספרס #קניותברשת #טיפים #עליאקספרס #קניות",
 ].join("\n");
 writeFileSync(join(OUT, "caption.txt"), `${caption}\n`);
-writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: DEAL ? dealLink : LINK, mode: DEAL ? "deal" : "demo", tally: TALLY, sameSince: dealRun, query: DEAL ? null : QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
+writeFileSync(join(OUT, CLEAN ? "run-clean.json" : "run.json"), `${JSON.stringify({ site: SITE, link: DEAL ? dealLink : LINK, mode: DEAL ? "deal" : "demo", tally: TALLY, raise: dealRun, query: DEAL ? null : QUERY, found, seconds: Number(length.toFixed(2)), clean: CLEAN, moments, at: new Date().toISOString() }, null, 2)}\n`);
 console.log(`magic demo (${DEAL ? `deal ${dealLink}` : "demo"}): ${length.toFixed(1)} s, ${found ?? 0} search results, ${readdirSync(OUT).filter((f) => f.startsWith("frames-")).length} frames`);
