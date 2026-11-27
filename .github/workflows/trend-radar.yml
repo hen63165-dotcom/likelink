@@ -108,6 +108,8 @@ jobs:
       - name: The history so far
         env:
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+          # The state's own key (radar-state.mjs stateKeys), when the owner added it; empty = the machine secret.
+          RADAR_STATE_KEY: ${{ secrets.RADAR_STATE_KEY }}
         run: |
           mkdir -p radar-state
           if gh release view radar >/dev/null 2>&1; then
@@ -186,6 +188,7 @@ jobs:
         # open, else the teaser (no live call); briefs-public.json (the kits) only while open.
         env:
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+          RADAR_STATE_KEY: ${{ secrets.RADAR_STATE_KEY }}
         run: |
           node scripts/catalog/radar-state.mjs pack radar-state
           files="radar-state/state.enc radar-state/board-public.json"

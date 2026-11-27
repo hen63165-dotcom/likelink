@@ -24,7 +24,10 @@ import { PROMISE, featuresAt, targetAt } from "./radarPromise.js";
 import { growthOverDays, isSeasonal } from "./freshRisers.js";
 import { hasBrandName, isBulkPack, isNotListedKind } from "./deals.js";
 
-export const TAKEOFF = Object.freeze({ version: 1, h: 7, line: 100, soft: 50, minO: 10, maxO: 300, k: 5, scan: 24, unreadDays: 3, keepDays: 60 });
+// v2 (28.11, the owner: "focus only on the goal"): the radar's own picks also need the world gap read
+// and quiet (WORLD_QUIET or FIRST_SIGNS, never searched in three or more countries), like every find
+// it shows; the yardsticks (the simple ranking, chance) stay as they were. A v1 sheet keeps its lines.
+export const TAKEOFF = Object.freeze({ version: 2, h: 7, line: 100, soft: 50, minO: 10, maxO: 300, k: 5, scan: 24, unreadDays: 3, keepDays: 60 });
 export const TAKEOFF_SIDES = Object.freeze(["radar", "rank", "random"]);
 
 // The lab's look back that chose the rule (radar-lab.mjs, run 45953493229 on 27.11, the real item

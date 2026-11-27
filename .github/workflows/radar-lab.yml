@@ -31,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+          RADAR_STATE_KEY: ${{ secrets.RADAR_STATE_KEY }}
         run: |
           mkdir -p lab-state
           gh release download radar --dir lab-state --pattern state.enc --clobber

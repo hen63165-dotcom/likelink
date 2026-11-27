@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The radar's state, private (the owner, 2026-11-15: "כן לנעילה", stage 2). The repository and its
 // releases are public, so the daily state (board, calls, readings, kits…) goes to the "radar" release
-// as ONE encrypted file, state.enc (AES-256-GCM; key = sha256 of a label + AUTOPILOT_SECRET, which
-// only the workflows have). What the public may see is written apart:
+// as ONE encrypted file, state.enc (AES-256-GCM; key = sha256 of a label + RADAR_STATE_KEY when it
+// exists, else AUTOPILOT_SECRET, which only the workflows have). What the public may see is written apart:
 //   board-public.json  the full board while the server says the trial is open (GET mode=radar-board
 //                      answers 200 without a session), else the teaser (radarGate.teaserBoard);
 //   briefs-public.json the promotion kits, only while open.
@@ -23,6 +23,30 @@ export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/
 export function stateKey(secret) {
   if (!secret || String(secret).length < 8) throw new Error("state key needs AUTOPILOT_SECRET");
   return createHash("sha256").update(`likelink-radar-state|${secret}`).digest();
+}
+
+// A key of its own for the state (the owner, 27.11: "not even the cleverest hacker"): the releases
+// are public, so state.enc can be tested offline against guesses of whatever its key comes from. A
+// long random RADAR_STATE_KEY (≥ 32 characters, a GitHub secret) separates it from the machine secret
+// the workflows also send to the server. When it exists, pack writes with it; unpack tries it first,
+// then the machine secret, so the first run with it moves the state over and nothing is lost.
+export const STRONG_MIN = 32;
+export function stateKeys(env = process.env) {
+  const keys = [];
+  const strong = String(env.RADAR_STATE_KEY || "").trim();
+  if (strong.length >= STRONG_MIN) keys.push({ id: "state-key", key: createHash("sha256").update(`likelink-radar-state-v2|${strong}`).digest() });
+  if (env.AUTOPILOT_SECRET && String(env.AUTOPILOT_SECRET).length >= 8) keys.push({ id: "machine", key: stateKey(env.AUTOPILOT_SECRET) });
+  if (!keys.length) throw new Error("state key needs RADAR_STATE_KEY or AUTOPILOT_SECRET");
+  return keys;
+}
+
+/** Open with the first key that authenticates (AES-GCM refuses every other). */
+export function openAny(buf, keys) {
+  let last = null;
+  for (const k of keys) {
+    try { return { files: open(buf, k.key), key: k.id }; } catch (e) { last = e; }
+  }
+  throw last || new Error("no key opens the radar state");
 }
 
 export function seal(files, key) {
@@ -52,7 +76,7 @@ export async function probeOpen({ fetchImpl = globalThis.fetch, url = PROBE } = 
 }
 
 export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
-  const key = stateKey(env.AUTOPILOT_SECRET);
+  const { key, id: keyId } = stateKeys(env)[0];
   const names = readdirSync(dir).filter((f) => f.endsWith(".json") && !PUBLIC_FILES.includes(f));
   const files = Object.fromEntries(names.map((f) => [f, readFileSync(join(dir, f), "utf8")]));
   const enc = seal(files, key);
@@ -72,15 +96,15 @@ export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetc
     const today = new Date().toISOString().slice(0, 10);
     writeFileSync(join(dir, "evidence-public.json"), JSON.stringify(evidenceOf({ freshCalls: JSON.parse(files["fresh-calls.json"]), items: files["items.json"] ? JSON.parse(files["items.json"]) : {}, open: isOpen, today, baseline: files["baseline.json"] ? JSON.parse(files["baseline.json"]) : null })));
   }
-  return { files: names.length, open: isOpen };
+  return { files: names.length, open: isOpen, key: keyId };
 }
 
 export function unpack(dir, { env = process.env } = {}) {
   const p = join(dir, STATE_FILE);
   if (!existsSync(p)) return { files: 0 };
-  const files = open(readFileSync(p), stateKey(env.AUTOPILOT_SECRET));
+  const { files, key } = openAny(readFileSync(p), stateKeys(env));
   for (const [f, text] of Object.entries(files)) if (/^[a-z0-9-]+\.json$/.test(f)) writeFileSync(join(dir, f), text);
-  return { files: Object.keys(files).length };
+  return { files: Object.keys(files).length, key };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
