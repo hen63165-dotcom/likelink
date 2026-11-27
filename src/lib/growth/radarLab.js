@@ -40,6 +40,13 @@ export const VARIANTS = Object.freeze([
   { id: "line-short", rule: (f, c) => lineScore(f.o, f.pace3, c) },
   { id: "line-confirmed", rule: (f, c) => lineScore(f.o, Math.min(f.pace, f.pace3), c) },
   { id: "line-mean", rule: (f, c) => lineScore(f.o, (f.pace + f.pace3) / 2, c) },
+  // A vote (27.11, the owner: "a monster"): every member's order turned into ranks and averaged (Borda),
+  // so no single rule decides; a member missing that day (a learning model without enough examples)
+  // sits out. Members are run before the votes.
+  { id: "vote-3", vote: ["ranking", "beats-noise", "line-week"] },
+  { id: "vote-4", vote: ["ranking", "beats-noise", "line-week", "confirmed"] },
+  { id: "vote-5", vote: ["ranking", "beats-noise", "line-week", "confirmed", "learn-pace-size"] },
+  { id: "vote-noise-rank", vote: ["ranking", "beats-noise"] },
 ]);
 
 /** How many noise units the expected gain of the 30-day count stands above the line's need, h days on. */
@@ -76,9 +83,16 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
     const canLearn = ex.length >= MODELS.minRows;
     const row = { d, n: pool.length, rate: pool.filter((x) => x.hit).length / pool.length, v: {} };
     const kk = Math.min(k, Math.floor(pool.length / 5));
+    const scored = {};
     for (const v of variants) {
       let score;
-      if (v.rule) score = (x) => v.rule(x.f, { h, line });
+      if (v.vote) {
+        const members = v.vote.filter((id) => scored[id]);
+        if (!members.length) continue;
+        const rankSum = new Map(pool.map((x) => [x.id, 0]));
+        for (const id of members) [...scored[id]].sort((a, b) => b.s - a.s || b.pace - a.pace || (a.id < b.id ? -1 : 1)).forEach((x, r) => rankSum.set(x.id, rankSum.get(x.id) + r));
+        score = (x) => -rankSum.get(x.id) / members.length;
+      } else if (v.rule) score = (x) => v.rule(x.f, { h, line });
       else {
         if (!canLearn) continue;
         const m = fitLogistic(ex.map((e) => ({ x: v.cols.map((c) => e.x[c]), y: e.y })), { rules: { ...MODELS, lambda: v.lambda } });
@@ -86,6 +100,7 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
         score = (x) => predictLogistic(m, v.cols.map((c) => xRich(x.f, h)[c]));
       }
       const s = pool.map((x) => ({ s: score(x), hit: x.hit, id: x.id, pace: x.f.pace, mult: (x.y + 1) / (x.f.o + 1) }));
+      scored[v.id] = s;
       const top = [...s].sort((a, b) => b.s - a.s || b.pace - a.pace || (a.id < b.id ? -1 : 1)).slice(0, kk);
       const mults = top.map((x) => x.mult).sort((a, b) => a - b);
       row.v[v.id] = { hits: top.filter((x) => x.hit).length, k: kk, auc: auc(s.map((x) => x.s), s.map((x) => (x.hit ? 1 : 0))), mult: mults.length ? mults[Math.floor(mults.length / 2)] : null };
