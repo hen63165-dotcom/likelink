@@ -35,9 +35,9 @@ test("the morning sheet: four picks of k from one public sample, sealed as item 
   }
   assert.deepEqual(sheet.picks[3].random, sheet.picks[7].random, "the random pick is the hash order, chosen by nobody");
   const text = versusSealText(sheet);
-  assert.match(text, new RegExp(`^versus\\|${day(20)}\\|v1\\npool\\|`));
+  assert.match(text, new RegExp(`^versus\\|${day(20)}\\|v${VERSUS.version}\\npool\\|`));
   assert.equal(text.split("\n").length, 2 + VERSUS.horizons.length * CONTENDERS.length);
-  assert.ok(!/[a-z]{4,}\s/i.test(text.split("\n").slice(1).join(" ").replace(/learn|radar|rank|random|pool/g, "")), "no title, only numbers");
+  assert.ok(!/[a-z]{4,}\s/i.test(text.split("\n").slice(1).join(" ").replace(/learn|radar|noise|rank|random|pool/g, "")), "no title, only numbers");
   // The sheet uses readings up to its day only: changing what happened later changes nothing in it.
   const later = Object.fromEntries(Object.entries(items).map(([id, s]) => [id, s.map(([d, v]) => [d, d > day(20) ? v * 5 : v])]));
   assert.deepEqual(versusSheet(later, day(20)), sheet);
@@ -95,4 +95,21 @@ test("the board keeps the record and the sealed sheet; behind the lock the recor
   assert.match(run, /env\.RADAR_VERSUS !== "0"/);
   assert.match(run, /versus: board\.versus\?\.seal\?\.sha256/);
   assert.match(run, /versusDueIds\(/);
+});
+
+test("a contender that joined later leaves the earlier sheets' sealed text exactly as it was (v1 has no noise)", () => {
+  const items = market();
+  const v2 = versusSheet(items, day(20));
+  assert.ok(Array.isArray(v2.picks[3].noise) && v2.picks[3].noise.length === VERSUS.k);
+  const v1 = { ...v2, v: 1, picks: Object.fromEntries(Object.entries(v2.picks).map(([h, p]) => { const { noise, ...rest } = p; return [h, rest]; })) };
+  const text = versusSealText(v1);
+  assert.ok(!/\|noise\|/.test(text));
+  assert.equal(text.split("\n").length, 2 + VERSUS.horizons.length * (CONTENDERS.length - 1));
+  // Graded as before: the missing contender counts nothing, the others as sealed.
+  const g = gradeVersus(recordVersus({}, v1, day(20)), items, day(23)).days[day(20)].graded[3];
+  assert.equal(g.noise.of, 0);
+  assert.equal(g.pick.of, VERSUS.k);
+  const rec = versusRecord(gradeVersus(recordVersus({}, v1, day(20)), items, day(23)), day(23));
+  assert.equal(rec.horizons[0].noise.rate, null);
+  assert.ok(rec.horizons[0].noiseDuel);
 });
