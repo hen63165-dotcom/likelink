@@ -59,7 +59,7 @@ for (const h of [3, 7]) {
 // only small listings (10–300 orders in 30 days, where nobody has noticed them yet), and a hit is a
 // doubling of their orders within h days. Walk-forward like the rest: chosen on the earlier half of
 // the days, checked on the later half. Totals only.
-for (const [h, lineT] of [[3, 100], [5, 100], [7, 100], [7, 50], [10, 100], [10, 50]]) {
+for (const [h, lineT] of [[5, 100], [7, 100], [7, 50], [6, 100], [6, 50]]) {
   const rows = labRun(items, today, { h, line: lineT, minO: 10, maxO: 300, perDay: 3000 });
   if (!rows.length) { console.log(`\n--- takeoff ${h}d +${lineT}%: no tested day yet`); continue; }
   const half = Math.max(1, Math.floor(rows.length / 2));
@@ -71,5 +71,5 @@ for (const [h, lineT] of [[3, 100], [5, 100], [7, 100], [7, 50], [10, 100], [10,
   for (const v of VARIANTS) console.log(`${v.id.padEnd(20)} all ${String(all[v.id].rate).padStart(5)}% ×${all[v.id].mult} auc ${all[v.id].auc} · earlier ${String(early[v.id].rate).padStart(5)}% · later ${String(late[v.id].rate).padStart(5)}% ×${late[v.id].mult} auc ${late[v.id].auc}`);
   const pick = VARIANTS.map((v) => v.id).filter((id) => early[id].rate !== null).sort((a, b) => early[b].rate - early[a].rate || (early[b].auc ?? 0) - (early[a].auc ?? 0))[0];
   console.log(`takeoff ${h}d +${lineT}% chosen on the earlier half: ${pick} · later half ${late[pick]?.rate}% (×${late[pick]?.mult}) · simple ranking ${late.ranking?.rate}% · base ${base(rows.slice(half))}%`);
-  for (const r of rows) console.log(`  ${r.d}: pool ${r.n}, doubled ${Math.round(r.rate * 1000) / 10}% · ${pick} ${r.v[pick]?.hits}/${r.v[pick]?.k} · ranking ${r.v.ranking?.hits}/${r.v.ranking?.k}`);
+  for (const r of rows) console.log(`  ${r.d}: pool ${r.n}, reached the line ${Math.round(r.rate * r.n)} (${Math.round(r.rate * 1000) / 10}%) · ${VARIANTS.filter((v) => r.v[v.id]).map((v) => `${v.id} ${r.v[v.id].hits}/${r.v[v.id].k}`).join(" · ")}`);
 }
