@@ -1,0 +1,9 @@
+{
+  "alg": "Ed25519",
+  "kid": "8bf2d5afd249affc",
+  "pub": "4oMcOPLvIm7cQy+BLSTx41xox397CuEkvCloqZuI/tw=",
+  "since": "2026-11-27",
+  "signs": "likelink2-radar|root|v1|<day>|<root sha256>",
+  "board": "https://likelink2.vercel.app/radar/board.json (ledger.sig)",
+  "about": "The trend radar's public Ed25519 key. Every daily root of the radar's sealed ledger is signed with it; the private half exists only in the radar's encrypted state. Bitcoin (OpenTimestamps) proves when a root existed; this signature proves the radar issued it."
+}
