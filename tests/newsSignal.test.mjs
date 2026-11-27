@@ -44,3 +44,10 @@ test("the board counts per book and the browser keeps counts only", () => {
   assert.deepEqual(Object.keys(c.books).sort(), ["fresh", "kinds", "stages"]);
   assert.ok(!JSON.stringify(c).includes("x one"), "never a call's phrase");
 });
+
+test("GDELT's empty answer is a quiet phrase, never a failed read (27.11's branch run)", () => {
+  assert.deepEqual(parseTimeline({}), []);
+  assert.equal(parseTimeline(null), null);
+  assert.equal(parseTimeline({ error: "x" }), null);
+  assert.ok(NEWS.backoffMs >= 10_000 && NEWS.budgetMs <= 300_000);
+});

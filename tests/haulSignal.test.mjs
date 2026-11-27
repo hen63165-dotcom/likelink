@@ -49,3 +49,8 @@ test("hauls: YouTube Shorts too — where TikTok's creators post the same clips"
   assert.equal(new URL(haulSearchUrl("temu haul", { key: "k" })).searchParams.get("videoDuration"), null);
   assert.ok((HAULS.queries.length + HAULS.shortQueries.length) * 100 <= 1600, "1,600 of the free 10,000 daily units at most");
 });
+
+test("a video's links, hashtags, codes and pitch words are never product phrases (26.11's run)", () => {
+  assert.deepEqual(videoPhrases("My TEMU haul! https://www.temu.com/abc download app search bar friday deals #temufinds #temuhaul code ALC607836"), []);
+  assert.deepEqual(videoPhrases("butter squishy asmr satisfying"), ["butter squishy"]);
+});

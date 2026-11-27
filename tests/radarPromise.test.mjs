@@ -282,3 +282,11 @@ test("the chance from 10 orders only; a record kept under the older rule restart
   const again = gradePromises({ ...g.state, open }, items, day(8));
   assert.equal(again.state.chanceSince, day(7), "the restart day is kept");
 });
+
+test("a chance is given only once the model learned from minChance examples (19.11: 215 examples said 62.9% where 3.5% grew)", () => {
+  const series = [["2026-11-13", 100], ["2026-11-20", 120]];
+  const cal = (n) => ({ h: 3, state: "READY", n, beta: [0, 0, 0], res: { all: [-0.1, 0, 0.1, 0.2], bands: {} } });
+  assert.equal(chanceFor(series, "2026-11-20", cal(PROMISE.minChance - 1)), null);
+  assert.ok(chanceFor(series, "2026-11-20", cal(PROMISE.minChance))?.p >= 1);
+  assert.equal(PROMISE.minChance, 500);
+});

@@ -32,6 +32,9 @@ export function newsUrl(phrase, { rules = NEWS } = {}) {
 
 /** GDELT's timeline answer → [{ d, n }] per day, or null when it is no timeline. */
 export function parseTimeline(json) {
+  // GDELT answers a phrase no article names with an empty object (27.11's branch run: 3 of 7 phrases):
+  // a valid answer, the phrase is still quiet in the news.
+  if (json && typeof json === "object" && !Array.isArray(json) && Object.keys(json).length === 0) return [];
   const series = Array.isArray(json?.timeline) ? json.timeline : null;
   if (!series) return null;
   const s = series.find((x) => /count/i.test(String(x?.series || ""))) || series[0];
