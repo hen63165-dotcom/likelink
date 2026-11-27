@@ -12,6 +12,10 @@ const DOORS = [
   ...[1, 2, 3, 4].map((b) => ({ id: `census-probe-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=${month(b)}` })),
   ...[1, 2, 3, 4].map((b) => ({ id: `census-chapters-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=I_COMMODITY,GEN_VAL_MO&COMM_LVL=HS2&CTY_CODE=5700&time=${month(b)}` })),
   { id: "census-2025-09", url: "https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=2025-09" },
+  { id: "comtrade-robots", url: "https://comtradeapi.un.org/robots.txt" },
+  { id: "comtrade-cn-to-us", url: "https://comtradeapi.un.org/public/v1/preview/C/M/HS?reporterCode=156&period=202609&partnerCode=842&flowCode=X&cmdCode=950300&maxRecords=5", max: 400 },
+  { id: "comtrade-cn-to-world-aggs", url: "https://comtradeapi.un.org/public/v1/getDA/C/M/HS?reporterCode=156&period=202609", max: 400 },
+  { id: "comtrade-latest-cn", url: "https://comtradeapi.un.org/public/v1/preview/C/M/HS?reporterCode=156&period=202610&partnerCode=842&flowCode=X&cmdCode=TOTAL&maxRecords=5", max: 400 },
   { id: "gdelt", url: "https://api.gdeltproject.org/api/v2/doc/doc?query=%22butter%20squishy%22&mode=timelinevolraw&format=json&timespan=1m" },
 ];
 for (const d of DOORS) {
@@ -19,7 +23,7 @@ for (const d of DOORS) {
   try {
     const res = await fetch(d.url, { headers: d.headers || { "user-agent": UA, accept: "application/json, text/plain" }, signal: AbortSignal.timeout(60_000) });
     const body = await res.text();
-    console.log(`${d.id}: ${res.status} ${res.headers.get("content-type") || "-"} ${body.length}B ${Date.now() - t0}ms · ${JSON.stringify(body.slice(0, 160))}`);
+    console.log(`${d.id}: ${res.status} ${res.headers.get("content-type") || "-"} ${body.length}B ${Date.now() - t0}ms · ${JSON.stringify(body.slice(0, d.max || 160))}`);
   } catch (err) {
     console.log(`${d.id}: error ${String(err?.cause?.code || err?.message || err).slice(0, 80)} ${Date.now() - t0}ms`);
   }
