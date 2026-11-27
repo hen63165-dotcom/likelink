@@ -51,14 +51,17 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
       pool.push({ id, f, y: y.v, hit: reached(f.o, y.v, line) });
     }
     if (pool.length < 40) continue;
-    const ex = richExamples(items, h, d, line, { promise }).filter((e) => inSize(Math.round(Math.exp(e.x[3]) - 1)));
-    if (ex.length < MODELS.minRows) continue;
+    // The learning variants need enough examples known on day d; the rules do not, so a day with too few
+    // examples still tests every rule (the learning variants sit that day out).
+    const ex = variants.some((v) => !v.rule) ? richExamples(items, h, d, line, { promise }).filter((e) => inSize(Math.round(Math.exp(e.x[3]) - 1))) : [];
+    const canLearn = ex.length >= MODELS.minRows;
     const row = { d, n: pool.length, rate: pool.filter((x) => x.hit).length / pool.length, v: {} };
     const kk = Math.min(k, Math.floor(pool.length / 5));
     for (const v of variants) {
       let score;
       if (v.rule) score = (x) => v.rule(x.f);
       else {
+        if (!canLearn) continue;
         const m = fitLogistic(ex.map((e) => ({ x: v.cols.map((c) => e.x[c]), y: e.y })), { rules: { ...MODELS, lambda: v.lambda } });
         if (!m) continue;
         score = (x) => predictLogistic(m, v.cols.map((c) => xRich(x.f, h)[c]));
