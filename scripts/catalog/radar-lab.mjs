@@ -38,7 +38,7 @@ for (const h of bt.horizons) {
     const rnd = Math.round((part.reduce((s, x) => s + x.rate * x.k, 0) / of) * 1000) / 10;
     console.log(`${label} (${part[0].d} → ${part[part.length - 1].d}, ${part.length} days): ${C.map((c) => `${NAME[c]} ${rate(c)}%`).join(" · ")} · random ${rnd}%`);
   }
-  for (const x of rows) console.log(`  ${x.d}: pool ${x.n}, grew ${Math.round(x.rate * 1000) / 10}% · top ${x.k}: chance ${x.model} · learning ${x.learn} · noise-checked ${x.radar} · ranking ${x.rank}`);
+  for (const x of rows) console.log(`  ${x.d}: pool ${x.n}, grew ${Math.round(x.rate * 1000) / 10}% · top ${x.k}: chance ${x.model} · learning ${x.learn} · noise-checked ${x.radar} · ranking ${x.rank} · mean chance ${Math.round(x.meanChance * 1000) / 10}% · Brier model ${x.brierModel} vs constant ${x.brierBase} · model trained on ${x.trainN}`);
 }
 
 // The variants: chosen on the earlier half, checked on the later half (radarLab.js).

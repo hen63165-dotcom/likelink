@@ -44,6 +44,11 @@ export const PROMISE = Object.freeze({
   // markets, and none for product trends): per horizon, the chance the item's 30-day orders grow by
   // at least this much. 14 days uses the new products' own hit line (+50%, freshRisers.gradeFresh).
   chanceLine: { 3: 10, 7: 25, 14: 50 },
+  // 27.11, the lab, day by day: on 19.11 the model had learned from 215 examples and said 62.9% on
+  // average where 3.5% grew (Brier 0.529 against a constant's 0.035); on every other day it was at or
+  // below the constant. A chance is given only once the model learned from this many examples (the
+  // ranges keep `minCalib`: their coverage holds by construction).
+  minChance: 500,
   // 26.11, the lab on the real history: an item at 0 orders "reached +10%" whatever happened, so it was
   // a sure hit. The chance is given and graded only from `minOrders` (where +10% is a real order), a hit
   // needs at least one more order, and the record under that rule (`chanceRule`) starts on its own day.
@@ -157,11 +162,18 @@ export function calibrate(items, today, { alphas = {}, rules = PROMISE } = {}) {
     const train = ex.slice(0, cut);
     const cal = ex.slice(cut);
     const beta = fitRidge(train, { lambda: rules.ridge });
-    const signed = cal.map((e) => ({ r: e.y - predict(beta, e.x), band: e.band }));
+    const signed = cal.map((e) => ({ r: e.y - predict(beta, e.x), band: e.band, size: e.x[2] }));
     const scores = signed.map((x) => ({ s: Math.abs(x.r), band: x.band }));
     // The signed errors, sorted, per size band: the conformal predictive distribution behind the chance.
-    const res = { all: signed.map((x) => x.r).sort((a, b) => a - b), bands: {} };
-    for (const b of [0, 1, 2]) { const rb = signed.filter((x) => x.band === b).map((x) => x.r).sort((a, b2) => a - b2); if (rb.length >= rules.minGroup) res.bands[b] = rb; }
+    // 27.11, the lab on the real history: the chance is given only from `minOrders`, but its errors came
+    // from every item, and a listing at 0–9 orders jumps (0 → 3 is a log growth of 1.4), so the chance was
+    // far too high (Brier 0.094 against a constant's 0.023 in the head-to-head). Its errors now come only
+    // from the items it is given for, when there are enough of them; the ranges keep every item's errors.
+    const minSize = Math.log(rules.minOrders + 1) - 1e-9;
+    const own = signed.filter((x) => x.size >= minSize);
+    const pool = own.length >= rules.minGroup ? own : signed;
+    const res = { all: pool.map((x) => x.r).sort((a, b) => a - b), bands: {}, from: pool === own ? "minOrders" : "all" };
+    for (const b of [0, 1, 2]) { const rb = pool.filter((x) => x.band === b).map((x) => x.r).sort((a, b2) => a - b2); if (rb.length >= rules.minGroup) res.bands[b] = rb; }
     const q = {};
     for (const level of rules.levels) {
       const alpha = levelAlpha(alphas, h, level);
@@ -200,6 +212,7 @@ export function rangeFor(series, today, cal, level, { rules = PROMISE } = {}) {
  */
 export function chanceFor(series, today, cal, { rules = PROMISE } = {}) {
   if (!cal || cal.state !== "READY" || !cal.res) return null;
+  if (Number.isFinite(rules.minChance) && !(cal.n >= rules.minChance)) return null;
   const f = featuresAt(series, today, { rules });
   if (!f || f.o < rules.minOrders) return null;
   const line = rules.chanceLine[cal.h];

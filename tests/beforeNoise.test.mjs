@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { NOISE, candidates, cleanNoise, controlPool, doorSignals, keyOf, mergeSignals, noiseBoard, noiseLines, noiseQueue, noiseRecord, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls, singular } from "../src/lib/growth/beforeNoise.js";
+import { NOISE, candidates, cleanNoise, controlPool, doorSignals, keyOf, mergeSignals, namesAThing, noiseBoard, noiseLines, noiseQueue, noiseRecord, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls, singular } from "../src/lib/growth/beforeNoise.js";
 import { sanitizeBoard } from "../src/lib/growth/radarBoard.js";
 import { teaserBoard } from "../src/lib/growth/radarGate.js";
 import { INSTRUMENTS, SECTION_TABS } from "../src/lib/growth/radarCore.js";
@@ -119,4 +119,16 @@ test("one engine in the radar's one core: its book in the root, its tab, the run
   assert.match(page, /<BeforeNoise noise=\{board\.noise\}/);
   assert.match(page, /id="noise"/);
   assert.ok(NOISE.families.length === 3);
+});
+
+test("a name ends in a thing: describing words and fragments never become a call or a control (27.11's run)", () => {
+  for (const k of ["breathable shock", "resistant breathable", "versatile end", "cross border", "scarf women'"]) assert.equal(namesAThing(k), false, k);
+  for (const k of ["butter squishy", "magnetic tile", "claw clip", "woven bag", "mini blender"]) assert.equal(namesAThing(k), true, k);
+  const today = "2026-11-27";
+  const sig = doorSignals({ listings: [{ phrase: "breathable shock", weekPct: 80, orders: 400 }, { phrase: "butter squishy", weekPct: 80, orders: 400 }] }, today);
+  assert.deepEqual([...sig.listings.keys()], ["butter squishy"]);
+  // a name stored before the rule stays out of the check
+  const state = { sig: { "versatile end": { listings: { last: today, n: 50 }, shops: { last: today, n: 3 } }, "woven bag": { listings: { last: today, n: 50 }, shops: { last: today, n: 3 } } } };
+  assert.deepEqual(candidates(state, today).map((c) => c.key), ["woven bag"]);
+  assert.equal(controlPool({ sig: { "versatile end": { listings: { last: today, n: 50 } } } }, today).length, 0);
 });

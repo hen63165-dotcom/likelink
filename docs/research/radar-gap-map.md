@@ -135,3 +135,42 @@ Asked: did Wix buy a company that does what the radar does, and does the approve
 
   We found no ecommerce trend tool publishing timestamped, publicly graded calls. The approved sentence (`RADAR_CLAIM`) still holds, with "we found" and this date.
 - **What the radar's own record shows the same day.** The lab, on 17–22.11, 3 days, +10%: the radar's pick 18.3%, the simple ranking 18.3%, random 2%. It is equal to the simple ranking, not ahead of it. Nothing may say "the best" or "more accurate than" until the sealed daily duel (`radarVersus.js`) and the 14-day grades show it.
+
+## Twelfth check (27.11.2026, afternoon): "nothing missing, number 1, impossible to pass"
+
+Asked: after the upgrades, what is still missing for the radar to lead, worldwide, and what can be measured today?
+
+- **Sealed, graded product-trend calls (the radar's claim).** Two extended searches the same day found sealed, graded records only outside product trends:
+  - sports picks with Git history and OpenTimestamps proofs ([TipsAudit](https://github.com/tipsaudit/track-record-public), external timestamps from June 2026);
+  - Brier-scored public predictions, mostly the 2026 World Cup ([Trackrecord.info](https://trackrecord.info/));
+  - locked election forecasts ([Akashic](http://akashicedge.com/forecast/scorecard/)), biotech catalysts graded against SEC filings ([CatalystAlert](https://catalystalert.io/track-record)), geopolitical calls ([Aegean](https://aegeanintel.com/scorecard/)).
+
+  For e-commerce and product trends the searches found self-reported accuracy and vendor reviews only ([one critique](https://medium.com/@jiyam/the-data-only-fashion-forecasting-fraud-why-retail-analytics-platforms-are-failing-the-industry-5ab8cf6bfe55) cites a vendor's unaudited 68%). The approved sentence (`RADAR_CLAIM`) still holds with "we found" and this date.
+- **New and named players in 2026.** None publishes dated calls with grades:
+  - [EchoTik](https://www.echotik.live/blog/echotik-vs-kalodata-vs-fastmoss-more-accurate) pitches "velocity" before saturation;
+  - Virlo and [SmartScout](https://www.smartscout.com/blog/kalodata-alternatives) cover TikTok Shop, Amazon and Walmart;
+  - TrendTrack and Sell The Trend's Nexus ([vendor page](https://www.sellthetrend.com/blog/ai-to-find-trending-products)) claim early detection;
+  - Exploding Topics Pro sells trend forecasts on its Investor tier and an API on Business ([review](https://www.therundown.ai/tools/exploding-topics)).
+- **What they have that the radar does not (yet), and the legal door to each:**
+
+  | What they have | Who | The radar's door | What it needs |
+  | --- | --- | --- | --- |
+  | Search volume as a number, 5 years back | Exploding Topics, Glimpse | [Google Trends API (alpha)](https://developers.google.com/search/apis/trends), official and free, approved testers only ([still alpha in October 2026](https://www.seroundtable.com/google-trends-api-applications-approvals-39978.html)) | The owner applies on Google's form |
+  | TikTok Shop sales and creators | Kalodata, FastMoss, EchoTik | Their data is scraped ([~80% overlap](https://www.smartscout.com/blog/fastmoss-alternatives)). TikTok's official [Commercial Content API](https://developers.tiktok.com/products/commercial-content-api) (EU ads, DSA) is by application, and its terms limit commercial products ([guide](https://www.getphyllo.com/post/tiktok-api-integration-guide-2026-setup-endpoints-common-pitfalls)). YouTube Shorts is read today. | The owner applies; the terms are read before any use |
+  | Amazon and Walmart | SmartScout, Jungle Scout | Amazon's own product API (Associates) | The owner's Associates account with its first sales |
+  | Korea's shopping searches | Naver DataLab | The free Developers Center reportedly [closed new applications on 31.7.2026](https://apify.com/hanpro/naver-datalab-shopping-insight); NAVER API HUB is the door now ([docs](https://api.ncloud-docs.com/docs/en/naver-api-hub-shopping-insight-keywords)). The secrets `NAVER_API_KEY_ID/KEY` and `RAKUTEN_APP_ID/ACCESS_KEY` are empty in the workflow. | The owner's keys (the price is checked before any cost) |
+  | Years of history | WGSN, Google Trends | Wikipedia since 2016 (read today); every other book grows one sealed day at a time | Time |
+
+- **The radar's own record today (the run of 27.11 10:09 UTC, the lab run of the same day):**
+  - The ranges held as stated: 3 days at 90%, 593 of 657 (90.3%); at 80%, 526 of 657 (80.1%). 7 days at 90%, 109 of 124 (87.9%); at 80%, 100 of 124 (80.6%).
+  - The chance at 3 days: 361 graded, Brier 0.036, 54.5% better than always saying the base rate (the board of 26.11).
+  - The pick against the simple ranking (lab, real history, the later half of the days, which no choice saw):
+    - The growth that beats the noise ("noise" in the duel from 28.11) was at or above the simple ranking in all 7 tests: 30% vs 29.2% (3 days), 18.7% vs 17.3% (7 days), and every takeoff setting (5% vs 3.3%, 15% vs 12.5%, 27.5% vs 22.5%, 22.5% vs 17.5%, 52.5% vs 45%).
+    - The margins are small, a few hits each, and the earlier half of the days held almost no hits (the item histories were young), so no choice there means much. The sealed duel decides (first 3-day grade 29.11, the noise order's first 1.12).
+  - The head-to-head's chance model had a Brier 4× a constant's. Day by day the cause was one day: on 19.11 the model had learned from 215 examples and said 62.9% where 3.5% grew. On every other day it was at or below the constant. A chance now needs 500 examples (`PROMISE.minChance`).
+  - Trend calls: 0 graded (the first are due 4–5.12). New products: 6 sealed, due 4.12. Nothing may say "more accurate" or "the best" before these grades.
+- **Fixed from the real runs the same day:**
+  - The model install failed once on a download timeout and the evening run lost three AI doors; it now tries three times.
+  - A push to main spent YouTube's daily quota (24 of 26 searches answered 429); only the daily reading uses the key now.
+  - GDELT answered 429 to 9 of 14 phrases; the door now waits longer after each 429, stops after two blocked phrases and keeps a 4-minute budget.
+  - Video and listing phrases carried links, app pitches and describing words ("https www", "download app", "breathable shock", "versatile end"); these are left out now.

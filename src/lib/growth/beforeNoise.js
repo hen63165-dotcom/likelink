@@ -71,6 +71,23 @@ export function keyOf(phrase = "") {
   return KEY.test(k) ? k : null;
 }
 
+// Words a listing title uses to describe a product, never to name one (27.11's run checked "breathable
+// shock", "resistant breathable" and "versatile end" as names: fragments of "shock-absorbing", "high-end").
+const DESCRIBES = new Set(`breathable resistant versatile waterproof windproof shockproof absorbing absorption portable adjustable
+durable lightweight comfortable elastic reusable foldable rechargeable wireless stainless thick thin wide soft hard large small
+mini big cute fashion fashionable casual classic vintage elegant sexy warm cool high low quality premium luxury simple stylish
+trendy unisex womens mens women men kids girls boys baby adult multi multifunctional universal professional automatic electric
+manual handheld outdoor indoor sport sports daily summer winter spring autumn end top bottom front back side left right inch
+pcs piece pieces set sets pack lot shock proof free anti non slip new hot sale style styles type types version design designs
+color colors colour colours size sizes border cross`.split(/\s+/));
+
+/** A two-word key names a product only when its last word is a thing (not a describing word or a fragment). */
+export function namesAThing(key = "") {
+  const w = String(key || "").replace(/'/g, "").split(" ");
+  if (w.length !== 2) return false;
+  return !DESCRIBES.has(w[1]) && !(DESCRIBES.has(w[0]) && w[1].length < 5);
+}
+
 /**
  * Today's names per door.
  * prelaunch: the prelaunch state ({ ps: { phrase: { store: firstDay } } });
@@ -84,7 +101,7 @@ export function doorSignals({ prelaunch = {}, shopWords = {}, listings = [] } = 
   const from = addDays(today, -rules.windowDays);
   const add = (door, phrase, n) => {
     const k = keyOf(phrase);
-    if (!k || skip(k) || skip(phrase)) return;
+    if (!k || !namesAThing(k) || skip(k) || skip(phrase)) return;
     out[door].set(k, Math.max(out[door].get(k) || 0, n));
   };
   for (const [ph, per] of Object.entries(prelaunch?.ps || {})) {
@@ -148,7 +165,7 @@ export function candidates(state = {}, today, { rules = NOISE } = {}) {
   const recent = new Set((state.calls || []).filter((c) => c.at > addDays(today, -60)).map((c) => c.key));
   const rows = [];
   for (const [key, per] of Object.entries(state.sig || {})) {
-    if (open.has(key) || recent.has(key)) continue;
+    if (open.has(key) || recent.has(key) || !namesAThing(key)) continue; // a name kept before the rule (27.11) is never checked
     if (state.checked?.[key] && state.checked[key] > addDays(today, -rules.recheckDays)) continue;
     const doors = doorsOf(per, today, rules);
     if (doors.length < 2) continue;
@@ -163,7 +180,7 @@ export function controlPool(state = {}, today, { rules = NOISE } = {}) {
   const recent = new Set((state.calls || []).filter((c) => c.at > addDays(today, -60)).map((c) => c.key));
   const rows = [];
   for (const [key, per] of Object.entries(state.sig || {})) {
-    if (open.has(key) || recent.has(key)) continue;
+    if (open.has(key) || recent.has(key) || !namesAThing(key)) continue;
     if (state.checked?.[key] && state.checked[key] > addDays(today, -rules.recheckDays)) continue;
     const doors = doorsOf(per, today, rules);
     if (doors.length === 1) rows.push({ key, doors, n: Number(per[doors[0]]?.n) || 0 });

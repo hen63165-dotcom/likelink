@@ -30,7 +30,33 @@ export const VARIANTS = Object.freeze([
   { id: "accelerating", rule: (f) => f.pace3 + Math.max(0, f.accel) },
   { id: "young-fast", rule: (f) => Math.min(f.pace, f.pace3) * (1.5 - f.age) },
   { id: "beats-noise", rule: (f) => f.z },
+  // The line itself (27.11, the owner: "upgrade it so nothing is missing"): a hit is a gain of at least
+  // max(1, o·line/100) orders in the 30-day count within h days. The count is a moving sum, so its gain
+  // is new orders minus the ones leaving the window: about o/30 a day each way at the item's size, plus
+  // the trend. These score how far the expected gain stands above what the line needs, in units of that
+  // counting noise (a normal approximation of the difference of two Poisson counts), with the item's
+  // pace over the week, over three days, or the smaller of the two.
+  { id: "line-week", rule: (f, c) => lineScore(f.o, f.pace, c) },
+  { id: "line-short", rule: (f, c) => lineScore(f.o, f.pace3, c) },
+  { id: "line-confirmed", rule: (f, c) => lineScore(f.o, Math.min(f.pace, f.pace3), c) },
+  { id: "line-mean", rule: (f, c) => lineScore(f.o, (f.pace + f.pace3) / 2, c) },
+  // A vote (27.11, the owner: "a monster"): every member's order turned into ranks and averaged (Borda),
+  // so no single rule decides; a member missing that day (a learning model without enough examples)
+  // sits out. Members are run before the votes.
+  { id: "vote-3", vote: ["ranking", "beats-noise", "line-week"] },
+  { id: "vote-4", vote: ["ranking", "beats-noise", "line-week", "confirmed"] },
+  { id: "vote-5", vote: ["ranking", "beats-noise", "line-week", "confirmed", "learn-pace-size"] },
+  { id: "vote-noise-rank", vote: ["ranking", "beats-noise"] },
 ]);
+
+/** How many noise units the expected gain of the 30-day count stands above the line's need, h days on. */
+export function lineScore(o, pace, { h = 3, line = 10 } = {}) {
+  if (!Number.isFinite(o) || !Number.isFinite(pace)) return -1e9;
+  const gain = (o + 1) * (Math.exp(pace * h) - 1);
+  const need = Math.max(1, (o * line) / 100) - 0.5;
+  const sd = Math.sqrt((2 * h * (o + 1)) / 30 + Math.abs(gain) + 1);
+  return (gain - need) / sd;
+}
 
 /** Every variant, day by day, horizon h: per day the pool size, its base rate and each variant's top-k hits and AUC. */
 export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30, promise = PROMISE, variants = VARIANTS, line: lineAt = null, minO = null, maxO = Infinity } = {}) {
@@ -57,9 +83,16 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
     const canLearn = ex.length >= MODELS.minRows;
     const row = { d, n: pool.length, rate: pool.filter((x) => x.hit).length / pool.length, v: {} };
     const kk = Math.min(k, Math.floor(pool.length / 5));
+    const scored = {};
     for (const v of variants) {
       let score;
-      if (v.rule) score = (x) => v.rule(x.f);
+      if (v.vote) {
+        const members = v.vote.filter((id) => scored[id]);
+        if (!members.length) continue;
+        const rankSum = new Map(pool.map((x) => [x.id, 0]));
+        for (const id of members) [...scored[id]].sort((a, b) => b.s - a.s || b.pace - a.pace || (a.id < b.id ? -1 : 1)).forEach((x, r) => rankSum.set(x.id, rankSum.get(x.id) + r));
+        score = (x) => -rankSum.get(x.id) / members.length;
+      } else if (v.rule) score = (x) => v.rule(x.f, { h, line });
       else {
         if (!canLearn) continue;
         const m = fitLogistic(ex.map((e) => ({ x: v.cols.map((c) => e.x[c]), y: e.y })), { rules: { ...MODELS, lambda: v.lambda } });
@@ -67,6 +100,7 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
         score = (x) => predictLogistic(m, v.cols.map((c) => xRich(x.f, h)[c]));
       }
       const s = pool.map((x) => ({ s: score(x), hit: x.hit, id: x.id, pace: x.f.pace, mult: (x.y + 1) / (x.f.o + 1) }));
+      scored[v.id] = s;
       const top = [...s].sort((a, b) => b.s - a.s || b.pace - a.pace || (a.id < b.id ? -1 : 1)).slice(0, kk);
       const mults = top.map((x) => x.mult).sort((a, b) => a - b);
       row.v[v.id] = { hits: top.filter((x) => x.hit).length, k: kk, auc: auc(s.map((x) => x.s), s.map((x) => (x.hit ? 1 : 0))), mult: mults.length ? mults[Math.floor(mults.length / 2)] : null };

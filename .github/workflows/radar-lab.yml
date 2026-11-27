@@ -11,6 +11,7 @@ on:
       - src/lib/growth/radarModels.js
       - src/lib/growth/radarLab.js
       - src/lib/growth/radarBacktest.js
+      - src/lib/growth/radarPromise.js
       - .github/workflows/radar-lab.yml
 permissions:
   contents: read

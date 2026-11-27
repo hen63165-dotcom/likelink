@@ -121,13 +121,15 @@ export function backtest(items = {}, today, { rules = BACKTEST, promise = PROMIS
         if (!f) continue;
         const y = targetAt(series, dayStr(dayNum(d) + h), { rules: promise });
         if (!y) continue;
+        // Before the model has learned enough (PROMISE.minChance) it gives no chance; that day it says the
+        // past base rate, like the constant, so the day still counts for every other contender.
         const c = chanceFor(series, d, cal, { rules: promise });
-        if (!c) continue;
+        if (!c && !(cal.n < promise.minChance)) continue;
         const before = (f.o + 1) / Math.exp(f.pace * f.span) - 1;
         const g = growthOverDays({ before: Math.round(before), after: f.o, days: f.span });
         const rf = richFeatures(series, d, { promise });
         const pl = rf ? predictLogistic(lm, xRich(rf, h)) : 0;
-        pool.push({ id, o: f.o, pace: f.pace, cp: rf ? Math.min(rf.pace, rf.pace3) : f.pace, low: g ? g.lowWeekPct : -1e9, pm: c.p / 100, pr: pf.p(f.pace * h), pl, hit: reached(f.o, y.v, line), y: y.v, band: bandOf(f.o, promise) });
+        pool.push({ id, o: f.o, pace: f.pace, cp: rf ? Math.min(rf.pace, rf.pace3) : f.pace, low: g ? g.lowWeekPct : -1e9, pm: c ? c.p / 100 : pf.base, pr: pf.p(f.pace * h), pl, hit: reached(f.o, y.v, line), y: y.v, band: bandOf(f.o, promise) });
       }
       if (pool.length < rules.minPool) { acc.skipped++; continue; }
       const k = Math.min(rules.k, Math.floor(pool.length / 5));
@@ -149,7 +151,10 @@ export function backtest(items = {}, today, { rules = BACKTEST, promise = PROMIS
       acc.pick.hits += ph; acc.pick.of += k;
       if (ph > rh) acc.pickDuel.wins++; else if (ph < rh) acc.pickDuel.losses++; else acc.pickDuel.ties++;
       if (lh > rh) acc.learnDuel.wins++; else if (lh < rh) acc.learnDuel.losses++; else acc.learnDuel.ties++;
-      out.daily.push({ h, d, n: pool.length, k, rate: Math.round(rate * 1000) / 1000, model: mh, radar: dh, learn: lh, pick: ph, rank: rh });
+      // Per day, the chance model's mean chance and Brier beside the constant's (the lab prints them, to
+      // see whether a bad Brier comes from the first days, when the model had little history to learn from).
+      const dayBrier = (key) => Math.round((pool.reduce((s, x) => s + (key(x) - (x.hit ? 1 : 0)) ** 2, 0) / pool.length) * 1000) / 1000;
+      out.daily.push({ h, d, n: pool.length, k, rate: Math.round(rate * 1000) / 1000, model: mh, radar: dh, learn: lh, pick: ph, rank: rh, meanChance: Math.round((pool.reduce((s, x) => s + x.pm, 0) / pool.length) * 1000) / 1000, brierModel: dayBrier((x) => x.pm), brierBase: dayBrier(() => pf.base), trainN: cal.n });
       if (dh > rh) acc.radarDuel.wins++; else if (dh < rh) acc.radarDuel.losses++; else acc.radarDuel.ties++;
       acc.random.exp += rate * k; acc.random.of += k;
       if (mh > rh) acc.wins++; else if (mh < rh) acc.losses++; else acc.ties++;
