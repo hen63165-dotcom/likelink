@@ -6,6 +6,9 @@ const UA = "LikeLink2-radar/1.0 (+https://likelink2.vercel.app/radar)";
 const month = (back) => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - back); return d.toISOString().slice(0, 7); };
 const DOORS = [
   { id: "census-robots", url: "https://api.census.gov/robots.txt" },
+  { id: "census-robots-plain", url: "https://api.census.gov/robots.txt", headers: { "user-agent": "curl/8.5.0", accept: "*/*" } },
+  { id: "census-robots-text", url: "https://api.census.gov/robots.txt", headers: { "user-agent": UA, accept: "text/plain" } },
+  { id: "census-data-root", url: "https://api.census.gov/data.json", headers: { "user-agent": UA, accept: "application/json" }, max: 120 },
   ...[1, 2, 3, 4].map((b) => ({ id: `census-probe-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=${month(b)}` })),
   ...[1, 2, 3, 4].map((b) => ({ id: `census-chapters-${month(b)}`, url: `https://api.census.gov/data/timeseries/intltrade/imports/hs?get=I_COMMODITY,GEN_VAL_MO&COMM_LVL=HS2&CTY_CODE=5700&time=${month(b)}` })),
   { id: "census-2025-09", url: "https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=2025-09" },
@@ -14,7 +17,7 @@ const DOORS = [
 for (const d of DOORS) {
   const t0 = Date.now();
   try {
-    const res = await fetch(d.url, { headers: { "user-agent": UA, accept: "application/json, text/plain" }, signal: AbortSignal.timeout(60_000) });
+    const res = await fetch(d.url, { headers: d.headers || { "user-agent": UA, accept: "application/json, text/plain" }, signal: AbortSignal.timeout(60_000) });
     const body = await res.text();
     console.log(`${d.id}: ${res.status} ${res.headers.get("content-type") || "-"} ${body.length}B ${Date.now() - t0}ms · ${JSON.stringify(body.slice(0, 160))}`);
   } catch (err) {
