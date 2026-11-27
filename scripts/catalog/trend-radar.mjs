@@ -103,6 +103,7 @@ import { CROWD, crowdCard } from "../../src/lib/growth/crowdSensor.js";
 import { CATEGORY_GET, WORLD, categoriesOf, needsRefresh, rotation, worldSlice } from "../../src/lib/growth/worldCategories.js";
 import { backtest, backtestBoard, backtestPublic } from "../../src/lib/growth/radarBacktest.js";
 import { RIVALS, mergeRival, parseFeed, rivalsBoard } from "../../src/lib/growth/rivalSignal.js";
+import { GRACE, googleRaceBoard, raceQueue, recordBox, recordTrends } from "../../src/lib/growth/googleRace.js";
 import { gradeVersus, recordVersus, versusDueIds, versusRecord, versusSealText, versusSheet } from "../../src/lib/growth/radarVersus.js";
 import { TAKEOFF, gradeTakeoff, recordTakeoff, takeoffOpenIds, takeoffOrders, takeoffPool, takeoffRecord, takeoffSealText, takeoffSheet } from "../../src/lib/growth/radarTakeoff.js";
 import { NOISE, keyOf as noiseKey, candidates as noiseCandidates, controlPool as noiseControls, doorSignals, mergeSignals as mergeNoise, noiseBoard, noiseQueue, noiseSealText, pruneNoise, quietCheck, readNoise, recordNoiseCalls } from "../../src/lib/growth/beforeNoise.js";
@@ -210,7 +211,10 @@ async function getRobots(url, fetchImpl, { timeoutMs = 12_000 } = {}) {
   for (let hop = 0; hop <= 5; hop++) {
     const res = await fetchImpl(u, { headers: { "user-agent": UA, accept: "*/*" }, redirect: "manual", signal: AbortSignal.timeout(timeoutMs) });
     const loc = res.status >= 300 && res.status < 400 ? res.headers?.get?.("location") : null;
-    if (!loc) return { status: res.status, text: await res.text() };
+    // A rules file is plain text: a 200 that is a web page (a firewall's "Request Rejected", a sign-in
+    // page) is no rules file, so the door counts as unreadable (27.11: api.census.gov answers its
+    // robots.txt with a rejection page to every runner), never as "no rule".
+    if (!loc) { const text = await res.text(); return res.status === 200 && /^\s*<(?:!doctype\s+html|html)[\s>]/i.test(text) ? { status: 0, text: "" } : { status: res.status, text }; }
     const next = new URL(loc, u);
     if (next.protocol !== "https:" || site(next.hostname) !== site(new URL(u).hostname)) return { status: res.status, text: "" };
     u = next.href;
@@ -296,6 +300,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // 0. The world first: Google Trends' daily trending searches in four English-speaking countries
   // (read once each, only while trends.google.com's robots.txt allows it).
   const abroadTerms = {};
+  let ilTrendTerms = []; // Google's trending searches in Israel today (the Google race keeps them too)
   if (env.RADAR_SUGGEST !== "0") {
     try {
       const robots = await getText("https://trends.google.com/robots.txt", fetchImpl);
@@ -568,6 +573,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         const rss = await getText(TRENDS_IL_RSS, fetchImpl);
         if (rss.status === 200) {
           const ilTerms = parseTrendsRss(rss.text);
+          ilTrendTerms = ilTerms.map((t) => t?.term).filter(Boolean);
           trendIds = trendingInIsrael(concepts, ilTerms);
           keep(meter, "trendsIL", ilTerms.length);
           sources.trendsIL = ilTerms.length ? "OK" : "EMPTY";
@@ -1179,23 +1185,37 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // the trade, where it all starts"): the Census Bureau's International Trade API, every HTS10 line
   // imported from each partner, the last three months against the same three a year earlier. A probe
   // finds the newest published month; the partners are downloaded again only when it changes.
-  if (env.RADAR_TRADE !== "0" && !late("trade", 180_000)) {
+  // The API answers every request without its free key with a "Missing Key" page (27.11, checked from a
+  // runner): without CENSUS_API_KEY nothing is asked and the door waits for the owner's key.
+  const censusKey = String(env.CENSUS_API_KEY || "").trim();
+  if (env.RADAR_TRADE !== "0" && !censusKey) {
+    sources.tradeUs = "REQUIRES_CONNECTION";
+    log.push("trade US: waiting for the Census Bureau's free key (CENSUS_API_KEY); nothing asked");
+  }
+  if (env.RADAR_TRADE !== "0" && censusKey && !late("trade", 180_000)) {
     let us = readJson(join(dir, "trade-us.json"), null);
     let door = "failed";
     try {
       const r = await getRobots(`${US_TRADE.host}/robots.txt`, fetchImpl);
       door = r.status === 200 || r.status === 404 || r.status === 410 ? robotsAllows(r.status, r.text, US_TRADE.path) : "failed";
     } catch { /* counted by the meter */ }
+    sources.tradeUs = door === true ? "FAILED" : door === "failed" ? "FAILED" : "ROBOTS_DISALLOW";
     if (door === true) {
-      const key = String(env.CENSUS_API_KEY || "").trim();
+      const key = censusKey;
       let latest = null;
+      let probeWhy = null;
       for (let back = 1; back <= 4 && !latest; back++) {
         const month = monthBack(today.slice(0, 7), back);
         try {
           const res = await fetchImpl(usProbeUrl(month, { key }), { headers: { "user-agent": UA, accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
-          if (res.status === 200) { const rows = await res.json().catch(() => null); if (Array.isArray(rows) && rows.length > 1) latest = month; }
+          const text = res.status === 200 ? await res.text() : "";
+          let rows = null;
+          try { rows = JSON.parse(text); } catch { probeWhy = /<title>\s*(?:Missing|Invalid) Key/i.test(text) ? "the key was refused" : text ? "a web page, not data" : `HTTP ${res.status}`; }
+          if (Array.isArray(rows) && rows.length > 1) latest = month;
+          else if (res.status === 204) probeWhy = "no rows yet";
         } catch { /* counted */ }
       }
+      if (!latest && probeWhy) log.push(`trade US: the newest-month probe got ${probeWhy}`);
       if (latest && (!us || us.latest !== latest || (us.partners || []).length < Object.keys(US_TRADE.partners).length)) {
         const { now, before } = windowsOf(latest, { rules: US_TRADE });
         const partners = [];
@@ -1219,13 +1239,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       if (us && us.latest) {
         writeFileSync(join(dir, "trade-us.json"), JSON.stringify(us));
         board.tradeUs = us;
-        if (sources.trade !== "OK") sources.trade = "OK";
+        sources.tradeUs = "OK";
         log.push(`trade US: Census, ${(us.months || []).join(",")} against a year earlier (read ${us.read}) · ${us.partners.map((p) => `${p.id} ${p.measured} lines, ${p.jumping} doubled (renamed ${p.renamed}, price only ${p.priceOnly})`).join(" · ")} · top ${us.partners.flatMap((p) => p.top.slice(0, 2).map((r) => `${p.id} ${r.code} +${r.valuePct}%`)).join(", ")}`);
       } else {
         log.push(`trade US: no Census answer (newest month ${latest || "not found"})`);
       }
     } else {
-      log.push(`trade US: door ${door === "failed" ? "FAILED" : "ROBOTS_DISALLOW"}`);
+      log.push(`trade US: door ${door === "failed" ? "FAILED (the rules file could not be read)" : "ROBOTS_DISALLOW"}`);
     }
   }
 
@@ -2252,6 +2272,17 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // same products and dates"): their paid data is closed, so the radar reads only what they publish for
   // automated readers, their blogs' RSS feeds (robots.txt first), keeps each post's date, link and
   // two-word phrases, and checks every sealed call's own phrase against all of it.
+  // Every sealed call's own phrase, per book (the rivals race and the Google race read the same list).
+  const sealedEntries = () => {
+    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
+    return [
+      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
+      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
+      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
+      ...(readJson(join(dir, "prelaunch.json"), {}).calls || []).map((c) => ({ book: "prelaunch", phrase: c.phrase, called: c.at })),
+      ...(readJson(join(dir, "noise.json"), {}).calls || []).filter((c) => c.role === "call").map((c) => ({ book: "noise", phrase: c.key, called: c.at })),
+    ].filter((e) => e.phrase && e.called);
+  };
   if (env.RADAR_RIVALS !== "0" && !late("rivals", 60_000)) {
     let rivals = readJson(join(dir, "rivals.json"), {});
     const doors = {};
@@ -2269,16 +2300,48 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       } catch { doors[r.id] = "FAILED"; }
     }
     writeFileSync(join(dir, "rivals.json"), JSON.stringify(rivals));
-    const byId = new Map([...watch, ...discovered].map((c) => [c.id, c]));
-    const entries = [
-      ...calls.map((c) => ({ book: c.kind === "early" ? "early" : "stages", phrase: String(byId.get(c.concept)?.en || "").toLowerCase(), called: c.at })),
-      ...freshCalls.map((c) => ({ book: "fresh", phrase: freshPhrase(c.title || ""), called: c.at })),
-      ...readJson(join(dir, "kinds-calls.json"), []).map((k) => ({ book: "kinds", phrase: String(k.en || "").toLowerCase(), called: k.at })),
-      ...(readJson(join(dir, "prelaunch.json"), {}).calls || []).map((c) => ({ book: "prelaunch", phrase: c.phrase, called: c.at })),
-    ].filter((e) => e.phrase && e.called);
+    const entries = sealedEntries().filter((e) => e.book !== "noise");
     board.rivals = rivalsBoard(entries, rivals, today, { doors });
     const a = board.rivals.all;
     log.push(`rivals: ${Object.entries(doors).map(([k, v]) => `${k} ${v}`).join(", ")} · ${Object.keys(rivals.posts || {}).length} posts kept · calls ${a.calls}: compared ${a.compared} (sealed before the feeds were read ${a.beforeTracking}), the radar first ${a.ahead}${a.medianAheadDays !== null ? ` (median ${a.medianAheadDays} days)` : ""}, still quiet there ${a.quiet}, a rival first ${a.rivalFirst}`);
+  }
+  // 🔎 Who knew it first: the radar or Google (googleRace.js; the owner, 27.11: "surpass Google Trends,
+  // so the radar is above them"). Google's own public doors: its search box in 13 countries (does it
+  // complete the phrase; does it add tiktok/viral/trending/amazon) and its daily trending searches.
+  // Every world-gap reading taken today is kept; each open call's phrase is read again every 3 days for
+  // 60 days after its seal. Counts only; the trending terms stay in the encrypted state.
+  if (env.RADAR_GOOGLE !== "0" && !late("googleRace", 90_000)) {
+    let race = readJson(join(dir, "google-race.json"), {});
+    const geoTerms = { ...Object.fromEntries(Object.entries(abroadTerms).map(([g, t]) => [g.toLowerCase(), t])), ...(ilTrendTerms.length ? { il: ilTrendTerms } : {}) };
+    race = recordTrends(race, geoTerms, today);
+    const fromGap = (g) => ({ searched: g.searched, measured: g.measured, echo: (g.echo || []).length > 0 });
+    for (const c of Array.isArray(board.concepts) ? board.concepts : []) { const g = gapState.concepts?.[c.id]; if (g?.d === today && c.en) race = recordBox(race, c.en, fromGap(g), today); }
+    for (const [key, g] of Object.entries(gapState.phrases || {})) if (g?.d === today) race = recordBox(race, key, fromGap(g), today);
+    const entries = sealedEntries();
+    let readToday = 0;
+    if (sources.suggest === "OK") {
+      const started = Date.now();
+      let failRun = 0;
+      for (const phrase of raceQueue(entries, race, today)) {
+        if (Date.now() - started > GRACE.budgetMs || failRun >= GRACE.maxFailures || late("googleRace", 60_000)) break;
+        const counts = {};
+        let echo = false;
+        await runPool(GAP_CORE.map((x) => async () => {
+          let facts = null;
+          try { facts = suggestFacts(phrase, await suggestList(phrase, { hl: "en", gl: x.id }, fetchImpl)); } catch { facts = null; }
+          if (facts) { failRun = 0; counts[x.id] = facts.n; if (facts.echo) echo = true; } else failRun++;
+          await pause(Math.round(politeMs / 2));
+        }), GAP.concurrency);
+        if (Object.keys(counts).length) keep(meter, "worldSearch", Object.keys(counts).length);
+        const g = worldGapOf({ counts, echo: echo ? ["us"] : [], d: today });
+        race = recordBox(race, phrase, { searched: g.searched, measured: g.measured, echo }, today);
+        if (g.measured >= GRACE.minMeasured) readToday++;
+      }
+    }
+    writeFileSync(join(dir, "google-race.json"), JSON.stringify(race));
+    board.googleRace = googleRaceBoard(entries, race, today, { doors: { box: sources.suggest, trending: sources.trendsWorld }, readToday });
+    const g = board.googleRace.all;
+    log.push(`google race: ${board.googleRace.tracked} phrases kept, ${readToday} read again today, ${board.googleRace.trendDays} trending days · calls ${g.calls}: read ${g.read}, the radar first ${g.ahead}${g.medianAheadMinDays !== null ? ` (at least ${g.medianAheadMinDays} days, median)` : ""}, Google first ${g.googleFirst}, still quiet at Google ${g.quiet}, read only after Google showed it ${g.lateRead}, waiting for a first read ${g.unread} · box ${board.googleRace.lines.box.ahead}/${board.googleRace.lines.box.googleFirst}, echo ${board.googleRace.lines.echo.ahead}/${board.googleRace.lines.echo.googleFirst}, trending ${board.googleRace.lines.trending.ahead}/${board.googleRace.lines.trending.googleFirst} (ahead/Google first)`);
   }
   // 🧾 The receipt, taken here (every reading and every book's seal are in it; the root's own seal and
   // the Bitcoin check come after). The page's source states are the run's claims checked against it,

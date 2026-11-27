@@ -45,7 +45,7 @@ export const BOOKS = Object.freeze(INSTRUMENTS.filter((i) => i.book).map((i) => 
 /** Every section id on /radar → its tab (deep links like /radar#window open the right tab). */
 export const SECTION_TABS = Object.freeze({
   today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", watch: "today", export: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", verify: "proof", backtest: "proof", history: "proof", rivals: "proof", gate: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof", data: "proof",
+  proof: "proof", verify: "proof", backtest: "proof", history: "proof", rivals: "proof", google: "proof", gate: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof", data: "proof",
   tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools", path: "today",
   plans: "plans", "radar-tiers": "plans",
   ...Object.fromEntries(INSTRUMENTS.map((i) => [i.section, i.tab]).filter(([s]) => !["verdict", "fresh", "kinds", "ledger"].includes(s))),
@@ -290,7 +290,8 @@ export const SOURCES = Object.freeze([
   { key: "youtubeApi", he: "יוטיוב: סרטונים חדשים השבוע", en: "YouTube: new videos this week", door: "YouTube Data API (מפתח חינמי)" },
   { key: "hauls", he: "יוטיוב: סרטוני הקניות של הבלוגרים הראשונים", en: "YouTube: the first creators' haul videos", door: "YouTube Data API (מפתח חינמי)" },
   { key: "shops", he: "חנויות חדשות שנפתחות בעולם, לפי שמות האתרים", en: "New shops opening worldwide, by their domain names", door: "רשימה ציבורית חינמית של דומיינים חדשים" },
-  { key: "trade", he: "מה המפעלים שולחים: נתוני המכס של אירופה וארה״ב, לכל סוג מוצר", en: "What the factories ship: EU and US customs records, every product line", door: "Eurostat ולשכת המפקד האמריקאית, נתונים פתוחים רשמיים" },
+  { key: "trade", he: "מה המפעלים שולחים: נתוני המכס של אירופה, לכל סוג מוצר", en: "What the factories ship: EU customs records, every product line", door: "Eurostat, נתונים פתוחים רשמיים (בלי מפתח)" },
+  { key: "tradeUs", he: "מה המפעלים שולחים לארה״ב: נתוני המכס האמריקאי, לכל סוג מוצר", en: "What the factories ship to the US: US customs records, every product line", door: "Census Bureau API (מפתח חינמי של בעלת האתר)" },
   { key: "news", he: "מי אמר ראשון: הרדאר או החדשות בעולם", en: "Who said it first: the radar or the world's news", door: "GDELT, מאגר חדשות פתוח (בלי מפתח)" },
   { key: "pinterest", he: "פינטרסט: טרנדים שעולים", en: "Pinterest: growing trends", door: "Pinterest API (טוקן של אפליקציה)" },
   { key: "instagram", he: "אינסטגרם: האשטגים", en: "Instagram: hashtags", door: "Instagram Graph API (החשבון המחובר)" },

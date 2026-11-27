@@ -19,6 +19,7 @@ import { LEDGER_BOOKS } from "./radarLedger.js";
 import { PRELAUNCH_LINE, cleanPrelaunch } from "./listingWave.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
+import { cleanGoogleRace } from "./googleRace.js";
 import { GATE_REASONS, cleanGate } from "./callGate.js";
 import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
 import { TAKEOFF_LINE, cleanTakeoff } from "./radarTakeoff.js";
@@ -300,6 +301,7 @@ export function sanitizeBoard(doc) {
     // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule.
     backtest: cleanBacktest(doc.backtest),
     rivals: cleanRivals(doc.rivals),
+    googleRace: cleanGoogleRace(doc.googleRace),
     callGate: cleanGate(doc.callGate),
     versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
     takeoff: doc.takeoff && cleanTakeoff(doc.takeoff) ? { ...cleanTakeoff(doc.takeoff), seal: cleanBook(doc.takeoff.seal, TAKEOFF_BOOK) } : null,

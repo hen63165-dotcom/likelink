@@ -11,6 +11,7 @@ import { cleanPrelaunch } from "./listingWave.js";
 import { cleanNoise } from "./beforeNoise.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
+import { cleanGoogleRace } from "./googleRace.js";
 import { cleanVersus } from "./radarVersus.js";
 import { cleanTakeoff } from "./radarTakeoff.js";
 import { cleanBaseline } from "./radarBaseline.js";
@@ -123,6 +124,7 @@ export function teaserBoard(board) {
     // The radar vs the simple ranking: the record and the comparison stay public; the day's picks do not.
     backtest: cleanBacktest(board.backtest),
     rivals: cleanRivals(board.rivals, { full: false }),
+    googleRace: cleanGoogleRace(board.googleRace, { full: false }),
     callGate: board.callGate || null,
     // 🚀 The takeoff: the record and the graded picks are public; an open pick names an item, so only its count.
     takeoff: board.takeoff ? (() => { const t = cleanTakeoff(board.takeoff); return t ? { ...t, today: null, live: t.live.filter((x) => !x.open), openCount: t.live.filter((x) => x.open).length, seal: board.takeoff.seal ? { d: board.takeoff.seal.d, sha256: board.takeoff.seal.sha256, count: board.takeoff.seal.count, ots: board.takeoff.seal.ots || [] } : null } : null; })() : null,
