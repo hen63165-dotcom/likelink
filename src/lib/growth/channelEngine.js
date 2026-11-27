@@ -468,12 +468,6 @@ export function settleClaim(history = [], claimId = "", { providerId = null, err
   return (Array.isArray(history) ? history : []).map((e) => (e?.id === claimId ? { ...e, state: providerId ? "SENT" : "FAILED", providerId: providerId ? String(providerId) : null, error: error ? String(error).slice(0, 120) : null, settledAt: new Date(now).toISOString() } : e));
 }
 
-const fmtTime = (iso) => {
-  const t = Date.parse(iso || "");
-  if (!Number.isFinite(t)) return "";
-  const d = new Date(t + 2 * 3_600_000); // Israel time (winter, UTC+2)
-  return `${d.getUTCDate()}.${d.getUTCMonth() + 1} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-};
 
 /** A store title cut at a whole word (≤ 60 characters), never mid-word or after a comma. */
 export function shortName(t = "", max = 60) {
@@ -503,31 +497,84 @@ export function headlineOf(pick = {}) {
 }
 
 /**
- * The deals-group post (the owner, 21.11, with screenshots of a WhatsApp deals group: "it should look
- * like this, on WhatsApp too"): a big store photo, a few short lines, one link, the join links under a
- * line. What the radar adds and those groups lack: one dated evidence line and both scores. What it
- * never copies from them: a brand's name or logo, "original logo and tags", AI photos with a logo —
- * the look is posted without the name, with the store's own photo. Shared by Telegram and WhatsApp.
+ * What the product does, in the seller's own listing words (the owner, 27.11, with eight screenshots of
+ * a deals group: "written like a professional seller, accurate, real, verified"): only functional
+ * features the store's own title states, translated by a fixed list (an unknown word is never guessed).
+ * Materials and claims a seller cannot be held to at this price ("925 silver", "gold plated",
+ * "moissanite", "genuine leather", "original") are never repeated, as in the deals' own names.
+ */
+const FEATURES = Object.freeze([
+  [/\b(?:wireless|cordless)\b/i, "אלחוטי"],
+  [/\b(?:rechargeable|usb[- ]?(?:c\s)?charg\w*|type[- ]?c charg\w*)\b/i, "נטען"],
+  [/\bwaterproof\b|\bwater[- ]resistant\b/i, "עמיד במים"],
+  [/\b(?:portable|handheld)\b/i, "נייד ונוח ביד"],
+  [/\b(?:foldable|folding|collapsible)\b/i, "מתקפל"],
+  [/\badjustable\b/i, "מתכוונן"],
+  [/\bmagnetic\b/i, "מגנטי"],
+  [/\b(?:airtight|sealed|leak[- ]?proof)\b/i, "נסגר הרמטית"],
+  [/\blarge capacity\b/i, "נפח גדול"],
+  [/\bnon[- ]?slip\b|\banti[- ]?slip\b/i, "לא מחליק"],
+  [/\b(?:lightweight|ultra[- ]?light)\b/i, "קל משקל"],
+  [/\b2 in 1\b|\b2-in-1\b/i, "2 ב־1"],
+  [/\b3 in 1\b|\b3-in-1\b/i, "3 ב־1"],
+  [/\bquick[- ]?dry\w*\b/i, "מתייבש מהר"],
+  [/\bbreathable\b/i, "נושם"],
+  [/\b(?:thicken\w*|fleece|plush|warm)\b/i, "חם ונעים"],
+  [/\bhigh[- ]waist\w*\b/i, "גזרה גבוהה"],
+  [/\b(?:oversized?|loose[- ]fit)\b/i, "גזרה רחבה"],
+  [/\bwide[- ]leg\b/i, "מכנס רחב"],
+  [/\bled\b/i, "עם תאורת LED"],
+  [/\bmini\b/i, "קטן ונכנס לכל תיק"],
+  [/\bdishwasher safe\b/i, "מתאים למדיח"],
+  [/\b(?:reusable)\b/i, "לשימוש חוזר"],
+  [/\b(?:silent|quiet|low noise)\b/i, "שקט"],
+]);
+
+/** Up to `max` features the listing itself states, in Hebrew. */
+export function featuresOf(title = "", { max = 3 } = {}) {
+  const t = String(title || "");
+  const out = [];
+  for (const [re, he] of FEATURES) if (re.test(t) && !out.includes(he)) out.push(he);
+  return out.slice(0, max);
+}
+
+/** The opening line, the way a seller opens: what everyone wants, measured, never a promise. */
+export function hookOf(pick = {}) {
+  if (pick.match?.label === "DUPE" && pick.match.look) return `✨ הלוק שכולן רוצות עכשיו: ${pick.match.look}`;
+  if (pick.source === "brand_look") return "✨ הלוק של המותגים שכולן רוצות, במחיר של אליאקספרס";
+  if (pick.trend?.he) return `🔥 טרנד שעולה עכשיו: ${pick.trend.he}`;
+  if (pick.source === "fresh_riser") return "🆕 חדש באליאקספרס ומתחיל לרוץ";
+  return "🔥 חם עכשיו באליאקספרס";
+}
+
+/**
+ * The deals-group post (the owner, 21.11 and again 27.11, with screenshots of WhatsApp deals groups:
+ * "take the idea: written like a professional seller, accurate, real, reliable, verified, pictures that
+ * sell"): the store's own photo, a seller's hook, what it is and what it does (the listing's own
+ * features), the store's own proof (its orders in the last 30 days and the buyers' satisfaction share,
+ * dated), the price, one link, the join links under a line. What the radar adds and those groups lack:
+ * every number is the store's own and dated. What it never copies from them: a brand's name or logo,
+ * "original logo and tags" (that is a counterfeit), an AI photo with a logo — the look is posted without
+ * the name, with the store's own photo. Shared by Telegram and WhatsApp.
  */
 function dealLines(pick = {}, { link = pick.link, join = {}, bold = (t) => t } = {}) {
   const e = pick.evidence || {};
-  const name = hebrewName(pick);
+  const name = hebrewName(pick) || (pick.trend?.he ? shortName(pick.trend.he, 40) : null);
   const price = pick.verified?.price ?? pick.price?.value ?? null;
-  const lines = ["#פרסומת · קישור שותפים", bold(`🔥 ${headlineOf(pick)}`)];
-  if (name) lines.push(`✨ ${name}`);
-  const dates = e.from && e.to ? ` · לפי החנות, ${dm(e.from)} ← ${dm(e.to)}` : " · לפי החנות";
-  lines.push(`📈 ההזמנות עלו ${round(e.weekPct, 0)}% בשבוע${dates}`);
-  if (Number.isFinite(e.before) && Number.isFinite(e.after)) lines.push(`🧾 ${n0(e.before)} ← ${n0(e.after)} ${e.measureHe || "הזמנות ב־30 יום"}`);
-  if (price > 0) lines.push(`💰 מ־₪${price} באליאקספרס · משלוח לישראל`);
+  const feats = featuresOf(pick.storeTitle || pick.verified?.title || pick.title);
+  const lines = ["#פרסומת · קישור שותפים", bold(hookOf(pick))];
+  if (name || feats.length) lines.push(name && feats.length ? `${name} · ${feats.join(", ")}` : name || feats.join(", "));
   const sat = pick.verified?.sat || pick.quality?.sat;
-  if (sat === "97+" || sat === "95+") lines.push(`✅ שביעות רצון של ${sat === "97+" ? "97%" : "95%"} ומעלה, לפי החנות`);
-  if (pick.israel) lines.push(`🇮🇱 בישראל: ${pick.israel.he}`);
-  lines.push(`📊 מדד טרנד ${pick.heat?.score ?? "?"} · קנייה חכמה ${pick.buy?.score ?? "?"}${pick.of > 1 ? ` · הכי חזק מתוך ${pick.of}` : ""}`);
+  const happy = sat === "97+" ? "97%" : sat === "95+" ? "95%" : null;
+  const proof = [Number.isFinite(e.after) && e.after >= 50 ? `${n0(e.after)} הזמנות בחודש האחרון` : null, happy ? `מעל ${happy} מהקונים מרוצים` : null].filter(Boolean);
+  if (proof.length) lines.push(`✅ ${proof.join(" · ")} (לפי אליאקספרס${e.to ? `, ${dm(e.to)}` : ""})`);
+  if (Number.isFinite(e.weekPct) && e.weekPct >= 10) lines.push(`📈 ההזמנות עלו ב־${round(e.weekPct, 0)}% בשבוע האחרון`);
+  if (pick.israel?.state === "GAP" || pick.israel?.state === "QUIET") lines.push("🇮🇱 בארץ עוד כמעט לא מכירים");
+  if (price > 0) lines.push(`💰 מ־₪${price} · משלוח לישראל`);
   if (pick.returnReason?.he) lines.push(`🔄 חוזר כי ${pick.returnReason.he}`);
   if (link) lines.push(`👉 ${link}`);
-  const joins = [join.telegram ? `🚀 להצטרפות לטלגרם: ${join.telegram}` : null, join.whatsapp ? `💚 לקבוצת הוואטסאפ: ${join.whatsapp}` : null].filter(Boolean);
+  const joins = [join.whatsapp ? `💚 לקבוצת הוואטסאפ: ${join.whatsapp}` : null, join.telegram ? `🚀 להצטרפות לטלגרם: ${join.telegram}` : null].filter(Boolean);
   if (joins.length) lines.push("―――――――――――", ...joins);
-  lines.push(`🕒 נמדד ${fmtTime(e.retrievedAt)}`);
   return lines;
 }
 
