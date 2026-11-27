@@ -19,6 +19,8 @@ import { RADAR_CLAIM } from "../../lib/growth/radarStatic.js";
 import { CAPABILITY_CLASSES, EXIT_LABELS, EXIT_WHY, INSTRUMENTS, NEXT_DOORS, SECTION_TABS, SOURCE_STATES, capabilityMap, findFacts, provenRecord, recordView, resultText, sourcesView } from "../../lib/growth/radarCore.js";
 import { PATH_STEPS } from "../../lib/growth/trendPath.js";
 import { regradeEvidence, verifyBooks } from "../../lib/growth/radarVerify.js";
+import { verifyRootSig } from "../../lib/growth/radarSign.js";
+import { RADAR_KEY } from "../../lib/growth/radarKey.js";
 import { OPEN_FILES, datasetCard } from "../../lib/growth/radarDataset.js";
 import { TAKEOFF_LAB } from "../../lib/growth/radarTakeoff.js";
 import { PRICES_HOME } from "../../lib/growth/realDeal.js";
@@ -2056,6 +2058,8 @@ function VerifyYourself({ board }) {
     setState({ busy: true });
     try {
       const books = await verifyBooks(board);
+      // ✍️ Who said it: the root against the radar's published key (radarSign.js), when both exist.
+      const sig = RADAR_KEY && board.ledger?.sig ? await verifyRootSig(board.ledger, RADAR_KEY).catch(() => null) : null;
       let regrade = null;
       for (const u of [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/evidence.json` : "", RADAR_EVIDENCE_HOME].filter(Boolean))]) {
         try {
@@ -2065,23 +2069,30 @@ function VerifyYourself({ board }) {
           if (regrade) break;
         } catch { /* the next address */ }
       }
-      setState({ books, regrade });
+      setState({ books, regrade, sig });
     } catch { setState({ failed: true }); }
   };
   const BOOK_NAME = (k) => L(BOOK_HE[k] || k, BOOK_EN[k] || k);
   const b = state?.books;
   const g = state?.regrade;
+  const sg = state?.sig;
+  const signed = Boolean(RADAR_KEY && board.ledger?.sig);
   const side = (t, he, en) => (t?.graded ? L(`${he}: ${t.matched} מתוך ${t.graded} ציונים יצאו זהים${t.differ.length ? `, ${t.differ.length} שונים` : ""}${t.unreadable ? `, ${t.unreadable} בלי הקריאה של יום הבדיקה בקובץ` : ""}.`, `${en}: ${t.matched} of ${t.graded} grades came out the same${t.differ.length ? `, ${t.differ.length} different` : ""}${t.unreadable ? `, ${t.unreadable} without the due day's reading in the file` : ""}.`) : null);
   return (
     <section className="lx-wrap mt-6" id="verify">
       <div className="lx-card lx-rdr-panel p-5">
         <h2 className="text-[20px] font-black">{L("🔁 תבדקי בעצמך", "🔁 Check it yourself")}</h2>
         <p className="mt-1 text-[14px] leading-6">{L("בלחיצה אחת הדפדפן שלך עושה את הבדיקה, בלי לסמוך על הרדאר: הוא מחשב מחדש את טביעת האצבע של כל ספר חתום ומשווה לשורש של היום שנחתם בביטקוין, ואחר כך נותן מחדש ציון לכל קביעה שנבדקה, מתוך ספירות ההזמנות של החנות עצמה, לפי הכלל שכתוב בקובץ.", "In one click your own browser does the check, trusting nothing the radar says: it recomputes every sealed book's fingerprint against the day's root sealed in Bitcoin, then grades every graded call again from the store's own order counts, by the rule written in the file.")}</p>
+        {signed ? <p className="mt-1 text-[13px] leading-6">{L(`✍️ כל שורש יומי חתום גם במפתח הפרטי של הרדאר, שקיים רק בריצה שלו. ביטקוין מוכיח מתי השורש נוצר, והחתימה מוכיחה שהרדאר אמר אותו. המפתח הציבורי (מזהה ${RADAR_KEY.kid}) מפורסם בכתובת /radar-key.json.`, `✍️ Every day's root is also signed with the radar's private key, which exists only in its own run. Bitcoin proves when the root existed; the signature proves the radar said it. The public key (id ${RADAR_KEY.kid}) is published at /radar-key.json.`)}</p> : null}
         <button type="button" className="lx-btn mt-3" onClick={run} disabled={state?.busy}>{state?.busy ? L("בודק…", "Checking…") : L("🔁 לבדוק עכשיו", "🔁 Check now")}</button>
         {state?.failed ? <p className="mt-2 text-[13px] font-bold">{L("הבדיקה נעצרה בדפדפן הזה. אפשר לנסות שוב, או להוריד את הקבצים מהספר המלא.", "The check stopped in this browser. Try again, or download the files from the complete ledger.")}</p> : null}
         {b ? (
           <div className="mt-3 text-[14px] leading-6">
             {b.root ? <p className="font-black">{b.root.ok ? L(`✓ השורש של ${dm(b.root.d)}: טביעת האצבע שחישבת זהה לזו שנחתמה.`, `✓ The ${dm(b.root.d)} root: the fingerprint you computed is the one sealed.`) : L(`✗ השורש של ${dm(b.root.d)}: טביעת האצבע שחישבת שונה מזו שנחתמה.`, `✗ The ${dm(b.root.d)} root: the fingerprint you computed differs from the one sealed.`)}</p> : null}
+            {sg?.state === "OK" ? <p className="font-black">{L(`✓ החתימה: השורש של ${dm(sg.d)} חתום במפתח של הרדאר (מזהה ${sg.kid}), המפתח שמפורסם ב־/radar-key.json.`, `✓ The signature: the ${dm(sg.d)} root is signed with the radar's key (id ${sg.kid}), the key published at /radar-key.json.`)}</p> : null}
+            {sg?.state === "BAD" ? <p className="font-black" style={{ color: "#b42318" }}>{L("✗ החתימה שונה מזו שהמפתח שמפורסם נותן לשורש הזה.", "✗ The signature differs from the one the published key gives this root.")}</p> : null}
+            {sg?.state === "OTHER_KEY" ? <p className="font-black" style={{ color: "#b42318" }}>{L(`✗ השורש חתום במפתח ${sg.kid}, והמפתח שמפורסם הוא ${sg.published}.`, `✗ The root is signed with key ${sg.kid}; the published key is ${sg.published}.`)}</p> : null}
+            {sg?.state === "UNSUPPORTED" ? <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("בדיקת החתימה רצה בדפדפנים עדכניים (כרום, פיירפוקס, ספארי). בדפדפן הזה נבדקו טביעות האצבע בלבד.", "The signature check runs in current browsers (Chrome, Firefox, Safari). In this browser only the fingerprints were checked.")}</p> : null}
             <p className="font-bold">{L(`${b.matched} מתוך ${b.checked} ספרים שהטקסט שלהם מפורסם יצאו זהים, טקסט ושורש.`, `${b.matched} of ${b.checked} books with a published text came out the same, text and root.`)}</p>
             {b.broken.length ? <p className="font-black" style={{ color: "#b42318" }}>{L(`שונים: ${b.broken.map(BOOK_NAME).join(", ")}`, `Different: ${b.broken.map(BOOK_NAME).join(", ")}`)}</p> : null}
             {b.unpublished.length ? <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`הטקסט של ${b.unpublished.map(BOOK_NAME).join(", ")} ארוך מכדי להתפרסם כאן, ולכן הוא נשאר מחוץ לבדיקה הזו.`, `The text of ${b.unpublished.map(BOOK_NAME).join(", ")} is too long to publish here, so it stays out of this check.`)}</p> : null}

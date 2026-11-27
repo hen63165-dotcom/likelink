@@ -113,6 +113,8 @@ import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pintere
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
 import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
+import { radarSigner } from "./radar-signer.mjs";
+import { RADAR_KEY } from "../../src/lib/growth/radarKey.js";
 import { kindListings, radarPool } from "../../src/lib/growth/channelEngine.js";
 import { FASHION_AREAS, FRESH, freshBar, freshEntry, freshKeywords, freshPhrase, freshQueries, freshRecord, freshRisers, gradeFresh, isSeasonal, distinctPhrase, phraseCounts, mergeFreshPool, recordFresh, unknownCheck } from "../../src/lib/growth/freshRisers.js";
 
@@ -2104,6 +2106,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         const checks = {};
         const e = aeEnv(env);
         let found = 0;
+        const takeoffWhy = {};
         for (const x of takeoffOrders(pool, today).radar) {
           if (found >= TAKEOFF.k || checked >= TAKEOFF.scan || late("takeoff-check", 60_000)) break;
           const phrase = distinctPhrase(x.title, df);
@@ -2122,10 +2125,17 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           }
           if (Number.isFinite(similar)) phraseReads[phrase] = similar;
           checks[x.id] = unknownCheck({ phrase, similar, suggestions });
+          // Before the world, measured (TAKEOFF v2): the same world gap as every find shown, read or not picked.
+          if (checks[x.id].unknown) {
+            const world = await phraseGap(phrase);
+            const why = !world ? "WORLD_UNREAD" : world.state === "KNOWN" ? "KNOWN_WORLD" : world.state === "SPREADING" ? "SPREADING_WORLD" : null;
+            if (why) checks[x.id] = { ...checks[x.id], unknown: false, reason: why };
+          }
+          takeoffWhy[checks[x.id].reason] = (takeoffWhy[checks[x.id].reason] || 0) + 1;
           if (checks[x.id].unknown) found++;
         }
         to = recordTakeoff(to, takeoffSheet(pool, today, checks), today);
-        log.push(`takeoff: ${pool.length} small new listings (${TAKEOFF.minO}–${TAKEOFF.maxO} orders) · ${checked} checked for nobody-heard-of-it · ${found} picked`);
+        log.push(`takeoff: ${pool.length} small new listings (${TAKEOFF.minO}–${TAKEOFF.maxO} orders) · ${checked} checked for nobody-heard-of-it ${JSON.stringify(takeoffWhy)} · ${found} picked`);
       } else to = recordTakeoff(to, null, today);
       writeFileSync(join(dir, "takeoff.json"), JSON.stringify(to));
       const todays = to.days?.[today] || null;
@@ -2456,6 +2466,13 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   if (rootText) {
     board.ledger = await sealBook({ text: rootText, count: rootText.split("\n").length }, prevBoard.ledger, "ledger");
     log.push(`ledger root ${board.ledger.sha256.slice(0, 12)}: ${rootText.split("\n").map((l) => l.split("=")[0]).join(", ")} · ${board.ledger.ots.length}/${OTS_CALENDARS.length} proofs`);
+    // ✍️ Who said it (radarSign.js): the root signed with the radar's own key, made here from the
+    // machine secret and never kept; only the key's id and public half are printed.
+    const signer = env.RADAR_SIGN === "0" ? null : radarSigner(env.AUTOPILOT_SECRET);
+    if (signer) {
+      board.ledger.sig = signer.signRoot(board.ledger.d, board.ledger.sha256);
+      log.push(`radar key ${signer.kid}: ${signer.pub} · the ${board.ledger.d} root signed${RADAR_KEY?.kid === signer.kid ? " (the published key)" : RADAR_KEY ? ` (published key ${RADAR_KEY.kid} differs)` : " (key not yet published)"}`);
+    } else log.push("radar key: no machine secret on this run, the root is unsigned");
   }
   // ⛓️ From sealed to anchored (otsUpgrade.js; the owner, 20.11): every day's ledger root keeps its
   // proofs in roots.json; each run asks the calendars for the rest of the path of the days not yet

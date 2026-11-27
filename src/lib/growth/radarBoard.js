@@ -30,6 +30,7 @@ import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
 import { cleanAsia } from "./asiaSignal.js";
 import { cleanMarket } from "./saturation.js";
 import { cleanHealth, cleanReceipt, cleanScan } from "./runReceipt.js";
+import { cleanSig } from "./radarSign.js";
 
 const STAGE_KEYS = new Set(["EMERGING", "RISING", "STEADY", "PEAK", "COOLING", "UNVERIFIED"]);
 const SIZES = new Set(["SMALL", "MID", "BIG"]);
@@ -292,7 +293,8 @@ export function sanitizeBoard(doc) {
     scan: cleanScan(doc.scan),
     sourceHealth: cleanHealth(doc.sourceHealth),
     // The complete ledger's root (radarLedger.js): one Bitcoin seal over every book of calls.
-    ledger: cleanBook(doc.ledger, LEDGER_ROOT),
+    // ✍️ With the radar's own signature over it (radarSign.js), when the run signed it.
+    ledger: (() => { const l = cleanBook(doc.ledger, LEDGER_ROOT); const sig = l ? cleanSig(doc.ledger.sig) : null; return l && sig ? { ...l, sig } : l; })(),
     // ⛓️ The days whose ledger root is verified inside a Bitcoin block (otsUpgrade.js anchorsBoard).
     anchors: cleanAnchors(doc.anchors),
     // The stage calls' book (radarLedger.js stagesSealText): names open calls, so the lock keeps it out of teaserBoard.
