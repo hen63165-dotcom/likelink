@@ -5,6 +5,7 @@
 // (board.json next to the site) and passes radarBoard.js sanitizeBoard before anything renders.
 // Free during the trial. The store buttons are LikeLink2's tracked links, with the
 // disclosure above them; an exit is one click event (med "radar") in the owner's numbers.
+import { fieldView } from "../../lib/growth/radarField.js";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AREA_HE } from "../../lib/growth/radarAreas.js";
 import { PARTNER_NAMES } from "../../lib/growth/tradeSignal.js";
@@ -1544,6 +1545,36 @@ function RivalRace({ rivals }) {
   );
 }
 
+// 🏟️ One by one (radarField.js): every company in its own words with its source; the radar's side from the board.
+function FieldTable({ board }) {
+  const { L } = useL();
+  const v = fieldView(board);
+  const r = v.radar;
+  const race = (m, kind) => {
+    if (!m) return L("התחזיות שלה סגורות לציבור: ההשוואה הפתוחה היא הרקורד החתום של הרדאר.", "Its forecasts are closed to the public: the open comparison is the radar's sealed record.");
+    if (kind === "google") return L(`מול גוגל עצמו: ${m.read} קביעות נקראו · הרדאר ראשון ${m.ahead} · גוגל ראשון ${m.googleFirst} · עוד שקט בגוגל ${m.quiet}${m.lateRead ? ` · ${m.lateRead} נספרות בנפרד` : ""}`, `Against Google itself: ${m.read} calls read · the radar first ${m.ahead} · Google first ${m.googleFirst} · still quiet at Google ${m.quiet}${m.lateRead ? ` · ${m.lateRead} counted apart` : ""}`);
+    return L(`מול הפיד הפתוח של הבלוג: ${m.compared} קביעות הושוו · הרדאר ראשון ${m.ahead} · הן ראשונות ${m.rivalFirst} · עוד שקט אצלן ${m.quiet}`, `Against its open blog feed: ${m.compared} calls compared · the radar first ${m.ahead} · they first ${m.rivalFirst} · still quiet there ${m.quiet}`);
+  };
+  return (
+    <section className="lx-card lx-rdr-panel mt-4 p-5" id="field">
+      <h2 className="text-[20px] font-black">{L("🏟️ אחת־אחת: הרדאר מול כל שם בתחום", "🏟️ One by one: the radar against every name in the field")}</h2>
+      <p className="mt-1 text-[14px] leading-6">{L(`כל חברה כאן מוצגת במילים שלה, מהדפים שלה, עם הקישור והיום שנבדק (${dm(v.checked)}). הצד של הרדאר נקרא מהלוח של היום: ${r.books} ספרים חתומים בשורש היומי${r.block ? `, האחרון שנבדק בתוך בלוק ${r.block.toLocaleString("he-IL")} של ביטקוין` : ""}, ${r.given.toLocaleString("he-IL")} קביעות שנאמרו מראש ו־${r.graded.toLocaleString("he-IL")} שכבר נבדקו בפומבי, גם הטעויות. איפה שיש דלת פתוחה, הרדאר מתוזמן מולה.`, `Every company here is shown in its own words, from its own pages, with the link and the day it was read (${dm(v.checked)}). The radar's side is read from today's board: ${r.books} sealed books in the daily root${r.block ? `, the latest checked inside Bitcoin block ${r.block.toLocaleString("en-US")}` : ""}, ${r.given.toLocaleString("en-US")} calls said in advance and ${r.graded.toLocaleString("en-US")} already graded in public, misses included. Where an open door exists, the radar is timed against it.`)}</p>
+      <ul className="mt-3 grid gap-2 md:grid-cols-2">
+        {v.rows.map((c) => (
+          <li key={c.id} className="lx-card lx-rdr-item p-3">
+            <p className="text-[15px] font-black" dir="ltr" style={{ textAlign: "start" }}>{c.name}</p>
+            <p className="mt-1 text-[13px]">{L(c.he, c.en)}</p>
+            {c.claimHe ? <p className="mt-1 text-[13px]">{L(`מה שהיא מפרסמת על עצמה: ${c.claimHe}`, `What it publishes about itself: ${c.claimEn}`)}</p> : null}
+            <p className="mt-1 text-[13px] font-bold" style={{ color: c.measured ? "#067647" : "var(--lx-muted)" }}>{race(c.measured, c.race)}</p>
+            <a className="mt-1 inline-block text-[12px] underline" href={c.src} target="_blank" rel="noopener noreferrer">{L("המקור", "Source")}</a>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מה שכל אחד יכול לבדוק: כל קביעה של הרדאר חתומה ביום שלה בביטקוין ומקבלת ציון בפומבי, והקישורים כאן מובילים לדפים של החברות עצמן.", "What anyone can check: every radar call is sealed in Bitcoin on its day and graded in public, and the links here lead to the companies' own pages.")}</p>
+    </section>
+  );
+}
+
 // 🔎 Who knew it first: the radar or Google (googleRace.js): Google's own search box, its buzz words and
 // its daily trending searches, read again after every seal.
 const GRACE_BOOK = { ...RIVAL_BOOK, noise: ["לפני הרעש", "Before the noise"] };
@@ -2854,6 +2885,7 @@ export function RadarPage() {
         {board ? <RecordTable board={board} /> : null}
         {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
         {board?.rivals ? <RivalRace rivals={board.rivals} /> : null}
+        {board ? <FieldTable board={board} /> : null}
         {board?.googleRace ? <GoogleRace race={board.googleRace} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
