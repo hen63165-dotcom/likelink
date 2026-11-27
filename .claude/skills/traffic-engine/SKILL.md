@@ -46,7 +46,7 @@ The owner, after the photo slideshows: *"זה לא מוכר בכלל הסרטו�
 2. **The product on screen in the first second**, with a short hook on screen whose payoff the video really delivers (a question or a problem, ≤ 8 words).
 3. **Show it working**, no feature list: open → take out → use → detail → size next to something familiar.
 4. **9–20 s, a new picture every 1–2 s**: each cut must give something new, the best moment early.
-5. **Big captions** (3–5 words a line), the energetic own beat (`luna_reels/popbeat.py`, 122 BPM, no samples, no licence), **no whoosh on the cuts**.
+5. **Big captions** (3–5 words a line), **no made-up music** (see "Music" below: today's trending sound from the platform's own library only), **no whoosh on the cuts**.
 6. **End card**: the comment word ("אני") → the link in a DM; `#פרסומת · קישור שותפים` and who filmed it on every frame.
 7. **Only products HOT on the radar** (the hot-now gate in `docs/marketing/product-rules.md`).
 Research behind it (2026-11-15, vendor blogs, treated as hypotheses to test on her numbers): the product in the first 3 s, problem → solution, showing beats telling, unpolished phone footage often beats polished work, every cut must add something.
@@ -120,3 +120,12 @@ she says so).
   helpful post in 3 Israeli AliExpress Facebook groups (from her own account, each group's rules), Sun/Wed one
   post in creators' groups (/join), Pinterest feed once (pins.xml).
 - Saturday: no posts; the week's real numbers and which reel did best — make more of that one.
+
+## Music: only today's trending sound, from the platform's own library (the owner, 27.11)
+
+*"למה שוב בפוסטים אתה שם מוזיקה מוזרה ולא מוזיקה הכי טרנדית להיום, תתקן לכולם מעכשיו… מעכשיו תעבוד רק ככה"*.
+
+- **No made-up music under any post from now on.** The beds made from numbers (`luna_reels/music.py` `write_bed`, `popbeat.py`) are silence unless `LIKELINK_GENERATED_MUSIC=1` is set on purpose (`music.generated_music_on`, tested). Every tool that used them (pro reels, UGC edits, POV reels, the magic demo, the 3D studio voice-over, Luna's reels) now keeps only the video's own sound (her voice, the seller's clip) or a silent track. What was already published stays as it is.
+- **The trending sound is chosen at the moment of posting, from the platform's licensed library**, never a hit song copied into our file (Instagram mutes or blocks it, and it is not licensed):
+  - **TikTok:** Upload-Post's `tiktok_music_trending` (country `IL`, `dateRange: 1DAY`) gives today's chart of TikTok's Commercial Music Library, licensed for business posts; its top track's `id` goes in `upload_video` as `platformOptions.tiktokMusicId`. Needs her TikTok connected in Upload-Post with the `music` capability and a plan that posts to TikTok (Basic; the free plan cannot) — her approval for the cost.
+  - **Instagram:** the Graph API cannot attach a sound from Instagram's library. A reel goes out with its own sound only, or it is sent to her ready and she taps "הוספת שמע → טרנדי" in the app before posting (two taps).
