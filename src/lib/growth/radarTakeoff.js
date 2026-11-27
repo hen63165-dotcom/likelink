@@ -22,6 +22,7 @@
 
 import { PROMISE, featuresAt, targetAt } from "./radarPromise.js";
 import { growthOverDays, isSeasonal } from "./freshRisers.js";
+import { hasBrandName, isBulkPack, isNotListedKind } from "./deals.js";
 
 export const TAKEOFF = Object.freeze({ version: 1, h: 7, line: 100, soft: 50, minO: 10, maxO: 300, k: 5, scan: 24, unreadDays: 3, keepDays: 60 });
 export const TAKEOFF_SIDES = Object.freeze(["radar", "rank", "random"]);
@@ -45,7 +46,12 @@ export function takeoffPool(freshPool = {}, items = {}, today, { rules = TAKEOFF
   if (!DAY.test(String(today || ""))) return [];
   const out = [];
   for (const [id, e] of Object.entries(freshPool || {})) {
-    if (!ID.test(id) || !e || typeof e !== "object" || isSeasonal(e.title || "")) continue;
+    if (!ID.test(id) || !e || typeof e !== "object") continue;
+    // A holiday listing returns every year; a brand's name on AliExpress is an imitation (27.11: the
+    // first sheet sealed a "Reebok" sweatshirt and a "Kindle" screen protector); an unlisted kind or a
+    // wholesale lot is never recommended. None of them is a takeoff for any side.
+    const title = String(e.title || "");
+    if (isSeasonal(title) || hasBrandName(title) || isNotListedKind(title) || isBulkPack(title)) continue;
     const f = featuresAt(items?.[id], today, { rules: promise });
     if (!f || f.o < rules.minO || f.o > rules.maxO) continue;
     const before = Math.max(1, Math.round((f.o + 1) / Math.exp(f.pace * f.span) - 1));
@@ -183,7 +189,10 @@ export function cleanTakeoff(b) {
   const side = (x) => ({ hits: n(x?.hits) ?? 0, soft: n(x?.soft) ?? 0, of: n(x?.of) ?? 0, rate: n(x?.rate, 100), softRate: n(x?.softRate, 100) });
   const live = (Array.isArray(b.live) ? b.live : []).filter((x) => ID.test(String(x?.id || "")) && d(x?.called)).slice(0, 40).map((x) => ({
     id: String(x.id), called: d(x.called), due: d(x.due), dayN: n(x.dayN, 60) ?? 0, base: n(x.base), orders: n(x.orders), on: d(x.on), mult: n(x.mult, 1000), open: x.open === true,
-    title: t(x.title, 140), image: IMG.test(String(x.image || "")) ? x.image : null, buy: BUY.test(String(x.buy || "")) ? x.buy : null, price: n(x.price, 1e6), phrase: t(x.phrase, 60), similar: n(x.similar),
+    title: t(x.title, 140), image: IMG.test(String(x.image || "")) ? x.image : null, buy: BUY.test(String(x.buy || "")) && !hasBrandName(x.title) ? x.buy : null, price: n(x.price, 1e6), phrase: t(x.phrase, 60), similar: n(x.similar),
+    // A pick sealed before the brand rule reached the pool stays in the record (never edited) and is
+    // graded like every pick; a brand's name never gets a store button.
+    brand: hasBrandName(x.title),
   }));
   return { since: d(b.since), sheets: n(b.sheets) ?? 0, graded: n(b.graded) ?? 0, nextDue: d(b.nextDue), h: n(b.h, 60) ?? TAKEOFF.h, today: d(b.today), ...Object.fromEntries(TAKEOFF_SIDES.map((c) => [c, side(b[c])])), live, openCount: n(b.openCount, 1000) ?? live.filter((x) => x.open).length };
 }

@@ -132,3 +132,20 @@ test("the takeoff is an instrument with its own sealed book, and the lab's numbe
   assert.equal(TAKEOFF_LAB.doubled, 6);
   assert.equal(TAKEOFF_LAB.pool, 1529);
 });
+
+test("a brand's name, an unlisted kind or a wholesale lot never enters the pool; a sealed one keeps its grade with no store button", () => {
+  const { items, pool } = world();
+  // The first real sheet (27.11) sealed these two: a brand's sweatshirt and a branded device's accessory.
+  pool["100500009997"] = { title: "2026 Reebok New Autumn-Winter Men's Hooded Patchwork Casual Sweatshirt", image: IMG, link: BUY };
+  items["100500009997"] = [[day(13), 40], [day(20), 139]];
+  pool["100500009996"] = { title: "MoKo 3 Pack Matte Slim Film Screen Protector for 6\" Kindle Basic 2026", image: IMG, link: BUY };
+  items["100500009996"] = [[day(13), 20], [day(20), 59]];
+  pool["100500009995"] = { title: "Wholesale 100 pcs silicone thing", image: IMG, link: BUY };
+  items["100500009995"] = [[day(13), 20], [day(20), 80]];
+  const p = takeoffPool(pool, items, day(20));
+  for (const id of ["100500009997", "100500009996", "100500009995"]) assert.ok(!p.some((x) => x.id === id), id);
+  const clean = cleanTakeoff({ live: [{ id: "100500009997", called: day(27), due: day(34), open: true, title: pool["100500009997"].title, buy: BUY, image: IMG }] });
+  assert.equal(clean.live[0].buy, null);
+  assert.equal(clean.live[0].brand, true);
+  assert.equal(clean.live.length, 1, "kept in the record");
+});
