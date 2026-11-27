@@ -30,7 +30,26 @@ export const VARIANTS = Object.freeze([
   { id: "accelerating", rule: (f) => f.pace3 + Math.max(0, f.accel) },
   { id: "young-fast", rule: (f) => Math.min(f.pace, f.pace3) * (1.5 - f.age) },
   { id: "beats-noise", rule: (f) => f.z },
+  // The line itself (27.11, the owner: "upgrade it so nothing is missing"): a hit is a gain of at least
+  // max(1, o·line/100) orders in the 30-day count within h days. The count is a moving sum, so its gain
+  // is new orders minus the ones leaving the window: about o/30 a day each way at the item's size, plus
+  // the trend. These score how far the expected gain stands above what the line needs, in units of that
+  // counting noise (a normal approximation of the difference of two Poisson counts), with the item's
+  // pace over the week, over three days, or the smaller of the two.
+  { id: "line-week", rule: (f, c) => lineScore(f.o, f.pace, c) },
+  { id: "line-short", rule: (f, c) => lineScore(f.o, f.pace3, c) },
+  { id: "line-confirmed", rule: (f, c) => lineScore(f.o, Math.min(f.pace, f.pace3), c) },
+  { id: "line-mean", rule: (f, c) => lineScore(f.o, (f.pace + f.pace3) / 2, c) },
 ]);
+
+/** How many noise units the expected gain of the 30-day count stands above the line's need, h days on. */
+export function lineScore(o, pace, { h = 3, line = 10 } = {}) {
+  if (!Number.isFinite(o) || !Number.isFinite(pace)) return -1e9;
+  const gain = (o + 1) * (Math.exp(pace * h) - 1);
+  const need = Math.max(1, (o * line) / 100) - 0.5;
+  const sd = Math.sqrt((2 * h * (o + 1)) / 30 + Math.abs(gain) + 1);
+  return (gain - need) / sd;
+}
 
 /** Every variant, day by day, horizon h: per day the pool size, its base rate and each variant's top-k hits and AUC. */
 export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30, promise = PROMISE, variants = VARIANTS, line: lineAt = null, minO = null, maxO = Infinity } = {}) {
@@ -59,7 +78,7 @@ export function labRun(items, today, { h = 3, k = 20, perDay = 400, maxDays = 30
     const kk = Math.min(k, Math.floor(pool.length / 5));
     for (const v of variants) {
       let score;
-      if (v.rule) score = (x) => v.rule(x.f);
+      if (v.rule) score = (x) => v.rule(x.f, { h, line });
       else {
         if (!canLearn) continue;
         const m = fitLogistic(ex.map((e) => ({ x: v.cols.map((c) => e.x[c]), y: e.y })), { rules: { ...MODELS, lambda: v.lambda } });
