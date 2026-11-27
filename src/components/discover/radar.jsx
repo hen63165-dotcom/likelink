@@ -5,9 +5,10 @@
 // (board.json next to the site) and passes radarBoard.js sanitizeBoard before anything renders.
 // Free during the trial. The store buttons are LikeLink2's tracked links, with the
 // disclosure above them; an exit is one click event (med "radar") in the owner's numbers.
+import { fieldView } from "../../lib/growth/radarField.js";
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { AREA_HE } from "../../lib/growth/radarAreas.js";
-import { PARTNER_NAMES } from "../../lib/growth/tradeSignal.js";
+import { PARTNER_NAMES, bothMarkets } from "../../lib/growth/tradeSignal.js";
 import { Clock, ExternalLink, Radar, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { BASE } from "../../lib/basePath.js";
 import { BOT_UA } from "../../lib/funnel.js";
@@ -979,7 +980,7 @@ function TrendPath({ path }) {
   );
 }
 
-function Trade({ t }) {
+function Trade({ t, eu = null }) {
   const { L } = useL();
   const us = t.reporter === "US";
   const months = (t.months || []).slice().sort();
@@ -987,7 +988,40 @@ function Trade({ t }) {
   const rows = (t.partners || []).flatMap((p) => p.top.map((r) => ({ ...r, partner: p.id })));
   const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
   const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
-  const eur = (x) => `${us ? "$" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  const uk = t.reporter === "UK";
+  const both = uk ? bothMarkets(eu, t) : [];
+  const eur = (x) => `${us ? "$" : uk ? "£" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  if (uk) {
+    return (
+      <section className="lx-wrap mt-8" id="trade-uk">
+        <div className="lx-card lx-rdr-panel p-5">
+          <h2 className="text-[22px] font-black">{L("🇬🇧 מה המפעלים שולחים יותר לבריטניה", "🇬🇧 What the factories ship more of to the UK")}</h2>
+          {both.length ? (
+            <div className="mt-2 lx-card lx-rdr-item p-3">
+              <p className="text-[14px] font-black">{L("✅ הוכפל בשני שווקים בבת אחת: גם במכס של אירופה וגם במכס של בריטניה", "✅ Doubled in two markets at once: in both the EU's and the UK's customs records")}</p>
+              <ul className="mt-1 grid gap-1 text-[13px]">
+                {both.map((r) => <li key={`${r.partner}-${r.code}`}>{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · line ${r.code}`)} · <span dir="ltr">{r.label}</span> · {L(`אירופה +${r.euPct}%, בריטניה +${r.ukPct}%`, `EU +${r.euPct}%, UK +${r.ukPct}%`)}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          <p className="mt-1 text-[14px] leading-6">{L(`כל מוצר שנכנס לבריטניה מוצהר במכס, ורשות המסים הבריטית מפרסמת את הנתונים לכולם, בלי מפתח ובלי הרשמה, ברישיון ממשלתי פתוח. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם במשקל).`, `Every product entering the UK is declared at customs, and HMRC publishes the records to all, with no key or sign-up, under the Open Government Licence. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the shipments at least doubled (${span} against the same months a year earlier, in value and in weight).`)}</p>
+          {rows.length ? (
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
+              {rows.sort((a, b) => b.valuePct - a.valuePct).slice(0, 12).map((r) => (
+                <li key={`${r.partner}-${r.code}`} className="lx-card lx-rdr-item p-3">
+                  <p className="text-[13px] font-bold">{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד מכס ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · customs line ${r.code}`)}</p>
+                  {r.label ? <p className="mt-1 text-[14px]" dir="ltr" style={{ textAlign: "start" }}>{r.label}</p> : null}
+                  <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`+${r.valuePct}% בשווי${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% במשקל` : ""}`, `+${r.valuePct}% in value${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% in weight` : ""}`)}</p>
+                  <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${eur(r.prev)} ← ${eur(r.value)} בשלושה חודשים`, `${eur(r.prev)} → ${eur(r.value)} in three months`)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-2 text-[14px]">{L("החודש המשלוחים יציבים: עוד שקט.", "This month the shipments are steady: still quiet.")}</p>}
+          <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("התיאור הוא המילים של המכס הבריטי עצמו. כל אחד יכול לבדוק את אותו קוד באתר הנתונים של רשות המסים הבריטית.", "The description is UK customs' own words. Anyone can check the same line on HMRC's trade data site.")} <a className="underline" href="https://www.uktradeinfo.com/" target="_blank" rel="noopener noreferrer">uktradeinfo</a></p>
+        </div>
+      </section>
+    );
+  }
   if (us) {
     return (
       <section className="lx-wrap mt-8" id="trade-us">
@@ -1516,6 +1550,36 @@ function RivalRace({ rivals }) {
         </ul>
       ) : null}
       <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} פוסטים מ־${r.since ? dm(r.since) : "—"}`).join(" · ")}`, `Checked on ${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} posts since ${r.since ? dm(r.since) : "—"}`).join(" · ")}`)}</p>
+    </section>
+  );
+}
+
+// 🏟️ One by one (radarField.js): every company in its own words with its source; the radar's side from the board.
+function FieldTable({ board }) {
+  const { L } = useL();
+  const v = fieldView(board);
+  const r = v.radar;
+  const race = (m, kind) => {
+    if (!m) return L("התחזיות שלה סגורות לציבור: ההשוואה הפתוחה היא הרקורד החתום של הרדאר.", "Its forecasts are closed to the public: the open comparison is the radar's sealed record.");
+    if (kind === "google") return L(`מול גוגל עצמו: ${m.read} קביעות נקראו · הרדאר ראשון ${m.ahead} · גוגל ראשון ${m.googleFirst} · עוד שקט בגוגל ${m.quiet}${m.lateRead ? ` · ${m.lateRead} נספרות בנפרד` : ""}`, `Against Google itself: ${m.read} calls read · the radar first ${m.ahead} · Google first ${m.googleFirst} · still quiet at Google ${m.quiet}${m.lateRead ? ` · ${m.lateRead} counted apart` : ""}`);
+    return L(`מול הפיד הפתוח של הבלוג: ${m.compared} קביעות הושוו · הרדאר ראשון ${m.ahead} · הן ראשונות ${m.rivalFirst} · עוד שקט אצלן ${m.quiet}`, `Against its open blog feed: ${m.compared} calls compared · the radar first ${m.ahead} · they first ${m.rivalFirst} · still quiet there ${m.quiet}`);
+  };
+  return (
+    <section className="lx-card lx-rdr-panel mt-4 p-5" id="field">
+      <h2 className="text-[20px] font-black">{L("🏟️ אחת־אחת: הרדאר מול כל שם בתחום", "🏟️ One by one: the radar against every name in the field")}</h2>
+      <p className="mt-1 text-[14px] leading-6">{L(`כל חברה כאן מוצגת במילים שלה, מהדפים שלה, עם הקישור והיום שנבדק (${dm(v.checked)}). הצד של הרדאר נקרא מהלוח של היום: ${r.books} ספרים חתומים בשורש היומי${r.block ? `, האחרון שנבדק בתוך בלוק ${r.block.toLocaleString("he-IL")} של ביטקוין` : ""}, ${r.given.toLocaleString("he-IL")} קביעות שנאמרו מראש ו־${r.graded.toLocaleString("he-IL")} שכבר נבדקו בפומבי, גם הטעויות. איפה שיש דלת פתוחה, הרדאר מתוזמן מולה.`, `Every company here is shown in its own words, from its own pages, with the link and the day it was read (${dm(v.checked)}). The radar's side is read from today's board: ${r.books} sealed books in the daily root${r.block ? `, the latest checked inside Bitcoin block ${r.block.toLocaleString("en-US")}` : ""}, ${r.given.toLocaleString("en-US")} calls said in advance and ${r.graded.toLocaleString("en-US")} already graded in public, misses included. Where an open door exists, the radar is timed against it.`)}</p>
+      <ul className="mt-3 grid gap-2 md:grid-cols-2">
+        {v.rows.map((c) => (
+          <li key={c.id} className="lx-card lx-rdr-item p-3">
+            <p className="text-[15px] font-black" dir="ltr" style={{ textAlign: "start" }}>{c.name}</p>
+            <p className="mt-1 text-[13px]">{L(c.he, c.en)}</p>
+            {c.claimHe ? <p className="mt-1 text-[13px]">{L(`מה שהיא מפרסמת על עצמה: ${c.claimHe}`, `What it publishes about itself: ${c.claimEn}`)}</p> : null}
+            <p className="mt-1 text-[13px] font-bold" style={{ color: c.measured ? "#067647" : "var(--lx-muted)" }}>{race(c.measured, c.race)}</p>
+            <a className="mt-1 inline-block text-[12px] underline" href={c.src} target="_blank" rel="noopener noreferrer">{L("המקור", "Source")}</a>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("מה שכל אחד יכול לבדוק: כל קביעה של הרדאר חתומה ביום שלה בביטקוין ומקבלת ציון בפומבי, והקישורים כאן מובילים לדפים של החברות עצמן.", "What anyone can check: every radar call is sealed in Bitcoin on its day and graded in public, and the links here lead to the companies' own pages.")}</p>
     </section>
   );
 }
@@ -2740,6 +2804,7 @@ export function RadarPage() {
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
         {board?.tradeUs?.partners?.length ? <Trade t={board.tradeUs} /> : null}
+        {board?.tradeUk?.partners?.length ? <Trade t={board.tradeUk} eu={board.trade} /> : null}
         {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
@@ -2829,6 +2894,7 @@ export function RadarPage() {
         {board ? <RecordTable board={board} /> : null}
         {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
         {board?.rivals ? <RivalRace rivals={board.rivals} /> : null}
+        {board ? <FieldTable board={board} /> : null}
         {board?.googleRace ? <GoogleRace race={board.googleRace} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}

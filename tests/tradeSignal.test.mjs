@@ -110,3 +110,43 @@ test("🇺🇸 US customs (Census): HTS10 lines, the same rule as the EU, value 
   assert.equal(c.reporter, "US");
   assert.equal(c.partners[0].top[0].code, "9503000073");
 });
+
+test("🇬🇧 UK customs (HMRC): open API, ports summed by the API, CN8 lines only, the same rule, the customs' own words", async () => {
+  const { UK_TRADE, addHmrcMonth, tradeJumps, ukCountryUrl, ukLabelUrl, ukLabels, ukMonthUrl, ukNextLink, ukProbeUrl, cleanTrade } = await import("../src/lib/growth/tradeSignal.js");
+  assert.equal(ukMonthUrl(720, "2026-09"), "https://api.uktradeinfo.com/OTS?$apply=filter(MonthId%20eq%20202609%20and%20CountryId%20eq%20720%20and%20FlowTypeId%20eq%203)/groupby((CommodityId),aggregate(Value%20with%20sum%20as%20Value,NetMass%20with%20sum%20as%20NetMass))", "the exact query a runner read on 27.11");
+  assert.equal(ukMonthUrl("x", "2026-09"), null);
+  assert.equal(ukProbeUrl("2026-09"), "https://api.uktradeinfo.com/OTS/$count?$filter=MonthId%20eq%20202609");
+  assert.equal(ukCountryUrl("CN"), "https://api.uktradeinfo.com/Country?$filter=CountryCodeAlpha%20eq%20'CN'");
+  assert.equal(ukCountryUrl("C'N"), null, "only two capital letters reach the query");
+  assert.match(ukLabelUrl(["95030075", "05", "95030075"]), /CommodityId%20eq%2095030075&\$select=/, "8-digit lines only, once each");
+  assert.equal(ukLabelUrl(["05"]), null);
+  const lines = new Map();
+  for (const [m, v, kg] of [["2026-09", 1_500_000, 30_000], ["2026-08", 1_200_000, 25_000], ["2026-07", 900_000, 20_000], ["2025-09", 400_000, 9_000], ["2025-08", 300_000, 7_000], ["2025-07", 300_000, 7_000]]) {
+    addHmrcMonth({ value: [{ CommodityId: 95030075, Value: v, NetMass: kg }, { CommodityId: 5, Value: 9e9, NetMass: 1 }, { CommodityId: 84111210, Value: 9e9, NetMass: 1 }] }, m, lines);
+  }
+  assert.equal(lines.has("5"), false, "a chapter total is never a line");
+  const j = tradeJumps({ lines }, "2026-09", { rules: UK_TRADE });
+  assert.equal(j.jumping, 1, "turbojets stay out");
+  assert.equal(j.top[0].code, "95030075");
+  assert.equal(j.top[0].valuePct, 260);
+  const labels = ukLabels({ value: [{ Cn8Code: "95030075", Cn8LongDescription: "Plastic toys <x>", Hs6Description: "Toys" }, { Cn8Code: "95030010", Cn8LongDescription: "-", Hs6Description: "Tricycles" }] });
+  assert.equal(labels.get("95030075"), "Plastic toys x", "no markup");
+  assert.equal(labels.get("95030010"), "Tricycles", "the HS6 words when the CN8 ones are a dash");
+  assert.equal(ukNextLink({ "@odata.nextLink": "https://api.uktradeinfo.com/OTS?$skiptoken=1" }), "https://api.uktradeinfo.com/OTS?$skiptoken=1");
+  assert.equal(ukNextLink({ "@odata.nextLink": "https://evil.example/OTS" }), null, "only HMRC's own host is followed");
+  const c = cleanTrade({ reporter: "UK", latest: "2026-09", months: ["2026-09", "2026-08", "2026-07"], partners: [{ id: "CN", ...j }] });
+  assert.equal(c.reporter, "UK");
+  assert.equal(cleanTrade({ reporter: "XX", latest: "2026-09", partners: [] }).reporter, "EU");
+});
+
+test("✅ both markets: the same line from the same partner doubled in the EU's and the UK's own records", async () => {
+  const { bothMarkets } = await import("../src/lib/growth/tradeSignal.js");
+  const eu = { partners: [{ id: "KR", top: [{ code: "33079000", label: "Perfumery", valuePct: 260 }] }, { id: "JP", top: [{ code: "94019910", label: "Seat parts", valuePct: 473 }] }] };
+  const uk = { partners: [{ id: "KR", top: [{ code: "33079000", label: "", valuePct: 439 }, { code: "33049900", valuePct: 191 }] }, { id: "JP", top: [{ code: "94019910", valuePct: 1232 }] }, { id: "CN", top: [{ code: "42050019", valuePct: 657 }] }] };
+  const b = bothMarkets(eu, uk);
+  assert.deepEqual(b.map((x) => `${x.partner}-${x.code}`), ["JP-94019910", "KR-33079000"], "strongest by the smaller of the two rises");
+  assert.equal(b[1].label, "Perfumery");
+  assert.deepEqual(bothMarkets(null, uk), []);
+  assert.deepEqual(bothMarkets(eu, { partners: [{ id: "KR", top: [{ code: "33079000", valuePct: 400 }] }] }).length, 1);
+  assert.deepEqual(bothMarkets({ partners: [{ id: "CN", top: [{ code: "33079000", valuePct: 400 }] }] }, { partners: [{ id: "KR", top: [{ code: "33079000", valuePct: 400 }] }] }), [], "a different partner is never a match");
+});

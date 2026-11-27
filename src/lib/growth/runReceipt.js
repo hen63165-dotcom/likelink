@@ -23,7 +23,7 @@ export const RECEIPT = Object.freeze({ v: 1, repo: "hen63165-dotcom/likelink", s
 /** Every place the run asks, by host: the public source keys the page already names. */
 export const METERED = Object.freeze([
   "aliexpress", "suggest", "youtube", "worldSearch", "trendsIL", "trendsWorld", "youtubeApi", "pinterest", "instagram",
-  "engine_baidu", "engine_naver", "wikipedia", "bluesky", "metaAds", "shops", "trade", "tradeUs", "news", "site", "seal", "bitcoin", "rules", "other",
+  "engine_baidu", "engine_naver", "wikipedia", "bluesky", "metaAds", "shops", "trade", "tradeUs", "tradeUk", "news", "site", "seal", "bitcoin", "rules", "other",
 ]);
 export const OUTCOMES = Object.freeze(["answered", "empty", "refused", "failed"]);
 export const AE_METHODS = Object.freeze(["product.query", "hotproduct.query", "productdetail.get", "category.get", "order.list", "link.generate"]);
@@ -53,6 +53,7 @@ export function sourceOf(url) {
   if (host === "www.whoisds.com") return "shops";
   if (host === "ec.europa.eu" && u.pathname.startsWith("/eurostat/")) return "trade";
   if (host === "api.census.gov" && u.pathname.startsWith("/data/timeseries/intltrade/")) return "tradeUs";
+  if (host === "api.uktradeinfo.com") return "tradeUk";
   if (host === "api.gdeltproject.org") return "news";
   if (host === "suggestion.baidu.com") return "engine_baidu";
   if (host === "ac.search.naver.com") return "engine_naver";
@@ -110,6 +111,8 @@ export function bodyAnswer(key, text) {
   if (key === "engine_baidu" || key === "engine_naver") return t.trim() ? { outcome: "answered", code: null } : { outcome: "empty", code: "empty_body" };
   if (key === "rules") return { outcome: "answered", code: null };
   if (key === "seal" || key === "bitcoin") return { outcome: "answered", code: null };
+  // HMRC's count probe answers a bare number: the rows a month holds (0 = not published yet).
+  if (key === "tradeUk" && /^\s*\d+\s*$/.test(t)) return Number(t) > 0 ? { outcome: "answered", code: null } : { outcome: "empty", code: "no_rows" };
   // A web page where data was asked is a refusal (27.11: api.census.gov's "Missing Key" page came with 200).
   if (/^\s*<(?:!doctype\s+html|html)[\s>]/i.test(t)) return { outcome: "refused", code: /<title>\s*(?:Missing|Invalid) Key/i.test(t) ? "missing_key" : "html_page" };
   try { const j = JSON.parse(t); return hasData(j) ? { outcome: "answered", code: null } : { outcome: "empty", code: "no_rows" }; } catch { return t.trim() ? { outcome: "answered", code: null } : { outcome: "empty", code: "empty_body" }; }
@@ -270,7 +273,7 @@ const RESTS_ON = Object.freeze({
   suggest: "suggest", youtube: "youtube", worldSearch: "worldSearch", trendsIL: "trendsIL", trendsWorld: "trendsWorld", trendsDiscovery: "trendsWorld",
   youtubeApi: "youtubeApi", pinterest: "pinterest", instagram: "instagram", engine_baidu: "engine_baidu", engine_naver: "engine_naver",
   siteVisitors: "site", siteProducts: "site", crowd: "site", wikipedia: "wikipedia", bluesky: "bluesky", metaAds: "metaAds",
-  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", tradeUs: "tradeUs", news: "news", asia: "worldSearch",
+  worldGap: "worldSearch", hauls: "youtubeApi", shops: "shops", trade: "trade", tradeUs: "tradeUs", tradeUk: "tradeUk", news: "news", asia: "worldSearch",
 });
 
 /**
