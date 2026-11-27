@@ -1,0 +1,37 @@
+# 📜 Ten years back (scripts/catalog/radar-history.mjs, src/lib/growth/radarHistory.js): the radar's
+# early-alarm rule on Wikimedia's public pageviews since 2015. A branch run prints the totals; a main run
+# also attaches history-public.json to the `radar` release (served at /radar/history.json by
+# deploy-frontend.yml). Weekly, on Mondays; or by hand.
+name: Radar history
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 1"
+  push:
+    branches: ["claude/**"]
+    paths:
+      - scripts/catalog/radar-history.mjs
+      - src/lib/growth/radarHistory.js
+      - .github/workflows/radar-history.yml
+permissions:
+  contents: write
+concurrency:
+  group: radar-history-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Ten years of public pageviews
+        run: node scripts/catalog/radar-history.mjs radar-history | tee /tmp/history.txt
+      - name: Publish (main only)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f radar-history/history-public.json ] && gh release upload radar radar-history/history-public.json --clobber || echo "::notice::nothing to publish"

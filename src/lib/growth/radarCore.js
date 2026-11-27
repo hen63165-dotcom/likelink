@@ -45,7 +45,7 @@ export const BOOKS = Object.freeze(INSTRUMENTS.filter((i) => i.book).map((i) => 
 /** Every section id on /radar → its tab (deep links like /radar#window open the right tab). */
 export const SECTION_TABS = Object.freeze({
   today: "today", verdict: "today", picks: "today", duel: "today", fresh: "today", watch: "today", export: "today", kinds: "today", "radar-results": "today",
-  proof: "proof", verify: "proof", backtest: "proof", rivals: "proof", gate: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof", data: "proof",
+  proof: "proof", verify: "proof", backtest: "proof", history: "proof", rivals: "proof", gate: "proof", record: "proof", sources: "proof", capabilities: "proof", ledger: "proof", anchors: "proof", challenge: "proof", data: "proof",
   tools: "tools", styles: "tools", waves: "tools", crowd: "tools", how: "tools", path: "today",
   plans: "plans", "radar-tiers": "plans",
   ...Object.fromEntries(INSTRUMENTS.map((i) => [i.section, i.tab]).filter(([s]) => !["verdict", "fresh", "kinds", "ledger"].includes(s))),

@@ -33,6 +33,8 @@ import { supplyLine } from "../../lib/growth/supplyGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
+import { REFERRAL, REF_CODE, inviteText } from "../../lib/growth/radarReferral.js";
+import { HISTORY, cleanHistory, toolUrl } from "../../lib/growth/radarHistory.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 import { STUDIO_LOGIN, STUDIO_SIGNUP } from "./PublicShell";
@@ -457,6 +459,76 @@ export function TrialBanner() {
         : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
       <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
     </p>
+  );
+}
+
+/**
+ * 🎁 Invite a friend (radarReferral.js; the owner, 27.11: "כן תפעיל"): a code that arrived in the address
+ * waits on this device until she signs in, then is claimed once; a signed-in visitor gets her own link,
+ * WhatsApp and copy buttons, and how many friends joined (a count only).
+ */
+const REF_STORE = "likelink_radar_ref";
+const REF_NOTE = {
+  joined: `🎁 הצטרפת בהזמנה של חברה: לשתיכן נוספו ${REFERRAL.bonusDays} ימים בחינם.`,
+  already_joined: "ההזמנה כבר נקלטה בחשבון שלך.",
+  not_new_account: `ההזמנה נותנת ימים לחשבון שנפתח ב־${REFERRAL.newAccountDays} הימים האחרונים.`,
+  unconfirmed: "אחרי אימות כתובת הדוא״ל ההזמנה תיקלט.",
+  own_code: "זה קישור ההזמנה שלך: שלחי אותו לחברה.",
+  inviter_full: `החברה שהזמינה אותך כבר הזמינה ${REFERRAL.maxFriends} חברות, המספר המרבי.`,
+  unknown_code: "כדאי לבקש מהחברה לשלוח שוב את קישור ההזמנה.",
+};
+function InviteBox() {
+  const { L, he } = useL();
+  const [ref, setRef] = useState(null);
+  const [note, setNote] = useState(null);
+  const [arrived, setArrived] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let live = true;
+    try {
+      const q = new URLSearchParams(location.search).get("ref");
+      if (q && REF_CODE.test(q)) { localStorage.setItem(REF_STORE, q); setArrived(true); }
+    } catch { /* a private window: the link still opens the radar */ }
+    getSessionToken().catch(() => null).then(async (t) => {
+      if (!live || !t) return;
+      let pending = null;
+      try { pending = localStorage.getItem(REF_STORE); } catch { /* none */ }
+      if (pending && REF_CODE.test(pending)) {
+        try {
+          const r = await fetch("/api/store?mode=radar-board&op=referral-claim", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ code: pending }) });
+          const b = await r.json().catch(() => ({}));
+          if (live) setNote(r.ok && b?.ok ? REF_NOTE.joined : REF_NOTE[b?.error] || null);
+          if (r.status < 500) { try { localStorage.removeItem(REF_STORE); } catch { /* none */ } }
+        } catch { /* the network: try again on the next visit */ }
+      }
+      try {
+        const r = await fetch("/api/store?mode=radar-board&op=referral", { headers: { Authorization: `Bearer ${t}` } });
+        const b = await r.json().catch(() => null);
+        if (live && b?.referral && REF_CODE.test(String(b.referral.code || ""))) setRef(b.referral);
+      } catch { /* the box stays closed */ }
+    });
+    return () => { live = false; };
+  }, []);
+  const invite = ref ? inviteText(ref.code, { he }) : null;
+  if (!invite && !note && !arrived) return null;
+  return (
+    <div className="lx-wrap mt-6">
+      <div className="lx-rdr-panel p-4" role="region" aria-label={L("הזמנת חברה", "Invite a friend")}>
+        <p className="text-[17px] font-black">{L(`🎁 הזמיני חברה: שתיכן מקבלות עוד ${REFERRAL.bonusDays} ימים בחינם`, `🎁 Invite a friend: you both get ${REFERRAL.bonusDays} more free days`)}</p>
+        {note ? <p className="mt-1 text-[15px] font-bold" role="status">{note}</p> : null}
+        {!invite && arrived ? <p className="mt-1 text-[15px]">{L(`הגעת בהזמנה של חברה. אחרי הרשמה בחשבון חדש שתיכן מקבלות עוד ${REFERRAL.bonusDays} ימים.`, `A friend invited you. Sign up with a new account and you both get ${REFERRAL.bonusDays} more days.`)}</p> : null}
+        {invite ? (
+          <>
+            <p className="mt-1 text-[14px] leading-6">{L(`חברה שנרשמת דרך הקישור שלך בחשבון חדש: לשתיכן נוספים ${REFERRAL.bonusDays} ימים. עד ${REFERRAL.maxFriends} חברות. הצטרפו עד עכשיו: ${ref.friends}.`, `A friend who signs up with a new account through your link: ${REFERRAL.bonusDays} more days for both of you. Up to ${REFERRAL.maxFriends} friends. Joined so far: ${ref.friends}.`)}</p>
+            <p className="mt-2 break-all text-[13px]" dir="ltr">{invite.url}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a className="lx-btn lx-btn-ink" href={`https://wa.me/?text=${encodeURIComponent(invite.text)}`} target="_blank" rel="noopener noreferrer">{L("לשלוח בוואטסאפ", "Send on WhatsApp")}</a>
+              <button type="button" className="lx-btn lx-btn-ghost" onClick={() => { try { navigator.clipboard.writeText(invite.text).then(() => setCopied(true)); } catch { /* the link is printed above */ } }}>{copied ? L("הועתק", "Copied") : L("להעתיק את ההזמנה", "Copy the invite")}</button>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -2018,6 +2090,57 @@ function Luck({ luck, concepts = [] }) {
   );
 }
 
+// 📜 Ten years back (radarHistory.js): the radar's early-alarm rule on Wikimedia's public pageviews since
+// 2015, read from /radar/history.json (published weekly by the "Radar history" workflow). A backtest on
+// public data, labelled as such; every article links to Wikimedia's own pageviews tool.
+const RADAR_HISTORY_HOME = "https://hen63165-dotcom.github.io/likelink/radar/history.json";
+function TenYears() {
+  const { L } = useL();
+  const [h, setH] = useState(null);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      for (const u of [...new Set([typeof location !== "undefined" ? `${location.origin}${BASE}/radar/history.json` : "", RADAR_HISTORY_HOME].filter(Boolean))]) {
+        try {
+          const res = await fetch(u, { cache: "no-cache" });
+          if (!res.ok) continue;
+          const doc = cleanHistory(await res.json());
+          if (doc && live) return setH(doc);
+        } catch { /* the next address */ }
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+  if (!h) return null;
+  const nf = (x) => Number(x || 0).toLocaleString(L("he-IL", "en-US"));
+  const AL = { ahead: L("✅ התראה לפני", "✅ alarm before"), same_week: L("🟰 באותו שבוע", "🟰 same week"), missed: L("⚪ זוהתה רק בפריצה", "⚪ seen only at the boom") };
+  const a = HISTORY.alarm;
+  return (
+    <section className="lx-wrap mt-6" id="history">
+      <div className="lx-card lx-rdr-panel p-5">
+        <h2 className="text-[20px] font-black">{L("📜 עשר שנים אחורה: הכלל של הרדאר על נתונים ציבוריים", "📜 Ten years back: the radar's rule on public data")}</h2>
+        <p className="mt-1 text-[14px] leading-7">{L(`קביעה חתומה מקבלת ציון רק ביום שלה. לכן הכלל של הרדאר לזיהוי מוקדם נבדק גם על ההיסטוריה הארוכה ביותר שכל אחד יכול לפתוח: מספר הצפיות היומי בוויקיפדיה מאז 1.7.2015, ב־${nf(h.articles)} ערכים של מוצרים (${nf(h.weeks)} שבועות). זו בדיקה לאחור על נתונים ציבוריים, והקביעות החתומות נבדקות בנפרד. הכלל נכתב בקוד לפני הריצה, וכך הוא נשאר.`, `A sealed call is graded only on its day, so the radar's early-alarm rule is also tested on the longest history anyone can open: Wikipedia's daily views since 1.7.2015, on ${nf(h.articles)} product articles (${nf(h.weeks)} weeks). A backtest on public data; the sealed calls are graded apart. The rule was written in the code before the run and stays as written.`)}</p>
+        <dl className="lx-rdr-dl mt-3">
+          <div><dt>{L("התראות מוקדמות שקיבלו ציון", "Early alarms graded")}</dt><dd>{nf(h.alarms.graded)}</dd></div>
+          <div><dt>{L(`הפכו לפריצה בתוך ${HISTORY.horizonWeeks} שבועות`, `Became a boom within ${HISTORY.horizonWeeks} weeks`)}</dt><dd>{L(`${nf(h.alarms.hits)} (${h.alarms.precisionPct}%)`, `${nf(h.alarms.hits)} (${h.alarms.precisionPct}%)`)}</dd></div>
+          <div><dt>{L("שבוע אקראי של אותם ערכים", "A random week of the same articles")}</dt><dd>{h.baseRatePct}%{h.lift ? L(` · פי ${h.lift}`, ` · ×${h.lift}`) : ""}</dd></div>
+          <div><dt>{L("פריצות שנמדדו", "Booms measured")}</dt><dd>{L(`${nf(h.booms.total)}: התראה לפני ${nf(h.booms.ahead)}, באותו שבוע ${nf(h.booms.caught - h.booms.ahead)}, זוהו רק בפריצה ${nf(h.booms.total - h.booms.caught)}`, `${nf(h.booms.total)}: alarm before ${nf(h.booms.ahead)}, same week ${nf(h.booms.caught - h.booms.ahead)}, seen only at the boom ${nf(h.booms.total - h.booms.caught)}`)}</dd></div>
+          <div><dt>{L("כמה מוקדם (חציון)", "How early (median)")}</dt><dd>{L(`${h.lead.toBoomWeeks ?? "—"} שבועות לפני שהפריצה נראתה לכולם · ${h.lead.toPeakWeeks ?? "—"} לפני השיא`, `${h.lead.toBoomWeeks ?? "—"} weeks before the boom was plain · ${h.lead.toPeakWeeks ?? "—"} before its peak`)}</dd></div>
+        </dl>
+        <details className="lx-rdr-how mt-3">
+          <summary className="cursor-pointer text-[14px] font-bold">{L("הכלל, והפריצות אחת אחת", "The rule, and the booms one by one")}</summary>
+          <p className="mt-2 text-[13px] leading-6">{L(`התראה: שבוע עם פי ${a.ratio} מהשבוע הרגיל של הערך (החציון של 52 השבועות שנגמרו 4 שבועות קודם), שבוע לפניו פי ${a.prevRatio} לפחות, לפחות ${nf(a.minWeekly)} צפיות בשבוע, והתראה אחת לכל ${a.cooldownWeeks} שבועות. פריצה: שבוע עם פי ${HISTORY.boom.ratio} מהרגיל שהוא גם הגבוה ביותר בשנתיים. ערך שנפתח כשהמוצר כבר היה גדול (כמו הספינר ב־2017) נמדד מהשנה שאחריה, כשיש לו שבוע רגיל. ויקיפדיה מגיעה מאוחר לטרנדים, ולכן הרדאר קורא את המקורות שלפני המכירות: מפעלים, מודעות חדשות וחנויות שנפתחות.`, `Alarm: a week at ${a.ratio}× the article's usual week (the median of the 52 weeks ending 4 weeks earlier), the week before at least ${a.prevRatio}×, at least ${nf(a.minWeekly)} views a week, one alarm per ${a.cooldownWeeks} weeks. Boom: a week at ${HISTORY.boom.ratio}× the usual that is also the highest in two years. An article opened once the product was already big (like the fidget spinner in 2017) is measured from the year after, once it has a usual week. Wikipedia comes late to trends, so the radar reads the sources before the sales: factories, new listings and new shops.`)}</p>
+          <ul className="mt-2 grid gap-1 text-[13px]">
+            {h.boomsList.slice(0, 30).map((b) => (
+              <li key={`${b.title}-${b.boom}`}>{AL[b.alarmed] || ""} · <a className="underline" href={toolUrl(b.title)} target="_blank" rel="noopener noreferrer">{b.title.replace(/_/g, " ")}</a> · {dm(b.boom)}.{b.boom.slice(0, 4)} ({L(`פי ${b.ratio}`, `×${b.ratio}`)})</li>
+            ))}
+          </ul>
+        </details>
+      </div>
+    </section>
+  );
+}
+
 // 📏 The radar vs the simple ranking and chance (radarBaseline.js): the same pool, the same rule, sealed.
 // 🥊 The head-to-head (radarBacktest.js): every day of the radar's readings, its chance model against the
 // simple ranking by order growth and against chance, on the same items; recomputable in the browser.
@@ -2553,6 +2676,7 @@ export function RadarPage() {
           <div className="lx-wrap mt-6"><p className="rounded-2xl p-3 text-[15px] font-bold" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🎁 את בניסיון חינם: נשארו לך ${acc.daysLeft} ימים.`, `🎁 You're on a free trial: ${acc.daysLeft} days left.`)} <button type="button" className="underline" onClick={() => pick("plans")}>{L("למסלולים", "See the plans")}</button></p></div>
         ) : null}
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
+        <InviteBox />
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
         {board?.takeoff ? <Takeoff t={board.takeoff} gated={gated} /> : null}
@@ -2660,6 +2784,7 @@ export function RadarPage() {
         {board?.ledger ? <Ledger ledger={board.ledger} freshBook={gated ? null : board.fresh?.seal} stagesBook={gated ? null : board.stagesSeal} kindsBook={gated ? null : board.kinds?.seal} brainBook={gated ? null : board.brain?.seal} promiseBook={gated ? null : board.promise?.seal} windowBook={gated ? null : board.window?.seal} anchors={board.anchors} /> : null}
         {board?.luck ? <Luck luck={board.luck} concepts={board.concepts || []} /> : null}
         {board?.backtest || board?.versus ? <HeadToHead bt={board.backtest} versus={board.versus} /> : null}
+        <TenYears />
         {board?.baseline ? <Baseline baseline={board.baseline} /> : null}
         {!gated && board?.brain ? <Brain brain={board.brain} /> : null}
         {board?.challenge ? <Challenge ch={board.challenge} /> : null}
