@@ -33,6 +33,7 @@ import { supplyLine } from "../../lib/growth/supplyGap.js";
 import { WORLD_STATES, nextReadingAt, verdictOf } from "../../lib/growth/worldPulse.js";
 import { accessOf } from "../../lib/growth/radarPlans.js";
 import { getSessionToken } from "../../lib/auth.js";
+import { REFERRAL, REF_CODE, inviteText } from "../../lib/growth/radarReferral.js";
 import { useMarketplace } from "../../context/MarketplaceContext";
 import { Go, Img, ShareButton, Spinner, TelegramJoin, useL } from "./kit";
 import { STUDIO_LOGIN, STUDIO_SIGNUP } from "./PublicShell";
@@ -457,6 +458,76 @@ export function TrialBanner() {
         : L("תקופת הניסיון הסתיימה. הרדאר נשאר פתוח עד שייקבעו המסלולים; אפשר להצטרף לרשימת ההמתנה.", "The trial has ended. The radar stays open until the tiers are set; you can join the waitlist.")}{" "}
       <Go to="/radar-pro" className="font-bold underline">{L("למסלולים", "See the tiers")}</Go>
     </p>
+  );
+}
+
+/**
+ * 🎁 Invite a friend (radarReferral.js; the owner, 27.11: "כן תפעיל"): a code that arrived in the address
+ * waits on this device until she signs in, then is claimed once; a signed-in visitor gets her own link,
+ * WhatsApp and copy buttons, and how many friends joined (a count only).
+ */
+const REF_STORE = "likelink_radar_ref";
+const REF_NOTE = {
+  joined: `🎁 הצטרפת בהזמנה של חברה: לשתיכן נוספו ${REFERRAL.bonusDays} ימים בחינם.`,
+  already_joined: "ההזמנה כבר נקלטה בחשבון שלך.",
+  not_new_account: `ההזמנה נותנת ימים לחשבון שנפתח ב־${REFERRAL.newAccountDays} הימים האחרונים.`,
+  unconfirmed: "אחרי אימות כתובת הדוא״ל ההזמנה תיקלט.",
+  own_code: "זה קישור ההזמנה שלך: שלחי אותו לחברה.",
+  inviter_full: `החברה שהזמינה אותך כבר הזמינה ${REFERRAL.maxFriends} חברות, המספר המרבי.`,
+  unknown_code: "כדאי לבקש מהחברה לשלוח שוב את קישור ההזמנה.",
+};
+function InviteBox() {
+  const { L, he } = useL();
+  const [ref, setRef] = useState(null);
+  const [note, setNote] = useState(null);
+  const [arrived, setArrived] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let live = true;
+    try {
+      const q = new URLSearchParams(location.search).get("ref");
+      if (q && REF_CODE.test(q)) { localStorage.setItem(REF_STORE, q); setArrived(true); }
+    } catch { /* a private window: the link still opens the radar */ }
+    getSessionToken().catch(() => null).then(async (t) => {
+      if (!live || !t) return;
+      let pending = null;
+      try { pending = localStorage.getItem(REF_STORE); } catch { /* none */ }
+      if (pending && REF_CODE.test(pending)) {
+        try {
+          const r = await fetch("/api/store?mode=radar-board&op=referral-claim", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ code: pending }) });
+          const b = await r.json().catch(() => ({}));
+          if (live) setNote(r.ok && b?.ok ? REF_NOTE.joined : REF_NOTE[b?.error] || null);
+          if (r.status < 500) { try { localStorage.removeItem(REF_STORE); } catch { /* none */ } }
+        } catch { /* the network: try again on the next visit */ }
+      }
+      try {
+        const r = await fetch("/api/store?mode=radar-board&op=referral", { headers: { Authorization: `Bearer ${t}` } });
+        const b = await r.json().catch(() => null);
+        if (live && b?.referral && REF_CODE.test(String(b.referral.code || ""))) setRef(b.referral);
+      } catch { /* the box stays closed */ }
+    });
+    return () => { live = false; };
+  }, []);
+  const invite = ref ? inviteText(ref.code, { he }) : null;
+  if (!invite && !note && !arrived) return null;
+  return (
+    <div className="lx-wrap mt-6">
+      <div className="lx-rdr-panel p-4" role="region" aria-label={L("הזמנת חברה", "Invite a friend")}>
+        <p className="text-[17px] font-black">{L(`🎁 הזמיני חברה: שתיכן מקבלות עוד ${REFERRAL.bonusDays} ימים בחינם`, `🎁 Invite a friend: you both get ${REFERRAL.bonusDays} more free days`)}</p>
+        {note ? <p className="mt-1 text-[15px] font-bold" role="status">{note}</p> : null}
+        {!invite && arrived ? <p className="mt-1 text-[15px]">{L(`הגעת בהזמנה של חברה. אחרי הרשמה בחשבון חדש שתיכן מקבלות עוד ${REFERRAL.bonusDays} ימים.`, `A friend invited you. Sign up with a new account and you both get ${REFERRAL.bonusDays} more days.`)}</p> : null}
+        {invite ? (
+          <>
+            <p className="mt-1 text-[14px] leading-6">{L(`חברה שנרשמת דרך הקישור שלך בחשבון חדש: לשתיכן נוספים ${REFERRAL.bonusDays} ימים. עד ${REFERRAL.maxFriends} חברות. הצטרפו עד עכשיו: ${ref.friends}.`, `A friend who signs up with a new account through your link: ${REFERRAL.bonusDays} more days for both of you. Up to ${REFERRAL.maxFriends} friends. Joined so far: ${ref.friends}.`)}</p>
+            <p className="mt-2 break-all text-[13px]" dir="ltr">{invite.url}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a className="lx-btn lx-btn-ink" href={`https://wa.me/?text=${encodeURIComponent(invite.text)}`} target="_blank" rel="noopener noreferrer">{L("לשלוח בוואטסאפ", "Send on WhatsApp")}</a>
+              <button type="button" className="lx-btn lx-btn-ghost" onClick={() => { try { navigator.clipboard.writeText(invite.text).then(() => setCopied(true)); } catch { /* the link is printed above */ } }}>{copied ? L("הועתק", "Copied") : L("להעתיק את ההזמנה", "Copy the invite")}</button>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -2553,6 +2624,7 @@ export function RadarPage() {
           <div className="lx-wrap mt-6"><p className="rounded-2xl p-3 text-[15px] font-bold" style={{ background: "#ecfdf3", border: "1px solid #abefc6" }}>{L(`🎁 את בניסיון חינם: נשארו לך ${acc.daysLeft} ימים.`, `🎁 You're on a free trial: ${acc.daysLeft} days left.`)} <button type="button" className="underline" onClick={() => pick("plans")}>{L("למסלולים", "See the plans")}</button></p></div>
         ) : null}
         {gated ? <div className="lx-wrap mt-6"><AccessCard acc={acc} /></div> : null}
+        <InviteBox />
         {gated && board?.envelopes?.length ? <Envelopes list={board.envelopes} onOpen={() => pick("plans")} /> : null}
         <Verdict board={board} gated={gated} />
         {board?.takeoff ? <Takeoff t={board.takeoff} gated={gated} /> : null}

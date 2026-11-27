@@ -36,6 +36,7 @@ async function sealPicks(picks, { kvGet, kvSet, fetchImpl, today }) {
   return seal;
 }
 import { currentRadarSub, ownRadarSubs } from "../../src/lib/growth/radarSubs.js";
+import { REFERRAL, claimReferral, codeFromBytes, ensureCode, grantBonus, referralView } from "../../src/lib/growth/radarReferral.js";
 import { crowdKinds, crowdOf } from "../../src/lib/growth/crowdSensor.js";
 
 const header = (req, k) => String((req.headers?.get ? req.headers.get(k) : req.headers?.[k]) || "");
@@ -133,6 +134,41 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
       const own = await Promise.all(myPicks(all, String(user.id)).map(async (p) => ({ ...p, rid: await ridOf(p) })));
       return json({ ok: true, picks: own, beat: beatsRadar(all, String(user.id)) });
     }
+    // 🎁 Invite a friend (radarReferral.js; the owner, 27.11: "כן תפעיל"): her own code and how many
+    // friends joined (counts only); a friend's claim gives both of them REFERRAL.bonusDays more days.
+    if (op === "referral" || op === "referral-claim") {
+      const token = header(req, "authorization").replace(/^Bearer\s+/i, "");
+      const user = token ? await verify(token).catch(() => null) : null;
+      if (!user?.id) return json({ ok: false, error: "unauthenticated" }, 401);
+      const uid = String(user.id);
+      const t = now();
+      let refs = (await kvGet(REFERRAL.key, {})) || {};
+      if (req.method === "GET" && op === "referral") {
+        if (!referralView(refs, uid).code) {
+          const fresh = Array.from({ length: 4 }, () => codeFromBytes(globalThis.crypto.getRandomValues(new Uint8Array(8))));
+          const made = ensureCode(refs, uid, fresh);
+          if (!made.code) return json({ ok: false, error: "code_not_made" }, 500);
+          await kvSet(REFERRAL.key, made.state);
+          refs = (await kvGet(REFERRAL.key, {})) || {};
+        }
+        const view = referralView(refs, uid);
+        return json({ ok: Boolean(view.code), referral: view }, view.code ? 200 : 502);
+      }
+      if (req.method !== "POST" || op !== "referral-claim") return json({ ok: false, error: "method_not_allowed" }, 405);
+      const body = (await readBody(req)) || {};
+      const out = claimReferral(refs, { code: body.code, user, now: t });
+      if (out.error) return json({ ok: false, error: out.error }, out.error === "unknown_code" ? 404 : 409);
+      const settings = (await kvGet("marketplace:settings", {})) || {};
+      const days = userTrialDays(settings);
+      const trials = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
+      const nextTrials = { ...trials, [uid]: grantBonus(trials[uid], { days, now: t }), [out.inviter]: grantBonus(trials[out.inviter], { days, now: t }) };
+      await kvSet(REFERRAL.key, out.state);
+      await kvSet(RADAR_TRIALS_KEY, nextTrials);
+      const backRefs = (await kvGet(REFERRAL.key, {})) || {};
+      const backTrials = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
+      const ok = backRefs?.users?.[uid]?.joinedVia === String(body.code).toLowerCase() && Boolean(backTrials[uid]) && Boolean(backTrials[out.inviter]);
+      return json({ ok, bonusDays: REFERRAL.bonusDays, trial: userTrialOf(backTrials[uid], { days, now: t }) }, ok ? 200 : 502);
+    }
     // The sealed receipt (radarPicks.js receiptView): public, by its receipt id only.
     if (req.method === "GET" && op === "receipt") {
       const rid = String(url.searchParams.get("r") || "");
@@ -166,8 +202,9 @@ export function createRadarBoardHandler({ kv = null, verify = verifyToken, now =
         // Her own trial starts the first time she opens the radar signed in once the launch trial is over.
         if (accessOf(settings, { now: t }).locked) {
           const trials = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
-          if (!trials[uid] && !sub) {
-            await kvSet(RADAR_TRIALS_KEY, { ...trials, [uid]: { startedAt: new Date(t).toISOString() } });
+          // A record without a start (days a friend earned her during the launch trial) starts now, keeping them.
+          if (!trials[uid]?.startedAt && !sub) {
+            await kvSet(RADAR_TRIALS_KEY, { ...trials, [uid]: { ...(trials[uid] || {}), startedAt: new Date(t).toISOString() } });
             const back = (await kvGet(RADAR_TRIALS_KEY, {})) || {};
             trials[uid] = back[uid] || null;
           }

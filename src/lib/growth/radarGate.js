@@ -28,11 +28,15 @@ export function userTrialDays(settings = {}) {
   return Number.isFinite(n) && n >= 3 && n <= 30 ? Math.round(n) : USER_TRIAL_DAYS;
 }
 
-/** One user's trial from its start: active until startedAt + days. */
+/**
+ * One user's trial from its start: active until startedAt + days, plus the days friends earned her
+ * (`bonusDays`, radarReferral.js), or until `extendedTo` when a friend joined after her trial ended.
+ */
 export function userTrialOf(record, { days = USER_TRIAL_DAYS, now = Date.now() } = {}) {
   const start = Date.parse(record?.startedAt || "");
   if (!Number.isFinite(start)) return null;
-  const endsAt = start + days * DAY;
+  const bonus = Math.max(0, Math.min(400, Number(record?.bonusDays) || 0));
+  const endsAt = Math.max(start + (days + bonus) * DAY, Date.parse(record?.extendedTo || "") || 0);
   return { startedAt: new Date(start).toISOString(), endsAt: new Date(endsAt).toISOString(), active: now < endsAt, daysLeft: Math.max(0, Math.ceil((endsAt - now) / DAY)) };
 }
 
