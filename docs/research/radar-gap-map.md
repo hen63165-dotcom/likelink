@@ -174,3 +174,27 @@ Asked: after the upgrades, what is still missing for the radar to lead, worldwid
   - A push to main spent YouTube's daily quota (24 of 26 searches answered 429); only the daily reading uses the key now.
   - GDELT answered 429 to 9 of 14 phrases; the door now waits longer after each 429, stops after two blocked phrases and keeps a 4-minute budget.
   - Video and listing phrases carried links, app pitches and describing words ("https www", "download app", "breathable shock", "versatile end"); these are left out now.
+
+## Thirteenth check (27.11.2026, evening): above Google Trends and Exploding Topics
+
+The owner asked to go above Exploding Topics and Google Trends, "precisely, verified".
+
+- **Google Trends, in Google's own FAQ** ([support.google.com/trends/answer/4365533](https://support.google.com/trends/answer/4365533)):
+  - each point is a share of all searches in that place and time, scaled 0–100: relative, never a count;
+  - the data is a sample of searches;
+  - only popular terms are shown, and a low-volume term reads 0.
+  - So Google Trends is silent exactly when a product is still small. That is where the radar works: orders, new listings, factories, customs and new shops come before people search.
+- **Exploding Topics, in its own pages** ([explodingtopics.com/methodology](https://explodingtopics.com/methodology), seen through a search result; the site did not load from here):
+  - it says it reads signals across Google, YouTube, Reddit, TikTok and other platforms;
+  - analysts confirm and curate the trends;
+  - each trend is labelled exploding, regular or peaked;
+  - its trend graph is search volume.
+  - No outside-graded record of its past calls was found, and its terms forbid using its content commercially (the rivals race keeps it in `RIVALS_UNFED`).
+- **What the radar adds and measures:** the 🔎 Google race (`googleRace.js`). Every sealed call is timed against Google's own public doors:
+  - the search box's completions in 13 countries;
+  - the buzz words Google adds (tiktok/viral/trending/amazon);
+  - Google's daily trending searches in 11 countries.
+  - The radar counts as first only when Google was read quiet on or after the seal and showed the phrase later, at the low end of the range.
+  - A search-growth tool sees a trend only once Google does, so this line also times the radar against any tool built on search volume.
+  - Nothing is said as "ahead of Google" before the sealed, graded race shows it.
+- **US customs:** checked from a runner. api.census.gov answers every data request without a key with "Missing Key", and its robots.txt with a firewall's rejection page. The US door waits for the owner's free Census key.

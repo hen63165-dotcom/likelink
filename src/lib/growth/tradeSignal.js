@@ -34,10 +34,60 @@ export const CONSUMER = Object.freeze({
     "8525", "8528", "8539", "8543", "8711", "8712", "8714", "8715", "9004", "9006", "9019"],
 });
 
-/** A shop's goods (CONSUMER), never industry. */
+/** A shop's goods (CONSUMER), never industry. EU lines have 8 digits (CN8), US lines 10 (HTS10). */
 export function isConsumerLine(code) {
   const c = String(code || "");
-  return /^\d{8}$/.test(c) && (CONSUMER.chapters.includes(c.slice(0, 2)) || CONSUMER.headings.includes(c.slice(0, 4)));
+  return /^\d{8}(\d{2})?$/.test(c) && (CONSUMER.chapters.includes(c.slice(0, 2)) || CONSUMER.headings.includes(c.slice(0, 4)));
+}
+
+// 🇺🇸 The same question asked of the United States, the world's biggest buyer (the owner, 27.11: "the
+// factories and all the trade — where it all starts"): the US Census Bureau's International Trade API
+// publishes every 10-digit HTS line imported each month from each country, its value in dollars and its
+// first quantity. US government data (public domain), no account (an optional free key raises the
+// daily limit); robots.txt of api.census.gov read first. The same rule as the EU: the last three months
+// against the same three a year earlier, at least doubled in value and +50% in quantity.
+export const US_TRADE = Object.freeze({
+  host: "https://api.census.gov",
+  path: "/data/timeseries/intltrade/imports/hs",
+  partners: Object.freeze({ CN: "5700", KR: "5800", JP: "5880", VN: "5520", TW: "5830", IN: "5330", TR: "4890" }),
+  months: 3,
+  minValue: 2_000_000, // $ in the three months
+  minPrev: 200_000,
+  jumpPct: 100,
+  weightPct: 50, // the first quantity (units, dozens, kg: one unit per line, so its growth is comparable)
+  top: 10,
+  labelMax: 160,
+});
+
+/** One month of every HTS10 line from one country (`key`: the optional free Census key). */
+export function usMonthUrl(partner, month, { key = "", rules = US_TRADE } = {}) {
+  const cty = rules.partners[partner];
+  if (!cty || !MONTH.test(String(month || ""))) return null;
+  return `${rules.host}${rules.path}?get=I_COMMODITY,I_COMMODITY_SDESC,GEN_VAL_MO,GEN_QY1_MO&COMM_LVL=HS10&CTY_CODE=${cty}&time=${month}${key ? `&key=${encodeURIComponent(key)}` : ""}`;
+}
+
+/** The small request that tells whether a month is out yet (chapter 95 from China; 204 = not yet). */
+export function usProbeUrl(month, { key = "", rules = US_TRADE } = {}) {
+  return `${rules.host}${rules.path}?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=${rules.partners.CN}&time=${month}${key ? `&key=${encodeURIComponent(key)}` : ""}`;
+}
+
+/** Census rows (the first row names the columns) of one month → added into `lines` (Map code → { label, v, kg }). */
+export function addCensusMonth(rows, month, lines = new Map(), { rules = US_TRADE } = {}) {
+  if (!Array.isArray(rows) || rows.length < 2 || !Array.isArray(rows[0]) || !MONTH.test(String(month || ""))) return lines;
+  const col = Object.fromEntries(rows[0].map((k, i) => [String(k), i]));
+  if (col.I_COMMODITY === undefined || col.GEN_VAL_MO === undefined) return lines;
+  for (const r of rows.slice(1)) {
+    const code = String(r?.[col.I_COMMODITY] || "");
+    if (!/^\d{10}$/.test(code)) continue;
+    const v = Number(r[col.GEN_VAL_MO]);
+    if (!Number.isFinite(v)) continue;
+    const q = col.GEN_QY1_MO === undefined ? NaN : Number(r[col.GEN_QY1_MO]);
+    const line = lines.get(code) || { label: String(r[col.I_COMMODITY_SDESC] || "").replace(/[<>]/g, "").slice(0, rules.labelMax), v: {}, kg: {} };
+    line.v[month] = (line.v[month] || 0) + v;
+    if (Number.isFinite(q) && q > 0) line.kg[month] = (line.kg[month] || 0) + q;
+    lines.set(code, line);
+  }
+  return lines;
 }
 
 export const PARTNER_NAMES = Object.freeze({
@@ -144,10 +194,10 @@ export function cleanTrade(t) {
     id: p.id,
     measured: n(p.measured) ?? 0,
     jumping: n(p.jumping) ?? 0,
-    top: (Array.isArray(p.top) ? p.top : []).filter((r) => /^\d{8}$/.test(String(r?.code || "")) && n(r.valuePct) !== null).slice(0, TRADE.top).map((r) => ({
+    top: (Array.isArray(p.top) ? p.top : []).filter((r) => /^\d{8}(\d{2})?$/.test(String(r?.code || "")) && n(r.valuePct) !== null).slice(0, TRADE.top).map((r) => ({
       code: String(r.code), label: String(r.label || "").replace(/[<>]/g, "").slice(0, TRADE.labelMax),
       value: n(r.value), prev: n(r.prev), valuePct: n(r.valuePct, 1e6), kgPct: n(r.kgPct, 1e6),
     })),
   }));
-  return { latest: t.latest, updated: typeof t.updated === "string" ? t.updated.slice(0, 25) : null, months: (t.months || []).filter((m) => MONTH.test(m)).slice(0, 6), partners };
+  return { latest: t.latest, updated: typeof t.updated === "string" ? t.updated.slice(0, 25) : null, months: (t.months || []).filter((m) => MONTH.test(m)).slice(0, 6), partners, reporter: t.reporter === "US" ? "US" : "EU" };
 }

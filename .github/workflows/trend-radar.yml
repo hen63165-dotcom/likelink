@@ -84,6 +84,8 @@ jobs:
       # schedule, or a run started by hand) spends it; a push to main reads everything else.
       YOUTUBE_API_KEY: ${{ github.ref == 'refs/heads/main' && github.event_name != 'push' && secrets.YOUTUBE_API_KEY || '' }}
       META_ADLIB_TOKEN: ${{ secrets.META_ADLIB_TOKEN }}
+      # The US Census Bureau's free API key (optional: without it the open daily limit per address applies).
+      CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
       # Instagram's own Hashtag Search API for the waves (the owner's business account; without them: REQUIRES_CONNECTION).
       IG_USER_ID: ${{ secrets.IG_USER_ID }}
       IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}

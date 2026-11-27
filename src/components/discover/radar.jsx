@@ -981,12 +981,36 @@ function TrendPath({ path }) {
 
 function Trade({ t }) {
   const { L } = useL();
+  const us = t.reporter === "US";
   const months = (t.months || []).slice().sort();
   const span = months.length ? `${months[0].slice(5)}–${months.at(-1).slice(5)}.${months.at(-1).slice(0, 4)}` : t.latest;
   const rows = (t.partners || []).flatMap((p) => p.top.map((r) => ({ ...r, partner: p.id })));
   const total = (t.partners || []).reduce((s, p) => s + (p.measured || 0), 0);
   const jumping = (t.partners || []).reduce((s, p) => s + (p.jumping || 0), 0);
-  const eur = (x) => `€${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  const eur = (x) => `${us ? "$" : "€"}${(x / 1e6).toLocaleString("he-IL", { maximumFractionDigits: 1 })}M`;
+  if (us) {
+    return (
+      <section className="lx-wrap mt-8" id="trade-us">
+        <div className="lx-card lx-rdr-panel p-5">
+          <h2 className="text-[22px] font-black">{L("🇺🇸 מה המפעלים שולחים יותר לארה״ב", "🇺🇸 What the factories ship more of to the US")}</h2>
+          <p className="mt-1 text-[14px] leading-6">{L(`השוק הגדול בעולם. כל מוצר שנכנס לארה״ב מוצהר במכס, ולשכת המפקד האמריקאית מפרסמת את הנתונים לכולם. הרדאר קורא אותם לכל סוג מוצר, מ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.he).filter(Boolean).join(", ")}: ${total.toLocaleString("he-IL")} סוגי מוצרים לקונים שנמדדו, וב־${jumping} מהם המשלוחים לפחות הוכפלו (${span} מול אותם חודשים לפני שנה, גם בשווי וגם בכמות).`, `The world's biggest market. Every product entering the US is declared at customs, and the US Census Bureau publishes the records to all. The radar reads them for every product line, from ${(t.partners || []).map((p) => PARTNER_NAMES[p.id]?.en).filter(Boolean).join(", ")}: ${total.toLocaleString("en-US")} consumer lines measured, and in ${jumping} the shipments at least doubled (${span} against the same months a year earlier, in value and in quantity).`)}</p>
+          {rows.length ? (
+            <ul className="mt-3 grid gap-2 md:grid-cols-2">
+              {rows.sort((a, b) => b.valuePct - a.valuePct).slice(0, 12).map((r) => (
+                <li key={`${r.partner}-${r.code}`} className="lx-card lx-rdr-item p-3">
+                  <p className="text-[13px] font-bold">{L(`מ${PARTNER_NAMES[r.partner]?.he || r.partner} · קוד מכס ${r.code}`, `From ${PARTNER_NAMES[r.partner]?.en || r.partner} · customs line ${r.code}`)}</p>
+                  <p className="mt-1 text-[14px]" dir="ltr" style={{ textAlign: "start" }}>{r.label}</p>
+                  <p className="mt-1 text-[13px] font-bold" style={{ color: "#067647" }}>{L(`+${r.valuePct}% בשווי${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% בכמות` : ""}`, `+${r.valuePct}% in value${Number.isFinite(r.kgPct) ? ` · +${r.kgPct}% in quantity` : ""}`)}</p>
+                  <p className="text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`${eur(r.prev)} ← ${eur(r.value)} בשלושה חודשים`, `${eur(r.prev)} → ${eur(r.value)} in three months`)}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-2 text-[14px]">{L("החודש המשלוחים יציבים: עוד שקט.", "This month the shipments are steady: still quiet.")}</p>}
+          <p className="mt-3 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L("התיאור הוא המילים של המכס האמריקאי עצמו. כל אחד יכול לבדוק את אותו קוד בנתוני הסחר של לשכת המפקד.", "The description is US customs' own words. Anyone can check the same line in the Census Bureau's trade data.")} <a className="underline" href="https://usatrade.census.gov/" target="_blank" rel="noopener noreferrer">USA Trade Online</a></p>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="lx-wrap mt-8" id="trade">
       <div className="lx-card lx-rdr-panel p-5">
@@ -1492,6 +1516,36 @@ function RivalRace({ rivals }) {
         </ul>
       ) : null}
       <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} פוסטים מ־${r.since ? dm(r.since) : "—"}`).join(" · ")}`, `Checked on ${dm(rivals.d)} · ${rivals.rivals.map((r) => `${r.name}: ${r.posts} posts since ${r.since ? dm(r.since) : "—"}`).join(" · ")}`)}</p>
+    </section>
+  );
+}
+
+// 🔎 Who knew it first: the radar or Google (googleRace.js): Google's own search box, its buzz words and
+// its daily trending searches, read again after every seal.
+const GRACE_BOOK = { ...RIVAL_BOOK, noise: ["לפני הרעש", "Before the noise"] };
+const GRACE_LINE = { box: ["תיבת החיפוש", "the search box"], echo: ["מילות הבאז", "the buzz words"], trending: ["החיפושים החמים", "the trending searches"] };
+function GoogleRace({ race }) {
+  const { L } = useL();
+  const a = race.all;
+  const ln = race.lines;
+  return (
+    <section className="lx-card lx-rdr-panel mt-4 p-5" id="google">
+      <h2 className="text-[20px] font-black">{L("🔎 מי ידע ראשון: הרדאר או גוגל", "🔎 Who knew it first: the radar or Google")}</h2>
+      <p className="mt-1 text-[14px] leading-6">{L(`גוגל טרנדס מראה מה שאנשים כבר מחפשים: תיבת החיפוש של גוגל משלימה ביטוי רק כשמספיק אנשים מקלידים אותו, והחיפושים החמים היומיים מראים רק מה שכבר גדול. אז הרדאר מתזמן כל קביעה חתומה שלו מול גוגל עצמו, בשלוש דלתות ציבוריות של גוגל: ההשלמות של תיבת החיפוש ב־13 מדינות (גוגל מכיר את הביטוי מ־${race.rules.spreadFrom} מדינות, או בחצי מהן), מילות הבאז שגוגל מוסיף לידו (tiktok, viral, trending, amazon), והחיפושים החמים של גוגל ב־11 מדינות. כל קביעה נקראת שוב בגוגל כל ${race.rules.everyDays} ימים, ${race.rules.watchDays} יום אחרי החתימה. הרדאר נספר ראשון רק כשגוגל נקרא שקט ביום החתימה או אחריו והראה את הביטוי אחר כך, והפער נספר מהקצה הנמוך שלו.`, `Google Trends shows what people already search: Google's search box completes a phrase only once enough people type it, and the daily trending searches show only what is already big. So the radar times every sealed call against Google itself, on three of Google's public doors: the search box's completions in 13 countries (Google knows the phrase from ${race.rules.spreadFrom} countries, or half of them), the buzz words Google adds to it (tiktok, viral, trending, amazon), and Google's trending searches in 11 countries. Every call is read again in Google every ${race.rules.everyDays} days for ${race.rules.watchDays} days after its seal. The radar counts as first only when Google was read quiet on or after the seal day and showed the phrase later, and the lead is counted at its low end.`)}</p>
+      <dl className="lx-rdr-dl mt-3">
+        <div><dt>{L("קביעות שנקראו בגוגל", "Calls read in Google")}</dt><dd>{a.read} / {a.calls}</dd></div>
+        <div><dt>{L("הרדאר חתם כשגוגל עוד שקט, וגוגל הראה אחר כך", "Sealed while Google was quiet; Google showed it later")}</dt><dd>{a.ahead}{a.medianAheadMinDays !== null ? L(` · לפחות ${a.medianAheadMinDays} ימים לפני גוגל (חציון)`, ` · at least ${a.medianAheadMinDays} days before Google (median)`) : ""}</dd></div>
+        <div><dt>{L("עוד שקט בגוגל", "Still quiet at Google")}</dt><dd>{a.quiet}{a.medianQuietDays !== null ? L(` · חציון ${a.medianQuietDays} ימים אחרי החתימה`, ` · median ${a.medianQuietDays} days after the seal`) : ""}</dd></div>
+        <div><dt>{L("גוגל הראה ביום החתימה או לפניו", "Google showed it on or before the seal day")}</dt><dd>{a.googleFirst}</dd></div>
+      </dl>
+      <p className="mt-2 text-[13px]" style={{ color: "var(--lx-muted)" }}>{Object.entries(ln).map(([k, x]) => L(`${GRACE_LINE[k][0]}: ${x.ahead} הרדאר ראשון, ${x.quiet} שקט, ${x.googleFirst} גוגל ראשון`, `${GRACE_LINE[k][1]}: ${x.ahead} the radar first, ${x.quiet} quiet, ${x.googleFirst} Google first`)).join(" · ")}</p>
+      {a.lateRead || a.unread ? <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נספרות בנפרד: ${a.lateRead} קביעות שנקראו בגוגל לראשונה אחרי שכבר הראה אותן (הסדר ביניהם פתוח), ו־${a.unread} שממתינות לקריאה ראשונה.`, `Counted apart: ${a.lateRead} calls first read in Google after it already showed them (the order is open), and ${a.unread} waiting for a first read.`)}</p> : null}
+      {race.named.length ? (
+        <ul className="mt-2 grid gap-1 text-[13px]">
+          {race.named.map((x) => <li key={`${x.book}|${x.phrase}|${x.called}`}><span dir="ltr" className="font-bold">{x.phrase}</span> · {L(GRACE_BOOK[x.book]?.[0] || "", GRACE_BOOK[x.book]?.[1] || "")} · {x.state === "AHEAD" ? L(`נחתם ${dm(x.called)}, גוגל הראה ב${GRACE_LINE[x.line][0]} ${dm(x.d)} (${x.minDays}–${x.maxDays} ימים אחרי)`, `sealed ${dm(x.called)}, Google showed it in ${GRACE_LINE[x.line][1]} ${dm(x.d)} (${x.minDays}–${x.maxDays} days later)`) : L(`גוגל הראה ב${GRACE_LINE[x.line][0]} ${dm(x.d)}, נחתם ${dm(x.called)}`, `Google showed it in ${GRACE_LINE[x.line][1]} ${dm(x.d)}, sealed ${dm(x.called)}`)}</li>)}
+        </ul>
+      ) : null}
+      <p className="mt-1 text-[12px]" style={{ color: "var(--lx-muted)" }}>{L(`נבדק ב־${dm(race.d)} · ${race.tracked} ביטויים במעקב, ${race.readToday} נקראו שוב היום, ${race.trendDays} ימים של חיפושים חמים${race.since.box ? ` · מעקב מ־${dm(race.since.box)}` : ""}. כל אחד יכול להקליד את אותו ביטוי בגוגל.`, `Checked on ${dm(race.d)} · ${race.tracked} phrases tracked, ${race.readToday} read again today, ${race.trendDays} days of trending searches${race.since.box ? ` · tracked since ${dm(race.since.box)}` : ""}. Anyone can type the same phrase into Google.`)}</p>
     </section>
   );
 }
@@ -2685,6 +2739,7 @@ export function RadarPage() {
         {!gated && board?.fresh ? <FreshRisers fresh={board.fresh} world={board.world} gap={board.worldGap} day={String(board.at || "").slice(0, 10)} /> : null}
         {!gated && board?.factories?.top?.length ? <Factories f={board.factories} /> : null}
         {board?.trade?.partners?.length ? <Trade t={board.trade} /> : null}
+        {board?.tradeUs?.partners?.length ? <Trade t={board.tradeUs} /> : null}
         {board?.path ? <TrendPath path={board.path} /> : null}
         {!gated && board?.shopWords ? <ShopWords s={board.shopWords} /> : null}
         {!gated && board?.supply ? <SupplyList board={board} /> : null}
@@ -2774,6 +2829,7 @@ export function RadarPage() {
         {board ? <RecordTable board={board} /> : null}
         {board?.news?.all?.calls ? <NewsRace news={board.news} /> : null}
         {board?.rivals ? <RivalRace rivals={board.rivals} /> : null}
+        {board?.googleRace ? <GoogleRace race={board.googleRace} /> : null}
         {board ? <CapabilityMap board={board} /> : null}
         {board?.sourcesToday ? <SourcesToday sources={board.sourcesToday} receipt={board.receipt || null} scan={board.scan || null} health={board.sourceHealth || null} /> : null}
         {board?.promise ? <ProvenRange promise={board.promise} /> : null}
