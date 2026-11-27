@@ -40,7 +40,9 @@ export function pricesOf(index) {
   if (!items || !since) return null;
   const seals = index.seals && typeof index.seals === "object" ? Object.keys(index.seals).filter((d) => DAY.test(d) && SHA.test(String(index.seals[d]?.sha256 || ""))) : [];
   const t = index.tally && typeof index.tally === "object" ? index.tally : null;
-  const tally = t && int(t.sales) && int(t.real) !== null && int(t.raised) !== null && t.real + t.raised <= t.sales && DAY.test(String(t.d || "")) ? { d: t.d, sales: t.sales, real: t.real, raised: t.raised } : null;
+  // `dropped` (realDeal.js, from 27.11) is kept apart from `raised`; an index written before it has none.
+  const dropped = t && t.dropped !== undefined ? int(t.dropped) : 0;
+  const tally = t && int(t.sales) && int(t.real) !== null && int(t.raised) !== null && dropped !== null && t.real + t.raised + dropped <= t.sales && DAY.test(String(t.d || "")) ? { d: t.d, sales: t.sales, real: t.real, raised: t.raised, ...(t.dropped !== undefined ? { dropped } : {}) } : null;
   return { items, since, sealedDays: seals.length, tally };
 }
 

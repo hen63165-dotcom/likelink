@@ -37,8 +37,27 @@ test("verdicts from the recorded history only", () => {
   const v = dealVerdict(raised, { price: 40, today: "2026-11-27" });
   assert.equal(v.state, "RAISED");
   assert.equal(v.high.p, 56);
+  assert.deepEqual(v.from, { d: "2026-11-14", p: 40 }, "the recorded price before the raise");
   assert.equal(dealVerdict(steady, { price: 40, today: "2026-11-27" }).state, "SAME");
   assert.equal(dealVerdict(steady, { price: 50, today: "2026-11-27" }).state, "HIGHER");
+});
+
+test("a high that opens the record is a drop the radar saw, never a raise (27.11: 170 of 26.11's 205)", () => {
+  // The real series of item 1005012460395284: four mornings near ₪104, then ₪58 from 20.11 (the sale began).
+  const series = s([["2026-11-16", 103.39], ["2026-11-17", 104.39], ["2026-11-18", 104.69], ["2026-11-19", 105.39], ["2026-11-20", 57.79], ["2026-11-21", 57.79], ["2026-11-22", 57.79], ["2026-11-23", 58.39], ["2026-11-24", 57.39], ["2026-11-25", 58.19], ["2026-11-26", 58.59]]);
+  const v = dealVerdict(series, { price: 57.59, today: "2026-11-27" });
+  assert.equal(v.state, "DROPPED");
+  assert.equal(v.fell, "2026-11-20");
+  assert.equal(v.steady, 8, "20.11–26.11 and today");
+  const w = dealLines(v);
+  assert.ok(w.text.includes("20.11") && w.text.includes("16.11") && w.text.includes("₪105.39"));
+  assert.ok(!/העלאה|עלה/.test(w.title + w.text), "a drop is never worded as a raise");
+  assert.ok(dealShareText(v).includes("כבר כאן מ־20.11"));
+  // A raise the radar saw: the price at today's level before the high (item 1005008053515704, a one-day ₪113.69).
+  const r = dealVerdict(s([["2026-11-16", 44.19], ["2026-11-17", 44.59], ["2026-11-18", 44.59], ["2026-11-19", 44.9], ["2026-11-20", 45.39], ["2026-11-21", 45.39], ["2026-11-22", 113.69], ["2026-11-23", 45.9], ["2026-11-24", 45.19], ["2026-11-25", 45.79]]), { price: 46.19, today: "2026-11-26" });
+  assert.equal(r.state, "RAISED");
+  assert.deepEqual(r.from, { d: "2026-11-21", p: 45.39 });
+  assert.ok(dealLines(r).text.includes("₪45.39") && dealLines(r).text.includes("₪113.69"));
 });
 
 test("words say what IS, with the recorded numbers; nothing to share without a measured verdict", () => {
@@ -60,8 +79,9 @@ test("the sealed day text, the shards and the public tally", () => {
     a: addPrice(steady, [day, 30]),
     b: addPrice(s([["2026-11-10", 40], ["2026-11-12", 40], ["2026-11-14", 40], ["2026-11-20", 55]]), [day, 40]),
     c: addPrice(steady, [day, 40]),
+    d: s([["2026-11-16", 60], ["2026-11-17", 60], ["2026-11-19", 40], ["2026-11-20", 40], ["2026-11-21", 40], ["2026-11-22", 40], [day, 40]]),
   };
-  assert.deepEqual(honestTally(withSales, day), { d: day, sales: 2, real: 1, raised: 1 }, "a: a real sale under the usual price; b: back to normal after a raise; c: no sale");
+  assert.deepEqual(honestTally(withSales, day), { d: day, sales: 3, real: 1, raised: 1, dropped: 1 }, "a: a real sale under the usual price; b: back to normal after a raise; c: no sale; d: fell on 19.11 and held");
 });
 
 test("the deploy writes 100 shards, the sealed day texts and the index", () => {

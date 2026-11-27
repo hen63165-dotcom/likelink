@@ -84,7 +84,12 @@ export function shardsOf(ledger = {}) {
  * The verdict for a price now against the item's recorded history before today (pure; tested):
  *   REAL_LOW  — under the usual price and the lowest recorded: a real deal;
  *   LOWER     — under the usual price by at least `belowPct`: a real deal;
- *   RAISED    — far under the recent high but not under the usual price: the "sale" only undoes a raise;
+ *   RAISED    — far under the recent high but not under the usual price, and the record shows the price at
+ *               today's level BEFORE it went up (`from`): the "sale" only undoes a raise the radar saw;
+ *   DROPPED   — far under the recent high but not under the usual price, and the high opens the record: the
+ *               radar saw the price fall (`fell`) and stay (`steady` readings), and what came before its
+ *               record is outside it. Never called a raise (27.11: 170 of 26.11's 205 "raised" were these —
+ *               items that fell when the sale began on 20.11, after only four recorded days at the old price);
  *   HIGHER    — above the usual price;
  *   SAME      — like the usual price;
  *   SHORT     — tracked, but too little history yet (says since when);
@@ -105,7 +110,16 @@ export function dealVerdict(series = [], { price = null, today = null } = {}, { 
   const vsUsual = Math.round((now / usual - 1) * 100);
   const base = { now: round2(now), usual, low, since, high: high ? { d: high[0], p: high[1] } : null, vsUsual, readings: hist.length };
   if (now <= usual * (1 - rules.belowPct / 100)) return { state: now <= low ? "REAL_LOW" : "LOWER", ...base };
-  if (high && high[1] >= now * (1 + rules.fromHighPct / 100)) return { state: "RAISED", ...base };
+  if (high && high[1] >= now * (1 + rules.fromHighPct / 100)) {
+    // A raise undone needs a recorded price at (or about) today's level before the high.
+    const from = hist.filter((r) => r[0] < high[0] && r[1] <= now * (1 + rules.belowPct / 100)).at(-1);
+    if (from) return { state: "RAISED", ...base, from: { d: from[0], p: from[1] } };
+    // Otherwise the radar saw a drop: the first day of today's level, counted back from today.
+    const after = [...hist.filter((r) => r[0] > high[0]), [day, round2(now)]];
+    let i = after.length - 1;
+    while (i > 0 && Math.abs(after[i - 1][1] / now - 1) <= rules.belowPct / 100) i -= 1;
+    return { state: "DROPPED", ...base, fell: after[i][0], steady: after.length - i };
+  }
   if (now >= usual * (1 + rules.higherPct / 100)) return { state: "HIGHER", ...base };
   return { state: "SAME", ...base };
 }
@@ -115,7 +129,8 @@ export function dealLines(v) {
   const s = v?.state;
   if (s === "REAL_LOW") return { tone: "good", title: "✅ מבצע אמיתי", text: `₪${shekel(v.now)} הוא המחיר הכי נמוך שהרדאר רשם מאז ${dm(v.since)}. המחיר הרגיל שרשמנו: ₪${shekel(v.usual)} (${v.vsUsual}%).` };
   if (s === "LOWER") return { tone: "good", title: "✅ מבצע אמיתי", text: `₪${shekel(v.now)} נמוך ב־${Math.abs(v.vsUsual)}% מהמחיר הרגיל שהרדאר רשם מאז ${dm(v.since)} (₪${shekel(v.usual)}).` };
-  if (s === "RAISED") return { tone: "warn", title: "⚠️ הנחה שמחזירה למחיר הרגיל", text: `ב־${dm(v.high.d)} המחיר עלה ל־₪${shekel(v.high.p)}. עכשיו ₪${shekel(v.now)}, כמו המחיר הרגיל שהרדאר רשם מאז ${dm(v.since)} (₪${shekel(v.usual)}).` };
+  if (s === "RAISED") return { tone: "warn", title: "⚠️ הנחה אחרי העלאה", text: `ב־${dm(v.from.d)} הרדאר רשם ₪${shekel(v.from.p)}. ב־${dm(v.high.d)} המחיר עלה ל־₪${shekel(v.high.p)}. עכשיו ₪${shekel(v.now)}: „ההנחה” מחזירה אותו למחיר של לפני ההעלאה.` };
+  if (s === "DROPPED") return { tone: "info", title: `📉 ירד ב־${dm(v.fell)} ונשאר`, text: `ב־${dm(v.high.d)} הרדאר רשם ₪${shekel(v.high.p)}. מ־${dm(v.fell)} המחיר בערך ₪${shekel(v.now)} (${v.steady} בקרים ברצף). הרישום של הרדאר מתחיל ב־${dm(v.since)}, ולכן על מה שהיה לפני כן הוא נמנע מלקבוע.` };
   if (s === "HIGHER") return { tone: "warn", title: "📈 גבוה מהרגיל", text: `₪${shekel(v.now)} גבוה ב־${v.vsUsual}% מהמחיר הרגיל שהרדאר רשם מאז ${dm(v.since)} (₪${shekel(v.usual)}). אפשר לחכות.` };
   if (s === "SAME") return { tone: "info", title: "המחיר הרגיל", text: `₪${shekel(v.now)}, כמו המחיר שהרדאר רושם מאז ${dm(v.since)} (₪${shekel(v.usual)}).` };
   if (s === "SHORT") return { tone: "info", title: "⏳ במעקב", text: `הרדאר רושם את המחיר של המוצר הזה כל בוקר מ־${dm(v.since)}. עוד כמה ימים תהיה כאן היסטוריה מלאה.` };
@@ -126,16 +141,18 @@ export function dealLines(v) {
 export function dealShareText(v, title = "") {
   const name = String(title || "").slice(0, 50);
   if (v?.state === "REAL_LOW" || v?.state === "LOWER") return `🏷️ בדקתי ברדאר של LikeLink2${name ? ` את ${name}` : ""}: מבצע אמיתי, ₪${shekel(v.now)} מול ₪${shekel(v.usual)} במחיר הרגיל שנרשם מאז ${dm(v.since)}. המחירים חתומים בביטקוין.`;
-  if (v?.state === "RAISED") return `🏷️ בדקתי ברדאר של LikeLink2${name ? ` את ${name}` : ""}: המחיר עלה ל־₪${shekel(v.high.p)} ב־${dm(v.high.d)}, וה"הנחה" רק מחזירה אותו לרגיל (₪${shekel(v.usual)}). המחירים חתומים בביטקוין.`;
+  if (v?.state === "RAISED") return `🏷️ בדקתי ברדאר של LikeLink2${name ? ` את ${name}` : ""}: ב־${dm(v.from.d)} ₪${shekel(v.from.p)}, ב־${dm(v.high.d)} המחיר עלה ל־₪${shekel(v.high.p)}, וה"הנחה" מחזירה אותו ל־₪${shekel(v.now)}. המחירים חתומים בביטקוין.`;
+  if (v?.state === "DROPPED") return `🏷️ בדקתי ברדאר של LikeLink2${name ? ` את ${name}` : ""}: המחיר הזה (₪${shekel(v.now)}) כבר כאן מ־${dm(v.fell)}, ${v.steady} בקרים ברצף. המחירים חתומים בביטקוין.`;
   return "";
 }
 
 /**
  * The public tally of one day (pure): items whose price today is far under their recent high (what a
- * shopper sees as a sale), split into real deals (under the usual price) and raises undone.
+ * shopper sees as a sale), split into real deals (under the usual price), raises the radar saw undone
+ * (`raised`), and drops the radar saw begin that have since held (`dropped`, never counted as a raise).
  */
 export function honestTally(ledger = {}, d, { rules = PRICE } = {}) {
-  let sales = 0, real = 0, raised = 0;
+  let sales = 0, real = 0, raised = 0, dropped = 0;
   for (const s of Object.values(ledger || {})) {
     const today = (Array.isArray(s) ? s : []).find((r) => r[0] === d);
     if (!today) continue;
@@ -144,6 +161,7 @@ export function honestTally(ledger = {}, d, { rules = PRICE } = {}) {
     sales += 1;
     if (v.state === "REAL_LOW" || v.state === "LOWER") real += 1;
     else if (v.state === "RAISED") raised += 1;
+    else if (v.state === "DROPPED") dropped += 1;
   }
-  return { d, sales, real, raised };
+  return { d, sales, real, raised, dropped };
 }
