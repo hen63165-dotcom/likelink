@@ -21,6 +21,7 @@ import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
 import { GATE_REASONS, cleanGate } from "./callGate.js";
 import { VERSUS_LINE, cleanVersus } from "./radarVersus.js";
+import { TAKEOFF_LINE, cleanTakeoff } from "./radarTakeoff.js";
 import { NOISE_LINE, cleanNoise } from "./beforeNoise.js";
 import { cleanBaseline } from "./radarBaseline.js";
 import { cleanPathBoard, cleanPathCard } from "./trendPath.js";
@@ -78,6 +79,8 @@ const PRELAUNCH_BOOK = new RegExp(`^${PRELAUNCH_LINE}(\\n${PRELAUNCH_LINE})*$`);
 const NOISE_BOOK = new RegExp(`^${NOISE_LINE}(\\n${NOISE_LINE})*$`);
 // ⚔️ The sealed head-to-head (radarVersus.js versusSealText): the day's sample and picks, item numbers only.
 const VERSUS_BOOK = new RegExp(`^${VERSUS_LINE}(\\n${VERSUS_LINE})*$`);
+// 🚀 The takeoff (radarTakeoff.js takeoffSealText): the day's three picks with their base orders.
+const TAKEOFF_BOOK = new RegExp(`^${TAKEOFF_LINE}(\\n${TAKEOFF_LINE})*$`);
 const STAGE_LINE = "[a-z0-9][a-z0-9-]{0,79}\\|\\d{4}-\\d{2}-\\d{2}\\|(?:EMERGING|RISING)\\|\\d+\\|\\d{4}-\\d{2}-\\d{2}\\|(?:HIT|MISS|-)";
 const STAGES_BOOK = new RegExp(`^${STAGE_LINE}(\\n${STAGE_LINE})*$`);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -297,6 +300,7 @@ export function sanitizeBoard(doc) {
     rivals: cleanRivals(doc.rivals),
     callGate: cleanGate(doc.callGate),
     versus: doc.versus && cleanVersus(doc.versus) ? { ...cleanVersus(doc.versus), seal: cleanBook(doc.versus.seal, VERSUS_BOOK) } : null,
+    takeoff: doc.takeoff && cleanTakeoff(doc.takeoff) ? { ...cleanTakeoff(doc.takeoff), seal: cleanBook(doc.takeoff.seal, TAKEOFF_BOOK) } : null,
     prelaunch: doc.prelaunch && cleanPrelaunch(doc.prelaunch) ? { ...cleanPrelaunch(doc.prelaunch), seal: cleanBook(doc.prelaunch.seal, PRELAUNCH_BOOK) } : null,
     noise: doc.noise && cleanNoise(doc.noise) ? { ...cleanNoise(doc.noise), seal: cleanBook(doc.noise.seal, NOISE_BOOK) } : null,
     baseline: doc.baseline && cleanBaseline(doc.baseline) ? { ...cleanBaseline(doc.baseline), seal: cleanBook(doc.baseline.seal, BASELINE_BOOK) } : null,

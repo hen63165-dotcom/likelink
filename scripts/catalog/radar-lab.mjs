@@ -14,7 +14,7 @@ const dir = process.argv[2] || "lab-state";
 const file = join(dir, "items.json");
 if (!existsSync(file)) { console.log("lab: no items.json in the state"); process.exit(0); }
 const items = JSON.parse(readFileSync(file, "utf8"));
-const today = new Date().toISOString().slice(0, 10);
+const today = process.env.LAB_TODAY || new Date().toISOString().slice(0, 10);
 const readings = Object.values(items).reduce((s, r) => s + (Array.isArray(r) ? r.length : 0), 0);
 const days = [...new Set(Object.values(items).flatMap((r) => (Array.isArray(r) ? r.map((x) => x[0]) : [])))].sort();
 console.log(`lab: ${Object.keys(items).length} items · ${readings} readings · ${days[0]} → ${days[days.length - 1]} (${days.length} days)`);
@@ -53,4 +53,23 @@ for (const h of [3, 7]) {
   for (const v of VARIANTS) console.log(`${v.id.padEnd(20)} all ${String(all[v.id].rate).padStart(5)}% auc ${all[v.id].auc} · earlier ${String(early[v.id].rate).padStart(5)}% auc ${early[v.id].auc} · later ${String(late[v.id].rate).padStart(5)}% auc ${late[v.id].auc}`);
   const pick = VARIANTS.map((v) => v.id).filter((id) => early[id].rate !== null).sort((a, b) => early[b].rate - early[a].rate || (early[b].auc ?? 0) - (early[a].auc ?? 0))[0];
   console.log(`chosen on the earlier half: ${pick} · on the later half it got ${late[pick]?.rate}% (the simple ranking ${late.ranking?.rate}%)`);
+}
+
+// 🚀 The takeoff test (the owner, 27.11: "something nobody has heard of, the next hit, live proof"):
+// only small listings (10–300 orders in 30 days, where nobody has noticed them yet), and a hit is a
+// doubling of their orders within h days. Walk-forward like the rest: chosen on the earlier half of
+// the days, checked on the later half. Totals only.
+for (const [h, lineT] of [[5, 100], [7, 100], [7, 50], [6, 100], [6, 50]]) {
+  const rows = labRun(items, today, { h, line: lineT, minO: 10, maxO: 300, perDay: 3000 });
+  if (!rows.length) { console.log(`\n--- takeoff ${h}d +${lineT}%: no tested day yet`); continue; }
+  const half = Math.max(1, Math.floor(rows.length / 2));
+  const early = labTotals(rows.slice(0, half));
+  const late = labTotals(rows.slice(half));
+  const all = labTotals(rows);
+  const base = (part) => Math.round((part.reduce((s, r) => s + r.rate * r.n, 0) / Math.max(1, part.reduce((s, r) => s + r.n, 0))) * 1000) / 10;
+  console.log(`\n--- takeoff ${h}d +${lineT}% (from 10–300 orders) · ${rows.length} days (${rows[0].d} → ${rows[rows.length - 1].d}) · pool per day ${rows.map((r) => r.n).join("/")} · base rate ${base(rows)}% (earlier ${base(rows.slice(0, half))}%, later ${base(rows.slice(half))}%)`);
+  for (const v of VARIANTS) console.log(`${v.id.padEnd(20)} all ${String(all[v.id].rate).padStart(5)}% ×${all[v.id].mult} auc ${all[v.id].auc} · earlier ${String(early[v.id].rate).padStart(5)}% · later ${String(late[v.id].rate).padStart(5)}% ×${late[v.id].mult} auc ${late[v.id].auc}`);
+  const pick = VARIANTS.map((v) => v.id).filter((id) => early[id].rate !== null).sort((a, b) => early[b].rate - early[a].rate || (early[b].auc ?? 0) - (early[a].auc ?? 0))[0];
+  console.log(`takeoff ${h}d +${lineT}% chosen on the earlier half: ${pick} · later half ${late[pick]?.rate}% (×${late[pick]?.mult}) · simple ranking ${late.ranking?.rate}% · base ${base(rows.slice(half))}%`);
+  for (const r of rows) console.log(`  ${r.d}: pool ${r.n}, reached the line ${Math.round(r.rate * r.n)} (${Math.round(r.rate * 1000) / 10}%) · ${VARIANTS.filter((v) => r.v[v.id]).map((v) => `${v.id} ${r.v[v.id].hits}/${r.v[v.id].k}`).join(" · ")}`);
 }

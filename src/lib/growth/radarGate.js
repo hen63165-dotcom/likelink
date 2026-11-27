@@ -12,6 +12,7 @@ import { cleanNoise } from "./beforeNoise.js";
 import { cleanBacktest } from "./radarBacktest.js";
 import { cleanRivals } from "./rivalSignal.js";
 import { cleanVersus } from "./radarVersus.js";
+import { cleanTakeoff } from "./radarTakeoff.js";
 import { cleanBaseline } from "./radarBaseline.js";
 
 export const RADAR_BOARD_KEY = "radar:board";
@@ -118,6 +119,8 @@ export function teaserBoard(board) {
     backtest: cleanBacktest(board.backtest),
     rivals: cleanRivals(board.rivals, { full: false }),
     callGate: board.callGate || null,
+    // 🚀 The takeoff: the record and the graded picks are public; an open pick names an item, so only its count.
+    takeoff: board.takeoff ? (() => { const t = cleanTakeoff(board.takeoff); return t ? { ...t, today: null, live: t.live.filter((x) => !x.open), openCount: t.live.filter((x) => x.open).length, seal: board.takeoff.seal ? { d: board.takeoff.seal.d, sha256: board.takeoff.seal.sha256, count: board.takeoff.seal.count, ots: board.takeoff.seal.ots || [] } : null } : null; })() : null,
     versus: board.versus ? { ...cleanVersus(board.versus), seal: board.versus.seal ? { d: board.versus.seal.d, sha256: board.versus.seal.sha256, count: board.versus.seal.count, ots: board.versus.seal.ots || [] } : null } : null,
     prelaunch: board.prelaunch ? { ...cleanPrelaunch(board.prelaunch, { full: false }), seal: board.prelaunch.seal ? { d: board.prelaunch.seal.d, sha256: board.prelaunch.seal.sha256, count: board.prelaunch.seal.count, ots: board.prelaunch.seal.ots || [] } : null } : null,
     noise: board.noise ? { ...cleanNoise(board.noise, { full: false }), seal: board.noise.seal ? { d: board.noise.seal.d, sha256: board.noise.seal.sha256, count: board.noise.seal.count, ots: board.noise.seal.ots || [] } : null } : null,

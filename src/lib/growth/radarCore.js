@@ -23,6 +23,7 @@ export const INSTRUMENTS = Object.freeze([
   { id: "luck", book: "luck", tab: "proof", section: "luck", he: "הרדאר מול המזל", en: "The radar vs luck", whatHe: "סוג אקראי כל יום, נבדק באותו כלל", whatEn: "A random kind each day, graded by the same rule" },
   { id: "baseline", book: "baseline", tab: "proof", section: "baseline", he: "הרדאר מול הדירוג הפשוט", en: "The radar vs the simple ranking", whatHe: "כל יום: 3 המוצרים שצומחים הכי מהר, בלי הבדיקות של הרדאר, ו־3 בהגרלה, נבדקים באותו כלל", whatEn: "Each day: the 3 fastest-growing listings, without the radar's checks, and 3 drawn by chance, graded by the same rule" },
   { id: "versus", book: "versus", tab: "proof", section: "backtest", he: "הדו־קרב החתום", en: "The sealed head-to-head", whatHe: "כל בוקר: הבחירות של הרדאר מול הדירוג הפשוט ומול בחירה אקראית, נחתמות מראש ונבדקות אחרי 3 ו־7 ימים", whatEn: "Every morning: the radar's picks against the simple ranking and a random pick, sealed in advance and graded after 3 and 7 days" },
+  { id: "takeoff", book: "takeoff", tab: "today", section: "takeoff", he: "ההמראה", en: "The takeoff", whatHe: "כל בוקר: 5 מוצרים חדשים וקטנים, לפני שמישהו שמע עליהם, חתומים מראש, מול הדירוג הפשוט ובחירה אקראית; אחרי 7 ימים בודקים אם ההזמנות הוכפלו", whatEn: "Every morning: 5 small new products nobody has heard of yet, sealed in advance, against the simple ranking and a random pick; after 7 days, did their orders double" },
   { id: "fresh", book: "fresh", tab: "today", section: "fresh", he: "מוצרים חדשים", en: "New products", whatHe: "מוצר קטן שההזמנות שלו רצות, לפני שכולם מוכרים", whatEn: "A small product whose orders run, before everyone sells it" },
   { id: "kinds", book: "kinds", tab: "today", section: "kinds", he: "סוגים חדשים", en: "New kinds", whatHe: "סוג חדש שהבינה המלאכותית מצאה לפי משמעות", whatEn: "A new kind the AI found by meaning" },
   { id: "prelaunch", book: "prelaunch", tab: "today", section: "prelaunch", he: "לפני המכירה הראשונה", en: "Before the first sale", whatHe: "מוצר שהרבה חנויות שונות מתחילות להעלות השבוע, לפני שקונים אותו; אחרי 21 יום בודקים אם המכירות הגיעו", whatEn: "A product many different stores start listing this week, before people buy it; after 21 days, did the sales come" },
@@ -125,6 +126,12 @@ export function recordView(board = {}) {
       const next = hs.map((x) => x.nextDue).filter(Boolean).sort()[0] || null;
       row = { given: num(b.versus.sheets) ?? 0, graded, result: graded ? { kind: "hits", hits, of: graded, rate: pct(hits, graded), edge: rankOf ? Math.round((pct(hits, graded) - pct(rankHits, rankOf)) * 10) / 10 : null } : null, next };
     }
+    else if (ins.id === "takeoff" && b.takeoff) {
+      const t = b.takeoff;
+      const of = num(t.radar?.of) ?? 0;
+      const rankOf = num(t.rank?.of) ?? 0;
+      row = { given: (num(t.sheets) ?? 0), graded: of, result: of ? { kind: "hits", hits: num(t.radar?.hits) ?? 0, of, rate: pct(num(t.radar?.hits) ?? 0, of), edge: rankOf ? Math.round((pct(num(t.radar?.hits) ?? 0, of) - pct(num(t.rank?.hits) ?? 0, rankOf)) * 10) / 10 : null } : null, next: t.nextDue || null };
+    }
     else if (ins.id === "luck") {
       const v = b.luck?.versus || {};
       const graded = num(v.luck?.graded) ?? 0;
@@ -160,8 +167,8 @@ export function recordView(board = {}) {
     if (!row) continue;
     rows.push({ id: ins.id, he: ins.he, en: ins.en, whatHe: ins.whatHe, whatEn: ins.whatEn, section: ins.section, sealed: (b.ledger?.text || "").split("\n").some((l) => l.startsWith(`${ins.book}=`)), ...row });
   }
-  // The trend calls' hits only: the brain learns, luck, the simple ranking and the daily duel are yardsticks, supply grades sellers following, noise grades the noise arriving.
-  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "baseline" && r.id !== "versus" && r.id !== "supply" && r.id !== "noise");
+  // The trend calls' hits only: the brain learns, luck, the simple ranking and the daily duel are yardsticks, the takeoff grades a doubling (its own definition), supply grades sellers following, noise grades the noise arriving.
+  const graded = rows.filter((r) => r.result && (r.result.kind === "hits" || r.result.kind === "learned") && r.id !== "brain" && r.id !== "luck" && r.id !== "baseline" && r.id !== "versus" && r.id !== "takeoff" && r.id !== "supply" && r.id !== "noise");
   return {
     rows,
     day: b.ledger?.d || String(b.at || "").slice(0, 10) || null,
