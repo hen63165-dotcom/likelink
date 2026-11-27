@@ -149,7 +149,10 @@ export function backtest(items = {}, today, { rules = BACKTEST, promise = PROMIS
       acc.pick.hits += ph; acc.pick.of += k;
       if (ph > rh) acc.pickDuel.wins++; else if (ph < rh) acc.pickDuel.losses++; else acc.pickDuel.ties++;
       if (lh > rh) acc.learnDuel.wins++; else if (lh < rh) acc.learnDuel.losses++; else acc.learnDuel.ties++;
-      out.daily.push({ h, d, n: pool.length, k, rate: Math.round(rate * 1000) / 1000, model: mh, radar: dh, learn: lh, pick: ph, rank: rh });
+      // Per day, the chance model's mean chance and Brier beside the constant's (the lab prints them, to
+      // see whether a bad Brier comes from the first days, when the model had little history to learn from).
+      const dayBrier = (key) => Math.round((pool.reduce((s, x) => s + (key(x) - (x.hit ? 1 : 0)) ** 2, 0) / pool.length) * 1000) / 1000;
+      out.daily.push({ h, d, n: pool.length, k, rate: Math.round(rate * 1000) / 1000, model: mh, radar: dh, learn: lh, pick: ph, rank: rh, meanChance: Math.round((pool.reduce((s, x) => s + x.pm, 0) / pool.length) * 1000) / 1000, brierModel: dayBrier((x) => x.pm), brierBase: dayBrier(() => pf.base), trainN: cal.n });
       if (dh > rh) acc.radarDuel.wins++; else if (dh < rh) acc.radarDuel.losses++; else acc.radarDuel.ties++;
       acc.random.exp += rate * k; acc.random.of += k;
       if (mh > rh) acc.wins++; else if (mh < rh) acc.losses++; else acc.ties++;
