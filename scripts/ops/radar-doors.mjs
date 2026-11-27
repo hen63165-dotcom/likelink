@@ -14,7 +14,10 @@ const DOORS = [
   { id: "census-2025-09", url: "https://api.census.gov/data/timeseries/intltrade/imports/hs?get=GEN_VAL_MO&COMM_LVL=HS2&I_COMMODITY=95&CTY_CODE=5700&time=2025-09" },
   { id: "hmrc-robots", url: "https://api.uktradeinfo.com/robots.txt", max: 300 },
   { id: "hmrc-country-cn", url: "https://api.uktradeinfo.com/Country?$filter=CountryCodeAlpha%20eq%20'CN'", max: 400 },
-  { id: "hmrc-ots-sample", url: "https://api.uktradeinfo.com/OTS?$top=3&$orderby=MonthId%20desc", max: 600 },
+  { id: "hmrc-ots-cn-imports", url: "https://api.uktradeinfo.com/OTS?$filter=MonthId%20eq%20202609%20and%20CountryId%20eq%20720%20and%20FlowTypeId%20eq%203&$top=3", max: 900 },
+  { id: "hmrc-ots-cn-count", url: "https://api.uktradeinfo.com/OTS/$count?$filter=MonthId%20eq%20202609%20and%20CountryId%20eq%20720%20and%20FlowTypeId%20eq%203", max: 100 },
+  { id: "hmrc-ots-latest", url: "https://api.uktradeinfo.com/OTS/$count?$filter=MonthId%20eq%20202610", max: 100 },
+  { id: "hmrc-flowtypes", url: "https://api.uktradeinfo.com/FlowType", max: 700 },
   { id: "hmrc-ots-count-month", url: "https://api.uktradeinfo.com/OTS/$count?$filter=MonthId%20eq%20202609", max: 200 },
   { id: "gdelt", url: "https://api.gdeltproject.org/api/v2/doc/doc?query=%22butter%20squishy%22&mode=timelinevolraw&format=json&timespan=1m" },
 ];
