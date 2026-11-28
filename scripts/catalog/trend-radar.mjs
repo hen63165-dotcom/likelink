@@ -1344,10 +1344,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   const gapOn = env.RADAR_GAP !== "0" && sources.suggest === "OK" && !late("worldGap", 8 * 60_000);
   // Two clocks (28.11): the watched kinds' sweep has its own 7 minutes from here; the finds checked
   // later in the run (new products, new kinds, the takeoff, before the first sale, before the noise)
-  // have theirs from the first phrase asked (GAP.phraseBudgetMs). On one clock, every check after the
-  // seventh minute read nothing and the late instruments' picks all waited as WORLD_UNREAD.
-  const gapRun = { started: Date.now(), asked: 0, answered: 0, failRun: 0, stopped: false, timeUp: false, concepts: 0, phrases: 0, phraseStarted: null, phraseWhy: {} };
-  const overClock = (clock) => (clock === "phrases" ? gapRun.phraseStarted !== null && Date.now() - gapRun.phraseStarted > GAP.phraseBudgetMs : Date.now() - gapRun.started > GAP.budgetMs);
+  // have theirs: the time actually spent reading them (GAP.phraseBudgetMs), wherever in the run they
+  // come. On one clock, every check after the seventh minute read nothing and the late instruments'
+  // picks all waited as WORLD_UNREAD.
+  const gapRun = { started: Date.now(), asked: 0, answered: 0, failRun: 0, stopped: false, timeUp: false, concepts: 0, phrases: 0, phraseMs: 0, phraseNow: null, phraseWhy: {} };
+  const overClock = (clock) => (clock === "phrases" ? gapRun.phraseMs + (gapRun.phraseNow === null ? 0 : Date.now() - gapRun.phraseNow) > GAP.phraseBudgetMs : Date.now() - gapRun.started > GAP.budgetMs);
   // `withYt`: YouTube's own suggestions from each country too (ds=yt; the radar's finds).
   const sweepCountries = async (phrase, ids, { withYt = false, clock = "concepts" } = {}) => {
     const counts = {};
@@ -1392,9 +1393,11 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
     if (!gapOn || !key) return null;
     if (gapState.phrases[key]?.d === today) return gapState.phrases[key];
     if (gapRun.stopped || gapRun.phrases >= GAP.maxPhrases || overClock("phrases")) return null;
-    if (gapRun.phraseStarted === null) gapRun.phraseStarted = Date.now();
     gapRun.phrases++;
+    gapRun.phraseNow = Date.now();
     const got = await sweepCountries(phrase, GAP_COUNTRIES.filter((x) => x.id !== "il").map((x) => x.id), { withYt: true, clock: "phrases" });
+    gapRun.phraseMs += Date.now() - gapRun.phraseNow;
+    gapRun.phraseNow = null;
     const g = worldGapOf({ counts: got.counts, yt: got.yt, echo: got.echo, d: today });
     if (g.state === "UNMEASURED") return null;
     gapState.phrases[key] = g;
@@ -2322,7 +2325,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
   // before the noise): kept for the next mornings and named in the log, book by book.
   if (gapOn) {
     writeFileSync(join(dir, "world-gap.json"), JSON.stringify(gapState));
-    log.push(`world gap for the finds: ${gapRun.phrases}/${GAP.maxPhrases} phrases read from ${GAP_COUNTRIES.length - 1} countries${gapRun.phraseStarted !== null ? ` in ${Math.round((Date.now() - gapRun.phraseStarted) / 1000)} s` : ""} · ${Object.entries(gapRun.phraseWhy).map(([b, w]) => `${b} ${JSON.stringify(w)}`).join(" · ") || "none checked"}`);
+    log.push(`world gap for the finds: ${gapRun.phrases}/${GAP.maxPhrases} phrases read from ${GAP_COUNTRIES.length - 1} countries${gapRun.phrases ? ` in ${Math.round(gapRun.phraseMs / 1000)} s of reading` : ""} · ${Object.entries(gapRun.phraseWhy).map(([b, w]) => `${b} ${JSON.stringify(w)}`).join(" · ") || "none checked"}`);
   }
   // Every ordinary stage call too (EMERGING / RISING), misses included: its own book, sealed when it changes.
   const stagesText = stagesSealText(calls);

@@ -99,7 +99,7 @@ export const GAP = Object.freeze({
   knownShare: 0.5, // searched in at least half the countries measured = known in the world
   maxConcepts: 24, // watched kinds swept a run: the moving ones first, then the longest unswept
   maxPhrases: 20, // finds checked a run: new products, new kinds, the takeoff, before the first sale, before the noise
-  phraseBudgetMs: 300_000, // the finds' own clock, from the first phrase asked (28.11: one shared clock ran out first)
+  phraseBudgetMs: 300_000, // the finds' own clock: time spent reading them, wherever they come in the run (28.11)
   showDays: 7, // a sweep older than this is never shown
   keepDays: 21, // …and dropped from the state after this
   concurrency: 4,
