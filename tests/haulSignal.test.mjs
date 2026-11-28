@@ -3,7 +3,7 @@
 // sold on AliExpress → a trial concept. Never a brand, an unlisted kind, a holiday or a known kind.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, mergeHauls, videoPhrases } from "../src/lib/growth/haulSignal.js";
+import { HAULS, haulOnStore, haulRisers, haulSearchUrl, haulVideos, keepsPhrase, mergeHauls, videoPhrases } from "../src/lib/growth/haulSignal.js";
 
 test("hauls: the official search, the haul's own words dropped, channels counted once", () => {
   const u = new URL(haulSearchUrl("temu haul", { key: "k", now: Date.parse("2026-11-22T06:00:00Z") }));
@@ -53,4 +53,23 @@ test("hauls: YouTube Shorts too — where TikTok's creators post the same clips"
 test("a video's links, hashtags, codes and pitch words are never product phrases (26.11's run)", () => {
   assert.deepEqual(videoPhrases("My TEMU haul! https://www.temu.com/abc download app search bar friday deals #temufinds #temuhaul code ALC607836"), []);
   assert.deepEqual(videoPhrases("butter squishy asmr satisfying"), ["butter squishy"]);
+});
+
+test("28.11's run: an app's pitch and phrases stored before a word joined the rules never rise, and a phrase ends in a product word", () => {
+  const today = "2026-11-28";
+  const ch = (n, p) => Array.from({ length: n }, (_, i) => `${p}${i}`);
+  // Stored on 26–27.11, before these words were on the list: the state still held them.
+  const state = {
+    "https www": { "2026-11-26": ch(12, "a") }, "unlock bundle": { "2026-11-27": ch(12, "b") }, "users only": { "2026-11-27": ch(9, "c") },
+    "check out": { "2026-11-27": ch(8, "d") }, "digo para": { "2026-11-27": ch(8, "e") }, "butter squishy": { "2026-11-27": ch(5, "f") }, "grip sock": { "2026-11-27": ch(4, "g") },
+  };
+  for (const p of ["https www", "unlock bundle", "users only", "check out", "digo para"]) assert.equal(keepsPhrase(p), false, p);
+  assert.equal(keepsPhrase("butter squishy"), true);
+  assert.deepEqual(haulRisers(state, today).map((r) => r.phrase), ["butter squishy", "grip sock"]);
+  assert.deepEqual(Object.keys(mergeHauls(state, [], today)).sort(), ["butter squishy", "grip sock"], "the state is cleaned too");
+  assert.deepEqual(videoPhrases("New users only! Unlock the bundle, check out my link"), []);
+  // With the year's listing words, the last word must be a product word.
+  const vocab = new Set(["squishy", ...Array.from({ length: 60 }, (_, i) => `word${"abcdefghij"[i % 10]}${"abcdefghij"[Math.floor(i / 10)]}`)]);
+  assert.deepEqual(haulRisers(state, today, { vocab }).map((r) => r.phrase), ["butter squishy"]);
+  assert.deepEqual(haulRisers(state, today, { vocab: new Set(["squishy"]) }).map((r) => r.phrase), ["butter squishy", "grip sock"], "a vocabulary too small to judge is not used");
 });

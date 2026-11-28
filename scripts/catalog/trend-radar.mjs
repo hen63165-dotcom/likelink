@@ -74,7 +74,7 @@ import { CATEGORY_KIND, admitDiscovered, discover } from "../../src/lib/growth/r
 import { KINDS, gradeKinds, kindCandidates, kindsRecord, kindsSealText, lookCandidates, mergeLooks, newKinds, recordKinds } from "../../src/lib/growth/newKinds.js";
 import { poolImageVectors, poolVectors } from "./radar-embed.mjs";
 import { brainText, freshFeatures, kindFeatures, learn, likeThis, matchesPattern, sureState } from "../../src/lib/growth/radarBrain.js";
-import { PROMISE, addIssued, calibrate, cardRange, gradePromises, issuePromises, newPromiseState, promiseBoard, promiseSealText, samplePool } from "../../src/lib/growth/radarPromise.js";
+import { PROMISE, addIssued, calibrate, cardRange, chanceRecord, coverageOf, gradePromises, issuePromises, newPromiseState, promiseBoard, promiseSealText, provenOf, samplePool } from "../../src/lib/growth/radarPromise.js";
 import { TREND_CATEGORIES } from "../../src/lib/growth/trendBoard.js";
 import { buildHookSet, parseTrendsRss } from "../../src/lib/growth/likeloop.js";
 import { enrich } from "../../src/lib/growth/radarIntel.js";
@@ -111,7 +111,7 @@ import { PRELAUNCH, gradeWaveCalls, listingWaves, mergeListings, phraseDemand, p
 import { WAVES, WAVE_AREAS, addWaveReading, altPick, collectWaves, igRecentUrl, igSearchUrl, igSignal, igTag, waveCard } from "../../src/lib/growth/brandWaves.js";
 import { pinterestTerms, pinterestTrendsUrl } from "../../src/lib/growth/pinterestTrends.js";
 import { byCategory, exitSignal } from "../../src/lib/growth/radarCore.js";
-import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowSealText } from "../../src/lib/growth/radarWindow.js";
+import { WINDOW, addReading as addWindowReading, addWindows, calibrateWindow, cardWindow, conceptKey, gradeWindows, issueWindows, newWindowState, phraseKey, phraseOfKey, readQueue, seriesOf, windowBoard, windowRecord, windowSealText } from "../../src/lib/growth/radarWindow.js";
 import { findResults } from "../../src/lib/growth/findOnAli.js";
 import { KEY_FILE, newSigningKey, radarSigner } from "./radar-signer.mjs";
 import { RADAR_KEY } from "../../src/lib/growth/radarKey.js";
@@ -411,7 +411,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           } catch { /* the meter counts the failure */ }
         }
         writeFileSync(join(dir, "hauls.json"), JSON.stringify(haulState));
-        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered] }).slice(0, HAULS.perDay);
+        // The year's listing words (yesterday's fresh pool): a haul phrase must end in a product word.
+        const haulVocab = productVocab(Object.values(readJson(join(dir, "fresh.json"), {})).map((e) => e?.title));
+        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered], vocab: haulVocab }).slice(0, HAULS.perDay);
         const hCands = [];
         const he = aeEnv(env);
         for (const r of risers) {
@@ -1771,7 +1773,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const issued = issuePromises(items, ids, today, calib);
       const state = addIssued(g.state, issued);
       writeFileSync(join(dir, "promise.json"), JSON.stringify(state));
-      for (const r of board.fresh.risers) { const c = cardRange(items, r.id, today, calib); if (c) r.promise = c; }
+      // Proof before display: only the horizons and levels whose own graded record holds (PROVEN).
+      const proven = provenOf({ coverage: coverageOf(state), chance: chanceRecord(state) });
+      for (const r of board.fresh.risers) { const c = cardRange(items, r.id, today, calib, { proven }); if (c) r.promise = c; }
       board.promise = promiseBoard(state, calib, issued, today);
       const text = promiseSealText(issued);
       if (text) board.promise.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.promise?.seal, "promise");
@@ -1819,8 +1823,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
       const issued = issueWindows(series, keys, today, calib);
       const state = addWindows(g.state, issued);
       writeFileSync(wfile, JSON.stringify({ hist, state }));
-      for (const r of board.fresh.risers || []) { const w = cardWindow(series, phraseKey(r.known?.phrase), today, calib); if (w) r.window = w; }
-      for (const k of board.kinds?.list || []) { const w = cardWindow(series, phraseKey(k.en), today, calib); if (w) k.window = w; }
+      windowCtx.record = windowRecord(state);
+      for (const r of board.fresh.risers || []) { const w = cardWindow(series, phraseKey(r.known?.phrase), today, calib, { record: windowCtx.record }); if (w) r.window = w; }
+      for (const k of board.kinds?.list || []) { const w = cardWindow(series, phraseKey(k.en), today, calib, { record: windowCtx.record }); if (w) k.window = w; }
       board.window = windowBoard(state, calib, issued, today);
       const text = windowSealText(issued);
       if (text) board.window.seal = await sealBook({ text, count: text.split("\n").length }, prevBoard.window?.seal, "window");
@@ -1841,7 +1846,7 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
         const series = items[c.id] || [];
         const last = series.at(-1);
         const momentum = itemMomentum(series, { rules: HOT_RULES });
-        const window = windowCtx ? cardWindow(windowCtx.series, phraseKey(freshPhrase(c.title)), today, windowCtx.calib) : null;
+        const window = windowCtx ? cardWindow(windowCtx.series, phraseKey(freshPhrase(c.title)), today, windowCtx.calib, { record: windowCtx.record }) : null;
         const exit = exitSignal({ momentum, window });
         const pool = freshPool[c.id] || {};
         return {

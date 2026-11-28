@@ -448,8 +448,20 @@ function cleanCardRange(c) {
   const pct80 = pair(c.pct80), pct90 = pair(c.pct90);
   // The hit line (+50% in 14 days) is claimed only when that level's whole range is above it.
   const clears = c.h !== 14 ? null : c.clears === 90 && pct90?.[0] >= 50 ? 90 : c.clears === 80 && pct80?.[0] >= 50 ? 80 : null;
-  const ch = c.chance && CHANCE_LINE[c.h] === c.chance.line && Number.isInteger(c.chance.p) && c.chance.p >= 1 && c.chance.p <= 99 ? { line: c.chance.line, p: c.chance.p } : null;
-  return { h: c.h, o: num(c.o), r80, r90, pct80, pct90, clears, ...(ch ? { chance: ch } : {}) };
+  const ch = c.chance && CHANCE_LINE[c.h] === c.chance.line && Number.isInteger(c.chance.p) && c.chance.p >= 1 && c.chance.p <= 99 ? { line: c.chance.line, p: c.chance.p, ...(skillRec(c.chance.rec) ? { rec: skillRec(c.chance.rec) } : {}) } : null;
+  // The record each number stands on (radarPromise.provenOf): kept only when it really proves it.
+  const rec = c.rec && typeof c.rec === "object" ? { r80: r80 ? heldRec(c.rec.r80, 80) : null, r90: r90 ? heldRec(c.rec.r90, 90) : null } : null;
+  return { h: c.h, o: num(c.o), r80, r90, pct80, pct90, clears, ...(rec && (rec.r80 || rec.r90) ? { rec } : {}), ...(ch ? { chance: ch } : {}) };
+}
+// A held-share record that proves its level (radarPromise.PROVEN: ≥ 100 graded, within 2 points).
+function heldRec(r, level) {
+  const n = num(r?.n), rate = num(r?.rate);
+  return n !== null && n >= 100 && Number.isInteger(n) && rate !== null && rate <= 100 && rate >= level - 2 ? { n, rate } : null;
+}
+// A chance record that beats the base rate (≥ 100 graded, skill above 0).
+function skillRec(r) {
+  const n = num(r?.n), skill = num(r?.skill);
+  return n !== null && n >= 100 && Number.isInteger(n) && skill !== null && skill > 0 && skill <= 100 ? { n, skill } : null;
 }
 function cleanPromise(p) {
   if (!p || typeof p !== "object" || !Array.isArray(p.coverage)) return null;
@@ -484,8 +496,8 @@ const chanceP = (p) => (Number.isInteger(p) && p >= 1 && p <= 99 ? p : null);
 function cleanCardWindow(w) {
   if (!w || typeof w !== "object" || num(w.o) === null || w.line !== WINDOW_LINE_N) return null;
   if (w.state === "CLOSED") return w.o >= WINDOW_LINE_N ? { state: "CLOSED", o: num(w.o), line: WINDOW_LINE_N } : null;
-  if (w.state === "MEASURING") return w.o < WINDOW_LINE_N ? { state: "MEASURING", o: num(w.o), line: WINDOW_LINE_N, since: day(w.since) } : null;
-  if (w.state === "READY" && RANGE_H.includes(w.h) && chanceP(w.p) && w.o < WINDOW_LINE_N) return { state: "READY", h: w.h, o: num(w.o), line: WINDOW_LINE_N, p: w.p, weekPct: num(w.weekPct) };
+  if (w.state === "MEASURING" || w.state === "PROVING") return w.o < WINDOW_LINE_N ? { state: w.state, o: num(w.o), line: WINDOW_LINE_N, since: day(w.since) } : null;
+  if (w.state === "READY" && RANGE_H.includes(w.h) && chanceP(w.p) && w.o < WINDOW_LINE_N) return { state: "READY", h: w.h, o: num(w.o), line: WINDOW_LINE_N, p: w.p, weekPct: num(w.weekPct), ...(skillRec(w.rec) ? { rec: skillRec(w.rec) } : {}) };
   return null;
 }
 function cleanWindow(w) {

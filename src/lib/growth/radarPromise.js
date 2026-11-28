@@ -384,18 +384,58 @@ export function promiseBoard(state, calib, issued, today, { rules = PROMISE } = 
   };
 }
 
-/** The range shown on a new product's card: the longest ready horizon, both levels, and the hit line. */
-export function cardRange(items, id, today, calib, { hitPct = 50, rules = PROMISE } = {}) {
+/**
+ * Proof before display (28.11, the owner: "make sure it is really strong and reliable"): the cards
+ * showed the 14-day range and chance while not one 14-day range had been graded, and the 7-day range
+ * at 90% had held 84.5% of 291. A card shows a horizon's range at a level only once that level's
+ * graded record holds it (≥ `minGraded` graded, held ≥ level − `tolerance` points), and its chance
+ * only once the chance's record beats always saying the base rate (≥ `minGraded` graded, skill >
+ * `minSkill`). Below that the number is still issued, sealed and graded every day; it just waits for
+ * its proof before a card says it.
+ */
+export const PROVEN = Object.freeze({ minGraded: 100, tolerance: 2, minSkill: 0 });
+
+/** Per horizon, what its own graded record proves: `{ [h]: { r80, r90, chance } }`, each `{ n, rate|skill }` or null. */
+export function provenOf({ coverage = [], chance = [] } = {}, { rules = PROVEN } = {}) {
+  const out = {};
+  const at = (h) => (out[h] ||= { r80: null, r90: null, chance: null });
+  for (const c of Array.isArray(coverage) ? coverage : []) {
+    if (!Number.isInteger(c?.h) || ![80, 90].includes(c?.level)) continue;
+    const ok = Number.isFinite(c.n) && c.n >= rules.minGraded && Number.isFinite(c.rate) && c.rate >= c.level - rules.tolerance;
+    at(c.h)[`r${c.level}`] = ok ? { n: c.n, rate: c.rate } : null;
+  }
+  for (const c of Array.isArray(chance) ? chance : []) {
+    if (!Number.isInteger(c?.h)) continue;
+    at(c.h).chance = provenSkillOf(c, { rules });
+  }
+  return out;
+}
+
+/** A chance record row proves itself: enough graded and better than the base rate. */
+export const provenSkillOf = (c, { rules = PROVEN } = {}) =>
+  Number.isFinite(c?.n) && c.n >= rules.minGraded && Number.isFinite(c?.skill) && c.skill > rules.minSkill ? { n: c.n, skill: c.skill } : null;
+
+/**
+ * The range shown on a new product's card: the longest ready horizon, both levels, and the hit line.
+ * With `proven` (provenOf, the run always passes it) only the horizons and levels whose own record
+ * holds, each with that record.
+ */
+export function cardRange(items, id, today, calib, { hitPct = 50, rules = PROMISE, proven } = {}) {
   for (const h of [...rules.horizons].sort((a, b) => b - a)) {
-    const r90 = rangeFor(items?.[id], today, calib?.[h], 90, { rules });
-    const r80 = rangeFor(items?.[id], today, calib?.[h], 80, { rules });
+    const pr = proven === undefined ? null : proven?.[h] || { r80: null, r90: null, chance: null };
+    const r90 = pr && !pr.r90 ? null : rangeFor(items?.[id], today, calib?.[h], 90, { rules });
+    const r80 = pr && !pr.r80 ? null : rangeFor(items?.[id], today, calib?.[h], 80, { rules });
     if (!r90 && !r80) continue;
     const main = r90 || r80;
     // The hit line of a new product is +50% in 14 days (freshRisers.gradeFresh): only a 14-day range
     // can clear it, at the highest level whose whole range is above it.
     const clears = h !== 14 ? null : r90 && r90.loPct >= hitPct ? 90 : r80 && r80.loPct >= hitPct ? 80 : null;
-    const chance = chanceFor(items?.[id], today, calib?.[h], { rules });
-    return { h, o: main.o, r80: r80 ? [r80.lo, r80.hi] : null, r90: r90 ? [r90.lo, r90.hi] : null, pct90: r90 ? [r90.loPct, r90.hiPct] : null, pct80: r80 ? [r80.loPct, r80.hiPct] : null, clears, ...(chance ? { chance: { line: chance.line, p: chance.p } } : {}) };
+    const chance = pr && !pr.chance ? null : chanceFor(items?.[id], today, calib?.[h], { rules });
+    return {
+      h, o: main.o, r80: r80 ? [r80.lo, r80.hi] : null, r90: r90 ? [r90.lo, r90.hi] : null, pct90: r90 ? [r90.loPct, r90.hiPct] : null, pct80: r80 ? [r80.loPct, r80.hiPct] : null, clears,
+      ...(pr ? { rec: { r80: r80 ? pr.r80 : null, r90: r90 ? pr.r90 : null } } : {}),
+      ...(chance ? { chance: { line: chance.line, p: chance.p, ...(pr ? { rec: pr.chance } : {}) } } : {}),
+    };
   }
   return null;
 }

@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   PROMISE, addIssued, bandOf, calibrate, cardRange, chanceFor, chanceRecord, conformalQuantile, coverageOf, examples, featuresAt, fitRidge,
-  gradePromises, issuePromises, newPromiseState, predict, promiseBoard, promiseSealText, rangeFor, samplePool, targetAt,
+  gradePromises, issuePromises, newPromiseState, predict, promiseBoard, promiseSealText, provenOf, rangeFor, samplePool, targetAt,
 } from "../src/lib/growth/radarPromise.js";
 
 const day = (n) => new Date(Date.UTC(2026, 10, 1) + n * 86_400_000).toISOString().slice(0, 10);
@@ -289,4 +289,50 @@ test("a chance is given only once the model learned from minChance examples (19.
   assert.equal(chanceFor(series, "2026-11-20", cal(PROMISE.minChance - 1)), null);
   assert.ok(chanceFor(series, "2026-11-20", cal(PROMISE.minChance))?.p >= 1);
   assert.equal(PROMISE.minChance, 500);
+});
+
+test("proof before display (28.11): a card says a horizon's range, level and chance only once its own graded record holds", async () => {
+  // The live record of 28.11: 3 days held 80.8% / 90.9% of 769, 7 days 74.9% / 84.5% of 291, 14 days none graded;
+  // the 3-day chance beat the base rate (skill +41.1, 614 graded), the 7-day one did not (−0.9).
+  const coverage = [
+    { h: 3, level: 80, n: 769, held: 621, rate: 80.8 }, { h: 3, level: 90, n: 769, held: 699, rate: 90.9 },
+    { h: 7, level: 80, n: 291, held: 218, rate: 74.9 }, { h: 7, level: 90, n: 291, held: 246, rate: 84.5 },
+    { h: 14, level: 80, n: 0, held: 0, rate: null }, { h: 14, level: 90, n: 0, held: 0, rate: null },
+  ];
+  const chance = [{ h: 3, n: 614, skill: 41.1 }, { h: 7, n: 120, skill: -0.9 }, { h: 14, n: 0, skill: null }];
+  const proven = provenOf({ coverage, chance });
+  assert.deepEqual(proven[3], { r80: { n: 769, rate: 80.8 }, r90: { n: 769, rate: 90.9 }, chance: { n: 614, skill: 41.1 } });
+  assert.deepEqual(proven[7], { r80: null, r90: null, chance: null }, "under its level by more than 2 points, and no skill");
+  assert.deepEqual(proven[14], { r80: null, r90: null, chance: null }, "nothing graded proves nothing");
+  assert.equal(provenOf({ coverage: [{ h: 3, level: 90, n: 99, rate: 95 }] })[3].r90, null, "under 100 graded proves nothing yet");
+  assert.equal(provenOf({ chance: [{ h: 3, n: 500, skill: 0 }] })[3].chance, null, "a chance no better than the base rate is not said");
+
+  const all = world({ items: 400, days: 45 });
+  const today = day(40);
+  const cal = calibrate(all, today);
+  const id = Object.keys(all)[0];
+  assert.equal(cardRange(all, id, today, cal).h, 14, "without the record: the old rule (the longest ready horizon)");
+  const c = cardRange(all, id, today, cal, { proven });
+  assert.equal(c.h, 3, "the 14- and 7-day ranges wait for their proof");
+  assert.deepEqual(c.rec, { r80: { n: 769, rate: 80.8 }, r90: { n: 769, rate: 90.9 } });
+  assert.equal(c.clears, null);
+  if (c.chance) assert.deepEqual(c.chance.rec, { n: 614, skill: 41.1 });
+  assert.equal(cardRange(all, id, today, cal, { proven: {} }), null, "no proven horizon: no range on the card");
+  const only80 = cardRange(all, id, today, cal, { proven: { 3: { r80: { n: 200, rate: 80 }, r90: null, chance: null } } });
+  assert.equal(only80.r90, null);
+  assert.ok(only80.r80);
+  assert.equal(only80.chance, undefined, "an unproven chance is not said");
+
+  const { sanitizeBoard } = await import("../src/lib/growth/radarBoard.js");
+  const { findFacts } = await import("../src/lib/growth/radarCore.js");
+  const rise = { id: "1005013201890326", title: "Wide-leg pants", image: "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg", buy: "https://s.click.aliexpress.com/e/_oAbCdEf", orders: 156, weekPct: 208, known: { phrase: "wide leg", similar: 1483 } };
+  const board = (promise) => sanitizeBoard({ v: 2, at: "2026-11-28T06:00:00Z", record: {}, concepts: [], fresh: { risers: [{ ...rise, promise }] } });
+  const kept = board(c).fresh.risers[0].promise;
+  assert.deepEqual(kept.rec, c.rec, "a real record is kept");
+  const forged = board({ ...c, rec: { r80: { n: 50, rate: 80 }, r90: { n: 900, rate: 70 } }, chance: c.chance ? { ...c.chance, rec: { n: 900, skill: -3 } } : undefined }).fresh.risers[0].promise;
+  assert.equal(forged.rec, undefined, "a record that proves nothing never reaches the page");
+  if (forged.chance) assert.equal(forged.chance.rec, undefined);
+  const row = findFacts(board(c).fresh.risers[0], { kind: "fresh" }).find((r) => r.key === "range");
+  assert.match(row.he, /החזיק ב־.*90\.9%.*מ־769 שנבדקו/);
+  assert.match(row.en, /held in 90\.9% of 769 graded/);
 });

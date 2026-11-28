@@ -220,11 +220,16 @@ export function findFacts(f = {}, { kind = "fresh", day = null } = {}) {
   const p = f.promise;
   if (p && (p.r90 || p.r80)) {
     const r = p.r90 || p.r80;
-    add("range", `טווח ל־${p.h} ימים`, `Range in ${p.h} days`, `${iso(`${he(r[0])}–${he(r[1])}`)} הזמנות (כיסוי ${p.r90 ? 90 : 80}%)`, `${en(r[0])}–${en(r[1])} orders (${p.r90 ? 90 : 80}% coverage)`);
-    if (p.chance) add("chance", `סיכוי ל־${iso(`+${p.chance.line}%`)}`, `Chance of +${p.chance.line}%`, `${p.chance.p}% בתוך ${p.h} ימים (מכויל)`, `${p.chance.p}% within ${p.h} days (calibrated)`);
+    const level = p.r90 ? 90 : 80;
+    // The record the number stands on (radarPromise.provenOf), when the run passed it.
+    const held = p.rec?.[`r${level}`];
+    add("range", `טווח ל־${p.h} ימים`, `Range in ${p.h} days`, `${iso(`${he(r[0])}–${he(r[1])}`)} הזמנות (כיסוי ${level}%${held ? ` · החזיק ב־${iso(`${held.rate}%`)} מ־${he(held.n)} שנבדקו` : ""})`, `${en(r[0])}–${en(r[1])} orders (${level}% coverage${held ? ` · held in ${held.rate}% of ${en(held.n)} graded` : ""})`);
+    const cr = p.chance?.rec;
+    if (p.chance) add("chance", `סיכוי ל־${iso(`+${p.chance.line}%`)}`, `Chance of +${p.chance.line}%`, `${p.chance.p}% בתוך ${p.h} ימים (מכויל${cr ? ` · ${he(cr.n)} ציונים` : ""})`, `${p.chance.p}% within ${p.h} days (calibrated${cr ? ` · ${en(cr.n)} graded` : ""})`);
   }
   const w = f.window;
-  if (w?.state === "READY") add("window", "שעון החלון", "Window clock", `${w.p}% שבעוד ${w.h} ימים יהיו מעל ${he(w.line)} מודעות`, `${w.p}% chance of over ${en(w.line)} listings in ${w.h} days`);
+  if (w?.state === "READY") add("window", "שעון החלון", "Window clock", `${w.p}% שבעוד ${w.h} ימים יהיו מעל ${he(w.line)} מודעות${w.rec ? ` (${he(w.rec.n)} ציונים)` : ""}`, `${w.p}% chance of over ${en(w.line)} listings in ${w.h} days${w.rec ? ` (${en(w.rec.n)} graded)` : ""}`);
+  else if (w?.state === "PROVING") add("window", "שעון החלון", "Window clock", `נמדד מ־${dm(w.since)} · הסיכוי מוצג כשהרקורד שלו מוכח`, `Measured since ${dm(w.since)}; the chance is shown once its record proves it`);
   else if (w?.state === "MEASURING") add("window", "שעון החלון", "Window clock", `נמדד מ־${dm(w.since)}, הסיכוי אחרי 3 ימי מדידה`, `Measured since ${dm(w.since)}; the chance after 3 days of readings`);
   if (f.learned) add("brain", "דומים בעבר", "Similar before", `${f.learned.hits} מתוך ${f.learned.n} פגעו`, `${f.learned.hits} of ${f.learned.n} hit`);
   if ([80, 90, 95, 99].includes(f.sure)) add("sure", "הקול המוכח", "Proven voice", `לפחות ${f.sure}% לפי הרקורד החי`, `At least ${f.sure}% on the live record`, "seal");
