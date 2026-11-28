@@ -411,7 +411,9 @@ export async function run(dir, { env = process.env, fetchImpl = globalThis.fetch
           } catch { /* the meter counts the failure */ }
         }
         writeFileSync(join(dir, "hauls.json"), JSON.stringify(haulState));
-        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered] }).slice(0, HAULS.perDay);
+        // The year's listing words (yesterday's fresh pool): a haul phrase must end in a product word.
+        const haulVocab = productVocab(Object.values(readJson(join(dir, "fresh.json"), {})).map((e) => e?.title));
+        const risers = haulRisers(haulState, today, { concepts: [...watch, ...discovered], vocab: haulVocab }).slice(0, HAULS.perDay);
         const hCands = [];
         const he = aeEnv(env);
         for (const r of risers) {

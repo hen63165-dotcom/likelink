@@ -61,7 +61,13 @@ const PROMO_WORDS = new Set(`http https www com net org io app apps download ins
 deal deals sale sales friday black cyber monday prime day off percent free shipping link links bio description
 follow instagram facebook pinterest snapchat youtube twitter telegram whatsapp discord website site store shop
 shops page click below above comment comments like share save fyp foryou foryoupage trend trending
-new newest latest best top favorite favourite gift gifts idea ideas christmas asmr satisfying relaxing sound sounds`.split(/\s+/));
+new newest latest best top favorite favourite gift gifts idea ideas christmas asmr satisfying relaxing sound sounds
+unlock unlocked bundle bundles user users only check out now get got use using try buy bought order ordered
+para digo que los las con por una del el la en de com sem mais muito`.split(/\s+/));
+// 28.11's run, after 26.11's words: "unlock bundle", "users only", "check out" and "digo para" (an app's
+// "new users only" pitch and Spanish/Portuguese descriptions) rose as phrases; and phrases stored before
+// a word joined the list kept rising from the state. Every stored phrase is filtered again by today's
+// rules (`keepsPhrase`), and with the year's listing vocabulary a phrase must end in a product word.
 const HASHTAG_PART = /temu|haul|aliexpress|amazon|shein|tiktok|fyp|daiso|taobao|douyin|oliveyoung/;
 
 /** The product phrases one video shows (two adjacent meaningful words, without the haul's own words). */
@@ -71,11 +77,15 @@ export function videoPhrases(text = "") {
   return [...phrasesOf(clean)];
 }
 
+/** A stored phrase still passes today's word rules (the same filter a video's text goes through). */
+export const keepsPhrase = (phrase) => videoPhrases(phrase).includes(String(phrase || ""));
+
 /** Today's channels per phrase merged into the kept days (state: phrase → day → channel ids). */
 export function mergeHauls(state = {}, videos = [], today, { rules = HAULS } = {}) {
   const out = {};
   const oldest = new Date(Date.parse(`${today}T00:00:00Z`) - rules.keepDays * 86_400_000).toISOString().slice(0, 10);
   for (const [phrase, days] of Object.entries(state || {})) {
+    if (!keepsPhrase(phrase)) continue;
     const kept = Object.fromEntries(Object.entries(days || {}).filter(([d]) => d >= oldest));
     if (Object.keys(kept).length) out[phrase] = kept;
   }
@@ -92,10 +102,15 @@ export function mergeHauls(state = {}, videos = [], today, { rules = HAULS } = {
 const channelsIn = (days, from, to) => new Set(Object.entries(days || {}).filter(([d]) => d > from && d <= to).flatMap(([, ch]) => ch));
 
 /** The phrases that more channels started to show: this week's channels against the week before. */
-export function haulRisers(state = {}, today, { concepts = [], rules = HAULS } = {}) {
+export function haulRisers(state = {}, today, { concepts = [], vocab = null, rules = HAULS } = {}) {
   const day = (n) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+  // The year's listing vocabulary (shopSignal.productVocab of the fresh pool's titles): when it is
+  // big enough to judge, a phrase names a product only when its last word is one of its words.
+  const words = vocab instanceof Set && vocab.size >= 50 ? vocab : null;
   const rows = [];
   for (const [phrase, days] of Object.entries(state || {})) {
+    if (!keepsPhrase(phrase)) continue;
+    if (words && !words.has(phrase.split(" ").at(-1))) continue;
     const now = channelsIn(days, day(7), today);
     if (now.size < rules.minChannels) continue;
     const before = channelsIn(days, day(14), day(7));
