@@ -1,0 +1,49 @@
+name: Radar watchdog
+
+# The morning reading (trend-radar.yml) runs on a schedule at 05:37 UTC, and GitHub drops scheduled
+# runs under load (28.11: no scheduled run that morning; it was started by hand). This watchdog asks
+# GitHub's own run list whether today's reading ran on main (a scheduled or hand-started run, in
+# progress or successful) and, if none did, starts it once. A failed morning run is started again
+# too. Events made with GITHUB_TOKEN start no workflow, except workflow_dispatch, which is what it
+# uses. A push or a dry-run dispatch only prints what it would do.
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only print what it would do"
+        type: boolean
+        default: true
+  push:
+    branches: ["claude/**"]
+    paths: [".github/workflows/radar-watchdog.yml"]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: radar-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Did today's reading run?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY: ${{ github.event_name != 'schedule' && (github.event_name != 'workflow_dispatch' || inputs.dry_run) }}
+        run: |
+          set -euo pipefail
+          today=$(date -u +%Y-%m-%d)
+          runs=$(gh api "repos/$REPO/actions/workflows/trend-radar.yml/runs?branch=main&created=%3E%3D${today}&per_page=100" \
+            --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch") | select(.status != "completed" or .conclusion == "success")] | length')
+          echo "today's ($today) scheduled or hand-started readings on main, running or successful: $runs"
+          if [ "$runs" -gt 0 ]; then echo "the reading ran: nothing to do"; exit 0; fi
+          if [ "$DRY" = "true" ]; then echo "dry run: would start today's reading on main"; exit 0; fi
+          gh workflow run trend-radar.yml --ref main -R "$REPO"
+          echo "started today's reading on main (no scheduled or hand-started run today)"
