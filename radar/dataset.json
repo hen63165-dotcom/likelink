@@ -1,0 +1,303 @@
+{
+ "v": 1,
+ "at": "2026-11-28T08:36:18.239Z",
+ "name": "LikeLink2 trend radar — the sealed ledger",
+ "sealed": {
+  "since": "2026-11-20",
+  "days": 9,
+  "inBitcoin": 8,
+  "pending": 1,
+  "latest": {
+   "d": "2026-11-27",
+   "height": 977779,
+   "block": "00000000000000000000734d55044b00deccbfd2d0db6e23fdaf94029197909d"
+  }
+ },
+ "today": {
+  "d": "2026-11-28",
+  "root": "8eae3126c5769f5410665f4826b1e4c852aa04ad9c6d289c98be5b26397742d9",
+  "books": 11,
+  "records": 819,
+  "perBook": [
+   {
+    "book": "stages",
+    "records": 3
+   },
+   {
+    "book": "luck",
+    "records": 10
+   },
+   {
+    "book": "baseline",
+    "records": 54
+   },
+   {
+    "book": "versus",
+    "records": 14
+   },
+   {
+    "book": "fresh",
+    "records": 6
+   },
+   {
+    "book": "noise",
+    "records": 1
+   },
+   {
+    "book": "supply",
+    "records": 132
+   },
+   {
+    "book": "brain",
+    "records": 12
+   },
+   {
+    "book": "promise",
+    "records": 450
+   },
+   {
+    "book": "window",
+    "records": 104
+   },
+   {
+    "book": "run",
+    "records": 33
+   }
+  ]
+ },
+ "prices": {
+  "items": 67887,
+  "since": "2026-11-16",
+  "sealedDays": 13,
+  "tally": {
+   "d": "2026-11-28",
+   "sales": 766,
+   "real": 390,
+   "raised": 171,
+   "dropped": 205
+  }
+ },
+ "proven": {
+  "h": 3,
+  "level": 90,
+  "n": 776,
+  "held": 705,
+  "rate": 90.9
+ },
+ "record": {
+  "day": "2026-11-28",
+  "rows": [
+   {
+    "id": "early",
+    "name": "Before-everyone calls",
+    "said": 0,
+    "graded": 0,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": false
+   },
+   {
+    "id": "stages",
+    "name": "Rising calls",
+    "said": 3,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-05",
+    "sealedToday": true
+   },
+   {
+    "id": "luck",
+    "name": "The radar vs luck",
+    "said": 10,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-03",
+    "sealedToday": true
+   },
+   {
+    "id": "baseline",
+    "name": "The radar vs the simple ranking",
+    "said": 54,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-04",
+    "sealedToday": true
+   },
+   {
+    "id": "versus",
+    "name": "The sealed head-to-head",
+    "said": 3,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-11-29",
+    "sealedToday": true
+   },
+   {
+    "id": "takeoff",
+    "name": "The takeoff",
+    "said": 2,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-04",
+    "sealedToday": true
+   },
+   {
+    "id": "fresh",
+    "name": "New products",
+    "said": 6,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-04",
+    "sealedToday": true
+   },
+   {
+    "id": "kinds",
+    "name": "New kinds",
+    "said": 0,
+    "graded": 0,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": false
+   },
+   {
+    "id": "prelaunch",
+    "name": "Before the first sale",
+    "said": 0,
+    "graded": 0,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": false
+   },
+   {
+    "id": "noise",
+    "name": "Before the noise",
+    "said": 0,
+    "graded": 0,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": true
+   },
+   {
+    "id": "supply",
+    "name": "Room to make it",
+    "said": 14,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-10",
+    "sealedToday": true
+   },
+   {
+    "id": "brain",
+    "name": "The brain",
+    "said": null,
+    "graded": 0,
+    "result": null,
+    "nextGrading": "2026-12-05",
+    "sealedToday": true
+   },
+   {
+    "id": "promise",
+    "name": "The proven range and calibrated chance",
+    "said": 4335,
+    "graded": 1115,
+    "result": {
+     "kind": "held",
+     "held": 992,
+     "of": 1115,
+     "rate": 89,
+     "level": 90,
+     "brier": 0.038
+    },
+    "nextGrading": "2026-11-29",
+    "sealedToday": true
+   },
+   {
+    "id": "window",
+    "name": "The window clock",
+    "said": 602,
+    "graded": 236,
+    "result": {
+     "kind": "brier",
+     "brier": 0.012,
+     "of": 236,
+     "closed": 3
+    },
+    "nextGrading": "2026-11-29",
+    "sealedToday": true
+   },
+   {
+    "id": "globe",
+    "name": "The next country",
+    "said": 0,
+    "graded": 0,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": false
+   },
+   {
+    "id": "prices",
+    "name": "Store prices",
+    "said": null,
+    "graded": null,
+    "result": null,
+    "nextGrading": null,
+    "sealedToday": true
+   }
+  ]
+ },
+ "use": {
+  "he": "חופשי לקרוא ולבדוק. כל שימוש אחר, כולל חיבור לפלטפורמה, בתיאום עם בעלת האתר.",
+  "en": "Free to read and verify. Any other use, including connecting it to a platform, by agreement with the site's owner (see LICENSE)."
+ },
+ "files": [
+  {
+   "id": "board",
+   "url": "https://likelink2.vercel.app/radar/board.json",
+   "format": "application/json",
+   "every": "daily",
+   "what": "The daily board: the calls, the record, the day's sealed books and the .ots proofs"
+  },
+  {
+   "id": "feed",
+   "url": "https://likelink2.vercel.app/radar/feed.xml",
+   "format": "application/atom+xml",
+   "every": "daily",
+   "what": "Every sealed call in an Atom feed, with its sealed day and grading day"
+  },
+  {
+   "id": "evidence",
+   "url": "https://hen63165-dotcom.github.io/likelink/radar/evidence.json",
+   "format": "application/json",
+   "every": "daily",
+   "what": "The evidence: the store's daily order counts behind every call, and its grade"
+  },
+  {
+   "id": "backtest",
+   "url": "https://hen63165-dotcom.github.io/likelink/radar/backtest.json",
+   "format": "application/json",
+   "every": "daily",
+   "what": "The backtest: every case, to recompute the radar against the simple ranking and chance"
+  },
+  {
+   "id": "prices",
+   "url": "https://hen63165-dotcom.github.io/likelink/radar/prices/index.json",
+   "format": "application/json",
+   "every": "daily",
+   "what": "The price ledger: the store's daily price of every item the radar read, and each day's seal (per item in prices/00.json to 99.json, each day's sealed text in prices/days/<day>.txt)"
+  },
+  {
+   "id": "dataset",
+   "url": "https://likelink2.vercel.app/radar/dataset.json",
+   "format": "application/json",
+   "every": "daily",
+   "what": "The pool's card: what it holds and where"
+  },
+  {
+   "id": "llms",
+   "url": "https://likelink2.vercel.app/llms.txt",
+   "format": "text/plain",
+   "every": "on change",
+   "what": "The description for AI engines"
+  }
+ ]
+}
