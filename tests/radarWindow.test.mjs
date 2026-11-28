@@ -168,3 +168,20 @@ test("the run reads, grades, issues and seals the clock; the page shows it in th
   assert.match(readFileSync("src/lib/growth/radarCore.js", "utf8"), /add\("window", "שעון החלון"/);
   assert.match(readFileSync("src/lib/growth/radarCore.js", "utf8"), /id: "window", book: "window", tab: "proof", section: "window"/, "#window opens the proof tab (radarCore.js)");
 });
+
+test("proof before display (28.11): the window clock says a horizon's chance on a card only once its graded record beats the base rate", () => {
+  const today = "2026-11-20";
+  const series = { ...seriesOf({ readings: readingsOf() }), "p:old+one": [[day(today, -6), 700], [today, 900]] };
+  const calib = calibrateWindow(series, today);
+  assert.equal(cardWindow(series, "p:old+one", today, calib).h, 14, "without the record: the old rule");
+  const record = [{ h: 3, n: 236, skill: 4.7 }, { h: 7, n: 0, skill: null }, { h: 14, n: 0, skill: null }];
+  const proven = cardWindow(series, "p:old+one", today, calib, { record });
+  assert.equal(proven.state, "READY");
+  assert.equal(proven.h, 3, "only the horizon whose record proves itself");
+  assert.deepEqual(proven.rec, { n: 236, skill: 4.7 });
+  const waiting = cardWindow(series, "p:old+one", today, calib, { record: [{ h: 3, n: 236, skill: -1 }] });
+  assert.equal(waiting.state, "PROVING", "ready to speak, still waiting for its proof");
+  const clean = sanitizeBoard({ v: 2, at: "2026-11-20T06:00:00Z", record: {}, concepts: [], fresh: { risers: [{ id: "1005013201890326", title: "Wide-leg pants", image: "https://ae-pic-a1.aliexpress-media.com/kf/S1.jpg", buy: "https://s.click.aliexpress.com/e/_oAbCdEf", orders: 156, weekPct: 208, known: { phrase: "wide leg", similar: 1483 }, window: proven }, { id: "1005013201890327", title: "Wide-leg pants 2", image: "https://ae-pic-a1.aliexpress-media.com/kf/S2.jpg", buy: "https://s.click.aliexpress.com/e/_oAbCdEg", orders: 150, weekPct: 200, known: { phrase: "wide leg", similar: 1483 }, window: waiting }] } });
+  assert.deepEqual(clean.fresh.risers[0].window.rec, { n: 236, skill: 4.7 });
+  assert.equal(clean.fresh.risers[1].window.state, "PROVING");
+});

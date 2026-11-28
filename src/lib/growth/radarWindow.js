@@ -18,7 +18,7 @@
 //   4. Every chance is sealed (the book "window" in the daily root) and graded on its day like a
 //      weather forecast: Brier score, base rate, skill and the reliability table, never edited.
 // Pure: the runner reads the store and seals; this file only does the arithmetic.
-import { bandOf, calibrate, examples, featuresAt, predict, targetAt, xOf } from "./radarPromise.js";
+import { bandOf, calibrate, examples, featuresAt, predict, provenSkillOf, targetAt, xOf } from "./radarPromise.js";
 
 export const WINDOW = Object.freeze({
   version: 1,
@@ -244,14 +244,22 @@ export function windowBoard(state, calib, issued, today, { rules = WINDOW } = {}
  * the longest ready horizon. MEASURING until the phrase has two readings 3+ days apart (`since`: its
  * first reading); CLOSED when today's count is already at or above the line.
  */
-export function cardWindow(series, key, today, calib, { rules = WINDOW } = {}) {
+export function cardWindow(series, key, today, calib, { rules = WINDOW, record } = {}) {
   const rs = (Array.isArray(series?.[key]) ? series[key] : []).filter((r) => Array.isArray(r) && isDay(r[0]) && Number.isFinite(r[1]));
   const now = rs.find((r) => r[0] === today);
   if (!now) return null;
   if (now[1] >= rules.line) return { state: "CLOSED", o: now[1], line: rules.line };
+  // Proof before display (28.11, radarPromise.PROVEN): with the clock's own record (the run always
+  // passes it), only a horizon whose graded chances beat the base rate is said on a card.
+  const proven = record === undefined ? null : Object.fromEntries((Array.isArray(record) ? record : []).map((r) => [r.h, provenSkillOf(r)]));
+  let ready = false;
   for (const h of [...rules.horizons].sort((a, b) => b - a)) {
     const c = closeChance(rs, today, calib?.[h], { rules });
-    if (c) return { state: "READY", h, o: c.o, line: rules.line, p: c.p, weekPct: c.weekPct };
+    if (!c) continue;
+    ready = true;
+    if (proven && !proven[h]) continue;
+    return { state: "READY", h, o: c.o, line: rules.line, p: c.p, weekPct: c.weekPct, ...(proven ? { rec: proven[h] } : {}) };
   }
+  if (ready) return { state: "PROVING", o: now[1], line: rules.line, since: rs[0][0] };
   return { state: "MEASURING", o: now[1], line: rules.line, since: rs[0][0] };
 }
