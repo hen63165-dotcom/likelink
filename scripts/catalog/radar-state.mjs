@@ -9,7 +9,7 @@
 // Unreachable server → locked (never leak). Usage:
 //   node scripts/catalog/radar-state.mjs pack <dir>     → <dir>/state.enc + the public files
 //   node scripts/catalog/radar-state.mjs unpack <dir>   ← <dir>/state.enc (no file: nothing to do)
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { teaserBoard } from "../../src/lib/growth/radarGate.js";
@@ -18,6 +18,14 @@ import { evidenceOf } from "../../src/lib/growth/radarEvidence.js";
 export const STATE_FILE = "state.enc";
 export const PUBLIC_FILES = ["board-public.json", "briefs-public.json", "prices-public.json", "evidence-public.json", "backtest-public.json"];
 const MAGIC = "LLRS1";
+// LLRS2 (28.11, the owner: "not even the cleverest hacker in the world"): state.enc sits on a public
+// release, so anyone can try guesses of its secret offline. LLRS1's key is one SHA-256 away from the
+// guess (a GPU tries billions a second); LLRS2 puts a memory-hard scrypt (64 MiB per guess, a random
+// salt in the file) between them, so every guess costs a fresh 64 MiB of memory. Old LLRS1 files
+// still open; every pack writes LLRS2.
+const MAGIC2 = "LLRS2";
+export const KDF = Object.freeze({ N: 2 ** 16, r: 8, p: 1, saltBytes: 16, maxmem: 160 * 1024 * 1024 });
+const strongKey = (key, salt) => scryptSync(key, salt, 32, { N: KDF.N, r: KDF.r, p: KDF.p, maxmem: KDF.maxmem });
 export const PROBE = "https://vjitiuirqfysexsxdxqx.supabase.co/functions/v1/api/store?mode=radar-board";
 
 export function stateKey(secret) {
@@ -56,7 +64,18 @@ export function seal(files, key) {
   return Buffer.concat([Buffer.from(MAGIC), iv, c.getAuthTag(), body]);
 }
 
+/** LLRS2: the same AES-256-GCM, its key stretched by scrypt with a random salt kept in the file. */
+export function sealStrong(files, key) {
+  const salt = randomBytes(KDF.saltBytes);
+  const inner = seal(files, strongKey(key, salt));
+  return Buffer.concat([Buffer.from(MAGIC2), salt, inner.subarray(MAGIC.length)]);
+}
+
 export function open(buf, key) {
+  if (buf.subarray(0, MAGIC2.length).toString() === MAGIC2) {
+    const salt = buf.subarray(MAGIC2.length, MAGIC2.length + KDF.saltBytes);
+    return open(Buffer.concat([Buffer.from(MAGIC), buf.subarray(MAGIC2.length + KDF.saltBytes)]), strongKey(key, salt));
+  }
   if (buf.subarray(0, MAGIC.length).toString() !== MAGIC) throw new Error("not a radar state file");
   const iv = buf.subarray(MAGIC.length, MAGIC.length + 12);
   const tag = buf.subarray(MAGIC.length + 12, MAGIC.length + 28);
@@ -79,7 +98,7 @@ export async function pack(dir, { env = process.env, fetchImpl = globalThis.fetc
   const { key, id: keyId } = stateKeys(env)[0];
   const names = readdirSync(dir).filter((f) => f.endsWith(".json") && !PUBLIC_FILES.includes(f));
   const files = Object.fromEntries(names.map((f) => [f, readFileSync(join(dir, f), "utf8")]));
-  const enc = seal(files, key);
+  const enc = sealStrong(files, key);
   // Round trip before anything public changes: the archive must open to the same files.
   const back = open(enc, key);
   if (Object.keys(back).length !== names.length || names.some((f) => back[f] !== files[f])) throw new Error("state round trip failed");
