@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { open, pack, seal, stateKey, unpack } from "../scripts/catalog/radar-state.mjs";
+import { KDF, open, pack, seal, sealStrong, stateKey, unpack } from "../scripts/catalog/radar-state.mjs";
 
 const env = { AUTOPILOT_SECRET: "test-secret-that-is-long-enough" };
 const board = { v: 1, at: "2026-12-05T05:37:00Z", record: {}, concepts: [{ id: "tofu-squishy", he: "סקווישי טופו" }], early: { need: 4, record: {}, ledger: [{ concept: "tofu-squishy", at: "2026-12-05", due: "2026-12-19" }], seal: { d: "2026-12-05", sha256: "b".repeat(64), count: 1, text: "tofu-squishy|2026-12-05|demand", ots: [] } } };
@@ -48,4 +48,21 @@ test("open trial: the public board is the full one and the kits are public", asy
   assert.equal(out.open, true);
   assert.match(readFileSync(join(dir, "board-public.json"), "utf8"), /tofu/);
   assert.equal(existsSync(join(dir, "briefs-public.json")), true);
+});
+
+test("LLRS2: every pack is stretched by scrypt with its own salt; an old LLRS1 file still opens", async () => {
+  const key = stateKey(env.AUTOPILOT_SECRET);
+  const a = sealStrong({ "calls.json": "[1]" }, key);
+  const b = sealStrong({ "calls.json": "[1]" }, key);
+  assert.equal(a.subarray(0, 5).toString(), "LLRS2");
+  assert.notDeepEqual(a.subarray(5, 21), b.subarray(5, 21), "a fresh salt every time");
+  assert.deepEqual(open(a, key), { "calls.json": "[1]" });
+  assert.throws(() => open(a, stateKey("another-secret-long-enough")));
+  assert.throws(() => open(Buffer.concat([Buffer.from("LLRS1"), a.subarray(21)]), key), "the stretched key is never the plain one");
+  assert.deepEqual(open(seal({ "calls.json": "[2]" }, key), key), { "calls.json": "[2]" }, "LLRS1 still opens");
+  assert.equal(KDF.N * KDF.r * 128 >= 64 * 1024 * 1024, true, "64 MiB of memory per guess");
+  const dir = stateDir();
+  await pack(dir, { env, fetchImpl: async () => ({ status: 402 }) });
+  assert.equal(readFileSync(join(dir, "state.enc")).subarray(0, 5).toString(), "LLRS2", "pack writes the strong format");
+  assert.equal(unpack(dir, { env }).files, 3);
 });
